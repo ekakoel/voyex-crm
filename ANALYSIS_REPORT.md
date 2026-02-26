@@ -43,7 +43,7 @@ Aplikasi memiliki **20 tabel utama** dengan relasi yang terstruktur:
 | `inquiry_followups` | Follow-up dari inquiry |
 | `inquiry_communications` | Riwayat komunikasi inquiry |
 | `quotation_templates` | Template quotation |
-| `sales_targets` | Target penjualan sales |
+...existing code...
 | `promotions` | Promo dan diskon |
 | `modules` | Module management untuk permissions |
 
@@ -125,7 +125,7 @@ Semua 20 migrations berhasil dijalankan:
 ✓ 2026_02_11_063314_create_inquiries_table [1] Ran
 ✓ 2026_02_11_063428_create_quotations_table [1] Ran
 ✓ 2026_02_11_073530_create_bookings_table [1] Ran
-✓ 2026_02_11_073735_create_sales_targets_table [1] Ran
+...existing code...
 ✓ 2026_02_12_000001_create_modules_table [1] Ran
 ✓ 2026_02_12_000002_create_inquiry_followups_table [1] Ran
 ✓ 2026_02_12_000003_create_inquiry_communications_table [1] Ran

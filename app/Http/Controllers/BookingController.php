@@ -4,12 +4,17 @@ namespace App\Http\Controllers;
 
 use App\Models\Booking;
 use App\Models\Quotation;
+use App\Services\InvoiceService;
 use App\Http\Requests\StoreBookingRequest;
 use App\Http\Requests\UpdateBookingRequest;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class BookingController extends Controller
 {
+    public function __construct(private readonly InvoiceService $invoiceService)
+    {
+    }
+
     /**
      * Display a listing of the resource.
      */
@@ -39,7 +44,7 @@ class BookingController extends Controller
         $bookings = $query->latest()->paginate($perPage)->withQueryString();
         $quotations = Quotation::query()->with('inquiry.customer')->orderBy('created_at', 'desc')->get();
 
-        return view('operations.bookings.index', compact('bookings', 'quotations'));
+        return view('modules.bookings.index', compact('bookings', 'quotations'));
     }
 
     /**
@@ -53,7 +58,7 @@ class BookingController extends Controller
             ->orderBy('created_at', 'desc')
             ->get();
 
-        return view('operations.bookings.create', compact('quotations'));
+        return view('modules.bookings.create', compact('quotations'));
     }
 
     /**
@@ -64,10 +69,11 @@ class BookingController extends Controller
         $validated = $request->validated();
         $validated['booking_number'] = $this->generateBookingNumber();
 
-        Booking::query()->create($validated);
+        $booking = Booking::query()->create($validated);
+        $this->invoiceService->generateForBooking($booking);
 
         return redirect()
-            ->route('operations.bookings.index')
+            ->route('bookings.index')
             ->with('success', 'Booking created successfully.');
     }
 
@@ -78,7 +84,7 @@ class BookingController extends Controller
     {
         $booking->load(['quotation.inquiry.customer']);
 
-        return view('operations.bookings.show', compact('booking'));
+        return view('modules.bookings.show', compact('booking'));
     }
 
     /**
@@ -95,7 +101,7 @@ class BookingController extends Controller
             ->orderBy('created_at', 'desc')
             ->get();
 
-        return view('operations.bookings.edit', compact('booking', 'quotations'));
+        return view('modules.bookings.edit', compact('booking', 'quotations'));
     }
 
     /**
@@ -105,9 +111,10 @@ class BookingController extends Controller
     {
         $validated = $request->validated();
         $booking->update($validated);
+        $this->invoiceService->generateForBooking($booking);
 
         return redirect()
-            ->route('operations.bookings.index')
+            ->route('bookings.index')
             ->with('success', 'Booking updated successfully.');
     }
 
@@ -119,7 +126,7 @@ class BookingController extends Controller
         $booking->delete();
 
         return redirect()
-            ->route('operations.bookings.index')
+            ->route('bookings.index')
             ->with('success', 'Booking deleted successfully.');
     }
 
@@ -181,3 +188,6 @@ class BookingController extends Controller
         return $number;
     }
 }
+
+
+

@@ -32,60 +32,44 @@ class RolePermissionSeeder extends Seeder
 
         $defaults = [
             'Admin' => $allPermissions,
+            'Super Admin' => $allPermissions,
             'Sales Manager' => [
-                'module.sales_dashboard.access',
+                'dashboard.sales.view',
                 'module.customer_management.access',
                 'module.inquiries.access',
                 'module.quotations.access',
                 'module.bookings.access',
-                'module.sales_target.access',
                 'module.vendor_management.access',
-                'module.services.access',
-                'module.services_accommodations.access',
-                'module.services_transports.access',
-                'module.services_guides.access',
-                'module.services_attractions.access',
-                'module.services_travel_activities.access',
-                'module.promotions.access',
+                'module.activities.access',
             ],
             'Sales Agent' => [
-                'module.sales_dashboard.access',
+                'dashboard.sales.view',
                 'module.customer_management.access',
                 'module.inquiries.access',
                 'module.quotations.access',
                 'module.vendor_management.access',
-                'module.services.access',
-                'module.services_accommodations.access',
-                'module.services_transports.access',
-                'module.services_guides.access',
-                'module.services_attractions.access',
-                'module.services_travel_activities.access',
+                'module.activities.access',
             ],
             'Director' => [
-                'module.director_dashboard.access',
-                'module.sales_dashboard.access',
+                'dashboard.director.view',
+                'dashboard.sales.view',
                 'module.customer_management.access',
                 'module.inquiries.access',
                 'module.quotations.access',
                 'module.bookings.access',
-                'module.sales_target.access',
-                'module.finance_dashboard.access',
-                'module.promotions.access',
+                'module.invoices.access',
+                'dashboard.finance.view',
             ],
             'Finance' => [
-                'module.finance_dashboard.access',
+                'dashboard.finance.view',
                 'module.bookings.access',
+                'module.invoices.access',
             ],
             'Operations' => [
-                'module.operations_dashboard.access',
+                'dashboard.operations.view',
                 'module.bookings.access',
                 'module.vendor_management.access',
-                'module.services.access',
-                'module.services_accommodations.access',
-                'module.services_transports.access',
-                'module.services_guides.access',
-                'module.services_attractions.access',
-                'module.services_travel_activities.access',
+                'module.activities.access',
             ],
         ];
 
@@ -95,7 +79,7 @@ class RolePermissionSeeder extends Seeder
                 continue;
             }
 
-            if ($roleName === 'Admin') {
+            if ($roleName === 'Admin' || $roleName === 'Super Admin') {
                 $role->syncPermissions($permissionNames);
                 continue;
             }

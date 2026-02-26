@@ -8,7 +8,11 @@ use Database\Seeders\ModuleSeeder;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
 use Database\Seeders\RolePermissionSeeder;
+use Database\Seeders\TouristAttractionSeeder;
+use Database\Seeders\InquirySeeder;
+use Database\Seeders\CustomerSeeder;
 use Database\Seeders\UserSeeder;
+use Database\Seeders\VendorActivitySeeder;
 
 class DatabaseSeeder extends Seeder
 {
@@ -22,11 +26,9 @@ class DatabaseSeeder extends Seeder
         $this->call(PermissionSeeder::class);
         $this->call(RolePermissionSeeder::class);
         $this->call(UserSeeder::class);
-        // \App\Models\User::factory(10)->create();
-
-        // \App\Models\User::factory()->create([
-        //     'name' => 'Test User',
-        //     'email' => 'test@example.com',
-        // ]);
+        $this->call(CustomerSeeder::class);
+        $this->call(InquirySeeder::class);
+        $this->call(TouristAttractionSeeder::class);
+        $this->call(VendorActivitySeeder::class);
     }
 }

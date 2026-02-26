@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Sales;
 use App\Http\Controllers\Controller;
 use App\Models\Booking;
 use App\Models\Inquiry;
-use App\Models\SalesTarget;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
@@ -46,17 +45,6 @@ class DashboardController extends Controller
             ? round(($totalBooking / $totalInquiry) * 100, 2)
             : 0;
 
-        // 3. Target vs Achievement (sales target applies to the whole team)
-        $target = SalesTarget::where('year', $now->year)
-            ->where('month', $now->month)
-            ->first();
-
-        $targetAmount = $target->target_amount ?? 0;
-
-        $achievement = $targetAmount > 0
-            ? round(($monthlyRevenue / $targetAmount) * 100, 2)
-            : 0;
-
         // 4. Inquiries that need follow-up (status 'new' or 'follow_up')
         $pendingInquiries = Inquiry::with('customer')
             ->whereIn('status', ['new', 'follow_up'])
@@ -69,8 +57,6 @@ class DashboardController extends Controller
             'user',
             'monthlyRevenue',
             'conversionRate',
-            'targetAmount',
-            'achievement',
             'pendingInquiries'
         ));
     }

@@ -21,14 +21,14 @@ class RoleController extends Controller
             ->orderBy('name')
             ->get();
 
-        return view('admin.roles.index', compact('roles'));
+        return view('modules.roles.index', compact('roles'));
     }
 
     public function create(): View
     {
         [$modulePermissions, $otherPermissions, $permissionLabels] = $this->getPermissionsGrouped();
 
-        return view('admin.roles.create', compact('modulePermissions', 'otherPermissions', 'permissionLabels'));
+        return view('modules.roles.create', compact('modulePermissions', 'otherPermissions', 'permissionLabels'));
     }
 
     public function store(Request $request): RedirectResponse
@@ -59,7 +59,7 @@ class RoleController extends Controller
         $role->syncPermissions($permissions);
 
         return redirect()
-            ->route('admin.roles.index')
+            ->route('roles.index')
             ->with('success', 'Role created successfully.');
     }
 
@@ -68,7 +68,7 @@ class RoleController extends Controller
         [$modulePermissions, $otherPermissions, $permissionLabels] = $this->getPermissionsGrouped();
         $selectedPermissions = $role->permissions->pluck('name')->all();
 
-        return view('admin.roles.edit', compact(
+        return view('modules.roles.edit', compact(
             'role',
             'modulePermissions',
             'otherPermissions',
@@ -104,7 +104,7 @@ class RoleController extends Controller
         $role->syncPermissions($permissions);
 
         return redirect()
-            ->route('admin.roles.index')
+            ->route('roles.index')
             ->with('success', 'Role updated successfully.');
     }
 
@@ -112,14 +112,14 @@ class RoleController extends Controller
     {
         if ($role->name === 'Admin') {
             return redirect()
-                ->route('admin.roles.index')
+                ->route('roles.index')
                 ->with('error', 'The Admin role cannot be deleted.');
         }
 
         $role->delete();
 
         return redirect()
-            ->route('admin.roles.index')
+            ->route('roles.index')
             ->with('success', 'Role deleted successfully.');
     }
 
@@ -160,3 +160,6 @@ class RoleController extends Controller
         return ucwords(trim($label));
     }
 }
+
+
+

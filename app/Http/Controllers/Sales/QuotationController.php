@@ -7,8 +7,7 @@ use App\Models\Inquiry;
 use App\Models\Quotation;
 use App\Models\QuotationItem;
 use App\Models\QuotationTemplate;
-use App\Models\Service;
-use App\Models\Promotion;
+use App\Services\InvoiceService;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use Illuminate\Validation\Rule;
@@ -16,6 +15,10 @@ use Illuminate\Support\Facades\DB;
 
 class QuotationController extends Controller
 {
+    public function __construct(private readonly InvoiceService $invoiceService)
+    {
+    }
+
     /**
      * Display a listing of the resource.
      */
@@ -47,7 +50,7 @@ class QuotationController extends Controller
         $quotations = $query->latest()->paginate($perPage)->withQueryString();
         $inquiries = Inquiry::query()->with('customer')->orderBy('created_at', 'desc')->get();
 
-        return view('sales.quotations.index', compact('quotations', 'inquiries'));
+        return view('modules.quotations.index', compact('quotations', 'inquiries'));
     }
 
     /**
@@ -61,10 +64,9 @@ class QuotationController extends Controller
             ->orderBy('created_at', 'desc')
             ->get();
 
-        $services = Service::query()->where('is_active', true)->orderBy('name')->get();
         $templates = QuotationTemplate::query()->where('is_active', true)->orderBy('name')->get();
 
-        return view('sales.quotations.create', compact('inquiries', 'services', 'templates'));
+        return view('modules.quotations.create', compact('inquiries', 'templates'));
     }
 
     /**
@@ -85,9 +87,7 @@ class QuotationController extends Controller
             'template_id' => ['nullable', 'exists:quotation_templates,id'],
             'discount_type' => ['nullable', Rule::in(['percent', 'fixed'])],
             'discount_value' => ['nullable', 'numeric', 'min:0'],
-            'promo_code' => ['nullable', 'string'],
             'items' => ['required', 'array', 'min:1'],
-            'items.*.service_id' => ['nullable', 'exists:services,id'],
             'items.*.description' => ['required', 'string', 'max:255'],
             'items.*.qty' => ['required', 'integer', 'min:1'],
             'items.*.unit_price' => ['required', 'numeric', 'min:0'],
@@ -100,7 +100,7 @@ class QuotationController extends Controller
 
         DB::beginTransaction();
         try {
-            $totals = $this->computeTotals($validated['items'], $validated['discount_type'] ?? null, (float) ($validated['discount_value'] ?? 0), $validated['promo_code'] ?? null);
+            $totals = $this->computeTotals($validated['items'], $validated['discount_type'] ?? null, (float) ($validated['discount_value'] ?? 0));
 
             $quotation = Quotation::query()->create([
                 'quotation_number' => $validated['quotation_number'],
@@ -111,8 +111,6 @@ class QuotationController extends Controller
                 'sub_total' => $totals['sub_total'],
                 'discount_type' => $validated['discount_type'] ?? null,
                 'discount_value' => (float) ($validated['discount_value'] ?? 0),
-                'promo_code' => $validated['promo_code'] ?? null,
-                'promo_discount' => $totals['promo_discount'],
                 'final_amount' => $totals['final_amount'],
                 'approval_status' => $totals['needs_approval'] ? 'submitted' : 'approved',
             ]);
@@ -128,7 +126,7 @@ class QuotationController extends Controller
         }
 
         return redirect()
-            ->route('sales.quotations.index')
+            ->route('quotations.index')
             ->with('success', 'Quotation created successfully.');
     }
 
@@ -137,7 +135,7 @@ class QuotationController extends Controller
      */
     public function show(string $id)
     {
-        return redirect()->route('sales.quotations.edit', $id);
+        return redirect()->route('quotations.edit', $id);
     }
 
 
@@ -156,11 +154,10 @@ class QuotationController extends Controller
             ->orderBy('created_at', 'desc')
             ->get();
 
-        $services = Service::query()->where('is_active', true)->orderBy('name')->get();
         $templates = QuotationTemplate::query()->where('is_active', true)->orderBy('name')->get();
         $quotation->load('items');
 
-        return view('sales.quotations.edit', compact('quotation', 'inquiries', 'services', 'templates'));
+        return view('modules.quotations.edit', compact('quotation', 'inquiries', 'templates'));
     }
 
     /**
@@ -187,9 +184,7 @@ class QuotationController extends Controller
             'template_id' => ['nullable', 'exists:quotation_templates,id'],
             'discount_type' => ['nullable', Rule::in(['percent', 'fixed'])],
             'discount_value' => ['nullable', 'numeric', 'min:0'],
-            'promo_code' => ['nullable', 'string'],
             'items' => ['required', 'array', 'min:1'],
-            'items.*.service_id' => ['nullable', 'exists:services,id'],
             'items.*.description' => ['required', 'string', 'max:255'],
             'items.*.qty' => ['required', 'integer', 'min:1'],
             'items.*.unit_price' => ['required', 'numeric', 'min:0'],
@@ -200,7 +195,7 @@ class QuotationController extends Controller
 
         DB::beginTransaction();
         try {
-            $totals = $this->computeTotals($validated['items'], $validated['discount_type'] ?? null, (float) ($validated['discount_value'] ?? 0), $validated['promo_code'] ?? null);
+            $totals = $this->computeTotals($validated['items'], $validated['discount_type'] ?? null, (float) ($validated['discount_value'] ?? 0));
 
             $quotation->update([
                 'inquiry_id' => $validated['inquiry_id'],
@@ -210,8 +205,6 @@ class QuotationController extends Controller
                 'sub_total' => $totals['sub_total'],
                 'discount_type' => $validated['discount_type'] ?? null,
                 'discount_value' => (float) ($validated['discount_value'] ?? 0),
-                'promo_code' => $validated['promo_code'] ?? null,
-                'promo_discount' => $totals['promo_discount'],
                 'final_amount' => $totals['final_amount'],
                 'approval_status' => $totals['needs_approval'] ? 'submitted' : 'approved',
             ]);
@@ -228,7 +221,7 @@ class QuotationController extends Controller
         }
 
         return redirect()
-            ->route('sales.quotations.index')
+            ->route('quotations.index')
             ->with('success', 'Quotation updated successfully.');
     }
 
@@ -241,13 +234,13 @@ class QuotationController extends Controller
         $quotation->delete();
 
         return redirect()
-            ->route('sales.quotations.index')
+            ->route('quotations.index')
             ->with('success', 'Quotation deleted successfully.');
     }
 
     public function generatePDF(Quotation $quotation)
     {
-        $quotation->load(['inquiry.customer', 'items.service', 'template']);
+        $quotation->load(['inquiry.customer', 'items', 'template']);
         $pdf = PDF::loadView('pdf.quotation', compact('quotation'));
         return $pdf->stream('quotation.pdf');
     }
@@ -321,8 +314,12 @@ class QuotationController extends Controller
             'approved_at' => now(),
         ]);
 
+        if ($quotation->booking) {
+            $this->invoiceService->generateForBooking($quotation->booking);
+        }
+
         return redirect()
-            ->route('sales.quotations.edit', $quotation)
+            ->route('quotations.edit', $quotation)
             ->with('success', 'Quotation approved.');
     }
 
@@ -335,11 +332,11 @@ class QuotationController extends Controller
         ]);
 
         return redirect()
-            ->route('sales.quotations.edit', $quotation)
+            ->route('quotations.edit', $quotation)
             ->with('success', 'Quotation rejected.');
     }
 
-    private function computeTotals(array $items, ?string $discountType, float $discountValue, ?string $promoCode): array
+    private function computeTotals(array $items, ?string $discountType, float $discountValue): array
     {
         $subTotal = 0;
         $normalizedItems = [];
@@ -352,7 +349,6 @@ class QuotationController extends Controller
             $subTotal += $total;
 
             $normalizedItems[] = [
-                'service_id' => $item['service_id'] ?? null,
                 'description' => $item['description'],
                 'qty' => $qty,
                 'unit_price' => $unitPrice,
@@ -368,44 +364,24 @@ class QuotationController extends Controller
             $discountAmount = $discountValue;
         }
 
-        $promoDiscount = 0;
-        if ($promoCode) {
-            $promo = Promotion::query()
-                ->where('code', $promoCode)
-                ->where('is_active', true)
-                ->where(function ($q) {
-                    $q->whereNull('start_date')->orWhere('start_date', '<=', now()->toDateString());
-                })
-                ->where(function ($q) {
-                    $q->whereNull('end_date')->orWhere('end_date', '>=', now()->toDateString());
-                })
-                ->first();
-
-            if ($promo) {
-                $promoDiscount = $promo->type === 'percent'
-                    ? $subTotal * ($promo->value / 100)
-                    : (float) $promo->value;
-            }
-        }
-
-        $finalAmount = max(0, $subTotal - $discountAmount - $promoDiscount);
+        $finalAmount = max(0, $subTotal - $discountAmount);
 
         return [
             'items' => $normalizedItems,
             'sub_total' => $subTotal,
-            'promo_discount' => $promoDiscount,
             'final_amount' => $finalAmount,
-            'needs_approval' => ($discountAmount > 0 || $promoDiscount > 0),
+            'needs_approval' => ($discountAmount > 0),
         ];
     }
 
     private function assertPricingPermission(array $validated): void
     {
         $hasDiscount = (float) ($validated['discount_value'] ?? 0) > 0;
-        $hasPromo = ! empty($validated['promo_code']);
-
-        if (($hasDiscount || $hasPromo) && ! auth()->user()->hasAnyRole(['Sales Manager', 'Director'])) {
-            abort(403, 'Only Sales Managers or Directors can apply discounts/promotions.');
+        if ($hasDiscount && ! auth()->user()->hasAnyRole(['Sales Manager', 'Director'])) {
+            abort(403, 'Only Sales Managers or Directors can apply discounts.');
         }
     }
 }
+
+
+

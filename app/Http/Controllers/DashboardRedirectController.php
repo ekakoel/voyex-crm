@@ -22,26 +22,31 @@ class DashboardRedirectController extends Controller
         $user = Auth::user();
 
         // Role priority when a user has more than one role.
+        if ($user->hasRole('Super Admin')) {
+            return redirect()->route('superadmin.dashboard');
+        }
+
         if ($user->hasRole('Admin')) {
-            return redirect()->route('admin.dashboard');
+            return redirect()->route('dashboard.admin');
         }
 
         if ($user->hasRole('Director')) {
-            return redirect()->route('director.dashboard');
+            return redirect()->route('dashboard.director');
         }
 
         if ($user->hasRole('Finance')) {
-            return redirect()->route('finance.dashboard');
+            return redirect()->route('dashboard.finance');
         }
 
         if ($user->hasRole('Operations')) {
-            return redirect()->route('operations.dashboard');
+            return redirect()->route('dashboard.operations');
         }
 
         if ($user->hasAnyRole(['Sales Manager', 'Sales Agent'])) {
-            return redirect()->route('sales.dashboard');
+            return redirect()->route('dashboard.sales');
         }
 
         abort(403, 'This role has no dashboard.');
     }
 }
+

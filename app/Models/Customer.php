@@ -16,6 +16,7 @@ class Customer extends Model
         'email',
         'phone',
         'address',
+        'country',
         'customer_type',
         'created_by'
     ];

@@ -1,0 +1,97 @@
+<?php
+
+namespace App\Http\Controllers\Admin;
+
+use App\Http\Controllers\Controller;
+use App\Models\Activity;
+use App\Models\Vendor;
+use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
+
+class ActivityController extends Controller
+{
+    public function index(Request $request)
+    {
+        $query = Activity::query()->with('vendor:id,name')->latest('id');
+
+        if ($request->filled('vendor_id')) {
+            $query->where('vendor_id', (int) $request->integer('vendor_id'));
+        }
+
+        if ($request->filled('activity_type')) {
+            $query->where('activity_type', (string) $request->string('activity_type'));
+        }
+
+        $activities = $query->paginate(10)->withQueryString();
+        $vendors = Vendor::query()->orderBy('name')->get(['id', 'name', 'city', 'province']);
+        $types = Activity::query()->select('activity_type')->distinct()->orderBy('activity_type')->pluck('activity_type');
+
+        return view('modules.activities.index', compact('activities', 'vendors', 'types'));
+    }
+
+    public function create()
+    {
+        $vendors = Vendor::query()->where('is_active', true)->orderBy('name')->get(['id', 'name', 'city', 'province']);
+
+        return view('modules.activities.create', compact('vendors'));
+    }
+
+    public function store(Request $request)
+    {
+        $validated = $this->validatePayload($request);
+        Activity::query()->create($validated);
+
+        return redirect()->route('activities.index')->with('success', 'Activity created successfully.');
+    }
+
+    public function edit(Activity $activity)
+    {
+        $vendors = Vendor::query()->where('is_active', true)->orderBy('name')->get(['id', 'name', 'city', 'province']);
+
+        return view('modules.activities.edit', compact('activity', 'vendors'));
+    }
+
+    public function update(Request $request, Activity $activity)
+    {
+        $validated = $this->validatePayload($request);
+        $activity->update($validated);
+
+        return redirect()->route('activities.index')->with('success', 'Activity updated successfully.');
+    }
+
+    public function destroy(Activity $activity)
+    {
+        $activity->delete();
+
+        return redirect()->route('activities.index')->with('success', 'Activity deleted successfully.');
+    }
+
+    private function validatePayload(Request $request): array
+    {
+        $validated = $request->validate([
+            'vendor_id' => ['required', 'integer', Rule::exists('vendors', 'id')],
+            'name' => ['required', 'string', 'max:255'],
+            'activity_type' => ['required', 'string', 'max:100'],
+            'duration_minutes' => ['required', 'integer', 'min:15', 'max:1440'],
+            'benefits' => ['nullable', 'string'],
+            'contract_price' => ['nullable', 'numeric', 'min:0'],
+            'agent_price' => ['nullable', 'numeric', 'min:0'],
+            'currency' => ['required', 'string', 'size:3'],
+            'capacity_min' => ['nullable', 'integer', 'min:1'],
+            'capacity_max' => ['nullable', 'integer', 'min:1', 'gte:capacity_min'],
+            'includes' => ['nullable', 'string'],
+            'excludes' => ['nullable', 'string'],
+            'cancellation_policy' => ['nullable', 'string'],
+            'notes' => ['nullable', 'string'],
+            'is_active' => ['nullable', 'boolean'],
+        ]);
+
+        $validated['currency'] = strtoupper($validated['currency']);
+        $validated['is_active'] = $request->boolean('is_active');
+
+        return $validated;
+    }
+}
+
+
+

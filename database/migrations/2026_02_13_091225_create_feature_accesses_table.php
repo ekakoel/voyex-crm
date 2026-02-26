@@ -13,11 +13,11 @@ return new class extends Migration
     {
         Schema::create('feature_accesses', function (Blueprint $table) {
             $table->id();
-            $title->string('title');
-            $title->string('route');
-            $title->string('icon');
-            $title->string('module');
-            $title->string('roles');
+            $table->string('title');
+            $table->string('route');
+            $table->string('icon');
+            $table->string('module');
+            $table->string('roles');
             $table->foreignId('parent_id')
                 ->nullable()
                 ->constrained('feature_accesses')

@@ -22,7 +22,7 @@
         </div>
     </div>
 
-    <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
         <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-md border border-gray-200 dark:border-gray-700">
             <p class="text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Monthly Revenue</p>
             <p class="text-3xl font-bold text-primary mt-2">Rp {{ number_format($monthlyRevenue, 0) }}</p>
@@ -30,16 +30,6 @@
         <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-md border border-gray-200 dark:border-gray-700">
             <p class="text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Conversion Rate</p>
             <p class="text-3xl font-bold text-green-600 dark:text-green-400 mt-2">{{ number_format($conversionRate, 2) }}%</p>
-        </div>
-        <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-md border border-gray-200 dark:border-gray-700 col-span-1 sm:col-span-2">
-            <p class="text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Target Achievement</p>
-            <div class="flex justify-between items-center mt-2">
-                <span class="text-3xl font-bold text-amber-600 dark:text-amber-400">{{ number_format($achievement, 2) }}%</span>
-                <span class="text-sm text-gray-500 dark:text-gray-400">Target: Rp {{ number_format($targetAmount, 0) }}</span>
-            </div>
-            <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5 mt-3">
-                <div class="bg-amber-500 h-2.5 rounded-full" style="width: {{ min(100, $achievement) }}%"></div>
-            </div>
         </div>
     </div>
 

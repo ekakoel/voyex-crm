@@ -25,7 +25,7 @@
     </div>
 
     <!-- Main KPI Grid -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
         <!-- Monthly Revenue -->
         <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-md border border-gray-200 dark:border-gray-700 transition-all duration-300 hover:shadow-lg hover:-translate-y-1">
             <div class="flex justify-between items-start">
@@ -52,19 +52,6 @@
             </div>
         </div>
 
-        <!-- Target vs Achievement -->
-        <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-md border border-gray-200 dark:border-gray-700 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 col-span-1 sm:col-span-2">
-            <div>
-                <p class="text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Monthly Target Achievement</p>
-                <div class="flex justify-between items-center mt-2">
-                    <span class="text-3xl font-bold text-amber-600 dark:text-amber-400">{{ number_format($achievement, 2) }}%</span>
-                    <span class="text-sm text-gray-500 dark:text-gray-400">Target: Rp {{ number_format($targetAmount, 0) }}</span>
-                </div>
-                <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5 mt-3">
-                    <div class="bg-amber-500 h-2.5 rounded-full" style="width: {{ min(100, $achievement) }}%"></div>
-                </div>
-            </div>
-        </div>
     </div>
 
     <!-- Chart and List -->

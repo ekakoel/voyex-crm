@@ -22,7 +22,7 @@ class ServiceController extends Controller
     {
         $modules = $this->moduleService->listAll();
 
-        return view('admin.services.index', compact('modules'));
+        return view('modules.services.index', compact('modules'));
     }
 
     /**
@@ -37,7 +37,10 @@ class ServiceController extends Controller
         $status = $module->is_enabled ? 'enabled' : 'disabled';
 
         return redirect()
-            ->route('admin.services.index')
+            ->route('services.index')
             ->with('success', "Module {$module->name} was successfully {$status}.");
     }
 }
+
+
+

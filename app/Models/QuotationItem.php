@@ -8,7 +8,8 @@ class QuotationItem extends Model
 {
     protected $fillable = [
         'quotation_id',
-        'service_id',
+        'serviceable_id',
+        'serviceable_type',
         'description',
         'qty',
         'unit_price',
@@ -27,8 +28,8 @@ class QuotationItem extends Model
         return $this->belongsTo(Quotation::class);
     }
 
-    public function service()
+    public function serviceable()
     {
-        return $this->belongsTo(Service::class);
+        return $this->morphTo();
     }
 }

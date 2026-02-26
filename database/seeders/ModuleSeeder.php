@@ -12,48 +12,7 @@ class ModuleSeeder extends Seeder
      */
     public function run(): void
     {
-        // Migrate old key if the project already used service_catalog.
-        if (Module::query()->where('key', 'service_catalog')->exists() && ! Module::query()->where('key', 'services')->exists()) {
-            Module::query()
-                ->where('key', 'service_catalog')
-                ->update([
-                    'key' => 'services',
-                    'name' => 'Services',
-                    'description' => 'Manage all services and their submodules.',
-                ]);
-        }
-
         $modules = [
-            [
-                'key' => 'admin_dashboard',
-                'name' => 'Admin Dashboard',
-                'description' => 'Dashboard access for admin.',
-                'is_enabled' => true,
-            ],
-            [
-                'key' => 'sales_dashboard',
-                'name' => 'Sales Dashboard',
-                'description' => 'Dashboard access for the sales team.',
-                'is_enabled' => true,
-            ],
-            [
-                'key' => 'finance_dashboard',
-                'name' => 'Finance Dashboard',
-                'description' => 'Dashboard access for the finance team.',
-                'is_enabled' => true,
-            ],
-            [
-                'key' => 'operations_dashboard',
-                'name' => 'Operations Dashboard',
-                'description' => 'Dashboard access for the operations team.',
-                'is_enabled' => true,
-            ],
-            [
-                'key' => 'director_dashboard',
-                'name' => 'Director Dashboard',
-                'description' => 'Dashboard access for directors.',
-                'is_enabled' => true,
-            ],
             [
                 'key' => 'service_manager',
                 'name' => 'Module Management',
@@ -85,11 +44,12 @@ class ModuleSeeder extends Seeder
                 'is_enabled' => true,
             ],
             [
-                'key' => 'sales_target',
-                'name' => 'Sales Target',
-                'description' => 'Monitor sales targets by team.',
+                'key' => 'invoices',
+                'name' => 'Invoices',
+                'description' => 'Manage invoice data generated from finalized and director-approved bookings.',
                 'is_enabled' => true,
             ],
+            // ...existing code...
             [
                 'key' => 'user_manager',
                 'name' => 'User Manager',
@@ -109,39 +69,21 @@ class ModuleSeeder extends Seeder
                 'is_enabled' => true,
             ],
             [
-                'key' => 'services',
-                'name' => 'Services',
-                'description' => 'Manage all services and their submodules.',
+                'key' => 'activities',
+                'name' => 'Activities',
+                'description' => 'Manage vendor activities, rates, and operational details.',
                 'is_enabled' => true,
             ],
             [
-                'key' => 'services_accommodations',
-                'name' => 'Services - Accommodations',
-                'description' => 'Manage accommodation services.',
+                'key' => 'itineraries',
+                'name' => 'Itineraries',
+                'description' => 'Manage itinerary data.',
                 'is_enabled' => true,
             ],
             [
-                'key' => 'services_transports',
-                'name' => 'Services - Transports',
-                'description' => 'Manage transport services.',
-                'is_enabled' => true,
-            ],
-            [
-                'key' => 'services_guides',
-                'name' => 'Services - Guides',
-                'description' => 'Manage guide services.',
-                'is_enabled' => true,
-            ],
-            [
-                'key' => 'services_attractions',
-                'name' => 'Services - Attractions',
-                'description' => 'Manage attraction services.',
-                'is_enabled' => true,
-            ],
-            [
-                'key' => 'services_travel_activities',
-                'name' => 'Services - Travel Activities',
-                'description' => 'Manage travel activity services.',
+                'key' => 'tourist_attractions',
+                'name' => 'Tourist Attractions',
+                'description' => 'Manage tourist attraction data for itineraries.',
                 'is_enabled' => true,
             ],
             [
@@ -150,12 +92,7 @@ class ModuleSeeder extends Seeder
                 'description' => 'Manage quotation templates.',
                 'is_enabled' => true,
             ],
-            [
-                'key' => 'promotions',
-                'name' => 'Promotions',
-                'description' => 'Manage discounts and promotions.',
-                'is_enabled' => true,
-            ],
+            // ...existing code...
         ];
 
         foreach ($modules as $module) {
@@ -164,6 +101,20 @@ class ModuleSeeder extends Seeder
                 $module
             );
         }
+
+        Module::query()->whereIn('key', [
+            'admin_dashboard',
+            'sales_dashboard',
+            'finance_dashboard',
+            'operations_dashboard',
+            'director_dashboard',
+            'services',
+            'services_accommodations',
+            'services_transports',
+            'services_guides',
+            'services_attractions',
+            'services_travel_activities',
+        ])->delete();
 
         Module::query()->where('key', 'service_catalog')->delete();
     }

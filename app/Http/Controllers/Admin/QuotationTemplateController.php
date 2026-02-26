@@ -11,12 +11,12 @@ class QuotationTemplateController extends Controller
     public function index()
     {
         $templates = QuotationTemplate::query()->orderBy('name')->paginate(10);
-        return view('admin.quotation-templates.index', compact('templates'));
+        return view('modules.quotation-templates.index', compact('templates'));
     }
 
     public function create()
     {
-        return view('admin.quotation-templates.create');
+        return view('modules.quotation-templates.create');
     }
 
     public function store(Request $request)
@@ -30,12 +30,12 @@ class QuotationTemplateController extends Controller
 
         QuotationTemplate::query()->create($validated);
 
-        return redirect()->route('admin.quotation-templates.index')->with('success', 'Template created successfully.');
+        return redirect()->route('quotation-templates.index')->with('success', 'Template created successfully.');
     }
 
     public function edit(QuotationTemplate $quotationTemplate)
     {
-        return view('admin.quotation-templates.edit', compact('quotationTemplate'));
+        return view('modules.quotation-templates.edit', compact('quotationTemplate'));
     }
 
     public function update(Request $request, QuotationTemplate $quotationTemplate)
@@ -49,12 +49,15 @@ class QuotationTemplateController extends Controller
 
         $quotationTemplate->update($validated);
 
-        return redirect()->route('admin.quotation-templates.index')->with('success', 'Template updated successfully.');
+        return redirect()->route('quotation-templates.index')->with('success', 'Template updated successfully.');
     }
 
     public function destroy(QuotationTemplate $quotationTemplate)
     {
         $quotationTemplate->delete();
-        return redirect()->route('admin.quotation-templates.index')->with('success', 'Template deleted successfully.');
+        return redirect()->route('quotation-templates.index')->with('success', 'Template deleted successfully.');
     }
 }
+
+
+

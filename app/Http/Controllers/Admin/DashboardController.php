@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Models\Inquiry;
 use App\Models\Booking;
 use App\Models\Quotation;
-use App\Models\SalesTarget;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -61,22 +60,7 @@ class DashboardController extends Controller
 
         /*
         |--------------------------------------------------------------------------
-        | 5. Target vs Achievement
-        |--------------------------------------------------------------------------
-        */
-        $target = SalesTarget::where('year', $now->year)
-            ->where('month', $now->month)
-            ->first();
-
-        $targetAmount = $target->target_amount ?? 0;
-
-        $achievement = $targetAmount > 0
-            ? round(($monthlyRevenue / $targetAmount) * 100, 2)
-            : 0;
-
-        /*
-        |--------------------------------------------------------------------------
-        | 6. Monthly Revenue Chart (Fix Ambiguous)
+        | 5. Monthly Revenue Chart (Fix Ambiguous)
         |--------------------------------------------------------------------------
         */
         $monthlyData = Booking::join('quotations', 'bookings.quotation_id', '=', 'quotations.id')
@@ -94,8 +78,6 @@ class DashboardController extends Controller
             'conversionRate',
             'deadlineQuotations',
             'upcomingBookings',
-            'targetAmount',
-            'achievement',
             'monthlyData'
         ));
     }

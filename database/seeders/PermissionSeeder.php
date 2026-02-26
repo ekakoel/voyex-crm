@@ -28,6 +28,21 @@ class PermissionSeeder extends Seeder
             ]);
         }
 
+        $dashboardPermissions = [
+            'dashboard.admin.view',
+            'dashboard.sales.view',
+            'dashboard.finance.view',
+            'dashboard.operations.view',
+            'dashboard.director.view',
+        ];
+
+        foreach ($dashboardPermissions as $permissionName) {
+            Permission::firstOrCreate([
+                'name' => $permissionName,
+                'guard_name' => 'web',
+            ]);
+        }
+
         $adminRole = Role::where('name', 'Admin')->first();
         if ($adminRole) {
             $permissions = Permission::query()->pluck('name')->all();

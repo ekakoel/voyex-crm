@@ -13,6 +13,73 @@ use Illuminate\Validation\Rule;
 
 class InquiryController extends Controller
 {
+    private const SOURCE_OPTIONS = [
+        'phone',
+        'email',
+        'website',
+        'walk-in',
+        'whatsapp',
+        'line',
+        'wechat',
+        'telegram',
+        'instagram',
+        'facebook',
+        'tiktok',
+        'linkedin',
+        'traveloka',
+        'klook',
+        'referral',
+        'other',
+    ];
+
+    private const CHANNEL_OPTIONS = [
+        'phone',
+        'email',
+        'whatsapp',
+        'line',
+        'wechat',
+        'telegram',
+        'meeting',
+        'zoom',
+        'google-meet',
+        'instagram',
+        'facebook',
+        'other',
+    ];
+
+    private const SOURCE_LABELS = [
+        'phone' => 'Phone',
+        'email' => 'Email',
+        'website' => 'Website',
+        'walk-in' => 'Walk-in',
+        'whatsapp' => 'WhatsApp',
+        'line' => 'LINE',
+        'wechat' => 'WeChat',
+        'telegram' => 'Telegram',
+        'instagram' => 'Instagram',
+        'facebook' => 'Facebook',
+        'tiktok' => 'TikTok',
+        'linkedin' => 'LinkedIn',
+        'traveloka' => 'Traveloka',
+        'klook' => 'Klook',
+        'referral' => 'Referral',
+        'other' => 'Other',
+    ];
+
+    private const CHANNEL_LABELS = [
+        'phone' => 'Phone',
+        'email' => 'Email',
+        'whatsapp' => 'WhatsApp',
+        'line' => 'LINE',
+        'wechat' => 'WeChat',
+        'telegram' => 'Telegram',
+        'meeting' => 'Meeting',
+        'zoom' => 'Zoom',
+        'google-meet' => 'Google Meet',
+        'instagram' => 'Instagram',
+        'facebook' => 'Facebook',
+        'other' => 'Other',
+    ];
     /**
      * Display a listing of the resource.
      */
@@ -45,7 +112,9 @@ class InquiryController extends Controller
         $customers = Customer::query()->orderBy('name')->get();
         $assignees = User::role(['Sales Manager', 'Sales Agent'])->orderBy('name')->get();
 
-        return view('sales.inquiries.index', compact('inquiries', 'customers', 'assignees'));
+        $sourceLabels = self::SOURCE_LABELS;
+
+        return view('modules.inquiries.index', compact('inquiries', 'customers', 'assignees', 'sourceLabels'));
     }
 
     /**
@@ -56,7 +125,10 @@ class InquiryController extends Controller
         $customers = Customer::query()->orderBy('name')->get();
         $assignees = User::role(['Sales Manager', 'Sales Agent'])->orderBy('name')->get();
 
-        return view('sales.inquiries.create', compact('customers', 'assignees'));
+        $sourceLabels = self::SOURCE_LABELS;
+        $channelLabels = self::CHANNEL_LABELS;
+
+        return view('modules.inquiries.create', compact('customers', 'assignees', 'sourceLabels', 'channelLabels'));
     }
 
     /**
@@ -66,7 +138,7 @@ class InquiryController extends Controller
     {
         $validated = $request->validate([
             'customer_id' => ['required', 'exists:customers,id'],
-            'source' => ['nullable', Rule::in(['phone', 'email', 'website', 'walk-in', 'other'])],
+            'source' => ['nullable', Rule::in(self::SOURCE_OPTIONS)],
             'status' => ['required', Rule::in(['new', 'follow_up', 'quoted', 'converted', 'closed'])],
             'priority' => ['required', Rule::in(['low', 'normal', 'high'])],
             'assigned_to' => ['nullable', 'exists:users,id'],
@@ -79,7 +151,7 @@ class InquiryController extends Controller
         Inquiry::query()->create($validated);
 
         return redirect()
-            ->route('sales.inquiries.index')
+            ->route('inquiries.index')
             ->with('success', 'Inquiry created successfully.');
     }
 
@@ -88,7 +160,13 @@ class InquiryController extends Controller
      */
     public function show(Inquiry $inquiry)
     {
-        return redirect()->route('sales.inquiries.edit', $inquiry);
+        $inquiry->load(['customer', 'assignedUser']);
+        $followUps = $inquiry->followUps()->orderByDesc('due_date')->get();
+        $communications = $inquiry->communications()->with('creator')->orderByDesc('contact_at')->get();
+        $channelLabels = self::CHANNEL_LABELS;
+        $sourceLabels = self::SOURCE_LABELS;
+
+        return view('modules.inquiries.show', compact('inquiry', 'followUps', 'communications', 'channelLabels', 'sourceLabels'));
     }
 
     /**
@@ -98,10 +176,10 @@ class InquiryController extends Controller
     {
         $customers = Customer::query()->orderBy('name')->get();
         $assignees = User::role(['Sales Manager', 'Sales Agent'])->orderBy('name')->get();
-        $followUps = $inquiry->followUps()->orderByDesc('due_date')->get();
-        $communications = $inquiry->communications()->orderByDesc('contact_at')->get();
 
-        return view('sales.inquiries.edit', compact('inquiry', 'customers', 'assignees', 'followUps', 'communications'));
+        $sourceLabels = self::SOURCE_LABELS;
+
+        return view('modules.inquiries.edit', compact('inquiry', 'customers', 'assignees', 'sourceLabels'));
     }
 
     /**
@@ -111,7 +189,7 @@ class InquiryController extends Controller
     {
         $validated = $request->validate([
             'customer_id' => ['required', 'exists:customers,id'],
-            'source' => ['nullable', Rule::in(['phone', 'email', 'website', 'walk-in', 'other'])],
+            'source' => ['nullable', Rule::in(self::SOURCE_OPTIONS)],
             'status' => ['required', Rule::in(['new', 'follow_up', 'quoted', 'converted', 'closed'])],
             'priority' => ['required', Rule::in(['low', 'normal', 'high'])],
             'assigned_to' => ['nullable', 'exists:users,id'],
@@ -125,7 +203,7 @@ class InquiryController extends Controller
         $this->syncFollowUpStatus($inquiry);
 
         return redirect()
-            ->route('sales.inquiries.index')
+            ->route('inquiries.index')
             ->with('success', 'Inquiry updated successfully.');
     }
 
@@ -137,7 +215,7 @@ class InquiryController extends Controller
         $inquiry->delete();
 
         return redirect()
-            ->route('sales.inquiries.index')
+            ->route('inquiries.index')
             ->with('success', 'Inquiry deleted successfully.');
     }
 
@@ -145,7 +223,7 @@ class InquiryController extends Controller
     {
         $validated = $request->validate([
             'due_date' => ['required', 'date'],
-            'channel' => ['nullable', Rule::in(['phone', 'email', 'whatsapp', 'meeting', 'other'])],
+            'channel' => ['nullable', Rule::in(self::CHANNEL_OPTIONS)],
             'note' => ['nullable', 'string'],
         ]);
 
@@ -153,7 +231,7 @@ class InquiryController extends Controller
         $this->syncFollowUpStatus($inquiry);
 
         return redirect()
-            ->route('sales.inquiries.edit', $inquiry)
+            ->route('inquiries.show', $inquiry)
             ->with('success', 'Follow-up reminder added successfully.');
     }
 
@@ -167,14 +245,14 @@ class InquiryController extends Controller
         $this->syncFollowUpStatus($followUp->inquiry);
 
         return redirect()
-            ->route('sales.inquiries.edit', $followUp->inquiry_id)
+            ->route('inquiries.show', $followUp->inquiry_id)
             ->with('success', 'Follow-up marked as done.');
     }
 
     public function storeCommunication(Request $request, Inquiry $inquiry)
     {
         $validated = $request->validate([
-            'channel' => ['required', Rule::in(['phone', 'email', 'whatsapp', 'meeting', 'other'])],
+            'channel' => ['required', Rule::in(self::CHANNEL_OPTIONS)],
             'summary' => ['required', 'string'],
             'contact_at' => ['nullable', 'date'],
         ]);
@@ -184,7 +262,7 @@ class InquiryController extends Controller
         $inquiry->communications()->create($validated);
 
         return redirect()
-            ->route('sales.inquiries.edit', $inquiry)
+            ->route('inquiries.show', $inquiry)
             ->with('success', 'Communication history added successfully.');
     }
 
@@ -196,3 +274,6 @@ class InquiryController extends Controller
         }
     }
 }
+
+
+

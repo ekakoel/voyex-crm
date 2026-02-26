@@ -19,8 +19,6 @@ class Quotation extends Model
         'sub_total',
         'discount_type',
         'discount_value',
-        'promo_code',
-        'promo_discount',
         'final_amount',
         'approval_status',
         'approved_by',
@@ -31,7 +29,6 @@ class Quotation extends Model
         'validity_date' => 'date',
         'sub_total' => 'decimal:2',
         'discount_value' => 'decimal:2',
-        'promo_discount' => 'decimal:2',
         'final_amount' => 'decimal:2',
         'approved_at' => 'datetime',
     ];

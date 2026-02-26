@@ -88,10 +88,6 @@
                 <td class="right">Rp {{ number_format(($quotation->discount_type ? ($quotation->discount_type === 'percent' ? ($quotation->sub_total * ($quotation->discount_value / 100)) : $quotation->discount_value) : 0), 0, ',', '.') }}</td>
             </tr>
             <tr>
-                <td class="right"><strong>Promo Discount</strong></td>
-                <td class="right">Rp {{ number_format($quotation->promo_discount ?? 0, 0, ',', '.') }}</td>
-            </tr>
-            <tr>
                 <td class="right total">Final Amount</td>
                 <td class="right total">Rp {{ number_format($quotation->final_amount ?? 0, 0, ',', '.') }}</td>
             </tr>

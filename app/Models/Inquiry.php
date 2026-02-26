@@ -48,6 +48,12 @@ class Inquiry extends Model
     {
         return $this->hasMany(InquiryCommunication::class);
     }
+
+    public function itineraries()
+    {
+        return $this->hasMany(Itinerary::class);
+    }
+
     protected static function boot()
     {
         parent::boot();

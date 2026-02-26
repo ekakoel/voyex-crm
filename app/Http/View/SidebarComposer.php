@@ -33,157 +33,104 @@ class SidebarComposer
                 'title' => 'Dashboard',
                 'route' => 'dashboard',
                 'icon'  => 'dashboard',
-                'roles' => ['Admin', 'Director', 'Sales Manager', 'Sales Agent', 'Finance', 'Operations'],
-            ],
-            
-           
-            [
-                'title' => 'Bookings',
-                'route' => 'operations.bookings.index',
-                'icon'  => 'calendar',
-                'module' => 'bookings',
-                'roles' => ['Operations', 'Finance', 'Sales Manager'],
-            ],
-            // ======================================================================================
-            // --- Menu Director ---
-            // ======================================================================================
-            // ======================================================================================
-            // --- Menu Sales Manager ---
-            // ======================================================================================
-            // --- Menu Sales ---
-            [
-                'title' => 'Customers',
-                'route' => 'sales.customers.index',
-                'icon'  => 'users',
-                'module' => 'customer_management',
-                'roles' => ['Sales Manager', 'Sales Agent'],
-            ],
-            [
-                'title' => 'Inquiries',
-                'route' => 'sales.inquiries.index',
-                'icon'  => 'file-text',
-                'module' => 'inquiries',
-                'roles' => ['Sales Manager', 'Sales Agent'],
-            ],
-            [
-                'title' => 'Quotations',
-                'route' => 'sales.quotations.index',
-                'icon'  => 'file-plus',
-                'module' => 'quotations',
-                'roles' => ['Sales Manager', 'Sales Agent'],
-            ],
-            // ======================================================================================
-            // --- Menu Sales Agent ---
-            // ======================================================================================
-            // ======================================================================================
-            // --- Menu Finance ---
-            // ======================================================================================
-            // ======================================================================================
-            // --- Menu Operations ---
-            // ======================================================================================
-            // ======================================================================================
-            // --- Menu Admin ---
-            // ======================================================================================
-            [
-                'title' => 'Quotations',
-                'route' => 'admin.quotations.index',
-                'icon'  => 'file-circle-plus',
-                'module' => 'quotations',
-                'roles' => 'Admin',
-            ],
-            [
-                'title' => 'Quotation Templates',
-                'route' => 'admin.quotation-templates.index',
-                'icon'  => 'file-lines',
-                'module' => 'quotation_templates',
-                'roles' => 'Admin',
+                'roles' => ['Admin','Super Admin', 'Director', 'Sales Manager', 'Sales Agent', 'Finance', 'Operations'],
             ],
             [
                 'title' => 'Modules',
-                'route' => 'admin.services.index',
+                'route' => 'services.index',
                 'icon'  => 'cubes',
                 'module' => 'service_manager',
-                'roles' => ['Admin'],
-            ],
-            
-            [
-                'title' => 'Promotions',
-                'route' => 'admin.promotions.index',
-                'icon'  => 'percent',
-                'module' => 'promotions',
-                'roles' => ['Admin', 'Sales Manager', 'Director'],
-            ],
-            [
-                'title' => 'User Manager',
-                'route' => 'admin.users.index',
-                'icon'  => 'users',
-                'module' => 'user_manager',
-                'roles' => ['Admin'],
+                'roles' => ['Admin', 'Super Admin'],
             ],
             [
                 'title' => 'Role & Permissions',
-                'route' => 'admin.roles.index',
-                'icon'  => 'user_gear',
+                'route' => 'roles.index',
+                'icon'  => 'user-shield',
                 'module' => 'role_manager',
-                'roles' => ['Admin'],
+                'roles' => ['Admin', 'Super Admin'],
             ],
             [
-                'title' => 'Sales Target',
-                'route' => 'admin.salestargets.index',
-                'icon'  => 'target',
-                'module' => 'sales_target',
-                'roles' => ['Admin', 'Sales Manager'],
+                'title' => 'User Manager',
+                'route' => 'users.index',
+                'icon'  => 'user-gear',
+                'module' => 'user_manager',
+                'roles' => ['Admin', 'Super Admin'],
+            ],
+            [
+                'type' => 'separator',
+            ],
+            [
+                'title' => 'Customers',
+                'route' => 'customers.index',
+                'icon'  => 'users',
+                'module' => 'customer_management',
+            ],
+            [
+                'title' => 'Inquiries',
+                'route' => 'inquiries.index',
+                'icon'  => 'file-text',
+                'module' => 'inquiries',
+            ],
+            [
+                'title' => 'Itineraries',
+                'route' => 'itineraries.index',
+                'icon'  => 'route',
+                'module' => 'itineraries',
+                'roles' => ['Admin', 'Super Admin'],
+            ],
+            [
+                'title' => 'Quotation Templates',
+                'route' => 'quotation-templates.index',
+                'icon'  => 'file-lines',
+                'module' => 'quotation_templates',
+                'roles' => ['Admin', 'Super Admin'],
+            ],
+            [
+                'title' => 'Quotations',
+                'route' => 'quotations.index',
+                'icon'  => 'file-circle-plus',
+                'module' => 'quotations',
+            ],
+            
+            
+            [
+                'title' => 'Bookings',
+                'route' => 'bookings.index',
+                'icon'  => 'tags',
+                'module' => 'bookings',
+                'roles' => ['Admin', 'Super Admin', 'Operations', 'Sales Manager'],
+            ],
+            [
+                'title' => 'Invoices',
+                'route' => 'invoices.index',
+                'icon'  => 'file-invoice-dollar',
+                'module' => 'invoices',
+                'roles' => ['Admin', 'Super Admin', 'Finance', 'Director'],
+            ],
+            [
+                'type' => 'separator',
             ],
             [
                 'title' => 'Vendors',
-                'route' => 'admin.vendors.index',
-                'icon'  => 'vendors',
+                'route' => 'vendors.index',
+                'icon'  => 'handshake',
                 'module' => 'vendor_management',
-                'roles' => ['Admin', 'Operations', 'Sales Manager', 'Sales Agent'],
+                'roles' => ['Admin', 'Super Admin', 'Operations', 'Sales Manager', 'Sales Agent'],
             ],
             [
-                'title' => 'Services',
-                'icon'  => 'gears',
-                'module' => 'services',
-                'route' => '#', // Placeholder for parent menu
-                'roles' => ['Admin', 'Operations', 'Sales Manager', 'Sales Agent'],
-                'children' => [
-                    [
-                        'title' => 'Accommodations',
-                        'route' => 'admin.services.items.accommodations.index',
-                        'icon'  => 'bed',
-                        'module' => 'services_accommodations',
-                        'roles' => ['Admin', 'Operations', 'Sales Manager', 'Sales Agent'],
-                    ],
-                    [
-                        'title' => 'Transports',
-                        'route' => 'admin.services.items.transports.index',
-                        'icon'  => 'bus',
-                        'module' => 'services_transports',
-                        'roles' => ['Admin', 'Operations', 'Sales Manager', 'Sales Agent'],
-                    ],
-                    [
-                        'title' => 'Guides',
-                        'route' => 'admin.services.items.guides.index',
-                        'icon'  => 'user-tie',
-                        'module' => 'services_guides',
-                        'roles' => ['Admin', 'Operations', 'Sales Manager', 'Sales Agent'],
-                    ],
-                    [
-                        'title' => 'Attractions',
-                        'route' => 'admin.services.items.attractions.index',
-                        'icon'  => 'landmark',
-                        'module' => 'services_attractions',
-                        'roles' => ['Admin', 'Operations', 'Sales Manager', 'Sales Agent'],
-                    ],
-                    [
-                        'title' => 'Travel Activities',
-                        'route' => 'admin.services.items.travel-activities.index',
-                        'icon'  => 'person-hiking',
-                        'module' => 'services_travel_activities',
-                        'roles' => ['Admin', 'Operations', 'Sales Manager', 'Sales Agent'],
-                    ],
-                ],
+                'title' => 'Activities',
+                'route' => 'activities.index',
+                'icon'  => 'person-hiking',
+                'module' => 'activities',
+                'roles' => ['Admin', 'Super Admin', 'Operations', 'Sales Manager', 'Sales Agent'],
+            ],
+            
+            [
+                'title' => 'Tourist Attractions',
+                'route' => 'tourist-attractions.index',
+                'icon'  => 'landmark',
+                'module' => 'tourist_attractions',
+                'roles' => ['Admin', 'Super Admin'],
             ],
 
         ];
@@ -201,13 +148,19 @@ class SidebarComposer
         $accessible = [];
 
         foreach ($items as $item) {
+            if (($item['type'] ?? null) === 'separator') {
+                $accessible[] = $item;
+                continue;
+            }
+
             if (! empty($item['module']) && ! ModuleService::isEnabledStatic($item['module'])) {
                 continue;
             }
 
-            if (! empty($item['roles']) && (! $user || ! $user->hasAnyRole($item['roles']))) {
+            if (! empty($item['roles']) && (! $user || (! $user->hasRole('Super Admin') && ! $user->hasAnyRole($item['roles'])))) {
                 continue;
             }
+
 
             if (! empty($item['children']) && is_array($item['children'])) {
                 $item['children'] = $this->filterMenuItems($item['children'], $user);
@@ -225,7 +178,44 @@ class SidebarComposer
             $accessible[] = $item;
         }
 
-        return $accessible;
+        return $this->normalizeSeparators($accessible);
+    }
+
+    /**
+     * Clean separators so they don't appear at the top/bottom or consecutively.
+     *
+     * @param  array<int, array<string, mixed>>  $items
+     * @return array<int, array<string, mixed>>
+     */
+    private function normalizeSeparators(array $items): array
+    {
+        $normalized = [];
+
+        foreach ($items as $item) {
+            $isSeparator = ($item['type'] ?? null) === 'separator';
+
+            if ($isSeparator) {
+                if ($normalized === []) {
+                    continue;
+                }
+
+                $last = end($normalized);
+                if (($last['type'] ?? null) === 'separator') {
+                    continue;
+                }
+            }
+
+            $normalized[] = $item;
+        }
+
+        $last = end($normalized);
+        if (($last['type'] ?? null) === 'separator') {
+            array_pop($normalized);
+        }
+
+        return $normalized;
     }
 
 }
+
+

@@ -21,8 +21,6 @@ return new class extends Migration
             $table->decimal('sub_total', 15, 2)->default(0);
             $table->enum('discount_type', ['percent', 'fixed'])->nullable();
             $table->decimal('discount_value', 15, 2)->default(0);
-            $table->string('promo_code')->nullable();
-            $table->decimal('promo_discount', 15, 2)->default(0);
             $table->decimal('final_amount', 15, 2)->default(0);
             $table->enum('approval_status', ['draft', 'submitted', 'approved', 'rejected'])->default('draft');
             $table->foreignId('approved_by')->nullable()->constrained('users')->nullOnDelete();

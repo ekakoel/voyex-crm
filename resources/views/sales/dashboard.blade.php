@@ -13,7 +13,7 @@
 
         {{-- Main KPI row --}}
         <div class="row">
-            <div class="col-md-3">
+            <div class="col-md-4">
                 <div class="card">
                     <div class="card-body">
                         <h6>Monthly Revenue</h6>
@@ -22,7 +22,7 @@
                 </div>
             </div>
 
-            <div class="col-md-3">
+            <div class="col-md-4">
                 <div class="card">
                     <div class="card-body">
                         <h6>Conversion Rate</h6>
@@ -31,20 +31,11 @@
                 </div>
             </div>
 
-            <div class="col-md-3">
+            <div class="col-md-4">
                 <div class="card">
                     <div class="card-body">
-                        <h6>Monthly Target</h6>
-                        <h4>Rp {{ number_format($targetAmount, 0) }}</h4>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-md-3">
-                <div class="card">
-                    <div class="card-body">
-                        <h6>Achievement</h6>
-                        <h4>{{ $achievement }}%</h4>
+                        <h6>Pending Follow-up</h6>
+                        <h4>{{ $pendingInquiries->count() }}</h4>
                     </div>
                 </div>
             </div>

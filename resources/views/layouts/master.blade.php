@@ -6,25 +6,16 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>VOYEX CRM</title>
     @vite(['resources/css/app.css','resources/js/app.js'])
-    <style>
-        [x-cloak] { display: none !important; }
-    </style>
+    @stack('styles')
 </head>
 
 <body class="bg-gray-100 dark:bg-gray-900 transition-colors duration-300">
-
-<style>
-    .sidebar-is-collapsed .sidebar-label,
-    .sidebar-is-collapsed .sidebar-arrow {
-        display: none;
-    }
-</style>
 
 <div class="flex h-screen overflow-hidden">
 
     <!-- SIDEBAR -->
     <aside class="fixed inset-y-0 left-0 z-40 bg-primary text-white transform transition-all duration-300
-                  w-64 md:static md:translate-x-0 md:flex-shrink-0" :class="{
+                  w-64 md:static md:translate-x-0 md:flex-shrink-0 overflow-y-auto max-h-screen" :class="{
                       'translate-x-0': sidebarOpen,
                       '-translate-x-full md:translate-x-0': !sidebarOpen,
                       'md:w-20 sidebar-is-collapsed': sidebarCollapsed,
@@ -53,9 +44,15 @@
         <nav class="mt-6 space-y-2 px-4">
             @isset($menuItems)
                 @foreach ($menuItems as $item)
+                    @if (($item['type'] ?? null) === 'separator')
+                        <div class="my-2 border-t border-white/25"></div>
+                        @continue
+                    @endif
+
                     @php
                         $hasChildren = ! empty($item['children']) && is_array($item['children']);
-                        $isItemActive = request()->routeIs($item['route']) || request()->routeIs($item['route'].'.*');
+                        $isDashboardShortcut = ($item['route'] ?? '') === 'dashboard' && request()->routeIs('dashboard.*');
+                        $isItemActive = $isDashboardShortcut || request()->routeIs($item['route']) || request()->routeIs($item['route'].'.*');
                         $isChildActive = false;
                         if ($hasChildren) {
                             foreach ($item['children'] as $child) {
@@ -134,19 +131,21 @@
     <!-- MAIN CONTENT -->
     <div class="flex-1 flex flex-col">
 
-        <header class="bg-white dark:bg-gray-800 shadow px-6 py-5 flex items-center justify-between">
+        <header class="sticky top-0 z-20 bg-white/95 dark:bg-gray-800/95 backdrop-blur shadow-sm px-3 py-3 sm:px-4 sm:py-3 md:px-6 md:py-4 flex items-center justify-between gap-3">
             <!-- mobile-only button -->
-            <button @click="sidebarOpen = !sidebarOpen" class="md:hidden text-gray-600 dark:text-gray-200">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <button @click="sidebarOpen = !sidebarOpen" class="md:hidden inline-flex items-center justify-center h-9 w-9 rounded-lg border border-gray-200 text-gray-600 dark:border-gray-700 dark:text-gray-200">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
                 </svg>
             </button>
 
-            <div class="flex items-center gap-6">
+            <div class="hidden md:block"></div>
+
+            <div class="ml-auto flex items-center gap-3 sm:gap-4 md:gap-6 min-w-0">
 
                 <!-- Dark Mode Toggle -->
                 <button @click="toggleTheme()"
-                        class="transition-colors duration-200"
+                        class="inline-flex items-center justify-center h-9 w-9 rounded-lg border border-gray-200 transition-colors duration-200 dark:border-gray-700"
                         :class="dark ? 'text-yellow-400 hover:text-yellow-300' : 'text-gray-500 hover:text-amber-500'"
                         :title="dark ? 'Dark mode on' : 'Light mode on'">
                     <svg x-show="!dark" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
@@ -158,16 +157,20 @@
                 </button>
 
                 <!-- User Dropdown -->
-                <div x-data="{ open: false }" class="relative">
+                <div x-data="{ open: false }" class="relative shrink-0">
                     <button @click="open = !open"
-                            class="flex items-center gap-2 text-gray-700 dark:text-gray-200">
-                        <span class="truncate max-w-[150px]">{{ auth()->user()->name }}</span>
+                            class="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-2.5 py-1.5 text-gray-700 dark:border-gray-700 dark:text-gray-200">
+                        <span class="inline-flex h-4 w-4 items-center justify-center text-xs">
+                            <i class="fa-solid fa-user"></i>
+                        </span>
+                        <span class="hidden sm:inline truncate max-w-[140px] md:max-w-[180px]">{{ auth()->user()->name }}</span>
+                        <span class="sm:hidden text-sm font-medium">User</span>
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transition-transform" :class="open ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
                     </button>
 
                     <div x-show="open"
                          @click.outside="open = false"
-                         x-cloak class="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border dark:border-gray-700 py-1 z-10">
+                         x-cloak class="absolute right-0 mt-2 w-44 sm:w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border dark:border-gray-700 py-1 z-10">
 
                         <a href="{{ route('profile.edit') }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">
                             Profile
@@ -188,7 +191,12 @@
         </header>
 
         <!-- PAGE CONTENT -->
-        <main class="flex-1 p-4 sm:p-6 overflow-y-auto">
+        <main class="app-content flex-1 p-4 sm:p-6 overflow-y-auto">
+            @hasSection('breadcrumbs')
+                @yield('breadcrumbs')
+            @else
+                <x-layout.breadcrumbs />
+            @endif
             @yield('content')
         </main>
 
@@ -225,6 +233,7 @@
         };
     }
 </script>
+@stack('scripts')
 
 </body>
 </html>

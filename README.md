@@ -51,7 +51,7 @@ Upcoming bookings
 
 Quotation deadlines
 
-Sales target tracking
+...existing code...
 
 2. Inquiry Management
 

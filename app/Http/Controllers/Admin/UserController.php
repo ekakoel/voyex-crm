@@ -20,14 +20,14 @@ class UserController extends Controller
             ->latest()
             ->paginate(10);
 
-        return view('admin.users.index', compact('users'));
+        return view('modules.users.index', compact('users'));
     }
 
     public function create(): View
     {
         $roles = Role::query()->orderBy('name')->pluck('name');
 
-        return view('admin.users.create', compact('roles'));
+        return view('modules.users.create', compact('roles'));
     }
 
     public function store(Request $request): RedirectResponse
@@ -49,7 +49,7 @@ class UserController extends Controller
         $user->syncRoles($validated['roles']);
 
         return redirect()
-            ->route('admin.users.index')
+            ->route('users.index')
             ->with('success', 'Employee created successfully.');
     }
 
@@ -58,7 +58,7 @@ class UserController extends Controller
         $roles = Role::query()->orderBy('name')->pluck('name');
         $selectedRoles = $user->roles->pluck('name')->all();
 
-        return view('admin.users.edit', compact('user', 'roles', 'selectedRoles'));
+        return view('modules.users.edit', compact('user', 'roles', 'selectedRoles'));
     }
 
     public function update(Request $request, User $user): RedirectResponse
@@ -84,7 +84,7 @@ class UserController extends Controller
         $user->syncRoles($validated['roles']);
 
         return redirect()
-            ->route('admin.users.index')
+            ->route('users.index')
             ->with('success', 'Employee updated successfully.');
     }
 
@@ -94,14 +94,17 @@ class UserController extends Controller
 
         if ($isCurrentUser) {
             return redirect()
-                ->route('admin.users.index')
+                ->route('users.index')
                 ->with('error', 'You cannot delete your own account.');
         }
 
         $user->delete();
 
         return redirect()
-            ->route('admin.users.index')
+            ->route('users.index')
             ->with('success', 'Employee deleted successfully.');
     }
 }
+
+
+

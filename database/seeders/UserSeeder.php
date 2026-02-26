@@ -23,6 +23,11 @@ class UserSeeder extends Seeder
                 'role' => 'Admin',
             ],
             [
+                'name' => 'Super Admin',
+                'email' => 'superadmin@example.com',
+                'role' => 'Super Admin',
+            ],
+            [
                 'name' => 'Sales Manager',
                 'email' => 'sales.manager@example.com',
                 'role' => 'Sales Manager',

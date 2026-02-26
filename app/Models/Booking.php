@@ -21,4 +21,9 @@ class Booking extends Model
     {
         return $this->belongsTo(Quotation::class);
     }
+
+    public function invoice()
+    {
+        return $this->hasOne(Invoice::class);
+    }
 }

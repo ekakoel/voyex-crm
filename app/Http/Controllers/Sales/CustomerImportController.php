@@ -15,16 +15,16 @@ class CustomerImportController extends Controller
 
     public function create()
     {
-        return view('sales.customers.import');
+        return view('modules.customers.import');
     }
 
     public function template(): StreamedResponse
     {
-        $headers = ['name', 'email', 'phone', 'address', 'customer_type', 'company_name'];
+        $headers = ['code', 'name', 'email', 'phone', 'address', 'country', 'customer_type', 'company_name'];
 
         $rows = [
-            ['John Doe', 'john@example.com', '08123456789', 'Jakarta', 'individual', ''],
-            ['Acme Corp', 'sales@acme.com', '021123456', 'Bandung', 'company', 'Acme Corp'],
+            ['CUST-IMPORT-001', 'John Doe', 'john@example.com', '08123456789', 'Jakarta', 'Indonesia', 'individual', ''],
+            ['CUST-IMPORT-002', 'Acme Corp', 'sales@acme.com', '021123456', 'Bandung', 'Indonesia', 'company', 'Acme Corp'],
         ];
 
         return response()->streamDownload(function () use ($headers, $rows) {
@@ -74,7 +74,7 @@ class CustomerImportController extends Controller
             }
 
             $normalized = $this->normalizeRow($data);
-            $duplicate = $this->findDuplicate($normalized['email'], $normalized['phone']);
+            $duplicate = $this->findDuplicate($normalized['email'], $normalized['phone'], $normalized['code']);
 
             $rows[] = [
                 'data' => $normalized,
@@ -90,7 +90,7 @@ class CustomerImportController extends Controller
             'rows' => $rows,
         ]);
 
-        return view('sales.customers.import-preview', [
+        return view('modules.customers.import-preview', [
             'mode' => $validated['mode'],
             'rows' => $rows,
         ]);
@@ -100,7 +100,7 @@ class CustomerImportController extends Controller
     {
         $payload = Session::get(self::SESSION_KEY);
         if (! $payload) {
-            return redirect()->route('sales.customers.import')->with('error', 'Preview not found. Please upload the file again.');
+            return redirect()->route('customers.import')->with('error', 'Preview not found. Please upload the file again.');
         }
 
         $rows = $payload['rows'] ?? [];
@@ -130,39 +130,56 @@ class CustomerImportController extends Controller
             DB::commit();
         } catch (\Throwable $e) {
             DB::rollBack();
-            return redirect()->route('sales.customers.import')->with('error', 'Import failed. Please check the CSV data.');
+            return redirect()->route('customers.import')->with('error', 'Import failed. Please check the CSV data.');
         } finally {
             Session::forget(self::SESSION_KEY);
         }
 
         return redirect()
-            ->route('sales.customers.index')
+            ->route('customers.index')
             ->with('success', "Import selesai. Created: {$created}, Updated: {$updated}, Skipped: {$skipped}.");
     }
 
     private function normalizeRow(array $data): array
     {
         return [
+            'code' => $this->normalizeCode($data['code'] ?? null),
             'name' => trim((string) ($data['name'] ?? '')),
             'email' => $this->nullableTrim($data['email'] ?? null),
             'phone' => $this->nullableTrim($data['phone'] ?? null),
             'address' => $this->nullableTrim($data['address'] ?? null),
+            'country' => $this->nullableTrim($data['country'] ?? null) ?? 'Indonesia',
             'customer_type' => $this->normalizeType($data['customer_type'] ?? 'individual'),
             'company_name' => $this->nullableTrim($data['company_name'] ?? null),
             'created_by' => auth()->id(),
         ];
     }
 
-    private function findDuplicate(?string $email, ?string $phone): ?Customer
+    private function findDuplicate(?string $email, ?string $phone, ?string $code = null): ?Customer
     {
-        if (! $email && ! $phone) {
+        if (! $email && ! $phone && ! $code) {
             return null;
         }
 
         return Customer::query()
+            ->when($code, fn ($q) => $q->orWhere('code', $code))
             ->when($email, fn ($q) => $q->orWhere('email', $email))
             ->when($phone, fn ($q) => $q->orWhere('phone', $phone))
             ->first();
+    }
+
+    private function normalizeCode(?string $value): string
+    {
+        $code = strtoupper(trim((string) $value));
+        if ($code !== '') {
+            return $code;
+        }
+
+        do {
+            $code = 'CUST-IMP-' . now()->format('Ymd') . '-' . random_int(1000, 9999);
+        } while (Customer::query()->where('code', $code)->exists());
+
+        return $code;
     }
 
     private function normalizeType($value): string
@@ -177,3 +194,6 @@ class CustomerImportController extends Controller
         return $trimmed === '' ? null : $trimmed;
     }
 }
+
+
+
