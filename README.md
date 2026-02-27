@@ -1,208 +1,272 @@
 ![AI Guided](https://img.shields.io/badge/AI-Guided%20Architecture-blue)
 
-Tourism Management System – Travel Agent CRM
+# VOYEX CRM
+
+> Scalable Travel Agent CRM System  
+> Inquiry → Itinerary → Quotation → Booking → Invoice
+
+VOYEX CRM adalah sistem Customer Relationship Management (CRM) berbasis web yang dirancang khusus untuk perusahaan travel agent dalam mengelola seluruh siklus operasional penjualan dan layanan perjalanan secara terstruktur, efisien, dan scalable.
+
+Sistem ini berfokus pada otomatisasi proses bisnis utama travel agent dengan output utama berupa:
+
+- ✅ Itinerary
+- ✅ Quotation
+- ✅ Booking
+- ✅ Invoice
+
+---
+
+## 🚀 Core Features
+
+### 1. Sales & CRM Management
+- Inquiry tracking & assignment
+- Customer & agent management
+- Follow-up monitoring
+- Status pipeline management
+- Conversion tracking (Inquiry → Booking)
+
+### 2. Itinerary Builder
+- Multi-day structured itinerary
+- Tourist attractions integration
+- Activity management
+- Accommodation & transport integration
+- Customizable travel plans
+
+### 3. Quotation System
+- Auto quotation number generation
+- Versioning system
+- Service-based pricing
+- Discount approval workflow
+- Custom quotation templates
+- PDF export ready
+
+### 4. Booking Management
+- Convert quotation to booking
+- Participant management
+- Document upload (passport, ID, visa)
+- Travel preparation checklist
+- Booking status tracking
+
+### 5. Invoice & Financial Module
+- Invoice generation from booking
+- Partial payment tracking
+- Payment confirmation
+- Expense tracking per booking
+- Profit calculation per booking
+
+### 6. Vendor Management
+- Vendor database
+- Service contracts
+- Commission configuration
+- Performance monitoring
+
+### 7. Role & Permission System
+- Role-Based Access Control (RBAC)
+- Granular permission matrix
+- Module-level access configuration
+- User activity logging
+
+---
+
+## 🏗 System Architecture
+
+### Technology Stack
+
+- **Backend:** Laravel 10+
+- **Frontend:** Blade Templates, Bootstrap 5, JavaScript
+- **Database:** MySQL 8+
+- **Caching:** Redis (optional)
+- **Queue:** Laravel Queue
+- **Server:** Apache / Nginx
+- **API:** REST-ready structure
 
-A web-based platform designed to manage end-to-end travel agency operations, from initial inquiry to customer departure. The system centralizes sales, quotation, booking, invoicing, finance, vendor management, and business analytics into a single integrated environment.
+### Architecture Principles
 
-🚀 Overview
+- Modular design
+- Clean separation of concerns
+- Service Layer pattern
+- Repository pattern
+- Scalable structure (SaaS-ready)
+- Performance optimized (avoid N+1, eager loading)
 
-This system streamlines the complete sales cycle:
+---
 
-Inquiry → Quotation → Booking → Invoice → Payment → Departure
+## 📂 Project Structure
 
-Built with scalability, security, and performance in mind, it supports multi-role access control and structured business workflows to ensure operational efficiency and financial accuracy.
 
-🛠 Tech Stack
+    app/
+    ├── Http/
+    │ ├── Controllers/
+    │ ├── Middleware/
+    │ └── Requests/
+    ├── Models/
+    ├── Services/
+    ├── Repositories/
+    ├── Helpers/
+    database/
+    resources/
+    routes/
 
-Backend: Laravel 10.x
 
-Frontend: Blade Templates, Bootstrap 5, JavaScript
+---
 
-Database: MySQL 8.0+
+## 🔄 Business Flow
 
-Caching: Redis / Memcached
 
-Queue: Laravel Queue (Redis)
+    Inquiry
+    ↓
+    Assignment
+    ↓
+    Follow-up
+    ↓
+    Create Quotation
+    ↓
+    Approval / Revision
+    ↓
+    Convert to Booking
+    ↓
+    Generate Invoice
+    ↓
+    Payment
+    ↓
+    Departure
 
-Server: Apache / Nginx
 
-API: RESTful API (External Integrations Ready)
+    Semua modul dirancang untuk mendukung flow utama ini secara optimal.
 
-👥 User Roles
+---
 
-Admin
+## ⚙️ Installation Guide
 
-Sales Manager
+### 1. Clone Repository
 
-Sales Agent
+    ```bash
+    git clone https://github.com/ekakoel/voyex-crm.git
+    cd voyex-crm
+    2. Install Dependencies
+    composer install
+    npm install
+    3. Setup Environment
+    cp .env.example .env
+    php artisan key:generate
 
-Finance
+    Sesuaikan konfigurasi database di file .env.
 
-Operations
+    4. Run Migration & Seeder
+    php artisan migrate --seed
+    5. Run Development Server
+    php artisan serve
+    npm run dev
 
-Role-Based Access Control (RBAC) with permission-level granularity is implemented.
+## 🔐 Security
 
-📦 Core Modules
-1. Dashboard
+- Role-Based Access Control (RBAC)
+- Permission-level access matrix
+- CSRF protection
+- Input validation & sanitization
+- Activity & audit logging
 
-Monthly sales statistics
+## 📊 Performance Strategy
 
-Inquiry-to-booking conversion chart
+- Eager loading for relationship optimization
 
-Upcoming bookings
+- Indexed critical database fields
 
-Quotation deadlines
+- Queue for heavy process (PDF, email, reports)
 
-...existing code...
+- Optional Redis caching
 
-2. Inquiry Management
+- Optimized query structure
 
-Multi-source inquiry input
+##📘 Documentation
 
-Assignment to sales agents
+###📄 AI System Guideline
 
-Status tracking & follow-up reminders
+- User Manual (Coming Soon)
 
-Communication history
+- API Documentation (Coming Soon)
 
-3. Quotation System
+- Deployment Checklist (Coming Soon)
 
-Auto-generated quotation numbers
+🧠 AI Integration
 
-Customizable templates
+Project ini menggunakan dokumen panduan khusus untuk memastikan konsistensi pengembangan dan skalabilitas sistem:
 
-Real-time price calculation
+👉 VOYEX_CRM_AI_GUIDELINE.md
 
-Discount approval workflow
+Dokumen tersebut mendefinisikan:
 
-PDF/Excel export
+Business logic utama
 
-4. Booking Management
+System boundaries
 
-Convert quotation to booking
+Development principles
 
-Participant data management
+Scalability direction
 
-Document upload (passport, ID, visa)
+🛣 Roadmap
+Phase 1
 
-Booking status tracking
+Core CRM
 
-5. Service Catalog
+Basic quotation system
 
-Tour packages (customizable)
+Dashboard overview
 
-Transport management
+Phase 2
 
-Accommodation database
+Booking & Invoice module
 
-Seasonal pricing support
+Vendor integration
 
-6. Finance Module
+Reporting
 
-Invoice generation
+Phase 3
 
-Partial payment tracking
+Advanced analytics
 
-Expense allocation
+SaaS multi-tenant architecture
 
-Profit calculation per booking
+Payment gateway integration
 
-Financial reports (Income, AR Aging, Cash Flow)
+Automation & email integration
 
-7. Vendor Management
+🌍 Future Direction
 
-Vendor database
+VOYEX CRM dirancang untuk berkembang menjadi:
 
-Contract & commission tracking
+Multi-tenant SaaS platform
 
-Performance rating
+Travel business intelligence system
 
-8. Reporting System
+Fully automated travel operations platform
 
-Sales report per agent
+👨‍💻 Developer
 
-Revenue report
+Developed & maintained by:
 
-Customer acquisition report
+Eka Koel
 
-Vendor performance report
+📄 License
 
-Custom report builder
+This project is proprietary software.
+All rights reserved.
 
-🔐 Security Features
+⭐ Contributing
 
-Role-Based Access Control (RBAC)
+Saat ini project dikembangkan secara private oleh developer.
+Contribution guideline akan tersedia pada versi open collaboration.
 
-CSRF & XSS protection
+💼 Vision
 
-SQL injection prevention
+Membangun sistem CRM travel agent yang:
 
-Sensitive data encryption
+Terstruktur
 
-Activity & audit logging
+Scalable
 
-Session timeout control
+Efisien
 
-📊 Workflow Example
-Inquiry Received
-→ Create Quotation
-→ Approval Process
-→ Convert to Booking
-→ Generate Invoice
-→ Payment Confirmation
-→ Service Confirmation
-→ Departure
+Business-oriented
 
-⚙ Installation Guide
-
-Clone the repository
-
-Run composer install
-
-Configure .env file
-
-Run php artisan migrate
-
-Seed master data (roles, permissions, service types)
-
-Create initial admin user
-
-🔧 Configuration
-
-SMTP email setup
-
-Payment gateway credentials
-
-SMS gateway configuration
-
-Company profile & branding
-
-📈 Development Phases
-
-Phase 1: Authentication, Customers, Inquiries, Basic Quotation
-Phase 2: Booking, Service Catalog, Invoice, Reporting
-Phase 3: Advanced Reporting, Integrations, Vendor Management, Optimization
-
-🧪 Code Standards
-
-PSR-12 compliant
-
-Service Layer & Repository Pattern
-
-Minimum 70% unit test coverage for business logic
-
-PHPDoc documentation
-
-💾 Backup Strategy
-
-Daily database backups
-
-Weekly full backups
-
-Cloud document storage
-
-3-year transaction retention policy
-
-🎯 Objective
-
-To increase operational efficiency, reduce manual errors, accelerate sales processing, and provide real-time business visibility for travel agencies through a centralized and scalable management system.
+Siap digunakan untuk skala kecil hingga enterprise
