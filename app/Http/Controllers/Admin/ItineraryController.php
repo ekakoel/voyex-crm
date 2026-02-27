@@ -7,8 +7,11 @@ use App\Models\Activity;
 use App\Models\Inquiry;
 use App\Models\Itinerary;
 use App\Models\TouristAttraction;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\File;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class ItineraryController extends Controller
@@ -143,8 +146,8 @@ class ItineraryController extends Controller
     public function show(Itinerary $itinerary)
     {
         $itinerary->load([
-            'touristAttractions:id,name,location,latitude,longitude',
-            'itineraryActivities.activity:id,vendor_id,name,activity_type,duration_minutes,agent_price,currency',
+            'touristAttractions:id,name,location,latitude,longitude,description',
+            'itineraryActivities.activity:id,vendor_id,name,activity_type,duration_minutes,agent_price,currency,notes',
             'itineraryActivities.activity.vendor:id,name,location,city,province,latitude,longitude',
             'inquiry:id,inquiry_number,customer_id',
             'inquiry.customer:id,name',
@@ -153,6 +156,119 @@ class ItineraryController extends Controller
         $activityDayGroups = $itinerary->itineraryActivities->groupBy(fn ($item) => (int) $item->day_number);
 
         return view('modules.itineraries.show', compact('itinerary', 'dayGroups', 'activityDayGroups'));
+    }
+
+    public function generatePdf(Request $request, Itinerary $itinerary)
+    {
+        $itinerary->load([
+            'touristAttractions:id,name,location,latitude,longitude,description',
+            'itineraryActivities.activity:id,vendor_id,name,activity_type,duration_minutes,agent_price,currency,notes',
+            'itineraryActivities.activity.vendor:id,name,location,city,province,latitude,longitude',
+            'inquiry:id,inquiry_number,customer_id,status,priority,source,deadline,notes',
+            'inquiry.customer:id,name,code',
+        ]);
+
+        $scheduleByDay = [];
+        for ($day = 1; $day <= (int) $itinerary->duration_days; $day++) {
+            $attractions = $itinerary->touristAttractions
+                ->filter(fn ($attraction) => (int) ($attraction->pivot->day_number ?? 0) === $day)
+                ->map(function ($attraction) {
+                    return [
+                        'type' => 'Attraction',
+                        'name' => (string) $attraction->name,
+                        'location' => (string) ($attraction->location ?? '-'),
+                        'description' => (string) ($attraction->description ?? '-'),
+                        'pax' => null,
+                        'start_time' => $attraction->pivot->start_time ? substr((string) $attraction->pivot->start_time, 0, 5) : '--:--',
+                        'end_time' => $attraction->pivot->end_time ? substr((string) $attraction->pivot->end_time, 0, 5) : '--:--',
+                        'travel_minutes_to_next' => $attraction->pivot->travel_minutes_to_next,
+                        'visit_order' => (int) ($attraction->pivot->visit_order ?? 999999),
+                    ];
+                });
+
+            $activities = $itinerary->itineraryActivities
+                ->filter(fn ($item) => (int) ($item->day_number ?? 0) === $day)
+                ->map(function ($item) {
+                    return [
+                        'type' => 'Activity',
+                        'name' => (string) ($item->activity->name ?? '-'),
+                        'location' => (string) ($item->activity->vendor->location ?? '-'),
+                        'description' => (string) ($item->activity->notes ?? '-'),
+                        'pax' => (int) ($item->pax ?? 0),
+                        'start_time' => $item->start_time ? substr((string) $item->start_time, 0, 5) : '--:--',
+                        'end_time' => $item->end_time ? substr((string) $item->end_time, 0, 5) : '--:--',
+                        'travel_minutes_to_next' => $item->travel_minutes_to_next,
+                        'visit_order' => (int) ($item->visit_order ?? 999999),
+                    ];
+                });
+
+            $items = $attractions->merge($activities)->sortBy('visit_order')->values();
+            $startTime = $items->pluck('start_time')->filter(fn ($time) => $time !== '--:--')->first() ?? '--:--';
+            $endTime = $items->pluck('end_time')->filter(fn ($time) => $time !== '--:--')->last() ?? '--:--';
+
+            $scheduleByDay[] = [
+                'day' => $day,
+                'start_time' => $startTime,
+                'end_time' => $endTime,
+                'items' => $items,
+            ];
+        }
+
+        $pdf = Pdf::loadView('pdf.itinerary', [
+            'itinerary' => $itinerary,
+            'scheduleByDay' => $scheduleByDay,
+            'companyName' => (string) config('app.name', 'Voyex CRM'),
+            'companyTagline' => (string) env('COMPANY_TAGLINE', 'Travel Itinerary & Experience Planner'),
+            'companyLogoDataUri' => $this->resolveCompanyLogoDataUri(),
+        ])->setPaper('a4', 'portrait');
+
+        $filename = 'itinerary-' . Str::slug($itinerary->title ?: 'untitled') . '.pdf';
+        $mode = strtolower((string) $request->query('mode', 'download'));
+        if ($mode === 'stream') {
+            return $pdf->stream($filename);
+        }
+
+        return $pdf->download($filename);
+    }
+
+    private function resolveCompanyLogoDataUri(): string
+    {
+        $candidates = [
+            public_path('images/company-logo.png'),
+            public_path('images/logo.png'),
+            public_path('logo.png'),
+        ];
+
+        foreach ($candidates as $path) {
+            if (! File::exists($path)) {
+                continue;
+            }
+            $binary = File::get($path);
+            $extension = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+            $mime = match ($extension) {
+                'svg' => 'image/svg+xml',
+                'jpg', 'jpeg' => 'image/jpeg',
+                'gif' => 'image/gif',
+                'webp' => 'image/webp',
+                default => 'image/png',
+            };
+
+            return 'data:' . $mime . ';base64,' . base64_encode($binary);
+        }
+
+        $name = (string) config('app.name', 'VOYEX');
+        $initials = strtoupper(substr(preg_replace('/[^A-Za-z0-9]/', '', $name), 0, 3) ?: 'VYX');
+        $svg = <<<SVG
+<svg xmlns="http://www.w3.org/2000/svg" width="360" height="90" viewBox="0 0 360 90">
+  <rect width="360" height="90" rx="14" fill="#0f172a"/>
+  <circle cx="48" cy="45" r="24" fill="#1d4ed8"/>
+  <text x="48" y="51" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" font-weight="700" fill="#ffffff">{$initials}</text>
+  <text x="86" y="40" font-family="Arial, sans-serif" font-size="20" font-weight="700" fill="#ffffff">{$name}</text>
+  <text x="86" y="60" font-family="Arial, sans-serif" font-size="11" fill="#cbd5e1">Professional Itinerary</text>
+</svg>
+SVG;
+
+        return 'data:image/svg+xml;base64,' . base64_encode($svg);
     }
 
     public function update(Request $request, Itinerary $itinerary)
@@ -360,6 +476,7 @@ class ItineraryController extends Controller
                 : $fallbackVisitOrderByDay[$dayNumber];
 
             $payload[] = [
+                'itinerary_id' => $itinerary->id,
                 'activity_id' => $activityId,
                 'day_number' => $dayNumber,
                 'pax' => (int) $item['pax'],

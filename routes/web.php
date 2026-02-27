@@ -154,6 +154,9 @@ Route::middleware('auth')->group(function () {
             ->middleware(['module:quotation_templates', 'permission:module.quotation_templates.access']);
         Route::resource('itineraries', AdminItineraryController::class)
             ->middleware(['module:itineraries', 'permission:module.itineraries.access']);
+        Route::get('itineraries/{itinerary}/pdf', [AdminItineraryController::class, 'generatePdf'])
+            ->name('itineraries.pdf')
+            ->middleware(['module:itineraries', 'permission:module.itineraries.access']);
         Route::resource('tourist-attractions', AdminTouristAttractionController::class)
             ->except(['show'])
             ->middleware(['module:tourist_attractions', 'permission:module.tourist_attractions.access']);

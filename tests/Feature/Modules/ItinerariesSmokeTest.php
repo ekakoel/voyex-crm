@@ -45,6 +45,6 @@ class ItinerariesSmokeTest extends ModuleSmokeTestCase
         $itinerary = Itinerary::query()->where('title', $title)->latest()->firstOrFail();
         $this->get(route('itineraries.edit', $itinerary))->assertOk();
         $this->get(route('itineraries.show', $itinerary))->assertOk();
+        $this->get(route('itineraries.pdf', $itinerary))->assertOk();
     }
 }
-
