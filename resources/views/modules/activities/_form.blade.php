@@ -71,6 +71,12 @@
         @error('benefits') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
     </div>
 
+    <div>
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Descriptions</label>
+        <textarea name="descriptions" rows="3" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">{{ old('descriptions', $activity->descriptions ?? '') }}</textarea>
+        @error('descriptions') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+    </div>
+
     <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Includes</label>
@@ -94,6 +100,28 @@
         <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Notes</label>
         <textarea name="notes" rows="3" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">{{ old('notes', $activity->notes ?? '') }}</textarea>
         @error('notes') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+    </div>
+
+    <div>
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Gallery Images (1-3)</label>
+        <input type="file" name="gallery_images[]" accept="image/jpeg,image/png,image/webp" multiple class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Upload 1 sampai 3 gambar. Saat edit, upload ulang akan mengganti gallery lama.</p>
+        @error('gallery_images') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+        @error('gallery_images.*') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+
+        @if (!empty($activity?->gallery_images))
+            <div class="mt-2 grid grid-cols-3 gap-2">
+                @foreach ($activity->gallery_images as $image)
+                    <div class="overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700">
+                        <img
+                            src="{{ asset('storage/' . \App\Support\ImageThumbnailGenerator::thumbnailPathFor($image)) }}"
+                            onerror="this.onerror=null;this.src='{{ asset('storage/' . $image) }}';"
+                            alt="Activity gallery"
+                            class="h-20 w-full object-cover">
+                    </div>
+                @endforeach
+            </div>
+        @endif
     </div>
 
     <div class="flex items-center gap-2">

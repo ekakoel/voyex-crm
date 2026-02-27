@@ -16,6 +16,7 @@ class TouristAttraction extends Model
         'latitude',
         'longitude',
         'description',
+        'gallery_images',
         'is_active',
     ];
 
@@ -24,6 +25,7 @@ class TouristAttraction extends Model
         'ideal_visit_minutes' => 'integer',
         'latitude' => 'float',
         'longitude' => 'float',
+        'gallery_images' => 'array',
     ];
 
     public function itineraries()

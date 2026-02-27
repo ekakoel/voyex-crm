@@ -4,6 +4,7 @@ namespace Tests\Feature\Modules;
 
 use App\Models\Activity;
 use App\Models\Vendor;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Str;
 
 class ActivitiesSmokeTest extends ModuleSmokeTestCase
@@ -34,6 +35,9 @@ class ActivitiesSmokeTest extends ModuleSmokeTestCase
             'agent_price' => 650000,
             'capacity_min' => 1,
             'capacity_max' => 10,
+            'gallery_images' => [
+                UploadedFile::fake()->image('activity-1.jpg'),
+            ],
             'is_active' => 1,
         ])->assertRedirect(route('activities.index'));
 
@@ -41,4 +45,3 @@ class ActivitiesSmokeTest extends ModuleSmokeTestCase
         $this->get(route('activities.edit', $activity))->assertOk();
     }
 }
-

@@ -75,6 +75,18 @@ class ModuleSeeder extends Seeder
                 'is_enabled' => true,
             ],
             [
+                'key' => 'accommodations',
+                'name' => 'Accommodations',
+                'description' => 'Manage accommodation partners, room types, and contract rates.',
+                'is_enabled' => true,
+            ],
+            [
+                'key' => 'transports',
+                'name' => 'Transports',
+                'description' => 'Manage transport providers, fleet units, and contract pricing.',
+                'is_enabled' => true,
+            ],
+            [
                 'key' => 'itineraries',
                 'name' => 'Itineraries',
                 'description' => 'Manage itinerary data.',

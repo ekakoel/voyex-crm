@@ -29,6 +29,10 @@
                         <div class="border-t border-gray-200 pt-1 dark:border-gray-700"><dt class="text-gray-500 dark:text-gray-400">Notes</dt><dd id="inq-detail-notes" class="mt-0.5 text-gray-700 dark:text-gray-200">-</dd></div>
                     </dl>
                 </div>
+                <div class="mt-4 rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+                    <p class="text-xs font-semibold uppercase tracking-wide text-gray-700 dark:text-gray-200">Itinerary Route Preview</p>
+                    <div id="itinerary-map" class="mt-2 h-[420px] md:h-[560px] w-full rounded-lg border border-gray-300"></div>
+                </div>
             </aside>
         </div>
     </div>

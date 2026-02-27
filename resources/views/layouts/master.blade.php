@@ -4,9 +4,77 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>VOYEX CRM</title>
+    @php
+        $appTitle = trim((string) ($companySettings->company_name ?? 'VOYEX CRM'));
+        $faviconPath = $companySettings->favicon_path ?? null;
+        $faviconVersion = !empty($companySettings?->updated_at) ? $companySettings->updated_at->timestamp : null;
+        $faviconUrl = $faviconPath ? asset('storage/' . $faviconPath) . ($faviconVersion ? ('?v=' . $faviconVersion) : '') : null;
+        $faviconExt = $faviconPath ? strtolower((string) pathinfo($faviconPath, PATHINFO_EXTENSION)) : null;
+        $faviconMime = match ($faviconExt) {
+            'png' => 'image/png',
+            'ico' => 'image/x-icon',
+            'webp' => 'image/webp',
+            'jpg', 'jpeg' => 'image/jpeg',
+            default => 'image/x-icon',
+        };
+    @endphp
+    <title>{{ $appTitle !== '' ? $appTitle : 'VOYEX CRM' }}</title>
+    @if ($faviconUrl)
+        <link rel="icon" type="{{ $faviconMime }}" href="{{ $faviconUrl }}">
+        <link rel="shortcut icon" type="{{ $faviconMime }}" href="{{ $faviconUrl }}">
+        <link rel="apple-touch-icon" href="{{ $faviconUrl }}">
+    @endif
     @vite(['resources/css/app.css','resources/js/app.js'])
     @stack('styles')
+    <style>
+        .sidebar-nav-item,
+        .sidebar-sub-item {
+            position: relative;
+            transition: background-color .25s ease, color .25s ease, transform .2s ease, box-shadow .25s ease;
+        }
+
+        .sidebar-nav-item::before,
+        .sidebar-sub-item::before {
+            content: '';
+            position: absolute;
+            left: .45rem;
+            top: .4rem;
+            bottom: .4rem;
+            width: 3px;
+            border-radius: 9999px;
+            background: rgba(255, 255, 255, .92);
+            opacity: 0;
+            transform: scaleY(.3);
+            transform-origin: center;
+            transition: opacity .25s ease, transform .25s ease;
+        }
+
+        .sidebar-nav-item:hover,
+        .sidebar-sub-item:hover {
+            transform: translateX(2px);
+        }
+
+        .sidebar-nav-item.is-active,
+        .sidebar-sub-item.is-active {
+            animation: sidebarActiveIn .28s ease both;
+        }
+
+        .sidebar-nav-item.is-active::before,
+        .sidebar-sub-item.is-active::before {
+            opacity: 1;
+            transform: scaleY(1);
+        }
+
+        @keyframes sidebarActiveIn {
+            0% { opacity: .85; }
+            100% { opacity: 1; }
+        }
+
+        .sidebar-is-collapsed .sidebar-nav-item:hover,
+        .sidebar-is-collapsed .sidebar-sub-item:hover {
+            transform: none;
+        }
+    </style>
 </head>
 
 <body class="bg-gray-100 dark:bg-gray-900 transition-colors duration-300">
@@ -25,7 +93,7 @@
         <div class="p-4 border-b border-gray-700 flex items-center justify-between gap-2">
             <div class="text-xl font-bold whitespace-nowrap overflow-hidden"
                  :class="sidebarCollapsed ? 'md:hidden' : 'block'">
-                VOYEX CRM
+                {{ $appTitle !== '' ? $appTitle : 'VOYEX CRM' }}
             </div>
 
             <button type="button"
@@ -46,6 +114,10 @@
                 @foreach ($menuItems as $item)
                     @if (($item['type'] ?? null) === 'separator')
                         <div class="my-2 border-t border-white/25"></div>
+                        @continue
+                    @endif
+                    @if (($item['type'] ?? null) === 'label')
+                        <div class="px-4 pt-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-white/55 sidebar-label">{{ $item['title'] }}</div>
                         @continue
                     @endif
 
@@ -70,8 +142,8 @@
                         <div x-data="{ openChildren: {{ $isChildActive ? 'true' : 'false' }} }" 
                              @keydown.escape="openChildren = false">
                             <button type="button"
-                                    class="w-full group flex items-center gap-3 px-4 py-2 rounded-lg transition-colors duration-200 text-left text-white/90 hover:text-white
-                                           {{ $isChildActive ? 'bg-gray-700 font-semibold' : 'hover:bg-gray-700' }}"
+                                    class="sidebar-nav-item w-full group flex items-center gap-3 px-4 py-2 rounded-lg transition-colors duration-200 text-left text-white/90 hover:text-white
+                                           {{ $isChildActive ? 'bg-gray-700 font-semibold is-active' : 'hover:bg-gray-700' }}"
                                     :class="sidebarCollapsed ? 'md:justify-center md:px-2' : ''"
                                     :title="sidebarCollapsed ? '{{ $item['title'] }}' : ''"
                                     @click="openChildren = !openChildren">
@@ -89,8 +161,8 @@
                                     @foreach ($item['children'] as $child)
                                         @if (Route::has($child['route']))
                                             <a href="{{ route($child['route']) }}"
-                                               class="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-white/85 hover:text-white transition-colors duration-200
-                                                      {{ request()->routeIs($child['route']) || request()->routeIs($child['route'].'.*') ? 'bg-gray-700/80 font-semibold' : 'hover:bg-gray-700/70' }}">
+                                               class="sidebar-sub-item flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-white/85 hover:text-white transition-colors duration-200
+                                                      {{ request()->routeIs($child['route']) || request()->routeIs($child['route'].'.*') ? 'bg-gray-700/80 font-semibold is-active' : 'hover:bg-gray-700/70' }}">
                                                 <span class="inline-flex h-4 w-4 items-center justify-center text-xs">
                                                     <i class="fa-solid fa-{{ $child['icon'] ?? 'list' }}"></i>
                                                 </span>
@@ -104,8 +176,8 @@
                     @else
                         @if (Route::has($item['route']))
                             <a href="{{ route($item['route']) }}"
-                               class="group flex items-center gap-3 px-4 py-2 rounded-lg transition-colors duration-200 text-white/90 hover:text-white
-                                      {{ $isItemActive ? 'bg-gray-700 font-semibold' : 'hover:bg-gray-700' }}"
+                               class="sidebar-nav-item group flex items-center gap-3 px-4 py-2 rounded-lg transition-colors duration-200 text-white/90 hover:text-white
+                                      {{ $isItemActive ? 'bg-gray-700 font-semibold is-active' : 'hover:bg-gray-700' }}"
                                :class="sidebarCollapsed ? 'md:justify-center md:px-2' : ''"
                                :title="sidebarCollapsed ? '{{ $item['title'] }}' : ''">
                                 <span class="inline-flex h-5 w-5 items-center justify-center">

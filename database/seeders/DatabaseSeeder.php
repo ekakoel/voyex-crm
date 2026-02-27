@@ -13,6 +13,8 @@ use Database\Seeders\InquirySeeder;
 use Database\Seeders\CustomerSeeder;
 use Database\Seeders\UserSeeder;
 use Database\Seeders\VendorActivitySeeder;
+use Database\Seeders\AccommodationSeeder;
+use Database\Seeders\TransportSeeder;
 
 class DatabaseSeeder extends Seeder
 {
@@ -30,5 +32,7 @@ class DatabaseSeeder extends Seeder
         $this->call(InquirySeeder::class);
         $this->call(TouristAttractionSeeder::class);
         $this->call(VendorActivitySeeder::class);
+        $this->call(AccommodationSeeder::class);
+        $this->call(TransportSeeder::class);
     }
 }

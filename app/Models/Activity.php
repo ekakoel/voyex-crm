@@ -12,6 +12,7 @@ class Activity extends Model
         'activity_type',
         'duration_minutes',
         'benefits',
+        'descriptions',
         'contract_price',
         'agent_price',
         'currency',
@@ -21,6 +22,7 @@ class Activity extends Model
         'excludes',
         'cancellation_policy',
         'notes',
+        'gallery_images',
         'is_active',
     ];
 
@@ -30,6 +32,7 @@ class Activity extends Model
         'agent_price' => 'decimal:2',
         'capacity_min' => 'integer',
         'capacity_max' => 'integer',
+        'gallery_images' => 'array',
         'is_active' => 'boolean',
     ];
 

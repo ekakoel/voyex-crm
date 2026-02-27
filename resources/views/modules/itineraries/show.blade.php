@@ -55,6 +55,8 @@
                                     'name' => $activity->name ?? '-',
                                     'location' => $activity->vendor->location ?? null,
                                     'description' => $activity->notes ?? null,
+                                    'includes' => $activity->includes ?? null,
+                                    'benefits' => $activity->benefits ?? null,
                                     'pax' => $activityItem->pax,
                                     'start_time' => $activityItem->start_time,
                                     'end_time' => $activityItem->end_time,
@@ -122,6 +124,13 @@
                                                 {{ $item['end_time'] ? substr((string) $item['end_time'], 0, 5) : '--:--' }}
                                             </div>
                                             <p class="mt-1 text-xs text-gray-600 dark:text-gray-300">{{ $item['description'] ? \Illuminate\Support\Str::limit(strip_tags((string) $item['description']), 180) : '-' }}</p>
+                                            @if ($item['type'] === 'activity')
+                                                <div class="mt-1 space-y-0.5 text-[11px] text-gray-600 dark:text-gray-300">
+                                                    <p><span class="font-semibold">Pax:</span> {{ $item['pax'] ?? '-' }}</p>
+                                                    <p><span class="font-semibold">Includes:</span> {{ $item['includes'] ? \Illuminate\Support\Str::limit(strip_tags((string) $item['includes']), 120) : '-' }}</p>
+                                                    <p><span class="font-semibold">Benefits:</span> {{ $item['benefits'] ? \Illuminate\Support\Str::limit(strip_tags((string) $item['benefits']), 120) : '-' }}</p>
+                                                </div>
+                                            @endif
                                         </div>
                                     </li>
                                 @empty
@@ -183,6 +192,39 @@
             padding: 6px 2px;
             font-size: 10px;
             line-height: 1;
+        }
+        .visible-item {
+            display: flex;
+            align-items: stretch;
+            overflow: hidden;
+        }
+        .visible-item-icon-box {
+            width: 52px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .visible-item-icon-box.attraction {
+            background: rgba(29, 78, 216, 0.14);
+            color: #1d4ed8;
+        }
+        .visible-item-icon-box.activity {
+            background: rgba(5, 150, 105, 0.14);
+            color: #047857;
+        }
+        .dark .visible-item-icon-box.attraction {
+            background: rgba(59, 130, 246, 0.25);
+            color: #bfdbfe;
+        }
+        .dark .visible-item-icon-box.activity {
+            background: rgba(16, 185, 129, 0.25);
+            color: #a7f3d0;
+        }
+        .visible-item-content {
+            flex: 1;
+            padding: 6px 8px;
+            min-width: 0;
         }
     </style>
 @endpush
@@ -301,12 +343,22 @@
                     const end = item.end_time ? String(item.end_time).slice(0, 5) : '--:--';
                     const type = item.type === 'activity' ? 'Activity' : 'Attraction';
                     const dayLabel = `Day ${item.day_number}`;
-                    return `<li class="rounded-md border border-gray-200 bg-white px-2 py-1.5 dark:border-gray-700 dark:bg-gray-900/50">
-                        <div class="flex items-center justify-between gap-2">
-                            <span class="font-medium">#${item.badge_no} ${item.name}</span>
-                            <span class="text-[10px] uppercase text-gray-500 dark:text-gray-400">${dayLabel} | ${type}</span>
+                    const isActivity = item.type === 'activity';
+                    const iconClass = isActivity ? 'fa-solid fa-person-hiking' : 'fa-solid fa-location-dot';
+                    const iconTypeClass = isActivity ? 'activity' : 'attraction';
+                    return `<li class="visible-item rounded-md border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900/50">
+                        <div class="visible-item-icon-box ${iconTypeClass}">
+                            <i class="${iconClass} text-xl"></i>
                         </div>
-                        <div class="text-[11px] text-gray-500 dark:text-gray-400">${start} - ${end}${item.location ? ` | ${item.location}` : ''}</div>
+                        <div class="visible-item-content">
+                            <div class="flex items-center justify-between gap-2">
+                                <span class="inline-flex min-w-0 items-center">
+                                <span class="truncate font-medium">#${item.badge_no} ${item.name}</span>
+                                </span>
+                                <span class="text-[10px] uppercase text-gray-500 dark:text-gray-400">${dayLabel} | ${type}</span>
+                            </div>
+                            <div class="text-[11px] text-gray-500 dark:text-gray-400">${start} - ${end}${item.location ? ` | ${item.location}` : ''}</div>
+                        </div>
                     </li>`;
                 }).join('');
             };

@@ -34,6 +34,9 @@ class PermissionSeeder extends Seeder
             'dashboard.finance.view',
             'dashboard.operations.view',
             'dashboard.director.view',
+            'company_settings.manage',
+            'quotations.approve',
+            'quotations.reject',
         ];
 
         foreach ($dashboardPermissions as $permissionName) {

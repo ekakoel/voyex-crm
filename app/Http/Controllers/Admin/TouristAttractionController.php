@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\TouristAttraction;
+use App\Support\ImageThumbnailGenerator;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 
 class TouristAttractionController extends Controller
@@ -23,27 +25,9 @@ class TouristAttractionController extends Controller
 
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'ideal_visit_minutes' => ['required', 'integer', 'min:15', 'max:1440'],
-            'location' => ['nullable', 'string', 'max:255'],
-            'city' => ['nullable', 'string', 'max:100'],
-            'province' => ['nullable', 'string', 'max:100'],
-            'google_maps_url' => ['nullable', 'url', 'max:5000'],
-            'latitude' => ['nullable', 'numeric', 'between:-90,90', 'required_with:longitude'],
-            'longitude' => ['nullable', 'numeric', 'between:-180,180', 'required_with:latitude'],
-            'description' => ['nullable', 'string'],
-            'is_active' => ['nullable', 'boolean'],
-        ]);
+        $validated = $this->validatePayload($request, null);
 
-        $validated['is_active'] = $request->boolean('is_active');
-        if (empty($validated['location'])) {
-            $parts = array_filter([trim((string) ($validated['city'] ?? '')), trim((string) ($validated['province'] ?? ''))]);
-            if ($parts !== []) {
-                $validated['location'] = implode(', ', $parts);
-            }
-        }
-        $this->fillCoordinatesFromGoogleMapsUrl($validated);
+        $validated['gallery_images'] = $this->storeGalleryImages($request->file('gallery_images', []), 'tourist-attractions');
 
         TouristAttraction::query()->create($validated);
 
@@ -57,6 +41,40 @@ class TouristAttractionController extends Controller
 
     public function update(Request $request, TouristAttraction $touristAttraction)
     {
+        $validated = $this->validatePayload($request, $touristAttraction);
+
+        if ($request->hasFile('gallery_images')) {
+            $this->deleteGalleryImages($touristAttraction->gallery_images ?? []);
+            $validated['gallery_images'] = $this->storeGalleryImages($request->file('gallery_images', []), 'tourist-attractions');
+        } else {
+            $validated['gallery_images'] = $touristAttraction->gallery_images ?? [];
+        }
+
+        $touristAttraction->update($validated);
+
+        return redirect()->route('tourist-attractions.index')->with('success', 'Tourist attraction updated successfully.');
+    }
+
+    public function destroy(TouristAttraction $touristAttraction)
+    {
+        $this->deleteGalleryImages($touristAttraction->gallery_images ?? []);
+        $touristAttraction->delete();
+
+        return redirect()->route('tourist-attractions.index')->with('success', 'Tourist attraction deleted successfully.');
+    }
+
+    private function validatePayload(Request $request, ?TouristAttraction $touristAttraction): array
+    {
+        $hasExistingGallery = $touristAttraction && is_array($touristAttraction->gallery_images) && count($touristAttraction->gallery_images) > 0;
+        $galleryRules = ['array', 'max:3'];
+        if (! $hasExistingGallery) {
+            array_unshift($galleryRules, 'required', 'min:1');
+        } elseif ($request->hasFile('gallery_images')) {
+            array_unshift($galleryRules, 'min:1');
+        } else {
+            array_unshift($galleryRules, 'sometimes');
+        }
+
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'ideal_visit_minutes' => ['required', 'integer', 'min:15', 'max:1440'],
@@ -67,6 +85,8 @@ class TouristAttractionController extends Controller
             'latitude' => ['nullable', 'numeric', 'between:-90,90', 'required_with:longitude'],
             'longitude' => ['nullable', 'numeric', 'between:-180,180', 'required_with:latitude'],
             'description' => ['nullable', 'string'],
+            'gallery_images' => $galleryRules,
+            'gallery_images.*' => ['image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
             'is_active' => ['nullable', 'boolean'],
         ]);
 
@@ -79,16 +99,31 @@ class TouristAttractionController extends Controller
         }
         $this->fillCoordinatesFromGoogleMapsUrl($validated);
 
-        $touristAttraction->update($validated);
-
-        return redirect()->route('tourist-attractions.index')->with('success', 'Tourist attraction updated successfully.');
+        return $validated;
     }
 
-    public function destroy(TouristAttraction $touristAttraction)
+    private function storeGalleryImages(array $files, string $directory): array
     {
-        $touristAttraction->delete();
+        $stored = [];
+        foreach ($files as $file) {
+            if (! $file) {
+                continue;
+            }
+            $originalPath = $file->store($directory, 'public');
+            $stored[] = $originalPath;
+            ImageThumbnailGenerator::generate('public', $originalPath);
+        }
+        return $stored;
+    }
 
-        return redirect()->route('tourist-attractions.index')->with('success', 'Tourist attraction deleted successfully.');
+    private function deleteGalleryImages(array $paths): void
+    {
+        foreach ($paths as $path) {
+            if (is_string($path) && $path !== '') {
+                Storage::disk('public')->delete($path);
+                Storage::disk('public')->delete(ImageThumbnailGenerator::thumbnailPathFor($path));
+            }
+        }
     }
 
     private function fillCoordinatesFromGoogleMapsUrl(array &$validated): void

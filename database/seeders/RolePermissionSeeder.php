@@ -38,6 +38,8 @@ class RolePermissionSeeder extends Seeder
                 'module.customer_management.access',
                 'module.inquiries.access',
                 'module.quotations.access',
+                'quotations.approve',
+                'quotations.reject',
                 'module.bookings.access',
                 'module.vendor_management.access',
                 'module.activities.access',
@@ -56,9 +58,12 @@ class RolePermissionSeeder extends Seeder
                 'module.customer_management.access',
                 'module.inquiries.access',
                 'module.quotations.access',
+                'quotations.approve',
+                'quotations.reject',
                 'module.bookings.access',
                 'module.invoices.access',
                 'dashboard.finance.view',
+                'company_settings.manage',
             ],
             'Finance' => [
                 'dashboard.finance.view',
@@ -79,17 +84,12 @@ class RolePermissionSeeder extends Seeder
                 continue;
             }
 
-            if ($roleName === 'Admin' || $roleName === 'Super Admin') {
-                $role->syncPermissions($permissionNames);
-                continue;
-            }
+            $validPermissions = Permission::query()
+                ->whereIn('name', $permissionNames)
+                ->pluck('name')
+                ->all();
 
-            foreach ($permissionNames as $permissionName) {
-                $permission = Permission::where('name', $permissionName)->first();
-                if ($permission) {
-                    $role->givePermissionTo($permission);
-                }
-            }
+            $role->syncPermissions($validPermissions);
         }
     }
 }

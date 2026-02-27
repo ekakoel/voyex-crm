@@ -3,6 +3,8 @@
 use App\Http\Controllers\Admin\DashboardController;
 // ...existing code...
 use App\Http\Controllers\Admin\ActivityController as AdminActivityController;
+use App\Http\Controllers\Admin\AccommodationController as AdminAccommodationController;
+use App\Http\Controllers\Admin\TransportController as AdminTransportController;
 use App\Http\Controllers\Admin\QuotationTemplateController as AdminQuotationTemplateController;
 use App\Http\Controllers\Admin\RoleController as AdminRoleController;
 use App\Http\Controllers\Admin\ServiceController as AdminServiceController;
@@ -12,11 +14,13 @@ use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\Admin\VendorController as AdminVendorController;
 use App\Http\Controllers\DashboardRedirectController;
 use App\Http\Controllers\Director\DashboardController as DirectorDashboardController;
+use App\Http\Controllers\Director\CompanySettingController as DirectorCompanySettingController;
 use App\Http\Controllers\Finance\DashboardController as FinanceDashboardController;
 use App\Http\Controllers\Finance\InvoiceController as FinanceInvoiceController;
 use App\Http\Controllers\Operations\DashboardController as OperationsDashboardController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\SuperAdmin\DashboardController as SuperAdminDashboardController;
+use App\Http\Controllers\SuperAdmin\AccessMatrixController as SuperAdminAccessMatrixController;
 use App\Http\Controllers\Sales\CustomerImportController as SalesCustomerImportController;
 use App\Http\Controllers\Sales\DashboardController as SalesDashboardController;
 use App\Http\Controllers\Sales\InquiryController as SalesInquiryController;
@@ -81,7 +85,16 @@ Route::middleware('auth')->group(function () {
             ->name('dashboard');
         Route::get('/dashboard/trend', [SuperAdminDashboardController::class, 'trend'])
             ->name('dashboard.trend');
+        Route::get('/access-matrix', [SuperAdminAccessMatrixController::class, 'index'])
+            ->name('access-matrix');
     });
+
+    Route::get('company-settings', [DirectorCompanySettingController::class, 'edit'])
+        ->name('company-settings.edit')
+        ->middleware(['permission:company_settings.manage']);
+    Route::patch('company-settings', [DirectorCompanySettingController::class, 'update'])
+        ->name('company-settings.update')
+        ->middleware(['permission:company_settings.manage']);
 
     // Shared modules (no role prefix), access controlled by module + permission
     Route::resource('customers',
@@ -127,16 +140,16 @@ Route::middleware('auth')->group(function () {
         ->middleware(['module:quotations', 'permission:module.quotations.access']);
     Route::post('quotations/{quotation}/approve', [SalesQuotationController::class, 'approve'])
         ->name('quotations.approve')
-        ->middleware(['role:Sales Manager|Director|Admin|Super Admin', 'module:quotations', 'permission:module.quotations.access']);
+        ->middleware(['module:quotations', 'permission:quotations.approve']);
     Route::post('quotations/{quotation}/reject', [SalesQuotationController::class, 'reject'])
         ->name('quotations.reject')
-        ->middleware(['role:Sales Manager|Director|Admin|Super Admin', 'module:quotations', 'permission:module.quotations.access']);
+        ->middleware(['module:quotations', 'permission:quotations.reject']);
 
     // Admin routes group (no role prefix in route names)
     Route::group([], function () {
         Route::get('/admin-dashboard', [DashboardController::class, 'index'])
             ->name('dashboard.admin')
-            ->middleware(['role:Admin|Super Admin', 'permission:dashboard.admin.view']);
+            ->middleware(['permission:dashboard.admin.view']);
         Route::get('/services', [AdminServiceController::class, 'index'])
             ->name('services.index')
             ->middleware('permission:module.service_manager.access');
@@ -160,6 +173,10 @@ Route::middleware('auth')->group(function () {
         Route::resource('tourist-attractions', AdminTouristAttractionController::class)
             ->except(['show'])
             ->middleware(['module:tourist_attractions', 'permission:module.tourist_attractions.access']);
+        Route::resource('accommodations', AdminAccommodationController::class)
+            ->middleware(['module:accommodations', 'permission:module.accommodations.access']);
+        Route::resource('transports', AdminTransportController::class)
+            ->middleware(['module:transports', 'permission:module.transports.access']);
     });
 
     // Shared module routes for vendor/activity (no URL prefix)
@@ -181,7 +198,7 @@ Route::middleware('auth')->group(function () {
     Route::group([], function () {
         Route::get('/sales-dashboard', [SalesDashboardController::class, 'index'])
             ->name('dashboard.sales')
-            ->middleware(['role:Sales Manager|Sales Agent', 'permission:dashboard.sales.view']);
+            ->middleware(['permission:dashboard.sales.view']);
     });
     // ----------------------------------------------------------------------------------------------------------
     // Finance
@@ -189,7 +206,7 @@ Route::middleware('auth')->group(function () {
     Route::group([], function () {
         Route::get('/finance-dashboard', [FinanceDashboardController::class, 'index'])
             ->name('dashboard.finance')
-            ->middleware(['role:Finance', 'permission:dashboard.finance.view']);
+            ->middleware(['permission:dashboard.finance.view']);
         Route::get('invoices', [FinanceInvoiceController::class, 'index'])
             ->name('invoices.index')
             ->middleware(['module:invoices', 'permission:module.invoices.access']);
@@ -203,7 +220,7 @@ Route::middleware('auth')->group(function () {
     Route::group([], function () {
         Route::get('/director-dashboard', [DirectorDashboardController::class, 'index'])
             ->name('dashboard.director')
-            ->middleware(['role:Director', 'permission:dashboard.director.view']);
+            ->middleware(['permission:dashboard.director.view']);
     });
     // ----------------------------------------------------------------------------------------------------------
     // Operations
@@ -211,7 +228,7 @@ Route::middleware('auth')->group(function () {
     Route::group([], function () {
         Route::get('/operations-dashboard', [OperationsDashboardController::class, 'index'])
             ->name('dashboard.operations')
-            ->middleware(['role:Operations|Sales Manager', 'permission:dashboard.operations.view']);
+            ->middleware(['permission:dashboard.operations.view']);
         Route::resource('bookings', \App\Http\Controllers\BookingController::class)
             ->middleware(['module:bookings', 'permission:module.bookings.access']);
         Route::get('bookings/export/csv', [\App\Http\Controllers\BookingController::class, 'exportCsv'])

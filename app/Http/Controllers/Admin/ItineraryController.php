@@ -147,7 +147,7 @@ class ItineraryController extends Controller
     {
         $itinerary->load([
             'touristAttractions:id,name,location,latitude,longitude,description',
-            'itineraryActivities.activity:id,vendor_id,name,activity_type,duration_minutes,agent_price,currency,notes',
+            'itineraryActivities.activity:id,vendor_id,name,activity_type,duration_minutes,agent_price,currency,includes,benefits,notes',
             'itineraryActivities.activity.vendor:id,name,location,city,province,latitude,longitude',
             'inquiry:id,inquiry_number,customer_id',
             'inquiry.customer:id,name',

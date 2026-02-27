@@ -68,5 +68,6 @@ class Kernel extends HttpKernel
         'permission' => \App\Http\Middleware\PermissionOrSuperAdmin::class,
         'role_or_permission' => \App\Http\Middleware\RoleOrPermissionOrSuperAdmin::class,
         'module' => \App\Http\Middleware\EnsureModuleEnabled::class,
+        'director.only' => \App\Http\Middleware\EnsureDirectorOnly::class,
     ];
 }

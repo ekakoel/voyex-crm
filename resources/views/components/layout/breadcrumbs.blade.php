@@ -6,7 +6,7 @@
         'edit' => 'Edit',
         'show' => 'Detail',
     ];
-    $labelOverrides = [
+    $scopeLabels = [
         'superadmin' => 'Super Admin',
         'admin' => 'Admin',
         'sales' => 'Sales',
@@ -14,43 +14,121 @@
         'finance' => 'Finance',
         'director' => 'Director',
     ];
+    $labelOverrides = array_merge($scopeLabels, [
+        'quotation-templates' => 'Quotation Templates',
+        'tourist-attractions' => 'Tourist Attractions',
+        'services' => 'Modules',
+        'profile' => 'Profile',
+    ]);
 
     $items = [];
     if (Route::has('dashboard')) {
         $items[] = ['label' => 'Dashboard', 'url' => route('dashboard')];
     }
 
-    if ($routeName && $routeName !== 'dashboard') {
-        $parts = explode('.', $routeName);
-        $action = null;
-        $lastPart = end($parts);
-        if (array_key_exists($lastPart, $actionLabels)) {
-            $action = $lastPart;
-            array_pop($parts);
+    if ($routeName) {
+        $isDashboardRoute = $routeName === 'dashboard'
+            || $routeName === 'superadmin.dashboard'
+            || str_starts_with($routeName, 'dashboard.');
+        if ($isDashboardRoute) {
+            $items = [['label' => 'Dashboard', 'url' => null]];
         }
 
-        foreach ($parts as $index => $part) {
-            $segment = (string) $part;
-            $label = $labelOverrides[$segment] ?? \Illuminate\Support\Str::of($segment)->replace(['-', '_'], ' ')->title()->toString();
-            $url = null;
+        $parts = explode('.', $routeName);
 
-            if ($index === 0) {
-                $scopeDashboardRoute = $segment . '.dashboard';
-                if (Route::has($scopeDashboardRoute)) {
-                    $url = route($scopeDashboardRoute);
+        $resolveLabel = function (string $segment) use ($labelOverrides): string {
+            return $labelOverrides[$segment]
+                ?? \Illuminate\Support\Str::of($segment)->replace(['-', '_'], ' ')->title()->toString();
+        };
+        $resolveRoute = function (string $candidate) {
+            if (Route::has($candidate)) {
+                return route($candidate);
+            }
+            if (Route::has($candidate . '.index')) {
+                return route($candidate . '.index');
+            }
+
+            return null;
+        };
+        $resolveEntityLabel = function () {
+            $route = request()->route();
+            if (! $route) {
+                return null;
+            }
+
+            $parameters = array_reverse($route->parametersWithoutNulls());
+            foreach ($parameters as $value) {
+                if (is_object($value) && method_exists($value, 'getAttribute')) {
+                    foreach (['inquiry_number', 'quotation_number', 'booking_number', 'code', 'title', 'name'] as $field) {
+                        $attr = $value->getAttribute($field);
+                        if (is_string($attr) && trim($attr) !== '') {
+                            return trim($attr);
+                        }
+                    }
+
+                    $id = method_exists($value, 'getKey') ? $value->getKey() : null;
+                    return \Illuminate\Support\Str::of(class_basename($value))->replace(['-', '_'], ' ')->title()->toString()
+                        . ($id ? ' #' . $id : '');
                 }
-            } else {
-                $candidate = implode('.', array_slice($parts, 0, $index + 1)) . '.index';
-                if (Route::has($candidate)) {
-                    $url = route($candidate);
+
+                if (is_scalar($value) && (string) $value !== '') {
+                    return (string) $value;
                 }
             }
 
-            $items[] = ['label' => $label, 'url' => $url];
-        }
+            return null;
+        };
 
-        if ($action && $action !== 'index') {
-            $items[] = ['label' => $actionLabels[$action], 'url' => null];
+        // Dashboard family normalization:
+        // superadmin.dashboard => Dashboard > Super Admin > Dashboard
+        // dashboard.admin     => Dashboard > Admin > Dashboard
+        if (! $isDashboardRoute) {
+            if (($parts[0] ?? null) === 'superadmin' && ($parts[1] ?? null) === 'dashboard') {
+                $items[] = ['label' => 'Super Admin', 'url' => Route::has('superadmin.dashboard') ? route('superadmin.dashboard') : null];
+                $items[] = ['label' => 'Dashboard', 'url' => null];
+            } elseif (($parts[0] ?? null) === 'dashboard' && isset($parts[1]) && isset($scopeLabels[$parts[1]])) {
+                $scope = $parts[1];
+                $scopeDashboardRoute = 'dashboard.' . $scope;
+                $items[] = ['label' => $scopeLabels[$scope], 'url' => Route::has($scopeDashboardRoute) ? route($scopeDashboardRoute) : null];
+                $items[] = ['label' => 'Dashboard', 'url' => null];
+            } else {
+                $action = null;
+                $lastPart = end($parts);
+                if (array_key_exists($lastPart, $actionLabels)) {
+                    $action = $lastPart;
+                    array_pop($parts);
+                }
+
+                $consumedPrefix = '';
+
+                if (!empty($parts) && isset($scopeLabels[$parts[0]])) {
+                    $scope = array_shift($parts);
+                    $scopeDashboardRoute = $scope . '.dashboard';
+                    $items[] = ['label' => $scopeLabels[$scope], 'url' => Route::has($scopeDashboardRoute) ? route($scopeDashboardRoute) : null];
+                    $consumedPrefix = $scope;
+                }
+
+                foreach ($parts as $index => $part) {
+                    $segment = (string) $part;
+                    $label = $resolveLabel($segment);
+                    $chain = implode('.', array_slice($parts, 0, $index + 1));
+                    $candidate = $consumedPrefix !== '' ? ($consumedPrefix . '.' . $chain) : $chain;
+                    $url = $resolveRoute($candidate);
+
+                    $items[] = ['label' => $label, 'url' => $url];
+                }
+
+                if ($action && $action !== 'index') {
+                    $items[] = ['label' => $actionLabels[$action], 'url' => null];
+                }
+
+                if (in_array($action, ['show', 'edit'], true)) {
+                    $entityLabel = $resolveEntityLabel();
+                    if ($entityLabel) {
+                        $items[] = ['label' => $entityLabel, 'url' => null];
+                    }
+                }
+            }
         }
     }
 @endphp

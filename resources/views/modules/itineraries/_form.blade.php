@@ -302,11 +302,6 @@
         @enderror
     </div>
 
-    <div class="space-y-2">
-        <p class="text-sm font-medium text-gray-700 dark:text-gray-200">Itinerary Route Preview</p>
-        <div id="itinerary-map" class="h-[420px] md:h-[560px] w-full rounded-lg border border-gray-300"></div>
-    </div>
-
     <div class="flex items-center gap-2">
         <input type="checkbox" name="is_active" value="1" class="rounded border-gray-300 text-indigo-600"
             @checked(old('is_active', $itinerary->is_active ?? true))>

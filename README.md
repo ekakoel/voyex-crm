@@ -1,3 +1,5 @@
+![AI Guided](https://img.shields.io/badge/AI-Guided%20Architecture-blue)
+
 Tourism Management System – Travel Agent CRM
 
 A web-based platform designed to manage end-to-end travel agency operations, from initial inquiry to customer departure. The system centralizes sales, quotation, booking, invoicing, finance, vendor management, and business analytics into a single integrated environment.

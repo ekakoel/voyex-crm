@@ -14,6 +14,11 @@ class EnsureModuleEnabled
      */
     public function handle(Request $request, Closure $next, string $moduleKey): Response
     {
+        $user = $request->user();
+        if ($user && $user->hasRole('Super Admin')) {
+            return $next($request);
+        }
+
         if (! ModuleService::isEnabledStatic($moduleKey)) {
             abort(404);
         }

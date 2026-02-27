@@ -14,7 +14,7 @@
 
     <div class="flex flex-col sm:flex-row justify-between items-start mb-8">
         <div>
-            <h1 class="text-3xl font-bold text-gray-800 dark:text-gray-100">Director Dashboard</h1>
+            <h1 class="text-3xl font-bold text-gray-800 dark:text-gray-100">Dashboard</h1>
             <p class="text-gray-500 dark:text-gray-400 mt-1">Company performance summary.</p>
         </div>
         <div class="mt-4 sm:mt-0">
