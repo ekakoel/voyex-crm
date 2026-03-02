@@ -139,8 +139,6 @@ Sistem ini berfokus pada otomatisasi proses bisnis utama travel agent dengan out
 ## ⚙️ Installation Guide
 
 ### 1. Clone Repository
-
-    ```bash
     git clone https://github.com/ekakoel/voyex-crm.git
     cd voyex-crm
     Install Dependencies
@@ -150,8 +148,7 @@ Sistem ini berfokus pada otomatisasi proses bisnis utama travel agent dengan out
     cp .env.example .env
     php artisan key:generate
 
-    Sesuaikan konfigurasi database di file .env.
-
+### 2. Sesuaikan konfigurasi database di file .env.
     Run Migration & Seeder
     php artisan migrate --seed
     Run Development Server
@@ -159,114 +156,79 @@ Sistem ini berfokus pada otomatisasi proses bisnis utama travel agent dengan out
     npm run dev
 
 ## 🔐 Security
-
-- Role-Based Access Control (RBAC)
-- Permission-level access matrix
-- CSRF protection
-- Input validation & sanitization
-- Activity & audit logging
+    - Role-Based Access Control (RBAC)
+    - Permission-level access matrix
+    - CSRF protection
+    - Input validation & sanitization
+    - Activity & audit logging
 
 ## 📊 Performance Strategy
+    - Eager loading for relationship optimization
+    - Indexed critical database fields
+    - Queue for heavy process (PDF, email, reports)
+    - Optional Redis caching
+    - Optimized query structure
 
-- Eager loading for relationship optimization
+## 📘 Documentation
+### 📄 AI System Guideline
+    - User Manual (Coming Soon)
+    - API Documentation (Coming Soon)
+    - Deployment Checklist (Coming Soon)
 
-- Indexed critical database fields
-
-- Queue for heavy process (PDF, email, reports)
-
-- Optional Redis caching
-
-- Optimized query structure
-
-##📘 Documentation
-
-###📄 AI System Guideline
-
-- User Manual (Coming Soon)
-
-- API Documentation (Coming Soon)
-
-- Deployment Checklist (Coming Soon)
-
-🧠 AI Integration
+### 🧠 AI Integration
 
 Project ini menggunakan dokumen panduan khusus untuk memastikan konsistensi pengembangan dan skalabilitas sistem:
-
 👉 VOYEX_CRM_AI_GUIDELINE.md
 
 Dokumen tersebut mendefinisikan:
-
 Business logic utama
-
 System boundaries
-
 Development principles
-
 Scalability direction
 
-🛣 Roadmap
-Phase 1
+## 🛣 Roadmap
+### Phase 1
+- Core CRM
+- Basic quotation system
+- Dashboard overview
 
-Core CRM
+### Phase 2
+- Booking & Invoice module
+- Vendor integration
+- Reporting
 
-Basic quotation system
+### Phase 3
+- Advanced analytics
+- SaaS multi-tenant architecture
+- Payment gateway integration
+- Automation & email integration
 
-Dashboard overview
+## 🌍 Future Direction
 
-Phase 2
+- VOYEX CRM dirancang untuk berkembang menjadi:
+- Multi-tenant SaaS platform
+- Travel business intelligence system
+- Fully automated travel operations platform
 
-Booking & Invoice module
-
-Vendor integration
-
-Reporting
-
-Phase 3
-
-Advanced analytics
-
-SaaS multi-tenant architecture
-
-Payment gateway integration
-
-Automation & email integration
-
-🌍 Future Direction
-
-VOYEX CRM dirancang untuk berkembang menjadi:
-
-Multi-tenant SaaS platform
-
-Travel business intelligence system
-
-Fully automated travel operations platform
-
-👨‍💻 Developer
+### 👨‍💻 Developer
 
 Developed & maintained by:
-
-Eka Koel
+Eka Koel (@eka_koel)
 
 📄 License
 
-This project is proprietary software.
-All rights reserved.
+# This project is proprietary software. All rights reserved.
 
-⭐ Contributing
+## ⭐ Contributing
 
 Saat ini project dikembangkan secara private oleh developer.
 Contribution guideline akan tersedia pada versi open collaboration.
 
-💼 Vision
+### 💼 Vision
 
-Membangun sistem CRM travel agent yang:
-
-Terstruktur
-
-Scalable
-
-Efisien
-
-Business-oriented
-
-Siap digunakan untuk skala kecil hingga enterprise
+#### Membangun sistem CRM travel agent yang:
+    Terstruktur
+    Scalable
+    Efisien
+    Business-oriented
+    Siap digunakan untuk skala kecil hingga enterprise
