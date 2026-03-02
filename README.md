@@ -143,18 +143,18 @@ Sistem ini berfokus pada otomatisasi proses bisnis utama travel agent dengan out
     ```bash
     git clone https://github.com/ekakoel/voyex-crm.git
     cd voyex-crm
-    2. Install Dependencies
+    Install Dependencies
     composer install
     npm install
-    3. Setup Environment
+    Setup Environment
     cp .env.example .env
     php artisan key:generate
 
     Sesuaikan konfigurasi database di file .env.
 
-    4. Run Migration & Seeder
+    Run Migration & Seeder
     php artisan migrate --seed
-    5. Run Development Server
+    Run Development Server
     php artisan serve
     npm run dev
 
