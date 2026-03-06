@@ -12,6 +12,7 @@
     ];
     $secondaryKpiCards = [
         ['label' => 'Invoices', 'value' => $systemCounts['invoices'] ?? 0, 'icon' => 'file-invoice-dollar', 'color' => 'amber'],
+        ['label' => 'Destinations', 'value' => $systemCounts['destinations'] ?? 0, 'icon' => 'map-location-dot', 'color' => 'sky'],
         ['label' => 'Vendors', 'value' => $systemCounts['vendors'] ?? 0, 'icon' => 'handshake', 'color' => 'teal'],
         ['label' => 'Activities', 'value' => $systemCounts['activities'] ?? 0, 'icon' => 'person-hiking', 'color' => 'lime'],
         ['label' => 'Attractions', 'value' => $systemCounts['tourist_attractions'] ?? 0, 'icon' => 'landmark', 'color' => 'rose'],
@@ -62,6 +63,142 @@
                 <div class="mt-4">
                     <p class="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Core Business KPIs</p>
                 </div>
+
+                <div class="mt-3 grid grid-cols-1 gap-3 xl:grid-cols-12">
+                    <div class="xl:col-span-5 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
+                        <div class="mb-2 flex items-center justify-between">
+                            <h2 class="text-sm font-semibold text-slate-900 dark:text-slate-100">Action Center</h2>
+                            <span class="text-[11px] text-slate-500 dark:text-slate-400">Prioritas saat ini</span>
+                        </div>
+                        <div class="space-y-2">
+                            @foreach(($actionCenter ?? []) as $item)
+                                @php
+                                    $badgeClass = match ($item['severity'] ?? 'info') {
+                                        'critical' => 'bg-rose-100 text-rose-700 dark:bg-rose-900/20 dark:text-rose-300',
+                                        'warning' => 'bg-amber-100 text-amber-700 dark:bg-amber-900/20 dark:text-amber-300',
+                                        'ok' => 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300',
+                                        default => 'bg-sky-100 text-sky-700 dark:bg-sky-900/20 dark:text-sky-300',
+                                    };
+                                @endphp
+                                <div class="rounded-xl border border-slate-200 p-3 dark:border-slate-700">
+                                    <div class="flex items-start justify-between gap-3">
+                                        <div>
+                                            <p class="text-xs font-medium text-slate-700 dark:text-slate-200">{{ $item['label'] }}</p>
+                                            <p class="text-[11px] text-slate-500 dark:text-slate-400">{{ $item['hint'] ?? '-' }}</p>
+                                        </div>
+                                        <div class="inline-flex items-center rounded-full px-2 py-1 text-xs font-semibold {{ $badgeClass }}">
+                                            {{ number_format((int) ($item['value'] ?? 0)) }}
+                                        </div>
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+
+                    <div class="xl:col-span-7 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
+                        <div class="mb-2 flex items-center justify-between">
+                            <h2 class="text-sm font-semibold text-slate-900 dark:text-slate-100">Business Funnel</h2>
+                            <span class="text-[11px] text-slate-500 dark:text-slate-400">Inquiry -> Invoice</span>
+                        </div>
+                        <div class="grid grid-cols-1 gap-2 md:grid-cols-4">
+                            @foreach(($funnel ?? []) as $stage)
+                                <div class="rounded-xl border border-slate-200 p-3 dark:border-slate-700">
+                                    <p class="text-[11px] uppercase tracking-wide text-slate-500 dark:text-slate-400">{{ $stage['label'] }}</p>
+                                    <p class="mt-1 text-xl font-semibold text-slate-900 dark:text-slate-100">{{ number_format((int) ($stage['value'] ?? 0)) }}</p>
+                                    @if(!is_null($stage['conversion']))
+                                        <p class="mt-1 text-[11px] text-slate-500 dark:text-slate-400">Conv: {{ number_format((float) $stage['conversion'], 1) }}%</p>
+                                    @else
+                                        <p class="mt-1 text-[11px] text-slate-400 dark:text-slate-500">Baseline</p>
+                                    @endif
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-3 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
+                    <div class="mb-2 flex items-center justify-between">
+                        <h2 class="text-sm font-semibold text-slate-900 dark:text-slate-100">Module Control Center</h2>
+                        <span class="text-[11px] text-slate-500 dark:text-slate-400">Grouped by domain for full-system management</span>
+                    </div>
+                    <div class="space-y-4">
+                        @forelse(($moduleGroups ?? []) as $group)
+                            <div class="rounded-xl border border-slate-200 p-3 dark:border-slate-700">
+                                <div class="mb-2 flex items-center justify-between">
+                                    <h3 class="text-xs font-semibold uppercase tracking-wide text-slate-700 dark:text-slate-200">{{ $group['name'] }}</h3>
+                                    <span class="text-[11px] text-slate-500 dark:text-slate-400">{{ count($group['modules'] ?? []) }} modules</span>
+                                </div>
+                                <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+                                    @foreach(($group['modules'] ?? []) as $module)
+                                        @php
+                                            $healthClass = match ($module['health'] ?? 'healthy') {
+                                                'critical' => 'bg-rose-100 text-rose-700 dark:bg-rose-900/20 dark:text-rose-300',
+                                                'warning' => 'bg-amber-100 text-amber-700 dark:bg-amber-900/20 dark:text-amber-300',
+                                                'inactive' => 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200',
+                                                default => 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300',
+                                            };
+                                        @endphp
+                                        <div class="rounded-xl border border-slate-200 p-3 dark:border-slate-700">
+                                            <div class="flex items-start justify-between gap-3">
+                                                <div class="min-w-0">
+                                                    <p class="text-sm font-semibold text-slate-800 dark:text-slate-100">
+                                                        <i class="fa-solid fa-{{ $module['icon'] ?? 'puzzle-piece' }} mr-1"></i>{{ $module['name'] }}
+                                                    </p>
+                                                    <p class="truncate text-[11px] text-slate-500 dark:text-slate-400">{{ $module['key'] }}</p>
+                                                </div>
+                                                <span class="inline-flex rounded-full px-2 py-1 text-[11px] font-semibold {{ $healthClass }}">
+                                                    {{ strtoupper((string) ($module['health'] ?? 'healthy')) }}
+                                                </span>
+                                            </div>
+
+                                            <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                                                <div class="rounded-lg bg-slate-50 px-2 py-2 dark:bg-slate-800">
+                                                    <p class="text-slate-500 dark:text-slate-400">Status</p>
+                                                    <p class="font-semibold text-slate-700 dark:text-slate-200">{{ ($module['is_enabled'] ?? false) ? 'Enabled' : 'Disabled' }}</p>
+                                                </div>
+                                                <div class="rounded-lg bg-slate-50 px-2 py-2 dark:bg-slate-800">
+                                                    <p class="text-slate-500 dark:text-slate-400">Role Coverage</p>
+                                                    <p class="font-semibold text-slate-700 dark:text-slate-200">{{ number_format((int) ($module['role_coverage'] ?? 0)) }}</p>
+                                                </div>
+                                                <div class="rounded-lg bg-slate-50 px-2 py-2 dark:bg-slate-800">
+                                                    <p class="text-slate-500 dark:text-slate-400">{{ $module['metric']['label'] ?? 'Metric' }}</p>
+                                                    <p class="font-semibold text-slate-700 dark:text-slate-200">{{ number_format((int) ($module['metric']['value'] ?? 0)) }}</p>
+                                                </div>
+                                                <div class="rounded-lg bg-slate-50 px-2 py-2 dark:bg-slate-800">
+                                                    <p class="text-slate-500 dark:text-slate-400">Last Update</p>
+                                                    <p class="font-semibold text-slate-700 dark:text-slate-200">{{ \Illuminate\Support\Carbon::parse($module['updated_at'])->diffForHumans() }}</p>
+                                                </div>
+                                            </div>
+
+                                            <p class="mt-2 text-[11px] text-slate-500 dark:text-slate-400">
+                                                {{ $module['permission'] ?? '-' }}
+                                                @if(!($module['permission_exists'] ?? false))
+                                                    <span class="text-rose-500"> (missing)</span>
+                                                @endif
+                                            </p>
+
+                                            <div class="mt-3 flex items-center gap-2">
+                                                @if(!empty($module['route']) && \Illuminate\Support\Facades\Route::has($module['route']))
+                                                    <a href="{{ route($module['route']) }}" class="inline-flex items-center rounded-lg bg-slate-700 px-3 py-1.5 text-[11px] font-medium text-white hover:bg-slate-600">
+                                                        Open Module
+                                                    </a>
+                                                @endif
+                                                <a href="{{ route('services.index') }}" class="inline-flex items-center rounded-lg border border-slate-300 px-3 py-1.5 text-[11px] font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800">
+                                                    Manage Status
+                                                </a>
+                                            </div>
+                                        </div>
+                                    @endforeach
+                                </div>
+                            </div>
+                        @empty
+                            <div class="rounded-lg border border-slate-200 px-3 py-3 text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
+                                No module data.
+                            </div>
+                        @endforelse
+                    </div>
+                </div>
+
                 <div class="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                     @foreach($primaryKpiCards as $card)
                         <div class="sa-kpi">

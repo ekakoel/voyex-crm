@@ -17,6 +17,7 @@
     $labelOverrides = array_merge($scopeLabels, [
         'quotation-templates' => 'Quotation Templates',
         'tourist-attractions' => 'Tourist Attractions',
+        'food-beverages' => 'F&B',
         'services' => 'Modules',
         'profile' => 'Profile',
     ]);

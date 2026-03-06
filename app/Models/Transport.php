@@ -15,6 +15,13 @@ class Transport extends Model
         'location',
         'city',
         'province',
+        'country',
+        'timezone',
+        'address',
+        'google_maps_url',
+        'latitude',
+        'longitude',
+        'destination_id',
         'contact_name',
         'contact_phone',
         'contact_email',
@@ -30,6 +37,8 @@ class Transport extends Model
 
     protected $casts = [
         'gallery_images' => 'array',
+        'latitude' => 'float',
+        'longitude' => 'float',
         'is_active' => 'boolean',
     ];
 
@@ -37,5 +46,9 @@ class Transport extends Model
     {
         return $this->hasMany(TransportUnit::class);
     }
-}
 
+    public function destination()
+    {
+        return $this->belongsTo(Destination::class);
+    }
+}

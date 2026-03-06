@@ -1,10 +1,10 @@
 @extends('layouts.master')
 
 @section('content')
-    <div class="max-w-6xl space-y-6">
+    <div class="max-w-6xl space-y-6 module-page module-page--inquiries">
         <div class="flex flex-wrap items-start justify-between gap-3">
             <div>
-                <h1 class="text-2xl font-semibold text-gray-800 dark:text-gray-100">Inquiry Detail</h1>
+                <h1 class="app-section-title">Inquiry Detail</h1>
                 <p class="mt-1 text-sm text-gray-600 dark:text-gray-300">Detail inquiry {{ $inquiry->inquiry_number }}.</p>
             </div>
             <div class="flex items-center gap-2">
@@ -27,7 +27,7 @@
         @endif
 
         <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
-            <div class="lg:col-span-1 rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+            <div class="lg:col-span-1 app-card p-5">
                 <h2 class="text-sm font-semibold text-gray-800 dark:text-gray-100">Inquiry Overview</h2>
                 <dl class="mt-4 space-y-3 text-sm">
                     <div class="flex items-start justify-between gap-3">
@@ -66,7 +66,7 @@
             </div>
 
             <div class="lg:col-span-2 space-y-6">
-                <div class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800 space-y-4">
+                <div class="app-card p-6 space-y-4">
                     <div class="flex items-start justify-between gap-2">
                         <div>
                             <h2 class="text-lg font-semibold text-gray-800 dark:text-gray-100">Reminder Follow-up</h2>
@@ -78,11 +78,11 @@
                         @csrf
                         <div>
                             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Due Date</label>
-                            <input name="due_date" type="date" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" required>
+                            <input name="due_date" type="date" class="mt-1 w-full app-input" required>
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Channel</label>
-                            <select name="channel" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+                            <select name="channel" class="mt-1 w-full app-input">
                                 <option value="">-</option>
                                 @foreach (($channelLabels ?? []) as $value => $label)
                                     <option value="{{ $value }}">{{ $label }}</option>
@@ -91,7 +91,7 @@
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Note</label>
-                            <input name="note" type="text" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+                            <input name="note" type="text" class="mt-1 w-full app-input">
                         </div>
                         <button class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">
                             Add Reminder
@@ -99,7 +99,7 @@
                     </form>
 
                     <div class="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
-                        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">
+                        <table class="app-table divide-y divide-gray-200 dark:divide-gray-700 text-sm">
                             <thead class="bg-gray-50 dark:bg-gray-900/40">
                                 <tr>
                                     <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">Due</th>
@@ -143,7 +143,7 @@
                     </div>
                 </div>
 
-                <div class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800 space-y-4">
+                <div class="app-card p-6 space-y-4">
                     <div>
                         <h2 class="text-lg font-semibold text-gray-800 dark:text-gray-100">Communication History</h2>
                         <p class="text-sm text-gray-600 dark:text-gray-300">Log communications with customers.</p>
@@ -153,7 +153,7 @@
                         @csrf
                         <div>
                             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Channel</label>
-                            <select name="channel" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" required>
+                            <select name="channel" class="mt-1 w-full app-input" required>
                                 @foreach (($channelLabels ?? []) as $value => $label)
                                     <option value="{{ $value }}">{{ $label }}</option>
                                 @endforeach
@@ -161,11 +161,11 @@
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Contact At</label>
-                            <input name="contact_at" type="datetime-local" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+                            <input name="contact_at" type="datetime-local" class="mt-1 w-full app-input">
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Summary</label>
-                            <input name="summary" type="text" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" required>
+                            <input name="summary" type="text" class="mt-1 w-full app-input" required>
                         </div>
                         <button class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">
                             Add History
@@ -197,5 +197,7 @@
         </div>
     </div>
 @endsection
+
+
 
 

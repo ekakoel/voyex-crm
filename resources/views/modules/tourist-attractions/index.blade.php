@@ -6,6 +6,7 @@
             <div>
                 <h1 class="text-2xl font-semibold text-gray-800 dark:text-gray-100">Tourist Attractions</h1>
                 <p class="mt-1 text-sm text-gray-600 dark:text-gray-300">Manage destination data for itineraries.</p>
+                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Entrance Fee dan biaya lain disimpan sebagai harga per pax.</p>
             </div>
             <a href="{{ route('tourist-attractions.create') }}" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">Add Attraction</a>
         </div>
@@ -20,6 +21,7 @@
                     <tr>
                         <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">Name</th>
                         <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">Ideal Duration</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">Pricing / Pax</th>
                         <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">City / Province</th>
                         <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">Status</th>
                         <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">Actions</th>
@@ -28,8 +30,18 @@
                 <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
                     @forelse ($touristAttractions as $touristAttraction)
                         <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/30">
-                            <td class="px-4 py-3 text-sm text-gray-800 dark:text-gray-100">{{ $touristAttraction->name }}</td>
+                            <td class="px-4 py-3 text-sm text-gray-800 dark:text-gray-100">
+                                <div>{{ $touristAttraction->name }}</div>
+                                <div class="text-xs text-indigo-600 dark:text-indigo-300">{{ $touristAttraction->destination?->name ?? '-' }}</div>
+                            </td>
                             <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">{{ $touristAttraction->ideal_visit_minutes }} min</td>
+                            <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">
+                                <div>Entrance: {{ $touristAttraction->entrance_fee_per_pax !== null ? ($touristAttraction->currency.' '.number_format((float) $touristAttraction->entrance_fee_per_pax, 2)) : '-' }} / pax</div>
+                                <div class="text-xs text-gray-500 dark:text-gray-400">
+                                    {{ $touristAttraction->other_fee_label ?: 'Other Fee' }}:
+                                    {{ $touristAttraction->other_fee_per_pax !== null ? ($touristAttraction->currency.' '.number_format((float) $touristAttraction->other_fee_per_pax, 2)) : '-' }} / pax
+                                </div>
+                            </td>
                             <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">{{ $touristAttraction->city ?? '-' }} / {{ $touristAttraction->province ?? '-' }}</td>
                             <td class="px-4 py-3 text-sm">
                                 <span class="rounded-full px-2 py-1 text-xs {{ $touristAttraction->is_active ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300' : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200' }}">
@@ -47,7 +59,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="5" class="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">No tourist attractions available.</td>
+                            <td colspan="6" class="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">No tourist attractions available.</td>
                         </tr>
                     @endforelse
                 </tbody>
@@ -58,7 +70,10 @@
             @forelse ($touristAttractions as $touristAttraction)
                 <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
                     <p class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ $touristAttraction->name }}</p>
+                    <p class="text-xs text-indigo-600 dark:text-indigo-300">{{ $touristAttraction->destination?->name ?? '-' }}</p>
                     <p class="text-xs text-gray-500 dark:text-gray-400">Ideal: {{ $touristAttraction->ideal_visit_minutes }} min</p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">Entrance: {{ $touristAttraction->entrance_fee_per_pax !== null ? ($touristAttraction->currency.' '.number_format((float) $touristAttraction->entrance_fee_per_pax, 2)) : '-' }} / pax</p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">{{ $touristAttraction->other_fee_label ?: 'Other Fee' }}: {{ $touristAttraction->other_fee_per_pax !== null ? ($touristAttraction->currency.' '.number_format((float) $touristAttraction->other_fee_per_pax, 2)) : '-' }} / pax</p>
                     <p class="text-xs text-gray-500 dark:text-gray-400">{{ $touristAttraction->city ?? '-' }} / {{ $touristAttraction->province ?? '-' }}</p>
                     <div class="mt-3 flex flex-wrap gap-2">
                         <a href="{{ route('tourist-attractions.edit', $touristAttraction) }}" class="rounded-lg border border-gray-300 px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700">Edit</a>

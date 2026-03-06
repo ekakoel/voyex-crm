@@ -18,6 +18,7 @@
             @forelse ($vendors as $vendor)
                 <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
                     <p class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ $vendor->name }}</p>
+                    <p class="text-xs text-indigo-600 dark:text-indigo-300">{{ $vendor->destination?->name ?? '-' }}</p>
                     <p class="text-xs text-gray-500 dark:text-gray-400">{{ $vendor->city ?? '-' }} / {{ $vendor->province ?? '-' }}</p>
                     <p class="text-xs text-gray-500 dark:text-gray-400">{{ $vendor->contact_email ?? '-' }}</p>
                     <div class="mt-3 flex flex-wrap gap-2">
@@ -40,6 +41,7 @@
                     <tr>
                         <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">Name</th>
                         <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">City / Province</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">Destination</th>
                         <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">Contact</th>
                         <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">Email</th>
                         <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">Phone</th>
@@ -51,6 +53,7 @@
                         <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/30">
                             <td class="px-4 py-3 text-sm text-gray-800 dark:text-gray-100">{{ $vendor->name }}</td>
                             <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">{{ $vendor->city ?? '-' }} / {{ $vendor->province ?? '-' }}</td>
+                            <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">{{ $vendor->destination?->name ?? '-' }}</td>
                             <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">{{ $vendor->contact_name ?? '-' }}</td>
                             <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">{{ $vendor->contact_email ?? '-' }}</td>
                             <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">{{ $vendor->contact_phone ?? '-' }}</td>
@@ -65,7 +68,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="6" class="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">No vendors available.</td>
+                            <td colspan="7" class="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">No vendors available.</td>
                         </tr>
                     @endforelse
                 </tbody>

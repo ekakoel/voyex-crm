@@ -1,10 +1,10 @@
 @extends('layouts.master')
 
 @section('content')
-    <div class="max-w-4xl space-y-6">
+    <div class="max-w-4xl space-y-6 module-page module-page--bookings">
         <div class="flex items-center justify-between">
             <div>
-                <h1 class="text-2xl font-semibold text-gray-800 dark:text-gray-100">Booking Detail</h1>
+                <h1 class="app-section-title">Booking Detail</h1>
                 <p class="mt-1 text-sm text-gray-600 dark:text-gray-300">Booking summary for {{ $booking->booking_number }}.</p>
             </div>
             <div class="flex items-center gap-2">
@@ -17,7 +17,7 @@
             </div>
         </div>
 
-        <div class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800 space-y-4">
+        <div class="module-card p-6 space-y-4">
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
                     <p class="text-xs uppercase text-gray-500">Booking Number</p>
@@ -47,5 +47,6 @@
         </div>
     </div>
 @endsection
+
 
 

@@ -14,6 +14,9 @@ class Vendor extends Model
         'longitude',
         'city',
         'province',
+        'country',
+        'timezone',
+        'destination_id',
         'contact_name',
         'contact_email',
         'contact_phone',
@@ -30,5 +33,15 @@ class Vendor extends Model
     public function activities()
     {
         return $this->hasMany(Activity::class);
+    }
+
+    public function destination()
+    {
+        return $this->belongsTo(Destination::class);
+    }
+
+    public function foodBeverages()
+    {
+        return $this->hasMany(FoodBeverage::class);
     }
 }

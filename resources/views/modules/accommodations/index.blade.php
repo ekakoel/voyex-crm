@@ -47,6 +47,7 @@
                             <td class="px-4 py-3 text-sm font-medium text-gray-800 dark:text-gray-100">{{ $accommodation->code }}</td>
                             <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">
                                 <div>{{ $accommodation->name }}</div>
+                                <div class="text-xs text-indigo-600 dark:text-indigo-300">{{ $accommodation->destination?->name ?? '-' }}</div>
                                 <div class="text-xs text-gray-500 dark:text-gray-400">
                                     @if ($accommodation->star_rating)
                                         {{ $accommodation->star_rating }}★

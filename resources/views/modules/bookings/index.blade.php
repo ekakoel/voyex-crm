@@ -1,10 +1,10 @@
 @extends('layouts.master')
 
 @section('content')
-    <div class="space-y-6">
+    <div class="space-y-6 module-page module-page--bookings">
         <div class="flex items-center justify-between">
             <div>
-                <h1 class="text-2xl font-semibold text-gray-800 dark:text-gray-100">Bookings</h1>
+                <h1 class="app-section-title">Bookings</h1>
                 <p class="mt-1 text-sm text-gray-600 dark:text-gray-300">Manage booking data from quotations.</p>
             </div>
             <div class="flex items-center gap-2">
@@ -17,15 +17,15 @@
             </div>
         </div>
 
-        <form method="GET" class="grid grid-cols-1 gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800 md:grid-cols-6">
-            <input name="q" value="{{ request('q') }}" placeholder="Search number / quotation / customer" class="md:col-span-2 rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
-            <select name="status" class="rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+        <form method="GET" class="grid grid-cols-1 gap-3 app-card p-4 md:grid-cols-6">
+            <input name="q" value="{{ request('q') }}" placeholder="Search number / quotation / customer" class="md:col-span-2 app-input">
+            <select name="status" class="app-input">
                 <option value="">Status</option>
                 @foreach (['confirmed','completed','cancelled'] as $status)
                     <option value="{{ $status }}" @selected(request('status') === $status)>{{ $status }}</option>
                 @endforeach
             </select>
-            <select name="quotation_id" class="rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+            <select name="quotation_id" class="app-input">
                 <option value="">Quotation</option>
                 @foreach ($quotations as $quotation)
                     <option value="{{ $quotation->id }}" @selected((string) request('quotation_id') === (string) $quotation->id)>
@@ -33,9 +33,9 @@
                     </option>
                 @endforeach
             </select>
-            <input name="travel_from" type="date" value="{{ request('travel_from') }}" class="rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
-            <input name="travel_to" type="date" value="{{ request('travel_to') }}" class="rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
-            <select name="per_page" class="rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+            <input name="travel_from" type="date" value="{{ request('travel_from') }}" class="app-input">
+            <input name="travel_to" type="date" value="{{ request('travel_to') }}" class="app-input">
+            <select name="per_page" class="app-input">
                 @foreach ([10,25,50,100] as $size)
                     <option value="{{ $size }}" @selected((string) request('per_page', 10) === (string) $size)>{{ $size }}/page</option>
                 @endforeach
@@ -59,7 +59,7 @@
 
         <div class="md:hidden space-y-3">
             @forelse ($bookings as $booking)
-                <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+                <div class="app-card p-4">
                     <div class="flex items-start justify-between gap-3">
                         <div>
                             <p class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ $booking->booking_number }}</p>
@@ -86,14 +86,14 @@
                     </div>
                 </div>
             @empty
-                <div class="rounded-xl border border-gray-200 bg-white p-6 text-center text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
+                <div class="app-card p-6 text-center text-sm text-gray-500 dark:text-gray-400">
                     No bookings available.
                 </div>
             @endforelse
         </div>
 
-        <div class="hidden md:block overflow-x-auto rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
-            <table class="w-full divide-y divide-gray-200 dark:divide-gray-700">
+        <div class="hidden md:block overflow-x-auto app-card">
+            <table class="app-table divide-y divide-gray-200 dark:divide-gray-700">
                 <thead class="bg-gray-50 dark:bg-gray-900/40">
                     <tr>
                         <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">No</th>
@@ -138,5 +138,7 @@
         <div>{{ $bookings->links() }}</div>
     </div>
 @endsection
+
+
 
 

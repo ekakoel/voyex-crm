@@ -85,7 +85,13 @@ class InquiryController extends Controller
      */
     public function index()
     {
-        $query = Inquiry::query()->with(['customer', 'assignedUser']);
+        $query = Inquiry::query()
+            ->with([
+                'customer',
+                'assignedUser',
+                'itineraries:id,inquiry_id,title,is_active,updated_at',
+            ])
+            ->withCount('itineraries');
 
         $query->when(request('q'), function ($q) {
             $term = request('q');
@@ -104,6 +110,8 @@ class InquiryController extends Controller
         $query->when(request('source'), fn ($q) => $q->where('source', request('source')));
         $query->when(request('deadline_from'), fn ($q) => $q->whereDate('deadline', '>=', request('deadline_from')));
         $query->when(request('deadline_to'), fn ($q) => $q->whereDate('deadline', '<=', request('deadline_to')));
+        $query->when(request('itinerary') === 'available', fn ($q) => $q->has('itineraries'));
+        $query->when(request('itinerary') === 'missing', fn ($q) => $q->doesntHave('itineraries'));
 
         $perPage = (int) request('per_page', 10);
         $perPage = $perPage > 0 && $perPage <= 100 ? $perPage : 10;

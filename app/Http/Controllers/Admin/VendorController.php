@@ -3,24 +3,41 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Destination;
 use App\Models\Vendor;
+use App\Support\LocationResolver;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 
 class VendorController extends Controller
 {
     public function index()
     {
-        $vendors = Vendor::query()->orderBy('name')->paginate(10);
+        $vendors = Vendor::query()
+            ->with('destination:id,name')
+            ->orderBy('name')
+            ->paginate(10);
         return view('modules.vendors.index', compact('vendors'));
     }
 
     public function create()
     {
-        return view('modules.vendors.create');
+        $destinations = Destination::query()
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'name', 'city', 'province']);
+
+        return view('modules.vendors.create', compact('destinations'));
     }
 
-    public function store(Request $request)
+    public function store(Request $request, LocationResolver $locationResolver)
     {
+        $prefilled = $request->only([
+            'google_maps_url', 'location', 'city', 'province', 'country', 'address', 'latitude', 'longitude', 'timezone',
+        ]);
+        $locationResolver->enrichFromGoogleMapsUrl($prefilled);
+        $request->merge($prefilled);
+
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'location' => ['nullable', 'string', 'max:255'],
@@ -29,6 +46,9 @@ class VendorController extends Controller
             'longitude' => ['required', 'numeric', 'between:-180,180'],
             'city' => ['nullable', 'string', 'max:100'],
             'province' => ['nullable', 'string', 'max:100'],
+            'country' => ['nullable', 'string', 'max:100'],
+            'timezone' => ['nullable', 'string', 'max:100'],
+            'destination_id' => ['nullable', 'integer', 'exists:destinations,id'],
             'contact_name' => ['nullable', 'string', 'max:255'],
             'contact_email' => ['nullable', 'email', 'max:255'],
             'contact_phone' => ['nullable', 'string', 'max:50'],
@@ -36,7 +56,9 @@ class VendorController extends Controller
             'is_active' => ['nullable', 'boolean'],
         ]);
         $validated['is_active'] = $request->boolean('is_active');
-        $this->fillCoordinatesFromGoogleMapsUrl($validated);
+        $locationResolver->enrichFromGoogleMapsUrl($validated);
+        $this->applyDestinationContext($validated);
+        $locationResolver->resolveDestinationId($validated, true);
         if (empty($validated['location'])) {
             $parts = array_filter([trim((string) ($validated['city'] ?? '')), trim((string) ($validated['province'] ?? ''))]);
             if ($parts !== []) {
@@ -44,18 +66,29 @@ class VendorController extends Controller
             }
         }
 
-        Vendor::query()->create($validated);
+        Vendor::query()->create($this->filterPersistableColumns($validated));
 
         return redirect()->route('vendors.index')->with('success', 'Vendor created successfully.');
     }
 
     public function edit(Vendor $vendor)
     {
-        return view('modules.vendors.edit', compact('vendor'));
+        $destinations = Destination::query()
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'name', 'city', 'province']);
+
+        return view('modules.vendors.edit', compact('vendor', 'destinations'));
     }
 
-    public function update(Request $request, Vendor $vendor)
+    public function update(Request $request, Vendor $vendor, LocationResolver $locationResolver)
     {
+        $prefilled = $request->only([
+            'google_maps_url', 'location', 'city', 'province', 'country', 'address', 'latitude', 'longitude', 'timezone',
+        ]);
+        $locationResolver->enrichFromGoogleMapsUrl($prefilled);
+        $request->merge($prefilled);
+
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'location' => ['nullable', 'string', 'max:255'],
@@ -64,6 +97,9 @@ class VendorController extends Controller
             'longitude' => ['required', 'numeric', 'between:-180,180'],
             'city' => ['nullable', 'string', 'max:100'],
             'province' => ['nullable', 'string', 'max:100'],
+            'country' => ['nullable', 'string', 'max:100'],
+            'timezone' => ['nullable', 'string', 'max:100'],
+            'destination_id' => ['nullable', 'integer', 'exists:destinations,id'],
             'contact_name' => ['nullable', 'string', 'max:255'],
             'contact_email' => ['nullable', 'email', 'max:255'],
             'contact_phone' => ['nullable', 'string', 'max:50'],
@@ -71,7 +107,9 @@ class VendorController extends Controller
             'is_active' => ['nullable', 'boolean'],
         ]);
         $validated['is_active'] = $request->boolean('is_active');
-        $this->fillCoordinatesFromGoogleMapsUrl($validated);
+        $locationResolver->enrichFromGoogleMapsUrl($validated);
+        $this->applyDestinationContext($validated);
+        $locationResolver->resolveDestinationId($validated, true);
         if (empty($validated['location'])) {
             $parts = array_filter([trim((string) ($validated['city'] ?? '')), trim((string) ($validated['province'] ?? ''))]);
             if ($parts !== []) {
@@ -79,7 +117,7 @@ class VendorController extends Controller
             }
         }
 
-        $vendor->update($validated);
+        $vendor->update($this->filterPersistableColumns($validated));
 
         return redirect()->route('vendors.index')->with('success', 'Vendor updated successfully.');
     }
@@ -90,55 +128,44 @@ class VendorController extends Controller
         return redirect()->route('vendors.index')->with('success', 'Vendor deleted successfully.');
     }
 
-    private function fillCoordinatesFromGoogleMapsUrl(array &$validated): void
+    private function applyDestinationContext(array &$validated): void
     {
-        $hasCoordinates = isset($validated['latitude'], $validated['longitude'])
-            && $validated['latitude'] !== ''
-            && $validated['longitude'] !== '';
+        $destinationId = (int) ($validated['destination_id'] ?? 0);
+        if ($destinationId > 0) {
+            $destination = Destination::query()->find($destinationId);
+            if (! $destination) {
+                return;
+            }
 
-        $googleMapsUrl = (string) ($validated['google_maps_url'] ?? '');
-        if ($hasCoordinates || $googleMapsUrl === '') {
+            if (empty($validated['city']) && ! empty($destination->city)) {
+                $validated['city'] = (string) $destination->city;
+            }
+            if (empty($validated['province']) && ! empty($destination->province)) {
+                $validated['province'] = (string) $destination->province;
+            }
+            if (empty($validated['country']) && ! empty($destination->country)) {
+                $validated['country'] = (string) $destination->country;
+            }
+            if (empty($validated['timezone']) && ! empty($destination->timezone)) {
+                $validated['timezone'] = (string) $destination->timezone;
+            }
             return;
         }
-
-        $coordinates = $this->extractCoordinatesFromGoogleMapsUrl($googleMapsUrl);
-        if (! $coordinates) {
-            return;
-        }
-
-        [$latitude, $longitude] = $coordinates;
-        $validated['latitude'] = $latitude;
-        $validated['longitude'] = $longitude;
     }
 
-    private function extractCoordinatesFromGoogleMapsUrl(string $url): ?array
+    private function filterPersistableColumns(array $payload): array
     {
-        if (preg_match('/@(-?\d{1,3}\.\d+),(-?\d{1,3}\.\d+)/', $url, $matches) === 1) {
-            return [(float) $matches[1], (float) $matches[2]];
+        $table = (new Vendor())->getTable();
+        $columns = array_flip(Schema::getColumnListing($table));
+
+        $filtered = [];
+        foreach ($payload as $key => $value) {
+            if (isset($columns[$key])) {
+                $filtered[$key] = $value;
+            }
         }
 
-        if (preg_match('/!3d(-?\d{1,3}\.\d+)!4d(-?\d{1,3}\.\d+)/', $url, $matches) === 1) {
-            return [(float) $matches[1], (float) $matches[2]];
-        }
-
-        $query = parse_url($url, PHP_URL_QUERY);
-        if (! is_string($query)) {
-            return null;
-        }
-
-        parse_str($query, $queryParameters);
-        $q = $queryParameters['q'] ?? $queryParameters['query'] ?? null;
-        if (! is_string($q)) {
-            return null;
-        }
-
-        if (preg_match('/(-?\d{1,3}\.\d+),\s*(-?\d{1,3}\.\d+)/', $q, $matches) !== 1) {
-            return null;
-        }
-
-        return [(float) $matches[1], (float) $matches[2]];
+        return $filtered;
     }
 }
-
-
 

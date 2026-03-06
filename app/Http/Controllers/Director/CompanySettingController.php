@@ -37,8 +37,8 @@ class CompanySettingController extends Controller
             'timezone' => ['nullable', 'string', 'max:64'],
             'currency' => ['nullable', 'string', 'size:3'],
             'footer_note' => ['nullable', 'string'],
-            'favicon' => ['nullable', 'image', 'mimes:png,ico,webp,jpg,jpeg', 'max:2048'],
-            'logo' => ['nullable', 'image', 'mimes:png,webp,jpg,jpeg', 'max:4096'],
+            'favicon' => ['nullable', 'image', 'mimes:png,ico,webp,jpg,jpeg'],
+            'logo' => ['nullable', 'image', 'mimes:png,webp,jpg,jpeg'],
         ]);
 
         if ($request->hasFile('favicon')) {

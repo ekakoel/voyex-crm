@@ -26,55 +26,6 @@
     @endif
     @vite(['resources/css/app.css','resources/js/app.js'])
     @stack('styles')
-    <style>
-        .sidebar-nav-item,
-        .sidebar-sub-item {
-            position: relative;
-            transition: background-color .25s ease, color .25s ease, transform .2s ease, box-shadow .25s ease;
-        }
-
-        .sidebar-nav-item::before,
-        .sidebar-sub-item::before {
-            content: '';
-            position: absolute;
-            left: .45rem;
-            top: .4rem;
-            bottom: .4rem;
-            width: 3px;
-            border-radius: 9999px;
-            background: rgba(255, 255, 255, .92);
-            opacity: 0;
-            transform: scaleY(.3);
-            transform-origin: center;
-            transition: opacity .25s ease, transform .25s ease;
-        }
-
-        .sidebar-nav-item:hover,
-        .sidebar-sub-item:hover {
-            transform: translateX(2px);
-        }
-
-        .sidebar-nav-item.is-active,
-        .sidebar-sub-item.is-active {
-            animation: sidebarActiveIn .28s ease both;
-        }
-
-        .sidebar-nav-item.is-active::before,
-        .sidebar-sub-item.is-active::before {
-            opacity: 1;
-            transform: scaleY(1);
-        }
-
-        @keyframes sidebarActiveIn {
-            0% { opacity: .85; }
-            100% { opacity: 1; }
-        }
-
-        .sidebar-is-collapsed .sidebar-nav-item:hover,
-        .sidebar-is-collapsed .sidebar-sub-item:hover {
-            transform: none;
-        }
-    </style>
 </head>
 
 <body class="bg-gray-100 dark:bg-gray-900 transition-colors duration-300">
@@ -269,6 +220,40 @@
             @else
                 <x-layout.breadcrumbs />
             @endif
+            @php
+                $routeName = (string) (Route::currentRouteName() ?? '');
+                $routeParts = $routeName !== '' ? explode('.', $routeName) : [];
+                $routeAction = !empty($routeParts) ? strtolower((string) end($routeParts)) : '';
+                $routeResource = !empty($routeParts) ? strtolower((string) $routeParts[0]) : 'dashboard';
+                $defaultTitle = \Illuminate\Support\Str::headline(str_replace('-', ' ', $routeResource));
+                $defaultSubtitle = match ($routeAction) {
+                    'index' => 'Browse and manage data for this module.',
+                    'create', 'store' => 'Create a new record in this module.',
+                    'edit', 'update' => 'Update existing data in this module.',
+                    'show' => 'Review complete detail information.',
+                    default => 'Page information and actions for this module.',
+                };
+                $pageTitle = trim((string) $__env->yieldContent('page_title')) !== ''
+                    ? trim((string) $__env->yieldContent('page_title'))
+                    : $defaultTitle;
+                $pageSubtitle = trim((string) $__env->yieldContent('page_subtitle')) !== ''
+                    ? trim((string) $__env->yieldContent('page_subtitle'))
+                    : $defaultSubtitle;
+                $hidePageHeader = trim((string) $__env->yieldContent('page_header_hidden')) === '1';
+            @endphp
+            @unless ($hidePageHeader)
+                <section class="app-page-header mb-4 sm:mb-5">
+                    <div class="app-page-header__body">
+                        <h1 class="app-page-header__title">{{ $pageTitle }}</h1>
+                        <p class="app-page-header__subtitle">{{ $pageSubtitle }}</p>
+                    </div>
+                    @hasSection('page_actions')
+                        <div class="app-page-header__actions">
+                            @yield('page_actions')
+                        </div>
+                    @endif
+                </section>
+            @endunless
             @yield('content')
         </main>
 
@@ -304,6 +289,198 @@
             }
         };
     }
+
+    function attachRequiredMarkers(root = document) {
+        const fields = root.querySelectorAll('input[required], select[required], textarea[required]');
+
+        fields.forEach((field) => {
+            if (field.type === 'hidden' || field.disabled) {
+                return;
+            }
+
+            let label = null;
+            if (field.id) {
+                label = document.querySelector(`label[for="${CSS.escape(field.id)}"]`);
+            }
+
+            if (!label) {
+                label = field.closest('label');
+            }
+
+            if (!label) {
+                return;
+            }
+
+            if (label.querySelector('.required-asterisk')) {
+                return;
+            }
+
+            const marker = document.createElement('span');
+            marker.className = 'required-asterisk';
+            marker.setAttribute('aria-hidden', 'true');
+            marker.textContent = '*';
+            label.appendChild(marker);
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        attachRequiredMarkers(document);
+
+        const observer = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+                mutation.addedNodes.forEach((node) => {
+                    if (node.nodeType === Node.ELEMENT_NODE) {
+                        attachRequiredMarkers(node);
+                    }
+                });
+            });
+        });
+
+        observer.observe(document.body, { childList: true, subtree: true });
+    });
+
+    function initLocationAutofill(root = document) {
+        const blocks = root.querySelectorAll('[data-location-autofill]');
+        blocks.forEach((block) => {
+            if (block.dataset.locationBound === '1') {
+                return;
+            }
+            block.dataset.locationBound = '1';
+
+            const endpoint = block.getAttribute('data-location-resolve-url') || @json(route('location.resolve-google-map'));
+            const urlInput = block.querySelector('[data-location-field="google_maps_url"]');
+            const destinationInput = block.querySelector('[data-location-field="destination_id"]');
+            const statusNode = block.querySelector('[data-location-status]');
+            const triggerButton = block.querySelector('[data-location-autofill-trigger]');
+
+            if (!urlInput || !endpoint) {
+                return;
+            }
+
+            const setStatus = (message, isError = false) => {
+                if (!statusNode) return;
+                statusNode.textContent = message;
+                statusNode.classList.remove('hidden', 'text-emerald-600', 'text-rose-600', 'dark:text-emerald-400', 'dark:text-rose-400');
+                statusNode.classList.add(isError ? 'text-rose-600' : 'text-emerald-600');
+                statusNode.classList.add(isError ? 'dark:text-rose-400' : 'dark:text-emerald-400');
+            };
+
+            const clearStatus = () => {
+                if (!statusNode) return;
+                statusNode.textContent = '';
+                statusNode.classList.add('hidden');
+            };
+
+            const applyField = (field, value) => {
+                const input = block.querySelector(`[data-location-field="${field}"]`);
+                if (!input) {
+                    return;
+                }
+
+                if (value === null || value === undefined) {
+                    return;
+                }
+
+                if (input.tagName === 'SELECT') {
+                    const normalized = String(value);
+                    if ([...input.options].some((option) => option.value === normalized)) {
+                        input.value = normalized;
+                        input.dispatchEvent(new Event('change', { bubbles: true }));
+                        return;
+                    }
+
+                    if (field === 'destination_id') {
+                        return;
+                    }
+                }
+
+                input.value = String(value);
+                input.dispatchEvent(new Event('input', { bubbles: true }));
+                input.dispatchEvent(new Event('change', { bubbles: true }));
+            };
+
+            const pickDestinationByProvince = (province) => {
+                if (!destinationInput || !province) {
+                    return;
+                }
+
+                const normalized = String(province).trim().toLowerCase();
+                for (const option of destinationInput.options) {
+                    const optionProvince = String(option.dataset.province || '').trim().toLowerCase();
+                    if (optionProvince !== '' && optionProvince === normalized) {
+                        destinationInput.value = option.value;
+                        destinationInput.dispatchEvent(new Event('change', { bubbles: true }));
+                        break;
+                    }
+                }
+            };
+
+            const resolveLocation = async () => {
+                const googleMapsUrl = (urlInput.value || '').trim();
+                if (!googleMapsUrl) {
+                    clearStatus();
+                    return;
+                }
+
+                setStatus('Resolving location from Google Maps link...');
+
+                try {
+                    const query = new URLSearchParams({ google_maps_url: googleMapsUrl });
+                    const response = await fetch(`${endpoint}?${query.toString()}`, {
+                        headers: { 'Accept': 'application/json' },
+                    });
+
+                    if (!response.ok) {
+                        throw new Error('resolve_failed');
+                    }
+
+                    const payload = await response.json();
+                    const data = payload?.data || {};
+
+                    applyField('latitude', data.latitude);
+                    applyField('longitude', data.longitude);
+                    applyField('country', data.country);
+                    applyField('city', data.city);
+                    applyField('province', data.province);
+                    applyField('address', data.address);
+                    applyField('location', data.location);
+                    applyField('timezone', data.timezone);
+
+                    if (data.destination_id) {
+                        applyField('destination_id', data.destination_id);
+                    } else if (data.province) {
+                        pickDestinationByProvince(data.province);
+                    }
+
+                    setStatus('Location fields have been auto-filled.');
+                } catch (_) {
+                    setStatus('Unable to resolve this link. Please fill location fields manually.', true);
+                }
+            };
+
+            urlInput.addEventListener('change', resolveLocation);
+            urlInput.addEventListener('blur', resolveLocation);
+            if (triggerButton) {
+                triggerButton.addEventListener('click', resolveLocation);
+            }
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        initLocationAutofill(document);
+
+        const observer = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+                mutation.addedNodes.forEach((node) => {
+                    if (node.nodeType === Node.ELEMENT_NODE) {
+                        initLocationAutofill(node);
+                    }
+                });
+            });
+        });
+
+        observer.observe(document.body, { childList: true, subtree: true });
+    });
 </script>
 @stack('scripts')
 

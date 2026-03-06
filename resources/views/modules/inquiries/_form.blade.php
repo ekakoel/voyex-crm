@@ -2,10 +2,10 @@
     $buttonLabel = $buttonLabel ?? 'Save';
 @endphp
 
-<div class="space-y-5">
+<div class="space-y-5 module-form">
     <div>
         <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Customer</label>
-        <select name="customer_id" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" required>
+        <select name="customer_id" class="mt-1 w-full app-input" required>
             <option value="">Select customer</option>
             @foreach ($customers as $customer)
                 <option value="{{ $customer->id }}" @selected(old('customer_id', $inquiry->customer_id ?? null) == $customer->id)>
@@ -21,7 +21,7 @@
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Source</label>
-            <select name="source" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+            <select name="source" class="mt-1 w-full app-input">
                 <option value="">-</option>
                 @foreach (($sourceLabels ?? []) as $value => $label)
                     <option value="{{ $value }}" @selected(old('source', $inquiry->source ?? '') === $value)>{{ $label }}</option>
@@ -38,7 +38,7 @@
                 name="deadline"
                 type="date"
                 value="{{ old('deadline', isset($inquiry->deadline) ? $inquiry->deadline->format('Y-m-d') : '') }}"
-                class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
+                class="mt-1 w-full app-input"
             >
             @error('deadline')
                 <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
@@ -49,7 +49,7 @@
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Status</label>
-            <select name="status" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" required>
+            <select name="status" class="mt-1 w-full app-input" required>
                 @foreach (['new','follow_up','quoted','converted','closed'] as $status)
                     <option value="{{ $status }}" @selected(old('status', $inquiry->status ?? 'new') === $status)>{{ $status }}</option>
                 @endforeach
@@ -61,7 +61,7 @@
 
         <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Priority</label>
-            <select name="priority" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" required>
+            <select name="priority" class="mt-1 w-full app-input" required>
                 @foreach (['low','normal','high'] as $priority)
                     <option value="{{ $priority }}" @selected(old('priority', $inquiry->priority ?? 'normal') === $priority)>{{ $priority }}</option>
                 @endforeach
@@ -73,7 +73,7 @@
 
         <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Assigned To</label>
-            <select name="assigned_to" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+            <select name="assigned_to" class="mt-1 w-full app-input">
                 <option value="">-</option>
                 @foreach ($assignees as $user)
                     <option value="{{ $user->id }}" @selected(old('assigned_to', $inquiry->assigned_to ?? null) == $user->id)>
@@ -92,7 +92,7 @@
         <textarea
             name="notes"
             rows="4"
-            class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
+            class="mt-1 w-full app-input"
         >{{ old('notes', $inquiry->notes ?? '') }}</textarea>
         @error('notes')
             <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
@@ -120,5 +120,6 @@
         </a>
     </div>
 </div>
+
 
 

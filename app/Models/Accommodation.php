@@ -12,8 +12,12 @@ class Accommodation extends Model
         'category',
         'star_rating',
         'location',
+        'google_maps_url',
         'city',
         'province',
+        'country',
+        'timezone',
+        'destination_id',
         'address',
         'latitude',
         'longitude',
@@ -43,5 +47,16 @@ class Accommodation extends Model
     {
         return $this->hasMany(AccommodationRoom::class);
     }
-}
 
+    public function itineraries()
+    {
+        return $this->belongsToMany(Itinerary::class)
+            ->withPivot(['day_number', 'night_count'])
+            ->withTimestamps();
+    }
+
+    public function destination()
+    {
+        return $this->belongsTo(Destination::class);
+    }
+}

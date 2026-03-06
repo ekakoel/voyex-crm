@@ -9,7 +9,11 @@ class Itinerary extends Model
     protected $fillable = [
         'inquiry_id',
         'title',
+        'destination',
+        'arrival_transport_id',
+        'departure_transport_id',
         'duration_days',
+        'duration_nights',
         'description',
         'is_active',
     ];
@@ -34,8 +38,46 @@ class Itinerary extends Model
             ->orderBy('visit_order');
     }
 
+    public function itineraryFoodBeverages()
+    {
+        return $this->hasMany(ItineraryFoodBeverage::class)
+            ->orderBy('day_number')
+            ->orderBy('visit_order');
+    }
+
+    public function itineraryTransportUnits()
+    {
+        return $this->hasMany(ItineraryTransportUnit::class)
+            ->orderBy('day_number');
+    }
+
+    public function dayPoints()
+    {
+        return $this->hasMany(ItineraryDayPoint::class)
+            ->orderBy('day_number');
+    }
+
     public function inquiry()
     {
         return $this->belongsTo(Inquiry::class);
+    }
+
+    public function accommodations()
+    {
+        return $this->belongsToMany(Accommodation::class)
+            ->withPivot(['day_number', 'night_count', 'room_count'])
+            ->withTimestamps()
+            ->orderByPivot('day_number')
+            ->orderBy('name');
+    }
+
+    public function arrivalTransport()
+    {
+        return $this->belongsTo(Transport::class, 'arrival_transport_id');
+    }
+
+    public function departureTransport()
+    {
+        return $this->belongsTo(Transport::class, 'departure_transport_id');
     }
 }

@@ -2,8 +2,11 @@
     $buttonLabel = $buttonLabel ?? 'Save';
     $itinerary = $itinerary ?? null;
     $inquiries = $inquiries ?? collect();
+    $airports = $airports ?? collect();
+    $transportUnits = $transportUnits ?? collect();
     $prefillInquiryId = $prefillInquiryId ?? null;
     $selectedInquiryId = old('inquiry_id', $itinerary->inquiry_id ?? $prefillInquiryId);
+    $durationNights = max(0, (int) old('duration_nights', $itinerary->duration_nights ?? max(0, ($itinerary->duration_days ?? 1) - 1)));
 
     $rawAttractions = old('itinerary_items');
     if (!is_array($rawAttractions)) {
@@ -43,8 +46,136 @@
                 ->toArray()
             : [];
     }
+    $rawFoodBeverages = old('itinerary_food_beverage_items');
+    if (!is_array($rawFoodBeverages)) {
+        $rawFoodBeverages = isset($itinerary)
+            ? $itinerary->itineraryFoodBeverages
+                ->map(
+                    fn($f) => [
+                        'food_beverage_id' => $f->food_beverage_id,
+                        'pax' => $f->pax ?? 1,
+                        'day_number' => $f->day_number ?? 1,
+                        'start_time' => $f->start_time ? substr((string) $f->start_time, 0, 5) : '',
+                        'end_time' => $f->end_time ? substr((string) $f->end_time, 0, 5) : '',
+                        'travel_minutes_to_next' => $f->travel_minutes_to_next ?? null,
+                        'visit_order' => $f->visit_order ?? null,
+                    ],
+                )
+                ->values()
+                ->toArray()
+            : [];
+    }
 
     $durationDays = max(1, (int) old('duration_days', $itinerary->duration_days ?? 1));
+    $dailyEndPointTypes = old('daily_end_point_types');
+    $dailyEndPointItems = old('daily_end_point_items');
+    $dailyStartPointRoomCounts = old('daily_start_point_room_counts');
+    $dailyEndPointRoomCounts = old('daily_end_point_room_counts');
+    if (!is_array($dailyEndPointTypes) || !is_array($dailyEndPointItems)) {
+        $dailyEndPointTypes = [];
+        $dailyEndPointItems = [];
+        if (isset($itinerary) && $itinerary->dayPoints->isNotEmpty()) {
+            foreach ($itinerary->dayPoints as $dayPoint) {
+                $day = (int) ($dayPoint->day_number ?? 0);
+                if ($day <= 0) {
+                    continue;
+                }
+                $dailyEndPointTypes[$day] = (string) ($dayPoint->end_point_type ?? 'accommodation');
+                $dailyEndPointItems[$day] = (string) (
+                    $dailyEndPointTypes[$day] === 'airport'
+                        ? ($dayPoint->end_airport_id ?? '')
+                        : ($dayPoint->end_accommodation_id ?? '')
+                );
+            }
+        } elseif (isset($itinerary)) {
+            foreach ($itinerary->accommodations as $acc) {
+                $startDay = (int) ($acc->pivot->day_number ?? 1);
+                $nightCount = max(1, (int) ($acc->pivot->night_count ?? 1));
+                $roomCount = max(1, (int) ($acc->pivot->room_count ?? 1));
+                for ($day = $startDay; $day < ($startDay + $nightCount); $day++) {
+                    $dailyEndPointTypes[$day] = 'accommodation';
+                    $dailyEndPointItems[$day] = (string) $acc->id;
+                    $dailyEndPointRoomCounts[$day] = $roomCount;
+                }
+            }
+        }
+    }
+    if (!is_array($dailyStartPointRoomCounts)) {
+        $dailyStartPointRoomCounts = [];
+    }
+    if (!is_array($dailyEndPointRoomCounts)) {
+        $dailyEndPointRoomCounts = [];
+    }
+    $dailyStartPointTypes = old('daily_start_point_types');
+    $dailyStartPointItems = old('daily_start_point_items');
+    $dailyTransportUnitItems = old('daily_transport_units');
+    if (!is_array($dailyTransportUnitItems)) {
+        $dailyTransportUnitItems = [];
+        if (isset($itinerary)) {
+            foreach ($itinerary->itineraryTransportUnits as $transportItem) {
+                $day = (int) ($transportItem->day_number ?? 0);
+                if ($day <= 0) {
+                    continue;
+                }
+                $dailyTransportUnitItems[$day] = [
+                    'day_number' => $day,
+                    'transport_unit_id' => (string) ($transportItem->transport_unit_id ?? ''),
+                ];
+            }
+        }
+    }
+    if (!is_array($dailyStartPointTypes) || !is_array($dailyStartPointItems)) {
+        $dailyStartPointTypes = [];
+        $dailyStartPointItems = [];
+        if (isset($itinerary) && $itinerary->dayPoints->isNotEmpty()) {
+            foreach ($itinerary->dayPoints as $dayPoint) {
+                $day = (int) ($dayPoint->day_number ?? 0);
+                if ($day <= 0) {
+                    continue;
+                }
+                $dailyStartPointTypes[$day] = (string) ($dayPoint->start_point_type ?? ($day === 1 ? 'airport' : 'previous_day_end'));
+                $dailyStartPointItems[$day] = (string) (
+                    $dailyStartPointTypes[$day] === 'airport'
+                        ? ($dayPoint->start_airport_id ?? '')
+                        : ($dayPoint->start_accommodation_id ?? '')
+                );
+            }
+        }
+        for ($day = 1; $day <= $durationDays; $day++) {
+            if (!isset($dailyStartPointTypes[$day])) {
+                $dailyStartPointTypes[$day] = $day === 1 ? 'airport' : 'previous_day_end';
+            }
+            if (!isset($dailyStartPointItems[$day])) {
+                $dailyStartPointItems[$day] = '';
+            }
+        }
+    }
+    $dailyMainExperienceTypes = old('daily_main_experience_types');
+    $dailyMainExperienceItems = old('daily_main_experience_items');
+    if (!is_array($dailyMainExperienceTypes) || !is_array($dailyMainExperienceItems)) {
+        $dailyMainExperienceTypes = [];
+        $dailyMainExperienceItems = [];
+        if (isset($itinerary) && $itinerary->dayPoints->isNotEmpty()) {
+            foreach ($itinerary->dayPoints as $dayPoint) {
+                $day = (int) ($dayPoint->day_number ?? 0);
+                if ($day <= 0) {
+                    continue;
+                }
+                $type = (string) ($dayPoint->main_experience_type ?? '');
+                if (!in_array($type, ['attraction', 'activity', 'fnb'], true)) {
+                    $type = '';
+                }
+                $dailyMainExperienceTypes[$day] = $type;
+                $dailyMainExperienceItems[$day] = (string) (
+                    $type === 'attraction'
+                        ? ($dayPoint->main_tourist_attraction_id ?? '')
+                        : ($type === 'activity'
+                            ? ($dayPoint->main_activity_id ?? '')
+                            : ($type === 'fnb' ? ($dayPoint->main_food_beverage_id ?? '') : ''))
+                );
+            }
+        }
+    }
 
     $rows = collect();
     foreach ($rawAttractions as $i => $item) {
@@ -66,6 +197,7 @@
             'item_type' => 'activity',
             'tourist_attraction_id' => '',
             'activity_id' => $item['activity_id'] ?? '',
+            'food_beverage_id' => '',
             'pax' => max(1, (int) ($item['pax'] ?? 1)),
             'day_number' => (int) ($item['day_number'] ?? 1),
             'start_time' => $item['start_time'] ?? '',
@@ -73,6 +205,21 @@
             'travel_minutes_to_next' => $item['travel_minutes_to_next'] ?? '',
             'visit_order' => $item['visit_order'] ?? null,
             '_sort' => 100000 + $i,
+        ]);
+    }
+    foreach ($rawFoodBeverages as $i => $item) {
+        $rows->push([
+            'item_type' => 'fnb',
+            'tourist_attraction_id' => '',
+            'activity_id' => '',
+            'food_beverage_id' => $item['food_beverage_id'] ?? '',
+            'pax' => max(1, (int) ($item['pax'] ?? 1)),
+            'day_number' => (int) ($item['day_number'] ?? 1),
+            'start_time' => $item['start_time'] ?? '',
+            'end_time' => $item['end_time'] ?? '',
+            'travel_minutes_to_next' => $item['travel_minutes_to_next'] ?? '',
+            'visit_order' => $item['visit_order'] ?? null,
+            '_sort' => 200000 + $i,
         ]);
     }
     $rowsByDay = $rows
@@ -107,7 +254,7 @@
     });
 @endphp
 
-<div class="space-y-4">
+<div class="space-y-4 itinerary-form-page">
     <div>
         <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Inquiry (Optional)</label>
         <select id="inquiry-select" name="inquiry_id"
@@ -137,17 +284,64 @@
             required>
     </div>
     <div>
-        <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Duration (Days)</label>
-        <input id="duration-days" name="duration_days" type="number" min="1"
-            value="{{ old('duration_days', $itinerary->duration_days ?? 1) }}"
-            class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
-            required>
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Destination</label>
+        <div class="relative mt-1">
+            <input id="itinerary-destination" name="destination" value="{{ old('destination', $itinerary->destination ?? '') }}"
+                data-endpoint="{{ route('itineraries.destination-suggestions') }}" autocomplete="off"
+                placeholder="Example: Bali, Lombok, Jakarta"
+                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
+                required>
+            <div id="itinerary-destination-dropdown"
+                class="absolute z-20 mt-1 hidden max-h-56 w-full overflow-auto rounded-lg border border-gray-200 bg-white p-1 shadow-lg dark:border-gray-700 dark:bg-gray-900"></div>
+        </div>
+        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Autocomplete is sourced from master data (Attractions, Accommodations, Vendors, Transports). Items and accommodations are filtered by this destination.</p>
+        @error('destination')
+            <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
+        @enderror
+    </div>
+    <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+        <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Duration (Days)</label>
+            <input id="duration-days" name="duration_days" type="number" min="1"
+                value="{{ old('duration_days', $itinerary->duration_days ?? 1) }}"
+                class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
+                required>
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Duration (Nights)</label>
+            <input id="duration-nights" name="duration_nights" type="number" min="0"
+                value="{{ $durationNights }}"
+                class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
+                required>
+            @error('duration_nights')
+                <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
+            @enderror
+        </div>
     </div>
     <div>
         <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Description</label>
         <textarea name="description" rows="4"
             class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">{{ old('description', $itinerary->description ?? '') }}</textarea>
     </div>
+    <p class="text-xs text-gray-500 dark:text-gray-400">Start/End airport selection is now configured per-day via Start Point and End Point.</p>
+
+    <input type="hidden" id="accommodation-stays-hidden-enabled" value="1">
+    <div id="accommodation-stays-hidden"></div>
+    @error('accommodation_stays')
+        <p class="text-xs text-rose-600">{{ $message }}</p>
+    @enderror
+    @error('accommodation_stays.*')
+        <p class="text-xs text-rose-600">{{ $message }}</p>
+    @enderror
+    @error('accommodation_stays.*.room_count')
+        <p class="text-xs text-rose-600">{{ $message }}</p>
+    @enderror
+    @error('daily_transport_units')
+        <p class="text-xs text-rose-600">{{ $message }}</p>
+    @enderror
+    @error('daily_transport_units.*.transport_unit_id')
+        <p class="text-xs text-rose-600">{{ $message }}</p>
+    @enderror
 
     <div class="space-y-2">
         <p class="text-sm font-medium text-gray-700 dark:text-gray-200">Schedule Items (Attraction + Activity)</p>
@@ -155,23 +349,52 @@
             @for ($day = 1; $day <= $durationDays; $day++)
                 @php
                     $dayRows = collect($rowsByDay->get($day, collect()));
-                    $dayStart = '';
-                    foreach ($dayRows as $r) {
-                        if (!empty($r['start_time'])) {
-                            $dayStart = substr((string) $r['start_time'], 0, 5);
-                            break;
+                    $existingDayPoint = isset($itinerary) ? $itinerary->dayPoints->firstWhere('day_number', $day) : null;
+                    $dayStart = old("day_start_times.$day", $existingDayPoint?->day_start_time ? substr((string) $existingDayPoint->day_start_time, 0, 5) : '');
+                    if ($dayStart === '') {
+                        foreach ($dayRows as $r) {
+                            if (!empty($r['start_time'])) {
+                                $dayStart = substr((string) $r['start_time'], 0, 5);
+                                break;
+                            }
                         }
                     }
                 @endphp
                 <div class="day-section rounded-xl border border-gray-400 bg-white p-3 shadow-sm dark:border-gray-700 dark:bg-gray-800"
                     data-day="{{ $day }}">
+                    @php
+                        $startType = (string) ($dailyStartPointTypes[$day] ?? ($day === 1 ? 'airport' : 'previous_day_end'));
+                        $startItem = (string) ($dailyStartPointItems[$day] ?? '');
+                        $startRoomCount = max(1, (int) ($dailyStartPointRoomCounts[$day] ?? 1));
+                        $endType = (string) ($dailyEndPointTypes[$day] ?? 'accommodation');
+                        $endItem = (string) ($dailyEndPointItems[$day] ?? '');
+                        $endRoomCount = max(1, (int) ($dailyEndPointRoomCounts[$day] ?? 1));
+                        $dayStartTravelMinutes = old("day_start_travel_minutes.$day", isset($existingDayPoint) ? (string) ($existingDayPoint->day_start_travel_minutes ?? '') : '');
+                        $mainExperienceType = (string) ($dailyMainExperienceTypes[$day] ?? '');
+                        $mainExperienceItem = (string) ($dailyMainExperienceItems[$day] ?? '');
+                    @endphp
+                    <div class="day-card-header mb-3">
+                        <div class="app-day-header day-card-header-pill">
+                            <p class="day-title-label app-day-header-title">Day {{ $day }}</p>
+                        </div>
+                        <div class="app-day-header day-card-header-pill min-w-[280px] flex-1">
+                            <p class="day-endpoint-badge app-day-header-meta">
+                                Starts at: <span class="day-starts-at-label">Not set</span>
+                                <span class="mx-1">|</span>
+                                Ends at: <span class="day-ends-at-label">Not set</span>
+                            </p>
+                        </div>
+                    </div>
                     <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
-                        <p class="text-sm font-semibold text-indigo-700 dark:text-indigo-300">Day {{ $day }}
-                        </p>
                         <div class="flex items-center gap-2">
                             <label class="text-xs text-gray-500">Start Tour</label>
                             <input type="time" value="{{ $dayStart }}"
+                                name="day_start_times[{{ $day }}]"
                                 class="day-start-time rounded-lg border border-gray-300 px-2 py-1 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+                            <label class="text-xs text-gray-500">End Tour</label>
+                            <input type="time" value=""
+                                class="day-end-time rounded-lg border border-gray-300 bg-gray-100 px-2 py-1 text-sm text-gray-700 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200"
+                                readonly>
                         </div>
                         <div class="flex items-center gap-2">
                             <button type="button"
@@ -180,10 +403,112 @@
                             <button type="button"
                                 class="add-activity rounded-lg border border-emerald-300 px-3 py-1 text-xs font-medium text-emerald-700">Add
                                 Activity</button>
+                            <button type="button"
+                                class="add-fnb rounded-lg border border-amber-300 px-3 py-1 text-xs font-medium text-amber-700">Add
+                                F&B</button>
                         </div>
+                    </div>
+                    <div class="mb-3 grid grid-cols-1 gap-3 md:grid-cols-2">
+                        <div>
+                            <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300">
+                                Day {{ $day }} Transport Unit
+                            </label>
+                            <select
+                                class="day-transport-unit w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+                                <option value="">Select transport unit</option>
+                                @foreach(($transportUnits ?? collect()) as $unit)
+                                    <option value="{{ $unit->id }}"
+                                        data-city="{{ $unit->transport->city ?? '' }}"
+                                        data-province="{{ $unit->transport->province ?? '' }}"
+                                        @selected((string) ($dailyTransportUnitItems[$day]['transport_unit_id'] ?? '') === (string) $unit->id)>
+                                        {{ $unit->name }}{{ !empty($unit->transport?->name) ? ' - '.$unit->transport->name : '' }}{{ !empty($unit->seat_capacity) ? ' ('.$unit->seat_capacity.' seats)' : '' }}
+                                    </option>
+                                @endforeach
+                            </select>
+                            <input type="hidden" class="day-transport-day" value="{{ $day }}">
+                        </div>
+                    </div>
+                    <div class="mb-3 rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900/40">
+                        <div class="space-y-2">
+                            <label class="day-start-point-label mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300">
+                                Day {{ $day }} Start Point
+                            </label>
+                            <select name="daily_start_point_types[{{ $day }}]"
+                                class="day-start-point-type w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+                                @if($day !== 1)
+                                    <option value="previous_day_end" @selected($startType === 'previous_day_end')>Previous Day Endpoint (Auto)</option>
+                                @endif
+                                <option value="accommodation" @selected($startType === 'accommodation')>Accommodation</option>
+                                <option value="airport" @selected($startType === 'airport')>Airport</option>
+                            </select>
+                            <select name="daily_start_point_items[{{ $day }}]"
+                                class="day-start-point-item w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+                                <option value="">Select start point item</option>
+                                @foreach(($accommodations ?? collect()) as $accommodation)
+                                    <option value="{{ $accommodation->id }}"
+                                        data-point-type="accommodation"
+                                        data-location="{{ $accommodation->location ?? '' }}"
+                                        data-city="{{ $accommodation->city ?? '' }}"
+                                        data-province="{{ $accommodation->province ?? '' }}"
+                                        data-latitude="{{ $accommodation->latitude ?? '' }}"
+                                        data-longitude="{{ $accommodation->longitude ?? '' }}"
+                                        @selected($startType === 'accommodation' && $startItem === (string)$accommodation->id)>
+                                            {{ $accommodation->name }}{{ !empty($accommodation->city) ? ' ('.$accommodation->city.')' : '' }}
+                                    </option>
+                                @endforeach
+                                @foreach(($airports ?? collect()) as $airport)
+                                    <option value="{{ $airport->id }}"
+                                        data-point-type="airport"
+                                        data-location="{{ $airport->location ?? '' }}"
+                                        data-city="{{ $airport->city ?? '' }}"
+                                        data-province="{{ $airport->province ?? '' }}"
+                                        data-latitude="{{ $airport->latitude ?? '' }}"
+                                        data-longitude="{{ $airport->longitude ?? '' }}"
+                                        @selected($startType === 'airport' && $startItem === (string)$airport->id)>
+                                        {{ $airport->name }}
+                                    </option>
+                                @endforeach
+                            </select>
+                            <div class="day-start-room-wrap {{ $startType === 'accommodation' ? '' : 'hidden' }}">
+                                <label class="mb-1 mt-2 block text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300">Room Qty</label>
+                                <input
+                                    type="number"
+                                    min="1"
+                                    step="1"
+                                    name="daily_start_point_room_counts[{{ $day }}]"
+                                    value="{{ $startRoomCount }}"
+                                    class="day-start-room-count w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
+                                    {{ $startType === 'accommodation' ? '' : 'disabled' }}
+                                >
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3 rounded-lg border border-dashed border-slate-300 bg-slate-50 p-3 dark:border-slate-600 dark:bg-slate-900/30">
+                        <label class="block text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300">
+                            Travel to next item (minutes)
+                        </label>
+                        <p class="mt-0.5 text-[11px] text-gray-500 dark:text-gray-400">
+                            Used for route from Start Point to first Attraction/Activity.
+                        </p>
+                        <input type="number" min="0" step="5"
+                            name="day_start_travel_minutes[{{ $day }}]"
+                            value="{{ $dayStartTravelMinutes }}"
+                            class="day-start-travel mt-2 w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
+                            placeholder="Example: 30">
                     </div>
                     <div class="day-items space-y-2">
                         @forelse ($dayRows as $r)
+                            @php
+                                $rowItemId = $r['item_type'] === 'attraction'
+                                    ? (string) ($r['tourist_attraction_id'] ?? '')
+                                    : ($r['item_type'] === 'activity'
+                                        ? (string) ($r['activity_id'] ?? '')
+                                        : (string) ($r['food_beverage_id'] ?? ''));
+                                $isRowMainExperience = $mainExperienceType !== ''
+                                    && $mainExperienceType === (string) ($r['item_type'] ?? '')
+                                    && $mainExperienceItem !== ''
+                                    && $mainExperienceItem === $rowItemId;
+                            @endphp
                             <div class="schedule-row grid grid-cols-1 gap-3 rounded-lg border border-gray-200 p-3 dark:border-gray-700 lg:grid-cols-12"
                                 data-item-type="{{ $r['item_type'] }}">
                                 <div class="flex items-center gap-2 lg:col-span-2">
@@ -193,18 +518,25 @@
                                     <span
                                         class="item-seq-badge inline-flex h-8 w-8 items-center justify-center rounded-full bg-slate-700 text-xs font-semibold text-white">-</span>
                                 </div>
-                                <select
-                                    class="item-type rounded-lg border border-gray-300 px-2 py-2 text-sm lg:col-span-2 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
-                                    <option value="attraction" @selected($r['item_type'] === 'attraction')>Attraction</option>
-                                    <option value="activity" @selected($r['item_type'] === 'activity')>Activity</option>
-                                </select>
-                                <div class="min-w-0 lg:col-span-8">
+                                <div class="lg:col-span-2">
+                                    <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">Item Type</label>
                                     <select
-                                        class="item-attraction w-full rounded-lg border border-gray-300 px-2 py-2 text-sm {{ $r['item_type'] === 'activity' ? 'hidden' : '' }} dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+                                        class="item-type w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+                                        <option value="attraction" @selected($r['item_type'] === 'attraction')>Attraction</option>
+                                        <option value="activity" @selected($r['item_type'] === 'activity')>Activity</option>
+                                        <option value="fnb" @selected($r['item_type'] === 'fnb')>F&B</option>
+                                    </select>
+                                </div>
+                                <div class="min-w-0 lg:col-span-8">
+                                    <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">Attraction / Activity / F&B</label>
+                                    <select
+                                        class="item-attraction w-full rounded-lg border border-gray-300 px-2 py-2 text-sm {{ $r['item_type'] !== 'attraction' ? 'hidden' : '' }} dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
                                         <option value="">Select attraction</option>
                                         @foreach ($touristAttractions as $a)
                                             <option value="{{ $a->id }}"
                                                 data-duration="{{ $a->ideal_visit_minutes ?? 120 }}"
+                                                data-city="{{ $a->city ?? '' }}"
+                                                data-province="{{ $a->province ?? '' }}"
                                                 data-latitude="{{ $a->latitude }}"
                                                 data-longitude="{{ $a->longitude }}" @selected((string) ($r['tourist_attraction_id'] ?? '') === (string) $a->id)>
                                                 {{ $a->name }}</option>
@@ -212,29 +544,60 @@
                                     </select>
                                     <div class="flex flex-col gap-2 sm:flex-row">
                                         <select
-                                            class="item-activity w-full rounded-lg border border-gray-300 px-2 py-2 text-sm {{ $r['item_type'] === 'attraction' ? 'hidden' : '' }} dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+                                            class="item-activity w-full rounded-lg border border-gray-300 px-2 py-2 text-sm {{ $r['item_type'] !== 'activity' ? 'hidden' : '' }} dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
                                             <option value="">Select activity</option>
                                             @foreach ($activities ?? collect() as $a)
                                                 <option value="{{ $a->id }}"
                                                     data-duration="{{ $a->duration_minutes ?? 60 }}"
+                                                    data-city="{{ $a->vendor->city ?? '' }}"
+                                                    data-province="{{ $a->vendor->province ?? '' }}"
                                                     data-latitude="{{ $a->vendor->latitude ?? '' }}"
                                                     data-longitude="{{ $a->vendor->longitude ?? '' }}"
                                                     @selected((string) ($r['activity_id'] ?? '') === (string) $a->id)>{{ $a->name }}</option>
                                             @endforeach
                                         </select>
-                                        <input type="number" min="1" value="{{ $r['pax'] ?? 1 }}"
-                                            class="item-pax w-full rounded-lg border border-gray-300 px-2 py-2 text-sm sm:w-24 {{ $r['item_type'] === 'attraction' ? 'hidden' : '' }} dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
-                                            placeholder="Pax">
+                                        <select
+                                            class="item-fnb w-full rounded-lg border border-gray-300 px-2 py-2 text-sm {{ $r['item_type'] !== 'fnb' ? 'hidden' : '' }} dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+                                            <option value="">Select F&B</option>
+                                            @foreach ($foodBeverages ?? collect() as $f)
+                                                <option value="{{ $f->id }}"
+                                                    data-duration="{{ $f->duration_minutes ?? 60 }}"
+                                                    data-city="{{ $f->vendor->city ?? '' }}"
+                                                    data-province="{{ $f->vendor->province ?? '' }}"
+                                                    data-latitude="{{ $f->vendor->latitude ?? '' }}"
+                                                    data-longitude="{{ $f->vendor->longitude ?? '' }}"
+                                                    @selected((string) ($r['food_beverage_id'] ?? '') === (string) $f->id)>{{ $f->name }}</option>
+                                            @endforeach
+                                        </select>
+                                        <input type="hidden" value="{{ $r['pax'] ?? 1 }}"
+                                            class="item-pax">
                                     </div>
                                 </div>
-                                <input type="time" value="{{ $r['start_time'] ?? '' }}"
-                                    class="item-start rounded-lg border border-gray-300 bg-gray-100 px-2 py-2 text-sm text-gray-700 lg:col-span-3 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200"
-                                    readonly>
-                                <input type="time" value="{{ $r['end_time'] ?? '' }}"
-                                    class="item-end rounded-lg border border-gray-300 bg-gray-100 px-2 py-2 text-sm text-gray-700 lg:col-span-3 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200"
-                                    readonly>
-                                <button type="button"
-                                    class="remove-row w-full rounded-lg border border-rose-300 px-3 py-2 text-xs font-medium text-rose-700 lg:col-span-2">Remove</button>
+                                <div class="lg:col-span-3">
+                                    <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">Start Time</label>
+                                    <input type="time" value="{{ $r['start_time'] ?? '' }}"
+                                        class="item-start w-full rounded-lg border border-gray-300 bg-gray-100 px-2 py-2 text-sm text-gray-700 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200"
+                                        readonly>
+                                </div>
+                                <div class="lg:col-span-3">
+                                    <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">End Time</label>
+                                    <input type="time" value="{{ $r['end_time'] ?? '' }}"
+                                        class="item-end w-full rounded-lg border border-gray-300 bg-gray-100 px-2 py-2 text-sm text-gray-700 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200"
+                                        readonly>
+                                </div>
+                                <div class="lg:col-span-2">
+                                    <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">Main Experience</label>
+                                    <label class="inline-flex items-center gap-2 text-xs text-amber-700 dark:text-amber-300">
+                                        <input type="checkbox" class="item-main-experience rounded border-amber-400 text-amber-600 focus:ring-amber-500" @checked($isRowMainExperience)>
+                                        Highlight
+                                    </label>
+                                </div>
+                                <div class="lg:col-span-2">
+                                    <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">Action</label>
+                                    <button type="button"
+                                        class="remove-row w-full rounded-lg border border-rose-300 px-3 py-2 text-xs font-medium text-rose-700">Remove</button>
+                                </div>
+                                
                                 <input type="hidden" class="item-travel" value="{{ $r['travel_minutes_to_next'] }}">
                                 <input type="hidden" class="item-day" value="{{ $day }}">
                                 <input type="hidden" class="item-order" value="{{ $r['visit_order'] ?? '' }}">
@@ -247,18 +610,25 @@
                                         title="Drag to reorder" aria-label="Drag to reorder">::</button><span
                                         class="item-seq-badge inline-flex h-8 w-8 items-center justify-center rounded-full bg-slate-700 text-xs font-semibold text-white">-</span>
                                 </div>
-                                <select
-                                    class="item-type rounded-lg border border-gray-300 px-2 py-2 text-sm lg:col-span-2 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
-                                    <option value="attraction">Attraction</option>
-                                    <option value="activity">Activity</option>
-                                </select>
+                                <div class="lg:col-span-2">
+                                    <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">Item Type</label>
+                                    <select
+                                        class="item-type w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+                                        <option value="attraction">Attraction</option>
+                                        <option value="activity">Activity</option>
+                                        <option value="fnb">F&B</option>
+                                    </select>
+                                </div>
                                 <div class="min-w-0 lg:col-span-8">
+                                    <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">Attraction / Activity / F&B</label>
                                     <select
                                         class="item-attraction w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
                                         <option value="">Select attraction</option>
                                         @foreach ($touristAttractions as $a)
                                             <option value="{{ $a->id }}"
                                                 data-duration="{{ $a->ideal_visit_minutes ?? 120 }}"
+                                                data-city="{{ $a->city ?? '' }}"
+                                                data-province="{{ $a->province ?? '' }}"
                                                 data-latitude="{{ $a->latitude }}"
                                                 data-longitude="{{ $a->longitude }}">{{ $a->name }}</option>
                                         @endforeach
@@ -269,27 +639,116 @@
                                             @foreach ($activities ?? collect() as $a)
                                                 <option value="{{ $a->id }}"
                                                     data-duration="{{ $a->duration_minutes ?? 60 }}"
+                                                    data-city="{{ $a->vendor->city ?? '' }}"
+                                                    data-province="{{ $a->vendor->province ?? '' }}"
                                                     data-latitude="{{ $a->vendor->latitude ?? '' }}"
                                                     data-longitude="{{ $a->vendor->longitude ?? '' }}">
                                                     {{ $a->name }}</option>
                                             @endforeach
-                                        </select><input type="number" min="1" value="1"
-                                            class="item-pax hidden w-full rounded-lg border border-gray-300 px-2 py-2 text-sm sm:w-24 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+                                        </select><select
+                                            class="item-fnb hidden w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+                                            <option value="">Select F&B</option>
+                                            @foreach ($foodBeverages ?? collect() as $f)
+                                                <option value="{{ $f->id }}"
+                                                    data-duration="{{ $f->duration_minutes ?? 60 }}"
+                                                    data-city="{{ $f->vendor->city ?? '' }}"
+                                                    data-province="{{ $f->vendor->province ?? '' }}"
+                                                    data-latitude="{{ $f->vendor->latitude ?? '' }}"
+                                                    data-longitude="{{ $f->vendor->longitude ?? '' }}">{{ $f->name }}</option>
+                                            @endforeach
+                                        </select><input type="hidden" value="1"
+                                            class="item-pax">
                                     </div>
                                 </div>
-                                <input type="time"
-                                    class="item-start rounded-lg border border-gray-300 bg-gray-100 px-2 py-2 text-sm text-gray-700 lg:col-span-3 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200"
-                                    readonly>
-                                <input type="time"
-                                    class="item-end rounded-lg border border-gray-300 bg-gray-100 px-2 py-2 text-sm text-gray-700 lg:col-span-3 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200"
-                                    readonly>
-                                <button type="button"
-                                    class="remove-row w-full rounded-lg border border-rose-300 px-3 py-2 text-xs font-medium text-rose-700 lg:col-span-2">Remove</button>
+                                <div class="lg:col-span-3">
+                                    <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">Start Time</label>
+                                    <input type="time"
+                                        class="item-start w-full rounded-lg border border-gray-300 bg-gray-100 px-2 py-2 text-sm text-gray-700 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200"
+                                        readonly>
+                                </div>
+                                <div class="lg:col-span-3">
+                                    <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">End Time</label>
+                                    <input type="time"
+                                        class="item-end w-full rounded-lg border border-gray-300 bg-gray-100 px-2 py-2 text-sm text-gray-700 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200"
+                                        readonly>
+                                </div>
+                                <div class="lg:col-span-2">
+                                    <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">Main Experience</label>
+                                    <label class="inline-flex items-center gap-2 text-xs text-amber-700 dark:text-amber-300">
+                                        <input type="checkbox" class="item-main-experience rounded border-amber-400 text-amber-600 focus:ring-amber-500">
+                                        Highlight
+                                    </label>
+                                </div>
+                                <div class="lg:col-span-2">
+                                    <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">Action</label>
+                                    <button type="button"
+                                        class="remove-row w-full rounded-lg border border-rose-300 px-3 py-2 text-xs font-medium text-rose-700">Remove</button>
+                                </div>
+                                
                                 <input type="hidden" class="item-travel" value="">
                                 <input type="hidden" class="item-day" value="{{ $day }}"><input
                                     type="hidden" class="item-order" value="">
                             </div>
                         @endforelse
+                    </div>
+                    <div class="mt-3 rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900/40">
+                        <div class="space-y-2">
+                            <label class="day-end-point-label mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300">
+                                Day {{ $day }} End Point
+                            </label>
+                            <select name="daily_end_point_types[{{ $day }}]"
+                                class="day-end-point-type w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+                                <option value="accommodation" @selected($endType === 'accommodation')>Accommodation</option>
+                                @if($day === $durationDays)
+                                    <option value="airport" @selected($endType === 'airport')>Airport</option>
+                                @endif
+                            </select>
+                            <select name="daily_end_point_items[{{ $day }}]"
+                                class="day-end-point-item day-end-point-select w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+                                <option value="">Select end point item</option>
+                                @foreach(($accommodations ?? collect()) as $accommodation)
+                                    <option value="{{ $accommodation->id }}"
+                                        data-point-type="accommodation"
+                                        data-location="{{ $accommodation->location ?? '' }}"
+                                        data-city="{{ $accommodation->city ?? '' }}"
+                                        data-province="{{ $accommodation->province ?? '' }}"
+                                        data-latitude="{{ $accommodation->latitude ?? '' }}"
+                                        data-longitude="{{ $accommodation->longitude ?? '' }}"
+                                        @selected($endType === 'accommodation' && $endItem === (string)$accommodation->id)>
+                                            {{ $accommodation->name }}{{ !empty($accommodation->city) ? ' ('.$accommodation->city.')' : '' }}
+                                    </option>
+                                @endforeach
+                                @foreach(($airports ?? collect()) as $airport)
+                                    <option value="{{ $airport->id }}"
+                                        data-point-type="airport"
+                                        data-location="{{ $airport->location ?? '' }}"
+                                        data-city="{{ $airport->city ?? '' }}"
+                                        data-province="{{ $airport->province ?? '' }}"
+                                        data-latitude="{{ $airport->latitude ?? '' }}"
+                                        data-longitude="{{ $airport->longitude ?? '' }}"
+                                        @selected($endType === 'airport' && $endItem === (string)$airport->id)>
+                                        {{ $airport->name }}
+                                    </option>
+                                @endforeach
+                            </select>
+                            <div class="day-end-room-wrap {{ $endType === 'accommodation' ? '' : 'hidden' }}">
+                                <label class="mb-1 mt-2 block text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300">Room Qty</label>
+                                <input
+                                    type="number"
+                                    min="1"
+                                    step="1"
+                                    name="daily_end_point_room_counts[{{ $day }}]"
+                                    value="{{ $endRoomCount }}"
+                                    class="day-end-room-count w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
+                                    {{ $endType === 'accommodation' ? '' : 'disabled' }}
+                                >
+                            </div>
+                            <input type="hidden" name="daily_main_experience_types[{{ $day }}]" class="day-main-experience-type" value="{{ $mainExperienceType }}">
+                            <input type="hidden" name="daily_main_experience_items[{{ $day }}]" class="day-main-experience-item" value="{{ $mainExperienceItem }}">
+                        </div>
+                        <p class="mt-1 text-[11px] text-gray-500 dark:text-gray-400">
+                            Flow: Transport -> Start Point -> Travel -> Item -> Travel -> End Point.
+                        </p>
                     </div>
                 </div>
             @endfor
@@ -298,6 +757,12 @@
             <p class="text-xs text-rose-600">{{ $message }}</p>
         @enderror
         @error('itinerary_activity_items')
+            <p class="text-xs text-rose-600">{{ $message }}</p>
+        @enderror
+        @error('itinerary_food_beverage_items')
+            <p class="text-xs text-rose-600">{{ $message }}</p>
+        @enderror
+        @error('daily_main_experience_items.*')
             <p class="text-xs text-rose-600">{{ $message }}</p>
         @enderror
     </div>
@@ -318,91 +783,6 @@
 @once
     @push('styles')
         <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
-        <style>
-            .itinerary-marker-badge {
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                width: 24px;
-                height: 24px;
-                border-radius: 9999px;
-                color: #fff;
-                font-size: 11px;
-                font-weight: 700;
-                border: 2px solid #fff;
-                box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
-            }
-
-            .itinerary-marker-badge.attraction {
-                background: #1d4ed8;
-            }
-
-            .itinerary-marker-badge.activity {
-                background: #059669;
-            }
-
-            .schedule-row-ghost {
-                opacity: 0.4;
-                background: rgba(15, 23, 42, 0.08);
-            }
-
-            .schedule-row-chosen {
-                background: rgba(15, 23, 42, 0.12);
-            }
-
-            .schedule-row {
-                user-select: none;
-            }
-
-            .drag-handle {
-                cursor: grab;
-            }
-
-            .drag-handle:active {
-                cursor: grabbing;
-            }
-
-            .schedule-row input,
-            .schedule-row select,
-            .schedule-row textarea {
-                user-select: text;
-            }
-
-            .travel-time-badge {
-                display: inline-flex;
-                align-items: center;
-                justify-content: center;
-                padding: 4px 8px;
-                border-radius: 9999px;
-                background: #111827;
-                color: #ffffff;
-                font-size: 11px;
-                font-weight: 600;
-                line-height: 1;
-                white-space: nowrap;
-                box-shadow: 0 2px 6px rgba(0, 0, 0, 0.28);
-            }
-
-            .travel-time-label {
-                transform: translate(-50%, -50%);
-                pointer-events: none;
-                background: transparent;
-                border: 0;
-            }
-
-            .travel-connector {
-                margin: 0.25rem 0 0.5rem;
-                border: 1px dashed rgb(203 213 225);
-                border-radius: 0.75rem;
-                padding: 0.625rem;
-                background: rgb(248 250 252);
-            }
-
-            .dark .travel-connector {
-                border-color: rgb(71 85 105);
-                background: rgba(15, 23, 42, 0.35);
-            }
-        </style>
     @endpush
     @push('scripts')
         <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
@@ -440,6 +820,8 @@
 
                 const daySections = document.getElementById('day-sections');
                 const durationInput = document.getElementById('duration-days');
+                const durationNightsInput = document.getElementById('duration-nights');
+                const accommodationStaysHidden = document.getElementById('accommodation-stays-hidden');
                 const mapEl = document.getElementById('itinerary-map');
                 const form = daySections?.closest('form');
                 if (!daySections || !durationInput || !mapEl || typeof L === 'undefined') return;
@@ -456,27 +838,49 @@
                     const n = Math.max(0, Math.min(1439, m));
                     return `${String(Math.floor(n/60)).padStart(2,'0')}:${String(n%60).padStart(2,'0')}`;
                 };
-                const rowType = (r) => r.dataset.itemType === 'activity' ? 'activity' : 'attraction';
-                const activeSelect = (r) => rowType(r) === 'activity' ? r.querySelector('.item-activity') : r.querySelector(
-                    '.item-attraction');
+                const rowType = (r) => {
+                    const type = String(r.dataset.itemType || '');
+                    if (type === 'activity' || type === 'fnb') return type;
+                    return 'attraction';
+                };
+                const activeSelect = (r) => {
+                    const type = rowType(r);
+                    if (type === 'activity') return r.querySelector('.item-activity');
+                    if (type === 'fnb') return r.querySelector('.item-fnb');
+                    return r.querySelector('.item-attraction');
+                };
                 const selected = (r) => (activeSelect(r)?.value || '') !== '';
                 const toggleType = (r, t, reset = true) => {
-                    const type = t === 'activity' ? 'activity' : 'attraction';
+                    const type = t === 'activity' || t === 'fnb' ? t : 'attraction';
                     r.dataset.itemType = type;
                     r.querySelector('.item-type').value = type;
                     const a = r.querySelector('.item-attraction');
                     const b = r.querySelector('.item-activity');
-                    const p = r.querySelector('.item-pax');
+                    const f = r.querySelector('.item-fnb');
                     if (type === 'activity') {
                         a.classList.add('hidden');
                         b.classList.remove('hidden');
-                        p.classList.remove('hidden');
-                        if (reset) a.value = '';
+                        f.classList.add('hidden');
+                        if (reset) {
+                            a.value = '';
+                            f.value = '';
+                        }
+                    } else if (type === 'fnb') {
+                        a.classList.add('hidden');
+                        b.classList.add('hidden');
+                        f.classList.remove('hidden');
+                        if (reset) {
+                            a.value = '';
+                            b.value = '';
+                        }
                     } else {
                         a.classList.remove('hidden');
                         b.classList.add('hidden');
-                        p.classList.add('hidden');
-                        if (reset) b.value = '';
+                        f.classList.add('hidden');
+                        if (reset) {
+                            b.value = '';
+                            f.value = '';
+                        }
                     }
                 };
                 const rebuildTravelConnectors = (sec) => {
@@ -488,13 +892,11 @@
                         const hiddenTravel = row.querySelector('.item-travel');
                         if (!hiddenTravel) return;
                         const isLast = index === rows.length - 1;
-                        if (isLast) {
-                            return;
-                        }
                         const connector = document.createElement('div');
                         connector.className = 'travel-connector';
                         connector.innerHTML = `
-                <label class="block text-xs text-gray-500 dark:text-gray-400">Travel to next item (minutes)</label>
+                <label class="block text-xs text-gray-500 dark:text-gray-400">${isLast ? 'Travel to End Point (minutes)' : 'Travel to next item (minutes)'}</label>
+                <p class="mt-0.5 text-[11px] text-gray-500 dark:text-gray-400">${isLast ? 'Used for route from last item to Day End Point.' : 'Used for route to the next schedule item.'}</p>
                 <input type="number" min="0" step="5" class="travel-connector-input mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
             `;
                         const input = connector.querySelector('.travel-connector-input');
@@ -508,10 +910,51 @@
                         row.insertAdjacentElement('afterend', connector);
                     });
                 };
+                const getPointLabelFromTypeAndItem = (typeSelect, itemSelect, previousDayEndLabel = 'Not set') => {
+                    const type = String(typeSelect?.value || '');
+                    if (type === 'previous_day_end') {
+                        return previousDayEndLabel || 'Not set';
+                    }
+                    if (type !== 'accommodation' && type !== 'airport') {
+                        return 'Not set';
+                    }
+                    const option = itemSelect?.selectedOptions?.[0];
+                    if (!option || !String(option.value || '').trim()) {
+                        return 'Not set';
+                    }
+                    return (option.textContent || '').trim() || 'Not set';
+                };
                 const recalcDay = async (sec) => {
                     const rows = [...sec.querySelectorAll('.schedule-row')];
                     const chosen = rows.filter(selected);
+                    syncMainExperienceSelection(sec);
                     const start = toMin(sec.querySelector('.day-start-time')?.value || '');
+                    const startTravelRaw = sec.querySelector('.day-start-travel')?.value || '';
+                    const startTravelMinutes = startTravelRaw !== '' ? Math.max(0, parseInt(startTravelRaw, 10)) : 0;
+                    const day = Number(sec.dataset.day || '1');
+                    const prevSec = day > 1 ? daySections.querySelector(`.day-section[data-day="${day - 1}"]`) : null;
+                    const prevEndLabel = prevSec
+                        ? getPointLabelFromTypeAndItem(
+                            prevSec.querySelector('.day-end-point-type'),
+                            prevSec.querySelector('.day-end-point-item'),
+                            'Not set',
+                        )
+                        : 'Not set';
+                    const startPointLabel = getPointLabelFromTypeAndItem(
+                        sec.querySelector('.day-start-point-type'),
+                        sec.querySelector('.day-start-point-item'),
+                        prevEndLabel,
+                    );
+                    const endPointLabel = getPointLabelFromTypeAndItem(
+                        sec.querySelector('.day-end-point-type'),
+                        sec.querySelector('.day-end-point-item'),
+                        'Not set',
+                    );
+                    const startAtLabel = sec.querySelector('.day-starts-at-label');
+                    const endsAtLabel = sec.querySelector('.day-ends-at-label');
+                    const dayEndTimeInput = sec.querySelector('.day-end-time');
+                    if (startAtLabel) startAtLabel.textContent = startPointLabel;
+                    if (endsAtLabel) endsAtLabel.textContent = endPointLabel;
                     let cur = start;
                     rows.forEach((r) => {
                         const seq = r.querySelector('.item-seq-badge');
@@ -527,16 +970,20 @@
                         const seq = r.querySelector('.item-seq-badge');
                         if (seq) seq.textContent = String(i + 1);
                     });
-                    if (!chosen.length || start === null) return;
-                    chosen.forEach((r, i) => {
+                    if (!chosen.length || start === null) {
+                        if (dayEndTimeInput) dayEndTimeInput.value = '';
+                        return;
+                    }
+                    cur = start + (Number.isFinite(startTravelMinutes) ? startTravelMinutes : 0);
+                    chosen.forEach((r) => {
                         const opt = activeSelect(r)?.selectedOptions?.[0];
                         const dur = Math.max(1, parseInt(opt?.dataset?.duration || '120', 10));
                         r.querySelector('.item-start').value = fromMin(cur);
                         r.querySelector('.item-end').value = fromMin(cur + dur);
-                        const travel = i < chosen.length - 1 ? Math.max(0, parseInt(r.querySelector(
-                            '.item-travel').value || '0', 10)) : 0;
+                        const travel = Math.max(0, parseInt(r.querySelector('.item-travel').value || '0', 10));
                         cur += dur + travel;
                     });
+                    if (dayEndTimeInput) dayEndTimeInput.value = fromMin(cur);
                 };
                 const recalcAll = async () => {
                     for (const sec of [...daySections.querySelectorAll('.day-section')].sort((a, b) => Number(a
@@ -544,7 +991,8 @@
                 };
                 const reindex = () => {
                     let ai = 0,
-                        bi = 0;
+                        bi = 0,
+                        fi = 0;
                     [...daySections.querySelectorAll('.day-section')].sort((a, b) => Number(a.dataset.day) - Number(b
                         .dataset.day)).forEach((sec) => {
                         let order = 0;
@@ -552,13 +1000,14 @@
                         sec.querySelectorAll('.schedule-row').forEach((r) => {
                             const a = r.querySelector('.item-attraction'),
                                 b = r.querySelector('.item-activity'),
+                                f = r.querySelector('.item-fnb'),
                                 p = r.querySelector('.item-pax'),
                                 d = r.querySelector('.item-day'),
                                 s = r.querySelector('.item-start'),
                                 e = r.querySelector('.item-end'),
                                 t = r.querySelector('.item-travel'),
                                 o = r.querySelector('.item-order');
-                            [a, b, p, d, s, e, t, o].forEach((el) => el?.removeAttribute('name'));
+                            [a, b, f, p, d, s, e, t, o].forEach((el) => el?.removeAttribute('name'));
                             d.value = String(day);
                             if (!selected(r)) return;
                             order += 1;
@@ -572,6 +1021,15 @@
                                 t.name = `itinerary_activity_items[${bi}][travel_minutes_to_next]`;
                                 o.name = `itinerary_activity_items[${bi}][visit_order]`;
                                 bi++;
+                            } else if (rowType(r) === 'fnb') {
+                                f.name = `itinerary_food_beverage_items[${fi}][food_beverage_id]`;
+                                d.name = `itinerary_food_beverage_items[${fi}][day_number]`;
+                                p.name = `itinerary_food_beverage_items[${fi}][pax]`;
+                                s.name = `itinerary_food_beverage_items[${fi}][start_time]`;
+                                e.name = `itinerary_food_beverage_items[${fi}][end_time]`;
+                                t.name = `itinerary_food_beverage_items[${fi}][travel_minutes_to_next]`;
+                                o.name = `itinerary_food_beverage_items[${fi}][visit_order]`;
+                                fi++;
                             } else {
                                 a.name = `itinerary_items[${ai}][tourist_attraction_id]`;
                                 d.name = `itinerary_items[${ai}][day_number]`;
@@ -584,11 +1042,96 @@
                         });
                     });
                 };
-                const badgeIcon = (order, type) => L.divIcon({
+                const syncDayPointOptionRules = () => {
+                    const sections = [...daySections.querySelectorAll('.day-section')].sort((a, b) => Number(a.dataset.day) - Number(b.dataset.day));
+                    const totalDays = sections.length;
+                    sections.forEach((section, idx) => {
+                        const day = idx + 1;
+                        section.dataset.day = String(day);
+                        section.querySelector('.day-title-label') && (section.querySelector('.day-title-label').textContent = `Day ${day}`);
+                        section.querySelector('.day-start-point-label') && (section.querySelector('.day-start-point-label').textContent = `Day ${day} Start Point`);
+                        section.querySelector('.day-end-point-label') && (section.querySelector('.day-end-point-label').textContent = `Day ${day} End Point`);
+
+                        const startType = section.querySelector('.day-start-point-type');
+                        const startItem = section.querySelector('.day-start-point-item');
+                        const startRoom = section.querySelector('.day-start-room-count');
+                        const endType = section.querySelector('.day-end-point-type');
+                        const endItem = section.querySelector('.day-end-point-item');
+                        const endRoom = section.querySelector('.day-end-room-count');
+                        const transportUnit = section.querySelector('.day-transport-unit');
+                        const transportDay = section.querySelector('.day-transport-day');
+                        const dayStartTimeInput = section.querySelector('.day-start-time');
+                        const startTravelInput = section.querySelector('.day-start-travel');
+                        const mainExperienceTypeInput = section.querySelector('.day-main-experience-type');
+                        const mainExperienceItemInput = section.querySelector('.day-main-experience-item');
+
+                        if (startType) startType.name = `daily_start_point_types[${day}]`;
+                        if (startItem) startItem.name = `daily_start_point_items[${day}]`;
+                        if (startRoom) startRoom.name = `daily_start_point_room_counts[${day}]`;
+                        if (endType) endType.name = `daily_end_point_types[${day}]`;
+                        if (endItem) endItem.name = `daily_end_point_items[${day}]`;
+                        if (endRoom) endRoom.name = `daily_end_point_room_counts[${day}]`;
+                        if (transportUnit) transportUnit.name = `daily_transport_units[${day}][transport_unit_id]`;
+                        if (transportDay) {
+                            transportDay.name = `daily_transport_units[${day}][day_number]`;
+                            transportDay.value = String(day);
+                        }
+                        if (dayStartTimeInput) dayStartTimeInput.name = `day_start_times[${day}]`;
+                        if (startTravelInput) startTravelInput.name = `day_start_travel_minutes[${day}]`;
+                        if (mainExperienceTypeInput) mainExperienceTypeInput.name = `daily_main_experience_types[${day}]`;
+                        if (mainExperienceItemInput) mainExperienceItemInput.name = `daily_main_experience_items[${day}]`;
+
+                        if (startType) {
+                            const previousOption = startType.querySelector('option[value="previous_day_end"]');
+                            if (day === 1) {
+                                previousOption?.remove();
+                                if (startType.value === 'previous_day_end' || startType.value === '') {
+                                    startType.value = 'airport';
+                                }
+                            } else {
+                                if (!previousOption) {
+                                    startType.insertAdjacentHTML('afterbegin', '<option value="previous_day_end">Previous Day Endpoint (Auto)</option>');
+                                }
+                                if (startType.value === '') {
+                                    startType.value = 'previous_day_end';
+                                }
+                            }
+                        }
+
+                        if (endType) {
+                            const airportOption = endType.querySelector('option[value="airport"]');
+                            if (day === totalDays) {
+                                if (!airportOption) {
+                                    endType.insertAdjacentHTML('beforeend', '<option value="airport">Airport</option>');
+                                }
+                            } else {
+                                if (airportOption) airportOption.remove();
+                                if (endType.value === 'airport' || endType.value === '') {
+                                    endType.value = 'accommodation';
+                                }
+                            }
+                        }
+                    });
+                };
+                const markerTypeClass = (type) => {
+                    if (type === 'activity') return 'activity';
+                    if (type === 'fnb') return 'fnb';
+                    if (type === 'airport') return 'airport';
+                    if (type === 'accommodation') return 'accommodation';
+                    return 'attraction';
+                };
+                const markerTypeIcon = (type) => {
+                    if (type === 'activity') return 'fa-solid fa-person-hiking';
+                    if (type === 'fnb') return 'fa-solid fa-utensils';
+                    if (type === 'airport') return 'fa-solid fa-plane';
+                    if (type === 'accommodation') return 'fa-solid fa-bed';
+                    return 'fa-solid fa-location-dot';
+                };
+                const createBadgeIcon = (order, type, highlighted = false) => L.divIcon({
                     className: '',
-                    html: `<div class="itinerary-marker-badge ${type}">${order}</div>`,
-                    iconSize: [24, 24],
-                    iconAnchor: [12, 12]
+                    html: `<div class="itinerary-marker-badge ${markerTypeClass(type)} ${highlighted ? 'is-highlighted' : ''}"><i class="${markerTypeIcon(type)}"></i><span class="itinerary-marker-number">${order}</span></div>`,
+                    iconSize: [28, 28],
+                    iconAnchor: [14, 14]
                 });
                 const travelBadgeIcon = (minutes) => L.divIcon({
                     className: 'travel-time-label',
@@ -596,11 +1139,240 @@
                     iconSize: [0, 0],
                     iconAnchor: [0, 0]
                 });
+                const parseItemOptionPoint = (option, typeOverride = null) => {
+                    if (!option) return null;
+                    const lat = parseFloat(option.dataset.latitude || '');
+                    const lng = parseFloat(option.dataset.longitude || '');
+                    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+                    return {
+                        lat,
+                        lng,
+                        name: option.textContent.trim(),
+                        type: typeOverride || option.dataset.pointType || 'accommodation',
+                    };
+                };
+                const syncPointItemVisibility = () => {
+                    daySections.querySelectorAll('.day-section').forEach((section) => {
+                        const startType = section.querySelector('.day-start-point-type');
+                        const startItem = section.querySelector('.day-start-point-item');
+                        const startRoomWrap = section.querySelector('.day-start-room-wrap');
+                        const startRoomInput = section.querySelector('.day-start-room-count');
+                        const endType = section.querySelector('.day-end-point-type');
+                        const endItem = section.querySelector('.day-end-point-item');
+                        const endRoomWrap = section.querySelector('.day-end-room-wrap');
+                        const endRoomInput = section.querySelector('.day-end-room-count');
+
+                        const applyFilter = (typeSelect, itemSelect) => {
+                            if (!typeSelect || !itemSelect) return;
+                            const selectedType = String(typeSelect.value || '');
+                            const selectedValue = String(itemSelect.value || '');
+                            Array.from(itemSelect.options).forEach((option, idx) => {
+                                if (idx === 0) {
+                                    option.hidden = false;
+                                    option.disabled = false;
+                                    return;
+                                }
+                                const pointType = option.dataset.pointType || '';
+                                const match = pointType === selectedType;
+                                const keepSelected = option.value === selectedValue;
+                                option.hidden = !match && !keepSelected;
+                                option.disabled = !match && !keepSelected;
+                            });
+                            const requiresItem = selectedType === 'accommodation' || selectedType === 'airport';
+                            itemSelect.disabled = !requiresItem;
+                            if (!requiresItem) {
+                                itemSelect.value = '';
+                            } else if (!itemSelect.selectedOptions[0] || itemSelect.selectedOptions[0].hidden) {
+                                itemSelect.value = '';
+                            }
+                        };
+
+                        applyFilter(startType, startItem);
+                        applyFilter(endType, endItem);
+
+                        const startAccommodation = String(startType?.value || '') === 'accommodation';
+                        if (startRoomWrap) startRoomWrap.classList.toggle('hidden', !startAccommodation);
+                        if (startRoomInput) {
+                            startRoomInput.disabled = !startAccommodation;
+                            if (!startAccommodation) startRoomInput.value = '1';
+                        }
+
+                        const endAccommodation = String(endType?.value || '') === 'accommodation';
+                        if (endRoomWrap) endRoomWrap.classList.toggle('hidden', !endAccommodation);
+                        if (endRoomInput) {
+                            endRoomInput.disabled = !endAccommodation;
+                            if (!endAccommodation) endRoomInput.value = '1';
+                        }
+                    });
+                };
+                const syncMainExperienceSelection = (section, changedRow = null) => {
+                    if (!section) return;
+                    const typeSelect = section.querySelector('.day-main-experience-type');
+                    const itemSelect = section.querySelector('.day-main-experience-item');
+                    if (!typeSelect || !itemSelect) return;
+                    const rows = [...section.querySelectorAll('.schedule-row')];
+                    if (changedRow && changedRow.querySelector('.item-main-experience')?.checked) {
+                        rows.forEach((row) => {
+                            if (row !== changedRow) {
+                                const checkbox = row.querySelector('.item-main-experience');
+                                if (checkbox) checkbox.checked = false;
+                            }
+                        });
+                    }
+
+                    let selectedMainRow = null;
+                    rows.forEach((row) => {
+                        const checkbox = row.querySelector('.item-main-experience');
+                        const isEligible = selected(row);
+                        if (checkbox && !isEligible) {
+                            checkbox.checked = false;
+                        }
+                        let isChecked = checkbox?.checked === true && isEligible;
+                        if (isChecked && selectedMainRow && checkbox) {
+                            checkbox.checked = false;
+                            isChecked = false;
+                        }
+                        row.classList.toggle('ring-2', isChecked);
+                        row.classList.toggle('ring-amber-300', isChecked);
+                        row.classList.toggle('border-amber-400', isChecked);
+                        row.classList.toggle('bg-amber-50/40', isChecked);
+                        row.classList.toggle('dark:border-amber-500/60', isChecked);
+                        row.classList.toggle('dark:bg-amber-900/10', isChecked);
+                        if (isChecked && !selectedMainRow) {
+                            selectedMainRow = row;
+                        }
+                    });
+
+                    if (!selectedMainRow) {
+                        typeSelect.value = '';
+                        itemSelect.value = '';
+                        return;
+                    }
+
+                    const type = rowType(selectedMainRow);
+                    const itemId = String(activeSelect(selectedMainRow)?.value || '');
+                    if (itemId === '') {
+                        const checkbox = selectedMainRow.querySelector('.item-main-experience');
+                        if (checkbox) checkbox.checked = false;
+                        typeSelect.value = '';
+                        itemSelect.value = '';
+                        selectedMainRow.classList.remove('ring-2', 'ring-amber-300', 'border-amber-400', 'bg-amber-50/40', 'dark:border-amber-500/60', 'dark:bg-amber-900/10');
+                        return;
+                    }
+
+                    typeSelect.value = type;
+                    itemSelect.value = itemId;
+                };
+                const getDayStartPoint = async (day, previousEndPoint = null) => {
+                    const section = daySections.querySelector(`.day-section[data-day="${day}"]`);
+                    if (!section) return null;
+                    const typeSelect = section.querySelector('.day-start-point-type');
+                    const itemSelect = section.querySelector('.day-start-point-item');
+                    const selectedType = String(typeSelect?.value || '');
+                    if (selectedType === 'previous_day_end') {
+                        return previousEndPoint;
+                    }
+                    if (selectedType === 'accommodation' || selectedType === 'airport') {
+                        return parseItemOptionPoint(itemSelect?.selectedOptions?.[0] || null, selectedType);
+                    }
+                    return previousEndPoint;
+                };
+                const getDayEndPoint = async (day) => {
+                    const section = daySections.querySelector(`.day-section[data-day="${day}"]`);
+                    if (!section) return null;
+                    const typeSelect = section.querySelector('.day-end-point-type');
+                    const itemSelect = section.querySelector('.day-end-point-item');
+                    const selectedType = String(typeSelect?.value || '');
+                    if (selectedType === 'accommodation' || selectedType === 'airport') {
+                        return parseItemOptionPoint(itemSelect?.selectedOptions?.[0] || null, selectedType);
+                    }
+                    return null;
+                };
+                const buildDayAnchors = (durationDays) => {
+                    const startByDay = {};
+                    const endByDay = {};
+                    return { startByDay, endByDay };
+                };
+                const buildAccommodationStaysPayload = (durationDays) => {
+                    const perDay = [];
+                    for (let day = 1; day <= durationDays; day++) {
+                        const section = daySections.querySelector(`.day-section[data-day="${day}"]`);
+                        const typeSelect = section?.querySelector('.day-end-point-type');
+                        const itemSelect = section?.querySelector('.day-end-point-item');
+                        const roomInput = section?.querySelector('.day-end-room-count');
+                        const selectedType = String(typeSelect?.value || '');
+                        const accommodationId = selectedType === 'accommodation' ? parseInt(itemSelect?.value || '0', 10) : 0;
+                        const roomCount = selectedType === 'accommodation'
+                            ? Math.max(1, parseInt(roomInput?.value || '1', 10))
+                            : 0;
+                        if (accommodationId > 0) {
+                            perDay.push({ day, accommodationId, roomCount });
+                        }
+                    }
+
+                    const stays = [];
+                    perDay.forEach((item) => {
+                        const last = stays[stays.length - 1];
+                        if (last && last.accommodationId === item.accommodationId && last.roomCount === item.roomCount && (last.dayNumber + last.nightCount) === item.day) {
+                            last.nightCount += 1;
+                        } else {
+                            stays.push({
+                                accommodationId: item.accommodationId,
+                                dayNumber: item.day,
+                                nightCount: 1,
+                                roomCount: item.roomCount,
+                            });
+                        }
+                    });
+                    return stays;
+                };
+                const syncAccommodationStaysHidden = () => {
+                    if (!accommodationStaysHidden) return;
+                    const totalDays = Math.max(1, parseInt(durationInput.value || '1', 10));
+                    const stays = buildAccommodationStaysPayload(totalDays);
+                    accommodationStaysHidden.innerHTML = stays.map((stay, index) => `
+                        <input type="hidden" name="accommodation_stays[${index}][accommodation_id]" value="${stay.accommodationId}">
+                        <input type="hidden" name="accommodation_stays[${index}][day_number]" value="${stay.dayNumber}">
+                        <input type="hidden" name="accommodation_stays[${index}][night_count]" value="${stay.nightCount}">
+                        <input type="hidden" name="accommodation_stays[${index}][room_count]" value="${stay.roomCount}">
+                    `).join('');
+                };
+                const updateDayEndpointBadges = () => {
+                    const sections = [...daySections.querySelectorAll('.day-section')].sort((a, b) => Number(a.dataset.day) - Number(b.dataset.day));
+                    let previousEndLabel = 'Not set';
+                    sections.forEach((section) => {
+                        const startLabel = getPointLabelFromTypeAndItem(
+                            section.querySelector('.day-start-point-type'),
+                            section.querySelector('.day-start-point-item'),
+                            previousEndLabel,
+                        );
+                        const endLabel = getPointLabelFromTypeAndItem(
+                            section.querySelector('.day-end-point-type'),
+                            section.querySelector('.day-end-point-item'),
+                            'Not set',
+                        );
+                        const startBadge = section.querySelector('.day-starts-at-label');
+                        const endBadge = section.querySelector('.day-ends-at-label');
+                        if (startBadge) startBadge.textContent = startLabel;
+                        if (endBadge) endBadge.textContent = endLabel;
+                        previousEndLabel = endLabel;
+                    });
+                };
                 const routeColors = ['#2563eb', '#16a34a', '#ea580c', '#db2777', '#7c3aed', '#0891b2'];
                 const renderMap = async () => {
                     markers.clearLayers();
                     routeLayers.forEach((layer) => map.removeLayer(layer));
                     routeLayers.length = 0;
+                    const totalDays = Math.max(1, parseInt(durationInput.value || '1', 10));
+                    const anchors = buildDayAnchors(totalDays);
+                    let previousEndPoint = null;
+                    for (let day = 1; day <= totalDays; day++) {
+                        const startPoint = await getDayStartPoint(day, previousEndPoint);
+                        const endPoint = await getDayEndPoint(day);
+                        anchors.startByDay[day] = startPoint;
+                        anchors.endByDay[day] = endPoint || startPoint || previousEndPoint;
+                        previousEndPoint = anchors.endByDay[day] || previousEndPoint;
+                    }
 
                     const points = [];
                     daySections.querySelectorAll('.schedule-row').forEach((r) => {
@@ -620,35 +1392,103 @@
                             type: rowType(r),
                             day,
                             order,
+                            isMainExperience: r.querySelector('.item-main-experience')?.checked === true,
                             travelInput: Number.isFinite(travelInput) ? Math.max(0, travelInput) :
                                 null
                         });
                     });
-                    if (!points.length) {
+                    const scheduleByDay = points.reduce((acc, point) => {
+                        const key = String(point.day);
+                        (acc[key] = acc[key] || []).push(point);
+                        return acc;
+                    }, {});
+                    const routePointsByDay = {};
+                    for (let day = 1; day <= totalDays; day++) {
+                        const daySection = daySections.querySelector(`.day-section[data-day="${day}"]`);
+                        const startTravelRaw = daySection?.querySelector('.day-start-travel')?.value || '';
+                        const startTravelMinutes = startTravelRaw !== '' ? Math.max(0, parseInt(startTravelRaw, 10)) : null;
+                        const daySchedule = (scheduleByDay[String(day)] || []).sort((a, b) => a.order - b.order);
+                        const dayPoints = [];
+
+                        const startAnchor = anchors.startByDay[day];
+                        const endAnchor = anchors.endByDay[day] || startAnchor;
+
+                        if (startAnchor && Number.isFinite(startAnchor.lat) && Number.isFinite(startAnchor.lng)) {
+                            dayPoints.push({
+                                lat: startAnchor.lat,
+                                lng: startAnchor.lng,
+                                name: startAnchor.name,
+                                type: startAnchor.type || 'accommodation',
+                                day,
+                                order: 0,
+                                travelInput: Number.isFinite(startTravelMinutes) ? startTravelMinutes : null,
+                            });
+                        }
+
+                        daySchedule.forEach((item, index) => {
+                            dayPoints.push({
+                                ...item,
+                                order: index + 1,
+                            });
+                        });
+
+                        const lastPoint = dayPoints[dayPoints.length - 1] || null;
+                        if (endAnchor && Number.isFinite(endAnchor.lat) && Number.isFinite(endAnchor.lng)) {
+                            const isDuplicateLast = lastPoint && Math.abs(lastPoint.lat - endAnchor.lat) < 0.000001 &&
+                                Math.abs(lastPoint.lng - endAnchor.lng) < 0.000001;
+                            if (!isDuplicateLast) {
+                                dayPoints.push({
+                                    lat: endAnchor.lat,
+                                    lng: endAnchor.lng,
+                                    name: endAnchor.name,
+                                    type: endAnchor.type || 'accommodation',
+                                    day,
+                                    order: dayPoints.length + 1,
+                                    travelInput: null,
+                                });
+                            }
+                        }
+
+                        if (dayPoints.length > 0) {
+                            routePointsByDay[String(day)] = dayPoints;
+                        }
+                    }
+
+                    const allPoints = Object.values(routePointsByDay).flat();
+                    if (!allPoints.length) {
                         map.setView([-6.2, 106.816666], 5);
                         return;
                     }
 
                     const ll = [];
                     const badgeByDay = {};
-                    points.sort((a, b) => (a.day - b.day) || (a.order - b.order)).forEach((p, i) => {
+                    allPoints.sort((a, b) => (a.day - b.day) || (a.order - b.order)).forEach((p) => {
                         const pt = [p.lat, p.lng];
                         ll.push(pt);
-                        const label = p.type === 'activity' ? 'Activity' : 'Attraction';
+                        const labelMap = {
+                            attraction: 'Attraction',
+                            activity: 'Activity',
+                            fnb: 'F&B',
+                            accommodation: 'Accommodation',
+                            airport: 'Airport',
+                        };
+                        const label = labelMap[p.type] || 'Point';
+                        const markerType = p.type === 'activity'
+                            ? 'activity'
+                            : (p.type === 'fnb'
+                                ? 'fnb'
+                                : (p.type === 'attraction' ? 'attraction' : (p.type === 'airport' ? 'airport' : 'accommodation')));
                         const dayKey = String(p.day);
                         badgeByDay[dayKey] = (badgeByDay[dayKey] || 0) + 1;
                         const badgeNo = badgeByDay[dayKey];
                         L.marker(pt, {
-                            icon: badgeIcon(badgeNo, p.type)
-                        }).bindPopup(`#${badgeNo} | Day ${p.day} | ${label}: ${p.name}`).addTo(markers);
+                            icon: createBadgeIcon(badgeNo, markerType, p.isMainExperience === true)
+                        })
+                        .bindPopup(`#${badgeNo} | Day ${p.day} | ${label}: ${p.name}`)
+                        .addTo(markers);
                     });
 
-                    const grouped = points.reduce((acc, p) => {
-                        const key = String(p.day);
-                        (acc[key] = acc[key] || []).push(p);
-                        return acc;
-                    }, {});
-                    for (const [dayKey, dayPoints] of Object.entries(grouped)) {
+                    for (const [dayKey, dayPoints] of Object.entries(routePointsByDay)) {
                         const sorted = dayPoints.sort((a, b) => a.order - b.order);
                         if (sorted.length < 2) continue;
                         const color = routeColors[(parseInt(dayKey, 10) - 1) % routeColors.length];
@@ -737,13 +1577,22 @@
                     });
                 };
                 const recalcNoConnectorRebuild = async () => {
+                    syncDayPointOptionRules();
+                    syncPointItemVisibility();
                     await recalcAll();
                     reindex();
+                    syncAccommodationStaysHidden();
+                    updateDayEndpointBadges();
                     await renderMap();
                 };
                 const recalc = async () => {
                     daySections.querySelectorAll('.day-section').forEach(rebuildTravelConnectors);
                     await recalcNoConnectorRebuild();
+                };
+                const clearEndPointValidationState = () => {
+                    daySections.querySelectorAll('.day-end-point-select').forEach((select) => {
+                        select.classList.remove('border-rose-500', 'focus:border-rose-500', 'focus:ring-rose-500');
+                    });
                 };
                 const initSortable = (sec) => {
                     const container = sec.querySelector('.day-items');
@@ -772,7 +1621,12 @@
                     });
                     r.querySelector('.item-attraction')?.addEventListener('change', recalc);
                     r.querySelector('.item-activity')?.addEventListener('change', recalc);
-                    r.querySelector('.item-pax')?.addEventListener('change', reindex);
+                    r.querySelector('.item-fnb')?.addEventListener('change', recalc);
+                    r.querySelector('.item-main-experience')?.addEventListener('change', () => {
+                        const section = r.closest('.day-section');
+                        syncMainExperienceSelection(section, r);
+                        recalcNoConnectorRebuild();
+                    });
                     r.querySelector('.remove-row')?.addEventListener('click', () => {
                         if (daySections.querySelectorAll('.schedule-row').length <= 1) return;
                         r.remove();
@@ -786,11 +1640,14 @@
                     const r = src.cloneNode(true);
                     r.querySelector('.item-attraction').value = '';
                     r.querySelector('.item-activity').value = '';
+                    r.querySelector('.item-fnb').value = '';
                     r.querySelector('.item-pax').value = '1';
                     r.querySelector('.item-start').value = '';
                     r.querySelector('.item-end').value = '';
                     r.querySelector('.item-travel').value = '';
                     r.querySelector('.item-order').value = '';
+                    const mainCheckbox = r.querySelector('.item-main-experience');
+                    if (mainCheckbox) mainCheckbox.checked = false;
                     const seq = r.querySelector('.item-seq-badge');
                     if (seq) seq.textContent = '-';
                     sec.querySelector('.day-items').appendChild(r);
@@ -798,24 +1655,123 @@
                     toggleType(r, type, false);
                     recalc();
                 };
+                const syncDurationNights = () => {
+                    if (!durationNightsInput) return;
+                    const days = Math.max(1, parseInt(durationInput.value || '1', 10));
+                    const nights = Math.max(0, parseInt(durationNightsInput.value || '0', 10));
+                    if (nights > days) {
+                        durationNightsInput.value = String(days);
+                    }
+                };
                 daySections.querySelectorAll('.day-section').forEach((sec) => {
                     sec.querySelectorAll('.schedule-row').forEach(bindRow);
                     sec.querySelector('.add-attraction')?.addEventListener('click', () => cloneRow(sec,
                         'attraction'));
                     sec.querySelector('.add-activity')?.addEventListener('click', () => cloneRow(sec, 'activity'));
+                    sec.querySelector('.add-fnb')?.addEventListener('click', () => cloneRow(sec, 'fnb'));
+                    sec.querySelector('.day-start-point-type')?.addEventListener('change', () => {
+                        syncPointItemVisibility();
+                        recalcNoConnectorRebuild();
+                    });
+                    sec.querySelector('.day-start-point-item')?.addEventListener('change', recalcNoConnectorRebuild);
+                    sec.querySelector('.day-start-room-count')?.addEventListener('input', recalcNoConnectorRebuild);
+                    sec.querySelector('.day-end-point-type')?.addEventListener('change', () => {
+                        syncPointItemVisibility();
+                        recalcNoConnectorRebuild();
+                    });
+                    sec.querySelector('.day-end-point-select')?.addEventListener('change', (event) => {
+                        event.target.classList.remove('border-rose-500', 'focus:border-rose-500', 'focus:ring-rose-500');
+                        recalcNoConnectorRebuild();
+                    });
+                    sec.querySelector('.day-end-room-count')?.addEventListener('input', recalcNoConnectorRebuild);
+                    sec.querySelector('.day-start-travel')?.addEventListener('input', recalcNoConnectorRebuild);
                     sec.querySelector('.day-start-time')?.addEventListener('change', recalc);
+                    sec.querySelector('.day-transport-unit')?.addEventListener('change', recalcNoConnectorRebuild);
                     initSortable(sec);
                 });
                 durationInput.addEventListener('change', () => {
                     let d = Math.max(1, parseInt(durationInput.value || '1', 10));
                     durationInput.value = String(d);
+                    syncDurationNights();
                     let secs = [...daySections.querySelectorAll('.day-section')];
                     for (let i = 1; i <= d; i++) {
                         if (!daySections.querySelector(`.day-section[data-day="${i}"]`) && secs.length) {
                             const c = secs[0].cloneNode(true);
                             c.dataset.day = String(i);
-                            c.querySelector('.text-indigo-700').textContent = `Day ${i}`;
-                            c.querySelector('.day-start-time').value = '';
+                            const cloneDayTitle = c.querySelector('.day-title-label');
+                            if (cloneDayTitle) cloneDayTitle.textContent = `Day ${i}`;
+                            const cloneDayStartTime = c.querySelector('.day-start-time');
+                            if (cloneDayStartTime) {
+                                cloneDayStartTime.value = '';
+                                cloneDayStartTime.name = `day_start_times[${i}]`;
+                            }
+                            const cloneDayEndTime = c.querySelector('.day-end-time');
+                            if (cloneDayEndTime) cloneDayEndTime.value = '';
+                            const startsAtLabel = c.querySelector('.day-starts-at-label');
+                            if (startsAtLabel) startsAtLabel.textContent = 'Not set';
+                            const endsAtLabel = c.querySelector('.day-ends-at-label');
+                            if (endsAtLabel) endsAtLabel.textContent = 'Not set';
+                            const dayStartPointType = c.querySelector('.day-start-point-type');
+                            if (dayStartPointType) {
+                                dayStartPointType.name = `daily_start_point_types[${i}]`;
+                                dayStartPointType.value = i === 1 ? 'airport' : 'previous_day_end';
+                            }
+                            const dayStartPointItem = c.querySelector('.day-start-point-item');
+                            if (dayStartPointItem) {
+                                dayStartPointItem.name = `daily_start_point_items[${i}]`;
+                                dayStartPointItem.value = '';
+                            }
+                            const dayStartRoomInput = c.querySelector('.day-start-room-count');
+                            const dayStartRoomWrap = c.querySelector('.day-start-room-wrap');
+                            if (dayStartRoomInput) {
+                                dayStartRoomInput.name = `daily_start_point_room_counts[${i}]`;
+                                dayStartRoomInput.value = '1';
+                                dayStartRoomInput.disabled = true;
+                            }
+                            dayStartRoomWrap?.classList.add('hidden');
+                            const dayEndPointType = c.querySelector('.day-end-point-type');
+                            if (dayEndPointType) {
+                                dayEndPointType.name = `daily_end_point_types[${i}]`;
+                                dayEndPointType.value = 'accommodation';
+                            }
+                            const dayEndPointSelect = c.querySelector('.day-end-point-item');
+                            if (dayEndPointSelect) {
+                                dayEndPointSelect.name = `daily_end_point_items[${i}]`;
+                                dayEndPointSelect.value = '';
+                            }
+                            const dayEndRoomInput = c.querySelector('.day-end-room-count');
+                            const dayEndRoomWrap = c.querySelector('.day-end-room-wrap');
+                            if (dayEndRoomInput) {
+                                dayEndRoomInput.name = `daily_end_point_room_counts[${i}]`;
+                                dayEndRoomInput.value = '1';
+                                dayEndRoomInput.disabled = false;
+                            }
+                            dayEndRoomWrap?.classList.remove('hidden');
+                            const dayStartTravelInput = c.querySelector('.day-start-travel');
+                            if (dayStartTravelInput) {
+                                dayStartTravelInput.name = `day_start_travel_minutes[${i}]`;
+                                dayStartTravelInput.value = '';
+                            }
+                            const dayMainExperienceType = c.querySelector('.day-main-experience-type');
+                            if (dayMainExperienceType) {
+                                dayMainExperienceType.name = `daily_main_experience_types[${i}]`;
+                                dayMainExperienceType.value = '';
+                            }
+                            const dayMainExperienceItem = c.querySelector('.day-main-experience-item');
+                            if (dayMainExperienceItem) {
+                                dayMainExperienceItem.name = `daily_main_experience_items[${i}]`;
+                                dayMainExperienceItem.value = '';
+                            }
+                            const dayTransportUnit = c.querySelector('.day-transport-unit');
+                            const dayTransportDay = c.querySelector('.day-transport-day');
+                            if (dayTransportUnit) {
+                                dayTransportUnit.name = `daily_transport_units[${i}][transport_unit_id]`;
+                                dayTransportUnit.value = '';
+                            }
+                            if (dayTransportDay) {
+                                dayTransportDay.name = `daily_transport_units[${i}][day_number]`;
+                                dayTransportDay.value = String(i);
+                            }
                             c.querySelectorAll('.travel-connector').forEach((el) => el.remove());
                             const rows = [...c.querySelectorAll('.schedule-row')];
                             rows.slice(1).forEach((r) => r.remove());
@@ -825,12 +1781,15 @@
                                 r.querySelector('.item-type').value = 'attraction';
                                 r.querySelector('.item-attraction').value = '';
                                 r.querySelector('.item-activity').value = '';
+                                r.querySelector('.item-fnb').value = '';
                                 r.querySelector('.item-pax').value = '1';
                                 r.querySelector('.item-start').value = '';
                                 r.querySelector('.item-end').value = '';
                                 r.querySelector('.item-travel').value = '';
                                 r.querySelector('.item-day').value = String(i);
                                 r.querySelector('.item-order').value = '';
+                                const mainCheckbox = r.querySelector('.item-main-experience');
+                                if (mainCheckbox) mainCheckbox.checked = false;
                                 const seq = r.querySelector('.item-seq-badge');
                                 if (seq) seq.textContent = '-';
                             }
@@ -842,7 +1801,25 @@
                                 'attraction'));
                             c.querySelector('.add-activity')?.addEventListener('click', () => cloneRow(c,
                                 'activity'));
+                            c.querySelector('.add-fnb')?.addEventListener('click', () => cloneRow(c, 'fnb'));
+                            c.querySelector('.day-start-point-type')?.addEventListener('change', () => {
+                                syncPointItemVisibility();
+                                recalcNoConnectorRebuild();
+                            });
+                            c.querySelector('.day-start-point-item')?.addEventListener('change', recalcNoConnectorRebuild);
+                            c.querySelector('.day-start-room-count')?.addEventListener('input', recalcNoConnectorRebuild);
+                            c.querySelector('.day-end-point-type')?.addEventListener('change', () => {
+                                syncPointItemVisibility();
+                                recalcNoConnectorRebuild();
+                            });
+                            c.querySelector('.day-end-point-select')?.addEventListener('change', (event) => {
+                                event.target.classList.remove('border-rose-500', 'focus:border-rose-500', 'focus:ring-rose-500');
+                                recalcNoConnectorRebuild();
+                            });
+                            c.querySelector('.day-end-room-count')?.addEventListener('input', recalcNoConnectorRebuild);
+                            c.querySelector('.day-start-travel')?.addEventListener('input', recalcNoConnectorRebuild);
                             c.querySelector('.day-start-time')?.addEventListener('change', recalc);
+                            c.querySelector('.day-transport-unit')?.addEventListener('change', recalcNoConnectorRebuild);
                             initSortable(c);
                         }
                     } [...daySections.querySelectorAll('.day-section')].forEach((s) => {
@@ -850,14 +1827,38 @@
                     });
                     recalc();
                 });
+                durationNightsInput?.addEventListener('change', syncDurationNights);
                 form?.addEventListener('submit', async (e) => {
                     e.preventDefault();
                     await recalcAll();
                     reindex();
+                    syncAccommodationStaysHidden();
                     const hasA = [...daySections.querySelectorAll('.schedule-row')].some((r) => rowType(r) ===
                         'attraction' && selected(r));
                     if (!hasA) {
                         alert('Minimal 1 attraction wajib diisi.');
+                        return;
+                    }
+                    clearEndPointValidationState();
+                    const invalidEndPointDays = [];
+                    [...daySections.querySelectorAll('.day-section')]
+                        .sort((a, b) => Number(a.dataset.day) - Number(b.dataset.day))
+                        .forEach((section) => {
+                            const day = Number(section.dataset.day || '1');
+                            const endPointSelect = section.querySelector('.day-end-point-select');
+                            const isEmpty = !endPointSelect || String(endPointSelect.value || '').trim() === '';
+                            if (isEmpty) {
+                                invalidEndPointDays.push(day);
+                                endPointSelect?.classList.add('border-rose-500', 'focus:border-rose-500', 'focus:ring-rose-500');
+                            }
+                        });
+                    if (invalidEndPointDays.length > 0) {
+                        const firstInvalidDay = invalidEndPointDays[0];
+                        daySections.querySelector(`.day-section[data-day="${firstInvalidDay}"]`)?.scrollIntoView({
+                            behavior: 'smooth',
+                            block: 'center',
+                        });
+                        alert(`End Point wajib diisi untuk Day: ${invalidEndPointDays.join(', ')}.`);
                         return;
                     }
                     form.submit();
@@ -865,6 +1866,189 @@
                 recalc();
             })
             ();
+        </script>
+    @endpush
+@endonce
+
+@once
+    @push('scripts')
+        <script>
+            (function () {
+                const destinationInput = document.getElementById('itinerary-destination');
+                const destinationDropdown = document.getElementById('itinerary-destination-dropdown');
+                if (!destinationInput || !destinationDropdown) return;
+
+                const normalize = (value) => String(value || '').toLowerCase().trim();
+                const endpoint = destinationInput.dataset.endpoint || '';
+                const suggestionLimit = 12;
+                let fetchToken = 0;
+                let activeIndex = -1;
+
+                const debounce = (fn, wait = 250) => {
+                    let timer = null;
+                    return (...args) => {
+                        if (timer) clearTimeout(timer);
+                        timer = setTimeout(() => fn(...args), wait);
+                    };
+                };
+
+                const hideDropdown = () => {
+                    destinationDropdown.classList.add('hidden');
+                    destinationDropdown.innerHTML = '';
+                    activeIndex = -1;
+                };
+
+                const setActiveItem = (idx) => {
+                    const options = destinationDropdown.querySelectorAll('[data-destination-value]');
+                    options.forEach((node, nodeIndex) => {
+                        const active = nodeIndex === idx;
+                        node.classList.toggle('bg-indigo-50', active);
+                        node.classList.toggle('dark:bg-indigo-900/30', active);
+                    });
+                    activeIndex = idx;
+                };
+
+                const selectSuggestion = (value) => {
+                    destinationInput.value = value;
+                    hideDropdown();
+                    applyDestinationFilter();
+                };
+
+                const renderSuggestions = (items) => {
+                    if (!items.length) {
+                        hideDropdown();
+                        return;
+                    }
+                    destinationDropdown.innerHTML = items
+                        .map((item, idx) => {
+                            const safeValue = String(item).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+                                .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+                            return `<button type="button" data-index="${idx}" data-destination-value="${safeValue}" class="block w-full rounded-md px-3 py-2 text-left text-sm text-gray-700 hover:bg-indigo-50 dark:text-gray-100 dark:hover:bg-indigo-900/30">${safeValue}</button>`;
+                        })
+                        .join('');
+                    destinationDropdown.classList.remove('hidden');
+                    setActiveItem(-1);
+                };
+
+                const fetchSuggestions = async (keyword) => {
+                    if (!endpoint) return;
+                    const token = ++fetchToken;
+                    const params = new URLSearchParams({
+                        q: keyword,
+                        limit: String(suggestionLimit),
+                    });
+                    try {
+                        const response = await fetch(`${endpoint}?${params.toString()}`, {
+                            headers: {
+                                'X-Requested-With': 'XMLHttpRequest',
+                                Accept: 'application/json',
+                            },
+                        });
+                        if (!response.ok) {
+                            hideDropdown();
+                            return;
+                        }
+                        const payload = await response.json();
+                        if (token !== fetchToken) return;
+                        const items = Array.isArray(payload?.data) ? payload.data : [];
+                        renderSuggestions(items);
+                    } catch (_) {
+                        hideDropdown();
+                    }
+                };
+
+                const matchesDestination = (option, keyword) => {
+                    if (!keyword) return true;
+                    const city = normalize(option.dataset.city);
+                    const province = normalize(option.dataset.province);
+                    return city.includes(keyword) || province.includes(keyword);
+                };
+
+                const applyFilterToSelect = (select) => {
+                    if (!select) return;
+                    const keyword = normalize(destinationInput.value);
+                    const selectedValue = select.value;
+                    Array.from(select.options).forEach((option, idx) => {
+                        if (idx === 0) {
+                            option.hidden = false;
+                            return;
+                        }
+                        const selected = option.value === selectedValue;
+                        option.hidden = !matchesDestination(option, keyword) && !selected;
+                    });
+                };
+
+                const applyDestinationFilter = () => {
+                    document.querySelectorAll('.item-attraction, .item-activity, .item-fnb, .day-start-point-item, .day-end-point-item, .day-transport-unit')
+                        .forEach(applyFilterToSelect);
+                };
+
+                const fetchSuggestionsDebounced = debounce((keyword) => {
+                    fetchSuggestions(keyword);
+                }, 300);
+
+                destinationInput.addEventListener('input', () => {
+                    applyDestinationFilter();
+                    fetchSuggestionsDebounced(destinationInput.value.trim());
+                });
+                destinationInput.addEventListener('change', applyDestinationFilter);
+                document.addEventListener('change', (event) => {
+                    if (event.target.matches('.day-start-point-type, .day-end-point-type')) {
+                        applyDestinationFilter();
+                    }
+                });
+                destinationInput.addEventListener('focus', () => {
+                    fetchSuggestions(destinationInput.value.trim());
+                });
+                destinationInput.addEventListener('keydown', (event) => {
+                    const options = destinationDropdown.querySelectorAll('[data-destination-value]');
+                    if (!options.length) return;
+
+                    if (event.key === 'ArrowDown') {
+                        event.preventDefault();
+                        const next = activeIndex < options.length - 1 ? activeIndex + 1 : 0;
+                        setActiveItem(next);
+                        return;
+                    }
+                    if (event.key === 'ArrowUp') {
+                        event.preventDefault();
+                        const next = activeIndex > 0 ? activeIndex - 1 : options.length - 1;
+                        setActiveItem(next);
+                        return;
+                    }
+                    if (event.key === 'Enter') {
+                        if (activeIndex >= 0 && options[activeIndex]) {
+                            event.preventDefault();
+                            selectSuggestion(options[activeIndex].dataset.destinationValue || '');
+                        } else {
+                            hideDropdown();
+                        }
+                        return;
+                    }
+                    if (event.key === 'Escape') {
+                        hideDropdown();
+                    }
+                });
+
+                destinationDropdown.addEventListener('click', (event) => {
+                    const target = event.target.closest('[data-destination-value]');
+                    if (!target) return;
+                    selectSuggestion(target.dataset.destinationValue || '');
+                });
+
+                document.addEventListener('click', (event) => {
+                    if (event.target === destinationInput) return;
+                    if (destinationDropdown.contains(event.target)) return;
+                    hideDropdown();
+                });
+
+                const observer = new MutationObserver(() => {
+                    applyDestinationFilter();
+                });
+                observer.observe(document.body, { childList: true, subtree: true });
+
+                applyDestinationFilter();
+            })();
         </script>
     @endpush
 @endonce

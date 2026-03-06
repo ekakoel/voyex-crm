@@ -1,10 +1,10 @@
 @extends('layouts.master')
 
 @section('content')
-    <div class="space-y-6">
+    <div class="space-y-6 module-page module-page--quotations">
         <div class="flex items-center justify-between">
             <div>
-                <h1 class="text-2xl font-semibold text-gray-800 dark:text-gray-100">Quotations</h1>
+                <h1 class="app-section-title">Quotations</h1>
                 <p class="mt-1 text-sm text-gray-600 dark:text-gray-300">Manage quotations for inquiries.</p>
             </div>
             <div class="flex items-center gap-2">
@@ -17,15 +17,15 @@
             </div>
         </div>
 
-        <form method="GET" class="grid grid-cols-1 gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800 md:grid-cols-6">
-            <input name="q" value="{{ request('q') }}" placeholder="Search number / inquiry / customer" class="w-full md:col-span-2 rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
-            <select name="status" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+        <form method="GET" class="grid grid-cols-1 gap-3 app-card p-4 md:grid-cols-6">
+            <input name="q" value="{{ request('q') }}" placeholder="Search number / inquiry / customer" class="w-full md:col-span-2 app-input">
+            <select name="status" class="w-full app-input">
                 <option value="">Status</option>
                 @foreach (['draft','sent','approved','rejected'] as $status)
                     <option value="{{ $status }}" @selected(request('status') === $status)>{{ $status }}</option>
                 @endforeach
             </select>
-            <select name="inquiry_id" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+            <select name="inquiry_id" class="w-full app-input">
                 <option value="">Inquiry</option>
                 @foreach ($inquiries as $inquiry)
                     <option value="{{ $inquiry->id }}" @selected((string) request('inquiry_id') === (string) $inquiry->id)>
@@ -33,11 +33,11 @@
                     </option>
                 @endforeach
             </select>
-            <input name="valid_from" type="date" value="{{ request('valid_from') }}" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
-            <input name="valid_to" type="date" value="{{ request('valid_to') }}" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
-            <input name="min_amount" type="number" step="0.01" value="{{ request('min_amount') }}" placeholder="Min amount" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
-            <input name="max_amount" type="number" step="0.01" value="{{ request('max_amount') }}" placeholder="Max amount" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
-            <select name="per_page" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+            <input name="valid_from" type="date" value="{{ request('valid_from') }}" class="w-full app-input">
+            <input name="valid_to" type="date" value="{{ request('valid_to') }}" class="w-full app-input">
+            <input name="min_amount" type="number" step="0.01" value="{{ request('min_amount') }}" placeholder="Min amount" class="w-full app-input">
+            <input name="max_amount" type="number" step="0.01" value="{{ request('max_amount') }}" placeholder="Max amount" class="w-full app-input">
+            <select name="per_page" class="w-full app-input">
                 @foreach ([10,25,50,100] as $size)
                     <option value="{{ $size }}" @selected((string) request('per_page', 10) === (string) $size)>{{ $size }}/page</option>
                 @endforeach
@@ -56,7 +56,7 @@
 
         <div class="md:hidden space-y-3">
             @forelse ($quotations as $quotation)
-                <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+                <div class="app-card p-4">
                     <div class="flex items-start justify-between gap-3">
                         <div>
                             <p class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ $quotation->quotation_number }}</p>
@@ -85,14 +85,14 @@
                     </div>
                 </div>
             @empty
-                <div class="rounded-xl border border-gray-200 bg-white p-6 text-center text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
+                <div class="app-card p-6 text-center text-sm text-gray-500 dark:text-gray-400">
                     No quotations available.
                 </div>
             @endforelse
         </div>
 
-        <div class="hidden md:block overflow-x-auto rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
-            <table class="w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">
+        <div class="hidden md:block overflow-x-auto app-card">
+            <table class="app-table divide-y divide-gray-200 dark:divide-gray-700 text-sm">
                 <thead class="bg-gray-50 dark:bg-gray-900/40">
                     <tr>
                         <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">No</th>
@@ -139,5 +139,7 @@
         <div>{{ $quotations->links() }}</div>
     </div>
 @endsection
+
+
 
 

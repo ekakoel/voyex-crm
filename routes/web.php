@@ -4,11 +4,15 @@ use App\Http\Controllers\Admin\DashboardController;
 // ...existing code...
 use App\Http\Controllers\Admin\ActivityController as AdminActivityController;
 use App\Http\Controllers\Admin\AccommodationController as AdminAccommodationController;
+use App\Http\Controllers\Admin\AirportController as AdminAirportController;
+use App\Http\Controllers\Admin\DestinationController as AdminDestinationController;
+use App\Http\Controllers\Admin\FoodBeverageController as AdminFoodBeverageController;
 use App\Http\Controllers\Admin\TransportController as AdminTransportController;
 use App\Http\Controllers\Admin\QuotationTemplateController as AdminQuotationTemplateController;
 use App\Http\Controllers\Admin\RoleController as AdminRoleController;
 use App\Http\Controllers\Admin\ServiceController as AdminServiceController;
 use App\Http\Controllers\Admin\ItineraryController as AdminItineraryController;
+use App\Http\Controllers\Admin\LocationResolverController as AdminLocationResolverController;
 use App\Http\Controllers\Admin\TouristAttractionController as AdminTouristAttractionController;
 use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\Admin\VendorController as AdminVendorController;
@@ -79,6 +83,8 @@ Route::middleware('auth')->group(function () {
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::patch('/profile/theme', [ProfileController::class, 'updateTheme'])->name('profile.theme');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+    Route::get('location/resolve-google-map', [AdminLocationResolverController::class, 'resolve'])
+        ->name('location.resolve-google-map');
 
     Route::prefix('superadmin')->middleware('role:Super Admin')->name('superadmin.')->group(function () {
         Route::get('/dashboard', [SuperAdminDashboardController::class, 'index'])
@@ -158,13 +164,16 @@ Route::middleware('auth')->group(function () {
             ->middleware('permission:module.service_manager.access');
         Route::resource('users', AdminUserController::class)
             ->except(['show'])
-            ->middleware(['module:user_manager', 'permission:module.user_manager.access']);
+            ->middleware(['module:user_manager', 'permission:module.user_manager.access', 'block.superadmin.target:user']);
         Route::resource('roles', AdminRoleController::class)
             ->except(['show'])
             ->middleware(['module:role_manager', 'permission:module.role_manager.access']);
         Route::resource('quotation-templates', AdminQuotationTemplateController::class)
             ->except(['show'])
             ->middleware(['module:quotation_templates', 'permission:module.quotation_templates.access']);
+        Route::get('itineraries/destination-suggestions', [AdminItineraryController::class, 'destinationSuggestions'])
+            ->name('itineraries.destination-suggestions')
+            ->middleware(['module:itineraries', 'permission:module.itineraries.access']);
         Route::resource('itineraries', AdminItineraryController::class)
             ->middleware(['module:itineraries', 'permission:module.itineraries.access']);
         Route::get('itineraries/{itinerary}/pdf', [AdminItineraryController::class, 'generatePdf'])
@@ -173,9 +182,22 @@ Route::middleware('auth')->group(function () {
         Route::resource('tourist-attractions', AdminTouristAttractionController::class)
             ->except(['show'])
             ->middleware(['module:tourist_attractions', 'permission:module.tourist_attractions.access']);
+        Route::post('tourist-attractions/{tourist_attraction}/gallery-images/remove', [AdminTouristAttractionController::class, 'removeGalleryImage'])
+            ->name('tourist-attractions.gallery-images.remove')
+            ->middleware(['module:tourist_attractions', 'permission:module.tourist_attractions.access']);
         Route::resource('accommodations', AdminAccommodationController::class)
             ->middleware(['module:accommodations', 'permission:module.accommodations.access']);
+        Route::post('accommodations/{accommodation}/gallery-images/remove', [AdminAccommodationController::class, 'removeGalleryImage'])
+            ->name('accommodations.gallery-images.remove')
+            ->middleware(['module:accommodations', 'permission:module.accommodations.access']);
+        Route::resource('airports', AdminAirportController::class)
+            ->middleware(['module:airports', 'permission:module.airports.access']);
+        Route::resource('destinations', AdminDestinationController::class)
+            ->middleware(['module:destinations', 'permission:module.destinations.access']);
         Route::resource('transports', AdminTransportController::class)
+            ->middleware(['module:transports', 'permission:module.transports.access']);
+        Route::post('transports/{transport}/gallery-images/remove', [AdminTransportController::class, 'removeGalleryImage'])
+            ->name('transports.gallery-images.remove')
             ->middleware(['module:transports', 'permission:module.transports.access']);
     });
 
@@ -187,6 +209,15 @@ Route::middleware('auth')->group(function () {
         Route::resource('activities', AdminActivityController::class)
             ->except(['show'])
             ->middleware(['module:activities', 'permission:module.activities.access']);
+        Route::post('activities/{activity}/gallery-images/remove', [AdminActivityController::class, 'removeGalleryImage'])
+            ->name('activities.gallery-images.remove')
+            ->middleware(['module:activities', 'permission:module.activities.access']);
+        Route::resource('food-beverages', AdminFoodBeverageController::class)
+            ->except(['show'])
+            ->middleware(['module:food_beverages', 'permission:module.food_beverages.access']);
+        Route::post('food-beverages/{food_beverage}/gallery-images/remove', [AdminFoodBeverageController::class, 'removeGalleryImage'])
+            ->name('food-beverages.gallery-images.remove')
+            ->middleware(['module:food_beverages', 'permission:module.food_beverages.access']);
 
     });
 

@@ -17,6 +17,7 @@ class UserController extends Controller
     {
         $users = User::query()
             ->with('roles:id,name')
+            ->withoutSuperAdmin()
             ->latest()
             ->paginate(10);
 
@@ -25,7 +26,10 @@ class UserController extends Controller
 
     public function create(): View
     {
-        $roles = Role::query()->orderBy('name')->pluck('name');
+        $roles = Role::query()
+            ->where('name', '!=', 'Super Admin')
+            ->orderBy('name')
+            ->pluck('name');
 
         return view('modules.users.create', compact('roles'));
     }
@@ -37,7 +41,7 @@ class UserController extends Controller
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
             'password' => ['required', 'string', 'min:8', 'confirmed'],
             'roles' => ['required', 'array', 'min:1'],
-            'roles.*' => ['string', Rule::exists('roles', 'name')],
+            'roles.*' => ['string', Rule::exists('roles', 'name'), Rule::notIn(['Super Admin'])],
         ]);
 
         $user = User::query()->create([
@@ -55,7 +59,14 @@ class UserController extends Controller
 
     public function edit(User $user): View
     {
-        $roles = Role::query()->orderBy('name')->pluck('name');
+        if ($user->isSuperAdmin()) {
+            abort(404);
+        }
+
+        $roles = Role::query()
+            ->where('name', '!=', 'Super Admin')
+            ->orderBy('name')
+            ->pluck('name');
         $selectedRoles = $user->roles->pluck('name')->all();
 
         return view('modules.users.edit', compact('user', 'roles', 'selectedRoles'));
@@ -63,12 +74,18 @@ class UserController extends Controller
 
     public function update(Request $request, User $user): RedirectResponse
     {
+        if ($user->isSuperAdmin()) {
+            return redirect()
+                ->route('users.index')
+                ->with('error', 'Super Admin account is managed outside User Manager.');
+        }
+
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
             'password' => ['nullable', 'string', 'min:8', 'confirmed'],
             'roles' => ['required', 'array', 'min:1'],
-            'roles.*' => ['string', Rule::exists('roles', 'name')],
+            'roles.*' => ['string', Rule::exists('roles', 'name'), Rule::notIn(['Super Admin'])],
         ]);
 
         $payload = [
@@ -90,6 +107,12 @@ class UserController extends Controller
 
     public function destroy(User $user): RedirectResponse
     {
+        if ($user->isSuperAdmin()) {
+            return redirect()
+                ->route('users.index')
+                ->with('error', 'Super Admin account cannot be deleted from User Manager.');
+        }
+
         $isCurrentUser = auth()->id() === $user->id;
 
         if ($isCurrentUser) {

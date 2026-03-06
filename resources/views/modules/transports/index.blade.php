@@ -48,6 +48,7 @@
                             <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">
                                 <div>{{ $transport->name }}</div>
                                 <div class="text-xs text-gray-500 dark:text-gray-400">{{ $transport->provider_name ?: '-' }}</div>
+                                <div class="text-xs text-indigo-600 dark:text-indigo-300">{{ $transport->destination?->name ?? '-' }}</div>
                             </td>
                             <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">{{ ucfirst(str_replace('_', ' ', $transport->transport_type)) }}</td>
                             <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">{{ trim(($transport->city ?? '') . (($transport->city && $transport->province) ? ', ' : '') . ($transport->province ?? '')) ?: '-' }}</td>

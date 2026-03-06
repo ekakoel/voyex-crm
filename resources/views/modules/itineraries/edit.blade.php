@@ -32,7 +32,7 @@
                 </div>
                 <div class="mt-4 rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
                     <p class="text-xs font-semibold uppercase tracking-wide text-gray-700 dark:text-gray-200">Itinerary Route Preview</p>
-                    <div id="itinerary-map" class="mt-2 h-[420px] md:h-[560px] w-full rounded-lg border border-gray-300"></div>
+                    <div id="itinerary-map" class="itinerary-form-map mt-2 h-[420px] md:h-[560px] w-full rounded-lg border border-gray-300"></div>
                 </div>
             </aside>
         </div>

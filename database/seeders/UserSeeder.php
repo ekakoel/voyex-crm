@@ -20,7 +20,7 @@ class UserSeeder extends Seeder
             [
                 'name' => 'Admin User',
                 'email' => 'admin@example.com',
-                'role' => 'Admin',
+                'role' => 'Admin User',
             ],
             [
                 'name' => 'Super Admin',
@@ -65,7 +65,7 @@ class UserSeeder extends Seeder
 
             $role = Role::where('name', $data['role'])->first();
             if ($role) {
-                $user->assignRole($role);
+                $user->syncRoles([$role->name]);
             }
         }
     }

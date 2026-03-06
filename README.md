@@ -171,6 +171,7 @@ Sistem ini berfokus pada otomatisasi proses bisnis utama travel agent dengan out
 
 ## 📘 Documentation
 ### 📄 AI System Guideline
+    - 📄 [AI System Guideline](./VOYEX_CRM_AI_GUIDELINE.md)
     - User Manual (Coming Soon)
     - API Documentation (Coming Soon)
     - Deployment Checklist (Coming Soon)

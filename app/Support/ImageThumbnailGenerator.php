@@ -16,26 +16,31 @@ class ImageThumbnailGenerator
 
     public static function generate(string $disk, string $originalPath, int $targetWidth = 360, int $targetHeight = 240): ?string
     {
-        if (! extension_loaded('gd')) {
-            return null;
-        }
-
         $storage = Storage::disk($disk);
         if (! $storage->exists($originalPath)) {
             return null;
         }
 
+        $thumbnailPath = self::thumbnailPathFor($originalPath);
+        if (! extension_loaded('gd')) {
+            // Fallback: keep thumbnail path available even when GD extension is not installed.
+            $storage->copy($originalPath, $thumbnailPath);
+            return $thumbnailPath;
+        }
+
         $binary = $storage->get($originalPath);
         $source = @imagecreatefromstring($binary);
         if (! $source) {
-            return null;
+            $storage->copy($originalPath, $thumbnailPath);
+            return $thumbnailPath;
         }
 
         $sourceWidth = imagesx($source);
         $sourceHeight = imagesy($source);
         if ($sourceWidth <= 0 || $sourceHeight <= 0) {
             imagedestroy($source);
-            return null;
+            $storage->copy($originalPath, $thumbnailPath);
+            return $thumbnailPath;
         }
 
         $sourceRatio = $sourceWidth / $sourceHeight;
@@ -56,7 +61,8 @@ class ImageThumbnailGenerator
         $thumbnail = imagecreatetruecolor($targetWidth, $targetHeight);
         if (! $thumbnail) {
             imagedestroy($source);
-            return null;
+            $storage->copy($originalPath, $thumbnailPath);
+            return $thumbnailPath;
         }
 
         imagecopyresampled(
@@ -80,13 +86,12 @@ class ImageThumbnailGenerator
         imagedestroy($thumbnail);
 
         if ($thumbnailBinary === '') {
-            return null;
+            $storage->copy($originalPath, $thumbnailPath);
+            return $thumbnailPath;
         }
 
-        $thumbnailPath = self::thumbnailPathFor($originalPath);
         $storage->put($thumbnailPath, $thumbnailBinary);
 
         return $thumbnailPath;
     }
 }
-

@@ -1,13 +1,13 @@
 @extends('layouts.master')
 
 @section('content')
-    <div class="max-w-4xl space-y-6">
+    <div class="max-w-4xl space-y-6 module-page module-page--bookings">
         <div>
-            <h1 class="text-2xl font-semibold text-gray-800 dark:text-gray-100">Add Booking</h1>
+            <h1 class="app-section-title">Add Booking</h1>
             <p class="mt-1 text-sm text-gray-600 dark:text-gray-300">Create a booking from a quotation.</p>
         </div>
 
-        <div class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+        <div class="module-form-wrap">
             <form method="POST" action="{{ route('bookings.store') }}">
                 @csrf
                 @include('modules.bookings._form', [
@@ -17,5 +17,6 @@
         </div>
     </div>
 @endsection
+
 
 

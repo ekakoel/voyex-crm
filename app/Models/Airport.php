@@ -1,0 +1,36 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+
+class Airport extends Model
+{
+    protected $fillable = [
+        'code',
+        'name',
+        'location',
+        'city',
+        'province',
+        'destination_id',
+        'google_maps_url',
+        'country',
+        'timezone',
+        'address',
+        'latitude',
+        'longitude',
+        'notes',
+        'is_active',
+    ];
+
+    protected $casts = [
+        'latitude' => 'float',
+        'longitude' => 'float',
+        'is_active' => 'boolean',
+    ];
+
+    public function destination()
+    {
+        return $this->belongsTo(Destination::class);
+    }
+}

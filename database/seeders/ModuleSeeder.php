@@ -63,6 +63,12 @@ class ModuleSeeder extends Seeder
                 'is_enabled' => true,
             ],
             [
+                'key' => 'destinations',
+                'name' => 'Destinations',
+                'description' => 'Manage destination master data and grouping for location-based modules.',
+                'is_enabled' => true,
+            ],
+            [
                 'key' => 'vendor_management',
                 'name' => 'Vendor Management',
                 'description' => 'Manage service vendor data.',
@@ -75,9 +81,21 @@ class ModuleSeeder extends Seeder
                 'is_enabled' => true,
             ],
             [
+                'key' => 'food_beverages',
+                'name' => 'Food & Beverage',
+                'description' => 'Manage F&B services as itinerary stop points.',
+                'is_enabled' => true,
+            ],
+            [
                 'key' => 'accommodations',
                 'name' => 'Accommodations',
                 'description' => 'Manage accommodation partners, room types, and contract rates.',
+                'is_enabled' => true,
+            ],
+            [
+                'key' => 'airports',
+                'name' => 'Airports',
+                'description' => 'Manage airport master data for itinerary start/end routing.',
                 'is_enabled' => true,
             ],
             [

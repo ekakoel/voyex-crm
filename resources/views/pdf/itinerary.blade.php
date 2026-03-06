@@ -19,10 +19,14 @@
         table.items { width: 100%; border-collapse: collapse; margin-top: 8px; }
         table.items th, table.items td { border: 1px solid #e5e7eb; padding: 6px; vertical-align: top; }
         table.items th { background: #f9fafb; font-size: 10px; text-transform: uppercase; letter-spacing: .06em; color: #374151; }
+        .thumb-box { width: 100%; aspect-ratio: 4 / 3; border: 1px solid #e5e7eb; border-radius: 4px; overflow: hidden; background: #ffffff; }
+        .thumb-box img { width: 100%; height: 180px; object-fit: cover; display: block; }
         .muted { color: #6b7280; }
         .type-badge { display: inline-block; border-radius: 999px; padding: 2px 7px; font-size: 9px; font-weight: 700; border: 1px solid #d1d5db; }
         .type-attraction { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
         .type-activity { background: #ecfdf5; color: #047857; border-color: #a7f3d0; }
+        .type-fnb { background: #fffbeb; color: #b45309; border-color: #fcd34d; }
+        .type-point { background: #f1f5f9; color: #334155; border-color: #cbd5e1; }
         .right { text-align: right; }
         .footer { margin-top: 14px; font-size: 10px; color: #6b7280; text-align: right; }
     </style>
@@ -48,48 +52,50 @@
         <div class="panel">
             <div style="display: flex; justify-content: space-between; align-items: center;">
                 <div class="day-title">Day {{ $day['day'] }}</div>
-                <div class="day-time">{{ $day['start_time'] }} - {{ $day['end_time'] }}</div>
+                <div class="day-time">Start Tour: {{ $day['start_time'] }} | End Tour: {{ $day['end_time'] }}</div>
             </div>
+            <div class="day-time" style="margin-top: 4px;">Travel from Start Point: {{ (int) ($day['start_travel_minutes'] ?? 0) }} min</div>
 
             <table class="items">
                 <thead>
                     <tr>
                         <th style="width: 5%;">No</th>
-                        <th style="width: 11%;">Type</th>
-                        <th style="width: 18%;">Time</th>
+                        <th style="width: 20%;">Time</th>
                         <th style="width: 25%;">Item</th>
-                        <th style="width: 20%;">Location</th>
-                        <th style="width: 9%;">Pax</th>
-                        <th style="width: 12%;">Travel Next</th>
+                        <th style="width: 15%;">location</th>
+                        <th style="width: 35%;">Thumbnail</th>
                     </tr>
                 </thead>
                 <tbody>
                     @forelse ($day['items'] as $index => $item)
                         <tr>
-                            <td class="right">{{ $index + 1 }}</td>
+                            <td class="center">{{ $index + 1 }}</td>
                             <td>
-                                <span class="type-badge {{ $item['type'] === 'Activity' ? 'type-activity' : 'type-attraction' }}">
-                                    {{ $item['type'] }}
-                                </span>
+                                <strong>{{ in_array(($item['point_role'] ?? ''), ['start', 'end'], true) ? ($item['point_type_label'] ?? $item['type']) : $item['type'] }}</strong><br>
+                                @if (($item['point_role'] ?? '') === 'start')
+                                    {{ $item['start_time'] ?: '--:--' }}
+                                @elseif (($item['point_role'] ?? '') === 'end')
+                                    {{ $item['end_time'] ?: '--:--' }}
+                                @else
+                                    {{ $item['start_time'] }} - {{ $item['end_time'] }}
+                                @endif
                             </td>
-                            <td>{{ $item['start_time'] }} - {{ $item['end_time'] }}</td>
                             <td>
                                 <div><strong>{{ $item['name'] }}</strong></div>
                                 <div class="muted">{{ \Illuminate\Support\Str::limit(strip_tags((string) ($item['description'] ?? '-')), 120) }}</div>
                             </td>
-                            <td>{{ $item['location'] ?: '-' }}</td>
-                            <td class="right">{{ $item['pax'] ?: '-' }}</td>
-                            <td class="right">
-                                @if ($index < ($day['items']->count() - 1))
-                                    {{ $item['travel_minutes_to_next'] !== null ? $item['travel_minutes_to_next'] . ' min' : '-' }}
-                                @else
-                                    -
+                            <td>{{ $item['location'] }}</td>
+                            <td>
+                                @if (!empty($item['thumbnail_data_uri']))
+                                    <div class="thumb-box">
+                                        <img src="{{ $item['thumbnail_data_uri'] }}" alt="Thumbnail">
+                                    </div>
                                 @endif
                             </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7" class="muted">No schedule item for this day.</td>
+                            <td colspan="5" class="muted">No schedule item for this day.</td>
                         </tr>
                     @endforelse
                 </tbody>

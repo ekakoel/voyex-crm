@@ -15,11 +15,11 @@
     $minRows = 3;
 @endphp
 
-<div class="space-y-5">
+<div class="space-y-5 module-form">
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Template</label>
-            <select name="template_id" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+            <select name="template_id" class="mt-1 w-full app-input">
                 <option value="">-</option>
                 @foreach ($templates as $template)
                     <option value="{{ $template->id }}" @selected(old('template_id', $quotation->template_id ?? null) == $template->id)>{{ $template->name }}</option>
@@ -33,7 +33,7 @@
     </div>
     <div>
         <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Inquiry</label>
-        <select name="inquiry_id" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" required>
+        <select name="inquiry_id" class="mt-1 w-full app-input" required>
             <option value="">Select inquiry</option>
             @foreach ($inquiries as $inquiry)
                 <option value="{{ $inquiry->id }}" @selected(old('inquiry_id', $quotation->inquiry_id ?? null) == $inquiry->id)>
@@ -49,7 +49,7 @@
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Status</label>
-            <select name="status" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" required>
+            <select name="status" class="mt-1 w-full app-input" required>
                 @foreach (['draft','sent','approved','rejected'] as $status)
                     <option value="{{ $status }}" @selected(old('status', $quotation->status ?? 'draft') === $status)>{{ $status }}</option>
                 @endforeach
@@ -65,7 +65,7 @@
                 name="validity_date"
                 type="date"
                 value="{{ old('validity_date', isset($quotation->validity_date) ? $quotation->validity_date->format('Y-m-d') : '') }}"
-                class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
+                class="mt-1 w-full app-input"
                 required
             >
             @error('validity_date')
@@ -80,7 +80,7 @@
                 type="number"
                 step="0.01"
                 value="{{ old('final_amount', $quotation->final_amount ?? 0) }}"
-                class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
+                class="mt-1 w-full app-input"
                 required
             >
             @error('final_amount')
@@ -92,7 +92,7 @@
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Discount Type</label>
-            <select name="discount_type" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+            <select name="discount_type" class="mt-1 w-full app-input">
                 <option value="">-</option>
                 <option value="percent" @selected(old('discount_type', $quotation->discount_type ?? '') === 'percent')>Percent</option>
                 <option value="fixed" @selected(old('discount_type', $quotation->discount_type ?? '') === 'fixed')>Fixed</option>
@@ -108,7 +108,7 @@
                 type="number"
                 step="0.01"
                 value="{{ old('discount_value', $quotation->discount_value ?? 0) }}"
-                class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
+                class="mt-1 w-full app-input"
             >
             @error('discount_value')
                 <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
@@ -153,5 +153,6 @@
         </a>
     </div>
 </div>
+
 
 

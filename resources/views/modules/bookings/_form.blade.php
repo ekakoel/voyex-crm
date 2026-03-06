@@ -2,10 +2,10 @@
     $buttonLabel = $buttonLabel ?? 'Save';
 @endphp
 
-<div class="space-y-5">
+<div class="space-y-5 module-form">
     <div>
         <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Quotation</label>
-        <select name="quotation_id" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" required>
+        <select name="quotation_id" class="mt-1 w-full app-input" required>
             <option value="">Select quotation</option>
             @foreach ($quotations as $quotation)
                 <option value="{{ $quotation->id }}" @selected(old('quotation_id', $booking->quotation_id ?? null) == $quotation->id)>
@@ -25,7 +25,7 @@
                 name="travel_date"
                 type="date"
                 value="{{ old('travel_date', isset($booking->travel_date) ? $booking->travel_date->format('Y-m-d') : '') }}"
-                class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
+                class="mt-1 w-full app-input"
                 required
             >
             @error('travel_date')
@@ -35,7 +35,7 @@
 
         <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Status</label>
-            <select name="status" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" required>
+            <select name="status" class="mt-1 w-full app-input" required>
                 @foreach (['confirmed','completed','cancelled'] as $status)
                     <option value="{{ $status }}" @selected(old('status', $booking->status ?? 'confirmed') === $status)>{{ $status }}</option>
                 @endforeach
@@ -51,7 +51,7 @@
         <textarea
             name="notes"
             rows="3"
-            class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
+            class="mt-1 w-full app-input"
         >{{ old('notes', $booking->notes ?? '') }}</textarea>
         @error('notes')
             <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
@@ -68,5 +68,6 @@
         </a>
     </div>
 </div>
+
 
 

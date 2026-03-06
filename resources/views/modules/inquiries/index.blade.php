@@ -1,10 +1,10 @@
 @extends('layouts.master')
 
 @section('content')
-    <div class="space-y-6">
+    <div class="space-y-6 module-page module-page--inquiries">
         <div class="flex items-center justify-between">
             <div>
-                <h1 class="text-2xl font-semibold text-gray-800 dark:text-gray-100">Inquiries</h1>
+                <h1 class="app-section-title">Inquiries</h1>
                 <p class="mt-1 text-sm text-gray-600 dark:text-gray-300">Manage customer inquiries.</p>
             </div>
             <a href="{{ route('inquiries.create') }}" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">
@@ -12,41 +12,46 @@
             </a>
         </div>
 
-        <form method="GET" class="grid grid-cols-1 gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800 md:grid-cols-6">
-            <input name="q" value="{{ request('q') }}" placeholder="Search number / customer" class="md:col-span-2 rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
-            <select name="status" class="rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+        <form method="GET" class="grid grid-cols-1 gap-3 app-card p-4 md:grid-cols-6">
+            <input name="q" value="{{ request('q') }}" placeholder="Search number / customer" class="md:col-span-2 app-input">
+            <select name="status" class="app-input">
                 <option value="">Status</option>
                 @foreach (['new','follow_up','quoted','converted','closed'] as $status)
                     <option value="{{ $status }}" @selected(request('status') === $status)>{{ $status }}</option>
                 @endforeach
             </select>
-            <select name="priority" class="rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+            <select name="priority" class="app-input">
                 <option value="">Priority</option>
                 @foreach (['low','normal','high'] as $priority)
                     <option value="{{ $priority }}" @selected(request('priority') === $priority)>{{ $priority }}</option>
                 @endforeach
             </select>
-            <select name="source" class="rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+            <select name="source" class="app-input">
                 <option value="">Source</option>
                 @foreach (($sourceLabels ?? []) as $value => $label)
                     <option value="{{ $value }}" @selected(request('source') === $value)>{{ $label }}</option>
                 @endforeach
             </select>
-            <select name="customer_id" class="rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+            <select name="itinerary" class="app-input">
+                <option value="">Itinerary</option>
+                <option value="available" @selected(request('itinerary') === 'available')>Available</option>
+                <option value="missing" @selected(request('itinerary') === 'missing')>Not Available</option>
+            </select>
+            <select name="customer_id" class="app-input">
                 <option value="">Customer</option>
                 @foreach ($customers as $customer)
                     <option value="{{ $customer->id }}" @selected((string) request('customer_id') === (string) $customer->id)>({{ $customer->code ?? '-' }}) {{ $customer->name }}</option>
                 @endforeach
             </select>
-            <select name="assigned_to" class="rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+            <select name="assigned_to" class="app-input">
                 <option value="">Assigned</option>
                 @foreach ($assignees as $user)
                     <option value="{{ $user->id }}" @selected((string) request('assigned_to') === (string) $user->id)>{{ $user->name }}</option>
                 @endforeach
             </select>
-            <input name="deadline_from" type="date" value="{{ request('deadline_from') }}" class="rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
-            <input name="deadline_to" type="date" value="{{ request('deadline_to') }}" class="rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
-            <select name="per_page" class="rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+            <input name="deadline_from" type="date" value="{{ request('deadline_from') }}" class="app-input">
+            <input name="deadline_to" type="date" value="{{ request('deadline_to') }}" class="app-input">
+            <select name="per_page" class="app-input">
                 @foreach ([10,25,50,100] as $size)
                     <option value="{{ $size }}" @selected((string) request('per_page', 10) === (string) $size)>{{ $size }}/page</option>
                 @endforeach
@@ -65,7 +70,7 @@
 
         <div class="md:hidden space-y-3">
             @forelse ($inquiries as $inquiry)
-                <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+                <div class="app-card p-4">
                     <div class="flex items-start justify-between gap-3">
                         <div>
                             <p class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ $inquiry->inquiry_number }}</p>
@@ -78,9 +83,39 @@
                         <div>Assigned</div><div>{{ $inquiry->assignedUser->name ?? '-' }}</div>
                         <div>Deadline</div><div>{{ $inquiry->deadline ? $inquiry->deadline->format('Y-m-d') : '-' }}</div>
                     </div>
+                    <div class="mt-3">
+                        @if (($inquiry->itineraries_count ?? 0) > 0)
+                            <span class="inline-flex rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
+                                Itinerary Available ({{ $inquiry->itineraries_count }})
+                            </span>
+                            <div class="mt-2 space-y-1">
+                                @foreach($inquiry->itineraries->take(2) as $itinerary)
+                                    <p class="text-xs text-gray-600 dark:text-gray-300">
+                                        -
+                                        @if (Route::has('itineraries.show') && auth()->user()->can('module.itineraries.access'))
+                                            <a href="{{ route('itineraries.show', $itinerary) }}" class="text-indigo-600 hover:text-indigo-700 hover:underline dark:text-indigo-400">
+                                                {{ $itinerary->title }}
+                                            </a>
+                                        @else
+                                            {{ $itinerary->title }}
+                                        @endif
+                                    </p>
+                                @endforeach
+                            </div>
+                        @else
+                            <span class="inline-flex rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+                                No Itinerary Yet
+                            </span>
+                        @endif
+                    </div>
                     <div class="mt-3 flex flex-wrap gap-2">
                         <a href="{{ route('inquiries.show', $inquiry) }}" class="rounded-lg border border-indigo-300 px-3 py-1 text-xs font-medium text-indigo-700 hover:bg-indigo-50 dark:border-indigo-700 dark:text-indigo-300 dark:hover:bg-indigo-900/20">Detail</a>
                         <a href="{{ route('inquiries.edit', $inquiry) }}" class="rounded-lg border border-gray-300 px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700">Edit</a>
+                        @if (($inquiry->itineraries_count ?? 0) === 0)
+                            <a href="{{ route('itineraries.create', ['inquiry_id' => $inquiry->id]) }}" class="rounded-lg border border-emerald-300 px-3 py-1 text-xs font-medium text-emerald-700 hover:bg-emerald-50 dark:border-emerald-700 dark:text-emerald-300 dark:hover:bg-emerald-900/20">
+                                Create Itinerary
+                            </a>
+                        @endif
                         <form action="{{ route('inquiries.destroy', $inquiry) }}" method="POST" class="inline">
                             @csrf
                             @method('DELETE')
@@ -91,14 +126,14 @@
                     </div>
                 </div>
             @empty
-                <div class="rounded-xl border border-gray-200 bg-white p-6 text-center text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
+                <div class="app-card p-6 text-center text-sm text-gray-500 dark:text-gray-400">
                     No inquiries available.
                 </div>
             @endforelse
         </div>
 
-        <div class="hidden md:block overflow-x-auto rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
-            <table class="w-full divide-y divide-gray-200 dark:divide-gray-700">
+        <div class="hidden md:block overflow-x-auto app-card">
+            <table class="app-table divide-y divide-gray-200 dark:divide-gray-700">
                 <thead class="bg-gray-50 dark:bg-gray-900/40">
                     <tr>
                         <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">No</th>
@@ -107,6 +142,7 @@
                         <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">Priority</th>
                         <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">Assigned</th>
                         <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">Deadline</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">Itinerary</th>
                         <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">Actions</th>
                     </tr>
                 </thead>
@@ -121,9 +157,36 @@
                             <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">{{ $inquiry->priority }}</td>
                             <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">{{ $inquiry->assignedUser->name ?? '-' }}</td>
                             <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">{{ $inquiry->deadline ? $inquiry->deadline->format('Y-m-d') : '-' }}</td>
+                            <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">
+                                @if (($inquiry->itineraries_count ?? 0) > 0)
+                                    <span class="inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
+                                        Available ({{ $inquiry->itineraries_count }})
+                                    </span>
+                                    <div class="mt-1 space-y-1">
+                                        @foreach($inquiry->itineraries->take(2) as $itinerary)
+                                            <p class="text-xs text-gray-500 dark:text-gray-400">
+                                                @if (Route::has('itineraries.show') && auth()->user()->can('module.itineraries.access'))
+                                                    <a href="{{ route('itineraries.show', $itinerary) }}" class="text-indigo-600 hover:text-indigo-700 hover:underline dark:text-indigo-400">
+                                                        {{ $itinerary->title }}
+                                                    </a>
+                                                @else
+                                                    {{ $itinerary->title }}
+                                                @endif
+                                            </p>
+                                        @endforeach
+                                    </div>
+                                @else
+                                    <span class="inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+                                        Not Available
+                                    </span>
+                                @endif
+                            </td>
                             <td class="px-4 py-3 text-right text-sm">
                                 <a href="{{ route('inquiries.show', $inquiry) }}" class="mr-3 font-medium text-indigo-600 hover:text-indigo-700 dark:text-indigo-400">Detail</a>
                                 <a href="{{ route('inquiries.edit', $inquiry) }}" class="mr-3 font-medium text-indigo-600 hover:text-indigo-700 dark:text-indigo-400">Edit</a>
+                                @if (($inquiry->itineraries_count ?? 0) === 0)
+                                    <a href="{{ route('itineraries.create', ['inquiry_id' => $inquiry->id]) }}" class="mr-3 font-medium text-emerald-600 hover:text-emerald-700 dark:text-emerald-400">Create Itinerary</a>
+                                @endif
                                 <form action="{{ route('inquiries.destroy', $inquiry) }}" method="POST" class="inline">
                                     @csrf
                                     @method('DELETE')
@@ -135,7 +198,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7" class="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">No inquiries available.</td>
+                            <td colspan="8" class="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">No inquiries available.</td>
                         </tr>
                     @endforelse
                 </tbody>
@@ -145,5 +208,7 @@
         <div>{{ $inquiries->links() }}</div>
     </div>
 @endsection
+
+
 
 

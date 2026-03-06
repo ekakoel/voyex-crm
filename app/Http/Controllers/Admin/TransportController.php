@@ -3,8 +3,10 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Destination;
 use App\Models\Transport;
 use App\Support\ImageThumbnailGenerator;
+use App\Support\LocationResolver;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -15,6 +17,7 @@ class TransportController extends Controller
     public function index(Request $request)
     {
         $query = Transport::query()
+            ->with('destination:id,name')
             ->withCount('units')
             ->withMin('units', 'contract_rate')
             ->latest('id');
@@ -41,7 +44,12 @@ class TransportController extends Controller
 
     public function create()
     {
-        return view('modules.transports.create');
+        $destinations = Destination::query()
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'name', 'city', 'province']);
+
+        return view('modules.transports.create', compact('destinations'));
     }
 
     public function show(Transport $transport)
@@ -71,7 +79,12 @@ class TransportController extends Controller
     public function edit(Transport $transport)
     {
         $transport->load('units');
-        return view('modules.transports.edit', compact('transport'));
+        $destinations = Destination::query()
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'name', 'city', 'province']);
+
+        return view('modules.transports.edit', compact('transport', 'destinations'));
     }
 
     public function update(Request $request, Transport $transport)
@@ -79,13 +92,19 @@ class TransportController extends Controller
         $transport->load('units');
         [$validated, $unitPayload] = $this->validatePayload($request, $transport);
         $oldUnitImagePaths = $this->extractUnitImagePaths($transport->units->all());
+        $existingGallery = $this->normalizeGalleryImages($transport->gallery_images ?? []);
+        $requestedRemoved = $request->input('removed_gallery_images', []);
+        $requestedRemoved = is_array($requestedRemoved) ? $requestedRemoved : [];
+        $removedGallery = array_values(array_intersect($existingGallery, $requestedRemoved));
+        $remainingGallery = array_values(array_diff($existingGallery, $removedGallery));
 
-        if ($request->hasFile('gallery_images')) {
-            $this->deleteGalleryImages($transport->gallery_images ?? []);
-            $validated['gallery_images'] = $this->storeGalleryImages($request->file('gallery_images', []), 'transports');
-        } else {
-            $validated['gallery_images'] = $transport->gallery_images ?? [];
+        if ($removedGallery !== []) {
+            $this->deleteGalleryImages($removedGallery);
         }
+
+        $newGallery = $this->storeGalleryImages($request->file('gallery_images', []), 'transports');
+        $validated['gallery_images'] = array_values(array_merge($remainingGallery, $newGallery));
+        unset($validated['removed_gallery_images']);
 
         DB::transaction(function () use ($transport, $validated, $unitPayload) {
             $transport->update($validated);
@@ -110,17 +129,40 @@ class TransportController extends Controller
         return redirect()->route('transports.index')->with('success', 'Transport deleted successfully.');
     }
 
+    public function removeGalleryImage(Request $request, Transport $transport)
+    {
+        $validated = $request->validate([
+            'image' => ['required', 'string'],
+        ]);
+
+        $image = (string) $validated['image'];
+        $gallery = $this->normalizeGalleryImages($transport->gallery_images ?? []);
+        if (! in_array($image, $gallery, true)) {
+            return response()->json([
+                'message' => 'Image not found in gallery.',
+            ], 404);
+        }
+
+        $remaining = array_values(array_diff($gallery, [$image]));
+        $this->deleteGalleryImages([$image]);
+        $transport->update(['gallery_images' => $remaining]);
+
+        return response()->json([
+            'message' => 'Image removed successfully.',
+            'remaining_count' => count($remaining),
+        ]);
+    }
+
     private function validatePayload(Request $request, ?Transport $transport): array
     {
-        $hasExistingGallery = $transport && is_array($transport->gallery_images) && count($transport->gallery_images) > 0;
-        $galleryRules = ['array', 'max:5'];
-        if (! $hasExistingGallery) {
-            array_unshift($galleryRules, 'required', 'min:1');
-        } elseif ($request->hasFile('gallery_images')) {
-            array_unshift($galleryRules, 'min:1');
-        } else {
-            array_unshift($galleryRules, 'sometimes');
-        }
+        $existingGallery = $this->normalizeGalleryImages($transport?->gallery_images ?? []);
+        $requestedRemoved = $request->input('removed_gallery_images', []);
+        $requestedRemoved = is_array($requestedRemoved) ? $requestedRemoved : [];
+        $removedGallery = array_values(array_intersect($existingGallery, $requestedRemoved));
+        $remainingGalleryCount = count(array_values(array_diff($existingGallery, $removedGallery)));
+        $newUploads = $request->file('gallery_images', []);
+        $newUploads = is_array($newUploads) ? array_values(array_filter($newUploads)) : [];
+        $newUploadsCount = count($newUploads);
 
         $validated = $request->validate([
             'code' => ['required', 'string', 'max:30', Rule::unique('transports', 'code')->ignore($transport?->id)],
@@ -129,8 +171,15 @@ class TransportController extends Controller
             'provider_name' => ['nullable', 'string', 'max:255'],
             'service_scope' => ['nullable', 'string', 'max:120'],
             'location' => ['nullable', 'string', 'max:255'],
+            'google_maps_url' => ['nullable', 'url', 'max:5000'],
             'city' => ['nullable', 'string', 'max:100'],
             'province' => ['nullable', 'string', 'max:100'],
+            'country' => ['nullable', 'string', 'max:100'],
+            'timezone' => ['nullable', 'string', 'max:100'],
+            'address' => ['nullable', 'string', 'max:255'],
+            'latitude' => ['nullable', 'numeric', 'between:-90,90', 'required_with:longitude'],
+            'longitude' => ['nullable', 'numeric', 'between:-180,180', 'required_with:latitude'],
+            'destination_id' => ['nullable', 'integer', 'exists:destinations,id'],
             'contact_name' => ['nullable', 'string', 'max:120'],
             'contact_phone' => ['nullable', 'string', 'max:50'],
             'contact_email' => ['nullable', 'email', 'max:120'],
@@ -140,8 +189,10 @@ class TransportController extends Controller
             'exclusions' => ['nullable', 'string'],
             'cancellation_policy' => ['nullable', 'string'],
             'notes' => ['nullable', 'string'],
-            'gallery_images' => $galleryRules,
-            'gallery_images.*' => ['image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
+            'gallery_images' => ['nullable', 'array', 'max:5'],
+            'gallery_images.*' => ['image', 'mimes:jpg,jpeg,png,webp'],
+            'removed_gallery_images' => ['nullable', 'array'],
+            'removed_gallery_images.*' => ['string'],
             'is_active' => ['nullable', 'boolean'],
 
             'units' => ['required', 'array', 'min:1'],
@@ -161,14 +212,32 @@ class TransportController extends Controller
             'units.*.existing_images' => ['nullable', 'array', 'max:2'],
             'units.*.existing_images.*' => ['string'],
             'units.*.images' => ['nullable', 'array', 'max:2'],
-            'units.*.images.*' => ['image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
+            'units.*.images.*' => ['image', 'mimes:jpg,jpeg,png,webp'],
             'units.*.benefits' => ['nullable', 'string'],
             'units.*.notes' => ['nullable', 'string'],
             'units.*.is_active' => ['nullable', 'boolean'],
         ]);
 
+        $finalGalleryCount = ($transport ? $remainingGalleryCount : 0) + $newUploadsCount;
+        if ($finalGalleryCount < 1) {
+            $message = $transport
+                ? 'Gallery images minimal 1 file. Hapus semua gambar lama hanya jika upload gambar baru.'
+                : 'Gallery images minimal 1 file.';
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'gallery_images' => $message,
+            ]);
+        }
+        if ($finalGalleryCount > 5) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'gallery_images' => 'Maksimal total 5 gambar (existing + upload baru).',
+            ]);
+        }
+
         $validated['code'] = strtoupper(trim($validated['code']));
         $validated['is_active'] = $request->boolean('is_active');
+        app(LocationResolver::class)->enrichFromGoogleMapsUrl($validated);
+        $this->applyDestinationContext($validated);
+        app(LocationResolver::class)->resolveDestinationId($validated, true);
 
         $unitPayload = [];
         foreach ($validated['units'] as $index => $row) {
@@ -223,6 +292,26 @@ class TransportController extends Controller
         return array_values(array_unique($paths));
     }
 
+    /**
+     * @param  mixed  $images
+     * @return array<int, string>
+     */
+    private function normalizeGalleryImages($images): array
+    {
+        if (is_string($images)) {
+            $decoded = json_decode($images, true);
+            $images = is_array($decoded) ? $decoded : [];
+        }
+
+        if (! is_array($images)) {
+            return [];
+        }
+
+        return array_values(array_filter($images, function ($path) {
+            return is_string($path) && trim($path) !== '';
+        }));
+    }
+
     private function storeGalleryImages(array $files, string $directory): array
     {
         $stored = [];
@@ -245,6 +334,32 @@ class TransportController extends Controller
                 Storage::disk('public')->delete($path);
                 Storage::disk('public')->delete(ImageThumbnailGenerator::thumbnailPathFor($path));
             }
+        }
+    }
+
+    private function applyDestinationContext(array &$validated): void
+    {
+        $destinationId = (int) ($validated['destination_id'] ?? 0);
+        if ($destinationId <= 0) {
+            return;
+        }
+
+        $destination = Destination::query()->find($destinationId);
+        if (! $destination) {
+            return;
+        }
+
+        if (empty($validated['city']) && ! empty($destination->city)) {
+            $validated['city'] = (string) $destination->city;
+        }
+        if (empty($validated['province']) && ! empty($destination->province)) {
+            $validated['province'] = (string) $destination->province;
+        }
+        if (empty($validated['country']) && ! empty($destination->country)) {
+            $validated['country'] = (string) $destination->country;
+        }
+        if (empty($validated['timezone']) && ! empty($destination->timezone)) {
+            $validated['timezone'] = (string) $destination->timezone;
         }
     }
 }
