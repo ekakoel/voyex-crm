@@ -13,14 +13,21 @@ class QuotationItem extends Model
         'description',
         'qty',
         'unit_price',
+        'discount_type',
         'discount',
+        'day_number',
+        'serviceable_meta',
+        'itinerary_item_type',
         'total',
     ];
 
     protected $casts = [
         'unit_price' => 'decimal:2',
+        'discount_type' => 'string',
         'discount' => 'decimal:2',
         'total' => 'decimal:2',
+        'day_number' => 'integer',
+        'serviceable_meta' => 'array',
     ];
 
     public function quotation()

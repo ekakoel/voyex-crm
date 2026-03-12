@@ -3,7 +3,9 @@
 namespace App\Http\View;
 
 use App\Models\CompanySetting;
+use App\Models\Currency;
 use App\Services\ModuleService;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\View\View;
 use Illuminate\Support\Facades\Auth;
 
@@ -21,6 +23,16 @@ class SidebarComposer
         $user = Auth::user();
         $view->with('menuItems', $this->filterMenuItems($menuItems, $user));
         $view->with('companySettings', CompanySetting::query()->first());
+        $view->with('currentCurrency', \App\Support\Currency::current());
+        $currencyOptions = collect();
+        if (Schema::hasTable('currencies')) {
+            $currencyOptions = Currency::query()
+                ->where('is_active', true)
+                ->orderByDesc('is_default')
+                ->orderBy('code')
+                ->get(['id', 'code', 'name', 'symbol', 'rate_to_idr', 'decimal_places']);
+        }
+        $view->with('currencyOptions', $currencyOptions);
     }
 
     /**
@@ -83,7 +95,7 @@ class SidebarComposer
                         'route' => 'itineraries.index',
                         'icon'  => 'route',
                         'module' => 'itineraries',
-                        'roles' => ['Admin', 'Admin User', 'Super Admin'],
+                        'roles' => ['Admin', 'Admin User', 'Super Admin', 'Director'],
                     ],
                     [
                         'title' => 'Quotations',
@@ -191,6 +203,13 @@ class SidebarComposer
                 'permission' => 'company_settings.manage',
             ],
             [
+                'title' => 'Currencies',
+                'route' => 'currencies.index',
+                'icon'  => 'coins',
+                'module' => 'currencies',
+                'roles' => ['Admin', 'Admin User', 'Super Admin', 'Director'],
+            ],
+            [
                 'title' => 'System Admin',
                 'route' => '#',
                 'icon'  => 'shield-halved',
@@ -221,13 +240,6 @@ class SidebarComposer
                         'route' => 'users.index',
                         'icon'  => 'user-gear',
                         'module' => 'user_manager',
-                        'roles' => ['Admin', 'Admin User', 'Super Admin'],
-                    ],
-                    [
-                        'title' => 'Quotation Templates',
-                        'route' => 'quotation-templates.index',
-                        'icon'  => 'file-lines',
-                        'module' => 'quotation_templates',
                         'roles' => ['Admin', 'Admin User', 'Super Admin'],
                     ],
                 ],

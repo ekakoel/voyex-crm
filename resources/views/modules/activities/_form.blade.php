@@ -2,9 +2,7 @@
     $buttonLabel = $buttonLabel ?? 'Save';
     $activity = $activity ?? null;
     $activityTypes = $activityTypes ?? [];
-    $standardActivityTypes = $standardActivityTypes ?? [];
-    $selectedActivityType = (string) old('activity_type', $activity->activity_type ?? '');
-    $isLegacyActivityType = $selectedActivityType !== '' && ! in_array($selectedActivityType, $standardActivityTypes, true);
+    $selectedActivityTypeName = (string) old('activity_type_name', $activity->activityType->name ?? $activity->activity_type ?? '');
 @endphp
 
 <div class="space-y-4">
@@ -31,23 +29,20 @@
     <div class="grid grid-cols-1 gap-4 md:grid-cols-4">
         <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Activity Type</label>
-            <select name="activity_type" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" required>
-                <option value="">Select activity type</option>
+            <input
+                list="activity-type-options"
+                name="activity_type_name"
+                value="{{ $selectedActivityTypeName }}"
+                placeholder="Select existing or type new activity type"
+                class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
+                required>
+            <datalist id="activity-type-options">
                 @foreach ($activityTypes as $type)
-                    @php
-                        $isLegacyOption = ! in_array($type, $standardActivityTypes, true);
-                    @endphp
-                    <option value="{{ $type }}" @selected($selectedActivityType === $type)>
-                        {{ ucwords(str_replace('_', ' ', $type)) }}{{ $isLegacyOption ? ' (Legacy)' : '' }}
-                    </option>
+                    <option value="{{ $type->name }}"></option>
                 @endforeach
-            </select>
-            @if ($isLegacyActivityType)
-                <p class="mt-1 text-xs text-amber-600 dark:text-amber-400">
-                    Legacy type detected: "{{ ucwords(str_replace('_', ' ', $selectedActivityType)) }}". Please switch to a standard type if possible.
-                </p>
-            @endif
-            @error('activity_type') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+            </datalist>
+            <p class="mt-1 text-[11px] text-gray-500 dark:text-gray-400">Ketik untuk memilih dari database atau buat type baru otomatis dari input ini.</p>
+            @error('activity_type_name') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
         </div>
         <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Duration (minutes)</label>
@@ -68,13 +63,23 @@
 
     <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
         <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Contract Price (per pax)</label>
-            <input name="contract_price" type="number" min="0" step="0.01" value="{{ old('contract_price', $activity->contract_price ?? '') }}" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+            <x-money-input
+                label="Contract Price (per pax)"
+                name="contract_price"
+                :value="old('contract_price', $activity->contract_price ?? '')"
+                min="0"
+                step="0.01"
+            />
             @error('contract_price') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
         </div>
         <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Agent Price (per pax)</label>
-            <input name="agent_price" type="number" min="0" step="0.01" value="{{ old('agent_price', $activity->agent_price ?? '') }}" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+            <x-money-input
+                label="Agent Price (per pax)"
+                name="agent_price"
+                :value="old('agent_price', $activity->agent_price ?? '')"
+                min="0"
+                step="0.01"
+            />
             @error('agent_price') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
         </div>
         <div>
@@ -122,7 +127,7 @@
     </div>
 
     <div>
-        <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Gallery Images (1-3)</label>
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Gallery Images</label>
         <div id="activity-gallery-preview"
             class="mt-2 grid grid-cols-3 gap-2"
             data-remove-endpoint-template="{{ isset($activity) ? route('activities.gallery-images.remove', $activity) : '' }}"
@@ -148,9 +153,9 @@
                 @endforeach
             @endif
         </div>
-        <input id="activity-gallery-input" type="file" name="gallery_images[]" accept="image/jpeg,image/png,image/webp" multiple class="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+        <input id="activity-gallery-input" type="file" name="gallery_images[]" accept="image/*" multiple class="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
         <p id="activity-gallery-limit-note" class="mt-1 hidden text-xs text-amber-600"></p>
-        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Upload 1 sampai 3 gambar. Saat edit, klik X untuk hapus per gambar dan upload baru akan ditambahkan ke gallery.</p>
+        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Upload gambar tanpa batas jenis/ukuran. Saat edit, klik X untuk hapus per gambar dan upload baru akan ditambahkan ke gallery. Semua gambar diproses crop rasio 3:2 dan dibuat thumbnail.</p>
         @error('gallery_images') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
         @error('gallery_images.*') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
         @error('removed_gallery_images.*') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
@@ -184,15 +189,8 @@
                         limitNote.textContent = '';
                     }
 
-                    const existingCount = preview.querySelectorAll('.activity-gallery-existing-item').length;
-                    const maxNewAllowed = Math.max(0, 3 - existingCount);
                     const files = Array.from(input.files || []);
-                    const filesToRender = files.slice(0, maxNewAllowed);
-
-                    if (files.length > filesToRender.length && limitNote) {
-                        limitNote.textContent = `Maksimal total 3 gambar. Hanya ${filesToRender.length} gambar baru yang dipreview berdasarkan slot tersedia.`;
-                        limitNote.classList.remove('hidden');
-                    }
+                    const filesToRender = files;
 
                     filesToRender.forEach((file) => {
                         if (!String(file.type || '').startsWith('image/')) return;

@@ -202,7 +202,7 @@
     </div>
 
     <div>
-        <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Gallery Images (1-5)</label>
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Gallery Images</label>
         <div id="transport-gallery-preview"
             class="mt-2 grid grid-cols-2 gap-2 md:grid-cols-5"
             data-remove-endpoint-template="{{ isset($transport) ? route('transports.gallery-images.remove', $transport) : '' }}"
@@ -228,9 +228,9 @@
                 @endforeach
             @endif
         </div>
-        <input id="transport-gallery-input" type="file" name="gallery_images[]" accept="image/jpeg,image/png,image/webp" multiple class="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+        <input id="transport-gallery-input" type="file" name="gallery_images[]" accept="image/*" multiple class="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
         <p id="transport-gallery-limit-note" class="mt-1 hidden text-xs text-amber-600"></p>
-        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Upload 1 sampai 5 gambar. Saat edit, klik X untuk hapus per gambar dan upload baru akan ditambahkan ke gallery.</p>
+        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Upload gambar tanpa batas jenis/ukuran. Saat edit, klik X untuk hapus per gambar dan upload baru akan ditambahkan ke gallery. Semua gambar diproses crop rasio 3:2 dan dibuat thumbnail.</p>
         @error('gallery_images') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
         @error('gallery_images.*') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
         @error('removed_gallery_images.*') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
@@ -269,18 +269,34 @@
                     </div>
 
                     <div class="mt-3 grid grid-cols-1 gap-3 md:grid-cols-6">
-                        <div>
-                            <label class="block text-xs text-gray-500">Contract Rate</label>
-                            <input name="units[{{ $index }}][contract_rate]" type="number" min="0" step="0.01" value="{{ $unit['contract_rate'] ?? '' }}" class="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" required>
-                        </div>
-                        <div>
-                            <label class="block text-xs text-gray-500">Publish Rate</label>
-                            <input name="units[{{ $index }}][publish_rate]" type="number" min="0" step="0.01" value="{{ $unit['publish_rate'] ?? '' }}" class="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
-                        </div>
-                        <div>
-                            <label class="block text-xs text-gray-500">Overtime Rate</label>
-                            <input name="units[{{ $index }}][overtime_rate]" type="number" min="0" step="0.01" value="{{ $unit['overtime_rate'] ?? '' }}" class="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
-                        </div>
+                        <x-money-input
+                            label="Contract Rate"
+                            label-class="block text-xs text-gray-500"
+                            name="units[{{ $index }}][contract_rate]"
+                            :value="$unit['contract_rate'] ?? ''"
+                            min="0"
+                            step="0.01"
+                            compact
+                            required
+                        />
+                        <x-money-input
+                            label="Publish Rate"
+                            label-class="block text-xs text-gray-500"
+                            name="units[{{ $index }}][publish_rate]"
+                            :value="$unit['publish_rate'] ?? ''"
+                            min="0"
+                            step="0.01"
+                            compact
+                        />
+                        <x-money-input
+                            label="Overtime Rate"
+                            label-class="block text-xs text-gray-500"
+                            name="units[{{ $index }}][overtime_rate]"
+                            :value="$unit['overtime_rate'] ?? ''"
+                            min="0"
+                            step="0.01"
+                            compact
+                        />
                         <div>
                             <label class="block text-xs text-gray-500">Currency</label>
                             <input name="units[{{ $index }}][currency]" value="{{ $unit['currency'] ?? 'IDR' }}" maxlength="3" class="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 uppercase text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" required>
@@ -316,7 +332,7 @@
 
                     <div class="mt-3">
                         <label class="block text-xs text-gray-500">Unit Cover Images (max 2)</label>
-                        <input type="file" name="units[{{ $index }}][images][]" accept="image/jpeg,image/png,image/webp" multiple class="unit-images-input mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+                        <input type="file" name="units[{{ $index }}][images][]" accept="image/*" multiple class="unit-images-input mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
                         <p class="mt-1 text-[11px] text-gray-500 dark:text-gray-400">Upload maksimal 2 gambar. Pada edit, upload baru akan mengganti gambar lama unit.</p>
                         @if (!empty($unit['existing_images']) && is_array($unit['existing_images']))
                             <div class="mt-2 grid grid-cols-2 gap-2 md:grid-cols-4">
@@ -395,9 +411,27 @@
         </div>
 
         <div class="mt-3 grid grid-cols-1 gap-3 md:grid-cols-6">
-            <div><label class="block text-xs text-gray-500">Contract Rate</label><input name="units[__INDEX__][contract_rate]" type="number" min="0" step="0.01" class="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" required></div>
-            <div><label class="block text-xs text-gray-500">Publish Rate</label><input name="units[__INDEX__][publish_rate]" type="number" min="0" step="0.01" class="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"></div>
-            <div><label class="block text-xs text-gray-500">Overtime Rate</label><input name="units[__INDEX__][overtime_rate]" type="number" min="0" step="0.01" class="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"></div>
+            <div>
+                <label class="block text-xs text-gray-500">Contract Rate</label>
+                <div class="relative">
+                    <input name="units[__INDEX__][contract_rate]" type="number" min="0" step="0.01" data-money-input="1" class="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 pr-14 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" required>
+                    <span class="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 rounded-md border border-gray-200 bg-gray-50 px-1.5 py-0.5 text-[10px] font-semibold text-gray-600 shadow-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200">{{ \App\Support\Currency::current() }}</span>
+                </div>
+            </div>
+            <div>
+                <label class="block text-xs text-gray-500">Publish Rate</label>
+                <div class="relative">
+                    <input name="units[__INDEX__][publish_rate]" type="number" min="0" step="0.01" data-money-input="1" class="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 pr-14 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+                    <span class="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 rounded-md border border-gray-200 bg-gray-50 px-1.5 py-0.5 text-[10px] font-semibold text-gray-600 shadow-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200">{{ \App\Support\Currency::current() }}</span>
+                </div>
+            </div>
+            <div>
+                <label class="block text-xs text-gray-500">Overtime Rate</label>
+                <div class="relative">
+                    <input name="units[__INDEX__][overtime_rate]" type="number" min="0" step="0.01" data-money-input="1" class="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 pr-14 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+                    <span class="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 rounded-md border border-gray-200 bg-gray-50 px-1.5 py-0.5 text-[10px] font-semibold text-gray-600 shadow-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200">{{ \App\Support\Currency::current() }}</span>
+                </div>
+            </div>
             <div><label class="block text-xs text-gray-500">Currency</label><input name="units[__INDEX__][currency]" value="IDR" maxlength="3" class="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 uppercase text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" required></div>
             <div><label class="block text-xs text-gray-500">Fuel Type</label><select name="units[__INDEX__][fuel_type]" class="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">@foreach ($fuelTypes as $fuelType)<option value="{{ $fuelType }}">{{ ucfirst($fuelType) }}</option>@endforeach</select></div>
             <div><label class="block text-xs text-gray-500">Transmission</label><select name="units[__INDEX__][transmission]" class="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">@foreach ($transmissions as $transmission)<option value="{{ $transmission }}">{{ ucfirst($transmission) }}</option>@endforeach</select></div>
@@ -410,7 +444,7 @@
 
         <div class="mt-3">
             <label class="block text-xs text-gray-500">Unit Cover Images (max 2)</label>
-            <input type="file" name="units[__INDEX__][images][]" accept="image/jpeg,image/png,image/webp" multiple class="unit-images-input mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+            <input type="file" name="units[__INDEX__][images][]" accept="image/*" multiple class="unit-images-input mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
             <p class="mt-1 text-[11px] text-gray-500 dark:text-gray-400">Upload maksimal 2 gambar per unit.</p>
         </div>
 
@@ -484,15 +518,8 @@
             limitNote.textContent = '';
         }
 
-        const existingCount = preview.querySelectorAll('.transport-gallery-existing-item').length;
-        const maxNewAllowed = Math.max(0, 5 - existingCount);
         const files = Array.from(input.files || []);
-        const filesToRender = files.slice(0, maxNewAllowed);
-
-        if (files.length > filesToRender.length && limitNote) {
-            limitNote.textContent = `Maksimal total 5 gambar. Hanya ${filesToRender.length} gambar baru yang dipreview berdasarkan slot tersedia.`;
-            limitNote.classList.remove('hidden');
-        }
+        const filesToRender = files;
 
         filesToRender.forEach((file) => {
             if (!String(file.type || '').startsWith('image/')) return;

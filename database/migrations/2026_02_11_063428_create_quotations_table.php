@@ -15,14 +15,12 @@ return new class extends Migration
             $table->id();
             $table->string('quotation_number')->unique();
             $table->foreignId('inquiry_id')->constrained()->cascadeOnDelete();
-            $table->enum('status', ['draft','sent','approved','rejected'])->default('draft');
+            $table->enum('status', ['draft','pending','sent','approved','rejected'])->default('draft');
             $table->date('validity_date');
-            $table->foreignId('template_id')->nullable()->constrained('quotation_templates')->nullOnDelete();
             $table->decimal('sub_total', 15, 2)->default(0);
             $table->enum('discount_type', ['percent', 'fixed'])->nullable();
             $table->decimal('discount_value', 15, 2)->default(0);
             $table->decimal('final_amount', 15, 2)->default(0);
-            $table->enum('approval_status', ['draft', 'submitted', 'approved', 'rejected'])->default('draft');
             $table->foreignId('approved_by')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamp('approved_at')->nullable();
             $table->timestamps();

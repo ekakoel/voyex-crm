@@ -24,6 +24,7 @@ class AccommodationRoom extends Model
         'quantity_available',
         'cancellation_policy',
         'notes',
+        'images',
         'is_active',
     ];
 
@@ -34,6 +35,7 @@ class AccommodationRoom extends Model
         'publish_rate' => 'decimal:2',
         'is_refundable' => 'boolean',
         'quantity_available' => 'integer',
+        'images' => 'array',
         'is_active' => 'boolean',
     ];
 
@@ -42,4 +44,3 @@ class AccommodationRoom extends Model
         return $this->belongsTo(Accommodation::class);
     }
 }
-

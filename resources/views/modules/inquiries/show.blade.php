@@ -1,19 +1,17 @@
 @extends('layouts.master')
 
+@section('page_title', 'Inquiry Detail')
+@section('page_subtitle', 'Review inquiry details.')
+@section('page_actions')
+    @if (!($inquiry->quotation && ($inquiry->quotation->status ?? '') === 'approved'))
+        <a href="{{ route('inquiries.edit', $inquiry) }}" class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700">
+            Edit Inquiry
+        </a>
+    @endif
+@endsection
+
 @section('content')
     <div class="max-w-6xl space-y-6 module-page module-page--inquiries">
-        <div class="flex flex-wrap items-start justify-between gap-3">
-            <div>
-                <h1 class="app-section-title">Inquiry Detail</h1>
-                <p class="mt-1 text-sm text-gray-600 dark:text-gray-300">Detail inquiry {{ $inquiry->inquiry_number }}.</p>
-            </div>
-            <div class="flex items-center gap-2">
-                <a href="{{ route('inquiries.edit', $inquiry) }}" class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700">
-                    Edit Inquiry
-                </a>
-            </div>
-        </div>
-
         @if (session('success'))
             <div class="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300">
                 {{ session('success') }}
@@ -197,6 +195,8 @@
         </div>
     </div>
 @endsection
+
+
 
 
 

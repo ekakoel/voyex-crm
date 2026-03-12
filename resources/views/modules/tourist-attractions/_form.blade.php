@@ -29,15 +29,13 @@
 
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-4">
         <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Entrance Fee (per pax)</label>
-            <input
+            <x-money-input
+                label="Entrance Fee (per pax)"
                 name="entrance_fee_per_pax"
-                type="number"
+                :value="old('entrance_fee_per_pax', $touristAttraction->entrance_fee_per_pax ?? '')"
                 min="0"
                 step="0.01"
-                value="{{ old('entrance_fee_per_pax', $touristAttraction->entrance_fee_per_pax ?? '') }}"
-                class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
-            >
+            />
             @error('entrance_fee_per_pax') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
         </div>
         <div>
@@ -52,15 +50,13 @@
             @error('other_fee_label') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
         </div>
         <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Other Fee (per pax)</label>
-            <input
+            <x-money-input
+                label="Other Fee (per pax)"
                 name="other_fee_per_pax"
-                type="number"
+                :value="old('other_fee_per_pax', $touristAttraction->other_fee_per_pax ?? '')"
                 min="0"
                 step="0.01"
-                value="{{ old('other_fee_per_pax', $touristAttraction->other_fee_per_pax ?? '') }}"
-                class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
-            >
+            />
             @error('other_fee_per_pax') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
         </div>
         <div>
@@ -153,7 +149,7 @@
     </div>
 
     <div>
-        <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Gallery Images (1-3)</label>
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Gallery Images</label>
         <div id="tourist-attraction-gallery-preview"
             class="mt-2 grid grid-cols-3 gap-2"
             data-remove-endpoint-template="{{ isset($touristAttraction) ? route('tourist-attractions.gallery-images.remove', $touristAttraction) : '' }}"
@@ -179,9 +175,9 @@
                 @endforeach
             @endif
         </div>
-        <input id="tourist-attraction-gallery-input" type="file" name="gallery_images[]" accept="image/jpeg,image/png,image/webp" multiple class="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+        <input id="tourist-attraction-gallery-input" type="file" name="gallery_images[]" accept="image/*" multiple class="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
         <p id="tourist-attraction-gallery-limit-note" class="mt-1 hidden text-xs text-amber-600"></p>
-        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Upload 1 sampai 3 gambar. Saat edit, centang "Remove image" untuk menghapus per gambar, dan upload baru untuk menambah/mengganti.</p>
+        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Upload gambar tanpa batas jenis/ukuran. Saat edit, klik X untuk menghapus per gambar, dan upload baru untuk menambah/mengganti. Semua gambar diproses crop rasio 3:2 dan dibuat thumbnail.</p>
         @error('gallery_images') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
         @error('gallery_images.*') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
         @error('removed_gallery_images.*') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
@@ -215,15 +211,8 @@
                         limitNote.textContent = '';
                     }
 
-                    const existingActiveCount = preview.querySelectorAll('.tourist-gallery-existing-item').length;
-                    const maxNewAllowed = Math.max(0, 3 - existingActiveCount);
                     const files = Array.from(input.files || []);
-                    const filesToRender = files.slice(0, maxNewAllowed);
-
-                    if (files.length > filesToRender.length && limitNote) {
-                        limitNote.textContent = `Maksimal total 3 gambar. Hanya ${filesToRender.length} gambar baru yang dipreview berdasarkan slot tersedia.`;
-                        limitNote.classList.remove('hidden');
-                    }
+                    const filesToRender = files;
 
                     filesToRender.forEach((file) => {
                         if (!String(file.type || '').startsWith('image/')) {
@@ -295,4 +284,3 @@
         </script>
     @endpush
 @endonce
-

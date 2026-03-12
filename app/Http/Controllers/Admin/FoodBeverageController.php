@@ -142,27 +142,12 @@ class FoodBeverageController extends Controller
             'meal_period' => ['nullable', 'string', 'max:50'],
             'menu_highlights' => ['nullable', 'string'],
             'notes' => ['nullable', 'string'],
-            'gallery_images' => ['nullable', 'array', 'max:3'],
-            'gallery_images.*' => ['image', 'mimes:jpg,jpeg,png,webp'],
+            'gallery_images' => ['nullable', 'array'],
+            'gallery_images.*' => ['image'],
             'removed_gallery_images' => ['nullable', 'array'],
             'removed_gallery_images.*' => ['string'],
             'is_active' => ['nullable', 'boolean'],
         ]);
-
-        $finalGalleryCount = ($foodBeverage ? $remainingGalleryCount : 0) + $newUploadsCount;
-        if ($finalGalleryCount < 1) {
-            $message = $foodBeverage
-                ? 'Gallery images minimal 1 file. Hapus semua gambar lama hanya jika upload gambar baru.'
-                : 'Gallery images minimal 1 file.';
-            throw \Illuminate\Validation\ValidationException::withMessages([
-                'gallery_images' => $message,
-            ]);
-        }
-        if ($finalGalleryCount > 3) {
-            throw \Illuminate\Validation\ValidationException::withMessages([
-                'gallery_images' => 'Maksimal total 3 gambar (existing + upload baru).',
-            ]);
-        }
 
         $validated['currency'] = strtoupper($validated['currency']);
         $validated['is_active'] = $request->boolean('is_active');
@@ -254,8 +239,8 @@ class FoodBeverageController extends Controller
                 continue;
             }
             $originalPath = $file->store($directory, 'public');
-            $stored[] = $originalPath;
-            ImageThumbnailGenerator::generate('public', $originalPath);
+            $processedPath = ImageThumbnailGenerator::processAndGenerate('public', $originalPath, 3, 2, 360, 240) ?? $originalPath;
+            $stored[] = $processedPath;
         }
 
         return $stored;

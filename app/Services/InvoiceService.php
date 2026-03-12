@@ -17,7 +17,7 @@ class InvoiceService
         }
 
         $quotation = $booking->quotation;
-        if ($quotation->approval_status !== 'approved' || ! $quotation->approved_by) {
+        if ($quotation->status !== 'approved' || ! $quotation->approved_by) {
             return null;
         }
 

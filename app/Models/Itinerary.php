@@ -2,12 +2,17 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasAudit;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 
 class Itinerary extends Model
 {
+    use HasAudit;
+
     protected $fillable = [
         'inquiry_id',
+        'created_by',
         'title',
         'destination',
         'arrival_transport_id',
@@ -60,6 +65,16 @@ class Itinerary extends Model
     public function inquiry()
     {
         return $this->belongsTo(Inquiry::class);
+    }
+
+    public function creator()
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function quotation()
+    {
+        return $this->hasOne(Quotation::class);
     }
 
     public function accommodations()

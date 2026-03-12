@@ -3,41 +3,54 @@
 @section('content')
     <div class="space-y-6 itinerary-show-page">
         <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
-            <div class="flex items-center justify-between">
-                <div>
-                    <h1 class="text-2xl font-semibold text-gray-800 dark:text-gray-100">{{ $itinerary->title }}</h1>
-                    <p class="mt-1 text-sm text-gray-600 dark:text-gray-300">{{ $itinerary->duration_days }} day(s)</p>
-                    <p class="mt-1 text-sm text-gray-600 dark:text-gray-300">{{ $itinerary->duration_nights ?? 0 }} night(s)</p>
-                    <p class="mt-1 text-sm text-gray-600 dark:text-gray-300">Destination: {{ $itinerary->destination ?: '-' }}</p>
-                    <p class="mt-1 text-sm text-gray-600 dark:text-gray-300">
-                        Inquiry:
+            @section('page_actions')@if (Route::has('quotations.create') && auth()->user()->can('module.quotations.access') && ! $itinerary->quotation)
+                        <a href="{{ route('quotations.create', ['itinerary_id' => $itinerary->id]) }}" class="rounded-lg border border-indigo-300 px-4 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-50 dark:border-indigo-700 dark:text-indigo-300 dark:hover:bg-indigo-900/20">Generate Quotation</a>
+                    @endif
+                    <a href="{{ route('itineraries.pdf', [$itinerary, 'mode' => 'stream']) }}" target="_blank" rel="noopener" class="rounded-lg border border-sky-300 px-4 py-2 text-sm font-medium text-sky-700 hover:bg-sky-50 dark:border-sky-700 dark:text-sky-300 dark:hover:bg-sky-900/20">Preview PDF</a>
+                    <a href="{{ route('itineraries.pdf', [$itinerary, 'mode' => 'download']) }}" target="_blank" rel="noopener" class="rounded-lg border border-emerald-300 px-4 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-50 dark:border-emerald-700 dark:text-emerald-300 dark:hover:bg-emerald-900/20">Download PDF</a>
+                    @if (!($itinerary->quotation && ($itinerary->quotation->status ?? '') === 'approved'))
+                        <a href="{{ route('itineraries.edit', $itinerary) }}" class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700">Edit</a>
+                    @endif
+                    <a href="{{ route('itineraries.index') }}" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">Back</a>@endsection
+            <div class="mt-3 grid grid-cols-1 gap-2 text-sm md:grid-cols-2">
+                <div><span class="text-gray-500 dark:text-gray-400">Title:</span> <span class="text-gray-800 dark:text-gray-100">{{ $itinerary->title }}</span></div>
+                <div><span class="text-gray-500 dark:text-gray-400">Duration:</span> <span class="text-gray-800 dark:text-gray-100">{{ $itinerary->duration_days }}D{{ $itinerary->duration_nights > 0 ? "/".$itinerary->duration_nights."N": "" }}</span></div>
+                <div><span class="text-gray-500 dark:text-gray-400">Destination:</span> <span class="text-gray-800 dark:text-gray-100">{{ $itinerary->destination ?: '-' }}</span></div>
+                <div><span class="text-gray-500 dark:text-gray-400">Inquiry:</span>
+                    <span class="text-gray-800 dark:text-gray-100">
                         @if ($itinerary->inquiry)
-                            {{ $itinerary->inquiry->inquiry_number }}{{ $itinerary->inquiry->customer?->name ? ' | '.$itinerary->inquiry->customer->name : '' }}
+                            {{ $itinerary->inquiry?->inquiry_number ?? '-' }}{{ $itinerary->inquiry?->customer?->name ? ' | '.$itinerary->inquiry?->customer?->name : '' }}
                         @else
                             Independent
                         @endif
-                    </p>
-                </div>
-                <div class="flex items-center gap-2">
-                    <a href="{{ route('itineraries.pdf', [$itinerary, 'mode' => 'stream']) }}" target="_blank" class="rounded-lg border border-sky-300 px-4 py-2 text-sm font-medium text-sky-700 hover:bg-sky-50 dark:border-sky-700 dark:text-sky-300 dark:hover:bg-sky-900/20">Preview PDF</a>
-                    <a href="{{ route('itineraries.pdf', [$itinerary, 'mode' => 'download']) }}" class="rounded-lg border border-emerald-300 px-4 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-50 dark:border-emerald-700 dark:text-emerald-300 dark:hover:bg-emerald-900/20">Download PDF</a>
-                    <a href="{{ route('itineraries.edit', $itinerary) }}" class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700">Edit</a>
-                    <a href="{{ route('itineraries.index') }}" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">Back</a>
+                    </span>
                 </div>
             </div>
         </div>
 
         @if ($itinerary->description)
             <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
-                <p class="text-sm text-gray-700 dark:text-gray-200">{{ $itinerary->description }}</p>
+                <x-rich-text :content="$itinerary->description" class="text-sm text-gray-700 dark:text-gray-200" />
             </div>
         @endif
 
         @if ($itinerary->accommodations->isNotEmpty())
             <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
                 <h2 class="text-sm font-semibold uppercase tracking-wide text-gray-700 dark:text-gray-200">Accommodations</h2>
-                <div class="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                @php
+                    $dayPointByDayForAccommodation = $itinerary->dayPoints->keyBy(fn ($point) => (int) $point->day_number);
+                @endphp
+                <div class="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3 lg:grid-cols-4">
                     @foreach($itinerary->accommodations as $accommodation)
+                        @php
+                            $stayDay = (int) ($accommodation->pivot->day_number ?? 1);
+                            $stayPoint = $dayPointByDayForAccommodation[$stayDay] ?? null;
+                            if ($stayPoint && (int) ($stayPoint->end_accommodation_id ?? 0) !== (int) $accommodation->id) {
+                                $stayPoint = null;
+                            }
+                            $roomName = (string) ($stayPoint?->endAccommodationRoom?->name ?? '');
+                            $roomType = (string) ($stayPoint?->endAccommodationRoom?->room_type ?? '');
+                        @endphp
                         <div class="rounded-lg border border-gray-200 px-3 py-2 text-sm dark:border-gray-700">
                             <p class="font-semibold text-gray-800 dark:text-gray-100">{{ $accommodation->name }}</p>
                             <p class="text-xs text-gray-500 dark:text-gray-400">
@@ -47,8 +60,13 @@
                                 @endif
                                 | {{ $accommodation->city ?: '-' }}
                             </p>
+                            @if ($roomName !== '')
+                                <p class="mt-1 text-xs text-gray-600 dark:text-gray-300">
+                                    Room: {{ $roomName }}{{ $roomType !== '' ? ' ('.$roomType.')' : '' }}
+                                </p>
+                            @endif
                             <p class="mt-1 text-xs font-medium text-indigo-600 dark:text-indigo-300">
-                                Day {{ $accommodation->pivot->day_number ?? 1 }} | {{ $accommodation->pivot->night_count ?? 1 }} night(s) | {{ $accommodation->pivot->room_count ?? 1 }} room(s)
+                                Day {{ $accommodation->pivot->day_number ?? 1 }} | {{ $accommodation->pivot->night_count ?? 1 }} night(s)
                             </p>
                         </div>
                     @endforeach
@@ -91,7 +109,15 @@
                                     return $dayPoint->startAirport?->name ?: 'Not set';
                                 }
                                 if ($type === 'accommodation') {
-                                    return $dayPoint->startAccommodation?->name ?: 'Not set';
+                                    $accommodationName = (string) ($dayPoint->startAccommodation?->name ?? 'Not set');
+                                    $roomName = (string) ($dayPoint->startAccommodationRoom?->name ?? '');
+                                    if ($accommodationName === 'Not set') {
+                                        return 'Not set';
+                                    }
+                                    if ($roomName !== '') {
+                                        return $accommodationName . ' - ' . $roomName;
+                                    }
+                                    return $accommodationName;
                                 }
                                 return 'Not set';
                             }
@@ -100,7 +126,15 @@
                                 return $dayPoint->endAirport?->name ?: 'Not set';
                             }
                             if ($type === 'accommodation') {
-                                return $dayPoint->endAccommodation?->name ?: 'Not set';
+                                $accommodationName = (string) ($dayPoint->endAccommodation?->name ?? 'Not set');
+                                $roomName = (string) ($dayPoint->endAccommodationRoom?->name ?? '');
+                                if ($accommodationName === 'Not set') {
+                                    return 'Not set';
+                                }
+                                if ($roomName !== '') {
+                                    return $accommodationName . ' - ' . $roomName;
+                                }
+                                return $accommodationName;
                             }
                             return 'Not set';
                         };
@@ -158,6 +192,7 @@
                                     'location' => $activity->vendor->location ?? null,
                                     'description' => $activity->notes ?? null,
                                     'includes' => $activity->includes ?? null,
+                                    'excludes' => $activity->excludes ?? null,
                                     'benefits' => $activity->benefits ?? null,
                                     'pax' => $activityItem->pax,
                                     'start_time' => $activityItem->start_time,
@@ -253,9 +288,6 @@
                             <p class="mt-1 text-[11px] text-gray-500 dark:text-gray-400">
                                 Starts at: {{ $startPointLabel ?: 'Not set' }} | Ends at: {{ $endPointLabel ?: 'Not set' }}
                             </p>
-                            {{-- <p class="mt-1 text-[11px] text-gray-500 dark:text-gray-400">
-                                Travel from Start Point: {{ $dayStartTravelMinutes !== null ? $dayStartTravelMinutes : '-' }} min
-                            </p> --}}
                             <p class="mt-1 text-[11px] text-gray-500 dark:text-gray-400">
                                 Transport Unit:
                                 @if ($dayTransport && $dayTransport->transportUnit)
@@ -267,10 +299,6 @@
                                     -
                                 @endif
                             </p>
-                            {{-- <p class="mt-1 text-[11px] text-amber-600 dark:text-amber-400">
-                                Main Experience:
-                                {{ $mainExperienceName ?: '-' }}
-                            </p> --}}
                             <ul class="itinerary-timeline-list relative mt-2 space-y-2">
                                 <li class="flex items-start gap-0">
                                     <div class="timeline-node-col has-travel w-10 flex flex-col items-center">
@@ -282,6 +310,12 @@
                                             title="Lihat Start Point di map">
                                             <i class="{{ $startPointType === 'airport' ? 'fa-solid fa-plane' : 'fa-solid fa-bed' }}"></i>
                                         </button>
+                                        <span class="timeline-travel-spacer"></span>
+                                        <span class="timeline-travel-icon" aria-hidden="true">
+                                            <svg viewBox="0 0 24 24" class="h-3.5 w-3.5 fill-current" focusable="false">
+                                                <path d="M5.5 11.5L7.3 6.9C7.6 6.1 8.3 5.5 9.2 5.5h5.6c.9 0 1.6.6 1.9 1.4l1.8 4.6c1 .2 1.8 1.1 1.8 2.2v2.3c0 .8-.7 1.5-1.5 1.5h-.5a2.3 2.3 0 01-4.6 0h-4.4a2.3 2.3 0 01-4.6 0h-.5c-.8 0-1.5-.7-1.5-1.5v-2.3c0-1.1.8-2 1.8-2.2zm3.1-4.2L7.2 11h9.6l-1.4-3.7a.8.8 0 00-.7-.5H9.3c-.3 0-.6.2-.7.5zM8.2 18.9c.5 0 .9-.4.9-.9s-.4-.9-.9-.9-.9.4-.9.9.4.9.9.9zm7.6 0c.5 0 .9-.4.9-.9s-.4-.9-.9-.9-.9.4-.9.9.4.9.9.9z"/>
+                                            </svg>
+                                        </span>
                                         <span class="timeline-travel-spacer"></span>
                                         <span class="timeline-travel-label">
                                             {{ $dayStartTravelMinutes !== null ? $dayStartTravelMinutes : '-' }} min
@@ -317,6 +351,12 @@
                                                 <i class="{{ $item['type'] === 'activity' ? 'fa-solid fa-person-hiking' : ($item['type'] === 'fnb' ? 'fa-solid fa-utensils' : 'fa-solid fa-location-dot') }}"></i>
                                             </button>
                                             <span class="timeline-travel-spacer"></span>
+                                            <span class="timeline-travel-icon" aria-hidden="true">
+                                                <svg viewBox="0 0 24 24" class="h-3.5 w-3.5 fill-current" focusable="false">
+                                                    <path d="M5.5 11.5L7.3 6.9C7.6 6.1 8.3 5.5 9.2 5.5h5.6c.9 0 1.6.6 1.9 1.4l1.8 4.6c1 .2 1.8 1.1 1.8 2.2v2.3c0 .8-.7 1.5-1.5 1.5h-.5a2.3 2.3 0 01-4.6 0h-4.4a2.3 2.3 0 01-4.6 0h-.5c-.8 0-1.5-.7-1.5-1.5v-2.3c0-1.1.8-2 1.8-2.2zm3.1-4.2L7.2 11h9.6l-1.4-3.7a.8.8 0 00-.7-.5H9.3c-.3 0-.6.2-.7.5zM8.2 18.9c.5 0 .9-.4.9-.9s-.4-.9-.9-.9-.9.4-.9.9.4.9.9.9zm7.6 0c.5 0 .9-.4.9-.9s-.4-.9-.9-.9-.9.4-.9.9.4.9.9.9z"/>
+                                                </svg>
+                                            </span>
+                                            <span class="timeline-travel-spacer"></span>
                                             <span class="timeline-travel-label">
                                                 {{ $travelMinutes !== null ? $travelMinutes . ' min' : '- min' }}
                                             </span>
@@ -331,19 +371,30 @@
                                             @endif
                                             <div class="text-xs text-gray-500 dark:text-gray-400">
                                                 {{ $item['location'] ?? '-' }}
-                                                @if ($item['pax'])
-                                                    | {{ $item['pax'] }} pax
-                                                @endif
                                                 |
                                                 {{ $item['start_time'] ? substr((string) $item['start_time'], 0, 5) : '--:--' }}
                                                 -
                                                 {{ $item['end_time'] ? substr((string) $item['end_time'], 0, 5) : '--:--' }}
                                             </div>
-                                            <p class="mt-1 text-xs text-gray-600 dark:text-gray-300">{{ $item['description'] ? \Illuminate\Support\Str::limit(strip_tags((string) $item['description']), 180) : '-' }}</p>
+                                            <x-rich-text :content="$item['description'] ?? null" class="mt-1 text-xs text-gray-600 dark:text-gray-300" />
                                             @if ($item['type'] === 'activity')
+                                                @php
+                                                    $itemIncludeText = \App\Support\SafeRichText::plainText($item['includes'] ?? null);
+                                                    $itemExcludeText = \App\Support\SafeRichText::plainText($item['excludes'] ?? null);
+                                                @endphp
                                                 <div class="mt-1 space-y-0.5 text-[11px] text-gray-600 dark:text-gray-300">
-                                                    <p><span class="font-semibold">Includes:</span> {{ $item['includes'] ? \Illuminate\Support\Str::limit(strip_tags((string) $item['includes']), 120) : '-' }}</p>
-                                                    <p><span class="font-semibold">Benefits:</span> {{ $item['benefits'] ? \Illuminate\Support\Str::limit(strip_tags((string) $item['benefits']), 120) : '-' }}</p>
+                                                    @if (filled($itemIncludeText))
+                                                        <p><span class="font-semibold">Includes:</span></p>
+                                                        <x-rich-text :content="$item['includes'] ?? null" class="text-[11px]" />
+                                                    @endif
+                                                    @if (filled($itemExcludeText))
+                                                        <p><span class="font-semibold">Excludes:</span></p>
+                                                        <x-rich-text :content="$item['excludes'] ?? null" class="text-[11px]" />
+                                                    @endif
+                                                    <p>
+                                                        <span class="font-semibold">Benefits:</span>
+                                                        {{ \App\Support\SafeRichText::plainText($item['benefits'] ?? null) ?: '-' }}
+                                                    </p>
                                                 </div>
                                             @endif
                                             @if ($item['type'] === 'fnb')
@@ -380,6 +431,26 @@
                                     </div>
                                 </li>
                             </ul>
+                            @php
+                                $dayIncludeText = \App\Support\SafeRichText::plainText($dayPoint?->day_include);
+                                $dayExcludeText = \App\Support\SafeRichText::plainText($dayPoint?->day_exclude);
+                            @endphp
+                            @if (filled($dayIncludeText) || filled($dayExcludeText))
+                                <div class="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2">
+                                    @if (filled($dayIncludeText))
+                                        <div class="rounded-lg border border-emerald-200 bg-emerald-50/60 px-2 py-1 dark:border-emerald-800 dark:bg-emerald-900/20">
+                                            <p class="text-[11px] font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">Day Include</p>
+                                            <x-rich-text :content="$dayPoint?->day_include" class="mt-0.5 text-xs text-emerald-900 dark:text-emerald-100" />
+                                        </div>
+                                    @endif
+                                    @if (filled($dayExcludeText))
+                                        <div class="rounded-lg border border-rose-200 bg-rose-50/60 px-2 py-1 dark:border-rose-800 dark:bg-rose-900/20">
+                                            <p class="text-[11px] font-semibold uppercase tracking-wide text-rose-700 dark:text-rose-300">Day Exclude</p>
+                                            <x-rich-text :content="$dayPoint?->day_exclude" class="mt-0.5 text-xs text-rose-900 dark:text-rose-100" />
+                                        </div>
+                                    @endif
+                                </div>
+                            @endif
                         </div>
                     @endfor
                 </div>
@@ -412,21 +483,22 @@
 @push('scripts')
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
     @php
-        $mapPoints = $itinerary->touristAttractions->map(function ($attraction) {
-            return [
-                'type' => 'attraction',
-                'marker_key' => 'attraction-'.$attraction->id.'-'.((int) ($attraction->pivot->day_number ?? 1)).'-'.((int) ($attraction->pivot->visit_order ?? 1)),
-                'name' => $attraction->name,
-                'location' => $attraction->location,
-                'lat' => $attraction->latitude,
-                'lng' => $attraction->longitude,
-                'day_number' => $attraction->pivot->day_number ?? 1,
-                'start_time' => $attraction->pivot->start_time,
-                'end_time' => $attraction->pivot->end_time,
-                'visit_order' => $attraction->pivot->visit_order ?? 1,
-            ];
-        })->merge(
-            $itinerary->itineraryActivities->map(function ($activityItem) {
+        $mapPoints = collect()
+            ->merge($itinerary->touristAttractions->map(function ($attraction) {
+                return [
+                    'type' => 'attraction',
+                    'marker_key' => 'attraction-'.$attraction->id.'-'.((int) ($attraction->pivot->day_number ?? 1)).'-'.((int) ($attraction->pivot->visit_order ?? 1)),
+                    'name' => $attraction->name,
+                    'location' => $attraction->location,
+                    'lat' => $attraction->latitude,
+                    'lng' => $attraction->longitude,
+                    'day_number' => $attraction->pivot->day_number ?? 1,
+                    'start_time' => $attraction->pivot->start_time,
+                    'end_time' => $attraction->pivot->end_time,
+                    'visit_order' => $attraction->pivot->visit_order ?? 1,
+                ];
+            })->values())
+            ->merge($itinerary->itineraryActivities->map(function ($activityItem) {
                 return [
                     'type' => 'activity',
                     'marker_key' => 'activity-'.$activityItem->id.'-'.((int) ($activityItem->day_number ?? 1)).'-'.((int) ($activityItem->visit_order ?? 1)),
@@ -439,9 +511,8 @@
                     'end_time' => $activityItem->end_time,
                     'visit_order' => $activityItem->visit_order ?? 1,
                 ];
-            })
-        )->merge(
-            $itinerary->itineraryFoodBeverages->map(function ($foodBeverageItem) {
+            })->values())
+            ->merge($itinerary->itineraryFoodBeverages->map(function ($foodBeverageItem) {
                 return [
                     'type' => 'fnb',
                     'marker_key' => 'fnb-'.$foodBeverageItem->id.'-'.((int) ($foodBeverageItem->day_number ?? 1)).'-'.((int) ($foodBeverageItem->visit_order ?? 1)),
@@ -454,8 +525,7 @@
                     'end_time' => $foodBeverageItem->end_time,
                     'visit_order' => $foodBeverageItem->visit_order ?? 1,
                 ];
-            })
-        );
+            })->values());
 
         $dayPointByDayForMap = $itinerary->dayPoints->keyBy(fn ($point) => (int) $point->day_number);
         $resolvePointCoordinates = function ($dayPoint, string $scope, ?array $previousEnd = null) {
@@ -477,9 +547,14 @@
                     ];
                 }
                 if ($type === 'accommodation' && $dayPoint->startAccommodation) {
+                    $accommodationName = (string) ($dayPoint->startAccommodation->name ?? 'Start Point');
+                    $roomName = (string) ($dayPoint->startAccommodationRoom?->name ?? '');
+                    $pointName = $roomName !== ''
+                        ? ($accommodationName . ' - ' . $roomName)
+                        : $accommodationName;
                     return [
                         'type' => 'accommodation',
-                        'name' => (string) ($dayPoint->startAccommodation->name ?? 'Start Point'),
+                        'name' => $pointName,
                         'location' => (string) ($dayPoint->startAccommodation->location ?? '-'),
                         'lat' => $dayPoint->startAccommodation->latitude,
                         'lng' => $dayPoint->startAccommodation->longitude,
@@ -499,9 +574,14 @@
                 ];
             }
             if ($type === 'accommodation' && $dayPoint->endAccommodation) {
+                $accommodationName = (string) ($dayPoint->endAccommodation->name ?? 'End Point');
+                $roomName = (string) ($dayPoint->endAccommodationRoom?->name ?? '');
+                $pointName = $roomName !== ''
+                    ? ($accommodationName . ' - ' . $roomName)
+                    : $accommodationName;
                 return [
                     'type' => 'accommodation',
-                    'name' => (string) ($dayPoint->endAccommodation->name ?? 'End Point'),
+                    'name' => $pointName,
                     'location' => (string) ($dayPoint->endAccommodation->location ?? '-'),
                     'lat' => $dayPoint->endAccommodation->latitude,
                     'lng' => $dayPoint->endAccommodation->longitude,
@@ -551,7 +631,11 @@
                     'travel_minutes_to_next' => $item->travel_minutes_to_next,
                     'visit_order' => (int) ($item->visit_order ?? 999999),
                 ]);
-            $dayScheduleItems = $dayAttractions->merge($dayActivities)->merge($dayFoodBeverages)->sortBy('visit_order')->values();
+            $dayScheduleItems = collect($dayAttractions)
+                ->merge(collect($dayActivities))
+                ->merge(collect($dayFoodBeverages))
+                ->sortBy('visit_order')
+                ->values();
             $lastDayItem = $dayScheduleItems->last();
             $lastEndBaseMinutes = $lastDayItem ? $toMinutesForMap($lastDayItem['end_time'] ?? null) : null;
             $lastTravelToEnd = $lastDayItem ? max(0, (int) ($lastDayItem['travel_minutes_to_next'] ?? 0)) : 0;
@@ -851,3 +935,5 @@
         })();
     </script>
 @endpush
+
+

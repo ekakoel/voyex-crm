@@ -2,14 +2,7 @@
 
 @section('content')
     <div class="space-y-6">
-        <div class="flex items-center justify-between">
-            <div>
-                <h1 class="text-2xl font-semibold text-gray-800 dark:text-gray-100">Activities</h1>
-                <p class="mt-1 text-sm text-gray-600 dark:text-gray-300">Manage vendor activities and pricing.</p>
-                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Contract Price dan Agent Price disimpan sebagai harga per pax.</p>
-            </div>
-            <a href="{{ route('activities.create') }}" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">Add Activity</a>
-        </div>
+        @section('page_actions')<a href="{{ route('activities.create') }}" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">Add Activity</a>@endsection
 
         @if (session('success'))
             <div class="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300">{{ session('success') }}</div>
@@ -22,10 +15,10 @@
                     <option value="{{ $vendor->id }}" @selected((string) request('vendor_id') === (string) $vendor->id)>{{ $vendor->name }}</option>
                 @endforeach
             </select>
-            <select name="activity_type" class="rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+            <select name="activity_type_id" class="rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
                 <option value="">All Types</option>
                 @foreach ($types as $type)
-                    <option value="{{ $type['value'] }}" @selected((string) request('activity_type') === (string) $type['value'])>{{ $type['label'] }}</option>
+                    <option value="{{ $type['value'] }}" @selected((string) request('activity_type_id') === (string) $type['value'])>{{ $type['label'] }}</option>
                 @endforeach
             </select>
             <div class="md:col-span-2 flex items-center gap-2">
@@ -51,9 +44,9 @@
                         <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/30">
                             <td class="px-4 py-3 text-sm text-gray-800 dark:text-gray-100">{{ $activity->name }}</td>
                             <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">{{ $activity->vendor->name ?? '-' }}</td>
-                            <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">{{ ucwords(str_replace('_', ' ', (string) $activity->activity_type)) }}</td>
+                            <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">{{ $activity->activityType->name ?? $activity->activity_type ?? '-' }}</td>
                             <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">{{ $activity->duration_minutes }} min</td>
-                            <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">{{ $activity->currency }} {{ number_format((float) ($activity->agent_price ?? 0), 2) }} / pax</td>
+                            <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200"><x-money :amount="(float) ($activity->agent_price ?? 0)" :currency="$activity->currency ?? 'IDR'" /> / pax</td>
                             <td class="px-4 py-3 text-right text-sm">
                                 <a href="{{ route('activities.edit', $activity) }}" class="mr-3 font-medium text-indigo-600 hover:text-indigo-700 dark:text-indigo-400">Edit</a>
                                 <form action="{{ route('activities.destroy', $activity) }}" method="POST" class="inline">
@@ -75,5 +68,7 @@
         <div>{{ $activities->links() }}</div>
     </div>
 @endsection
+
+
 
 

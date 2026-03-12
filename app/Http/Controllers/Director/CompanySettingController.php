@@ -36,6 +36,7 @@ class CompanySettingController extends Controller
             'country' => ['nullable', 'string', 'max:120'],
             'timezone' => ['nullable', 'string', 'max:64'],
             'currency' => ['nullable', 'string', 'size:3'],
+            'usd_rate' => ['nullable', 'numeric', 'min:1'],
             'footer_note' => ['nullable', 'string'],
             'favicon' => ['nullable', 'image', 'mimes:png,ico,webp,jpg,jpeg'],
             'logo' => ['nullable', 'image', 'mimes:png,webp,jpg,jpeg'],

@@ -2,13 +2,7 @@
 
 @section('content')
     <div class="space-y-6">
-        <div class="flex items-center justify-between">
-            <div>
-                <h1 class="text-2xl font-semibold text-gray-800 dark:text-gray-100">Airports</h1>
-                <p class="mt-1 text-sm text-gray-600 dark:text-gray-300">Manage airport master data for itinerary start/end points.</p>
-            </div>
-            <a href="{{ route('airports.create') }}" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">Add Airport</a>
-        </div>
+        @section('page_actions')<a href="{{ route('airports.create') }}" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">Add Airport</a>@endsection
 
         @if (session('success'))
             <div class="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300">{{ session('success') }}</div>
@@ -64,3 +58,5 @@
         <div>{{ $airports->links() }}</div>
     </div>
 @endsection
+
+

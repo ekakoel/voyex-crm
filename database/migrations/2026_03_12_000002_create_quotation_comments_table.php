@@ -8,17 +8,17 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('quotation_templates', function (Blueprint $table) {
+        Schema::create('quotation_comments', function (Blueprint $table) {
             $table->id();
-            $table->string('name');
-            $table->longText('body_html');
-            $table->boolean('is_active')->default(true);
+            $table->foreignId('quotation_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('user_id')->constrained()->cascadeOnDelete();
+            $table->text('body');
             $table->timestamps();
         });
     }
 
     public function down(): void
     {
-        Schema::dropIfExists('quotation_templates');
+        Schema::dropIfExists('quotation_comments');
     }
 };

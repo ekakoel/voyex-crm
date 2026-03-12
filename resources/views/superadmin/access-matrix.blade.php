@@ -2,10 +2,7 @@
 
 @section('content')
     <div class="space-y-6">
-        <div>
-            <h1 class="text-2xl font-semibold text-gray-800 dark:text-gray-100">Access Matrix</h1>
-            <p class="mt-1 text-sm text-gray-600 dark:text-gray-300">Read-only matrix to audit role vs permission mapping across the system.</p>
-        </div>
+        
 
         <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
             <div class="mb-3 flex flex-wrap items-center gap-3 text-sm text-gray-600 dark:text-gray-300">
@@ -62,3 +59,4 @@
         </div>
     </div>
 @endsection
+

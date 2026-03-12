@@ -2,26 +2,17 @@
 
 @section('content')
     <div class="space-y-6">
-        <div class="flex flex-wrap items-start justify-between gap-3">
-            <div>
-                <h1 class="text-2xl font-semibold text-gray-800 dark:text-gray-100">{{ $accommodation->name }}</h1>
-                <p class="mt-1 text-sm text-gray-600 dark:text-gray-300">
-                    {{ $accommodation->code }} • {{ ucfirst(str_replace('_', ' ', (string) $accommodation->category)) }}
-                    @if ($accommodation->star_rating)
-                        • {{ $accommodation->star_rating }}★
-                    @endif
-                </p>
-            </div>
-            <div class="flex items-center gap-2">
-                <a href="{{ route('accommodations.edit', $accommodation) }}" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">Edit</a>
-                <a href="{{ route('accommodations.index') }}" class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700">Back</a>
-            </div>
-        </div>
+        @section('page_actions')<a href="{{ route('accommodations.edit', $accommodation) }}" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">Edit</a>
+                <a href="{{ route('accommodations.index') }}" class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700">Back</a>@endsection
 
         <div class="grid grid-cols-1 gap-4 xl:grid-cols-3">
             <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800 xl:col-span-2">
                 <h2 class="text-sm font-semibold text-gray-800 dark:text-gray-100">Overview</h2>
                 <div class="mt-3 grid grid-cols-1 gap-3 text-sm md:grid-cols-2">
+                    <div><span class="text-gray-500 dark:text-gray-400">Name:</span> <span class="text-gray-800 dark:text-gray-100">{{ $accommodation->name }}</span></div>
+                    <div><span class="text-gray-500 dark:text-gray-400">Code:</span> <span class="text-gray-800 dark:text-gray-100">{{ $accommodation->code ?: '-' }}</span></div>
+                    <div><span class="text-gray-500 dark:text-gray-400">Category:</span> <span class="text-gray-800 dark:text-gray-100">{{ $accommodation->category ? ucfirst(str_replace('_', ' ', (string) $accommodation->category)) : '-' }}</span></div>
+                    <div><span class="text-gray-500 dark:text-gray-400">Star Rating:</span> <span class="text-gray-800 dark:text-gray-100">{{ $accommodation->star_rating ? $accommodation->star_rating.'*' : '-' }}</span></div>
                     <div><span class="text-gray-500 dark:text-gray-400">Location:</span> <span class="text-gray-800 dark:text-gray-100">{{ $accommodation->location ?: '-' }}</span></div>
                     <div><span class="text-gray-500 dark:text-gray-400">City/Province:</span> <span class="text-gray-800 dark:text-gray-100">{{ trim(($accommodation->city ?? '') . (($accommodation->city && $accommodation->province) ? ', ' : '') . ($accommodation->province ?? '')) ?: '-' }}</span></div>
                     <div><span class="text-gray-500 dark:text-gray-400">Check-in:</span> <span class="text-gray-800 dark:text-gray-100">{{ $accommodation->check_in_time ? substr((string) $accommodation->check_in_time, 0, 5) : '-' }}</span></div>
@@ -99,12 +90,25 @@
                             <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/30">
                                 <td class="px-3 py-2 text-gray-800 dark:text-gray-100">
                                     <div>{{ $room->name }}</div>
-                                    <div class="text-xs text-gray-500 dark:text-gray-400">{{ $room->bed_type ?: '-' }} • {{ $room->view_type ?: '-' }}</div>
+                                    <div class="text-xs text-gray-500 dark:text-gray-400">{{ $room->bed_type ?: '-' }} - {{ $room->view_type ?: '-' }}</div>
+                                    @if (!empty($room->images))
+                                        <div class="mt-2 grid grid-cols-3 gap-1">
+                                            @foreach ($room->images as $roomImage)
+                                                <div class="overflow-hidden rounded border border-gray-200 dark:border-gray-700">
+                                                    <img
+                                                        src="{{ asset('storage/' . \App\Support\ImageThumbnailGenerator::thumbnailPathFor($roomImage)) }}"
+                                                        onerror="this.onerror=null;this.src='{{ asset('storage/' . $roomImage) }}';"
+                                                        alt="Room image"
+                                                        class="h-12 w-full object-cover">
+                                                </div>
+                                            @endforeach
+                                        </div>
+                                    @endif
                                 </td>
                                 <td class="px-3 py-2 text-gray-700 dark:text-gray-200">{{ $room->room_type ?: '-' }}</td>
                                 <td class="px-3 py-2 text-gray-700 dark:text-gray-200">{{ $room->max_occupancy }}</td>
-                                <td class="px-3 py-2 text-gray-700 dark:text-gray-200">{{ $room->currency }} {{ number_format((float) $room->contract_rate, 0) }}</td>
-                                <td class="px-3 py-2 text-gray-700 dark:text-gray-200">{{ $room->publish_rate !== null ? $room->currency . ' ' . number_format((float) $room->publish_rate, 0) : '-' }}</td>
+                                <td class="px-3 py-2 text-gray-700 dark:text-gray-200"><x-money :amount="(float) $room->contract_rate" :currency="$room->currency ?? 'IDR'" /></td>
+                                <td class="px-3 py-2 text-gray-700 dark:text-gray-200">{{ $room->publish_rate !== null ? \App\Support\Currency::format((float) $room->publish_rate, $room->currency ?? 'IDR') : '-' }}</td>
                                 <td class="px-3 py-2 text-gray-700 dark:text-gray-200">{{ $room->benefits ?: '-' }}</td>
                             </tr>
                         @empty
@@ -118,3 +122,5 @@
         </div>
     </div>
 @endsection
+
+

@@ -17,7 +17,7 @@
                 <div class="card">
                     <div class="card-body">
                         <h6>Monthly Revenue</h6>
-                        <h4>Rp {{ number_format($monthlyRevenue, 0) }}</h4>
+                        <h4><x-money :amount="$monthlyRevenue ?? 0" currency="IDR" /></h4>
                     </div>
                 </div>
             </div>

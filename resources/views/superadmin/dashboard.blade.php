@@ -52,13 +52,11 @@
 
         <section class="xl:col-span-7">
             <div class="sa-card p-5">
-                <div class="flex flex-col gap-1 md:flex-row md:items-end md:justify-between">
-                    <div>
-                        <h1 class="text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-100">Super Admin Analytics</h1>
-                        <p class="text-sm text-slate-500 dark:text-slate-400">Data diperbarui saat halaman dibuka atau refresh manual</p>
-                    </div>
-                    <p class="text-xs text-slate-500 dark:text-slate-400">Last loaded: {{ now()->format('d M Y H:i') }}</p>
-                </div>
+                @section('page_title', 'Super Admin Analytics')
+                @section('page_subtitle', 'Data diperbarui saat halaman dibuka atau refresh manual')
+                @section('page_actions')
+                    <span class="text-xs text-slate-500 dark:text-slate-400">Last loaded: {{ now()->format('d M Y H:i') }}</span>
+                @endsection
 
                 <div class="mt-4">
                     <p class="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Core Business KPIs</p>

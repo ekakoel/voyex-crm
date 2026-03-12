@@ -2,12 +2,7 @@
 
 @section('content')
     <div class="space-y-6">
-        <div>
-            <h1 class="text-2xl font-semibold text-gray-800 dark:text-gray-100">Invoices</h1>
-            <p class="mt-1 text-sm text-gray-600 dark:text-gray-300">
-                Invoices are generated automatically when booking is completed and quotation is approved by Director.
-            </p>
-        </div>
+        
 
         <form method="GET" class="grid grid-cols-1 gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800 md:grid-cols-6">
             <input name="q" value="{{ request('q') }}" placeholder="Search invoice / booking / customer" class="md:col-span-2 rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
@@ -49,10 +44,10 @@
                         <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/30">
                             <td class="px-4 py-3 text-sm text-gray-800 dark:text-gray-100">{{ $invoice->invoice_number }}</td>
                             <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">{{ $invoice->booking->booking_number ?? '-' }}</td>
-                            <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">{{ $invoice->booking->quotation->inquiry->customer->name ?? '-' }}</td>
+                            <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">{{ $invoice->booking?->quotation?->inquiry?->customer?->name ?? '-' }}</td>
                             <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">{{ $invoice->invoice_date?->format('Y-m-d') ?? '-' }}</td>
                             <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">{{ $invoice->due_date?->format('Y-m-d') ?? '-' }}</td>
-                            <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">Rp {{ number_format($invoice->total_amount ?? 0, 2, ',', '.') }}</td>
+                            <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200"><x-money :amount="$invoice->total_amount ?? 0" currency="IDR" /></td>
                             <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200"><x-status-badge :status="$invoice->status" size="xs" /></td>
                             <td class="px-4 py-3 text-right text-sm">
                                 <a href="{{ route('invoices.show', $invoice) }}" class="font-medium text-indigo-600 hover:text-indigo-700 dark:text-indigo-400">Detail</a>
@@ -70,5 +65,7 @@
         <div>{{ $invoices->links() }}</div>
     </div>
 @endsection
+
+
 
 

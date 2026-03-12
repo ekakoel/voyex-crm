@@ -2,13 +2,7 @@
 
 @section('content')
     <div class="space-y-6">
-        <div class="flex items-center justify-between">
-            <div>
-                <h1 class="text-2xl font-semibold text-gray-800 dark:text-gray-100">Destinations</h1>
-                <p class="mt-1 text-sm text-gray-600 dark:text-gray-300">Master data destinasi untuk grouping vendor, accommodation, attraction, airport, dan transport.</p>
-            </div>
-            <a href="{{ route('destinations.create') }}" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">Add Destination</a>
-        </div>
+        @section('page_actions')<a href="{{ route('destinations.create') }}" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">Add Destination</a>@endsection
 
         @if (session('success'))
             <div class="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300">{{ session('success') }}</div>
@@ -71,3 +65,5 @@
         <div>{{ $destinations->links() }}</div>
     </div>
 @endsection
+
+

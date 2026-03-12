@@ -2,13 +2,13 @@
 
 namespace App\Models;
 
-use App\Models\User;
+use App\Models\Concerns\HasAudit;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class Customer extends Model
 {
-    use HasFactory;
+    use HasFactory, HasAudit;
     protected $fillable = [
         'name',
         'company_name',
@@ -18,11 +18,6 @@ class Customer extends Model
         'address',
         'country',
         'customer_type',
-        'created_by'
+        'created_by',
     ];
-
-    public function creator()
-    {
-        return $this->belongsTo(User::class, 'created_by');
-    }
 }

@@ -2,20 +2,12 @@
 
 @section('content')
     <div class="max-w-4xl space-y-6 module-page module-page--bookings">
-        <div class="flex items-center justify-between">
-            <div>
-                <h1 class="app-section-title">Booking Detail</h1>
-                <p class="mt-1 text-sm text-gray-600 dark:text-gray-300">Booking summary for {{ $booking->booking_number }}.</p>
-            </div>
-            <div class="flex items-center gap-2">
-                <a href="{{ route('bookings.edit', $booking) }}" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">
+        @section('page_actions')<a href="{{ route('bookings.edit', $booking) }}" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">
                     Edit
                 </a>
                 <a href="{{ route('bookings.index') }}" class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700">
                     Back
-                </a>
-            </div>
-        </div>
+                </a>@endsection
 
         <div class="module-card p-6 space-y-4">
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -37,7 +29,7 @@
                 </div>
                 <div>
                     <p class="text-xs uppercase text-gray-500">Customer</p>
-                    <p class="text-sm text-gray-800 dark:text-gray-100">{{ $booking->quotation->inquiry->customer->name ?? '-' }}</p>
+                    <p class="text-sm text-gray-800 dark:text-gray-100">{{ $booking->quotation?->inquiry?->customer?->name ?? '-' }}</p>
                 </div>
                 <div class="sm:col-span-2">
                     <p class="text-xs uppercase text-gray-500">Notes</p>
@@ -47,6 +39,8 @@
         </div>
     </div>
 @endsection
+
+
 
 
 

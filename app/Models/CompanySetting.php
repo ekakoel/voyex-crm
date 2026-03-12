@@ -18,6 +18,7 @@ class CompanySetting extends Model
         'country',
         'timezone',
         'currency',
+        'usd_rate',
         'footer_note',
         'favicon_path',
         'logo_path',

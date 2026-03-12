@@ -2,20 +2,12 @@
 
 @section('content')
     <div class="space-y-6 module-page module-page--bookings">
-        <div class="flex items-center justify-between">
-            <div>
-                <h1 class="app-section-title">Bookings</h1>
-                <p class="mt-1 text-sm text-gray-600 dark:text-gray-300">Manage booking data from quotations.</p>
-            </div>
-            <div class="flex items-center gap-2">
-                <a href="{{ route('bookings.export', request()->query()) }}" class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700">
+        @section('page_actions')<a href="{{ route('bookings.export', request()->query()) }}" class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700">
                     Export CSV
                 </a>
                 <a href="{{ route('bookings.create') }}" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">
                     Add Booking
-                </a>
-            </div>
-        </div>
+                </a>@endsection
 
         <form method="GET" class="grid grid-cols-1 gap-3 app-card p-4 md:grid-cols-6">
             <input name="q" value="{{ request('q') }}" placeholder="Search number / quotation / customer" class="md:col-span-2 app-input">
@@ -29,7 +21,7 @@
                 <option value="">Quotation</option>
                 @foreach ($quotations as $quotation)
                     <option value="{{ $quotation->id }}" @selected((string) request('quotation_id') === (string) $quotation->id)>
-                        {{ $quotation->quotation_number }} - {{ $quotation->inquiry->customer->name ?? '-' }}
+                        {{ $quotation->quotation_number }} - {{ $quotation->inquiry?->customer?->name ?? '-' }}
                     </option>
                 @endforeach
             </select>
@@ -64,7 +56,7 @@
                         <div>
                             <p class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ $booking->booking_number }}</p>
                             <p class="text-xs text-gray-500 dark:text-gray-400">
-                                {{ $booking->quotation->quotation_number ?? '-' }} - {{ $booking->quotation->inquiry->customer->name ?? '-' }}
+                                {{ $booking->quotation?->quotation_number ?? '-' }} - {{ $booking->quotation?->inquiry?->customer?->name ?? '-' }}
                             </p>
                         </div>
                         <x-status-badge :status="$booking->status" size="xs" />
@@ -108,7 +100,7 @@
                         <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/30">
                             <td class="px-4 py-3 text-sm text-gray-800 dark:text-gray-100">{{ $booking->booking_number }}</td>
                             <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">
-                                {{ $booking->quotation->quotation_number ?? '-' }} - {{ $booking->quotation->inquiry->customer->name ?? '-' }}
+                                {{ $booking->quotation?->quotation_number ?? '-' }} - {{ $booking->quotation?->inquiry?->customer?->name ?? '-' }}
                             </td>
                             <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">{{ $booking->travel_date?->format('Y-m-d') ?? '-' }}</td>
                             <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">
@@ -138,6 +130,8 @@
         <div>{{ $bookings->links() }}</div>
     </div>
 @endsection
+
+
 
 
 

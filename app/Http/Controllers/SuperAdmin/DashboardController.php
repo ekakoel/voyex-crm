@@ -452,7 +452,6 @@ class DashboardController extends Controller
                 ['key' => 'service_manager', 'icon' => 'cubes', 'route' => 'services.index'],
                 ['key' => 'role_manager', 'icon' => 'user-shield', 'route' => 'roles.index'],
                 ['key' => 'user_manager', 'icon' => 'user-gear', 'route' => 'users.index'],
-                ['key' => 'quotation_templates', 'icon' => 'file-lines', 'route' => 'quotation-templates.index'],
             ],
         ];
 
@@ -473,7 +472,6 @@ class DashboardController extends Controller
             'service_manager' => ['label' => 'Disabled Modules', 'value' => (int) ($moduleStats['disabled'] ?? 0)],
             'role_manager' => ['label' => 'Roles', 'value' => (int) ($rolesAndPermissions['roles'] ?? 0)],
             'user_manager' => ['label' => 'Users', 'value' => (int) ($systemCounts['users'] ?? 0)],
-            'quotation_templates' => ['label' => 'Permissions', 'value' => (int) ($rolesAndPermissions['permissions'] ?? 0)],
         ];
 
         $matrixByKey = $moduleHealthMatrix->keyBy('key');

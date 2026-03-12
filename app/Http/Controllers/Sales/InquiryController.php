@@ -89,6 +89,7 @@ class InquiryController extends Controller
             ->with([
                 'customer',
                 'assignedUser',
+                'quotation:id,inquiry_id,status',
                 'itineraries:id,inquiry_id,title,is_active,updated_at',
             ])
             ->withCount('itineraries');
@@ -168,7 +169,7 @@ class InquiryController extends Controller
      */
     public function show(Inquiry $inquiry)
     {
-        $inquiry->load(['customer', 'assignedUser']);
+        $inquiry->load(['customer', 'assignedUser', 'quotation:id,inquiry_id,status']);
         $followUps = $inquiry->followUps()->orderByDesc('due_date')->get();
         $communications = $inquiry->communications()->with('creator')->orderByDesc('contact_at')->get();
         $channelLabels = self::CHANNEL_LABELS;
@@ -182,6 +183,12 @@ class InquiryController extends Controller
      */
     public function edit(Inquiry $inquiry)
     {
+        $inquiry->loadMissing(['quotation:id,inquiry_id,status']);
+        if ($inquiry->quotation && ($inquiry->quotation->status ?? '') === 'approved') {
+            return redirect()
+                ->route('inquiries.show', $inquiry)
+                ->with('error', 'Inquiry cannot be edited because the related quotation is approved.');
+        }
         $customers = Customer::query()->orderBy('name')->get();
         $assignees = User::role(['Sales Manager', 'Sales Agent'])->orderBy('name')->get();
 
@@ -195,6 +202,12 @@ class InquiryController extends Controller
      */
     public function update(Request $request, Inquiry $inquiry)
     {
+        $inquiry->loadMissing(['quotation:id,inquiry_id,status']);
+        if ($inquiry->quotation && ($inquiry->quotation->status ?? '') === 'approved') {
+            return redirect()
+                ->route('inquiries.show', $inquiry)
+                ->with('error', 'Inquiry cannot be updated because the related quotation is approved.');
+        }
         $validated = $request->validate([
             'customer_id' => ['required', 'exists:customers,id'],
             'source' => ['nullable', Rule::in(self::SOURCE_OPTIONS)],
@@ -220,6 +233,12 @@ class InquiryController extends Controller
      */
     public function destroy(Inquiry $inquiry)
     {
+        $inquiry->loadMissing(['quotation:id,inquiry_id,status']);
+        if ($inquiry->quotation && ($inquiry->quotation->status ?? '') === 'approved') {
+            return redirect()
+                ->route('inquiries.show', $inquiry)
+                ->with('error', 'Inquiry cannot be deleted because the related quotation is approved.');
+        }
         $inquiry->delete();
 
         return redirect()
@@ -229,6 +248,12 @@ class InquiryController extends Controller
 
     public function storeFollowUp(Request $request, Inquiry $inquiry)
     {
+        $inquiry->loadMissing(['quotation:id,inquiry_id,status']);
+        if ($inquiry->quotation && ($inquiry->quotation->status ?? '') === 'approved') {
+            return redirect()
+                ->route('inquiries.show', $inquiry)
+                ->with('error', 'Inquiry is locked because the related quotation is approved.');
+        }
         $validated = $request->validate([
             'due_date' => ['required', 'date'],
             'channel' => ['nullable', Rule::in(self::CHANNEL_OPTIONS)],
@@ -245,6 +270,12 @@ class InquiryController extends Controller
 
     public function markFollowUpDone(InquiryFollowUp $followUp)
     {
+        $followUp->loadMissing(['inquiry.quotation:id,inquiry_id,status']);
+        if ($followUp->inquiry?->quotation && ($followUp->inquiry->quotation->status ?? '') === 'approved') {
+            return redirect()
+                ->route('inquiries.show', $followUp->inquiry_id)
+                ->with('error', 'Inquiry is locked because the related quotation is approved.');
+        }
         $followUp->update([
             'is_done' => true,
             'done_at' => now(),
@@ -259,6 +290,12 @@ class InquiryController extends Controller
 
     public function storeCommunication(Request $request, Inquiry $inquiry)
     {
+        $inquiry->loadMissing(['quotation:id,inquiry_id,status']);
+        if ($inquiry->quotation && ($inquiry->quotation->status ?? '') === 'approved') {
+            return redirect()
+                ->route('inquiries.show', $inquiry)
+                ->with('error', 'Inquiry is locked because the related quotation is approved.');
+        }
         $validated = $request->validate([
             'channel' => ['required', Rule::in(self::CHANNEL_OPTIONS)],
             'summary' => ['required', 'string'],

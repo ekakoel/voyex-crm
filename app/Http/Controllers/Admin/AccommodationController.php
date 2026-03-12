@@ -65,13 +65,17 @@ class AccommodationController extends Controller
 
     public function store(Request $request)
     {
-        [$validated, $roomPayload] = $this->validatePayload($request, null);
+        [$validated, $roomPayload, $roomImagesToDelete] = $this->validatePayload($request, null);
         $validated['gallery_images'] = $this->storeGalleryImages($request->file('gallery_images', []), 'accommodations');
 
         DB::transaction(function () use ($validated, $roomPayload) {
             $accommodation = Accommodation::query()->create($validated);
             $accommodation->rooms()->createMany($roomPayload);
         });
+
+        if ($roomImagesToDelete !== []) {
+            $this->deleteGalleryImages($roomImagesToDelete);
+        }
 
         return redirect()->route('accommodations.index')->with('success', 'Accommodation created successfully.');
     }
@@ -88,7 +92,7 @@ class AccommodationController extends Controller
 
     public function update(Request $request, Accommodation $accommodation)
     {
-        [$validated, $roomPayload] = $this->validatePayload($request, $accommodation);
+        [$validated, $roomPayload, $roomImagesToDelete] = $this->validatePayload($request, $accommodation);
         $existingGallery = $this->normalizeGalleryImages($accommodation->gallery_images ?? []);
         $requestedRemoved = $request->input('removed_gallery_images', []);
         $requestedRemoved = is_array($requestedRemoved) ? $requestedRemoved : [];
@@ -109,12 +113,21 @@ class AccommodationController extends Controller
             $accommodation->rooms()->createMany($roomPayload);
         });
 
+        if ($roomImagesToDelete !== []) {
+            $this->deleteGalleryImages($roomImagesToDelete);
+        }
+
         return redirect()->route('accommodations.index')->with('success', 'Accommodation updated successfully.');
     }
 
     public function destroy(Accommodation $accommodation)
     {
         $this->deleteGalleryImages($accommodation->gallery_images ?? []);
+        $roomImages = $accommodation->rooms
+            ->flatMap(fn ($room) => $this->normalizeGalleryImages($room->images ?? []))
+            ->values()
+            ->all();
+        $this->deleteGalleryImages($roomImages);
         $accommodation->delete();
 
         return redirect()->route('accommodations.index')->with('success', 'Accommodation deleted successfully.');
@@ -180,8 +193,8 @@ class AccommodationController extends Controller
             'description' => ['nullable', 'string'],
             'cancellation_policy' => ['nullable', 'string'],
             'notes' => ['nullable', 'string'],
-            'gallery_images' => ['nullable', 'array', 'max:5'],
-            'gallery_images.*' => ['image', 'mimes:jpg,jpeg,png,webp'],
+            'gallery_images' => ['nullable', 'array'],
+            'gallery_images.*' => ['image'],
             'removed_gallery_images' => ['nullable', 'array'],
             'removed_gallery_images.*' => ['string'],
             'is_active' => ['nullable', 'boolean'],
@@ -203,23 +216,12 @@ class AccommodationController extends Controller
             'rooms.*.quantity_available' => ['nullable', 'integer', 'min:0'],
             'rooms.*.cancellation_policy' => ['nullable', 'string'],
             'rooms.*.notes' => ['nullable', 'string'],
+            'rooms.*.existing_images' => ['nullable', 'array'],
+            'rooms.*.existing_images.*' => ['string'],
+            'rooms.*.images' => ['nullable', 'array', 'max:3'],
+            'rooms.*.images.*' => ['image'],
             'rooms.*.is_active' => ['nullable', 'boolean'],
         ]);
-
-        $finalGalleryCount = ($accommodation ? $remainingGalleryCount : 0) + $newUploadsCount;
-        if ($finalGalleryCount < 1) {
-            $message = $accommodation
-                ? 'Gallery images minimal 1 file. Hapus semua gambar lama hanya jika upload gambar baru.'
-                : 'Gallery images minimal 1 file.';
-            throw \Illuminate\Validation\ValidationException::withMessages([
-                'gallery_images' => $message,
-            ]);
-        }
-        if ($finalGalleryCount > 5) {
-            throw \Illuminate\Validation\ValidationException::withMessages([
-                'gallery_images' => 'Maksimal total 5 gambar (existing + upload baru).',
-            ]);
-        }
 
         $validated['code'] = strtoupper(trim($validated['code']));
         $validated['is_active'] = $request->boolean('is_active');
@@ -227,8 +229,29 @@ class AccommodationController extends Controller
         $this->applyDestinationContext($validated);
         app(LocationResolver::class)->resolveDestinationId($validated, true);
 
+        $existingRoomImages = $accommodation
+            ? $accommodation->rooms
+                ->flatMap(fn ($room) => $this->normalizeGalleryImages($room->images ?? []))
+                ->values()
+                ->all()
+            : [];
+        $retainedRoomImages = [];
         $roomPayload = [];
-        foreach (array_values($validated['rooms']) as $row) {
+        foreach (array_values($validated['rooms']) as $index => $row) {
+            $requestedExistingImages = $this->normalizeGalleryImages($row['existing_images'] ?? []);
+            $existingImages = array_values(array_intersect($existingRoomImages, $requestedExistingImages));
+            $retainedRoomImages = array_merge($retainedRoomImages, $existingImages);
+            $newRoomUploads = $request->file("rooms.{$index}.images", []);
+            $newRoomUploads = is_array($newRoomUploads) ? array_values(array_filter($newRoomUploads)) : [];
+            $totalImages = count($existingImages) + count($newRoomUploads);
+            if ($totalImages > 3) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    "rooms.{$index}.images" => 'Maximum 3 images per room.',
+                ]);
+            }
+            $newImages = $this->storeGalleryImages($newRoomUploads, 'accommodations/rooms');
+            $roomImages = array_values(array_merge($existingImages, $newImages));
+
             $roomPayload[] = [
                 'name' => trim((string) $row['name']),
                 'room_type' => $row['room_type'] ?? null,
@@ -246,13 +269,15 @@ class AccommodationController extends Controller
                 'quantity_available' => ($row['quantity_available'] ?? '') !== '' ? (int) $row['quantity_available'] : null,
                 'cancellation_policy' => $row['cancellation_policy'] ?? null,
                 'notes' => $row['notes'] ?? null,
+                'images' => $roomImages,
                 'is_active' => filter_var($row['is_active'] ?? true, FILTER_VALIDATE_BOOL),
             ];
         }
 
+        $roomImagesToDelete = array_values(array_diff($existingRoomImages, $retainedRoomImages));
         unset($validated['rooms']);
 
-        return [$validated, $roomPayload];
+        return [$validated, $roomPayload, $roomImagesToDelete];
     }
 
     private function storeGalleryImages(array $files, string $directory): array
@@ -263,8 +288,8 @@ class AccommodationController extends Controller
                 continue;
             }
             $originalPath = $file->store($directory, 'public');
-            $stored[] = $originalPath;
-            ImageThumbnailGenerator::generate('public', $originalPath);
+            $processedPath = ImageThumbnailGenerator::processAndGenerate('public', $originalPath, 3, 2, 360, 240) ?? $originalPath;
+            $stored[] = $processedPath;
         }
 
         return $stored;

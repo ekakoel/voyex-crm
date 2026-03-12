@@ -189,8 +189,8 @@ class TransportController extends Controller
             'exclusions' => ['nullable', 'string'],
             'cancellation_policy' => ['nullable', 'string'],
             'notes' => ['nullable', 'string'],
-            'gallery_images' => ['nullable', 'array', 'max:5'],
-            'gallery_images.*' => ['image', 'mimes:jpg,jpeg,png,webp'],
+            'gallery_images' => ['nullable', 'array'],
+            'gallery_images.*' => ['image'],
             'removed_gallery_images' => ['nullable', 'array'],
             'removed_gallery_images.*' => ['string'],
             'is_active' => ['nullable', 'boolean'],
@@ -212,26 +212,11 @@ class TransportController extends Controller
             'units.*.existing_images' => ['nullable', 'array', 'max:2'],
             'units.*.existing_images.*' => ['string'],
             'units.*.images' => ['nullable', 'array', 'max:2'],
-            'units.*.images.*' => ['image', 'mimes:jpg,jpeg,png,webp'],
+            'units.*.images.*' => ['image'],
             'units.*.benefits' => ['nullable', 'string'],
             'units.*.notes' => ['nullable', 'string'],
             'units.*.is_active' => ['nullable', 'boolean'],
         ]);
-
-        $finalGalleryCount = ($transport ? $remainingGalleryCount : 0) + $newUploadsCount;
-        if ($finalGalleryCount < 1) {
-            $message = $transport
-                ? 'Gallery images minimal 1 file. Hapus semua gambar lama hanya jika upload gambar baru.'
-                : 'Gallery images minimal 1 file.';
-            throw \Illuminate\Validation\ValidationException::withMessages([
-                'gallery_images' => $message,
-            ]);
-        }
-        if ($finalGalleryCount > 5) {
-            throw \Illuminate\Validation\ValidationException::withMessages([
-                'gallery_images' => 'Maksimal total 5 gambar (existing + upload baru).',
-            ]);
-        }
 
         $validated['code'] = strtoupper(trim($validated['code']));
         $validated['is_active'] = $request->boolean('is_active');
@@ -320,8 +305,8 @@ class TransportController extends Controller
                 continue;
             }
             $originalPath = $file->store($directory, 'public');
-            $stored[] = $originalPath;
-            ImageThumbnailGenerator::generate('public', $originalPath);
+            $processedPath = ImageThumbnailGenerator::processAndGenerate('public', $originalPath, 3, 2, 360, 240) ?? $originalPath;
+            $stored[] = $processedPath;
         }
 
         return $stored;

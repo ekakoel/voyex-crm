@@ -2,10 +2,7 @@
 
 @section('content')
     <div class="max-w-5xl space-y-6">
-        <div>
-            <h1 class="text-2xl font-semibold text-gray-800 dark:text-gray-100">Company Settings</h1>
-            <p class="mt-1 text-sm text-gray-600 dark:text-gray-300">Configure company identity, contact details, and branding for the system.</p>
-        </div>
+        
 
         @if (session('success'))
             <div class="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300">
@@ -70,10 +67,14 @@
                             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Timezone</label>
                             <input name="timezone" value="{{ old('timezone', $settings->timezone) }}" placeholder="Asia/Jakarta" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
                         </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Currency</label>
-                            <input name="currency" value="{{ old('currency', $settings->currency) }}" maxlength="3" placeholder="IDR" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm uppercase dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
-                        </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Currency</label>
+                    <input name="currency" value="{{ old('currency', $settings->currency) }}" maxlength="3" placeholder="IDR" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm uppercase dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">USD Rate (IDR per 1 USD)</label>
+                    <input name="usd_rate" type="number" step="0.01" min="1" value="{{ old('usd_rate', $settings->usd_rate ?? '') }}" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+                </div>
                     </div>
                 </div>
 
@@ -114,3 +115,5 @@
         </div>
     </div>
 @endsection
+
+

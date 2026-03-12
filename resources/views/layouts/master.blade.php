@@ -28,7 +28,7 @@
     @stack('styles')
 </head>
 
-<body class="bg-gray-100 dark:bg-gray-900 transition-colors duration-300">
+<body class="bg-gray-100 dark:bg-gray-900 transition-colors duration-300" data-currency="{{ $currentCurrency ?? 'IDR' }}">
 
 <div class="flex h-screen overflow-hidden">
 
@@ -166,6 +166,31 @@
 
             <div class="ml-auto flex items-center gap-3 sm:gap-4 md:gap-6 min-w-0">
 
+                <!-- Currency Switch -->
+                <div class="hidden sm:flex items-center gap-2">
+                    <form method="POST" action="{{ route('currency.set') }}">
+                        @csrf
+                        <div class="relative">
+                            <select
+                                name="currency"
+                                onchange="this.form.submit()"
+                                class="h-9 rounded-lg border border-gray-200 bg-white px-2.5 text-xs font-semibold uppercase tracking-wide text-gray-700 shadow-sm transition hover:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 dark:hover:border-indigo-600"
+                            >
+                                @forelse (($currencyOptions ?? collect()) as $currencyOption)
+                                    <option value="{{ $currencyOption->code }}" @selected(($currentCurrency ?? 'IDR') === $currencyOption->code)>{{ $currencyOption->code }}</option>
+                                @empty
+                                    <option value="IDR" selected>IDR</option>
+                                @endforelse
+                            </select>
+                        </div>
+                    </form>
+                    @can('module.currencies.access')
+                        <a href="{{ route('currencies.index') }}" class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 text-gray-600 hover:border-indigo-300 hover:text-indigo-600 dark:border-gray-700 dark:text-gray-200">
+                            <i class="fa-solid fa-coins"></i>
+                        </a>
+                    @endcan
+                </div>
+
                 <!-- Dark Mode Toggle -->
                 <button @click="toggleTheme()"
                         class="inline-flex items-center justify-center h-9 w-9 rounded-lg border border-gray-200 transition-colors duration-200 dark:border-gray-700"
@@ -215,23 +240,18 @@
 
         <!-- PAGE CONTENT -->
         <main class="app-content flex-1 p-4 sm:p-6 overflow-y-auto">
-            @hasSection('breadcrumbs')
-                @yield('breadcrumbs')
-            @else
-                <x-layout.breadcrumbs />
-            @endif
             @php
                 $routeName = (string) (Route::currentRouteName() ?? '');
                 $routeParts = $routeName !== '' ? explode('.', $routeName) : [];
-                $routeAction = !empty($routeParts) ? strtolower((string) end($routeParts)) : '';
+                $routeAction = !empty($routeParts) ? strtolower((string) end($routeParts)) : 'index';
                 $routeResource = !empty($routeParts) ? strtolower((string) $routeParts[0]) : 'dashboard';
                 $defaultTitle = \Illuminate\Support\Str::headline(str_replace('-', ' ', $routeResource));
                 $defaultSubtitle = match ($routeAction) {
-                    'index' => 'Browse and manage data for this module.',
-                    'create', 'store' => 'Create a new record in this module.',
-                    'edit', 'update' => 'Update existing data in this module.',
+                    'index' => 'Browse and manage data',
+                    'create', 'store' => 'Create a new record',
+                    'edit', 'update' => 'Update existing data',
                     'show' => 'Review complete detail information.',
-                    default => 'Page information and actions for this module.',
+                    default => 'Page information and actions',
                 };
                 $pageTitle = trim((string) $__env->yieldContent('page_title')) !== ''
                     ? trim((string) $__env->yieldContent('page_title'))
@@ -240,18 +260,38 @@
                     ? trim((string) $__env->yieldContent('page_subtitle'))
                     : $defaultSubtitle;
                 $hidePageHeader = trim((string) $__env->yieldContent('page_header_hidden')) === '1';
+                $actionLabel = match ($routeAction) {
+                    'index' => 'List',
+                    'create', 'store' => 'Create',
+                    'edit', 'update' => 'Edit',
+                    'show' => 'Detail',
+                    default => \Illuminate\Support\Str::headline(str_replace('-', ' ', $routeAction)),
+                };
+                $resourceLabel = \Illuminate\Support\Str::headline(str_replace('-', ' ', $routeResource));
+                $breadcrumbs = [
+                    [
+                        'label' => 'Dashboard',
+                        'url' => \Illuminate\Support\Facades\Route::has('dashboard') ? route('dashboard') : url('/'),
+                    ],
+                ];
+                if ($routeResource !== 'dashboard') {
+                    $indexRoute = $routeResource . '.index';
+                    $breadcrumbs[] = [
+                        'label' => $resourceLabel,
+                        'url' => \Illuminate\Support\Facades\Route::has($indexRoute) ? route($indexRoute) : null,
+                    ];
+                    $breadcrumbs[] = [
+                        'label' => $actionLabel,
+                    ];
+                }
             @endphp
             @unless ($hidePageHeader)
-                <section class="app-page-header mb-4 sm:mb-5">
-                    <div class="app-page-header__body">
-                        <h1 class="app-page-header__title">{{ $pageTitle }}</h1>
-                        <p class="app-page-header__subtitle">{{ $pageSubtitle }}</p>
-                    </div>
-                    @hasSection('page_actions')
-                        <div class="app-page-header__actions">
+                <section class="mb-4 sm:mb-5">
+                    <x-page-header :title="$pageTitle" :description="$pageSubtitle" :breadcrumbs="$breadcrumbs">
+                        @hasSection('page_actions')
                             @yield('page_actions')
-                        </div>
-                    @endif
+                        @endif
+                    </x-page-header>
                 </section>
             @endunless
             @yield('content')
@@ -290,6 +330,15 @@
         };
     }
 
+    @php
+        $currencyMeta = \App\Support\Currency::meta($currentCurrency ?? 'IDR');
+        $currencyRateToIdr = is_array($currencyMeta) ? (float) ($currencyMeta['rate_to_idr'] ?? 1) : 1;
+        $currencyDecimals = is_array($currencyMeta) ? (int) ($currencyMeta['decimal_places'] ?? 0) : 0;
+    @endphp
+    window.appCurrency = @json($currentCurrency ?? 'IDR');
+    window.appCurrencyRateToIdr = @json($currencyRateToIdr);
+    window.appCurrencyDecimals = @json($currencyDecimals);
+
     function attachRequiredMarkers(root = document) {
         const fields = root.querySelectorAll('input[required], select[required], textarea[required]');
 
@@ -323,14 +372,40 @@
         });
     }
 
+    function attachMoneyHints(root = document) {
+        const currency = window.appCurrency || 'IDR';
+        const moneyPattern = /(price|rate|amount|fee|cost|discount|total)/i;
+        const fields = root.querySelectorAll('input[type="number"], input[inputmode="decimal"], input[inputmode="numeric"]');
+
+        fields.forEach((field) => {
+            if (field.dataset.moneyHintBound === '1' || field.dataset.moneyInput === '1') {
+                return;
+            }
+
+            const name = (field.getAttribute('name') || field.id || '').trim();
+            if (!name || !moneyPattern.test(name)) {
+                return;
+            }
+
+            const hint = document.createElement('div');
+            hint.className = 'money-hint text-[10px] text-gray-500 dark:text-gray-400 mt-1';
+            hint.textContent = `Currency: ${currency}`;
+
+            field.insertAdjacentElement('afterend', hint);
+            field.dataset.moneyHintBound = '1';
+        });
+    }
+
     document.addEventListener('DOMContentLoaded', () => {
         attachRequiredMarkers(document);
+        attachMoneyHints(document);
 
         const observer = new MutationObserver((mutations) => {
             mutations.forEach((mutation) => {
                 mutation.addedNodes.forEach((node) => {
                     if (node.nodeType === Node.ELEMENT_NODE) {
                         attachRequiredMarkers(node);
+                        attachMoneyHints(node);
                     }
                 });
             });

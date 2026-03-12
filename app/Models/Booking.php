@@ -2,10 +2,13 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasAudit;
 use Illuminate\Database\Eloquent\Model;
 
 class Booking extends Model
 {
+    use HasAudit;
+
     protected $fillable = [
         'booking_number',
         'quotation_id',

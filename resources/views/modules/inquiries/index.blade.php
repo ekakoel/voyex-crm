@@ -1,18 +1,16 @@
 @extends('layouts.master')
 
+@section('page_title', 'Inquiries')
+@section('page_subtitle', 'Manage inquiry data.')
+@section('page_actions')
+    <a href="{{ route('inquiries.create') }}" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">
+        Add Inquiry
+    </a>
+@endsection
+
 @section('content')
     <div class="space-y-6 module-page module-page--inquiries">
-        <div class="flex items-center justify-between">
-            <div>
-                <h1 class="app-section-title">Inquiries</h1>
-                <p class="mt-1 text-sm text-gray-600 dark:text-gray-300">Manage customer inquiries.</p>
-            </div>
-            <a href="{{ route('inquiries.create') }}" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">
-                Add Inquiry
-            </a>
-        </div>
-
-        <form method="GET" class="grid grid-cols-1 gap-3 app-card p-4 md:grid-cols-6">
+        <form method="GET" class="grid grid-cols-1 gap-3 app-card p-4 md:grid-cols-4">
             <input name="q" value="{{ request('q') }}" placeholder="Search number / customer" class="md:col-span-2 app-input">
             <select name="status" class="app-input">
                 <option value="">Status</option>
@@ -26,37 +24,18 @@
                     <option value="{{ $priority }}" @selected(request('priority') === $priority)>{{ $priority }}</option>
                 @endforeach
             </select>
-            <select name="source" class="app-input">
-                <option value="">Source</option>
-                @foreach (($sourceLabels ?? []) as $value => $label)
-                    <option value="{{ $value }}" @selected(request('source') === $value)>{{ $label }}</option>
-                @endforeach
-            </select>
-            <select name="itinerary" class="app-input">
-                <option value="">Itinerary</option>
-                <option value="available" @selected(request('itinerary') === 'available')>Available</option>
-                <option value="missing" @selected(request('itinerary') === 'missing')>Not Available</option>
-            </select>
-            <select name="customer_id" class="app-input">
-                <option value="">Customer</option>
-                @foreach ($customers as $customer)
-                    <option value="{{ $customer->id }}" @selected((string) request('customer_id') === (string) $customer->id)>({{ $customer->code ?? '-' }}) {{ $customer->name }}</option>
-                @endforeach
-            </select>
             <select name="assigned_to" class="app-input">
                 <option value="">Assigned</option>
                 @foreach ($assignees as $user)
                     <option value="{{ $user->id }}" @selected((string) request('assigned_to') === (string) $user->id)>{{ $user->name }}</option>
                 @endforeach
             </select>
-            <input name="deadline_from" type="date" value="{{ request('deadline_from') }}" class="app-input">
-            <input name="deadline_to" type="date" value="{{ request('deadline_to') }}" class="app-input">
             <select name="per_page" class="app-input">
                 @foreach ([10,25,50,100] as $size)
                     <option value="{{ $size }}" @selected((string) request('per_page', 10) === (string) $size)>{{ $size }}/page</option>
                 @endforeach
             </select>
-            <div class="flex items-center gap-2 md:col-span-6">
+            <div class="flex items-center gap-2 md:col-span-4">
                 <button class="rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800 dark:bg-gray-100 dark:text-gray-900">Filter</button>
                 <a href="{{ route('inquiries.index') }}" class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700">Reset</a>
             </div>
@@ -110,19 +89,23 @@
                     </div>
                     <div class="mt-3 flex flex-wrap gap-2">
                         <a href="{{ route('inquiries.show', $inquiry) }}" class="rounded-lg border border-indigo-300 px-3 py-1 text-xs font-medium text-indigo-700 hover:bg-indigo-50 dark:border-indigo-700 dark:text-indigo-300 dark:hover:bg-indigo-900/20">Detail</a>
-                        <a href="{{ route('inquiries.edit', $inquiry) }}" class="rounded-lg border border-gray-300 px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700">Edit</a>
+                        @if (!($inquiry->quotation && ($inquiry->quotation->status ?? '') === 'approved'))
+                            <a href="{{ route('inquiries.edit', $inquiry) }}" class="rounded-lg border border-gray-300 px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700">Edit</a>
+                        @endif
                         @if (($inquiry->itineraries_count ?? 0) === 0)
                             <a href="{{ route('itineraries.create', ['inquiry_id' => $inquiry->id]) }}" class="rounded-lg border border-emerald-300 px-3 py-1 text-xs font-medium text-emerald-700 hover:bg-emerald-50 dark:border-emerald-700 dark:text-emerald-300 dark:hover:bg-emerald-900/20">
                                 Create Itinerary
                             </a>
                         @endif
-                        <form action="{{ route('inquiries.destroy', $inquiry) }}" method="POST" class="inline">
-                            @csrf
-                            @method('DELETE')
-                            <button type="submit" onclick="return confirm('Are you sure you want to delete this inquiry?')" class="rounded-lg border border-rose-300 px-3 py-1 text-xs font-medium text-rose-700 hover:bg-rose-50 dark:border-rose-700 dark:text-rose-300 dark:hover:bg-rose-900/20">
-                                Delete
-                            </button>
-                        </form>
+                        @if (!($inquiry->quotation && ($inquiry->quotation->status ?? '') === 'approved'))
+                            <form action="{{ route('inquiries.destroy', $inquiry) }}" method="POST" class="inline">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" onclick="return confirm('Are you sure you want to delete this inquiry?')" class="rounded-lg border border-rose-300 px-3 py-1 text-xs font-medium text-rose-700 hover:bg-rose-50 dark:border-rose-700 dark:text-rose-300 dark:hover:bg-rose-900/20">
+                                    Delete
+                                </button>
+                            </form>
+                        @endif
                     </div>
                 </div>
             @empty
@@ -183,17 +166,21 @@
                             </td>
                             <td class="px-4 py-3 text-right text-sm">
                                 <a href="{{ route('inquiries.show', $inquiry) }}" class="mr-3 font-medium text-indigo-600 hover:text-indigo-700 dark:text-indigo-400">Detail</a>
-                                <a href="{{ route('inquiries.edit', $inquiry) }}" class="mr-3 font-medium text-indigo-600 hover:text-indigo-700 dark:text-indigo-400">Edit</a>
+                                @if (!($inquiry->quotation && ($inquiry->quotation->status ?? '') === 'approved'))
+                                    <a href="{{ route('inquiries.edit', $inquiry) }}" class="mr-3 font-medium text-indigo-600 hover:text-indigo-700 dark:text-indigo-400">Edit</a>
+                                @endif
                                 @if (($inquiry->itineraries_count ?? 0) === 0)
                                     <a href="{{ route('itineraries.create', ['inquiry_id' => $inquiry->id]) }}" class="mr-3 font-medium text-emerald-600 hover:text-emerald-700 dark:text-emerald-400">Create Itinerary</a>
                                 @endif
-                                <form action="{{ route('inquiries.destroy', $inquiry) }}" method="POST" class="inline">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button type="submit" onclick="return confirm('Are you sure you want to delete this inquiry?')" class="font-medium text-rose-600 hover:text-rose-700 dark:text-rose-400">
-                                        Delete
-                                    </button>
-                                </form>
+                                @if (!($inquiry->quotation && ($inquiry->quotation->status ?? '') === 'approved'))
+                                    <form action="{{ route('inquiries.destroy', $inquiry) }}" method="POST" class="inline">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" onclick="return confirm('Are you sure you want to delete this inquiry?')" class="font-medium text-rose-600 hover:text-rose-700 dark:text-rose-400">
+                                            Delete
+                                        </button>
+                                    </form>
+                                @endif
                             </td>
                         </tr>
                     @empty
@@ -208,7 +195,4 @@
         <div>{{ $inquiries->links() }}</div>
     </div>
 @endsection
-
-
-
 

@@ -5,10 +5,10 @@ use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\ActivityController as AdminActivityController;
 use App\Http\Controllers\Admin\AccommodationController as AdminAccommodationController;
 use App\Http\Controllers\Admin\AirportController as AdminAirportController;
+use App\Http\Controllers\Admin\CurrencyController as AdminCurrencyController;
 use App\Http\Controllers\Admin\DestinationController as AdminDestinationController;
 use App\Http\Controllers\Admin\FoodBeverageController as AdminFoodBeverageController;
 use App\Http\Controllers\Admin\TransportController as AdminTransportController;
-use App\Http\Controllers\Admin\QuotationTemplateController as AdminQuotationTemplateController;
 use App\Http\Controllers\Admin\RoleController as AdminRoleController;
 use App\Http\Controllers\Admin\ServiceController as AdminServiceController;
 use App\Http\Controllers\Admin\ItineraryController as AdminItineraryController;
@@ -17,6 +17,7 @@ use App\Http\Controllers\Admin\TouristAttractionController as AdminTouristAttrac
 use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\Admin\VendorController as AdminVendorController;
 use App\Http\Controllers\DashboardRedirectController;
+use App\Http\Controllers\CurrencyController;
 use App\Http\Controllers\Director\DashboardController as DirectorDashboardController;
 use App\Http\Controllers\Director\CompanySettingController as DirectorCompanySettingController;
 use App\Http\Controllers\Finance\DashboardController as FinanceDashboardController;
@@ -38,6 +39,10 @@ Route::get('/', function () {
 
     return view('auth.login');
 });
+
+Route::post('/currency', [CurrencyController::class, 'set'])
+    ->name('currency.set')
+    ->middleware('auth');
 
 // Debug route for menu filtering with detailed output
 Route::get('/debug-menu/{userId}', function ($userId) {
@@ -136,8 +141,15 @@ Route::middleware('auth')->group(function () {
         ->middleware(['module:inquiries', 'permission:module.inquiries.access']);
 
     Route::resource('quotations', SalesQuotationController::class)
-        ->except(['show'])
         ->middleware(['module:quotations', 'permission:module.quotations.access']);
+    Route::get('quotations/itinerary-items/{itinerary}', [SalesQuotationController::class, 'itineraryItems'])
+        ->name('quotations.itinerary-items')
+        ->middleware([
+            'module:quotations',
+            'permission:module.quotations.access',
+            'module:itineraries',
+            'permission:module.itineraries.access',
+        ]);
     Route::get('quotations/{quotation}/pdf', [SalesQuotationController::class, 'generatePDF'])
         ->name('quotations.pdf')
         ->middleware(['module:quotations', 'permission:module.quotations.access']);
@@ -150,6 +162,18 @@ Route::middleware('auth')->group(function () {
     Route::post('quotations/{quotation}/reject', [SalesQuotationController::class, 'reject'])
         ->name('quotations.reject')
         ->middleware(['module:quotations', 'permission:quotations.reject']);
+    Route::post('quotations/{quotation}/set-pending', [SalesQuotationController::class, 'setPending'])
+        ->name('quotations.set-pending')
+        ->middleware(['module:quotations', 'permission:module.quotations.access']);
+    Route::post('quotations/{quotation}/comments', [SalesQuotationController::class, 'storeComment'])
+        ->name('quotations.comments.store')
+        ->middleware(['module:quotations', 'permission:module.quotations.access']);
+    Route::put('quotations/{quotation}/comments/{comment}', [SalesQuotationController::class, 'updateComment'])
+        ->name('quotations.comments.update')
+        ->middleware(['module:quotations', 'permission:module.quotations.access']);
+    Route::delete('quotations/{quotation}/comments/{comment}', [SalesQuotationController::class, 'destroyComment'])
+        ->name('quotations.comments.destroy')
+        ->middleware(['module:quotations', 'permission:module.quotations.access']);
 
     // Admin routes group (no role prefix in route names)
     Route::group([], function () {
@@ -168,9 +192,6 @@ Route::middleware('auth')->group(function () {
         Route::resource('roles', AdminRoleController::class)
             ->except(['show'])
             ->middleware(['module:role_manager', 'permission:module.role_manager.access']);
-        Route::resource('quotation-templates', AdminQuotationTemplateController::class)
-            ->except(['show'])
-            ->middleware(['module:quotation_templates', 'permission:module.quotation_templates.access']);
         Route::get('itineraries/destination-suggestions', [AdminItineraryController::class, 'destinationSuggestions'])
             ->name('itineraries.destination-suggestions')
             ->middleware(['module:itineraries', 'permission:module.itineraries.access']);
@@ -192,6 +213,11 @@ Route::middleware('auth')->group(function () {
             ->middleware(['module:accommodations', 'permission:module.accommodations.access']);
         Route::resource('airports', AdminAirportController::class)
             ->middleware(['module:airports', 'permission:module.airports.access']);
+        Route::resource('currencies', AdminCurrencyController::class)
+            ->middleware(['module:currencies', 'permission:module.currencies.access']);
+        Route::post('currencies/bulk-update', [AdminCurrencyController::class, 'bulkUpdate'])
+            ->name('currencies.bulk-update')
+            ->middleware(['module:currencies', 'permission:module.currencies.access']);
         Route::resource('destinations', AdminDestinationController::class)
             ->middleware(['module:destinations', 'permission:module.destinations.access']);
         Route::resource('transports', AdminTransportController::class)

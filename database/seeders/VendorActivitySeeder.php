@@ -3,13 +3,51 @@
 namespace Database\Seeders;
 
 use App\Models\Activity;
+use App\Models\ActivityType;
 use App\Models\Vendor;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Str;
 
 class VendorActivitySeeder extends Seeder
 {
     public function run(): void
     {
+        $resolveActivityTypeId = function (string $name): int {
+            $normalizedName = trim(preg_replace('/\s+/', ' ', $name) ?? '');
+            $type = ActivityType::query()
+                ->whereRaw('LOWER(name) = ?', [mb_strtolower($normalizedName)])
+                ->first();
+
+            if ($type) {
+                if (! $type->is_active) {
+                    $type->is_active = true;
+                    $type->save();
+                }
+
+                return (int) $type->id;
+            }
+
+            $baseSlug = Str::slug($normalizedName);
+            if ($baseSlug === '') {
+                $baseSlug = 'activity-type';
+            }
+
+            $slug = $baseSlug;
+            $counter = 2;
+            while (ActivityType::query()->where('slug', $slug)->exists()) {
+                $slug = $baseSlug . '-' . $counter;
+                $counter++;
+            }
+
+            $created = ActivityType::query()->create([
+                'name' => $normalizedName,
+                'slug' => $slug,
+                'is_active' => true,
+            ]);
+
+            return (int) $created->id;
+        };
+
         $vendors = [
             [
                 'name' => 'Bali Ocean Trips',
@@ -177,6 +215,8 @@ class VendorActivitySeeder extends Seeder
             );
 
             foreach ($vendorData['activities'] as $activityData) {
+                $activityTypeId = $resolveActivityTypeId((string) $activityData['activity_type']);
+
                 Activity::query()->updateOrCreate(
                     [
                         'vendor_id' => $vendor->id,
@@ -184,6 +224,7 @@ class VendorActivitySeeder extends Seeder
                     ],
                     [
                         'activity_type' => $activityData['activity_type'],
+                        'activity_type_id' => $activityTypeId,
                         'duration_minutes' => $activityData['duration_minutes'],
                         'benefits' => 'Standard activity package',
                         'contract_price' => $activityData['contract_price'],

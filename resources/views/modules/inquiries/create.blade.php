@@ -1,12 +1,15 @@
 @extends('layouts.master')
 
+@section('page_title', 'Add Inquiry')
+@section('page_subtitle', 'Create a new inquiry record.')
+@section('page_actions')
+    <a href="{{ route('inquiries.index') }}" class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700">
+        Back
+    </a>
+@endsection
+
 @section('content')
     <div class="max-w-4xl space-y-6 module-page module-page--inquiries">
-        <div>
-            <h1 class="app-section-title">Add Inquiry</h1>
-            <p class="mt-1 text-sm text-gray-600 dark:text-gray-300">Create a new inquiry from a customer.</p>
-        </div>
-
         <div class="module-form-wrap">
             <form method="POST" action="{{ route('inquiries.store') }}">
                 @csrf
@@ -17,6 +20,8 @@
         </div>
     </div>
 @endsection
+
+
 
 
 

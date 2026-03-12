@@ -9,7 +9,7 @@
             <option value="">Select quotation</option>
             @foreach ($quotations as $quotation)
                 <option value="{{ $quotation->id }}" @selected(old('quotation_id', $booking->quotation_id ?? null) == $quotation->id)>
-                    {{ $quotation->quotation_number }} - {{ $quotation->inquiry->customer->name ?? '-' }}
+                    {{ $quotation->quotation_number }} - {{ $quotation->inquiry?->customer?->name ?? '-' }}
                 </option>
             @endforeach
         </select>

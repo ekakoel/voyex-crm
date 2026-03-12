@@ -106,7 +106,6 @@ class DashboardController extends Controller
             'transports',
             'tourist_attractions',
             'user_manager',
-            'quotation_templates',
         ];
 
         $managedModules = Module::query()

@@ -2,16 +2,10 @@
 
 @section('content')
     <div class="space-y-6">
-        <div class="flex items-center justify-between gap-5">
-            <div>
-                <h1 class="text-2xl font-semibold text-gray-800 dark:text-gray-100">Role & Permissions</h1>
-                <p class="mt-1 text-sm text-gray-600 dark:text-gray-300">This page is used to manage roles and module access permissions, ensuring that each user can only access modules according to their assigned permissions.</p>
-            </div>
-            <a href="{{ route('roles.create') }}"
-                class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">
-                Add Role
-            </a>
-        </div>
+        @section('page_actions')<a href="{{ route('roles.create') }}"
+                    class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">
+                    Add Role
+                </a>@endsection
 
         @if (session('success'))
             <div class="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300">
@@ -106,5 +100,7 @@
         </div>
     </div>
 @endsection
+
+
 
 

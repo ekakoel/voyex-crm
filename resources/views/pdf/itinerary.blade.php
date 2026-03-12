@@ -19,31 +19,70 @@
         table.items { width: 100%; border-collapse: collapse; margin-top: 8px; }
         table.items th, table.items td { border: 1px solid #e5e7eb; padding: 6px; vertical-align: top; }
         table.items th { background: #f9fafb; font-size: 10px; text-transform: uppercase; letter-spacing: .06em; color: #374151; }
+        tr.highlight-item td { background: #fffbeb; border-color: #fcd34d; }
+        tr.highlight-item td:first-child { border-left: 3px solid #f59e0b; }
         .thumb-box { width: 100%; aspect-ratio: 4 / 3; border: 1px solid #e5e7eb; border-radius: 4px; overflow: hidden; background: #ffffff; }
         .thumb-box img { width: 100%; height: 180px; object-fit: cover; display: block; }
         .muted { color: #6b7280; }
+        .richtext { line-height: 1.45; color: #6b7280; }
+        .richtext p { margin: 0 0 4px; }
+        .richtext ul, .richtext ol { margin: 2px 0 4px 16px; }
+        .richtext ul { list-style: disc; }
+        .richtext ol { list-style: decimal; }
+        .richtext blockquote { border-left: 2px solid #94a3b8; padding-left: 6px; margin: 2px 0; color: #475569; }
+        .highlight-badge {
+            display: inline-block;
+            margin-left: 6px;
+            border: 1px solid #f59e0b;
+            background: #fef3c7;
+            color: #92400e;
+            border-radius: 999px;
+            font-size: 9px;
+            font-weight: 700;
+            line-height: 1;
+            padding: 2px 6px;
+            text-transform: uppercase;
+        }
         .type-badge { display: inline-block; border-radius: 999px; padding: 2px 7px; font-size: 9px; font-weight: 700; border: 1px solid #d1d5db; }
         .type-attraction { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
         .type-activity { background: #ecfdf5; color: #047857; border-color: #a7f3d0; }
         .type-fnb { background: #fffbeb; color: #b45309; border-color: #fcd34d; }
         .type-point { background: #f1f5f9; color: #334155; border-color: #cbd5e1; }
         .right { text-align: right; }
+        .day-inc-exc { margin-top: 6px; width: 100%; border-collapse: collapse; }
+        .day-inc-exc td { border: 1px solid #e5e7eb; padding: 6px; vertical-align: top; }
+        .day-inc-exc .inc { background: #ecfdf5; border-color: #a7f3d0; }
+        .day-inc-exc .exc { background: #fff1f2; border-color: #fecdd3; }
+        .day-inc-exc .title { display: block; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 3px; color: #374151; }
+        .transport-box { margin-top: 8px; border: 1px solid #e5e7eb; border-radius: 8px; padding: 8px; background: #f8fafc; }
+        .transport-title { font-size: 10px; text-transform: uppercase; letter-spacing: .06em; color: #334155; font-weight: 700; margin-bottom: 6px; }
+        table.transport-table { width: 100%; border-collapse: collapse; }
+        table.transport-table td { vertical-align: top; padding: 4px 6px; }
+        .transport-thumb { width: 190px; }
+        .transport-thumb .thumb-box img { height: 130px; }
+        .transport-detail { font-size: 10px; color: #374151; }
+        .transport-detail strong { color: #111827; }
         .footer { margin-top: 14px; font-size: 10px; color: #6b7280; text-align: right; }
     </style>
 </head>
 <body>
     <div class="header">
-        <div class="title">Travel Itinerary</div>
+        <span>ITINERARY</span><br>
+        <div class="title">{{ $itinerary->title }}</div>
         <div class="subtitle">Generated on {{ now()->format('d M Y H:i') }}</div>
-        <span class="chip">Title: {{ $itinerary->title }}</span>
-        <span class="chip">Duration: {{ $itinerary->duration_days }} day(s)</span>
+        <span>Duration: {{ $itinerary->duration_days."D" }}{{ $itinerary->duration_nights > 0 ? "/".$itinerary->duration_nights."N":"";  }}</span>
     </div>
 
     <div class="panel">
-        <div class="panel-title">Itinerary Overview</div>
+        <div class="panel-title">Overview</div>
         <table class="info-table">
             <tr>
-                <td>{{ $itinerary->description ?: '-' }}</td>
+                <td>
+                    @php
+                        $overview = \App\Support\SafeRichText::sanitize($itinerary->description);
+                    @endphp
+                    {!! $overview !== '' ? $overview : '-' !!}
+                </td>
             </tr>
         </table>
     </div>
@@ -54,7 +93,9 @@
                 <div class="day-title">Day {{ $day['day'] }}</div>
                 <div class="day-time">Start Tour: {{ $day['start_time'] }} | End Tour: {{ $day['end_time'] }}</div>
             </div>
-            <div class="day-time" style="margin-top: 4px;">Travel from Start Point: {{ (int) ($day['start_travel_minutes'] ?? 0) }} min</div>
+            <div class="day-time" style="margin-top: 4px;">
+                Travel from {{ $day['start_point_type_label'] ?? 'Unknown' }}: {{ (int) ($day['start_travel_minutes'] ?? 0) }} min
+            </div>
 
             <table class="items">
                 <thead>
@@ -68,10 +109,18 @@
                 </thead>
                 <tbody>
                     @forelse ($day['items'] as $index => $item)
-                        <tr>
+                        <tr class="{{ !empty($item['is_main_experience']) ? 'highlight-item' : '' }}">
                             <td class="center">{{ $index + 1 }}</td>
                             <td>
-                                <strong>{{ in_array(($item['point_role'] ?? ''), ['start', 'end'], true) ? ($item['point_type_label'] ?? $item['type']) : $item['type'] }}</strong><br>
+                                <strong>
+                                    @if (($item['point_role'] ?? '') === 'start')
+                                        {{ $item['point_type_label'] ?? 'Unknown' }}
+                                    @elseif (($item['point_role'] ?? '') === 'end')
+                                        {{ $item['point_type_label'] ?? 'Unknown' }}
+                                    @else
+                                        {{ $item['type'] }}
+                                    @endif
+                                </strong><br>
                                 @if (($item['point_role'] ?? '') === 'start')
                                     {{ $item['start_time'] ?: '--:--' }}
                                 @elseif (($item['point_role'] ?? '') === 'end')
@@ -81,8 +130,32 @@
                                 @endif
                             </td>
                             <td>
-                                <div><strong>{{ $item['name'] }}</strong></div>
-                                <div class="muted">{{ \Illuminate\Support\Str::limit(strip_tags((string) ($item['description'] ?? '-')), 120) }}</div>
+                                <div>
+                                    <strong>{{ $item['name'] }}</strong><br>
+                                    @if (!empty($item['is_main_experience']))
+                                        <span>Main Experience</span>
+                                    @endif
+                                </div>
+                                @php
+                                    $itemDescription = \App\Support\SafeRichText::sanitize((string) ($item['description'] ?? ''));
+                                @endphp
+                                <div class="richtext">{!! $itemDescription !== '' ? $itemDescription : '-' !!}</div>
+                                @if (strtolower((string) ($item['type'] ?? '')) === 'activity')
+                                    @php
+                                        $activityIncludeText = \App\Support\SafeRichText::plainText($item['includes'] ?? null);
+                                        $activityExcludeText = \App\Support\SafeRichText::plainText($item['excludes'] ?? null);
+                                        $activityIncludeHtml = \App\Support\SafeRichText::sanitize((string) ($item['includes'] ?? ''));
+                                        $activityExcludeHtml = \App\Support\SafeRichText::sanitize((string) ($item['excludes'] ?? ''));
+                                    @endphp
+                                    @if (filled($activityIncludeText))
+                                        <div class="richtext"><strong>Includes:</strong></div>
+                                        <div class="richtext">{!! $activityIncludeHtml !!}</div>
+                                    @endif
+                                    @if (filled($activityExcludeText))
+                                        <div class="richtext"><strong>Excludes:</strong></div>
+                                        <div class="richtext">{!! $activityExcludeHtml !!}</div>
+                                    @endif
+                                @endif
                             </td>
                             <td>{{ $item['location'] }}</td>
                             <td>
@@ -100,6 +173,58 @@
                     @endforelse
                 </tbody>
             </table>
+            @php
+                $dayIncludeText = \App\Support\SafeRichText::plainText($day['day_include'] ?? null);
+                $dayExcludeText = \App\Support\SafeRichText::plainText($day['day_exclude'] ?? null);
+                $dayIncludeHtml = \App\Support\SafeRichText::sanitize($day['day_include'] ?? '');
+                $dayExcludeHtml = \App\Support\SafeRichText::sanitize($day['day_exclude'] ?? '');
+                $dayTransport = $day['transport_unit'] ?? null;
+            @endphp
+            <div class="transport-box">
+                <div class="transport-title">Transport Unit Day {{ $day['day'] }}</div>
+                <table class="transport-table">
+                    <tr>
+                        <td class="transport-thumb">
+                            @if (!empty($dayTransport['thumbnail_data_uri']))
+                                <div class="thumb-box">
+                                    <img src="{{ $dayTransport['thumbnail_data_uri'] }}" alt="Transport Unit Thumbnail">
+                                </div>
+                            @else
+                                <span class="muted">No transport image.</span>
+                            @endif
+                        </td>
+                        <td class="transport-detail">
+                            @if (empty($dayTransport['assigned']))
+                                <div class="muted">No transport unit assigned for this day.</div>
+                            @else
+                                <div><strong>Unit:</strong> {{ $dayTransport['unit_name'] ?? '-' }}</div>
+                                <div><strong>Transport:</strong> {{ $dayTransport['transport_name'] ?? '-' }} ({{ $dayTransport['transport_type'] ?? '-' }})</div>
+                                <div><strong>Vehicle:</strong> {{ $dayTransport['vehicle_type'] ?? '-' }} | {{ $dayTransport['brand_model'] ?? '-' }}</div>
+                                <div><strong>Capacity:</strong> Seat {{ $dayTransport['seat_capacity'] ?? '-' }} | Luggage {{ $dayTransport['luggage_capacity'] ?? '-' }}</div>
+                                <div><strong>Driver:</strong> {{ !empty($dayTransport['with_driver']) ? 'With driver' : 'Without driver' }} | <strong>AC:</strong> {{ !empty($dayTransport['air_conditioned']) ? 'Yes' : 'No' }}</div>
+                            @endif
+                        </td>
+                    </tr>
+                </table>
+            </div>
+            @if (filled($dayIncludeText) || filled($dayExcludeText))
+                <table class="day-inc-exc">
+                    <tr>
+                        @if (filled($dayIncludeText))
+                            <td class="inc">
+                                <span class="title">Day {{ $day['day'] }} Include</span>
+                                <div class="richtext">{!! $dayIncludeHtml !!}</div>
+                            </td>
+                        @endif
+                        @if (filled($dayExcludeText))
+                            <td class="exc">
+                                <span class="title">Day {{ $day['day'] }} Exclude</span>
+                                <div class="richtext">{!! $dayExcludeHtml !!}</div>
+                            </td>
+                        @endif
+                    </tr>
+                </table>
+            @endif
         </div>
     @endforeach
 

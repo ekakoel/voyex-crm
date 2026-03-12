@@ -2,13 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasAudit;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use App\Models\User;
 
 class Inquiry extends Model
 {
-    use HasFactory;
+    use HasFactory, HasAudit;
     protected $fillable = [
         'inquiry_number',
         'customer_id',

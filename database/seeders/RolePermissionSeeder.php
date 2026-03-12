@@ -53,7 +53,6 @@ class RolePermissionSeeder extends Seeder
                 'module.transports.access',
                 'module.tourist_attractions.access',
                 'module.user_manager.access',
-                'module.quotation_templates.access',
             ],
             'Sales Manager' => [
                 'dashboard.sales.view',
@@ -85,6 +84,7 @@ class RolePermissionSeeder extends Seeder
                 'dashboard.sales.view',
                 'module.customer_management.access',
                 'module.inquiries.access',
+                'module.itineraries.access',
                 'module.quotations.access',
                 'quotations.approve',
                 'quotations.reject',

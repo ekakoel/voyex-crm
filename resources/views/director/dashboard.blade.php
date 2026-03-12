@@ -12,20 +12,16 @@
         }
     @endphp
 
-    <div class="flex flex-col sm:flex-row justify-between items-start mb-8">
-        <div>
-            <h1 class="text-3xl font-bold text-gray-800 dark:text-gray-100">Dashboard</h1>
-            <p class="text-gray-500 dark:text-gray-400 mt-1">Company performance summary.</p>
-        </div>
-        <div class="mt-4 sm:mt-0">
-            <span class="text-sm font-medium text-gray-600 dark:text-gray-300">{{ \Carbon\Carbon::now()->format('l, j F Y') }}</span>
-        </div>
-    </div>
+    @section('page_title', 'Dashboard')
+    @section('page_subtitle', 'Company performance summary.')
+    @section('page_actions')
+        <span class="text-sm font-medium text-gray-600 dark:text-gray-300">{{ \Carbon\Carbon::now()->format('l, j F Y') }}</span>
+    @endsection
 
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
         <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-md border border-gray-200 dark:border-gray-700">
             <p class="text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Monthly Revenue</p>
-            <p class="text-3xl font-bold text-primary mt-2">Rp {{ number_format($monthlyRevenue, 0) }}</p>
+            <p class="text-3xl font-bold text-primary mt-2"><x-money :amount="$monthlyRevenue ?? 0" currency="IDR" /></p>
         </div>
         <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-md border border-gray-200 dark:border-gray-700">
             <p class="text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Conversion Rate</p>

@@ -10,6 +10,7 @@ class Activity extends Model
         'vendor_id',
         'name',
         'activity_type',
+        'activity_type_id',
         'duration_minutes',
         'benefits',
         'descriptions',
@@ -39,5 +40,10 @@ class Activity extends Model
     public function vendor()
     {
         return $this->belongsTo(Vendor::class);
+    }
+
+    public function activityType()
+    {
+        return $this->belongsTo(ActivityType::class);
     }
 }

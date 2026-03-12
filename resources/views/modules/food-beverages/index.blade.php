@@ -2,14 +2,7 @@
 
 @section('content')
     <div class="space-y-6">
-        <div class="flex items-center justify-between">
-            <div>
-                <h1 class="text-2xl font-semibold text-gray-800 dark:text-gray-100">F&B Services</h1>
-                <p class="mt-1 text-sm text-gray-600 dark:text-gray-300">Manage food and beverage services by vendor.</p>
-                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Contract Price dan Agent Price disimpan sebagai harga per pax.</p>
-            </div>
-            <a href="{{ route('food-beverages.create') }}" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">Add F&B</a>
-        </div>
+        @section('page_actions')<a href="{{ route('food-beverages.create') }}" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">Add F&B</a>@endsection
 
         @if (session('success'))
             <div class="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300">{{ session('success') }}</div>
@@ -53,7 +46,7 @@
                             <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">{{ $foodBeverage->vendor->name ?? '-' }}</td>
                             <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">{{ ucwords(str_replace('_', ' ', (string) $foodBeverage->service_type)) }}</td>
                             <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">{{ $foodBeverage->duration_minutes }} min</td>
-                            <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">{{ $foodBeverage->currency }} {{ number_format((float) ($foodBeverage->agent_price ?? 0), 2) }} / pax</td>
+                            <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200"><x-money :amount="(float) ($foodBeverage->agent_price ?? 0)" :currency="$foodBeverage->currency ?? 'IDR'" /> / pax</td>
                             <td class="px-4 py-3 text-right text-sm">
                                 <a href="{{ route('food-beverages.edit', $foodBeverage) }}" class="mr-3 font-medium text-indigo-600 hover:text-indigo-700 dark:text-indigo-400">Edit</a>
                                 <form action="{{ route('food-beverages.destroy', $foodBeverage) }}" method="POST" class="inline">
@@ -75,3 +68,5 @@
         <div>{{ $foodBeverages->links() }}</div>
     </div>
 @endsection
+
+

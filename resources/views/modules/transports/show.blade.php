@@ -2,23 +2,16 @@
 
 @section('content')
     <div class="space-y-6">
-        <div class="flex flex-wrap items-start justify-between gap-3">
-            <div>
-                <h1 class="text-2xl font-semibold text-gray-800 dark:text-gray-100">{{ $transport->name }}</h1>
-                <p class="mt-1 text-sm text-gray-600 dark:text-gray-300">
-                    {{ $transport->code }} • {{ ucfirst(str_replace('_', ' ', (string) $transport->transport_type)) }}
-                </p>
-            </div>
-            <div class="flex items-center gap-2">
-                <a href="{{ route('transports.edit', $transport) }}" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">Edit</a>
-                <a href="{{ route('transports.index') }}" class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700">Back</a>
-            </div>
-        </div>
+        @section('page_actions')<a href="{{ route('transports.edit', $transport) }}" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">Edit</a>
+                <a href="{{ route('transports.index') }}" class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700">Back</a>@endsection
 
         <div class="grid grid-cols-1 gap-4 xl:grid-cols-3">
             <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800 xl:col-span-2">
                 <h2 class="text-sm font-semibold text-gray-800 dark:text-gray-100">Overview</h2>
                 <div class="mt-3 grid grid-cols-1 gap-3 text-sm md:grid-cols-2">
+                    <div><span class="text-gray-500 dark:text-gray-400">Name:</span> <span class="text-gray-800 dark:text-gray-100">{{ $transport->name }}</span></div>
+                    <div><span class="text-gray-500 dark:text-gray-400">Code:</span> <span class="text-gray-800 dark:text-gray-100">{{ $transport->code ?: '-' }}</span></div>
+                    <div><span class="text-gray-500 dark:text-gray-400">Type:</span> <span class="text-gray-800 dark:text-gray-100">{{ $transport->transport_type ? ucfirst(str_replace('_', ' ', (string) $transport->transport_type)) : '-' }}</span></div>
                     <div><span class="text-gray-500 dark:text-gray-400">Provider:</span> <span class="text-gray-800 dark:text-gray-100">{{ $transport->provider_name ?: '-' }}</span></div>
                     <div><span class="text-gray-500 dark:text-gray-400">Service Scope:</span> <span class="text-gray-800 dark:text-gray-100">{{ $transport->service_scope ? ucfirst(str_replace('_', ' ', $transport->service_scope)) : '-' }}</span></div>
                     <div><span class="text-gray-500 dark:text-gray-400">Location:</span> <span class="text-gray-800 dark:text-gray-100">{{ $transport->location ?: '-' }}</span></div>
@@ -117,9 +110,9 @@
                                     @endif
                                 </td>
                                 <td class="px-3 py-2 text-gray-700 dark:text-gray-200">{{ $unit->seat_capacity }} seat{{ $unit->seat_capacity > 1 ? 's' : '' }}<br><span class="text-xs text-gray-500 dark:text-gray-400">Luggage: {{ $unit->luggage_capacity ?? '-' }}</span></td>
-                                <td class="px-3 py-2 text-gray-700 dark:text-gray-200">{{ $unit->currency }} {{ number_format((float) $unit->contract_rate, 0) }}</td>
-                                <td class="px-3 py-2 text-gray-700 dark:text-gray-200">{{ $unit->publish_rate !== null ? $unit->currency . ' ' . number_format((float) $unit->publish_rate, 0) : '-' }}</td>
-                                <td class="px-3 py-2 text-gray-700 dark:text-gray-200">{{ $unit->overtime_rate !== null ? $unit->currency . ' ' . number_format((float) $unit->overtime_rate, 0) : '-' }}</td>
+                                <td class="px-3 py-2 text-gray-700 dark:text-gray-200"><x-money :amount="(float) $unit->contract_rate" :currency="$unit->currency ?? 'IDR'" /></td>
+                                <td class="px-3 py-2 text-gray-700 dark:text-gray-200">{{ $unit->publish_rate !== null ? \App\Support\Currency::format((float) $unit->publish_rate, $unit->currency ?? 'IDR') : '-' }}</td>
+                                <td class="px-3 py-2 text-gray-700 dark:text-gray-200">{{ $unit->overtime_rate !== null ? \App\Support\Currency::format((float) $unit->overtime_rate, $unit->currency ?? 'IDR') : '-' }}</td>
                                 <td class="px-3 py-2 text-gray-700 dark:text-gray-200">{{ $unit->benefits ?: '-' }}</td>
                             </tr>
                         @empty
@@ -133,3 +126,5 @@
         </div>
     </div>
 @endsection
+
+

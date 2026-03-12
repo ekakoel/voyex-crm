@@ -2,14 +2,7 @@
 
 @section('content')
     <div class="space-y-6">
-        <div class="flex items-center justify-between">
-            <div>
-                <h1 class="text-2xl font-semibold text-gray-800 dark:text-gray-100">Tourist Attractions</h1>
-                <p class="mt-1 text-sm text-gray-600 dark:text-gray-300">Manage destination data for itineraries.</p>
-                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Entrance Fee dan biaya lain disimpan sebagai harga per pax.</p>
-            </div>
-            <a href="{{ route('tourist-attractions.create') }}" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">Add Attraction</a>
-        </div>
+        @section('page_actions')<a href="{{ route('tourist-attractions.create') }}" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">Add Attraction</a>@endsection
 
         @if (session('success'))
             <div class="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300">{{ session('success') }}</div>
@@ -36,10 +29,10 @@
                             </td>
                             <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">{{ $touristAttraction->ideal_visit_minutes }} min</td>
                             <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">
-                                <div>Entrance: {{ $touristAttraction->entrance_fee_per_pax !== null ? ($touristAttraction->currency.' '.number_format((float) $touristAttraction->entrance_fee_per_pax, 2)) : '-' }} / pax</div>
+                                <div>Entrance: {{ $touristAttraction->entrance_fee_per_pax !== null ? \App\Support\Currency::format((float) $touristAttraction->entrance_fee_per_pax, $touristAttraction->currency ?? 'IDR') : '-' }} / pax</div>
                                 <div class="text-xs text-gray-500 dark:text-gray-400">
                                     {{ $touristAttraction->other_fee_label ?: 'Other Fee' }}:
-                                    {{ $touristAttraction->other_fee_per_pax !== null ? ($touristAttraction->currency.' '.number_format((float) $touristAttraction->other_fee_per_pax, 2)) : '-' }} / pax
+                                    {{ $touristAttraction->other_fee_per_pax !== null ? \App\Support\Currency::format((float) $touristAttraction->other_fee_per_pax, $touristAttraction->currency ?? 'IDR') : '-' }} / pax
                                 </div>
                             </td>
                             <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">{{ $touristAttraction->city ?? '-' }} / {{ $touristAttraction->province ?? '-' }}</td>
@@ -72,8 +65,8 @@
                     <p class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ $touristAttraction->name }}</p>
                     <p class="text-xs text-indigo-600 dark:text-indigo-300">{{ $touristAttraction->destination?->name ?? '-' }}</p>
                     <p class="text-xs text-gray-500 dark:text-gray-400">Ideal: {{ $touristAttraction->ideal_visit_minutes }} min</p>
-                    <p class="text-xs text-gray-500 dark:text-gray-400">Entrance: {{ $touristAttraction->entrance_fee_per_pax !== null ? ($touristAttraction->currency.' '.number_format((float) $touristAttraction->entrance_fee_per_pax, 2)) : '-' }} / pax</p>
-                    <p class="text-xs text-gray-500 dark:text-gray-400">{{ $touristAttraction->other_fee_label ?: 'Other Fee' }}: {{ $touristAttraction->other_fee_per_pax !== null ? ($touristAttraction->currency.' '.number_format((float) $touristAttraction->other_fee_per_pax, 2)) : '-' }} / pax</p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">Entrance: {{ $touristAttraction->entrance_fee_per_pax !== null ? \App\Support\Currency::format((float) $touristAttraction->entrance_fee_per_pax, $touristAttraction->currency ?? 'IDR') : '-' }} / pax</p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">{{ $touristAttraction->other_fee_label ?: 'Other Fee' }}: {{ $touristAttraction->other_fee_per_pax !== null ? \App\Support\Currency::format((float) $touristAttraction->other_fee_per_pax, $touristAttraction->currency ?? 'IDR') : '-' }} / pax</p>
                     <p class="text-xs text-gray-500 dark:text-gray-400">{{ $touristAttraction->city ?? '-' }} / {{ $touristAttraction->province ?? '-' }}</p>
                     <div class="mt-3 flex flex-wrap gap-2">
                         <a href="{{ route('tourist-attractions.edit', $touristAttraction) }}" class="rounded-lg border border-gray-300 px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700">Edit</a>
@@ -92,5 +85,7 @@
         <div>{{ $touristAttractions->links() }}</div>
     </div>
 @endsection
+
+
 
 

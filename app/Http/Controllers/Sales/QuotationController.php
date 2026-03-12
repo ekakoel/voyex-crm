@@ -3,19 +3,29 @@
 namespace App\Http\Controllers\Sales;
 
 use PDF;
-use App\Models\Inquiry;
+use App\Models\AccommodationRoom;
+use App\Models\Activity;
+use App\Models\FoodBeverage;
+use App\Models\Itinerary;
 use App\Models\Quotation;
+use App\Models\QuotationComment;
 use App\Models\QuotationItem;
-use App\Models\QuotationTemplate;
+use App\Models\TouristAttraction;
+use App\Models\TransportUnit;
+use App\Services\ItineraryQuotationService;
 use App\Services\InvoiceService;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\DB;
 
 class QuotationController extends Controller
 {
-    public function __construct(private readonly InvoiceService $invoiceService)
+    public function __construct(
+        private readonly InvoiceService $invoiceService,
+        private readonly ItineraryQuotationService $itineraryQuotationService
+    )
     {
     }
 
@@ -24,7 +34,7 @@ class QuotationController extends Controller
      */
     public function index()
     {
-        $query = Quotation::query()->with(['inquiry.customer']);
+        $query = Quotation::query()->with(['inquiry.customer', 'creator']);
 
         $query->when(request('q'), function ($q) {
             $term = request('q');
@@ -38,19 +48,11 @@ class QuotationController extends Controller
         });
 
         $query->when(request('status'), fn ($q) => $q->where('status', request('status')));
-        $query->when(request('inquiry_id'), fn ($q) => $q->where('inquiry_id', request('inquiry_id')));
-        $query->when(request('valid_from'), fn ($q) => $q->whereDate('validity_date', '>=', request('valid_from')));
-        $query->when(request('valid_to'), fn ($q) => $q->whereDate('validity_date', '<=', request('valid_to')));
-        $query->when(request('min_amount'), fn ($q) => $q->where('final_amount', '>=', request('min_amount')));
-        $query->when(request('max_amount'), fn ($q) => $q->where('final_amount', '<=', request('max_amount')));
-
         $perPage = (int) request('per_page', 10);
         $perPage = $perPage > 0 && $perPage <= 100 ? $perPage : 10;
 
         $quotations = $query->latest()->paginate($perPage)->withQueryString();
-        $inquiries = Inquiry::query()->with('customer')->orderBy('created_at', 'desc')->get();
-
-        return view('modules.quotations.index', compact('quotations', 'inquiries'));
+        return view('modules.quotations.index', compact('quotations'));
     }
 
     /**
@@ -58,15 +60,18 @@ class QuotationController extends Controller
      */
     public function create()
     {
-        $inquiries = Inquiry::query()
-            ->with('customer')
+        $prefillItineraryId = request()->integer('itinerary_id') ?: null;
+        $itineraries = Itinerary::query()
+            ->with(['inquiry.customer'])
             ->whereDoesntHave('quotation')
-            ->orderBy('created_at', 'desc')
-            ->get();
+            ->orderByDesc('id')
+            ->get(['id', 'title', 'inquiry_id', 'destination', 'duration_days', 'duration_nights', 'is_active']);
 
-        $templates = QuotationTemplate::query()->where('is_active', true)->orderBy('name')->get();
+        if ($prefillItineraryId && ! $itineraries->firstWhere('id', $prefillItineraryId)) {
+            $prefillItineraryId = null;
+        }
 
-        return view('modules.quotations.create', compact('inquiries', 'templates'));
+        return view('modules.quotations.create', compact('itineraries', 'prefillItineraryId'));
     }
 
     /**
@@ -81,19 +86,40 @@ class QuotationController extends Controller
         $request->merge(['items' => $items]);
 
         $validated = $request->validate([
-            'inquiry_id' => ['required', 'exists:inquiries,id', 'unique:quotations,inquiry_id'],
-            'status' => ['required', Rule::in(['draft', 'sent', 'approved', 'rejected'])],
+            'itinerary_id' => [
+                'required',
+                'integer',
+                'exists:itineraries,id',
+                Rule::unique('quotations', 'itinerary_id'),
+            ],
+            'status' => ['required', Rule::in(['draft', 'pending', 'sent', 'approved', 'rejected'])],
             'validity_date' => ['required', 'date'],
-            'template_id' => ['nullable', 'exists:quotation_templates,id'],
             'discount_type' => ['nullable', Rule::in(['percent', 'fixed'])],
             'discount_value' => ['nullable', 'numeric', 'min:0'],
             'items' => ['required', 'array', 'min:1'],
             'items.*.description' => ['required', 'string', 'max:255'],
             'items.*.qty' => ['required', 'integer', 'min:1'],
             'items.*.unit_price' => ['required', 'numeric', 'min:0'],
+            'items.*.discount_type' => ['nullable', Rule::in(['percent', 'fixed'])],
             'items.*.discount' => ['nullable', 'numeric', 'min:0'],
+            'items.*.serviceable_type' => ['nullable', Rule::in($this->serviceableTypes())],
+            'items.*.serviceable_id' => ['nullable', 'integer', 'min:1'],
+            'items.*.day_number' => ['nullable', 'integer', 'min:1'],
+            'items.*.serviceable_meta' => ['nullable'],
+            'items.*.itinerary_item_type' => ['nullable', Rule::in($this->itineraryItemTypes())],
         ]);
 
+        foreach ($validated['items'] as $index => $item) {
+            $type = ($item['discount_type'] ?? 'fixed') === 'percent' ? 'percent' : 'fixed';
+            $value = (float) ($item['discount'] ?? 0);
+            if ($type === 'percent' && $value > 100) {
+                throw ValidationException::withMessages([
+                    "items.{$index}.discount" => 'Discount percent cannot be greater than 100.',
+                ]);
+            }
+        }
+
+        $inquiryId = $this->resolveInquiryIdFromItinerary((int) $validated['itinerary_id']);
         $this->assertPricingPermission($validated);
 
         $validated['quotation_number'] = $this->generateQuotationNumber();
@@ -104,15 +130,14 @@ class QuotationController extends Controller
 
             $quotation = Quotation::query()->create([
                 'quotation_number' => $validated['quotation_number'],
-                'inquiry_id' => $validated['inquiry_id'],
+                'inquiry_id' => $inquiryId,
+                'itinerary_id' => $validated['itinerary_id'],
                 'status' => $validated['status'],
                 'validity_date' => $validated['validity_date'],
-                'template_id' => $validated['template_id'] ?? null,
                 'sub_total' => $totals['sub_total'],
                 'discount_type' => $validated['discount_type'] ?? null,
                 'discount_value' => (float) ($validated['discount_value'] ?? 0),
                 'final_amount' => $totals['final_amount'],
-                'approval_status' => $totals['needs_approval'] ? 'submitted' : 'approved',
             ]);
 
             foreach ($totals['items'] as $item) {
@@ -135,7 +160,21 @@ class QuotationController extends Controller
      */
     public function show(string $id)
     {
-        return redirect()->route('quotations.edit', $id);
+        $quotation = Quotation::query()->findOrFail($id);
+        $quotation->load([
+            'inquiry.customer',
+            'itinerary.creator',
+            'itinerary.inquiry.customer',
+            'items',
+            'comments.user',
+            'booking',
+            'approvedBy',
+            'approvalNoteBy',
+            'creator',
+            'updater',
+        ]);
+
+        return view('modules.quotations.show', compact('quotation'));
     }
 
 
@@ -145,19 +184,28 @@ class QuotationController extends Controller
     public function edit(string $id)
     {
         $quotation = Quotation::query()->findOrFail($id);
-        $inquiries = Inquiry::query()
-            ->with('customer')
-            ->where(function ($q) use ($quotation) {
-                $q->whereDoesntHave('quotation')
-                    ->orWhere('id', $quotation->inquiry_id);
+        if (($quotation->status ?? '') === 'approved') {
+            return redirect()
+                ->route('quotations.show', $quotation)
+                ->with('error', 'Approved quotation cannot be edited.');
+        }
+        if ((int) ($quotation->created_by ?? 0) !== (int) auth()->id()) {
+            return redirect()
+                ->route('quotations.show', $quotation)
+                ->with('error', 'Only the creator can edit this quotation.');
+        }
+        $quotation->load(['items', 'itinerary.inquiry.customer', 'itinerary.inquiry.assignedUser', 'itinerary.creator', 'comments.user', 'approvedBy', 'approvalNoteBy']);
+
+        $itineraries = Itinerary::query()
+            ->with(['inquiry.customer'])
+            ->where(function ($query) use ($quotation) {
+                $query->whereDoesntHave('quotation')
+                    ->orWhere('id', $quotation->itinerary_id);
             })
-            ->orderBy('created_at', 'desc')
-            ->get();
+            ->orderByDesc('id')
+            ->get(['id', 'title', 'inquiry_id', 'destination', 'duration_days', 'duration_nights', 'is_active']);
 
-        $templates = QuotationTemplate::query()->where('is_active', true)->orderBy('name')->get();
-        $quotation->load('items');
-
-        return view('modules.quotations.edit', compact('quotation', 'inquiries', 'templates'));
+        return view('modules.quotations.edit', compact('quotation', 'itineraries'));
     }
 
     /**
@@ -166,6 +214,16 @@ class QuotationController extends Controller
     public function update(Request $request, string $id)
     {
         $quotation = Quotation::query()->findOrFail($id);
+        if (($quotation->status ?? '') === 'approved') {
+            return redirect()
+                ->route('quotations.show', $quotation)
+                ->with('error', 'Approved quotation cannot be updated.');
+        }
+        if ((int) ($quotation->created_by ?? 0) !== (int) auth()->id()) {
+            return redirect()
+                ->route('quotations.show', $quotation)
+                ->with('error', 'Only the creator can update this quotation.');
+        }
 
         $items = collect($request->input('items', []))
             ->filter(fn ($row) => trim((string) ($row['description'] ?? '')) !== '')
@@ -174,23 +232,40 @@ class QuotationController extends Controller
         $request->merge(['items' => $items]);
 
         $validated = $request->validate([
-            'inquiry_id' => [
+            'itinerary_id' => [
                 'required',
-                'exists:inquiries,id',
-                Rule::unique('quotations', 'inquiry_id')->ignore($quotation->id),
+                'integer',
+                'exists:itineraries,id',
+                Rule::unique('quotations', 'itinerary_id')->ignore($quotation->id),
             ],
-            'status' => ['required', Rule::in(['draft', 'sent', 'approved', 'rejected'])],
+            'status' => ['required', Rule::in(['draft', 'pending', 'sent', 'approved', 'rejected'])],
             'validity_date' => ['required', 'date'],
-            'template_id' => ['nullable', 'exists:quotation_templates,id'],
             'discount_type' => ['nullable', Rule::in(['percent', 'fixed'])],
             'discount_value' => ['nullable', 'numeric', 'min:0'],
             'items' => ['required', 'array', 'min:1'],
             'items.*.description' => ['required', 'string', 'max:255'],
             'items.*.qty' => ['required', 'integer', 'min:1'],
             'items.*.unit_price' => ['required', 'numeric', 'min:0'],
+            'items.*.discount_type' => ['nullable', Rule::in(['percent', 'fixed'])],
             'items.*.discount' => ['nullable', 'numeric', 'min:0'],
+            'items.*.serviceable_type' => ['nullable', Rule::in($this->serviceableTypes())],
+            'items.*.serviceable_id' => ['nullable', 'integer', 'min:1'],
+            'items.*.day_number' => ['nullable', 'integer', 'min:1'],
+            'items.*.serviceable_meta' => ['nullable'],
+            'items.*.itinerary_item_type' => ['nullable', Rule::in($this->itineraryItemTypes())],
         ]);
 
+        foreach ($validated['items'] as $index => $item) {
+            $type = ($item['discount_type'] ?? 'fixed') === 'percent' ? 'percent' : 'fixed';
+            $value = (float) ($item['discount'] ?? 0);
+            if ($type === 'percent' && $value > 100) {
+                throw ValidationException::withMessages([
+                    "items.{$index}.discount" => 'Discount percent cannot be greater than 100.',
+                ]);
+            }
+        }
+
+        $inquiryId = $this->resolveInquiryIdFromItinerary((int) $validated['itinerary_id']);
         $this->assertPricingPermission($validated);
 
         DB::beginTransaction();
@@ -198,15 +273,14 @@ class QuotationController extends Controller
             $totals = $this->computeTotals($validated['items'], $validated['discount_type'] ?? null, (float) ($validated['discount_value'] ?? 0));
 
             $quotation->update([
-                'inquiry_id' => $validated['inquiry_id'],
+                'inquiry_id' => $inquiryId,
+                'itinerary_id' => $validated['itinerary_id'],
                 'status' => $validated['status'],
                 'validity_date' => $validated['validity_date'],
-                'template_id' => $validated['template_id'] ?? null,
                 'sub_total' => $totals['sub_total'],
                 'discount_type' => $validated['discount_type'] ?? null,
                 'discount_value' => (float) ($validated['discount_value'] ?? 0),
                 'final_amount' => $totals['final_amount'],
-                'approval_status' => $totals['needs_approval'] ? 'submitted' : 'approved',
             ]);
 
             $quotation->items()->delete();
@@ -225,12 +299,113 @@ class QuotationController extends Controller
             ->with('success', 'Quotation updated successfully.');
     }
 
+    public function storeComment(Request $request, Quotation $quotation)
+    {
+        $user = $request->user();
+        if (! $user) {
+            return redirect()->back()->with('error', 'Please login first.');
+        }
+
+        if (! $user->hasAnyRole(['Director', 'Sales Manager', 'Sales Agent'])) {
+            return redirect()->back()->with('error', 'You are not allowed to comment on this quotation.');
+        }
+
+        if ((int) $quotation->created_by === (int) $user->id) {
+            return redirect()->back()->with('error', 'Creator cannot comment on their own quotation.');
+        }
+
+        $validated = $request->validate([
+            'comment_body' => ['required', 'string', 'max:2000'],
+        ]);
+        $cleanBody = trim(strip_tags((string) $validated['comment_body']));
+        if ($cleanBody === '') {
+            return redirect()->back()->with('error', 'Comment cannot be empty.');
+        }
+
+        QuotationComment::query()->create([
+            'quotation_id' => $quotation->id,
+            'user_id' => $user->id,
+            'body' => $cleanBody,
+        ]);
+
+        return redirect()->back()->with('success', 'Comment added.');
+    }
+
+    public function updateComment(Request $request, Quotation $quotation, QuotationComment $comment)
+    {
+        $user = $request->user();
+        if (! $user) {
+            return redirect()->back()->with('error', 'Please login first.');
+        }
+
+        if ((int) $comment->quotation_id !== (int) $quotation->id) {
+            return redirect()->back()->with('error', 'Invalid comment.');
+        }
+
+        if (! $user->hasAnyRole(['Director', 'Sales Manager', 'Sales Agent'])) {
+            return redirect()->back()->with('error', 'You are not allowed to edit comments.');
+        }
+
+        if ((int) $comment->user_id !== (int) $user->id) {
+            return redirect()->back()->with('error', 'You can only edit your own comment.');
+        }
+
+        $validated = $request->validate([
+            'comment_body' => ['required', 'string', 'max:2000'],
+        ]);
+
+        $cleanBody = trim(strip_tags((string) $validated['comment_body']));
+        if ($cleanBody === '') {
+            return redirect()->back()->with('error', 'Comment cannot be empty.');
+        }
+
+        $comment->update([
+            'body' => $cleanBody,
+        ]);
+
+        return redirect()->back()->with('success', 'Comment updated.');
+    }
+
+    public function destroyComment(Request $request, Quotation $quotation, QuotationComment $comment)
+    {
+        $user = $request->user();
+        if (! $user) {
+            return redirect()->back()->with('error', 'Please login first.');
+        }
+
+        if ((int) $comment->quotation_id !== (int) $quotation->id) {
+            return redirect()->back()->with('error', 'Invalid comment.');
+        }
+
+        if (! $user->hasAnyRole(['Director', 'Sales Manager', 'Sales Agent'])) {
+            return redirect()->back()->with('error', 'You are not allowed to delete comments.');
+        }
+
+        if ((int) $comment->user_id !== (int) $user->id) {
+            return redirect()->back()->with('error', 'You can only delete your own comment.');
+        }
+
+        $comment->delete();
+
+        return redirect()->back()->with('success', 'Comment deleted.');
+    }
+
     /**
      * Remove the specified resource from storage.
      */
     public function destroy(string $id)
     {
         $quotation = Quotation::query()->findOrFail($id);
+        if (($quotation->status ?? '') === 'approved') {
+            return redirect()
+                ->route('quotations.show', $quotation)
+                ->with('error', 'Approved quotation cannot be deleted.');
+        }
+        if ((int) ($quotation->created_by ?? 0) !== (int) auth()->id()) {
+            return redirect()
+                ->route('quotations.show', $quotation)
+                ->with('error', 'Only the creator can delete this quotation.');
+        }
         $quotation->delete();
 
         return redirect()
@@ -240,7 +415,7 @@ class QuotationController extends Controller
 
     public function generatePDF(Quotation $quotation)
     {
-        $quotation->load(['inquiry.customer', 'items', 'template']);
+        $quotation->load(['inquiry.customer', 'items', 'itinerary']);
         $pdf = PDF::loadView('pdf.quotation', compact('quotation'));
         return $pdf->stream('quotation.pdf');
     }
@@ -261,12 +436,6 @@ class QuotationController extends Controller
         });
 
         $query->when(request('status'), fn ($q) => $q->where('status', request('status')));
-        $query->when(request('inquiry_id'), fn ($q) => $q->where('inquiry_id', request('inquiry_id')));
-        $query->when(request('valid_from'), fn ($q) => $q->whereDate('validity_date', '>=', request('valid_from')));
-        $query->when(request('valid_to'), fn ($q) => $q->whereDate('validity_date', '<=', request('valid_to')));
-        $query->when(request('min_amount'), fn ($q) => $q->where('final_amount', '>=', request('min_amount')));
-        $query->when(request('max_amount'), fn ($q) => $q->where('final_amount', '<=', request('max_amount')));
-
         $quotations = $query->latest()->get();
 
         return response()->streamDownload(function () use ($quotations) {
@@ -278,17 +447,15 @@ class QuotationController extends Controller
                 'status',
                 'validity_date',
                 'final_amount',
-                'approval_status',
             ]);
             foreach ($quotations as $quotation) {
                 fputcsv($handle, [
                     $quotation->quotation_number,
-                    $quotation->inquiry->inquiry_number ?? '',
-                    $quotation->inquiry->customer->name ?? '',
+                    $quotation->inquiry?->inquiry_number ?? '',
+                    $quotation->inquiry?->customer?->name ?? '',
                     $quotation->status,
                     optional($quotation->validity_date)->format('Y-m-d'),
                     $quotation->final_amount,
-                    $quotation->approval_status,
                 ]);
             }
             fclose($handle);
@@ -306,13 +473,26 @@ class QuotationController extends Controller
         return $number;
     }
 
-    public function approve(Quotation $quotation)
+    public function approve(Request $request, Quotation $quotation)
     {
-        $quotation->update([
-            'approval_status' => 'approved',
+        $payload = [
             'approved_by' => auth()->id(),
             'approved_at' => now(),
-        ]);
+        ];
+
+        $payload['status'] = 'approved';
+
+        if ($request->has('approval_note') && auth()->user()->hasAnyRole(['Director'])) {
+            $validated = $request->validate([
+                'approval_note' => ['nullable', 'string', 'max:2000'],
+            ]);
+            $note = trim((string) ($validated['approval_note'] ?? ''));
+            $payload['approval_note'] = $note === '' ? null : $note;
+            $payload['approval_note_by'] = $note === '' ? null : auth()->id();
+            $payload['approval_note_at'] = $note === '' ? null : now();
+        }
+
+        $quotation->update($payload);
 
         if ($quotation->booking) {
             $this->invoiceService->generateForBooking($quotation->booking);
@@ -323,17 +503,110 @@ class QuotationController extends Controller
             ->with('success', 'Quotation approved.');
     }
 
-    public function reject(Quotation $quotation)
+    public function reject(Request $request, Quotation $quotation)
     {
-        $quotation->update([
-            'approval_status' => 'rejected',
+        $payload = [
             'approved_by' => auth()->id(),
             'approved_at' => now(),
-        ]);
+        ];
+
+        $payload['status'] = 'rejected';
+
+        if ($request->has('approval_note') && auth()->user()->hasAnyRole(['Director'])) {
+            $validated = $request->validate([
+                'approval_note' => ['nullable', 'string', 'max:2000'],
+            ]);
+            $note = trim((string) ($validated['approval_note'] ?? ''));
+            $payload['approval_note'] = $note === '' ? null : $note;
+            $payload['approval_note_by'] = $note === '' ? null : auth()->id();
+            $payload['approval_note_at'] = $note === '' ? null : now();
+        }
+
+        $quotation->update($payload);
 
         return redirect()
             ->route('quotations.edit', $quotation)
             ->with('success', 'Quotation rejected.');
+    }
+
+    public function setPending(Request $request, Quotation $quotation)
+    {
+        $user = $request->user();
+        if (! $user || ! $user->hasAnyRole(['Director'])) {
+            return redirect()->back()->with('error', 'Only Director can set quotation to pending.');
+        }
+
+        if (($quotation->status ?? '') !== 'approved') {
+            return redirect()->back()->with('error', 'Only approved quotation can be set to pending.');
+        }
+
+        $payload = [
+            'approved_by' => null,
+            'approved_at' => null,
+            'status' => 'pending',
+        ];
+        if ($request->has('approval_note')) {
+            $validated = $request->validate([
+                'approval_note' => ['nullable', 'string', 'max:2000'],
+            ]);
+            $note = trim((string) ($validated['approval_note'] ?? ''));
+            $payload['approval_note'] = $note === '' ? null : $note;
+            $payload['approval_note_by'] = $note === '' ? null : auth()->id();
+            $payload['approval_note_at'] = $note === '' ? null : now();
+        }
+
+        $quotation->update($payload);
+
+        return redirect()
+            ->route('quotations.edit', $quotation)
+            ->with('success', 'Quotation status changed to pending.');
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function serviceableTypes(): array
+    {
+        return [
+            TouristAttraction::class,
+            Activity::class,
+            FoodBeverage::class,
+            TransportUnit::class,
+            AccommodationRoom::class,
+        ];
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function itineraryItemTypes(): array
+    {
+        return [
+            'transport_day',
+            'attraction',
+            'activity',
+            'fnb',
+            'accommodation_day_end',
+        ];
+    }
+
+    /**
+     * @param mixed $value
+     * @return array<string, mixed>|null
+     */
+    private function normalizeServiceableMeta($value): ?array
+    {
+        if (is_array($value)) {
+            return $value;
+        }
+        if (is_string($value) && $value !== '') {
+            $decoded = json_decode($value, true);
+            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                return $decoded;
+            }
+        }
+
+        return null;
     }
 
     private function computeTotals(array $items, ?string $discountType, float $discountValue): array
@@ -345,16 +618,42 @@ class QuotationController extends Controller
             $qty = (int) $item['qty'];
             $unitPrice = (float) $item['unit_price'];
             $discount = (float) ($item['discount'] ?? 0);
-            $total = max(0, ($qty * $unitPrice) - $discount);
+            $discountType = ($item['discount_type'] ?? 'fixed') === 'percent' ? 'percent' : 'fixed';
+            $discountAmount = $discountType === 'percent'
+                ? (($qty * $unitPrice) * ($discount / 100))
+                : $discount;
+            $total = max(0, ($qty * $unitPrice) - $discountAmount);
             $subTotal += $total;
 
-            $normalizedItems[] = [
+            $normalized = [
                 'description' => $item['description'],
                 'qty' => $qty,
                 'unit_price' => $unitPrice,
+                'discount_type' => ($item['discount_type'] ?? 'fixed') === 'percent' ? 'percent' : 'fixed',
                 'discount' => $discount,
                 'total' => $total,
             ];
+
+            $serviceableType = $item['serviceable_type'] ?? null;
+            $serviceableId = (int) ($item['serviceable_id'] ?? 0);
+            if ($serviceableType && $serviceableId > 0 && in_array($serviceableType, $this->serviceableTypes(), true)) {
+                $normalized['serviceable_type'] = $serviceableType;
+                $normalized['serviceable_id'] = $serviceableId;
+            }
+            $dayNumber = (int) ($item['day_number'] ?? 0);
+            if ($dayNumber > 0) {
+                $normalized['day_number'] = $dayNumber;
+            }
+            $serviceableMeta = $this->normalizeServiceableMeta($item['serviceable_meta'] ?? null);
+            if (! empty($serviceableMeta)) {
+                $normalized['serviceable_meta'] = $serviceableMeta;
+            }
+            $itineraryItemType = $item['itinerary_item_type'] ?? null;
+            if ($itineraryItemType && in_array($itineraryItemType, $this->itineraryItemTypes(), true)) {
+                $normalized['itinerary_item_type'] = $itineraryItemType;
+            }
+
+            $normalizedItems[] = $normalized;
         }
 
         $discountAmount = 0;
@@ -380,6 +679,33 @@ class QuotationController extends Controller
         if ($hasDiscount && ! auth()->user()->hasAnyRole(['Sales Manager', 'Director'])) {
             abort(403, 'Only Sales Managers or Directors can apply discounts.');
         }
+    }
+
+    private function resolveInquiryIdFromItinerary(int $itineraryId): ?int
+    {
+        $itinerary = Itinerary::query()->select(['id', 'inquiry_id'])->find($itineraryId);
+        if (! $itinerary) {
+            throw ValidationException::withMessages([
+                'itinerary_id' => 'Selected itinerary not found.',
+            ]);
+        }
+
+        return $itinerary->inquiry_id ? (int) $itinerary->inquiry_id : null;
+    }
+
+    public function itineraryItems(Itinerary $itinerary)
+    {
+        $items = $this->itineraryQuotationService->buildItems($itinerary);
+        $missingPriceCount = collect($items)->filter(function (array $item): bool {
+            return (float) ($item['unit_price'] ?? 0) <= 0;
+        })->count();
+
+        return response()->json([
+            'items' => $items,
+            'meta' => [
+                'missing_price_count' => $missingPriceCount,
+            ],
+        ]);
     }
 }
 

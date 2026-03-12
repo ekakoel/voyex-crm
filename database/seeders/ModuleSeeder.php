@@ -117,9 +117,9 @@ class ModuleSeeder extends Seeder
                 'is_enabled' => true,
             ],
             [
-                'key' => 'quotation_templates',
-                'name' => 'Quotation Templates',
-                'description' => 'Manage quotation templates.',
+                'key' => 'currencies',
+                'name' => 'Currencies',
+                'description' => 'Manage currency list and exchange rates.',
                 'is_enabled' => true,
             ],
             // ...existing code...
@@ -138,6 +138,7 @@ class ModuleSeeder extends Seeder
             'finance_dashboard',
             'operations_dashboard',
             'director_dashboard',
+            'quotation_templates',
             'services',
             'services_accommodations',
             'services_transports',

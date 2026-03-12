@@ -4,23 +4,26 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Activity;
+use App\Models\ActivityType;
 use App\Models\Vendor;
 use App\Support\ImageThumbnailGenerator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Validation\Rule;
+use Illuminate\Support\Str;
 
 class ActivityController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Activity::query()->with('vendor:id,name')->latest('id');
+        $query = Activity::query()->with(['vendor:id,name', 'activityType:id,name'])->latest('id');
 
         if ($request->filled('vendor_id')) {
             $query->where('vendor_id', (int) $request->integer('vendor_id'));
         }
 
-        if ($request->filled('activity_type')) {
+        if ($request->filled('activity_type_id')) {
+            $query->where('activity_type_id', (int) $request->integer('activity_type_id'));
+        } elseif ($request->filled('activity_type')) {
             $query->where('activity_type', (string) $request->string('activity_type'));
         }
 
@@ -34,10 +37,11 @@ class ActivityController extends Controller
     public function create()
     {
         $vendors = Vendor::query()->where('is_active', true)->orderBy('name')->get(['id', 'name', 'city', 'province']);
-        $standardActivityTypes = $this->activityTypes();
-        $activityTypes = $standardActivityTypes;
+        $activityTypes = ActivityType::query()
+            ->orderBy('name')
+            ->get(['id', 'name', 'is_active']);
 
-        return view('modules.activities.create', compact('vendors', 'activityTypes', 'standardActivityTypes'));
+        return view('modules.activities.create', compact('vendors', 'activityTypes'));
     }
 
     public function store(Request $request)
@@ -52,13 +56,16 @@ class ActivityController extends Controller
     public function edit(Activity $activity)
     {
         $vendors = Vendor::query()->where('is_active', true)->orderBy('name')->get(['id', 'name', 'city', 'province']);
-        $standardActivityTypes = $this->activityTypes();
-        $activityTypes = $standardActivityTypes;
-        if (! in_array((string) $activity->activity_type, $activityTypes, true)) {
-            $activityTypes[] = (string) $activity->activity_type;
+        $activityTypes = ActivityType::query()
+            ->orderBy('name')
+            ->get(['id', 'name', 'is_active']);
+        if (! $activity->activity_type_id && trim((string) $activity->activity_type) !== '') {
+            $resolvedType = $this->resolveOrCreateActivityType((string) $activity->activity_type);
+            $activity->activity_type_id = (int) $resolvedType->id;
+            $activity->save();
         }
 
-        return view('modules.activities.edit', compact('activity', 'vendors', 'activityTypes', 'standardActivityTypes'));
+        return view('modules.activities.edit', compact('activity', 'vendors', 'activityTypes'));
     }
 
     public function update(Request $request, Activity $activity)
@@ -116,25 +123,10 @@ class ActivityController extends Controller
 
     private function validatePayload(Request $request, ?Activity $activity): array
     {
-        $existingGalleryImages = $this->normalizeGalleryImages($activity?->gallery_images);
-        $requestedRemoved = $request->input('removed_gallery_images', []);
-        $requestedRemoved = is_array($requestedRemoved) ? $requestedRemoved : [];
-        $removedGallery = array_values(array_intersect($existingGalleryImages, $requestedRemoved));
-        $remainingGalleryCount = count(array_values(array_diff($existingGalleryImages, $removedGallery)));
-        $newUploads = $request->file('gallery_images', []);
-        $newUploads = is_array($newUploads) ? array_values(array_filter($newUploads)) : [];
-        $newUploadsCount = count($newUploads);
-
-        $allowedTypes = $this->activityTypes();
-        $currentType = trim((string) ($activity?->activity_type ?? ''));
-        if ($currentType !== '' && ! in_array($currentType, $allowedTypes, true)) {
-            $allowedTypes[] = $currentType;
-        }
-
         $validated = $request->validate([
-            'vendor_id' => ['required', 'integer', Rule::exists('vendors', 'id')],
+            'vendor_id' => ['required', 'integer', 'exists:vendors,id'],
             'name' => ['required', 'string', 'max:255'],
-            'activity_type' => ['required', 'string', 'max:100', Rule::in($allowedTypes)],
+            'activity_type_name' => ['required', 'string', 'max:100'],
             'duration_minutes' => ['required', 'integer', 'min:15', 'max:1440'],
             'benefits' => ['nullable', 'string'],
             'descriptions' => ['nullable', 'string'],
@@ -147,27 +139,19 @@ class ActivityController extends Controller
             'excludes' => ['nullable', 'string'],
             'cancellation_policy' => ['nullable', 'string'],
             'notes' => ['nullable', 'string'],
-            'gallery_images' => ['nullable', 'array', 'max:3'],
-            'gallery_images.*' => ['image', 'mimes:jpg,jpeg,png,webp'],
+            'gallery_images' => ['nullable', 'array'],
+            'gallery_images.*' => ['image'],
             'removed_gallery_images' => ['nullable', 'array'],
             'removed_gallery_images.*' => ['string'],
             'is_active' => ['nullable', 'boolean'],
         ]);
 
-        $finalGalleryCount = ($activity ? $remainingGalleryCount : 0) + $newUploadsCount;
-        if ($finalGalleryCount < 1) {
-            $message = $activity
-                ? 'Gallery images minimal 1 file. Hapus semua gambar lama hanya jika upload gambar baru.'
-                : 'Gallery images minimal 1 file.';
-            throw \Illuminate\Validation\ValidationException::withMessages([
-                'gallery_images' => $message,
-            ]);
-        }
-        if ($finalGalleryCount > 3) {
-            throw \Illuminate\Validation\ValidationException::withMessages([
-                'gallery_images' => 'Maksimal total 3 gambar (existing + upload baru).',
-            ]);
-        }
+        $typeName = trim((string) ($validated['activity_type_name'] ?? ''));
+        $type = $this->resolveOrCreateActivityType($typeName);
+
+        $validated['activity_type_id'] = (int) $type->id;
+        $validated['activity_type'] = (string) $type->name;
+        unset($validated['activity_type_name']);
 
         $validated['currency'] = strtoupper($validated['currency']);
         $validated['is_active'] = $request->boolean('is_active');
@@ -176,63 +160,59 @@ class ActivityController extends Controller
     }
 
     /**
-     * @return array<int, string>
-     */
-    private function activityTypes(): array
-    {
-        return [
-            'sightseeing_tour',
-            'cultural_experience',
-            'nature_adventure',
-            'water_activity',
-            'outdoor_adventure',
-            'wellness_spa',
-            'culinary_experience',
-            'entertainment_show',
-            'workshop_class',
-            'transport_shuttle',
-            'other',
-        ];
-    }
-
-    /**
      * @return array<int, array{value:string,label:string}>
      */
     private function buildTypeFilterOptions(): array
     {
-        $dbTypes = Activity::query()
-            ->select('activity_type')
-            ->whereNotNull('activity_type')
-            ->where('activity_type', '!=', '')
-            ->distinct()
-            ->pluck('activity_type')
-            ->map(fn ($type) => (string) $type)
+        $types = ActivityType::query()
+            ->orderBy('name')
+            ->get(['id', 'name'])
             ->all();
 
-        $standard = $this->activityTypes();
-        $ordered = [];
-
-        foreach ($standard as $type) {
-            if (in_array($type, $dbTypes, true)) {
-                $ordered[] = $type;
-            }
-        }
-
-        $unknown = array_values(array_filter($dbTypes, fn ($type) => ! in_array($type, $standard, true)));
-        sort($unknown);
-        $ordered = array_merge($ordered, $unknown);
-
-        return array_map(function (string $type): array {
+        return array_map(function (ActivityType $type): array {
             return [
-                'value' => $type,
-                'label' => $this->formatTypeLabel($type),
+                'value' => (string) $type->id,
+                'label' => (string) $type->name,
             ];
-        }, $ordered);
+        }, $types);
     }
 
-    private function formatTypeLabel(string $value): string
+    private function resolveOrCreateActivityType(string $name): ActivityType
     {
-        return ucwords(str_replace('_', ' ', trim($value)));
+        $normalizedName = trim(preg_replace('/\s+/', ' ', $name) ?? '');
+        if ($normalizedName === '') {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'activity_type_new' => 'New activity type name cannot be empty.',
+            ]);
+        }
+
+        $existing = ActivityType::query()
+            ->whereRaw('LOWER(name) = ?', [mb_strtolower($normalizedName)])
+            ->first();
+        if ($existing) {
+            if (! $existing->is_active) {
+                $existing->is_active = true;
+                $existing->save();
+            }
+            return $existing;
+        }
+
+        $baseSlug = Str::slug($normalizedName);
+        if ($baseSlug === '') {
+            $baseSlug = 'activity-type';
+        }
+        $slug = $baseSlug;
+        $counter = 2;
+        while (ActivityType::query()->where('slug', $slug)->exists()) {
+            $slug = $baseSlug . '-' . $counter;
+            $counter++;
+        }
+
+        return ActivityType::query()->create([
+            'name' => $normalizedName,
+            'slug' => $slug,
+            'is_active' => true,
+        ]);
     }
 
     /**
@@ -263,8 +243,8 @@ class ActivityController extends Controller
                 continue;
             }
             $originalPath = $file->store($directory, 'public');
-            $stored[] = $originalPath;
-            ImageThumbnailGenerator::generate('public', $originalPath);
+            $processedPath = ImageThumbnailGenerator::processAndGenerate('public', $originalPath, 3, 2, 360, 240) ?? $originalPath;
+            $stored[] = $processedPath;
         }
         return $stored;
     }

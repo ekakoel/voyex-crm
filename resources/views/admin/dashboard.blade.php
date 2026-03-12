@@ -14,15 +14,11 @@
     @endphp
 
     <!-- Header Dashboard -->
-    <div class="flex flex-col sm:flex-row justify-between items-start mb-8">
-        <div>
-            <h1 class="text-3xl font-bold text-gray-800 dark:text-gray-100">{{ $dashboardTitle ?? 'Admin Dashboard' }}</h1>
-            <p class="text-gray-500 dark:text-gray-400 mt-1">{{ $dashboardSubtitle ?? "Welcome back, ".auth()->user()->name.". Here's your performance overview." }}</p>
-        </div>
-        <div class="mt-4 sm:mt-0">
-            <span class="text-sm font-medium text-gray-600 dark:text-gray-300">{{ \Carbon\Carbon::now()->format('l, j F Y') }}</span>
-        </div>
-    </div>
+    @section('page_title', 'Admin Dashboard')
+    @section('page_subtitle', $dashboardSubtitle ?? "Welcome back, ".auth()->user()->name.". Here's your performance overview.")
+    @section('page_actions')
+        <span class="text-sm font-medium text-gray-600 dark:text-gray-300">{{ \Carbon\Carbon::now()->format('l, j F Y') }}</span>
+    @endsection
 
     @if ($isAdminUser ?? false)
         <div class="grid grid-cols-1 xl:grid-cols-12 gap-6 mb-8">
@@ -80,9 +76,6 @@
                     @if(auth()->user()->can('module.user_manager.access') && Route::has('users.index'))
                         <a href="{{ route('users.index') }}" class="rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-900">Manage Users</a>
                     @endif
-                    @if(auth()->user()->can('module.quotation_templates.access') && Route::has('quotation-templates.index'))
-                        <a href="{{ route('quotation-templates.index') }}" class="rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-900">Quotation Templates</a>
-                    @endif
                     @if(auth()->user()->can('module.service_manager.access') && Route::has('services.index'))
                         <a href="{{ route('services.index') }}" class="rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-900">Module Management</a>
                     @endif
@@ -110,7 +103,6 @@
                     'transports' => 'transports.index',
                     'tourist_attractions' => 'tourist-attractions.index',
                     'user_manager' => 'users.index',
-                    'quotation_templates' => 'quotation-templates.index',
                 ];
             @endphp
             <h3 class="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-4">Accessible Modules</h3>
@@ -163,7 +155,7 @@
             <div class="flex justify-between items-start">
                 <div>
                     <p class="text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Monthly Revenue</p>
-                    <p class="text-3xl font-bold text-primary mt-2">Rp {{ number_format($monthlyRevenue, 0) }}</p>
+                    <p class="text-3xl font-bold text-primary mt-2"><x-money :amount="$monthlyRevenue ?? 0" currency="IDR" /></p>
                 </div>
                 <div class="bg-blue-100 dark:bg-blue-900/50 text-primary p-3 rounded-full">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 6v2m0 8v2m-6-4h.01M18 12h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
@@ -303,7 +295,15 @@
                                     label += ': ';
                                 }
                                 if (context.parsed.y !== null) {
-                                    label += new Intl.NumberFormat('en-US', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(context.parsed.y);
+                                    const currency = window.appCurrency || 'IDR';
+                                    const rate = window.appCurrencyRateToIdr || 1;
+                                    const value = currency === 'IDR' ? context.parsed.y : (context.parsed.y / rate);
+                                    label += new Intl.NumberFormat(currency === 'USD' ? 'en-US' : 'id-ID', {
+                                        style: 'currency',
+                                        currency: currency,
+                                        minimumFractionDigits: window.appCurrencyDecimals ?? (currency === 'USD' ? 2 : 0),
+                                        maximumFractionDigits: window.appCurrencyDecimals ?? (currency === 'USD' ? 2 : 0)
+                                    }).format(value);
                                 }
                                 return label;
                             }
@@ -315,7 +315,16 @@
                         beginAtZero: true,
                         ticks: {
                             callback: function(value) {
-                                return 'Rp ' + (value / 1000000) + 'M';
+                                const currency = window.appCurrency || 'IDR';
+                                const rate = window.appCurrencyRateToIdr || 1;
+                                const val = currency === 'IDR' ? value : (value / rate);
+                                return new Intl.NumberFormat(currency === 'USD' ? 'en-US' : 'id-ID', {
+                                    style: 'currency',
+                                    currency: currency,
+                                    notation: 'compact',
+                                    minimumFractionDigits: 0,
+                                    maximumFractionDigits: 1
+                                }).format(val);
                             }
                         },
                         grid: {

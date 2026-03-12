@@ -94,4 +94,98 @@ class ImageThumbnailGenerator
 
         return $thumbnailPath;
     }
+
+    public static function processAndGenerate(
+        string $disk,
+        string $originalPath,
+        int $ratioWidth = 3,
+        int $ratioHeight = 2,
+        int $thumbWidth = 360,
+        int $thumbHeight = 240
+    ): ?string {
+        $storage = Storage::disk($disk);
+        if (! $storage->exists($originalPath)) {
+            return null;
+        }
+
+        if (! extension_loaded('gd')) {
+            self::generate($disk, $originalPath, $thumbWidth, $thumbHeight);
+            return $originalPath;
+        }
+
+        $binary = $storage->get($originalPath);
+        $source = @imagecreatefromstring($binary);
+        if (! $source) {
+            self::generate($disk, $originalPath, $thumbWidth, $thumbHeight);
+            return $originalPath;
+        }
+
+        $sourceWidth = imagesx($source);
+        $sourceHeight = imagesy($source);
+        if ($sourceWidth <= 0 || $sourceHeight <= 0 || $ratioWidth <= 0 || $ratioHeight <= 0) {
+            imagedestroy($source);
+            self::generate($disk, $originalPath, $thumbWidth, $thumbHeight);
+            return $originalPath;
+        }
+
+        $sourceRatio = $sourceWidth / $sourceHeight;
+        $targetRatio = $ratioWidth / $ratioHeight;
+
+        if ($sourceRatio > $targetRatio) {
+            $cropHeight = $sourceHeight;
+            $cropWidth = (int) round($sourceHeight * $targetRatio);
+            $cropX = (int) floor(($sourceWidth - $cropWidth) / 2);
+            $cropY = 0;
+        } else {
+            $cropWidth = $sourceWidth;
+            $cropHeight = (int) round($sourceWidth / $targetRatio);
+            $cropX = 0;
+            $cropY = (int) floor(($sourceHeight - $cropHeight) / 2);
+        }
+
+        $cropped = imagecreatetruecolor($cropWidth, $cropHeight);
+        if (! $cropped) {
+            imagedestroy($source);
+            self::generate($disk, $originalPath, $thumbWidth, $thumbHeight);
+            return $originalPath;
+        }
+
+        imagecopyresampled(
+            $cropped,
+            $source,
+            0,
+            0,
+            $cropX,
+            $cropY,
+            $cropWidth,
+            $cropHeight,
+            $cropWidth,
+            $cropHeight
+        );
+
+        ob_start();
+        imagejpeg($cropped, null, 88);
+        $croppedBinary = (string) ob_get_clean();
+
+        imagedestroy($source);
+        imagedestroy($cropped);
+
+        if ($croppedBinary === '') {
+            self::generate($disk, $originalPath, $thumbWidth, $thumbHeight);
+            return $originalPath;
+        }
+
+        $directory = trim((string) pathinfo($originalPath, PATHINFO_DIRNAME), '.');
+        $name = (string) pathinfo($originalPath, PATHINFO_FILENAME);
+        $processedPath = ($directory !== '' ? $directory.'/' : '').$name.'.jpg';
+
+        $storage->put($processedPath, $croppedBinary);
+        if ($processedPath !== $originalPath && $storage->exists($originalPath)) {
+            $storage->delete($originalPath);
+        }
+
+        self::generate($disk, $processedPath, $thumbWidth, $thumbHeight);
+
+        return $processedPath;
+    }
 }

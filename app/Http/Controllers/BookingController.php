@@ -167,7 +167,7 @@ class BookingController extends Controller
                 fputcsv($handle, [
                     $booking->booking_number,
                     $booking->quotation->quotation_number ?? '',
-                    $booking->quotation->inquiry->customer->name ?? '',
+                    $booking->quotation?->inquiry?->customer?->name ?? '',
                     optional($booking->travel_date)->format('Y-m-d'),
                     $booking->status,
                     optional($booking->created_at)->format('Y-m-d H:i:s'),

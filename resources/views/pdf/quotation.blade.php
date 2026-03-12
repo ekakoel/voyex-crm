@@ -23,23 +23,31 @@
             <div class="muted">No: {{ $quotation->quotation_number }}</div>
         </div>
         <div class="muted">
-            <div>Date: {{ $quotation->created_at?->format('d M Y') }}</div>
-            <div>Valid Until: {{ $quotation->validity_date?->format('d M Y') ?? '-' }}</div>
+            @if ($quotation->created_at)
+                <div>Date: {{ $quotation->created_at->format('d M Y') }}</div>
+            @endif
+            @if ($quotation->validity_date)
+                <div>Valid Until: {{ $quotation->validity_date->format('d M Y') }}</div>
+            @endif
         </div>
     </div>
 
-    <div class="card">
-        <div><strong>Inquiry:</strong> {{ $quotation->inquiry->inquiry_number ?? '-' }}</div>
-        <div><strong>Customer:</strong> {{ $quotation->inquiry->customer->name ?? '-' }}</div>
-        <div><strong>Status:</strong> {{ ucfirst($quotation->status) }}</div>
-    </div>
-
-    @if ($quotation->template)
+    @php
+        $inquiryNumber = $quotation->inquiry?->inquiry_number;
+        $customerName = $quotation->inquiry?->customer?->name;
+        $itineraryTitle = $quotation->itinerary?->title;
+    @endphp
+    @if ($inquiryNumber || $customerName || $itineraryTitle)
         <div class="card">
-            <div><strong>Template:</strong> {{ $quotation->template->name }}</div>
-            <div style="margin-top:8px;">
-                {!! $quotation->template->body_html !!}
-            </div>
+            @if ($inquiryNumber)
+                <div><strong>Inquiry:</strong> {{ $inquiryNumber }}</div>
+            @endif
+            @if ($itineraryTitle)
+                <div><strong>Itinerary:</strong> {{ $itineraryTitle }}</div>
+            @endif
+            @if ($customerName)
+                <div><strong>Customer:</strong> {{ $customerName }}</div>
+            @endif
         </div>
     @endif
 
@@ -51,8 +59,9 @@
                 <th style="width: 40%">Description</th>
                 <th style="width: 10%">Qty</th>
                 <th style="width: 15%">Unit Price</th>
+                <th style="width: 10%">Discount Type</th>
                 <th style="width: 15%">Discount</th>
-                <th style="width: 20%">Total</th>
+                <th style="width: 10%">Total</th>
             </tr>
             </thead>
             <tbody>
@@ -60,39 +69,65 @@
                 <tr>
                     <td>{{ $item->description }}</td>
                     <td class="right">{{ $item->qty }}</td>
-                    <td class="right">Rp {{ number_format($item->unit_price, 0, ',', '.') }}</td>
-                    <td class="right">Rp {{ number_format($item->discount ?? 0, 0, ',', '.') }}</td>
-                    <td class="right">Rp {{ number_format($item->total ?? 0, 0, ',', '.') }}</td>
+                    <td class="right"><x-money :amount="$item->unit_price" currency="IDR" /></td>
+                    <td>{{ ($item->discount_type ?? 'fixed') === 'percent' ? 'Percent' : 'Fixed' }}</td>
+                    <td class="right">
+                        @if (($item->discount_type ?? 'fixed') === 'percent')
+                            {{ number_format($item->discount ?? 0, 0, ',', '.') }}%
+                        @else
+                            <x-money :amount="$item->discount ?? 0" currency="IDR" />
+                        @endif
+                    </td>
+                    <td class="right"><x-money :amount="$item->total ?? 0" currency="IDR" /></td>
                 </tr>
             @empty
                 <tr>
-                    <td colspan="5" class="muted">No items available.</td>
+                    <td colspan="6" class="muted">No items available.</td>
                 </tr>
             @endforelse
             </tbody>
         </table>
 
-        <table style="margin-top: 12px;">
-            <tbody>
-            <tr>
-                <td class="right"><strong>Sub Total</strong></td>
-                <td class="right" style="width: 30%">Rp {{ number_format($quotation->sub_total ?? 0, 0, ',', '.') }}</td>
-            </tr>
-            <tr>
-                <td class="right">
-                    <strong>Discount</strong>
-                    @if ($quotation->discount_type)
-                        ({{ $quotation->discount_type === 'percent' ? $quotation->discount_value.'%' : 'Rp '.number_format($quotation->discount_value, 0, ',', '.') }})
-                    @endif
-                </td>
-                <td class="right">Rp {{ number_format(($quotation->discount_type ? ($quotation->discount_type === 'percent' ? ($quotation->sub_total * ($quotation->discount_value / 100)) : $quotation->discount_value) : 0), 0, ',', '.') }}</td>
-            </tr>
-            <tr>
-                <td class="right total">Final Amount</td>
-                <td class="right total">Rp {{ number_format($quotation->final_amount ?? 0, 0, ',', '.') }}</td>
-            </tr>
-            </tbody>
-        </table>
+        @php
+            $subTotalValue = $quotation->sub_total;
+            $discountType = $quotation->discount_type;
+            $discountValue = $quotation->discount_value;
+            $finalAmountValue = $quotation->final_amount;
+            $hasTotals = $subTotalValue !== null || $discountType || $discountValue !== null || $finalAmountValue !== null;
+        @endphp
+        @if ($hasTotals)
+            <table style="margin-top: 12px;">
+                <tbody>
+                @if ($subTotalValue !== null)
+                    <tr>
+                        <td class="right"><strong>Sub Total</strong></td>
+                        <td class="right" style="width: 30%"><x-money :amount="$subTotalValue" currency="IDR" /></td>
+                    </tr>
+                @endif
+                @if ($discountType)
+                    <tr>
+                        <td class="right">
+                            <strong>Discount</strong>
+                            @if ($discountType === 'percent')
+                                ({{ $discountValue }}%)
+                            @else
+                                (<x-money :amount="$discountValue" currency="IDR" />)
+                            @endif
+                        </td>
+                        <td class="right">
+                            <x-money :amount="($discountType === 'percent' ? ($subTotalValue * ($discountValue / 100)) : $discountValue)" currency="IDR" />
+                        </td>
+                    </tr>
+                @endif
+                @if ($finalAmountValue !== null)
+                    <tr>
+                        <td class="right total">Final Amount</td>
+                        <td class="right total"><x-money :amount="$finalAmountValue" currency="IDR" /></td>
+                    </tr>
+                @endif
+                </tbody>
+            </table>
+        @endif
     </div>
 </body>
 </html>

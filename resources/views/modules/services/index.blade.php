@@ -2,12 +2,7 @@
 
 @section('content')
     <div class="space-y-6">
-        <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-6">
-            <h1 class="text-2xl font-semibold text-gray-800 dark:text-gray-100">Module Management</h1>
-            <p class="mt-2 text-gray-600 dark:text-gray-300">
-                Enable or disable modules based on business needs.
-            </p>
-        </div>
+        
 
         @if (session('success'))
             <div class="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300">
@@ -48,5 +43,7 @@
         </div>
     </div>
 @endsection
+
+
 
 

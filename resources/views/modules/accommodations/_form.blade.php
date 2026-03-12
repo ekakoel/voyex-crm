@@ -26,6 +26,7 @@
                 'quantity_available' => $room->quantity_available,
                 'cancellation_policy' => $room->cancellation_policy,
                 'notes' => $room->notes,
+                'existing_images' => is_array($room->images) ? $room->images : [],
                 'is_active' => $room->is_active ? '1' : '0',
             ])->toArray()
             : [];
@@ -49,6 +50,7 @@
             'quantity_available' => '',
             'cancellation_policy' => '',
             'notes' => '',
+            'existing_images' => [],
             'is_active' => '1',
         ]];
     }
@@ -192,7 +194,7 @@
     </div>
 
     <div>
-        <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Gallery Images (1-5)</label>
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Gallery Images</label>
         <div id="accommodation-gallery-preview"
             class="mt-2 grid grid-cols-2 gap-2 md:grid-cols-5"
             data-remove-endpoint-template="{{ isset($accommodation) ? route('accommodations.gallery-images.remove', $accommodation) : '' }}"
@@ -218,9 +220,9 @@
                 @endforeach
             @endif
         </div>
-        <input id="accommodation-gallery-input" type="file" name="gallery_images[]" accept="image/jpeg,image/png,image/webp" multiple class="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+        <input id="accommodation-gallery-input" type="file" name="gallery_images[]" accept="image/*" multiple class="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
         <p id="accommodation-gallery-limit-note" class="mt-1 hidden text-xs text-amber-600"></p>
-        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Upload 1 sampai 5 gambar. Saat edit, klik X untuk hapus per gambar dan upload baru akan ditambahkan ke gallery.</p>
+        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Upload gambar tanpa batas jenis/ukuran. Saat edit, klik X untuk hapus per gambar dan upload baru akan ditambahkan ke gallery. Semua gambar diproses crop rasio 3:2 dan dibuat thumbnail.</p>
         @error('gallery_images') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
         @error('gallery_images.*') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
         @error('removed_gallery_images.*') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
@@ -234,6 +236,12 @@
 
         <div id="room-rows" class="space-y-3">
             @foreach ($oldRooms as $index => $room)
+                @php
+                    $existingRoomImages = array_values(array_filter(
+                        is_array($room['existing_images'] ?? null) ? $room['existing_images'] : [],
+                        fn ($path) => is_string($path) && trim($path) !== ''
+                    ));
+                @endphp
                 <div class="room-row rounded-lg border border-gray-200 p-3 dark:border-gray-700" data-room-index="{{ $index }}">
                     <div class="grid grid-cols-1 gap-3 md:grid-cols-6">
                         <div class="md:col-span-2">
@@ -263,14 +271,25 @@
                             <label class="block text-xs text-gray-500">Room Size (sqm)</label>
                             <input name="rooms[{{ $index }}][room_size_sqm]" type="number" min="1" step="0.01" value="{{ $room['room_size_sqm'] ?? '' }}" class="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
                         </div>
-                        <div>
-                            <label class="block text-xs text-gray-500">Contract Rate</label>
-                            <input name="rooms[{{ $index }}][contract_rate]" type="number" min="0" step="0.01" value="{{ $room['contract_rate'] ?? '' }}" class="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" required>
-                        </div>
-                        <div>
-                            <label class="block text-xs text-gray-500">Publish Rate</label>
-                            <input name="rooms[{{ $index }}][publish_rate]" type="number" min="0" step="0.01" value="{{ $room['publish_rate'] ?? '' }}" class="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
-                        </div>
+                        <x-money-input
+                            label="Contract Rate"
+                            label-class="block text-xs text-gray-500"
+                            name="rooms[{{ $index }}][contract_rate]"
+                            :value="$room['contract_rate'] ?? ''"
+                            min="0"
+                            step="0.01"
+                            compact
+                            required
+                        />
+                        <x-money-input
+                            label="Publish Rate"
+                            label-class="block text-xs text-gray-500"
+                            name="rooms[{{ $index }}][publish_rate]"
+                            :value="$room['publish_rate'] ?? ''"
+                            min="0"
+                            step="0.01"
+                            compact
+                        />
                         <div>
                             <label class="block text-xs text-gray-500">Currency</label>
                             <input name="rooms[{{ $index }}][currency]" value="{{ $room['currency'] ?? 'IDR' }}" maxlength="3" class="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 uppercase text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" required>
@@ -330,6 +349,36 @@
                             <textarea name="rooms[{{ $index }}][notes]" rows="2" class="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">{{ $room['notes'] ?? '' }}</textarea>
                         </div>
                     </div>
+
+                    <div class="mt-3">
+                        <label class="block text-xs text-gray-500">Room Images (max 3)</label>
+                        <div class="room-existing-images mt-2 grid grid-cols-3 gap-2 md:grid-cols-6">
+                            @foreach ($existingRoomImages as $image)
+                                <div class="room-existing-image-item relative overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700" data-image-path="{{ $image }}">
+                                    <input type="hidden" name="rooms[{{ $index }}][existing_images][]" value="{{ $image }}" class="room-existing-image-input">
+                                    <button
+                                        type="button"
+                                        class="room-existing-image-remove absolute right-1 top-1 z-10 inline-flex h-6 w-6 items-center justify-center rounded-full bg-rose-600/95 text-xs font-bold text-white shadow hover:bg-rose-700"
+                                        title="Remove image"
+                                        aria-label="Remove image">
+                                        X
+                                    </button>
+                                    <div class="w-full overflow-hidden bg-gray-100 dark:bg-gray-800" style="aspect-ratio: 4 / 3;">
+                                        <img
+                                            src="{{ asset('storage/' . \App\Support\ImageThumbnailGenerator::thumbnailPathFor($image)) }}"
+                                            onerror="this.onerror=null;this.src='{{ asset('storage/' . $image) }}';"
+                                            alt="Room image"
+                                            class="h-full w-full object-cover">
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
+                        <div class="room-new-images-preview mt-2 grid grid-cols-3 gap-2 md:grid-cols-6"></div>
+                        <input type="file" name="rooms[{{ $index }}][images][]" accept="image/*" multiple class="room-images-input mt-2 w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+                        <p class="room-images-note mt-1 text-[11px] text-gray-500 dark:text-gray-400">Max 3 gambar per room. Gambar akan diproses crop rasio 3:2 dan dibuat thumbnail.</p>
+                        @error("rooms.$index.images") <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                        @error("rooms.$index.images.*") <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                    </div>
                 </div>
             @endforeach
         </div>
@@ -337,6 +386,8 @@
         @error('rooms') <p class="mt-2 text-xs text-rose-600">{{ $message }}</p> @enderror
         @error('rooms.*.name') <p class="mt-2 text-xs text-rose-600">{{ $message }}</p> @enderror
         @error('rooms.*.contract_rate') <p class="mt-2 text-xs text-rose-600">{{ $message }}</p> @enderror
+        @error('rooms.*.images') <p class="mt-2 text-xs text-rose-600">{{ $message }}</p> @enderror
+        @error('rooms.*.images.*') <p class="mt-2 text-xs text-rose-600">{{ $message }}</p> @enderror
     </div>
 
     <div class="flex items-center gap-2">
@@ -365,8 +416,20 @@
 
         <div class="mt-3 grid grid-cols-1 gap-3 md:grid-cols-6">
             <div><label class="block text-xs text-gray-500">Room Size (sqm)</label><input name="rooms[__INDEX__][room_size_sqm]" type="number" min="1" step="0.01" class="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"></div>
-            <div><label class="block text-xs text-gray-500">Contract Rate</label><input name="rooms[__INDEX__][contract_rate]" type="number" min="0" step="0.01" class="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" required></div>
-            <div><label class="block text-xs text-gray-500">Publish Rate</label><input name="rooms[__INDEX__][publish_rate]" type="number" min="0" step="0.01" class="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"></div>
+            <div>
+                <label class="block text-xs text-gray-500">Contract Rate</label>
+                <div class="relative">
+                    <input name="rooms[__INDEX__][contract_rate]" type="number" min="0" step="0.01" data-money-input="1" class="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 pr-14 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" required>
+                    <span class="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 rounded-md border border-gray-200 bg-gray-50 px-1.5 py-0.5 text-[10px] font-semibold text-gray-600 shadow-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200">{{ \App\Support\Currency::current() }}</span>
+                </div>
+            </div>
+            <div>
+                <label class="block text-xs text-gray-500">Publish Rate</label>
+                <div class="relative">
+                    <input name="rooms[__INDEX__][publish_rate]" type="number" min="0" step="0.01" data-money-input="1" class="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 pr-14 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+                    <span class="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 rounded-md border border-gray-200 bg-gray-50 px-1.5 py-0.5 text-[10px] font-semibold text-gray-600 shadow-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200">{{ \App\Support\Currency::current() }}</span>
+                </div>
+            </div>
             <div><label class="block text-xs text-gray-500">Currency</label><input name="rooms[__INDEX__][currency]" value="IDR" maxlength="3" class="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 uppercase text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" required></div>
             <div><label class="block text-xs text-gray-500">Meal Plan</label><select name="rooms[__INDEX__][meal_plan]" class="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">@foreach ($mealPlans as $plan)<option value="{{ $plan }}">{{ str_replace('_', ' ', ucfirst($plan)) }}</option>@endforeach</select></div>
             <div><label class="block text-xs text-gray-500">Qty Available</label><input name="rooms[__INDEX__][quantity_available]" type="number" min="0" class="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"></div>
@@ -387,6 +450,14 @@
             <div><label class="block text-xs text-gray-500">Cancellation Policy</label><textarea name="rooms[__INDEX__][cancellation_policy]" rows="2" class="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"></textarea></div>
             <div><label class="block text-xs text-gray-500">Notes</label><textarea name="rooms[__INDEX__][notes]" rows="2" class="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"></textarea></div>
         </div>
+
+        <div class="mt-3">
+            <label class="block text-xs text-gray-500">Room Images (max 3)</label>
+            <div class="room-existing-images mt-2 grid grid-cols-3 gap-2 md:grid-cols-6"></div>
+            <div class="room-new-images-preview mt-2 grid grid-cols-3 gap-2 md:grid-cols-6"></div>
+            <input type="file" name="rooms[__INDEX__][images][]" accept="image/*" multiple class="room-images-input mt-2 w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+            <p class="room-images-note mt-1 text-[11px] text-gray-500 dark:text-gray-400">Max 3 gambar per room. Gambar akan diproses crop rasio 3:2 dan dibuat thumbnail.</p>
+        </div>
     </div>
 </template>
 
@@ -397,6 +468,63 @@
     const addButton = document.getElementById('add-room-row');
     const template = document.getElementById('room-row-template');
     if (!rowsContainer || !addButton || !template) return;
+
+    const bindRoomImageUpload = (row) => {
+        if (!row || row.dataset.roomImageBound === '1') return;
+        row.dataset.roomImageBound = '1';
+
+        const input = row.querySelector('.room-images-input');
+        const preview = row.querySelector('.room-new-images-preview');
+        const note = row.querySelector('.room-images-note');
+        if (!input || !preview || !note) return;
+
+        const renderNewUploads = () => {
+            preview.querySelectorAll('.room-new-image-item').forEach((node) => node.remove());
+            const existingCount = row.querySelectorAll('.room-existing-image-input').length;
+            const files = Array.from(input.files || []).filter((file) => String(file.type || '').startsWith('image/'));
+            const availableSlots = Math.max(0, 3 - existingCount);
+            const filesToRender = files.slice(0, availableSlots);
+            const dataTransfer = new DataTransfer();
+            filesToRender.forEach((file) => dataTransfer.items.add(file));
+            input.files = dataTransfer.files;
+
+            filesToRender.forEach((file) => {
+                const url = URL.createObjectURL(file);
+                const wrapper = document.createElement('div');
+                wrapper.className = 'room-new-image-item overflow-hidden rounded-lg border border-indigo-200 bg-indigo-50/30 dark:border-indigo-700/60 dark:bg-indigo-900/10';
+                const media = document.createElement('div');
+                media.className = 'w-full overflow-hidden bg-gray-100 dark:bg-gray-800';
+                media.style.aspectRatio = '4 / 3';
+                const image = document.createElement('img');
+                image.src = url;
+                image.alt = 'Room image preview';
+                image.className = 'h-full w-full object-cover';
+                image.addEventListener('load', () => URL.revokeObjectURL(url), { once: true });
+                media.appendChild(image);
+                wrapper.appendChild(media);
+                preview.appendChild(wrapper);
+            });
+
+            const totalSelected = existingCount + filesToRender.length;
+            note.textContent = totalSelected >= 3
+                ? 'Maksimum 3 gambar tercapai untuk room ini.'
+                : 'Max 3 gambar per room. Gambar akan diproses crop rasio 3:2 dan dibuat thumbnail.';
+        };
+
+        input.addEventListener('change', renderNewUploads);
+        row.addEventListener('click', (event) => {
+            const removeButton = event.target.closest('.room-existing-image-remove');
+            if (!removeButton) return;
+            const item = removeButton.closest('.room-existing-image-item');
+            if (!item) return;
+            const hiddenInput = item.querySelector('.room-existing-image-input');
+            if (hiddenInput) hiddenInput.remove();
+            item.remove();
+            renderNewUploads();
+        });
+
+        renderNewUploads();
+    };
 
     const bindRemoveButtons = () => {
         rowsContainer.querySelectorAll('.remove-room-row').forEach((button) => {
@@ -413,14 +541,19 @@
         });
     };
 
+    const bindRows = () => {
+        bindRemoveButtons();
+        rowsContainer.querySelectorAll('.room-row').forEach((row) => bindRoomImageUpload(row));
+    };
+
     addButton.addEventListener('click', () => {
         const nextIndex = rowsContainer.querySelectorAll('.room-row').length;
         const html = template.innerHTML.replaceAll('__INDEX__', String(nextIndex));
         rowsContainer.insertAdjacentHTML('beforeend', html);
-        bindRemoveButtons();
+        bindRows();
     });
 
-    bindRemoveButtons();
+    bindRows();
 })();
 
 (() => {
@@ -436,15 +569,8 @@
             limitNote.textContent = '';
         }
 
-        const existingCount = preview.querySelectorAll('.accommodation-gallery-existing-item').length;
-        const maxNewAllowed = Math.max(0, 5 - existingCount);
         const files = Array.from(input.files || []);
-        const filesToRender = files.slice(0, maxNewAllowed);
-
-        if (files.length > filesToRender.length && limitNote) {
-            limitNote.textContent = `Maksimal total 5 gambar. Hanya ${filesToRender.length} gambar baru yang dipreview berdasarkan slot tersedia.`;
-            limitNote.classList.remove('hidden');
-        }
+        const filesToRender = files;
 
         filesToRender.forEach((file) => {
             if (!String(file.type || '').startsWith('image/')) return;

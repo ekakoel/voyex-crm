@@ -69,13 +69,6 @@ class FeatureAccessSeeder extends Seeder
                 'roles' => 'Admin',
             ],
             [
-                'title' => 'Quotations Templates',
-                'route' => 'quotation-templates.index',
-                'icon'  => 'file-lines',
-                'module'  => 'quotation_templates',
-                'roles' => 'Admin',
-            ],
-            [
                 'title' => 'Customers',
                 'route' => 'customers.index',
                 'icon'  => 'user-tag',

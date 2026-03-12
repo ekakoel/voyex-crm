@@ -172,6 +172,7 @@ Sistem ini berfokus pada otomatisasi proses bisnis utama travel agent dengan out
 ## 📘 Documentation
 ### 📄 AI System Guideline
     - 📄 [AI System Guideline](./VOYEX_CRM_AI_GUIDELINE.md)
+    - [Layout Guide](./LAYOUT_GUIDE.md)
     - User Manual (Coming Soon)
     - API Documentation (Coming Soon)
     - Deployment Checklist (Coming Soon)
@@ -180,6 +181,7 @@ Sistem ini berfokus pada otomatisasi proses bisnis utama travel agent dengan out
 
 Project ini menggunakan dokumen panduan khusus untuk memastikan konsistensi pengembangan dan skalabilitas sistem:
 👉 VOYEX_CRM_AI_GUIDELINE.md
+    - [Layout Guide](./LAYOUT_GUIDE.md)
 
 Dokumen tersebut mendefinisikan:
 Business logic utama
