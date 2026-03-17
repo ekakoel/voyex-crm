@@ -22,3 +22,6 @@ class ItineraryTransportUnit extends Model
         return $this->belongsTo(TransportUnit::class);
     }
 }
+
+
+

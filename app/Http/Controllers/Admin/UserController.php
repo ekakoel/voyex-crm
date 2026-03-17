@@ -15,13 +15,43 @@ class UserController extends Controller
 {
     public function index(): View
     {
-        $users = User::query()
+        $query = User::query()
             ->with('roles:id,name')
-            ->withoutSuperAdmin()
-            ->latest()
-            ->paginate(10);
+            ->withoutSuperAdmin();
 
-        return view('modules.users.index', compact('users'));
+        $query->when(request('search'), function ($q) {
+            $keyword = trim((string) request('search'));
+            if ($keyword === '') {
+                return;
+            }
+            $q->where(function ($sub) use ($keyword) {
+                $sub->where('name', 'like', '%' . $keyword . '%')
+                    ->orWhere('email', 'like', '%' . $keyword . '%');
+            });
+        });
+
+        $query->when(request('role'), function ($q) {
+            $role = trim((string) request('role'));
+            if ($role === '') {
+                return;
+            }
+            $q->whereHas('roles', fn ($roles) => $roles->where('name', $role));
+        });
+
+        $perPage = (int) request('per_page', 10);
+        $perPage = $perPage > 0 && $perPage <= 100 ? $perPage : 10;
+
+        $users = $query
+            ->orderBy('name')
+            ->paginate($perPage)
+            ->withQueryString();
+
+        $roles = Role::query()
+            ->where('name', '!=', 'Super Admin')
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
+        return view('modules.users.index', compact('users', 'roles'));
     }
 
     public function create(): View

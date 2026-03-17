@@ -60,17 +60,17 @@
     <div class="grid grid-cols-1 gap-4 md:grid-cols-4">
         <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Code</label>
-            <input name="code" value="{{ old('code', $transport->code ?? '') }}" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm uppercase dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" required>
+            <input name="code" value="{{ old('code', $transport->code ?? '') }}" class="mt-1 uppercase dark:border-gray-600 app-input" required>
             @error('code') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
         </div>
         <div class="md:col-span-2">
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Service Name</label>
-            <input name="name" value="{{ old('name', $transport->name ?? '') }}" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" required>
+            <input name="name" value="{{ old('name', $transport->name ?? '') }}" class="mt-1 dark:border-gray-600 app-input" required>
             @error('name') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
         </div>
         <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Transport Type</label>
-            <select name="transport_type" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" required>
+            <select name="transport_type" class="mt-1 dark:border-gray-600 app-input" required>
                 <option value="">Select type</option>
                 @foreach ($transportTypes as $type)
                     <option value="{{ $type }}" @selected(old('transport_type', $transport->transport_type ?? '') === $type)>{{ str_replace('_', ' ', ucfirst($type)) }}</option>
@@ -83,11 +83,11 @@
     <div class="grid grid-cols-1 gap-4 md:grid-cols-4">
         <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Provider Name</label>
-            <input name="provider_name" value="{{ old('provider_name', $transport->provider_name ?? '') }}" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+            <input name="provider_name" value="{{ old('provider_name', $transport->provider_name ?? '') }}" class="mt-1 dark:border-gray-600 app-input">
         </div>
         <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Service Scope</label>
-            <select name="service_scope" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+            <select name="service_scope" class="mt-1 dark:border-gray-600 app-input">
                 <option value="">Select scope</option>
                 @foreach ($serviceScopes as $scope)
                     <option value="{{ $scope }}" @selected(old('service_scope', $transport->service_scope ?? '') === $scope)>{{ str_replace('_', ' ', ucfirst($scope)) }}</option>
@@ -96,26 +96,28 @@
         </div>
         <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Website</label>
-            <input name="website" type="url" value="{{ old('website', $transport->website ?? '') }}" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+            <input name="website" type="url" value="{{ old('website', $transport->website ?? '') }}" class="mt-1 dark:border-gray-600 app-input">
         </div>
         <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Contact Name</label>
-            <input name="contact_name" value="{{ old('contact_name', $transport->contact_name ?? '') }}" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+            <input name="contact_name" value="{{ old('contact_name', $transport->contact_name ?? '') }}" class="mt-1 dark:border-gray-600 app-input">
         </div>
     </div>
 
     <div class="grid grid-cols-1 gap-4 md:grid-cols-6">
         <div class="md:col-span-2">
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Google Maps URL</label>
-            <div class="mt-1 flex items-center gap-2">
-                <input name="google_maps_url" data-location-field="google_maps_url" value="{{ old('google_maps_url', $transport->google_maps_url ?? '') }}" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" placeholder="https://maps.google.com/...">
-                <button type="button" data-location-autofill-trigger class="shrink-0 rounded-lg border border-indigo-300 px-3 py-2 text-xs font-semibold text-indigo-700">Auto Fill</button>
+            <div class="mt-1 space-y-2">
+                <input name="google_maps_url" data-location-field="google_maps_url" value="{{ old('google_maps_url', $transport->google_maps_url ?? '') }}" class="app-input" placeholder="https://maps.google.com/...">
+                <div class="flex justify-end">
+                    <button type="button" data-location-autofill-trigger class="btn-outline-sm">Auto Fill</button>
+                </div>
             </div>
             @error('google_maps_url') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
         </div>
         <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Destination</label>
-            <select name="destination_id" data-location-field="destination_id" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+            <select name="destination_id" data-location-field="destination_id" class="mt-1 dark:border-gray-600 app-input">
                 <option value="">Select destination</option>
                 @foreach ($destinations as $destination)
                     <option value="{{ $destination->id }}" data-city="{{ $destination->city ?? '' }}" data-province="{{ $destination->province ?? '' }}" @selected((string) old('destination_id', $transport->destination_id ?? '') === (string) $destination->id)>
@@ -127,43 +129,43 @@
         </div>
         <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Location</label>
-            <input name="location" data-location-field="location" value="{{ old('location', $transport->location ?? '') }}" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+            <input name="location" data-location-field="location" value="{{ old('location', $transport->location ?? '') }}" class="mt-1 dark:border-gray-600 app-input">
         </div>
         <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">City</label>
-            <input name="city" data-location-field="city" value="{{ old('city', $transport->city ?? '') }}" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+            <input name="city" data-location-field="city" value="{{ old('city', $transport->city ?? '') }}" class="mt-1 dark:border-gray-600 app-input">
         </div>
         <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Province</label>
-            <input name="province" data-location-field="province" value="{{ old('province', $transport->province ?? '') }}" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+            <input name="province" data-location-field="province" value="{{ old('province', $transport->province ?? '') }}" class="mt-1 dark:border-gray-600 app-input">
         </div>
         <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Country</label>
-            <input name="country" data-location-field="country" value="{{ old('country', $transport->country ?? '') }}" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+            <input name="country" data-location-field="country" value="{{ old('country', $transport->country ?? '') }}" class="mt-1 dark:border-gray-600 app-input">
         </div>
         <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Contact Phone</label>
-            <input name="contact_phone" value="{{ old('contact_phone', $transport->contact_phone ?? '') }}" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+            <input name="contact_phone" value="{{ old('contact_phone', $transport->contact_phone ?? '') }}" class="mt-1 dark:border-gray-600 app-input">
         </div>
     </div>
 
     <div class="grid grid-cols-1 gap-4 md:grid-cols-4">
         <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Timezone</label>
-            <input name="timezone" data-location-field="timezone" value="{{ old('timezone', $transport->timezone ?? '') }}" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+            <input name="timezone" data-location-field="timezone" value="{{ old('timezone', $transport->timezone ?? '') }}" class="mt-1 dark:border-gray-600 app-input">
         </div>
         <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Address</label>
-            <input name="address" data-location-field="address" value="{{ old('address', $transport->address ?? '') }}" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+            <input name="address" data-location-field="address" value="{{ old('address', $transport->address ?? '') }}" class="mt-1 dark:border-gray-600 app-input">
         </div>
         <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Latitude</label>
-            <input name="latitude" data-location-field="latitude" type="number" step="0.0000001" value="{{ old('latitude', $transport->latitude ?? '') }}" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+            <input name="latitude" data-location-field="latitude" type="number" step="0.0000001" value="{{ old('latitude', $transport->latitude ?? '') }}" class="mt-1 dark:border-gray-600 app-input">
             @error('latitude') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
         </div>
         <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Longitude</label>
-            <input name="longitude" data-location-field="longitude" type="number" step="0.0000001" value="{{ old('longitude', $transport->longitude ?? '') }}" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+            <input name="longitude" data-location-field="longitude" type="number" step="0.0000001" value="{{ old('longitude', $transport->longitude ?? '') }}" class="mt-1 dark:border-gray-600 app-input">
             @error('longitude') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
         </div>
     </div>
@@ -171,7 +173,7 @@
 
     <div>
         <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Contact Email</label>
-        <input name="contact_email" type="email" value="{{ old('contact_email', $transport->contact_email ?? '') }}" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+        <input name="contact_email" type="email" value="{{ old('contact_email', $transport->contact_email ?? '') }}" class="mt-1 dark:border-gray-600 app-input">
     </div>
 
     <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -212,7 +214,7 @@
                     <div class="transport-gallery-existing-item relative overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700" data-image-path="{{ $image }}">
                         <button
                             type="button"
-                            class="transport-gallery-remove-btn absolute right-1 top-1 z-10 inline-flex h-6 w-6 items-center justify-center rounded-full bg-rose-600/95 text-xs font-bold text-white shadow hover:bg-rose-700"
+                             class="transport-gallery-remove-btn absolute right-1 top-1 z-10 inline-flex h-6 w-6 items-center justify-center rounded-full bg-rose-600/95 text-xs font-bold text-white shadow hover:bg-rose-700"
                             title="Remove image"
                             aria-label="Remove image">
                             X
@@ -239,7 +241,7 @@
     <div class="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
         <div class="mb-3 flex items-center justify-between">
             <p class="text-sm font-semibold text-gray-800 dark:text-gray-100">Unit Details (Contract)</p>
-            <button type="button" id="add-unit-row" class="rounded-lg border border-indigo-300 px-3 py-1 text-xs font-medium text-indigo-700">Add Unit</button>
+            <button type="button" id="add-unit-row"  class="rounded-lg border border-indigo-300 px-3 py-1 text-xs font-medium text-indigo-700">Add Unit</button>
         </div>
 
         <div id="unit-rows" class="space-y-3">
@@ -248,23 +250,23 @@
                     <div class="grid grid-cols-1 gap-3 md:grid-cols-6">
                         <div class="md:col-span-2">
                             <label class="block text-xs text-gray-500">Unit Name</label>
-                            <input name="units[{{ $index }}][name]" value="{{ $unit['name'] ?? '' }}" class="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" required>
+                            <input name="units[{{ $index }}][name]" value="{{ $unit['name'] ?? '' }}" class="mt-1 dark:border-gray-600 app-input" required>
                         </div>
                         <div>
                             <label class="block text-xs text-gray-500">Vehicle Type</label>
-                            <input name="units[{{ $index }}][vehicle_type]" value="{{ $unit['vehicle_type'] ?? '' }}" class="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+                            <input name="units[{{ $index }}][vehicle_type]" value="{{ $unit['vehicle_type'] ?? '' }}" class="mt-1 dark:border-gray-600 app-input">
                         </div>
                         <div>
                             <label class="block text-xs text-gray-500">Brand / Model</label>
-                            <input name="units[{{ $index }}][brand_model]" value="{{ $unit['brand_model'] ?? '' }}" class="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+                            <input name="units[{{ $index }}][brand_model]" value="{{ $unit['brand_model'] ?? '' }}" class="mt-1 dark:border-gray-600 app-input">
                         </div>
                         <div>
                             <label class="block text-xs text-gray-500">Seats</label>
-                            <input name="units[{{ $index }}][seat_capacity]" type="number" min="1" value="{{ $unit['seat_capacity'] ?? 4 }}" class="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" required>
+                            <input name="units[{{ $index }}][seat_capacity]" type="number" min="1" value="{{ $unit['seat_capacity'] ?? 4 }}" class="mt-1 dark:border-gray-600 app-input" required>
                         </div>
                         <div>
                             <label class="block text-xs text-gray-500">Luggage</label>
-                            <input name="units[{{ $index }}][luggage_capacity]" type="number" min="0" value="{{ $unit['luggage_capacity'] ?? '' }}" class="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+                            <input name="units[{{ $index }}][luggage_capacity]" type="number" min="0" value="{{ $unit['luggage_capacity'] ?? '' }}" class="mt-1 dark:border-gray-600 app-input">
                         </div>
                     </div>
 
@@ -299,11 +301,11 @@
                         />
                         <div>
                             <label class="block text-xs text-gray-500">Currency</label>
-                            <input name="units[{{ $index }}][currency]" value="{{ $unit['currency'] ?? 'IDR' }}" maxlength="3" class="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 uppercase text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" required>
+                            <input name="units[{{ $index }}][currency]" value="{{ $unit['currency'] ?? 'IDR' }}" maxlength="3" class="mt-1 uppercase dark:border-gray-600 app-input" required>
                         </div>
                         <div>
                             <label class="block text-xs text-gray-500">Fuel Type</label>
-                            <select name="units[{{ $index }}][fuel_type]" class="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+                            <select name="units[{{ $index }}][fuel_type]" class="mt-1 dark:border-gray-600 app-input">
                                 @foreach ($fuelTypes as $fuelType)
                                     <option value="{{ $fuelType }}" @selected(($unit['fuel_type'] ?? 'petrol') === $fuelType)>{{ ucfirst($fuelType) }}</option>
                                 @endforeach
@@ -311,7 +313,7 @@
                         </div>
                         <div>
                             <label class="block text-xs text-gray-500">Transmission</label>
-                            <select name="units[{{ $index }}][transmission]" class="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+                            <select name="units[{{ $index }}][transmission]" class="mt-1 dark:border-gray-600 app-input">
                                 @foreach ($transmissions as $transmission)
                                     <option value="{{ $transmission }}" @selected(($unit['transmission'] ?? 'automatic') === $transmission)>{{ ucfirst($transmission) }}</option>
                                 @endforeach
@@ -345,7 +347,7 @@
                                                 alt="Unit cover"
                                                 class="h-20 w-full object-cover">
                                         </div>
-                                        <input type="hidden" name="units[{{ $index }}][existing_images][]" value="{{ $existingImage }}">
+                                        <input type="hidden" name="units[{{ $index }}][existing_images][]" value="{{ $existingImage }}" class="app-input">
                                     @endif
                                 @endforeach
                             </div>
@@ -355,27 +357,27 @@
                     <div class="mt-3 grid grid-cols-1 gap-3 md:grid-cols-4">
                         <div>
                             <label class="block text-xs text-gray-500">Air Conditioned</label>
-                            <select name="units[{{ $index }}][air_conditioned]" class="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+                            <select name="units[{{ $index }}][air_conditioned]" class="mt-1 dark:border-gray-600 app-input">
                                 <option value="1" @selected(($unit['air_conditioned'] ?? '1') === '1')>Yes</option>
                                 <option value="0" @selected(($unit['air_conditioned'] ?? '1') === '0')>No</option>
                             </select>
                         </div>
                         <div>
                             <label class="block text-xs text-gray-500">With Driver</label>
-                            <select name="units[{{ $index }}][with_driver]" class="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+                            <select name="units[{{ $index }}][with_driver]" class="mt-1 dark:border-gray-600 app-input">
                                 <option value="1" @selected(($unit['with_driver'] ?? '1') === '1')>Yes</option>
                                 <option value="0" @selected(($unit['with_driver'] ?? '1') === '0')>No</option>
                             </select>
                         </div>
                         <div>
                             <label class="block text-xs text-gray-500">Unit Status</label>
-                            <select name="units[{{ $index }}][is_active]" class="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+                            <select name="units[{{ $index }}][is_active]" class="mt-1 dark:border-gray-600 app-input">
                                 <option value="1" @selected(($unit['is_active'] ?? '1') === '1')>Active</option>
                                 <option value="0" @selected(($unit['is_active'] ?? '1') === '0')>Inactive</option>
                             </select>
                         </div>
                         <div class="flex items-end justify-end">
-                            <button type="button" class="remove-unit-row rounded-lg border border-rose-300 px-3 py-2 text-xs font-medium text-rose-700">Remove Unit</button>
+                            <button type="button"  class="remove-unit-row rounded-lg border border-rose-300 px-3 py-2 text-xs font-medium text-rose-700">Remove Unit</button>
                         </div>
                     </div>
                 </div>
@@ -395,46 +397,46 @@
     </div>
 
     <div class="flex items-center gap-2">
-        <button class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">{{ $buttonLabel }}</button>
-        <a href="{{ route('transports.index') }}" class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700">Cancel</a>
+        <button  class="btn-primary">{{ $buttonLabel }}</button>
+        <a href="{{ route('transports.index') }}"  class="btn-secondary">Cancel</a>
     </div>
 </div>
 
 <template id="unit-row-template">
     <div class="unit-row rounded-lg border border-gray-200 p-3 dark:border-gray-700" data-unit-index="__INDEX__">
         <div class="grid grid-cols-1 gap-3 md:grid-cols-6">
-            <div class="md:col-span-2"><label class="block text-xs text-gray-500">Unit Name</label><input name="units[__INDEX__][name]" class="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" required></div>
-            <div><label class="block text-xs text-gray-500">Vehicle Type</label><input name="units[__INDEX__][vehicle_type]" class="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"></div>
-            <div><label class="block text-xs text-gray-500">Brand / Model</label><input name="units[__INDEX__][brand_model]" class="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"></div>
-            <div><label class="block text-xs text-gray-500">Seats</label><input name="units[__INDEX__][seat_capacity]" type="number" min="1" value="4" class="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" required></div>
-            <div><label class="block text-xs text-gray-500">Luggage</label><input name="units[__INDEX__][luggage_capacity]" type="number" min="0" class="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"></div>
+            <div class="md:col-span-2app-input"><label class="md:col-span-2app-input">Unit Name</label><input name="units[__INDEX__][name]" class="md:col-span-2app-input" required></div>
+            <div><label class="block text-gray-500 app-input">Vehicle Type</label><input name="units[__INDEX__][vehicle_type]" class="block text-gray-500 app-input"></div>
+            <div><label class="block text-gray-500 app-input">Brand / Model</label><input name="units[__INDEX__][brand_model]" class="block text-gray-500 app-input"></div>
+            <div><label class="block text-gray-500 app-input">Seats</label><input name="units[__INDEX__][seat_capacity]" type="number" min="1" value="4" class="block text-gray-500 app-input" required></div>
+            <div><label class="block text-gray-500 app-input">Luggage</label><input name="units[__INDEX__][luggage_capacity]" type="number" min="0" class="block text-gray-500 app-input"></div>
         </div>
 
         <div class="mt-3 grid grid-cols-1 gap-3 md:grid-cols-6">
             <div>
                 <label class="block text-xs text-gray-500">Contract Rate</label>
                 <div class="relative">
-                    <input name="units[__INDEX__][contract_rate]" type="number" min="0" step="0.01" data-money-input="1" class="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 pr-14 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" required>
+                    <input name="units[__INDEX__][contract_rate]" type="number" min="0" step="0.01" data-money-input="1" class="mt-1 pr-14 dark:border-gray-600 app-input" required>
                     <span class="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 rounded-md border border-gray-200 bg-gray-50 px-1.5 py-0.5 text-[10px] font-semibold text-gray-600 shadow-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200">{{ \App\Support\Currency::current() }}</span>
                 </div>
             </div>
             <div>
                 <label class="block text-xs text-gray-500">Publish Rate</label>
                 <div class="relative">
-                    <input name="units[__INDEX__][publish_rate]" type="number" min="0" step="0.01" data-money-input="1" class="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 pr-14 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+                    <input name="units[__INDEX__][publish_rate]" type="number" min="0" step="0.01" data-money-input="1" class="mt-1 pr-14 dark:border-gray-600 app-input">
                     <span class="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 rounded-md border border-gray-200 bg-gray-50 px-1.5 py-0.5 text-[10px] font-semibold text-gray-600 shadow-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200">{{ \App\Support\Currency::current() }}</span>
                 </div>
             </div>
             <div>
                 <label class="block text-xs text-gray-500">Overtime Rate</label>
                 <div class="relative">
-                    <input name="units[__INDEX__][overtime_rate]" type="number" min="0" step="0.01" data-money-input="1" class="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 pr-14 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+                    <input name="units[__INDEX__][overtime_rate]" type="number" min="0" step="0.01" data-money-input="1" class="mt-1 pr-14 dark:border-gray-600 app-input">
                     <span class="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 rounded-md border border-gray-200 bg-gray-50 px-1.5 py-0.5 text-[10px] font-semibold text-gray-600 shadow-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200">{{ \App\Support\Currency::current() }}</span>
                 </div>
             </div>
-            <div><label class="block text-xs text-gray-500">Currency</label><input name="units[__INDEX__][currency]" value="IDR" maxlength="3" class="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 uppercase text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" required></div>
-            <div><label class="block text-xs text-gray-500">Fuel Type</label><select name="units[__INDEX__][fuel_type]" class="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">@foreach ($fuelTypes as $fuelType)<option value="{{ $fuelType }}">{{ ucfirst($fuelType) }}</option>@endforeach</select></div>
-            <div><label class="block text-xs text-gray-500">Transmission</label><select name="units[__INDEX__][transmission]" class="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">@foreach ($transmissions as $transmission)<option value="{{ $transmission }}">{{ ucfirst($transmission) }}</option>@endforeach</select></div>
+            <div><label class="block text-gray-500 app-input">Currency</label><input name="units[__INDEX__][currency]" value="IDR" maxlength="3" class="block text-gray-500 app-input" required></div>
+            <div><label class="block text-gray-500 app-input">Fuel Type</label><select name="units[__INDEX__][fuel_type]" class="block text-gray-500 app-input">@foreach ($fuelTypes as $fuelType)<option value="{{ $fuelType }}">{{ ucfirst($fuelType) }}</option>@endforeach</select></div>
+            <div><label class="block text-gray-500 app-input">Transmission</label><select name="units[__INDEX__][transmission]" class="block text-gray-500 app-input">@foreach ($transmissions as $transmission)<option value="{{ $transmission }}">{{ ucfirst($transmission) }}</option>@endforeach</select></div>
         </div>
 
         <div class="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
@@ -449,10 +451,10 @@
         </div>
 
         <div class="mt-3 grid grid-cols-1 gap-3 md:grid-cols-4">
-            <div><label class="block text-xs text-gray-500">Air Conditioned</label><select name="units[__INDEX__][air_conditioned]" class="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"><option value="1">Yes</option><option value="0">No</option></select></div>
-            <div><label class="block text-xs text-gray-500">With Driver</label><select name="units[__INDEX__][with_driver]" class="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"><option value="1">Yes</option><option value="0">No</option></select></div>
-            <div><label class="block text-xs text-gray-500">Unit Status</label><select name="units[__INDEX__][is_active]" class="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"><option value="1">Active</option><option value="0">Inactive</option></select></div>
-            <div class="flex items-end justify-end"><button type="button" class="remove-unit-row rounded-lg border border-rose-300 px-3 py-2 text-xs font-medium text-rose-700">Remove Unit</button></div>
+            <div><label class="block text-gray-500 app-input">Air Conditioned</label><select name="units[__INDEX__][air_conditioned]" class="block text-gray-500 app-input"><option value="1">Yes</option><option value="0">No</option></select></div>
+            <div><label class="block text-gray-500 app-input">With Driver</label><select name="units[__INDEX__][with_driver]" class="block text-gray-500 app-input"><option value="1">Yes</option><option value="0">No</option></select></div>
+            <div><label class="block text-gray-500 app-input">Unit Status</label><select name="units[__INDEX__][is_active]" class="block text-gray-500 app-input"><option value="1">Active</option><option value="0">Inactive</option></select></div>
+            <div class="flex items-end justify-end"><button type="button"  class="remove-unit-row rounded-lg border border-rose-300 px-3 py-2 text-xs font-medium text-rose-700">Remove Unit</button></div>
         </div>
     </div>
 </template>
@@ -588,3 +590,6 @@
 })();
 </script>
 @endpush
+
+
+

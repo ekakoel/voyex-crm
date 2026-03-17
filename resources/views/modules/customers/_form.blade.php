@@ -80,7 +80,7 @@
             x-model="codeInput"
             @input="scheduleCheck()"
             value="{{ old('code', $customer->code ?? '') }}"
-            class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm uppercase dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
+            class="mt-1 uppercase dark:border-gray-600 app-input"
             required
         >
         <p x-show="codeStatus === 'checking'" x-cloak class="mt-1 text-xs text-slate-500">Checking code...</p>
@@ -97,7 +97,7 @@
             name="name"
             type="text"
             value="{{ old('name', $customer->name ?? '') }}"
-            class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
+            class="mt-1 dark:border-gray-600 app-input"
             required
         >
         @error('name')
@@ -112,7 +112,7 @@
                 name="email"
                 type="email"
                 value="{{ old('email', $customer->email ?? '') }}"
-                class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
+                class="mt-1 dark:border-gray-600 app-input"
             >
             @error('email')
                 <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
@@ -125,7 +125,7 @@
                 name="phone"
                 type="text"
                 value="{{ old('phone', $customer->phone ?? '') }}"
-                class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
+                class="mt-1 dark:border-gray-600 app-input"
             >
             @error('phone')
                 <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
@@ -167,7 +167,7 @@
                 name="company_name"
                 type="text"
                 value="{{ old('company_name', $customer->company_name ?? '') }}"
-                class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
+                class="mt-1 dark:border-gray-600 app-input"
                 x-bind:required="selectedType === 'company'"
             >
             @error('company_name')
@@ -177,14 +177,17 @@
     </div>
 
     <div class="flex items-center gap-2">
-        <button type="submit" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">
+        <button type="submit"  class="btn-primary">
             {{ $buttonLabel }}
         </button>
-        <a href="{{ route('customers.index') }}" class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700">
+        <a href="{{ route('customers.index') }}"  class="btn-secondary">
             Cancel
         </a>
     </div>
     </div>
 </div>
+
+
+
 
 

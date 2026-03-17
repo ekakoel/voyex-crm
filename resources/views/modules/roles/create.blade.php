@@ -10,6 +10,8 @@
                 @include('modules.roles._form', [
                     'buttonLabel' => 'Save Role',
                     'selectedPermissions' => old('permissions', []),
+                    'selectedTemplateRoleId' => $selectedTemplateRoleId ?? null,
+                    'selectedTemplateRoleName' => $selectedTemplateRoleName ?? null,
                 ])
             </form>
         </div>

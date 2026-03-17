@@ -22,3 +22,6 @@ class ActivityType extends Model
     }
 }
 
+
+
+

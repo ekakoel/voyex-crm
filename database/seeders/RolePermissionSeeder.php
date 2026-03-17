@@ -31,31 +31,10 @@ class RolePermissionSeeder extends Seeder
         $allPermissions = Permission::query()->pluck('name')->all();
 
         $defaults = [
-            'Admin' => $allPermissions,
+            'Administrator' => $allPermissions,
             'Super Admin' => $allPermissions,
-            'Admin User' => [
-                'dashboard.admin.view',
-                'company_settings.manage',
-                'module.customer_management.access',
-                'module.inquiries.access',
-                'module.itineraries.access',
-                'module.quotations.access',
-                'quotations.approve',
-                'quotations.reject',
-                'module.bookings.access',
-                'module.invoices.access',
-                'module.vendor_management.access',
-                'module.destinations.access',
-                'module.activities.access',
-                'module.food_beverages.access',
-                'module.accommodations.access',
-                'module.airports.access',
-                'module.transports.access',
-                'module.tourist_attractions.access',
-                'module.user_manager.access',
-            ],
-            'Sales Manager' => [
-                'dashboard.sales.view',
+            'Manager' => [
+                'dashboard.manager.view',
                 'module.customer_management.access',
                 'module.inquiries.access',
                 'module.quotations.access',
@@ -68,8 +47,8 @@ class RolePermissionSeeder extends Seeder
                 'module.food_beverages.access',
                 'module.airports.access',
             ],
-            'Sales Agent' => [
-                'dashboard.sales.view',
+            'Marketing' => [
+                'dashboard.marketing.view',
                 'module.customer_management.access',
                 'module.inquiries.access',
                 'module.quotations.access',
@@ -81,7 +60,6 @@ class RolePermissionSeeder extends Seeder
             ],
             'Director' => [
                 'dashboard.director.view',
-                'dashboard.sales.view',
                 'module.customer_management.access',
                 'module.inquiries.access',
                 'module.itineraries.access',
@@ -98,8 +76,8 @@ class RolePermissionSeeder extends Seeder
                 'module.bookings.access',
                 'module.invoices.access',
             ],
-            'Operations' => [
-                'dashboard.operations.view',
+            'Reservation' => [
+                'dashboard.reservation.view',
                 'module.bookings.access',
                 'module.vendor_management.access',
                 'module.destinations.access',
@@ -107,13 +85,28 @@ class RolePermissionSeeder extends Seeder
                 'module.food_beverages.access',
                 'module.airports.access',
             ],
+            'Editor' => [
+                'dashboard.editor.view',
+                'module.vendor_management.access',
+                'module.destinations.access',
+                'module.activities.access',
+                'module.food_beverages.access',
+                'module.accommodations.access',
+                'module.airports.access',
+                'module.transports.access',
+                'module.tourist_attractions.access',
+            ],
         ];
+
+        $moduleKeys = array_keys($modules);
 
         foreach ($defaults as $roleName => $permissionNames) {
             $role = Role::where('name', $roleName)->first();
             if (! $role) {
                 continue;
             }
+
+            $permissionNames = $this->expandModulePermissions($permissionNames, $moduleKeys);
 
             $validPermissions = Permission::query()
                 ->whereIn('name', $permissionNames)
@@ -122,5 +115,28 @@ class RolePermissionSeeder extends Seeder
 
             $role->syncPermissions($validPermissions);
         }
+    }
+
+    private function expandModulePermissions(array $permissions, array $moduleKeys): array
+    {
+        $expanded = $permissions;
+        $permissionSet = array_fill_keys($permissions, true);
+
+        foreach ($moduleKeys as $moduleKey) {
+            $accessPermission = "module.{$moduleKey}.access";
+            if (! isset($permissionSet[$accessPermission])) {
+                continue;
+            }
+
+            foreach (['create', 'read', 'update', 'delete'] as $action) {
+                $permissionName = "module.{$moduleKey}.{$action}";
+                if (! isset($permissionSet[$permissionName])) {
+                    $expanded[] = $permissionName;
+                    $permissionSet[$permissionName] = true;
+                }
+            }
+        }
+
+        return $expanded;
     }
 }

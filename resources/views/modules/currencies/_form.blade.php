@@ -7,12 +7,12 @@
     <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Code</label>
-            <input name="code" value="{{ old('code', $currency->code ?? '') }}" maxlength="10" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm uppercase dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" required>
+            <input name="code" value="{{ old('code', $currency->code ?? '') }}" maxlength="10" class="mt-1 uppercase dark:border-gray-600 app-input" required>
             @error('code') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
         </div>
         <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Name</label>
-            <input name="name" value="{{ old('name', $currency->name ?? '') }}" maxlength="100" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" required>
+            <input name="name" value="{{ old('name', $currency->name ?? '') }}" maxlength="100" class="mt-1 dark:border-gray-600 app-input" required>
             @error('name') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
         </div>
     </div>
@@ -20,7 +20,7 @@
     <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
         <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Symbol</label>
-            <input name="symbol" value="{{ old('symbol', $currency->symbol ?? '') }}" maxlength="10" placeholder="Rp / $" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+            <input name="symbol" value="{{ old('symbol', $currency->symbol ?? '') }}" maxlength="10" placeholder="Rp / $" class="mt-1 dark:border-gray-600 app-input">
             @error('symbol') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
         </div>
         <div>
@@ -37,7 +37,7 @@
         </div>
         <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Decimal Places</label>
-            <input name="decimal_places" type="number" min="0" max="6" value="{{ old('decimal_places', $currency->decimal_places ?? 0) }}" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" required>
+            <input name="decimal_places" type="number" min="0" max="6" value="{{ old('decimal_places', $currency->decimal_places ?? 0) }}" class="mt-1 dark:border-gray-600 app-input" required>
             @error('decimal_places') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
         </div>
     </div>
@@ -56,7 +56,10 @@
     </div>
 
     <div class="flex items-center gap-2">
-        <button class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">{{ $buttonLabel }}</button>
-        <a href="{{ route('currencies.index') }}" class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700">Cancel</a>
+        <button  class="btn-primary">{{ $buttonLabel }}</button>
+        <a href="{{ route('currencies.index') }}"  class="btn-secondary">Cancel</a>
     </div>
 </div>
+
+
+

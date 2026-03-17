@@ -2,11 +2,11 @@
 
 @section('content')
     <div class="space-y-6">
-        @section('page_actions')<a href="{{ route('transports.edit', $transport) }}" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">Edit</a>
-                <a href="{{ route('transports.index') }}" class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700">Back</a>@endsection
+        @section('page_actions')<a href="{{ route('transports.edit', $transport) }}"  class="btn-primary">Edit</a>
+                <a href="{{ route('transports.index') }}"  class="btn-ghost">Back</a>@endsection
 
         <div class="grid grid-cols-1 gap-4 xl:grid-cols-3">
-            <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800 xl:col-span-2">
+            <div class="app-card p-4 xl:col-span-2">
                 <h2 class="text-sm font-semibold text-gray-800 dark:text-gray-100">Overview</h2>
                 <div class="mt-3 grid grid-cols-1 gap-3 text-sm md:grid-cols-2">
                     <div><span class="text-gray-500 dark:text-gray-400">Name:</span> <span class="text-gray-800 dark:text-gray-100">{{ $transport->name }}</span></div>
@@ -39,7 +39,7 @@
                 @endif
             </div>
 
-            <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+            <div class="app-card p-4">
                 <h2 class="text-sm font-semibold text-gray-800 dark:text-gray-100">Contact</h2>
                 <div class="mt-3 space-y-2 text-sm">
                     <div><span class="text-gray-500 dark:text-gray-400">PIC:</span> <span class="text-gray-800 dark:text-gray-100">{{ $transport->contact_name ?: '-' }}</span></div>
@@ -59,7 +59,7 @@
         </div>
 
         @if (!empty($transport->gallery_images))
-            <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+            <div class="app-card p-4">
                 <h2 class="text-sm font-semibold text-gray-800 dark:text-gray-100">Transport Gallery</h2>
                 <div class="mt-3 grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-5">
                     @foreach ($transport->gallery_images as $image)
@@ -75,11 +75,11 @@
             </div>
         @endif
 
-        <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+        <div class="app-card p-4">
             <h2 class="text-sm font-semibold text-gray-800 dark:text-gray-100">Unit Details</h2>
-            <div class="mt-3 overflow-x-auto">
-                <table class="w-full divide-y divide-gray-200 text-sm dark:divide-gray-700">
-                    <thead class="bg-gray-50 dark:bg-gray-900/40">
+            <div class="mt-3 overflow-x-auto app-card">
+                <table class="app-table w-full divide-y divide-gray-200 text-sm dark:divide-gray-700">
+                    <thead>
                         <tr>
                             <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">Unit</th>
                             <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">Capacity</th>
@@ -126,5 +126,6 @@
         </div>
     </div>
 @endsection
+
 
 

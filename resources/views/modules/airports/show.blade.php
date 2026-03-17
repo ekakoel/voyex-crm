@@ -2,10 +2,10 @@
 
 @section('content')
     <div class="space-y-6">
-        @section('page_actions')<a href="{{ route('airports.edit', $airport) }}" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">Edit</a>
-                <a href="{{ route('airports.index') }}" class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100">Back</a>@endsection
+        @section('page_actions')<a href="{{ route('airports.edit', $airport) }}"  class="btn-primary">Edit</a>
+                <a href="{{ route('airports.index') }}"  class="btn-ghost">Back</a>@endsection
 
-        <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+        <div class="app-card p-4">
             <div class="grid grid-cols-1 gap-3 text-sm md:grid-cols-2">
                 <div><span class="text-gray-500 dark:text-gray-400">Location:</span> <span class="text-gray-800 dark:text-gray-100">{{ $airport->location ?: '-' }}</span></div>
                 <div><span class="text-gray-500 dark:text-gray-400">Destination:</span> <span class="text-gray-800 dark:text-gray-100">{{ $airport->destination?->name ?? '-' }}</span></div>
@@ -20,5 +20,6 @@
         </div>
     </div>
 @endsection
+
 
 

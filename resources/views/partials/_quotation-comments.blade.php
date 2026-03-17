@@ -1,8 +1,9 @@
 @php
     $user = auth()->user();
     $canComment = $user
-        && $user->hasAnyRole(['Director', 'Sales Manager', 'Sales Agent'])
-        && (int) ($quotation->created_by ?? 0) !== (int) $user->id;
+        && $user->hasAnyRole(['Director', 'Manager', 'Marketing'])
+        && (int) ($quotation->created_by ?? 0) !== (int) $user->id
+        && ! $quotation->isFinal();
     $latestComment = $quotation->comments->first();
     $hasNewComment = $latestComment
         && $user
@@ -18,14 +19,14 @@
     </div>
 
     @if ($hasNewComment)
-        <div class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-300">
+        <div class="rounded-lg mb-6 border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-300">
             Ada comment baru dari {{ $latestComment->user?->name ?? 'user' }}.
         </div>
     @endif
 
     <div class="space-y-3">
         @forelse ($quotation->comments as $index => $comment)
-            <div class="rounded-lg border border-gray-200 p-3 text-xs text-gray-700 dark:border-gray-700 dark:text-gray-200 {{ $index === 0 ? 'bg-indigo-50/60 dark:bg-indigo-900/20' : '' }}">
+            <div class="rounded-lg mb-6 border border-gray-200 p-3 text-xs text-gray-700 dark:border-gray-700 dark:text-gray-200 {{ $index === 0 ? 'bg-indigo-50/60 dark:bg-indigo-900/20' : '' }}">
                 <div class="flex items-center justify-between gap-2">
                     <div class="font-semibold text-gray-800 dark:text-gray-100">
                         {{ $comment->user?->name ?? 'Unknown' }}
@@ -47,7 +48,7 @@
                             <p class="text-xs text-rose-600">{{ $message }}</p>
                         @enderror
                         <div class="flex items-center gap-2">
-                            <button type="submit" class="rounded-lg bg-indigo-600 px-3 py-1.5 text-[11px] font-medium text-white hover:bg-indigo-700">Save</button>
+                            <button type="submit"  class="btn-primary-sm">Save</button>
                             <a href="{{ url()->current() }}" class="rounded-lg border border-gray-300 px-3 py-1.5 text-[11px] font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700">Cancel</a>
                         </div>
                     </form>
@@ -60,13 +61,13 @@
                     </div>
                 @endif
 
-                @if ($user && (int) ($comment->user_id ?? 0) === (int) $user->id)
+                @if ($user && (int) ($comment->user_id ?? 0) === (int) $user->id && ! $quotation->isFinal())
                     <div class="mt-2 flex items-center gap-2">
                         <a href="{{ url()->current() . '?edit_comment_id=' . $comment->id }}" class="text-[11px] font-medium text-indigo-600 hover:text-indigo-700 dark:text-indigo-300">Edit</a>
                         <form method="POST" action="{{ route('quotations.comments.destroy', [$quotation, $comment]) }}" class="inline">
                             @csrf
                             @method('DELETE')
-                            <button type="submit" onclick="return confirm('Delete this comment?')" class="text-[11px] font-medium text-rose-600 hover:text-rose-700 dark:text-rose-300">
+                            <button type="submit" onclick="return confirm('Delete this comment?')"   class="btn-danger-sm">
                                 Delete
                             </button>
                         </form>
@@ -94,10 +95,12 @@
                 @error('comment_body')
                     <p class="text-xs text-rose-600">{{ $message }}</p>
                 @enderror
-                <button type="submit" class="rounded-lg bg-indigo-600 px-3 py-2 text-xs font-medium text-white hover:bg-indigo-700">
+                <button type="submit"  class="btn-primary-sm">
                     Add Comment
                 </button>
             </form>
         </details>
     @endif
 </div>
+
+

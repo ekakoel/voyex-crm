@@ -23,8 +23,8 @@
     $badgeText = $badge ?? $currentCurrency;
     $wrapperClass = $wrapperClass ?? ($compact ? '' : 'space-y-1');
     $baseInputClass = $compact
-        ? 'w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100 pr-14'
-        : 'mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100 pr-14';
+        ? 'app-input pr-14'
+        : 'mt-1 app-input pr-14';
     $inputClass = trim($baseInputClass . ' ' . ($inputClass ?? ''));
 @endphp
 
@@ -58,3 +58,5 @@
         </span>
     </div>
 </div>
+
+

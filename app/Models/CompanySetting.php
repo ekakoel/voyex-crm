@@ -24,3 +24,6 @@ class CompanySetting extends Model
         'logo_path',
     ];
 }
+
+
+

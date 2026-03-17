@@ -3,9 +3,7 @@
 @section('page_title', 'Edit Customer')
 @section('page_subtitle', 'Update customer details.')
 @section('page_actions')
-    <a href="{{ route('customers.index') }}" class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700">
-        Back
-    </a>
+    <a href="{{ route('customers.index') }}"  class="btn-ghost">Back</a>
 @endsection
 
 @section('content')
@@ -23,9 +21,10 @@
                     </form>
                 </div>
             </div>
-            <aside class="space-y-6 xl:col-span-4">
+            <aside  class="space-y-6 xl:col-span-4">
                 @include('partials._audit-info', ['record' => $customer])
             </aside>
         </div>
     </div>
 @endsection
+

@@ -2,17 +2,19 @@
 
 @section('content')
     <div class="space-y-6 itinerary-show-page">
-        <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+        <div class="app-card p-4 mb-6">
             @section('page_actions')@if (Route::has('quotations.create') && auth()->user()->can('module.quotations.access') && ! $itinerary->quotation)
                         <a href="{{ route('quotations.create', ['itinerary_id' => $itinerary->id]) }}" class="rounded-lg border border-indigo-300 px-4 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-50 dark:border-indigo-700 dark:text-indigo-300 dark:hover:bg-indigo-900/20">Generate Quotation</a>
                     @endif
                     <a href="{{ route('itineraries.pdf', [$itinerary, 'mode' => 'stream']) }}" target="_blank" rel="noopener" class="rounded-lg border border-sky-300 px-4 py-2 text-sm font-medium text-sky-700 hover:bg-sky-50 dark:border-sky-700 dark:text-sky-300 dark:hover:bg-sky-900/20">Preview PDF</a>
                     <a href="{{ route('itineraries.pdf', [$itinerary, 'mode' => 'download']) }}" target="_blank" rel="noopener" class="rounded-lg border border-emerald-300 px-4 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-50 dark:border-emerald-700 dark:text-emerald-300 dark:hover:bg-emerald-900/20">Download PDF</a>
-                    @if (!($itinerary->quotation && ($itinerary->quotation->status ?? '') === 'approved'))
-                        <a href="{{ route('itineraries.edit', $itinerary) }}" class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700">Edit</a>
-                    @endif
-                    <a href="{{ route('itineraries.index') }}" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">Back</a>@endsection
-            <div class="mt-3 grid grid-cols-1 gap-2 text-sm md:grid-cols-2">
+                    @can('update', $itinerary)
+                        @if (!($itinerary->quotation && ($itinerary->quotation->status ?? '') === 'approved') && ! $itinerary->isFinal())
+                            <a href="{{ route('itineraries.edit', $itinerary) }}"  class="btn-secondary">Edit</a>
+                        @endif
+                    @endcan
+                    <a href="{{ route('itineraries.index') }}"  class="btn-primary">Back</a>@endsection
+            <div class="my-3 grid grid-cols-1 gap-2 text-sm md:grid-cols-2">
                 <div><span class="text-gray-500 dark:text-gray-400">Title:</span> <span class="text-gray-800 dark:text-gray-100">{{ $itinerary->title }}</span></div>
                 <div><span class="text-gray-500 dark:text-gray-400">Duration:</span> <span class="text-gray-800 dark:text-gray-100">{{ $itinerary->duration_days }}D{{ $itinerary->duration_nights > 0 ? "/".$itinerary->duration_nights."N": "" }}</span></div>
                 <div><span class="text-gray-500 dark:text-gray-400">Destination:</span> <span class="text-gray-800 dark:text-gray-100">{{ $itinerary->destination ?: '-' }}</span></div>
@@ -26,16 +28,17 @@
                     </span>
                 </div>
             </div>
+            <div>
+                @if ($itinerary->description)
+                    <x-rich-text :content="$itinerary->description" class="text-sm text-gray-700 dark:text-gray-200" />
+                @endif
+            </div>
         </div>
 
-        @if ($itinerary->description)
-            <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
-                <x-rich-text :content="$itinerary->description" class="text-sm text-gray-700 dark:text-gray-200" />
-            </div>
-        @endif
+        
 
         @if ($itinerary->accommodations->isNotEmpty())
-            <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+            <div class="app-card p-4">
                 <h2 class="text-sm font-semibold uppercase tracking-wide text-gray-700 dark:text-gray-200">Accommodations</h2>
                 @php
                     $dayPointByDayForAccommodation = $itinerary->dayPoints->keyBy(fn ($point) => (int) $point->day_number);
@@ -51,7 +54,7 @@
                             $roomName = (string) ($stayPoint?->endAccommodationRoom?->name ?? '');
                             $roomType = (string) ($stayPoint?->endAccommodationRoom?->room_type ?? '');
                         @endphp
-                        <div class="rounded-lg border border-gray-200 px-3 py-2 text-sm dark:border-gray-700">
+                        <div class="rounded-lg mb-6 border border-gray-200 px-3 py-2 text-sm dark:border-gray-700">
                             <p class="font-semibold text-gray-800 dark:text-gray-100">{{ $accommodation->name }}</p>
                             <p class="text-xs text-gray-500 dark:text-gray-400">
                                 {{ $accommodation->category ?: '-' }}
@@ -75,7 +78,7 @@
         @endif
 
         <div class="grid grid-cols-1 gap-6 lg:grid-cols-12">
-            <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800 lg:col-span-7">
+            <div class="app-card p-4 lg:col-span-7">
                 <h2 class="text-sm font-semibold uppercase tracking-wide text-gray-700 dark:text-gray-200">Schedule by Day</h2>
                 <div class="mt-3 space-y-4 text-sm text-gray-700 dark:text-gray-200">
                     @php
@@ -304,7 +307,7 @@
                                     <div class="timeline-node-col has-travel w-10 flex flex-col items-center">
                                         <button
                                             type="button"
-                                            class="schedule-item-index-btn timeline-node inline-flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-semibold text-white {{ $startPointType === 'airport' ? 'bg-sky-600' : 'bg-teal-600' }}"
+                                             class="schedule-item-index-btn timeline-node inline-flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-semibold text-white {{ $startPointType === 'airport' ? 'bg-sky-600' : 'bg-teal-600' }}"
                                             data-day="{{ $day }}"
                                             data-marker-key="start-point-day-{{ $day }}"
                                             title="Lihat Start Point di map">
@@ -344,7 +347,7 @@
                                         <div class="timeline-node-col has-travel w-10 flex flex-col items-center">
                                             <button
                                                 type="button"
-                                                class="schedule-item-index-btn timeline-node inline-flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-semibold text-white {{ $item['type'] === 'activity' ? 'bg-emerald-600' : ($item['type'] === 'fnb' ? 'bg-amber-600' : 'bg-indigo-600') }}"
+                                                 class="schedule-item-index-btn timeline-node inline-flex h-7 w-7 items-center justify-center {{ $item['type'] === 'activity' ? 'bg-emerald-600' : ($item['type'] === 'fnb' ? 'bg-amber-600' : 'bg-indigo-600') }} btn-primary-sm"
                                                 data-day="{{ $day }}"
                                                 data-marker-key="{{ $item['marker_key'] ?? '' }}"
                                                 title="Lihat di map">
@@ -410,7 +413,7 @@
                                     <div class="timeline-node-col w-10 flex flex-col items-center">
                                         <button
                                             type="button"
-                                            class="schedule-item-index-btn timeline-node inline-flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-semibold text-white {{ $endPointType === 'airport' ? 'bg-sky-600' : 'bg-teal-600' }}"
+                                             class="schedule-item-index-btn timeline-node inline-flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-semibold text-white {{ $endPointType === 'airport' ? 'bg-sky-600' : 'bg-teal-600' }}"
                                             data-day="{{ $day }}"
                                             data-marker-key="end-point-day-{{ $day }}"
                                             title="Lihat End Point di map">
@@ -438,13 +441,13 @@
                             @if (filled($dayIncludeText) || filled($dayExcludeText))
                                 <div class="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2">
                                     @if (filled($dayIncludeText))
-                                        <div class="rounded-lg border border-emerald-200 bg-emerald-50/60 px-2 py-1 dark:border-emerald-800 dark:bg-emerald-900/20">
+                                        <div class="rounded-lg mb-6 border border-emerald-200 bg-emerald-50/60 px-2 py-1 dark:border-emerald-800 dark:bg-emerald-900/20">
                                             <p class="text-[11px] font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">Day Include</p>
                                             <x-rich-text :content="$dayPoint?->day_include" class="mt-0.5 text-xs text-emerald-900 dark:text-emerald-100" />
                                         </div>
                                     @endif
                                     @if (filled($dayExcludeText))
-                                        <div class="rounded-lg border border-rose-200 bg-rose-50/60 px-2 py-1 dark:border-rose-800 dark:bg-rose-900/20">
+                                        <div class="rounded-lg mb-6 border border-rose-200 bg-rose-50/60 px-2 py-1 dark:border-rose-800 dark:bg-rose-900/20">
                                             <p class="text-[11px] font-semibold uppercase tracking-wide text-rose-700 dark:text-rose-300">Day Exclude</p>
                                             <x-rich-text :content="$dayPoint?->day_exclude" class="mt-0.5 text-xs text-rose-900 dark:text-rose-100" />
                                         </div>
@@ -455,15 +458,15 @@
                     @endfor
                 </div>
             </div>
-            <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800 lg:col-span-5">
+            <div class="app-card p-4 lg:col-span-5">
                 <h2 class="text-sm font-semibold uppercase tracking-wide text-gray-700 dark:text-gray-200">Itinerary Map</h2>
                 <div id="itinerary-show-map" class="mt-3 h-[520px] md:h-[640px] w-full rounded-lg border border-gray-300"></div>
                 <div class="mt-3">
                     <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Display By Day</p>
                     <div id="itinerary-day-controls" class="mt-2 flex flex-wrap gap-2">
-                        <button type="button" data-day="" class="day-filter-btn rounded-lg border border-indigo-500 bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700 hover:text-white">All Days</button>
+                        <button type="button" data-day="" class="day-filter-btn btn-outline-sm">All Days</button>
                         @for ($day = 1; $day <= $itinerary->duration_days; $day++)
-                            <button type="button" data-day="{{ $day }}" class="day-filter-btn rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-100 hover:text-gray-900 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-700 dark:hover:text-white">Day {{ $day }}</button>
+                            <button type="button" data-day="{{ $day }}" class="day-filter-btn btn-outline-sm">Day {{ $day }}</button>
                         @endfor
                     </div>
                 </div>
@@ -747,21 +750,8 @@
             const setActiveButton = (selectedDay) => {
                 dayButtons.forEach((button) => {
                     const isActive = (button.dataset.day || '') === (selectedDay === null ? '' : String(selectedDay));
-                    button.classList.toggle('bg-indigo-600', isActive);
-                    button.classList.toggle('text-white', isActive);
-                    button.classList.toggle('border-indigo-500', isActive);
-                    button.classList.toggle('hover:bg-indigo-700', isActive);
-                    button.classList.toggle('hover:text-white', isActive);
-                    button.classList.toggle('bg-white', !isActive);
-                    button.classList.toggle('text-gray-700', !isActive);
-                    button.classList.toggle('border-gray-300', !isActive);
-                    button.classList.toggle('hover:bg-gray-100', !isActive);
-                    button.classList.toggle('hover:text-gray-900', !isActive);
-                    button.classList.toggle('dark:bg-gray-900', !isActive);
-                    button.classList.toggle('dark:text-gray-200', !isActive);
-                    button.classList.toggle('dark:border-gray-600', !isActive);
-                    button.classList.toggle('dark:hover:bg-gray-700', !isActive);
-                    button.classList.toggle('dark:hover:text-white', !isActive);
+                    button.classList.toggle('btn-primary-sm', isActive);
+                    button.classList.toggle('btn-outline-sm', !isActive);
                 });
             };
 
@@ -935,5 +925,6 @@
         })();
     </script>
 @endpush
+
 
 

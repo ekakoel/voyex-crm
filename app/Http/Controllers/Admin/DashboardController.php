@@ -48,7 +48,7 @@ class DashboardController extends Controller
         | 3. Deadline Quotations (Next 7 Days)
         |--------------------------------------------------------------------------
         */
-        $deadlineQuotations = Quotation::where('status', 'sent')
+        $deadlineQuotations = Quotation::where('status', 'processed')
             ->whereDate('validity_date', '<=', Carbon::now()->addDays(7))
             ->orderBy('validity_date')
             ->get();
@@ -78,16 +78,16 @@ class DashboardController extends Controller
             ->orderBy(DB::raw('MONTH(bookings.created_at)'))
             ->pluck('total', 'month');
 
-        $isAdminUser = (bool) ($user?->hasRole('Admin User') && ! $user?->hasRole('Admin'));
-        $dashboardTitle = $isAdminUser ? 'Company Admin Dashboard' : 'Admin Dashboard';
-        $dashboardSubtitle = $isAdminUser
-            ? "Fokus pengelolaan perusahaan, user internal, dan modul operasional."
+        $isEditor = (bool) ($user?->hasRole('Editor') && ! $user?->hasRole('Administrator'));
+        $dashboardTitle = $isEditor ? 'Editor Dashboard' : 'Administrator Dashboard';
+        $dashboardSubtitle = $isEditor
+            ? "Fokus pengelolaan konten dan katalog layanan."
             : "Welcome back, {$user?->name}. Here's your performance overview.";
 
         $teamStats = [
             'total_users' => User::query()->count(),
-            'sales_team' => User::role(['Sales Manager', 'Sales Agent'])->count(),
-            'operations' => User::role('Operations')->count(),
+            'sales_team' => User::role(['Manager', 'Marketing'])->count(),
+            'operations' => User::role('Reservation')->count(),
             'finance' => User::role('Finance')->count(),
         ];
 
@@ -138,7 +138,7 @@ class DashboardController extends Controller
             'deadlineQuotations',
             'upcomingBookings',
             'monthlyData',
-            'isAdminUser',
+            'isEditor',
             'dashboardTitle',
             'dashboardSubtitle',
             'teamStats',

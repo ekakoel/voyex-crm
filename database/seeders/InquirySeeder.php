@@ -64,7 +64,7 @@ class InquirySeeder extends Seeder
             [
                 'customer_index' => 0,
                 'source' => 'Website',
-                'status' => 'new',
+                'status' => 'draft',
                 'priority' => 'high',
                 'deadline' => Carbon::now()->addDays(5)->toDateString(),
                 'assigned_to' => $creator->id,
@@ -74,7 +74,7 @@ class InquirySeeder extends Seeder
             [
                 'customer_index' => 1,
                 'source' => 'Referral',
-                'status' => 'follow_up',
+                'status' => 'processed',
                 'priority' => 'normal',
                 'deadline' => Carbon::now()->addDays(10)->toDateString(),
                 'assigned_to' => $creator->id,
@@ -84,7 +84,7 @@ class InquirySeeder extends Seeder
             [
                 'customer_index' => 2,
                 'source' => 'Instagram',
-                'status' => 'quoted',
+                'status' => 'pending',
                 'priority' => 'normal',
                 'deadline' => Carbon::now()->addDays(7)->toDateString(),
                 'assigned_to' => $creator->id,

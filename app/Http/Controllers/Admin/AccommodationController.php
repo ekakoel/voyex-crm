@@ -17,6 +17,7 @@ class AccommodationController extends Controller
     public function index(Request $request)
     {
         $query = Accommodation::query()
+            ->withTrashed()
             ->with('destination:id,name')
             ->withCount('rooms')
             ->withMin('rooms', 'contract_rate')
@@ -130,7 +131,27 @@ class AccommodationController extends Controller
         $this->deleteGalleryImages($roomImages);
         $accommodation->delete();
 
-        return redirect()->route('accommodations.index')->with('success', 'Accommodation deleted successfully.');
+        return redirect()->route('accommodations.index')->with('success', 'Accommodation deactivated successfully.');
+    }
+
+    public function toggleStatus($accommodation)
+    {
+        $accommodation = Accommodation::withTrashed()->findOrFail($accommodation);
+        if ($accommodation->trashed()) {
+            $accommodation->restore();
+            $accommodation->update(['is_active' => true]);
+
+            return redirect()
+                ->route('accommodations.index')
+                ->with('success', 'Accommodation activated successfully.');
+        }
+
+        $accommodation->update(['is_active' => false]);
+        $accommodation->delete();
+
+        return redirect()
+            ->route('accommodations.index')
+            ->with('success', 'Accommodation deactivated successfully.');
     }
 
     public function removeGalleryImage(Request $request, Accommodation $accommodation)

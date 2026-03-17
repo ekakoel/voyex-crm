@@ -1,20 +1,26 @@
 @extends('layouts.master')
-
+@section('page_title', 'Bookings')
+@section('page_subtitle', 'Manage booking data.')
+@section('page_actions')
+    <a href="{{ route('bookings.export', request()->query()) }}" class="btn-secondary">Export CSV</a>
+    <a href="{{ route('bookings.create') }}" class="btn-primary">Add Booking</a>
+@endsection
 @section('content')
     <div class="space-y-6 module-page module-page--bookings">
-        @section('page_actions')<a href="{{ route('bookings.export', request()->query()) }}" class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700">
-                    Export CSV
-                </a>
-                <a href="{{ route('bookings.create') }}" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">
-                    Add Booking
-                </a>@endsection
-
-        <form method="GET" class="grid grid-cols-1 gap-3 app-card p-4 md:grid-cols-6">
-            <input name="q" value="{{ request('q') }}" placeholder="Search number / quotation / customer" class="md:col-span-2 app-input">
+        <x-index-stats :cards="$statsCards ?? []" />
+        <div class="grid grid-cols-1 gap-6 xl:grid-cols-12">
+            <aside class="space-y-4 xl:col-span-3">
+                <div class="app-card p-5 space-y-4">
+                    <div>
+                        <h2 class="text-base font-semibold text-gray-800 dark:text-gray-100">Filters</h2>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">Refine your list quickly.</p>
+                    </div>
+                    <form method="GET" class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <input name="q" value="{{ request('q') }}" placeholder="Search number / quotation / customer" class="app-input sm:col-span-2">
             <select name="status" class="app-input">
                 <option value="">Status</option>
-                @foreach (['confirmed','completed','cancelled'] as $status)
-                    <option value="{{ $status }}" @selected(request('status') === $status)>{{ $status }}</option>
+                @foreach (\App\Models\Booking::STATUS_OPTIONS as $status)
+                    <option value="{{ $status }}" @selected(request('status') === $status)>{{ ucfirst($status) }}</option>
                 @endforeach
             </select>
             <select name="quotation_id" class="app-input">
@@ -32,23 +38,24 @@
                     <option value="{{ $size }}" @selected((string) request('per_page', 10) === (string) $size)>{{ $size }}/page</option>
                 @endforeach
             </select>
-            <div class="flex items-center gap-2 md:col-span-6">
-                <button class="rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800 dark:bg-gray-100 dark:text-gray-900">Filter</button>
-                <a href="{{ route('bookings.index') }}" class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700">Reset</a>
+            <div class="flex items-center gap-2 sm:col-span-2 filter-actions">
+                <button class="btn-primary">Filter</button>
+                <a href="{{ route('bookings.index') }}" class="btn-ghost">Reset</a>
             </div>
         </form>
-
+                </div>
+            </aside>
+            <div class="space-y-4 xl:col-span-9">
         @if (session('success'))
-            <div class="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300">
+            <div class="rounded-lg mb-6 border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300">
                 {{ session('success') }}
             </div>
         @endif
         @if (session('error'))
-            <div class="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-700 dark:bg-rose-900/20 dark:text-rose-300">
+            <div class="rounded-lg mb-6 border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-700 dark:bg-rose-900/20 dark:text-rose-300">
                 {{ session('error') }}
             </div>
         @endif
-
         <div class="md:hidden space-y-3">
             @forelse ($bookings as $booking)
                 <div class="app-card p-4">
@@ -66,15 +73,23 @@
                         <div>{{ $booking->travel_date?->format('Y-m-d') ?? '-' }}</div>
                     </div>
                     <div class="mt-3 flex flex-wrap gap-2">
-                        <a href="{{ route('bookings.show', $booking) }}" class="rounded-lg border border-emerald-300 px-3 py-1 text-xs font-medium text-emerald-700 hover:bg-emerald-50 dark:border-emerald-700 dark:text-emerald-300 dark:hover:bg-emerald-900/20">Detail</a>
-                        <a href="{{ route('bookings.edit', $booking) }}" class="rounded-lg border border-gray-300 px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700">Edit</a>
-                        <form action="{{ route('bookings.destroy', $booking) }}" method="POST" class="inline">
-                            @csrf
-                            @method('DELETE')
-                            <button type="submit" onclick="return confirm('Are you sure you want to delete this booking?')" class="rounded-lg border border-rose-300 px-3 py-1 text-xs font-medium text-rose-700 hover:bg-rose-50 dark:border-rose-700 dark:text-rose-300 dark:hover:bg-rose-900/20">
-                                Delete
-                            </button>
-                        </form>
+                        <a href="{{ route('bookings.show', $booking) }}"  class="btn-outline-sm" title="Detail" aria-label="Detail"><i class="fa-solid fa-eye"></i><span class="sr-only">Detail</span></a>
+                        @can('update', $booking)
+                            @if (! $booking->isFinal())
+                            <a href="{{ route('bookings.edit', $booking) }}"  class="btn-secondary-sm" title="Edit" aria-label="Edit"><i class="fa-solid fa-pen"></i><span class="sr-only">Edit</span></a>
+                            @endif
+                        @endcan
+                        @can('delete', $booking)
+                            @if (! $booking->isFinal())
+                                <form action="{{ route('bookings.destroy', $booking) }}" method="POST" class="inline">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" onclick="return confirm('Are you sure you want to delete this booking?')"   class="btn-danger-sm">
+                                        Delete
+                                    </button>
+                                </form>
+                            @endif
+                        @endcan
                     </div>
                 </div>
             @empty
@@ -83,16 +98,16 @@
                 </div>
             @endforelse
         </div>
-
-        <div class="hidden md:block overflow-x-auto app-card">
+        <div class="hidden md:block app-card overflow-hidden">
+            <div class="overflow-x-auto">
             <table class="app-table divide-y divide-gray-200 dark:divide-gray-700">
-                <thead class="bg-gray-50 dark:bg-gray-900/40">
+                <thead>
                     <tr>
                         <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">No</th>
                         <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">Quotation</th>
                         <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">Travel Date</th>
                         <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">Status</th>
-                        <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">Actions</th>
+                        <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300 actions-compact">Actions</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
@@ -106,17 +121,26 @@
                             <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">
                                 <x-status-badge :status="$booking->status" size="xs" />
                             </td>
-                            <td class="px-4 py-3 text-right text-sm">
-                                <a href="{{ route('bookings.show', $booking) }}" class="mr-3 font-medium text-emerald-600 hover:text-emerald-700 dark:text-emerald-400">Detail</a>
-                                <a href="{{ route('bookings.edit', $booking) }}" class="mr-3 font-medium text-indigo-600 hover:text-indigo-700 dark:text-indigo-400">Edit</a>
-                                <form action="{{ route('bookings.destroy', $booking) }}" method="POST" class="inline">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button type="submit" onclick="return confirm('Are you sure you want to delete this booking?')" class="font-medium text-rose-600 hover:text-rose-700 dark:text-rose-400">
-                                        Delete
-                                    </button>
-                                </form>
-                            </td>
+                            <td class="px-4 py-3 text-right text-sm actions-compact">
+    <div class="flex items-center justify-end gap-2">
+        <a href="{{ route('bookings.show', $booking) }}"  class="btn-outline-sm" title="Detail" aria-label="Detail"><i class="fa-solid fa-eye"></i><span class="sr-only">Detail</span></a>
+                                @can('update', $booking)
+                                    @if (! $booking->isFinal())
+                                        <a href="{{ route('bookings.edit', $booking) }}"  class="btn-secondary-sm" title="Edit" aria-label="Edit"><i class="fa-solid fa-pen"></i><span class="sr-only">Edit</span></a>
+                                    @endif
+                                @endcan
+                                @can('delete', $booking)
+                                    @if (! $booking->isFinal())
+                                        <form action="{{ route('bookings.destroy', $booking) }}" method="POST" class="inline">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" onclick="return confirm('Are you sure you want to delete this booking?')"   class="btn-danger-sm">Delete
+                                            </button>
+                                        </form>
+                                    @endif
+                                @endcan
+    </div>
+</td>
                         </tr>
                     @empty
                         <tr>
@@ -125,14 +149,13 @@
                     @endforelse
                 </tbody>
             </table>
+            </div>
         </div>
-
         <div>{{ $bookings->links() }}</div>
-    </div>
+            </div>
+        </div>
+</div>
 @endsection
-
-
-
 
 
 

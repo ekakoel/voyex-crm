@@ -3,9 +3,7 @@
 @section('page_title', 'Import Preview')
 @section('page_subtitle', 'Review data before saving.')
 @section('page_actions')
-    <a href="{{ route('customers.import') }}" class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700">
-        Back
-    </a>
+    <a href="{{ route('customers.import') }}"  class="btn-ghost">Back</a>
 @endsection
 
 @section('content')
@@ -40,8 +38,8 @@
                     @endforelse
                 </div>
 
-                <div class="hidden md:block overflow-x-auto rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
-                    <table class="w-full min-w-[720px] divide-y divide-gray-200 text-sm dark:divide-gray-700">
+                <div class="hidden md:block overflow-x-auto app-card">
+            <table class="app-table w-full min-w-[720px] divide-y divide-gray-200 text-sm dark:divide-gray-700">
                         <thead class="bg-gray-50 dark:bg-gray-900/40">
                             <tr>
                                 <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">Name</th>
@@ -81,11 +79,11 @@
 
                 <form method="POST" action="{{ route('customers.import.store') }}" class="flex flex-wrap items-center gap-2">
                     @csrf
-                    <button class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">Import Now</button>
-                    <a href="{{ route('customers.index') }}" class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700">Cancel</a>
+                    <button  class="btn-primary">Import Now</button>
+                    <a href="{{ route('customers.index') }}"  class="btn-secondary">Cancel</a>
                 </form>
             </div>
-            <aside class="space-y-6 xl:col-span-4">
+            <aside  class="space-y-6 xl:col-span-4">
                 <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
                     <div class="text-sm text-gray-600 dark:text-gray-300">
                         Mode: <span class="font-semibold">{{ $mode === 'update' ? 'Update duplicates' : 'Skip duplicates' }}</span>
@@ -95,3 +93,5 @@
         </div>
     </div>
 @endsection
+
+

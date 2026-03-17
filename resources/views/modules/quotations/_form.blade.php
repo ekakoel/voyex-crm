@@ -35,7 +35,7 @@
                 <select
                     id="itinerary-select"
                     name="itinerary_id"
-                    class="w-full app-input"
+                    class="app-input"
                     data-endpoint="{{ url('quotations/itinerary-items') }}"
                     required
                 >
@@ -62,7 +62,7 @@
                 <button
                     type="button"
                     id="itinerary-generate-btn"
-                    class="w-full rounded-lg border border-indigo-300 px-3 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-50 dark:border-indigo-700 dark:text-indigo-300 dark:hover:bg-indigo-900/20 sm:w-auto"
+                     class="w-full rounded-lg border border-indigo-300 px-3 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-50 dark:border-indigo-700 dark:text-indigo-300 dark:hover:bg-indigo-900/20 sm:w-auto"
                 >
                     Generate
                 </button>
@@ -80,9 +80,9 @@
         @if ($showStatus)
             <div>
                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Status</label>
-                <select name="status" class="mt-1 w-full app-input" required>
-                @foreach (['draft','pending','sent','approved','rejected'] as $status)
-                        <option value="{{ $status }}" @selected(old('status', $quotation->status ?? 'draft') === $status)>{{ $status }}</option>
+                <select name="status" class="mt-1 app-input" required>
+                @foreach (\App\Models\Quotation::STATUS_OPTIONS as $status)
+                        <option value="{{ $status }}" @selected(old('status', $quotation->status ?? 'draft') === $status)>{{ ucfirst($status) }}</option>
                     @endforeach
                 </select>
                 @error('status')
@@ -99,7 +99,7 @@
                 name="validity_date"
                 type="date"
                 value="{{ old('validity_date', isset($quotation->validity_date) ? $quotation->validity_date->format('Y-m-d') : '') }}"
-                class="mt-1 w-full app-input"
+                class="mt-1 app-input"
                 required
             >
             @error('validity_date')
@@ -125,11 +125,11 @@
                 <div class="grid grid-cols-1 gap-2 py-2 sm:grid-cols-6 quotation-item-row">
                     <div class="sm:col-span-2">
                         <label class="block text-xs text-gray-500">Description</label>
-                        <input data-field="description" name="items[{{ $i }}][description]" value="{{ $row['description'] ?? '' }}" class="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+                        <input data-field="description" name="items[{{ $i }}][description]" value="{{ $row['description'] ?? '' }}" class="mt-1 dark:border-gray-600 app-input">
                     </div>
                     <div>
                         <label class="block text-xs text-gray-500">Qty</label>
-                        <input data-field="qty" name="items[{{ $i }}][qty]" type="number" min="1" value="{{ $row['qty'] ?? 1 }}" class="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+                        <input data-field="qty" name="items[{{ $i }}][qty]" type="number" min="1" value="{{ $row['qty'] ?? 1 }}" class="mt-1 dark:border-gray-600 app-input">
                     </div>
                     <div>
                         <x-money-input
@@ -144,7 +144,7 @@
                     </div>
                     <div>
                         <label class="block text-xs text-gray-500">Discount Type</label>
-                        <select data-field="discount_type" name="items[{{ $i }}][discount_type]" class="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+                        <select data-field="discount_type" name="items[{{ $i }}][discount_type]" class="mt-1 dark:border-gray-600 app-input">
                             <option value="fixed" @selected(($row['discount_type'] ?? 'fixed') === 'fixed')>Fixed</option>
                             <option value="percent" @selected(($row['discount_type'] ?? '') === 'percent')>Percent</option>
                         </select>
@@ -161,11 +161,11 @@
                         />
                         <p data-field="discount_preview" class="mt-1 text-[11px] text-gray-500 dark:text-gray-400"></p>
                     </div>
-                    <input type="hidden" data-field="serviceable_type" name="items[{{ $i }}][serviceable_type]" value="{{ $row['serviceable_type'] ?? '' }}">
-                    <input type="hidden" data-field="serviceable_id" name="items[{{ $i }}][serviceable_id]" value="{{ $row['serviceable_id'] ?? '' }}">
-                    <input type="hidden" data-field="day_number" name="items[{{ $i }}][day_number]" value="{{ $row['day_number'] ?? '' }}">
-                    <input type="hidden" data-field="serviceable_meta" name="items[{{ $i }}][serviceable_meta]" value="{{ $serviceableMetaValue }}">
-                    <input type="hidden" data-field="itinerary_item_type" name="items[{{ $i }}][itinerary_item_type]" value="{{ $row['itinerary_item_type'] ?? '' }}">
+                    <input type="hidden" data-field="serviceable_type" name="items[{{ $i }}][serviceable_type]" value="{{ $row['serviceable_type'] ?? '' }}" class="app-input">
+                    <input type="hidden" data-field="serviceable_id" name="items[{{ $i }}][serviceable_id]" value="{{ $row['serviceable_id'] ?? '' }}" class="app-input">
+                    <input type="hidden" data-field="day_number" name="items[{{ $i }}][day_number]" value="{{ $row['day_number'] ?? '' }}" class="app-input">
+                    <input type="hidden" data-field="serviceable_meta" name="items[{{ $i }}][serviceable_meta]" value="{{ $serviceableMetaValue }}" class="app-input">
+                    <input type="hidden" data-field="itinerary_item_type" name="items[{{ $i }}][itinerary_item_type]" value="{{ $row['itinerary_item_type'] ?? '' }}" class="app-input">
                 </div>
             @endfor
         </div>
@@ -173,11 +173,11 @@
             <div class="grid grid-cols-1 gap-2 py-2 sm:grid-cols-6 quotation-item-row">
                 <div class="sm:col-span-2">
                     <label class="block text-xs text-gray-500">Description</label>
-                    <input data-field="description" class="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+                    <input data-field="description" class="mt-1 dark:border-gray-600 app-input">
                 </div>
                 <div>
                     <label class="block text-xs text-gray-500">Qty</label>
-                    <input data-field="qty" type="number" min="1" class="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+                    <input data-field="qty" type="number" min="1" class="mt-1 dark:border-gray-600 app-input">
                 </div>
                 <div>
                     <x-money-input
@@ -190,7 +190,7 @@
                 </div>
                 <div>
                     <label class="block text-xs text-gray-500">Discount Type</label>
-                    <select data-field="discount_type" class="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+                    <select data-field="discount_type" class="mt-1 dark:border-gray-600 app-input">
                         <option value="fixed">Fixed</option>
                         <option value="percent">Percent</option>
                     </select>
@@ -205,11 +205,11 @@
                     />
                     <p data-field="discount_preview" class="mt-1 text-[11px] text-gray-500 dark:text-gray-400"></p>
                 </div>
-                <input type="hidden" data-field="serviceable_type">
-                <input type="hidden" data-field="serviceable_id">
-                <input type="hidden" data-field="day_number">
-                <input type="hidden" data-field="serviceable_meta">
-                <input type="hidden" data-field="itinerary_item_type">
+                <input type="hidden" data-field="serviceable_type" class="app-input">
+                <input type="hidden" data-field="serviceable_id" class="app-input">
+                <input type="hidden" data-field="day_number" class="app-input">
+                <input type="hidden" data-field="serviceable_meta" class="app-input">
+                <input type="hidden" data-field="itinerary_item_type" class="app-input">
             </div>
         </template>
     </div>
@@ -217,7 +217,7 @@
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Discount Type</label>
-            <select name="discount_type" class="mt-1 w-full app-input">
+            <select name="discount_type" class="mt-1 app-input">
                 <option value="">-</option>
                 <option value="percent" @selected(old('discount_type', $quotation->discount_type ?? '') === 'percent')>Percent</option>
                 <option value="fixed" @selected(old('discount_type', $quotation->discount_type ?? '') === 'fixed')>Fixed</option>
@@ -282,10 +282,10 @@
         </div>
     </div>
     <div class="flex items-center gap-2">
-        <button type="submit" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">
+        <button type="submit"  class="btn-primary">
             {{ $buttonLabel }}
         </button>
-        <a href="{{ route('quotations.index') }}" class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700">
+        <a href="{{ route('quotations.index') }}"  class="btn-secondary">
             Cancel
         </a>
     </div>
@@ -605,3 +605,6 @@
         </script>
     @endpush
 @endonce
+
+
+

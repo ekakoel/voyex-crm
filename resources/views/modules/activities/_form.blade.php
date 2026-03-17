@@ -9,7 +9,7 @@
     <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Vendor</label>
-            <select name="vendor_id" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" required>
+            <select name="vendor_id" class="mt-1 dark:border-gray-600 app-input" required>
                 <option value="">Select vendor</option>
                 @foreach ($vendors as $vendor)
                     <option value="{{ $vendor->id }}" @selected((int) old('vendor_id', $activity->vendor_id ?? 0) === (int) $vendor->id)>
@@ -21,7 +21,7 @@
         </div>
         <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Activity Name</label>
-            <input name="name" value="{{ old('name', $activity->name ?? '') }}" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" required>
+            <input name="name" value="{{ old('name', $activity->name ?? '') }}" class="mt-1 dark:border-gray-600 app-input" required>
             @error('name') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
         </div>
     </div>
@@ -34,7 +34,7 @@
                 name="activity_type_name"
                 value="{{ $selectedActivityTypeName }}"
                 placeholder="Select existing or type new activity type"
-                class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
+                class="mt-1 dark:border-gray-600 app-input"
                 required>
             <datalist id="activity-type-options">
                 @foreach ($activityTypes as $type)
@@ -46,17 +46,17 @@
         </div>
         <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Duration (minutes)</label>
-            <input name="duration_minutes" type="number" min="15" max="1440" value="{{ old('duration_minutes', $activity->duration_minutes ?? 120) }}" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" required>
+            <input name="duration_minutes" type="number" min="15" max="1440" value="{{ old('duration_minutes', $activity->duration_minutes ?? 120) }}" class="mt-1 dark:border-gray-600 app-input" required>
             @error('duration_minutes') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
         </div>
         <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Capacity Min</label>
-            <input name="capacity_min" type="number" min="1" value="{{ old('capacity_min', $activity->capacity_min ?? '') }}" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+            <input name="capacity_min" type="number" min="1" value="{{ old('capacity_min', $activity->capacity_min ?? '') }}" class="mt-1 dark:border-gray-600 app-input">
             @error('capacity_min') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
         </div>
         <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Capacity Max</label>
-            <input name="capacity_max" type="number" min="1" value="{{ old('capacity_max', $activity->capacity_max ?? '') }}" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+            <input name="capacity_max" type="number" min="1" value="{{ old('capacity_max', $activity->capacity_max ?? '') }}" class="mt-1 dark:border-gray-600 app-input">
             @error('capacity_max') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
         </div>
     </div>
@@ -84,7 +84,7 @@
         </div>
         <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Currency</label>
-            <input name="currency" maxlength="3" value="{{ old('currency', $activity->currency ?? 'IDR') }}" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 uppercase text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" required>
+            <input name="currency" maxlength="3" value="{{ old('currency', $activity->currency ?? 'IDR') }}" class="mt-1 uppercase dark:border-gray-600 app-input" required>
             @error('currency') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
         </div>
     </div>
@@ -137,7 +137,7 @@
                     <div class="activity-gallery-existing-item relative overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700" data-image-path="{{ $image }}">
                         <button
                             type="button"
-                            class="activity-gallery-remove-btn absolute right-1 top-1 z-10 inline-flex h-6 w-6 items-center justify-center rounded-full bg-rose-600/95 text-xs font-bold text-white shadow hover:bg-rose-700"
+                             class="activity-gallery-remove-btn absolute right-1 top-1 z-10 inline-flex h-6 w-6 items-center justify-center rounded-full bg-rose-600/95 text-xs font-bold text-white shadow hover:bg-rose-700"
                             title="Remove image"
                             aria-label="Remove image">
                             X
@@ -168,8 +168,8 @@
     </div>
 
     <div class="flex items-center gap-2">
-        <button class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">{{ $buttonLabel }}</button>
-        <a href="{{ route('activities.index') }}" class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700">Cancel</a>
+        <button  class="btn-primary">{{ $buttonLabel }}</button>
+        <a href="{{ route('activities.index') }}"  class="btn-secondary">Cancel</a>
     </div>
 </div>
 
@@ -260,3 +260,6 @@
         </script>
     @endpush
 @endonce
+
+
+

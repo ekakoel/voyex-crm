@@ -14,7 +14,7 @@ class FoodBeverageController extends Controller
 {
     public function index(Request $request)
     {
-        $query = FoodBeverage::query()->with('vendor:id,name')->latest('id');
+        $query = FoodBeverage::query()->withTrashed()->with('vendor:id,name')->latest('id');
 
         if ($request->filled('vendor_id')) {
             $query->where('vendor_id', (int) $request->integer('vendor_id'));
@@ -25,7 +25,7 @@ class FoodBeverageController extends Controller
         }
 
         $foodBeverages = $query->paginate(10)->withQueryString();
-        $vendors = Vendor::query()->orderBy('name')->get(['id', 'name', 'city', 'province']);
+        $vendors = Vendor::query()->where('is_active', true)->orderBy('name')->get(['id', 'name', 'city', 'province']);
         $types = $this->buildTypeFilterOptions();
 
         return view('modules.food-beverages.index', compact('foodBeverages', 'vendors', 'types'));
@@ -87,7 +87,27 @@ class FoodBeverageController extends Controller
         $this->deleteGalleryImages($foodBeverage->gallery_images ?? []);
         $foodBeverage->delete();
 
-        return redirect()->route('food-beverages.index')->with('success', 'F&B service deleted successfully.');
+        return redirect()->route('food-beverages.index')->with('success', 'F&B service deactivated successfully.');
+    }
+
+    public function toggleStatus($foodBeverage)
+    {
+        $foodBeverage = FoodBeverage::withTrashed()->findOrFail($foodBeverage);
+        if ($foodBeverage->trashed()) {
+            $foodBeverage->restore();
+            $foodBeverage->update(['is_active' => true]);
+
+            return redirect()
+                ->route('food-beverages.index')
+                ->with('success', 'F&B service activated successfully.');
+        }
+
+        $foodBeverage->update(['is_active' => false]);
+        $foodBeverage->delete();
+
+        return redirect()
+            ->route('food-beverages.index')
+            ->with('success', 'F&B service deactivated successfully.');
     }
 
     public function removeGalleryImage(Request $request, FoodBeverage $foodBeverage)

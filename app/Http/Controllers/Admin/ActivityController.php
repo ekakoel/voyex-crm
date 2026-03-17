@@ -15,7 +15,7 @@ class ActivityController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Activity::query()->with(['vendor:id,name', 'activityType:id,name'])->latest('id');
+        $query = Activity::query()->withTrashed()->with(['vendor:id,name', 'activityType:id,name'])->latest('id');
 
         if ($request->filled('vendor_id')) {
             $query->where('vendor_id', (int) $request->integer('vendor_id'));
@@ -28,7 +28,7 @@ class ActivityController extends Controller
         }
 
         $activities = $query->paginate(10)->withQueryString();
-        $vendors = Vendor::query()->orderBy('name')->get(['id', 'name', 'city', 'province']);
+        $vendors = Vendor::query()->where('is_active', true)->orderBy('name')->get(['id', 'name', 'city', 'province']);
         $types = $this->buildTypeFilterOptions();
 
         return view('modules.activities.index', compact('activities', 'vendors', 'types'));
@@ -94,7 +94,27 @@ class ActivityController extends Controller
         $this->deleteGalleryImages($activity->gallery_images ?? []);
         $activity->delete();
 
-        return redirect()->route('activities.index')->with('success', 'Activity deleted successfully.');
+        return redirect()->route('activities.index')->with('success', 'Activity deactivated successfully.');
+    }
+
+    public function toggleStatus($activity)
+    {
+        $activity = Activity::withTrashed()->findOrFail($activity);
+        if ($activity->trashed()) {
+            $activity->restore();
+            $activity->update(['is_active' => true]);
+
+            return redirect()
+                ->route('activities.index')
+                ->with('success', 'Activity activated successfully.');
+        }
+
+        $activity->update(['is_active' => false]);
+        $activity->delete();
+
+        return redirect()
+            ->route('activities.index')
+            ->with('success', 'Activity deactivated successfully.');
     }
 
     public function removeGalleryImage(Request $request, Activity $activity)

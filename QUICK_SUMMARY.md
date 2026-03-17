@@ -80,7 +80,7 @@ npm run build
 
 ## 📋 Checklist Fitur
 
-### Admin Module
+### Administrator Module
 - ✅ Dashboard
 - ✅ User Management (CRUD)
 - ✅ Role Management (CRUD)
@@ -90,15 +90,16 @@ npm run build
 - ✅ Quotation Template Management
 - ✅ Promotion Management
 
-### Sales Module
-- ✅ Dashboard
+### Manager & Marketing Module
+- ✅ Manager Dashboard
+- ✅ Marketing Dashboard
 - ✅ Customer Management (CRUD + Import)
 - ✅ Inquiry Management (CRUD + Follow-ups + Communications)
 - ✅ Quotation Management (CRUD + Approval + PDF + CSV)
 - ✅ Pricing & Discount Logic
 - ✅ Promo Code Validation
 
-### Operations Module
+### Reservation Module
 - ✅ Dashboard
 - ✅ Booking Management (CRUD + CSV)
 - ✅ Travel Date Tracking
@@ -111,21 +112,24 @@ npm run build
 - ✅ Dashboard
 - ✅ Quotation Approval
 
+### Editor Module
+- ✅ Service Catalog (Vendor/Destination/Activity/F&B/Accommodation/Airport/Transport/Tourist Attraction)
+
 ---
 
 ## 🎯 Alur Utama
 
 1. **Customer mencari referensi**
-2. **Sales membuat INQUIRY**
+2. **Marketing membuat INQUIRY**
    - Assign ke sales person
    - Set deadline & priority
    - Add follow-ups
-3. **Sales membuat QUOTATION**
+3. **Marketing membuat QUOTATION**
    - Select services & items
    - Apply discount/promo
    - Generate PDF
 4. **Manager/Director APPROVE quotation**
-5. **Operations membuat BOOKING**
+5. **Reservation membuat BOOKING**
    - Confirm travel date
    - Track status
 
@@ -184,3 +188,5 @@ Semua error telah diperbaiki:
 
 **Generated:** 13 February 2026  
 **By:** GitHub Copilot (Claude Haiku 4.5)
+
+

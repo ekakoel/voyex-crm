@@ -4,28 +4,49 @@ namespace App\Models;
 
 use App\Models\Concerns\HasAudit;
 use App\Models\User;
+use App\Models\Destination;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Itinerary extends Model
 {
+    use SoftDeletes;
     use HasAudit;
+
+    public const STATUS_OPTIONS = [
+        'draft',
+        'processed',
+        'pending',
+        'approved',
+        'rejected',
+        'final',
+    ];
+
+    public const FINAL_STATUS = 'final';
 
     protected $fillable = [
         'inquiry_id',
         'created_by',
         'title',
         'destination',
+        'destination_id',
         'arrival_transport_id',
         'departure_transport_id',
         'duration_days',
         'duration_nights',
         'description',
         'is_active',
+        'status',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
     ];
+
+    public function isFinal(): bool
+    {
+        return $this->status === self::FINAL_STATUS;
+    }
 
     public function touristAttractions()
     {
@@ -67,6 +88,11 @@ class Itinerary extends Model
         return $this->belongsTo(Inquiry::class);
     }
 
+    public function destination()
+    {
+        return $this->belongsTo(Destination::class);
+    }
+
     public function creator()
     {
         return $this->belongsTo(User::class, 'created_by');
@@ -96,3 +122,9 @@ class Itinerary extends Model
         return $this->belongsTo(Transport::class, 'departure_transport_id');
     }
 }
+
+
+
+
+
+

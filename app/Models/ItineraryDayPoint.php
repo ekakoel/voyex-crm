@@ -85,3 +85,6 @@ class ItineraryDayPoint extends Model
         return $this->belongsTo(FoodBeverage::class, 'main_food_beverage_id');
     }
 }
+
+
+

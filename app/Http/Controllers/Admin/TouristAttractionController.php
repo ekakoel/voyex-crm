@@ -15,6 +15,7 @@ class TouristAttractionController extends Controller
     public function index()
     {
         $touristAttractions = TouristAttraction::query()
+            ->withTrashed()
             ->with('destination:id,name')
             ->orderBy('name')
             ->paginate(10);
@@ -80,7 +81,27 @@ class TouristAttractionController extends Controller
         $this->deleteGalleryImages($touristAttraction->gallery_images ?? []);
         $touristAttraction->delete();
 
-        return redirect()->route('tourist-attractions.index')->with('success', 'Tourist attraction deleted successfully.');
+        return redirect()->route('tourist-attractions.index')->with('success', 'Tourist attraction deactivated successfully.');
+    }
+
+    public function toggleStatus($touristAttraction)
+    {
+        $touristAttraction = TouristAttraction::withTrashed()->findOrFail($touristAttraction);
+        if ($touristAttraction->trashed()) {
+            $touristAttraction->restore();
+            $touristAttraction->update(['is_active' => true]);
+
+            return redirect()
+                ->route('tourist-attractions.index')
+                ->with('success', 'Tourist attraction activated successfully.');
+        }
+
+        $touristAttraction->update(['is_active' => false]);
+        $touristAttraction->delete();
+
+        return redirect()
+            ->route('tourist-attractions.index')
+            ->with('success', 'Tourist attraction deactivated successfully.');
     }
 
     public function removeGalleryImage(Request $request, TouristAttraction $touristAttraction)

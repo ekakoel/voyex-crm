@@ -3,17 +3,31 @@
 namespace App\Models;
 
 use App\Models\Booking;
+use App\Models\ActivityLog;
 use App\Models\Concerns\HasAudit;
 use App\Models\Inquiry;
 use App\Models\QuotationComment;
 use App\Models\QuotationItem;
 use App\Models\User;
+use App\Traits\LogsActivity;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Quotation extends Model
 {
-    use HasAudit;
+    use SoftDeletes;
+    use HasAudit, LogsActivity;
 
+    public const STATUS_OPTIONS = [
+        'draft',
+        'processed',
+        'pending',
+        'approved',
+        'rejected',
+        'final',
+    ];
+
+    public const FINAL_STATUS = 'final';
     protected $fillable = [
         'quotation_number',
         'inquiry_id',
@@ -56,6 +70,11 @@ class Quotation extends Model
         return $this->hasOne(Booking::class);
     }
 
+    public function activities()
+    {
+        return $this->morphMany(ActivityLog::class, 'subject');
+    }
+
     public function items()
     {
         return $this->hasMany(QuotationItem::class);
@@ -76,4 +95,15 @@ class Quotation extends Model
         return $this->belongsTo(User::class, 'approval_note_by');
     }
 
+    public function isFinal(): bool
+    {
+        return $this->status === self::FINAL_STATUS;
+    }
+
 }
+
+
+
+
+
+

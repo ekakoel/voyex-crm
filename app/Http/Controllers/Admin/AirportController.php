@@ -14,6 +14,7 @@ class AirportController extends Controller
     public function index(Request $request)
     {
         $query = Airport::query()
+            ->withTrashed()
             ->with('destination:id,name')
             ->latest('id');
 
@@ -79,7 +80,27 @@ class AirportController extends Controller
     {
         $airport->delete();
 
-        return redirect()->route('airports.index')->with('success', 'Airport deleted successfully.');
+        return redirect()->route('airports.index')->with('success', 'Airport deactivated successfully.');
+    }
+
+    public function toggleStatus($airport)
+    {
+        $airport = Airport::withTrashed()->findOrFail($airport);
+        if ($airport->trashed()) {
+            $airport->restore();
+            $airport->update(['is_active' => true]);
+
+            return redirect()
+                ->route('airports.index')
+                ->with('success', 'Airport activated successfully.');
+        }
+
+        $airport->update(['is_active' => false]);
+        $airport->delete();
+
+        return redirect()
+            ->route('airports.index')
+            ->with('success', 'Airport deactivated successfully.');
     }
 
     private function validatePayload(Request $request, ?Airport $airport): array

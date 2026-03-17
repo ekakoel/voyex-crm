@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Http\View\IndexStatsComposer;
 use App\Http\View\SidebarComposer;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\View;
@@ -22,5 +23,6 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         View::composer('layouts.master', SidebarComposer::class);
+        View::composer('modules.*.index', IndexStatsComposer::class);
     }
 }

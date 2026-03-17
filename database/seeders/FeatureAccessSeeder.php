@@ -11,76 +11,76 @@ class FeatureAccessSeeder extends Seeder
     public function run(): void
     {
         $features = [
-        // Admin ------------------------------------------------
+        // Administrator ---------------------------------------
             [
                 'title' => 'Dashboard',
                 'route' => 'dashboard',
                 'icon'  => 'dashboard',
                 'module'  => null,
-                'roles' => 'Admin',
+                'roles' => 'Administrator',
             ],
             [
                 'title' => 'Modules',
                 'route' => 'services.index',
                 'icon'  => 'cubes',
                 'module'  => 'service_manager',
-                'roles' => 'Admin',
+                'roles' => 'Administrator',
             ],
             [
                 'title' => 'User Manager',
                 'route' => 'users.index',
                 'icon'  => 'users',
                 'module'  => 'user_manager',
-                'roles' => 'Admin',
+                'roles' => 'Administrator',
             ],
             [
                 'title' => 'Vendors',
                 'route' => 'vendors.index',
                 'icon'  => 'vendors',
                 'module'  => 'vendor_management',
-                'roles' => 'Admin',
+                'roles' => 'Administrator',
             ],
             [
                 'title' => 'Itineraries',
                 'route' => 'itineraries.index',
                 'icon'  => 'route',
                 'module'  => 'itineraries',
-                'roles' => 'Admin',
+                'roles' => 'Administrator',
             ],
             [
                 'title' => 'Tourist Attractions',
                 'route' => 'tourist-attractions.index',
                 'icon'  => 'landmark',
                 'module'  => 'tourist_attractions',
-                'roles' => 'Admin',
+                'roles' => 'Administrator',
             ],
             [
                 'title' => 'Inquiries',
                 'route' => 'inquiries.index',
                 'icon'  => 'file-text',
                 'module' => 'inquiries',
-                'roles' => 'Admin',
+                'roles' => 'Administrator',
             ],
             [
                 'title' => 'Quotations',
                 'route' => 'quotations.index',
                 'icon'  => 'file-circle-plus',
                 'module'  => 'quotations',
-                'roles' => 'Admin',
+                'roles' => 'Administrator',
             ],
             [
                 'title' => 'Customers',
                 'route' => 'customers.index',
                 'icon'  => 'user-tag',
                 'module'  => 'customer_management',
-                'roles' => 'Admin',
+                'roles' => 'Administrator',
             ],
             [
                 'title' => 'Bookings',
                 'route' => 'bookings.index',
                 'icon'  => 'tags',
                 'module'  => 'bookings',
-                'roles' => 'Admin',
+                'roles' => 'Administrator',
             ],
         // Director ---------------------------------------------
             [
@@ -98,29 +98,37 @@ class FeatureAccessSeeder extends Seeder
                 'module'  => null,
                 'roles' => 'Finance',
             ],
-        // Operations -------------------------------------------
+        // Reservation ------------------------------------------
             [
                 'title' => 'Dashboard',
                 'route' => 'dashboard',
                 'icon'  => 'dashboard',
                 'module'  => null,
-                'roles' => 'Operations',
+                'roles' => 'Reservation',
             ],
-        // Sales Manager ----------------------------------------
+        // Manager ----------------------------------------------
             [
                 'title' => 'Dashboard',
                 'route' => 'dashboard',
                 'icon'  => 'dashboard',
                 'module'  => null,
-                'roles' => 'Sales Manager',
+                'roles' => 'Manager',
             ],
-        // Sales Agent ------------------------------------------
+        // Marketing --------------------------------------------
             [
                 'title' => 'Dashboard',
                 'route' => 'dashboard',
                 'icon'  => 'dashboard',
                 'module'  => null,
-                'roles' => 'Sales Agent',
+                'roles' => 'Marketing',
+            ],
+        // Editor -----------------------------------------------
+            [
+                'title' => 'Dashboard',
+                'route' => 'dashboard',
+                'icon'  => 'dashboard',
+                'module'  => null,
+                'roles' => 'Editor',
             ],
             
         ];

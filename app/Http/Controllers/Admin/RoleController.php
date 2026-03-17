@@ -11,6 +11,7 @@ use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
+use Spatie\Permission\PermissionRegistrar;
 
 class RoleController extends Controller
 {
@@ -24,11 +25,27 @@ class RoleController extends Controller
         return view('modules.roles.index', compact('roles'));
     }
 
-    public function create(): View
+    public function create(Request $request): View
     {
         [$modulePermissions, $otherPermissions, $permissionLabels] = $this->getPermissionsGrouped();
+        [$templateRoles, $rolePermissionMap] = $this->getTemplateRoles();
+        $selectedTemplateRoleId = $request->integer('template_role_id');
+        $selectedTemplateRoleName = null;
+        if ($selectedTemplateRoleId) {
+            $selectedTemplateRoleName = $templateRoles
+                ->firstWhere('id', $selectedTemplateRoleId)
+                ?->name;
+        }
 
-        return view('modules.roles.create', compact('modulePermissions', 'otherPermissions', 'permissionLabels'));
+        return view('modules.roles.create', compact(
+            'modulePermissions',
+            'otherPermissions',
+            'permissionLabels',
+            'templateRoles',
+            'rolePermissionMap',
+            'selectedTemplateRoleId',
+            'selectedTemplateRoleName'
+        ));
     }
 
     public function store(Request $request): RedirectResponse
@@ -38,6 +55,7 @@ class RoleController extends Controller
             'permissions' => ['nullable', 'array'],
             'permissions.*' => ['string', Rule::exists('permissions', 'name')],
             'custom_permission' => ['nullable', 'string', 'max:255'],
+            'template_role_id' => ['nullable', 'integer', Rule::exists('roles', 'id')],
         ]);
 
         $role = Role::create([
@@ -56,7 +74,15 @@ class RoleController extends Controller
             $permissions[] = $permission->name;
         }
 
+        if (empty($permissions) && ! empty($validated['template_role_id'])) {
+            $templateRole = Role::with('permissions')->find($validated['template_role_id']);
+            if ($templateRole) {
+                $permissions = $templateRole->permissions->pluck('name')->all();
+            }
+        }
+
         $role->syncPermissions($permissions);
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
 
         return redirect()
             ->route('roles.index')
@@ -67,13 +93,16 @@ class RoleController extends Controller
     {
         [$modulePermissions, $otherPermissions, $permissionLabels] = $this->getPermissionsGrouped();
         $selectedPermissions = $role->permissions->pluck('name')->all();
+        [$templateRoles, $rolePermissionMap] = $this->getTemplateRoles();
 
         return view('modules.roles.edit', compact(
             'role',
             'modulePermissions',
             'otherPermissions',
             'permissionLabels',
-            'selectedPermissions'
+            'selectedPermissions',
+            'templateRoles',
+            'rolePermissionMap'
         ));
     }
 
@@ -84,6 +113,7 @@ class RoleController extends Controller
             'permissions' => ['nullable', 'array'],
             'permissions.*' => ['string', Rule::exists('permissions', 'name')],
             'custom_permission' => ['nullable', 'string', 'max:255'],
+            'template_role_id' => ['nullable', 'integer', Rule::exists('roles', 'id')],
         ]);
 
         $role->update([
@@ -101,7 +131,15 @@ class RoleController extends Controller
             $permissions[] = $permission->name;
         }
 
+        if (empty($permissions) && ! empty($validated['template_role_id'])) {
+            $templateRole = Role::with('permissions')->find($validated['template_role_id']);
+            if ($templateRole) {
+                $permissions = $templateRole->permissions->pluck('name')->all();
+            }
+        }
+
         $role->syncPermissions($permissions);
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
 
         return redirect()
             ->route('roles.index')
@@ -110,13 +148,14 @@ class RoleController extends Controller
 
     public function destroy(Role $role): RedirectResponse
     {
-        if (in_array($role->name, ['Super Admin', 'Admin', 'Admin User'], true)) {
+        if (in_array($role->name, ['Super Admin', 'Administrator'], true)) {
             return redirect()
                 ->route('roles.index')
                 ->with('error', "The {$role->name} role cannot be deleted.");
         }
 
         $role->delete();
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
 
         return redirect()
             ->route('roles.index')
@@ -133,18 +172,39 @@ class RoleController extends Controller
         $modules = Schema::hasTable('modules')
             ? Module::query()->pluck('name', 'key')->all()
             : [];
+        $permissionSet = $permissions->pluck('name')->flip();
 
         foreach ($permissions as $permission) {
-            if (str_starts_with($permission->name, 'module.')) {
-                $parts = explode('.', $permission->name);
-                $moduleKey = $parts[1] ?? 'unknown';
-                $moduleName = $modules[$moduleKey] ?? $moduleKey;
-
-                $modulePermissions[$moduleName][] = $permission->name;
-                $permissionLabels[$permission->name] = "{$moduleName} Access";
-            } else {
+            if (! str_starts_with($permission->name, 'module.')) {
                 $otherPermissions[] = $permission->name;
                 $permissionLabels[$permission->name] = $this->humanizePermission($permission->name);
+            }
+        }
+
+        foreach ($modules as $moduleKey => $moduleName) {
+            $permissionsForModule = [];
+            $actionLabels = [
+                'access' => "{$moduleName} Access",
+                'create' => "Create {$moduleName}",
+                'read' => "Read {$moduleName}",
+                'update' => "Update {$moduleName}",
+                'delete' => "Delete {$moduleName}",
+            ];
+
+            foreach ($actionLabels as $action => $label) {
+                $permissionName = "module.{$moduleKey}.{$action}";
+                if (! isset($permissionSet[$permissionName])) {
+                    continue;
+                }
+                $permissionsForModule[$action] = $permissionName;
+                $permissionLabels[$permissionName] = $label;
+            }
+
+            if ($permissionsForModule !== []) {
+                $modulePermissions[$moduleName] = [
+                    'key' => $moduleKey,
+                    'permissions' => $permissionsForModule,
+                ];
             }
         }
 
@@ -158,6 +218,20 @@ class RoleController extends Controller
         $label = str_replace(['.', '_'], ' ', $name);
         $label = preg_replace('/\s+/', ' ', $label);
         return ucwords(trim($label));
+    }
+
+    private function getTemplateRoles(): array
+    {
+        $templateRoles = Role::query()
+            ->with('permissions')
+            ->orderBy('name')
+            ->get();
+
+        $rolePermissionMap = $templateRoles
+            ->mapWithKeys(fn (Role $role) => [$role->id => $role->permissions->pluck('name')->values()])
+            ->all();
+
+        return [$templateRoles, $rolePermissionMap];
     }
 }
 

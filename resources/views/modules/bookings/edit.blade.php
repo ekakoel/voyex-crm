@@ -17,12 +17,13 @@
                     </form>
                 </div>
             </div>
-            <aside class="xl:col-span-4">
+            <aside  class="xl:col-span-4">
                 @include('partials._audit-info', ['record' => $booking])
             </aside>
         </div>
     </div>
 @endsection
+
 
 
 

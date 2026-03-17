@@ -3,9 +3,7 @@
 @section('page_title', 'Add Inquiry')
 @section('page_subtitle', 'Create a new inquiry record.')
 @section('page_actions')
-    <a href="{{ route('inquiries.index') }}" class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700">
-        Back
-    </a>
+    <a href="{{ route('inquiries.index') }}"  class="btn-ghost">Back</a>
 @endsection
 
 @section('content')
@@ -20,6 +18,7 @@
         </div>
     </div>
 @endsection
+
 
 
 

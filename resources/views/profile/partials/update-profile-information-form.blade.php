@@ -33,7 +33,7 @@
                     <p class="mt-2 text-sm text-gray-700 dark:text-gray-200">
                         {{ __('Your email address is unverified.') }}
 
-                        <button form="send-verification" class="underline text-sm text-indigo-600 hover:text-indigo-700 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:text-indigo-300 dark:hover:text-indigo-200">
+                        <button form="send-verification"  class="underline text-sm text-indigo-600 hover:text-indigo-700 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:text-indigo-300 dark:hover:text-indigo-200">
                             {{ __('Click here to re-send the verification email.') }}
                         </button>
                     </p>
@@ -48,7 +48,7 @@
         </div>
 
         <div class="flex items-center gap-4">
-            <button type="submit" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">
+            <button type="submit"  class="btn-primary">
                 {{ __('Save Changes') }}
             </button>
 
@@ -64,3 +64,4 @@
         </div>
     </form>
 </section>
+

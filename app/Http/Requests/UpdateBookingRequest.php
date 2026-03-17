@@ -28,7 +28,7 @@ class UpdateBookingRequest extends FormRequest
                 \Illuminate\Validation\Rule::unique('bookings', 'quotation_id')->ignore($this->route('booking')?->id),
             ],
             'travel_date' => ['required', 'date'],
-            'status' => ['required', 'in:confirmed,completed,cancelled'],
+            'status' => ['required', 'in:draft,processed,pending,approved,rejected,final'],
             'notes' => ['nullable', 'string'],
         ];
     }
@@ -40,12 +40,12 @@ class UpdateBookingRequest extends FormRequest
             $travelDate = $this->input('travel_date');
             $notes = trim((string) $this->input('notes'));
 
-            if ($status === 'completed' && $travelDate && now()->lt(\Carbon\Carbon::parse($travelDate))) {
-                $validator->errors()->add('status', 'Completed status is only allowed when travel_date is in the past.');
+            if ($status === 'final' && $travelDate && now()->lt(\Carbon\Carbon::parse($travelDate))) {
+                $validator->errors()->add('status', 'Final status is only allowed when travel_date is in the past.');
             }
 
-            if ($status === 'cancelled' && $notes === '') {
-                $validator->errors()->add('notes', 'A reason is required when status is cancelled.');
+            if ($status === 'rejected' && $notes === '') {
+                $validator->errors()->add('notes', 'A reason is required when status is rejected.');
             }
         });
     }

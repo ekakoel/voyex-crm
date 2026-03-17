@@ -7,7 +7,7 @@
 <div class="space-y-4" data-location-autofill data-location-resolve-url="{{ route('location.resolve-google-map') }}">
     <div>
         <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Name</label>
-        <input name="name" value="{{ old('name', $touristAttraction->name ?? '') }}" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" required>
+        <input name="name" value="{{ old('name', $touristAttraction->name ?? '') }}" class="mt-1 dark:border-gray-600 app-input" required>
         @error('name') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
     </div>
 
@@ -20,7 +20,7 @@
             max="1440"
             step="5"
             value="{{ old('ideal_visit_minutes', $touristAttraction->ideal_visit_minutes ?? 120) }}"
-            class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
+            class="mt-1 dark:border-gray-600 app-input"
             required
         >
         <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Contoh: 120 berarti estimasi kunjungan 2 jam.</p>
@@ -45,7 +45,7 @@
                 maxlength="100"
                 value="{{ old('other_fee_label', $touristAttraction->other_fee_label ?? '') }}"
                 placeholder="Contoh: Camera Fee / Guide Local"
-                class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
+                class="mt-1 dark:border-gray-600 app-input"
             >
             @error('other_fee_label') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
         </div>
@@ -65,7 +65,7 @@
                 name="currency"
                 maxlength="3"
                 value="{{ old('currency', $touristAttraction->currency ?? 'IDR') }}"
-                class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 uppercase text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
+                class="mt-1 uppercase dark:border-gray-600 app-input"
                 required
             >
             @error('currency') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
@@ -75,7 +75,7 @@
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-4">
         <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Destination</label>
-            <select id="destination_id" data-location-field="destination_id" name="destination_id" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+            <select id="destination_id" data-location-field="destination_id" name="destination_id" class="mt-1 dark:border-gray-600 app-input">
                 <option value="">Select destination</option>
                 @foreach ($destinations as $destination)
                     <option value="{{ $destination->id }}"
@@ -90,17 +90,17 @@
         </div>
         <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Location</label>
-            <input id="location" data-location-field="location" name="location" value="{{ old('location', $touristAttraction->location ?? '') }}" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+            <input id="location" data-location-field="location" name="location" value="{{ old('location', $touristAttraction->location ?? '') }}" class="mt-1 dark:border-gray-600 app-input">
             @error('location') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
         </div>
         <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">City</label>
-            <input id="city" data-location-field="city" name="city" value="{{ old('city', $touristAttraction->city ?? '') }}" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+            <input id="city" data-location-field="city" name="city" value="{{ old('city', $touristAttraction->city ?? '') }}" class="mt-1 dark:border-gray-600 app-input">
             @error('city') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
         </div>
         <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Province</label>
-            <input id="province" data-location-field="province" name="province" value="{{ old('province', $touristAttraction->province ?? '') }}" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+            <input id="province" data-location-field="province" name="province" value="{{ old('province', $touristAttraction->province ?? '') }}" class="mt-1 dark:border-gray-600 app-input">
             @error('province') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
         </div>
     </div>
@@ -108,22 +108,24 @@
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-4">
         <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Country</label>
-            <input data-location-field="country" name="country" value="{{ old('country', $touristAttraction->country ?? '') }}" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+            <input data-location-field="country" name="country" value="{{ old('country', $touristAttraction->country ?? '') }}" class="mt-1 dark:border-gray-600 app-input">
         </div>
         <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Timezone</label>
-            <input data-location-field="timezone" name="timezone" value="{{ old('timezone', $touristAttraction->timezone ?? '') }}" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+            <input data-location-field="timezone" name="timezone" value="{{ old('timezone', $touristAttraction->timezone ?? '') }}" class="mt-1 dark:border-gray-600 app-input">
         </div>
         <div class="sm:col-span-2">
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Address</label>
-            <input data-location-field="address" name="address" value="{{ old('address', $touristAttraction->address ?? '') }}" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+            <input data-location-field="address" name="address" value="{{ old('address', $touristAttraction->address ?? '') }}" class="mt-1 dark:border-gray-600 app-input">
         </div>
     </div>
     <div>
         <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Google Maps URL</label>
-        <div class="mt-1 flex items-center gap-2">
-            <input id="google_maps_url" data-location-field="google_maps_url" name="google_maps_url" type="url" value="{{ old('google_maps_url', $touristAttraction->google_maps_url ?? '') }}" placeholder="https://maps.google.com/..." class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
-            <button type="button" data-location-autofill-trigger class="shrink-0 rounded-lg border border-indigo-300 px-3 py-2 text-xs font-semibold text-indigo-700">Auto Fill</button>
+        <div class="mt-1 space-y-2">
+            <input id="google_maps_url" data-location-field="google_maps_url" name="google_maps_url" type="url" value="{{ old('google_maps_url', $touristAttraction->google_maps_url ?? '') }}" placeholder="https://maps.google.com/..." class="app-input">
+            <div class="flex justify-end">
+                <button type="button" data-location-autofill-trigger class="btn-outline-sm">Auto Fill</button>
+            </div>
         </div>
         <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Paste Google Maps link to auto-fill all location fields.</p>
         @error('google_maps_url') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
@@ -131,12 +133,12 @@
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Latitude</label>
-            <input id="latitude" data-location-field="latitude" name="latitude" type="number" step="0.0000001" value="{{ old('latitude', $touristAttraction->latitude ?? '') }}" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+            <input id="latitude" data-location-field="latitude" name="latitude" type="number" step="0.0000001" value="{{ old('latitude', $touristAttraction->latitude ?? '') }}" class="mt-1 dark:border-gray-600 app-input">
             @error('latitude') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
         </div>
         <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Longitude</label>
-            <input id="longitude" data-location-field="longitude" name="longitude" type="number" step="0.0000001" value="{{ old('longitude', $touristAttraction->longitude ?? '') }}" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+            <input id="longitude" data-location-field="longitude" name="longitude" type="number" step="0.0000001" value="{{ old('longitude', $touristAttraction->longitude ?? '') }}" class="mt-1 dark:border-gray-600 app-input">
             @error('longitude') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
         </div>
     </div>
@@ -159,7 +161,7 @@
                     <div class="tourist-gallery-existing-item relative overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700" data-image-path="{{ $image }}">
                         <button
                             type="button"
-                            class="tourist-gallery-remove-btn absolute right-1 top-1 z-10 inline-flex h-6 w-6 items-center justify-center rounded-full bg-rose-600/95 text-xs font-bold text-white shadow hover:bg-rose-700"
+                             class="tourist-gallery-remove-btn absolute right-1 top-1 z-10 inline-flex h-6 w-6 items-center justify-center rounded-full bg-rose-600/95 text-xs font-bold text-white shadow hover:bg-rose-700"
                             title="Remove image"
                             aria-label="Remove image">
                             X
@@ -190,8 +192,8 @@
     </div>
 
     <div class="flex items-center gap-2">
-        <button class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">{{ $buttonLabel }}</button>
-        <a href="{{ route('tourist-attractions.index') }}" class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700">Cancel</a>
+        <button  class="btn-primary">{{ $buttonLabel }}</button>
+        <a href="{{ route('tourist-attractions.index') }}"  class="btn-secondary">Cancel</a>
     </div>
 </div>
 
@@ -284,3 +286,6 @@
         </script>
     @endpush
 @endonce
+
+
+

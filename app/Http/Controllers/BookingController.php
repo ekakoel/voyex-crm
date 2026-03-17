@@ -92,6 +92,14 @@ class BookingController extends Controller
      */
     public function edit(Booking $booking)
     {
+        if (! $this->canManageBooking($booking, 'update')) {
+            return $this->denyBookingMutation($booking);
+        }
+        if ($booking->isFinal()) {
+            return redirect()
+                ->route('bookings.show', $booking)
+                ->with('error', 'Booking sudah final dan tidak dapat diubah.');
+        }
         $quotations = Quotation::query()
             ->with('inquiry.customer')
             ->where(function ($q) use ($booking) {
@@ -109,6 +117,14 @@ class BookingController extends Controller
      */
     public function update(UpdateBookingRequest $request, Booking $booking)
     {
+        if (! $this->canManageBooking($booking, 'update')) {
+            return $this->denyBookingMutation($booking);
+        }
+        if ($booking->isFinal()) {
+            return redirect()
+                ->route('bookings.show', $booking)
+                ->with('error', 'Booking sudah final dan tidak dapat diubah.');
+        }
         $validated = $request->validated();
         $booking->update($validated);
         $this->invoiceService->generateForBooking($booking);
@@ -123,11 +139,39 @@ class BookingController extends Controller
      */
     public function destroy(Booking $booking)
     {
+        if (! $this->canManageBooking($booking, 'delete')) {
+            return $this->denyBookingMutation($booking);
+        }
+        if ($booking->isFinal()) {
+            return redirect()
+                ->route('bookings.show', $booking)
+                ->with('error', 'Booking sudah final dan tidak dapat dihapus.');
+        }
         $booking->delete();
 
         return redirect()
             ->route('bookings.index')
             ->with('success', 'Booking deleted successfully.');
+    }
+
+    private function canManageBooking(Booking $booking, string $ability = 'update'): bool
+    {
+        $user = auth()->user();
+        if (! $user) {
+            return false;
+        }
+        if (! in_array($ability, ['update', 'delete'], true)) {
+            $ability = 'update';
+        }
+
+        return $user->can($ability, $booking);
+    }
+
+    private function denyBookingMutation(Booking $booking)
+    {
+        return redirect()
+            ->route('bookings.show', $booking)
+            ->with('error', 'Hanya creator yang dapat mengubah atau menghapus booking ini.');
     }
 
     public function exportCsv(): StreamedResponse

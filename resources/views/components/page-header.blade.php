@@ -18,7 +18,7 @@
             @endif
         </div>
         @if ($hasActions)
-            <div class="flex items-center gap-2">
+            <div class="page-actions">
                 {{ $slot }}
             </div>
         @endif
@@ -31,7 +31,7 @@
                         <span class="mx-1 text-slate-300 dark:text-slate-600">></span>
                     @endif
                     @if (!empty($crumb['url']))
-                        <a href="{{ $crumb['url'] }}" class="transition hover:text-slate-700 dark:hover:text-slate-200">{{ $crumb['label'] }}</a>
+                        <a href="{{ $crumb['url'] }}"  class="transition hover:text-slate-700 dark:hover:text-slate-200">{{ $crumb['label'] }}</a>
                     @else
                         <span class="text-slate-700 dark:text-slate-200">{{ $crumb['label'] }}</span>
                     @endif
@@ -40,3 +40,4 @@
         </div>
     @endif
 </div>
+

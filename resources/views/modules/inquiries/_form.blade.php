@@ -19,7 +19,7 @@
             id="customer_label"
             type="text"
             list="customer-options"
-            class="mt-1 w-full app-input"
+            class="mt-1 app-input"
             placeholder="Select customer"
             value="{{ $selectedCustomerLabel }}"
             data-datalist-input="1"
@@ -27,7 +27,7 @@
             data-map='@json(array_flip($customerLabels))'
             required
         >
-        <input type="hidden" name="customer_id" id="customer_id" value="{{ $selectedCustomerId }}">
+        <input type="hidden" name="customer_id" id="customer_id" value="{{ $selectedCustomerId }}" class="app-input">
         <datalist id="customer-options">
             @foreach ($customerLabels as $label)
                 <option value="{{ $label }}"></option>
@@ -44,7 +44,7 @@
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Source</label>
-            <select name="source" class="mt-1 w-full app-input">
+            <select name="source" class="mt-1 app-input">
                 <option value="">-</option>
                 @foreach (($sourceLabels ?? []) as $value => $label)
                     <option value="{{ $value }}" @selected(old('source', $inquiry->source ?? '') === $value)>{{ $label }}</option>
@@ -61,7 +61,7 @@
                 name="deadline"
                 type="date"
                 value="{{ old('deadline', isset($inquiry->deadline) ? $inquiry->deadline->format('Y-m-d') : '') }}"
-                class="mt-1 w-full app-input"
+                class="mt-1 app-input"
             >
             @error('deadline')
                 <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
@@ -69,42 +69,30 @@
         </div>
     </div>
 
-    <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+    @if (!empty($canAssignToReservation))
         <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Status</label>
-            <select name="status" class="mt-1 w-full app-input" required>
-                @foreach (['new','follow_up','quoted','converted','closed'] as $status)
-                    <option value="{{ $status }}" @selected(old('status', $inquiry->status ?? 'new') === $status)>{{ $status }}</option>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Assign To (Reservation)</label>
+            <select name="assigned_to" class="mt-1 app-input" required>
+                <option value="">Select reservation</option>
+                @foreach (($assignees ?? []) as $user)
+                    <option value="{{ $user->id }}" @selected((string) old('assigned_to', $inquiry->assigned_to ?? '') === (string) $user->id)>{{ $user->name }}</option>
                 @endforeach
             </select>
-            @error('status')
+            @error('assigned_to')
                 <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
             @enderror
         </div>
+    @endif
 
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-1">
         <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Priority</label>
-            <select name="priority" class="mt-1 w-full app-input" required>
+            <select name="priority" class="mt-1 app-input" required>
                 @foreach (['low','normal','high'] as $priority)
                     <option value="{{ $priority }}" @selected(old('priority', $inquiry->priority ?? 'normal') === $priority)>{{ $priority }}</option>
                 @endforeach
             </select>
             @error('priority')
-                <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
-            @enderror
-        </div>
-
-        <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Assigned To</label>
-            <select name="assigned_to" class="mt-1 w-full app-input">
-                <option value="">-</option>
-                @foreach ($assignees as $user)
-                    <option value="{{ $user->id }}" @selected(old('assigned_to', $inquiry->assigned_to ?? null) == $user->id)>
-                        {{ $user->name }}
-                    </option>
-                @endforeach
-            </select>
-            @error('assigned_to')
                 <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
             @enderror
         </div>
@@ -135,10 +123,10 @@
     </div>
 
     <div class="flex items-center gap-2">
-        <button type="submit" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">
+        <button type="submit"  class="btn-primary">
             {{ $buttonLabel }}
         </button>
-        <a href="{{ route('inquiries.index') }}" class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700">
+        <a href="{{ route('inquiries.index') }}"  class="btn-secondary">
             Cancel
         </a>
     </div>
@@ -203,5 +191,8 @@
         </script>
     @endpush
 @endonce
+
+
+
 
 

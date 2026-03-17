@@ -2,14 +2,12 @@
 
 @section('content')
     <div class="space-y-6 module-page module-page--invoices">
-        @section('page_actions')<a href="{{ route('invoices.index') }}" class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700">
-                    Back
-                </a>@endsection
+        @section('page_actions')<a href="{{ route('invoices.index') }}"  class="btn-ghost">Back</a>@endsection
 
         <div class="grid gap-6 xl:grid-cols-12">
             <div class="xl:col-span-8">
-                <div class="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-800">
-                    <dl class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div class="app-card p-5">
+                    <dl class="app-dl" class="grid grid-cols-1 gap-4 md:grid-cols-2">
                         <div><dt class="text-xs text-gray-500 dark:text-gray-400">Invoice Number</dt><dd class="text-sm font-medium text-gray-800 dark:text-gray-100">{{ $invoice->invoice_number }}</dd></div>
                         <div><dt class="text-xs text-gray-500 dark:text-gray-400">Status</dt><dd class="text-sm"><x-status-badge :status="$invoice->status" size="xs" /></dd></div>
                         <div><dt class="text-xs text-gray-500 dark:text-gray-400">Booking</dt><dd class="text-sm text-gray-800 dark:text-gray-100">{{ $invoice->booking->booking_number ?? '-' }}</dd></div>
@@ -23,12 +21,13 @@
                     </dl>
                 </div>
             </div>
-            <aside class="xl:col-span-4">
+            <aside  class="xl:col-span-4">
                 @include('partials._audit-info', ['record' => $invoice])
             </aside>
         </div>
     </div>
 @endsection
+
 
 
 

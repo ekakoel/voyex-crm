@@ -13,6 +13,7 @@ class DestinationController extends Controller
     public function index(Request $request)
     {
         $query = Destination::query()
+            ->withTrashed()
             ->withCount(['vendors', 'accommodations', 'touristAttractions', 'airports', 'transports'])
             ->latest('id');
 
@@ -26,7 +27,9 @@ class DestinationController extends Controller
             });
         }
 
-        $destinations = $query->paginate(10)->withQueryString();
+        $perPage = (int) $request->input('per_page', 10);
+        $perPage = in_array($perPage, [10, 25, 50, 100], true) ? $perPage : 10;
+        $destinations = $query->paginate($perPage)->withQueryString();
 
         return view('modules.destinations.index', compact('destinations'));
     }
@@ -68,7 +71,27 @@ class DestinationController extends Controller
     {
         $destination->delete();
 
-        return redirect()->route('destinations.index')->with('success', 'Destination deleted successfully.');
+        return redirect()->route('destinations.index')->with('success', 'Destination deactivated successfully.');
+    }
+
+    public function toggleStatus($destination)
+    {
+        $destination = Destination::withTrashed()->findOrFail($destination);
+        if ($destination->trashed()) {
+            $destination->restore();
+            $destination->update(['is_active' => true]);
+
+            return redirect()
+                ->route('destinations.index')
+                ->with('success', 'Destination activated successfully.');
+        }
+
+        $destination->update(['is_active' => false]);
+        $destination->delete();
+
+        return redirect()
+            ->route('destinations.index')
+            ->with('success', 'Destination deactivated successfully.');
     }
 
     private function validatePayload(Request $request, ?Destination $destination): array

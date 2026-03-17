@@ -212,3 +212,43 @@ document.addEventListener('DOMContentLoaded', () => {
 
     observer.observe(document.body, { childList: true, subtree: true });
 });
+
+document.addEventListener('submit', (event) => {
+    const form = event.target;
+    if (!(form instanceof HTMLFormElement)) {
+        return;
+    }
+    if (form.dataset.disableSubmitLock === '1') {
+        return;
+    }
+    if (form.dataset.submitLocked === '1') {
+        event.preventDefault();
+        return;
+    }
+
+    form.dataset.submitLocked = '1';
+
+    const submitButtons = form.querySelectorAll('button[type="submit"], input[type="submit"]');
+    submitButtons.forEach((button) => {
+        if (button.dataset.skipSpinner === '1') {
+            return;
+        }
+        if (button instanceof HTMLButtonElement) {
+            if (!button.querySelector('.btn-spinner')) {
+                const spinner = document.createElement('span');
+                spinner.className = 'btn-spinner';
+                spinner.setAttribute('aria-hidden', 'true');
+                button.appendChild(spinner);
+            }
+            button.classList.add('btn-loading');
+            button.disabled = true;
+        } else if (button instanceof HTMLInputElement) {
+            if (!button.dataset.originalValue) {
+                button.dataset.originalValue = button.value;
+            }
+            button.value = 'Loading...';
+            button.disabled = true;
+            button.classList.add('btn-loading');
+        }
+    });
+});

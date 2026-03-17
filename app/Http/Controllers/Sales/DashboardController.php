@@ -18,11 +18,11 @@ class DashboardController extends Controller
         $salesTeamIds = [];
 
         // Determine data scope based on role
-        if ($user->hasRole('Sales Manager')) {
-            // Sales Manager sees the whole sales team data
-            $salesTeamIds = User::role(['Sales Manager', 'Sales Agent'])->pluck('id')->toArray();
+        if ($user->hasRole('Manager')) {
+            // Manager sees the whole sales team data
+            $salesTeamIds = User::role(['Manager', 'Marketing'])->pluck('id')->toArray();
         } else {
-            // Sales Agent sees only their own data
+            // Marketing sees only their own data
             $salesTeamIds = [$user->id];
         }
 
@@ -45,9 +45,9 @@ class DashboardController extends Controller
             ? round(($totalBooking / $totalInquiry) * 100, 2)
             : 0;
 
-        // 4. Inquiries that need follow-up (status 'new' or 'follow_up')
+        // 4. Inquiries that need follow-up (status 'draft' or 'processed')
         $pendingInquiries = Inquiry::with('customer')
-            ->whereIn('status', ['new', 'follow_up'])
+            ->whereIn('status', ['draft', 'processed'])
             ->whereIn('assigned_to', $salesTeamIds)
             ->orderBy('created_at', 'desc')
             ->limit(10)

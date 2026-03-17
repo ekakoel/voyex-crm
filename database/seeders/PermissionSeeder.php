@@ -22,18 +22,31 @@ class PermissionSeeder extends Seeder
         $modules = Module::query()->select(['key', 'name'])->get();
 
         foreach ($modules as $module) {
-            Permission::firstOrCreate([
-                'name' => "module.{$module->key}.access",
-                'guard_name' => 'web',
-            ]);
+            $moduleKey = $module->key;
+            $modulePermissions = [
+                "module.{$moduleKey}.access",
+                "module.{$moduleKey}.create",
+                "module.{$moduleKey}.read",
+                "module.{$moduleKey}.update",
+                "module.{$moduleKey}.delete",
+            ];
+
+            foreach ($modulePermissions as $permissionName) {
+                Permission::firstOrCreate([
+                    'name' => $permissionName,
+                    'guard_name' => 'web',
+                ]);
+            }
         }
 
         $dashboardPermissions = [
-            'dashboard.admin.view',
-            'dashboard.sales.view',
+            'dashboard.administrator.view',
+            'dashboard.manager.view',
+            'dashboard.marketing.view',
+            'dashboard.reservation.view',
             'dashboard.finance.view',
-            'dashboard.operations.view',
             'dashboard.director.view',
+            'dashboard.editor.view',
             'company_settings.manage',
             'quotations.approve',
             'quotations.reject',
@@ -46,7 +59,7 @@ class PermissionSeeder extends Seeder
             ]);
         }
 
-        $adminRole = Role::where('name', 'Admin')->first();
+        $adminRole = Role::where('name', 'Administrator')->first();
         if ($adminRole) {
             $permissions = Permission::query()->pluck('name')->all();
             $adminRole->syncPermissions($permissions);

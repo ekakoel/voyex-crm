@@ -14,13 +14,13 @@
     @endphp
 
     <!-- Header Dashboard -->
-    @section('page_title', 'Admin Dashboard')
+    @section('page_title', $dashboardTitle ?? 'Administrator Dashboard')
     @section('page_subtitle', $dashboardSubtitle ?? "Welcome back, ".auth()->user()->name.". Here's your performance overview.")
     @section('page_actions')
         <span class="text-sm font-medium text-gray-600 dark:text-gray-300">{{ \Carbon\Carbon::now()->format('l, j F Y') }}</span>
     @endsection
 
-    @if ($isAdminUser ?? false)
+    @if (! ($isEditor ?? false))
         <div class="grid grid-cols-1 xl:grid-cols-12 gap-6 mb-8">
             <div class="xl:col-span-7 bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-md border border-gray-200 dark:border-gray-700">
                 <div class="flex items-start justify-between">
@@ -42,7 +42,7 @@
                         <p class="text-xl font-bold text-gray-800 dark:text-gray-100">{{ number_format($teamStats['sales_team'] ?? 0) }}</p>
                     </div>
                     <div class="rounded-xl bg-gray-50 dark:bg-gray-900 p-3">
-                        <p class="text-xs text-gray-500 dark:text-gray-400">Operations</p>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">Reservation</p>
                         <p class="text-xl font-bold text-gray-800 dark:text-gray-100">{{ number_format($teamStats['operations'] ?? 0) }}</p>
                     </div>
                     <div class="rounded-xl bg-gray-50 dark:bg-gray-900 p-3">
@@ -71,16 +71,16 @@
                 <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Akses cepat untuk aktivitas administrasi perusahaan.</p>
                 <div class="mt-4 grid grid-cols-1 gap-2 text-sm">
                     @if(auth()->user()->can('company_settings.manage'))
-                        <a href="{{ route('company-settings.edit') }}" class="rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-900">Company Settings</a>
+                        <a href="{{ route('company-settings.edit') }}"  class="btn-primary">Company Settings</a>
                     @endif
                     @if(auth()->user()->can('module.user_manager.access') && Route::has('users.index'))
-                        <a href="{{ route('users.index') }}" class="rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-900">Manage Users</a>
+                        <a href="{{ route('users.index') }}"  class="btn-primary">Manage Users</a>
                     @endif
                     @if(auth()->user()->can('module.service_manager.access') && Route::has('services.index'))
-                        <a href="{{ route('services.index') }}" class="rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-900">Module Management</a>
+                        <a href="{{ route('services.index') }}"  class="btn-primary">Module Management</a>
                     @endif
                     @if(auth()->user()->can('module.role_manager.access') && Route::has('roles.index'))
-                        <a href="{{ route('roles.index') }}" class="rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-900">Role & Permissions</a>
+                        <a href="{{ route('roles.index') }}"  class="btn-primary">Role & Permissions</a>
                     @endif
                 </div>
             </div>
@@ -213,10 +213,10 @@
     </div>
 
     <!-- Upcoming Bookings -->
-    <div class="mt-8 bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-md border border-gray-200 dark:border-gray-700">
+    <div class="mt-8 app-card p-6">
         <h3 class="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-4">Upcoming Bookings</h3>
         <div class="overflow-x-auto">
-            <table class="w-full text-sm text-left text-gray-500 dark:text-gray-400">
+            <table class="app-table w-full text-sm text-left text-gray-500 dark:text-gray-400">
                 <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
                     <tr>
                         <th scope="col" class="px-6 py-3">Booking ID</th>
@@ -342,3 +342,4 @@
     </script>
     @endpush
 @endsection
+

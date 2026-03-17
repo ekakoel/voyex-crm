@@ -17,6 +17,7 @@ class TransportController extends Controller
     public function index(Request $request)
     {
         $query = Transport::query()
+            ->withTrashed()
             ->with('destination:id,name')
             ->withCount('units')
             ->withMin('units', 'contract_rate')
@@ -126,7 +127,27 @@ class TransportController extends Controller
         $this->deleteGalleryImages($this->extractUnitImagePaths($transport->units->all()));
         $transport->delete();
 
-        return redirect()->route('transports.index')->with('success', 'Transport deleted successfully.');
+        return redirect()->route('transports.index')->with('success', 'Transport deactivated successfully.');
+    }
+
+    public function toggleStatus($transport)
+    {
+        $transport = Transport::withTrashed()->findOrFail($transport);
+        if ($transport->trashed()) {
+            $transport->restore();
+            $transport->update(['is_active' => true]);
+
+            return redirect()
+                ->route('transports.index')
+                ->with('success', 'Transport activated successfully.');
+        }
+
+        $transport->update(['is_active' => false]);
+        $transport->delete();
+
+        return redirect()
+            ->route('transports.index')
+            ->with('success', 'Transport deactivated successfully.');
     }
 
     public function removeGalleryImage(Request $request, Transport $transport)

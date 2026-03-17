@@ -14,7 +14,9 @@ class VendorController extends Controller
     public function index()
     {
         $vendors = Vendor::query()
+            ->withTrashed()
             ->with('destination:id,name')
+            ->withCount(['activities', 'foodBeverages'])
             ->orderBy('name')
             ->paginate(10);
         return view('modules.vendors.index', compact('vendors'));
@@ -124,8 +126,34 @@ class VendorController extends Controller
 
     public function destroy(Vendor $vendor)
     {
+        $vendor->loadCount(['activities', 'foodBeverages']);
+        if (($vendor->activities_count ?? 0) > 0 || ($vendor->food_beverages_count ?? 0) > 0) {
+            return redirect()
+                ->route('vendors.index')
+                ->with('error', 'Vendor cannot be deleted because it is used by Activities or Food & Beverage. Deactivate it instead.');
+        }
+
         $vendor->delete();
         return redirect()->route('vendors.index')->with('success', 'Vendor deleted successfully.');
+    }
+
+    public function toggleStatus($vendor)
+    {
+        $vendor = Vendor::withTrashed()->findOrFail($vendor);
+        if ($vendor->trashed()) {
+            $vendor->restore();
+            $vendor->update(['is_active' => true]);
+            return redirect()
+                ->route('vendors.index')
+                ->with('success', 'Vendor activated successfully.');
+        }
+
+        $vendor->update(['is_active' => false]);
+        $vendor->delete();
+
+        return redirect()
+            ->route('vendors.index')
+            ->with('success', 'Vendor deactivated successfully.');
     }
 
     private function applyDestinationContext(array &$validated): void

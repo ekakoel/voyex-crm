@@ -27,3 +27,6 @@ class FeatureAccess extends Model
         return $this->hasMany(FeatureAccess::class, 'parent_id')->orderBy('id');
     }
 }
+
+
+

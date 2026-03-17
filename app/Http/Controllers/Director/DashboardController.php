@@ -7,12 +7,14 @@ use App\Models\Booking;
 use App\Models\Inquiry;
 use App\Models\Quotation;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
 {
     public function index()
     {
+        $user = Auth::user();
         $now = Carbon::now();
 
         $monthlyRevenue = Booking::join('quotations', 'bookings.quotation_id', '=', 'quotations.id')
@@ -37,11 +39,10 @@ class DashboardController extends Controller
             ->orderBy(DB::raw('MONTH(bookings.created_at)'))
             ->pluck('total', 'month');
 
-        $deadlineQuotations = Quotation::where('status', 'sent')
-            ->whereDate('validity_date', '<=', Carbon::now()->addDays(7))
-            ->orderBy('validity_date')
+        $pendingApprovals = Quotation::where('status', 'pending')
+            ->latest()
             ->limit(5)
-            ->get();
+            ->get(['id', 'quotation_number', 'status', 'validity_date']);
 
         $upcomingBookings = Booking::whereDate('travel_date', '>=', $now)
             ->orderBy('travel_date')
@@ -49,10 +50,11 @@ class DashboardController extends Controller
             ->get();
 
         return view('director.dashboard', compact(
+            'user',
             'monthlyRevenue',
             'conversionRate',
             'monthlyData',
-            'deadlineQuotations',
+            'pendingApprovals',
             'upcomingBookings'
         ));
     }

@@ -2,10 +2,53 @@
 
 @section('content')
     <div class="space-y-6">
-        @section('page_actions')<a href="{{ route('destinations.edit', $destination) }}" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">Edit</a>
-                <a href="{{ route('destinations.index') }}" class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100">Back</a>@endsection
+        @section('page_actions')<a href="{{ route('destinations.edit', $destination) }}"  class="btn-primary">Edit</a>
+                <a href="{{ route('destinations.index') }}"  class="btn-ghost">Back</a>@endsection
 
-        <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+        @php
+            $serviceCards = [
+                [
+                    'key' => 'vendors',
+                    'label' => 'Vendors',
+                    'value' => (int) ($destination->vendors_count ?? 0),
+                    'caption' => 'Total',
+                    'tone' => 'bg-emerald-50 text-emerald-700 border-emerald-100',
+                ],
+                [
+                    'key' => 'accommodations',
+                    'label' => 'Accommodations',
+                    'value' => (int) ($destination->accommodations_count ?? 0),
+                    'caption' => 'Total',
+                    'tone' => 'bg-sky-50 text-sky-700 border-sky-100',
+                ],
+                [
+                    'key' => 'attractions',
+                    'label' => 'Attractions',
+                    'value' => (int) ($destination->tourist_attractions_count ?? 0),
+                    'caption' => 'Total',
+                    'tone' => 'bg-amber-50 text-amber-700 border-amber-100',
+                ],
+                [
+                    'key' => 'airports',
+                    'label' => 'Airports',
+                    'value' => (int) ($destination->airports_count ?? 0),
+                    'caption' => 'Total',
+                    'tone' => 'bg-indigo-50 text-indigo-700 border-indigo-100',
+                ],
+                [
+                    'key' => 'transports',
+                    'label' => 'Transports',
+                    'value' => (int) ($destination->transports_count ?? 0),
+                    'caption' => 'Total',
+                    'tone' => 'bg-slate-50 text-slate-700 border-slate-100',
+                ],
+            ];
+        @endphp
+        <div class="space-y-2 mb-6">
+            <x-index-stats :cards="$serviceCards" />
+        </div>
+
+        <div class="app-card p-4 mb-6">
             <div class="grid grid-cols-1 gap-3 text-sm md:grid-cols-2">
                 <div><span class="text-gray-500 dark:text-gray-400">Location:</span> <span class="text-gray-800 dark:text-gray-100">{{ $destination->location ?: '-' }}</span></div>
                 <div><span class="text-gray-500 dark:text-gray-400">City/Province:</span> <span class="text-gray-800 dark:text-gray-100">{{ trim(($destination->city ?? '') . (($destination->city && $destination->province) ? ', ' : '') . ($destination->province ?? '')) ?: '-' }}</span></div>
@@ -14,32 +57,6 @@
                 <div><span class="text-gray-500 dark:text-gray-400">Latitude:</span> <span class="text-gray-800 dark:text-gray-100">{{ $destination->latitude ?? '-' }}</span></div>
                 <div><span class="text-gray-500 dark:text-gray-400">Longitude:</span> <span class="text-gray-800 dark:text-gray-100">{{ $destination->longitude ?? '-' }}</span></div>
                 <div class="md:col-span-2"><span class="text-gray-500 dark:text-gray-400">Description:</span> <span class="text-gray-800 dark:text-gray-100">{{ $destination->description ?: '-' }}</span></div>
-            </div>
-        </div>
-
-        <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
-            <h2 class="text-sm font-semibold text-gray-800 dark:text-gray-100">Linked Modules</h2>
-            <div class="mt-3 grid grid-cols-2 gap-3 md:grid-cols-5">
-                <div class="rounded-lg border border-gray-200 p-3 dark:border-gray-700">
-                    <p class="text-xs text-gray-500 dark:text-gray-400">Vendors</p>
-                    <p class="text-lg font-semibold text-gray-800 dark:text-gray-100">{{ (int) ($destination->vendors_count ?? 0) }}</p>
-                </div>
-                <div class="rounded-lg border border-gray-200 p-3 dark:border-gray-700">
-                    <p class="text-xs text-gray-500 dark:text-gray-400">Accommodations</p>
-                    <p class="text-lg font-semibold text-gray-800 dark:text-gray-100">{{ (int) ($destination->accommodations_count ?? 0) }}</p>
-                </div>
-                <div class="rounded-lg border border-gray-200 p-3 dark:border-gray-700">
-                    <p class="text-xs text-gray-500 dark:text-gray-400">Attractions</p>
-                    <p class="text-lg font-semibold text-gray-800 dark:text-gray-100">{{ (int) ($destination->tourist_attractions_count ?? 0) }}</p>
-                </div>
-                <div class="rounded-lg border border-gray-200 p-3 dark:border-gray-700">
-                    <p class="text-xs text-gray-500 dark:text-gray-400">Airports</p>
-                    <p class="text-lg font-semibold text-gray-800 dark:text-gray-100">{{ (int) ($destination->airports_count ?? 0) }}</p>
-                </div>
-                <div class="rounded-lg border border-gray-200 p-3 dark:border-gray-700">
-                    <p class="text-xs text-gray-500 dark:text-gray-400">Transports</p>
-                    <p class="text-lg font-semibold text-gray-800 dark:text-gray-100">{{ (int) ($destination->transports_count ?? 0) }}</p>
-                </div>
             </div>
         </div>
     </div>

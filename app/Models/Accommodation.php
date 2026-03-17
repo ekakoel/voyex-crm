@@ -3,9 +3,11 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Accommodation extends Model
 {
+    use SoftDeletes;
     protected $fillable = [
         'code',
         'name',
@@ -59,4 +61,15 @@ class Accommodation extends Model
     {
         return $this->belongsTo(Destination::class);
     }
+
+    public function hotel()
+    {
+        return $this->hasOne(Hotel::class);
+    }
 }
+
+
+
+
+
+

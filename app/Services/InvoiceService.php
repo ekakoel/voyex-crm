@@ -12,7 +12,7 @@ class InvoiceService
     {
         $booking->loadMissing(['quotation']);
 
-        if ($booking->status !== 'completed' || ! $booking->quotation) {
+        if ($booking->status !== 'final' || ! $booking->quotation) {
             return null;
         }
 
@@ -33,7 +33,7 @@ class InvoiceService
                 'invoice_date' => now()->toDateString(),
                 'due_date' => now()->addDays(7)->toDateString(),
                 'total_amount' => (float) ($quotation->final_amount ?? 0),
-                'status' => 'issued',
+                'status' => 'pending',
                 'generated_by' => auth()->id() ?: $approver->id,
             ]
         );

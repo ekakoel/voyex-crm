@@ -44,3 +44,6 @@ class AccommodationRoom extends Model
         return $this->belongsTo(Accommodation::class);
     }
 }
+
+
+

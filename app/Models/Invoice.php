@@ -9,6 +9,16 @@ class Invoice extends Model
 {
     use HasAudit;
 
+    public const STATUS_OPTIONS = [
+        'draft',
+        'processed',
+        'pending',
+        'approved',
+        'rejected',
+        'final',
+    ];
+
+    public const FINAL_STATUS = 'final';
     protected $fillable = [
         'invoice_number',
         'booking_id',
@@ -37,4 +47,12 @@ class Invoice extends Model
     {
         return $this->belongsTo(User::class, 'generated_by');
     }
+
+    public function isFinal(): bool
+    {
+        return $this->status === self::FINAL_STATUS;
+    }
 }
+
+
+

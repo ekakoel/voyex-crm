@@ -57,3 +57,6 @@ class User extends Authenticatable
         return $query->whereDoesntHave('roles', fn (Builder $roles) => $roles->where('name', 'Super Admin'));
     }
 }
+
+
+

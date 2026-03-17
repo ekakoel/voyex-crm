@@ -27,3 +27,6 @@ class ItineraryFoodBeverage extends Model
         return $this->belongsTo(FoodBeverage::class);
     }
 }
+
+
+

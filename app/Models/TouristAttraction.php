@@ -3,9 +3,11 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class TouristAttraction extends Model
 {
+    use SoftDeletes;
     protected $fillable = [
         'name',
         'ideal_visit_minutes',
@@ -48,3 +50,9 @@ class TouristAttraction extends Model
         return $this->belongsTo(Destination::class);
     }
 }
+
+
+
+
+
+

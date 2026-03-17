@@ -18,9 +18,9 @@ class UserSeeder extends Seeder
 
         $users = [
             [
-                'name' => 'Admin User',
+                'name' => 'Administrator',
                 'email' => 'admin@example.com',
-                'role' => 'Admin User',
+                'role' => 'Administrator',
             ],
             [
                 'name' => 'Super Admin',
@@ -28,14 +28,14 @@ class UserSeeder extends Seeder
                 'role' => 'Super Admin',
             ],
             [
-                'name' => 'Sales Manager',
-                'email' => 'sales.manager@example.com',
-                'role' => 'Sales Manager',
+                'name' => 'Manager',
+                'email' => 'manager@example.com',
+                'role' => 'Manager',
             ],
             [
-                'name' => 'Sales Agent',
-                'email' => 'sales.agent@example.com',
-                'role' => 'Sales Agent',
+                'name' => 'Marketing',
+                'email' => 'marketing@example.com',
+                'role' => 'Marketing',
             ],
             [
                 'name' => 'Director',
@@ -48,9 +48,14 @@ class UserSeeder extends Seeder
                 'role' => 'Finance',
             ],
             [
-                'name' => 'Operations',
-                'email' => 'operations@example.com',
-                'role' => 'Operations',
+                'name' => 'Reservation',
+                'email' => 'reservation@example.com',
+                'role' => 'Reservation',
+            ],
+            [
+                'name' => 'Editor',
+                'email' => 'editor@example.com',
+                'role' => 'Editor',
             ],
         ];
 

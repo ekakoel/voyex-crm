@@ -3,9 +3,11 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class FoodBeverage extends Model
 {
+    use SoftDeletes;
     protected $fillable = [
         'vendor_id',
         'name',
@@ -34,3 +36,9 @@ class FoodBeverage extends Model
         return $this->belongsTo(Vendor::class);
     }
 }
+
+
+
+
+
+

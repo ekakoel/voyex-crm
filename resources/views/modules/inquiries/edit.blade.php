@@ -3,7 +3,7 @@
 @section('page_title', 'Edit Inquiry')
 @section('page_subtitle', 'Update inquiry details.')
 @section('page_actions')
-    <a href="{{ route('inquiries.show', $inquiry) }}" class="rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700">
+    <a href="{{ route('inquiries.show', $inquiry) }}"  class="btn-secondary">
         View Detail
     </a>
 @endsection
@@ -23,12 +23,13 @@
                     </form>
                 </div>
             </div>
-            <aside class="xl:col-span-4">
+            <aside  class="xl:col-span-4">
                 @include('partials._audit-info', ['record' => $inquiry])
             </aside>
         </div>
     </div>
 @endsection
+
 
 
 

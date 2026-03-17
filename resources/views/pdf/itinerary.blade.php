@@ -63,6 +63,8 @@
         .transport-detail { font-size: 10px; color: #374151; }
         .transport-detail strong { color: #111827; }
         .footer { margin-top: 14px; font-size: 10px; color: #6b7280; text-align: right; }
+        .day-panel { page-break-before: always; }
+        .day-panel.first { page-break-before: auto; }
     </style>
 </head>
 <body>
@@ -75,7 +77,7 @@
 
     <div class="panel">
         <div class="panel-title">Overview</div>
-        <table class="info-table">
+        <table class="app-table info-table">
             <tr>
                 <td>
                     @php
@@ -88,13 +90,10 @@
     </div>
 
     @foreach ($scheduleByDay as $day)
-        <div class="panel">
+        <div class="panel day-panel {{ $loop->first ? 'first' : '' }}">
             <div style="display: flex; justify-content: space-between; align-items: center;">
                 <div class="day-title">Day {{ $day['day'] }}</div>
                 <div class="day-time">Start Tour: {{ $day['start_time'] }} | End Tour: {{ $day['end_time'] }}</div>
-            </div>
-            <div class="day-time" style="margin-top: 4px;">
-                Travel from {{ $day['start_point_type_label'] ?? 'Unknown' }}: {{ (int) ($day['start_travel_minutes'] ?? 0) }} min
             </div>
 
             <table class="items">
@@ -104,7 +103,7 @@
                         <th style="width: 20%;">Time</th>
                         <th style="width: 25%;">Item</th>
                         <th style="width: 15%;">location</th>
-                        <th style="width: 35%;">Thumbnail</th>
+                        <th style="width: 35%;">Image</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -182,7 +181,7 @@
             @endphp
             <div class="transport-box">
                 <div class="transport-title">Transport Unit Day {{ $day['day'] }}</div>
-                <table class="transport-table">
+                <table class="app-table transport-table">
                     <tr>
                         <td class="transport-thumb">
                             @if (!empty($dayTransport['thumbnail_data_uri']))

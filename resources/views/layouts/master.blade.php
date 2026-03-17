@@ -33,7 +33,7 @@
 <div class="flex h-screen overflow-hidden">
 
     <!-- SIDEBAR -->
-    <aside class="fixed inset-y-0 left-0 z-40 bg-primary text-white transform transition-all duration-300
+    <aside  class="fixed inset-y-0 left-0 z-40 bg-primary text-white transform transition-all duration-300
                   w-64 md:static md:translate-x-0 md:flex-shrink-0 overflow-y-auto max-h-screen" :class="{
                       'translate-x-0': sidebarOpen,
                       '-translate-x-full md:translate-x-0': !sidebarOpen,
@@ -48,7 +48,7 @@
             </div>
 
             <button type="button"
-                    class="hidden md:inline-flex items-center justify-center h-9 w-9 rounded-lg hover:bg-gray-700 transition"
+                     class="hidden md:inline-flex items-center justify-center h-9 w-9 rounded-lg hover:bg-gray-700 transition"
                     @click="toggleSidebar()"
                     :title="sidebarCollapsed ? 'Show icons + labels' : 'Show icons only'">
                 <svg x-show="sidebarCollapsed" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
@@ -93,7 +93,7 @@
                         <div x-data="{ openChildren: {{ $isChildActive ? 'true' : 'false' }} }" 
                              @keydown.escape="openChildren = false">
                             <button type="button"
-                                    class="sidebar-nav-item w-full group flex items-center gap-3 px-4 py-2 rounded-lg transition-colors duration-200 text-left text-white/90 hover:text-white
+                                     class="sidebar-nav-item w-full group flex items-center gap-3 px-4 py-2 rounded-lg transition-colors duration-200 text-left text-white/90 hover:text-white
                                            {{ $isChildActive ? 'bg-gray-700 font-semibold is-active' : 'hover:bg-gray-700' }}"
                                     :class="sidebarCollapsed ? 'md:justify-center md:px-2' : ''"
                                     :title="sidebarCollapsed ? '{{ $item['title'] }}' : ''"
@@ -112,7 +112,7 @@
                                     @foreach ($item['children'] as $child)
                                         @if (Route::has($child['route']))
                                             <a href="{{ route($child['route']) }}"
-                                               class="sidebar-sub-item flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-white/85 hover:text-white transition-colors duration-200
+                                                class="sidebar-sub-item flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-white/85 hover:text-white transition-colors duration-200
                                                       {{ request()->routeIs($child['route']) || request()->routeIs($child['route'].'.*') ? 'bg-gray-700/80 font-semibold is-active' : 'hover:bg-gray-700/70' }}">
                                                 <span class="inline-flex h-4 w-4 items-center justify-center text-xs">
                                                     <i class="fa-solid fa-{{ $child['icon'] ?? 'list' }}"></i>
@@ -127,7 +127,7 @@
                     @else
                         @if (Route::has($item['route']))
                             <a href="{{ route($item['route']) }}"
-                               class="sidebar-nav-item group flex items-center gap-3 px-4 py-2 rounded-lg transition-colors duration-200 text-white/90 hover:text-white
+                                class="sidebar-nav-item group flex items-center gap-3 px-4 py-2 rounded-lg transition-colors duration-200 text-white/90 hover:text-white
                                       {{ $isItemActive ? 'bg-gray-700 font-semibold is-active' : 'hover:bg-gray-700' }}"
                                :class="sidebarCollapsed ? 'md:justify-center md:px-2' : ''"
                                :title="sidebarCollapsed ? '{{ $item['title'] }}' : ''">
@@ -156,7 +156,7 @@
 
         <header class="sticky top-0 z-20 bg-white/95 dark:bg-gray-800/95 backdrop-blur shadow-sm px-3 py-3 sm:px-4 sm:py-3 md:px-6 md:py-4 flex items-center justify-between gap-3">
             <!-- mobile-only button -->
-            <button @click="sidebarOpen = !sidebarOpen" class="md:hidden inline-flex items-center justify-center h-9 w-9 rounded-lg border border-gray-200 text-gray-600 dark:border-gray-700 dark:text-gray-200">
+            <button @click="sidebarOpen = !sidebarOpen"  class="md:hidden inline-flex items-center justify-center h-9 w-9 rounded-lg border border-gray-200 text-gray-600 dark:border-gray-700 dark:text-gray-200">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
                 </svg>
@@ -174,7 +174,7 @@
                             <select
                                 name="currency"
                                 onchange="this.form.submit()"
-                                class="h-9 rounded-lg border border-gray-200 bg-white px-2.5 text-xs font-semibold uppercase tracking-wide text-gray-700 shadow-sm transition hover:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 dark:hover:border-indigo-600"
+                                class="h-9 font-semibold uppercase tracking-wide text-gray-700 transition hover:border-indigo-300 dark:border-gray-700 dark:hover:border-indigo-600 app-input"
                             >
                                 @forelse (($currencyOptions ?? collect()) as $currencyOption)
                                     <option value="{{ $currencyOption->code }}" @selected(($currentCurrency ?? 'IDR') === $currencyOption->code)>{{ $currencyOption->code }}</option>
@@ -185,7 +185,7 @@
                         </div>
                     </form>
                     @can('module.currencies.access')
-                        <a href="{{ route('currencies.index') }}" class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 text-gray-600 hover:border-indigo-300 hover:text-indigo-600 dark:border-gray-700 dark:text-gray-200">
+                        <a href="{{ route('currencies.index') }}"  class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 text-gray-600 hover:border-indigo-300 hover:text-indigo-600 dark:border-gray-700 dark:text-gray-200">
                             <i class="fa-solid fa-coins"></i>
                         </a>
                     @endcan
@@ -193,7 +193,7 @@
 
                 <!-- Dark Mode Toggle -->
                 <button @click="toggleTheme()"
-                        class="inline-flex items-center justify-center h-9 w-9 rounded-lg border border-gray-200 transition-colors duration-200 dark:border-gray-700"
+                         class="inline-flex items-center justify-center h-9 w-9 rounded-lg border border-gray-200 transition-colors duration-200 dark:border-gray-700"
                         :class="dark ? 'text-yellow-400 hover:text-yellow-300' : 'text-gray-500 hover:text-amber-500'"
                         :title="dark ? 'Dark mode on' : 'Light mode on'">
                     <svg x-show="!dark" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
@@ -207,7 +207,7 @@
                 <!-- User Dropdown -->
                 <div x-data="{ open: false }" class="relative shrink-0">
                     <button @click="open = !open"
-                            class="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-2.5 py-1.5 text-gray-700 dark:border-gray-700 dark:text-gray-200">
+                             class="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-2.5 py-1.5 text-gray-700 dark:border-gray-700 dark:text-gray-200">
                         <span class="inline-flex h-4 w-4 items-center justify-center text-xs">
                             <i class="fa-solid fa-user"></i>
                         </span>
@@ -220,13 +220,13 @@
                          @click.outside="open = false"
                          x-cloak class="absolute right-0 mt-2 w-44 sm:w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border dark:border-gray-700 py-1 z-10">
 
-                        <a href="{{ route('profile.edit') }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">
+                        <a href="{{ route('profile.edit') }}"  class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">
                             Profile
                         </a>
 
                         <form method="POST" action="{{ route('logout') }}">
                             @csrf
-                            <button type="submit" class="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">
+                            <button type="submit"  class="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">
                                 Logout
                             </button>
                         </form>
@@ -239,7 +239,7 @@
         </header>
 
         <!-- PAGE CONTENT -->
-        <main class="app-content flex-1 p-4 sm:p-6 overflow-y-auto">
+        <main class="app-content flex-1 p-3 overflow-y-auto">
             @php
                 $routeName = (string) (Route::currentRouteName() ?? '');
                 $routeParts = $routeName !== '' ? explode('.', $routeName) : [];
@@ -561,3 +561,5 @@
 
 </body>
 </html>
+
+

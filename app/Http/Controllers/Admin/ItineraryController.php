@@ -19,25 +19,64 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class ItineraryController extends Controller
 {
     public function index()
     {
-        $itineraries = Itinerary::query()
+        $query = Itinerary::query()
+            ->withTrashed()
             ->with([
+                'creator:id,name',
+                'destination:id,name',
                 'touristAttractions:id,name',
                 'inquiry:id,inquiry_number,customer_id',
                 'inquiry.customer:id,name',
                 'quotation:id,itinerary_id,status',
-            ])
-            ->orderBy('title')
-            ->paginate(10);
+            ]);
 
-        return view('modules.itineraries.index', compact('itineraries'));
+        $query->when(request('title'), fn ($q) => $q->where('title', 'like', '%'.request('title').'%'));
+        $query->when(request('destination_id'), function ($q) {
+            $destinationId = (int) request('destination_id');
+            if ($destinationId <= 0) {
+                return;
+            }
+
+            if (Schema::hasColumn('itineraries', 'destination_id')) {
+                $q->where('destination_id', $destinationId);
+                return;
+            }
+
+            $destinationName = Destination::query()
+                ->whereKey($destinationId)
+                ->value('name');
+
+            if ($destinationName) {
+                $q->where('destination', $destinationName);
+            }
+        });
+        $query->when(request('duration'), function ($q) {
+            $duration = (int) request('duration');
+            if ($duration > 0) {
+                $q->where('duration_days', $duration);
+            }
+        });
+
+        $perPage = (int) request('per_page', 10);
+        $perPage = $perPage > 0 && $perPage <= 100 ? $perPage : 10;
+
+        $itineraries = $query->orderBy('title')->paginate($perPage)->withQueryString();
+        $destinations = Destination::query()
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'name', 'city', 'province']);
+
+        return view('modules.itineraries.index', compact('itineraries', 'destinations'));
     }
 
     public function create(Request $request)
@@ -81,6 +120,9 @@ class ItineraryController extends Controller
             ->with([
                 'customer:id,name,code',
                 'assignedUser:id,name',
+                'followUps' => function ($query) {
+                    $query->latest('due_date')->limit(1);
+                },
             ])
             ->orderByDesc('id')
             ->get([
@@ -173,6 +215,8 @@ class ItineraryController extends Controller
 
         $validated['is_active'] = $request->boolean('is_active');
         $validated['created_by'] = auth()->id();
+        $validated['status'] = 'draft';
+        $validated['destination_id'] = $this->resolveDestinationId($validated['destination'] ?? null);
         $accommodationStays = $this->normalizeAccommodationStays($validated['accommodation_stays'] ?? []);
         $items = $validated['itinerary_items'];
         $activityItems = $validated['itinerary_activity_items'] ?? [];
@@ -233,12 +277,22 @@ class ItineraryController extends Controller
         $this->syncDayPoints($itinerary, $dayPoints);
         $this->syncDailyTransportUnits($itinerary, $transportUnitsByDay);
 
+        $this->syncInquiryProcessedStatus($itinerary->inquiry_id);
+
         return redirect()->route('itineraries.index')->with('success', 'Itinerary created successfully.');
     }
 
     public function edit(Itinerary $itinerary)
     {
         $itinerary->loadMissing(['quotation:id,itinerary_id,status']);
+        if (! $this->canManageItinerary($itinerary, 'update')) {
+            return $this->denyItineraryMutation($itinerary);
+        }
+        if ($itinerary->isFinal()) {
+            return redirect()
+                ->route('itineraries.show', $itinerary)
+                ->with('error', 'Itinerary sudah final dan tidak dapat diubah.');
+        }
         if ($itinerary->quotation && ($itinerary->quotation->status ?? '') === 'approved') {
             return redirect()
                 ->route('itineraries.show', $itinerary)
@@ -297,6 +351,9 @@ class ItineraryController extends Controller
             ->with([
                 'customer:id,name,code',
                 'assignedUser:id,name',
+                'followUps' => function ($query) {
+                    $query->latest('due_date')->limit(1);
+                },
             ])
             ->orderByDesc('id')
             ->get([
@@ -741,6 +798,14 @@ SVG;
     public function update(Request $request, Itinerary $itinerary)
     {
         $itinerary->loadMissing(['quotation:id,itinerary_id,status']);
+        if (! $this->canManageItinerary($itinerary, 'update')) {
+            return $this->denyItineraryMutation($itinerary);
+        }
+        if ($itinerary->isFinal()) {
+            return redirect()
+                ->route('itineraries.show', $itinerary)
+                ->with('error', 'Itinerary sudah final dan tidak dapat diubah.');
+        }
         if ($itinerary->quotation && ($itinerary->quotation->status ?? '') === 'approved') {
             return redirect()
                 ->route('itineraries.show', $itinerary)
@@ -816,6 +881,7 @@ SVG;
         ]);
 
         $validated['is_active'] = $request->boolean('is_active');
+        $validated['destination_id'] = $this->resolveDestinationId($validated['destination'] ?? null);
         $accommodationStays = $this->normalizeAccommodationStays($validated['accommodation_stays'] ?? []);
         $items = $validated['itinerary_items'];
         $activityItems = $validated['itinerary_activity_items'] ?? [];
@@ -876,20 +942,135 @@ SVG;
         $this->syncDayPoints($itinerary, $dayPoints);
         $this->syncDailyTransportUnits($itinerary, $transportUnitsByDay);
 
+        $this->syncInquiryProcessedStatus($itinerary->inquiry_id);
+
         return redirect()->route('itineraries.index')->with('success', 'Itinerary updated successfully.');
     }
 
     public function destroy(Itinerary $itinerary)
     {
-        $itinerary->loadMissing(['quotation:id,itinerary_id,status']);
-        if ($itinerary->quotation && ($itinerary->quotation->status ?? '') === 'approved') {
+        $itinerary->loadMissing([
+            'quotation:id,itinerary_id,status',
+            'quotation.booking:id,quotation_id',
+            'quotation.booking.invoice:id,booking_id',
+        ]);
+        if (! $this->canManageItinerary($itinerary, 'delete')) {
+            return $this->denyItineraryMutation($itinerary);
+        }
+
+        if ($itinerary->isFinal()) {
             return redirect()
                 ->route('itineraries.show', $itinerary)
-                ->with('error', 'Itinerary cannot be deleted because the related quotation is approved.');
+                ->with('error', 'Itinerary sudah final dan tidak dapat dihapus.');
         }
+
+        if ($itinerary->quotation) {
+            $reasons = ['quotation'];
+            if ($itinerary->quotation->status === 'approved') {
+                $reasons[0] = 'quotation (approved)';
+            }
+            if ($itinerary->quotation->booking) {
+                $reasons[] = 'booking';
+            }
+            if ($itinerary->quotation->booking?->invoice) {
+                $reasons[] = 'invoice';
+            }
+
+            return redirect()
+                ->route('itineraries.show', $itinerary)
+                ->with('error', 'Itinerary tidak bisa dihapus karena sudah terhubung ke ' . implode(', ', $reasons) . '. Hapus data terkait terlebih dahulu.');
+        }
+
+        $itinerary->update(['is_active' => false]);
         $itinerary->delete();
 
-        return redirect()->route('itineraries.index')->with('success', 'Itinerary deleted successfully.');
+        return redirect()->route('itineraries.index')->with('success', 'Itinerary deactivated successfully.');
+    }
+
+    public function toggleStatus($itinerary)
+    {
+        $itinerary = Itinerary::withTrashed()->findOrFail($itinerary);
+        if (! $this->canManageItinerary($itinerary, 'delete')) {
+            return $this->denyItineraryMutation($itinerary);
+        }
+
+        if ($itinerary->isFinal()) {
+            return redirect()
+                ->route('itineraries.show', $itinerary)
+                ->with('error', 'Itinerary sudah final dan tidak dapat diubah statusnya.');
+        }
+
+        if ($itinerary->trashed()) {
+            $itinerary->restore();
+            $itinerary->update(['is_active' => true]);
+
+            return redirect()
+                ->route('itineraries.index')
+                ->with('success', 'Itinerary activated successfully.');
+        }
+
+        $itinerary->loadMissing([
+            'quotation:id,itinerary_id,status',
+            'quotation.booking:id,quotation_id',
+            'quotation.booking.invoice:id,booking_id',
+        ]);
+        if ($itinerary->quotation) {
+            $reasons = ['quotation'];
+            if ($itinerary->quotation->status === 'approved') {
+                $reasons[0] = 'quotation (approved)';
+            }
+            if ($itinerary->quotation->booking) {
+                $reasons[] = 'booking';
+            }
+            if ($itinerary->quotation->booking?->invoice) {
+                $reasons[] = 'invoice';
+            }
+
+            return redirect()
+                ->route('itineraries.show', $itinerary)
+                ->with('error', 'Itinerary tidak bisa dinonaktifkan karena sudah terhubung ke ' . implode(', ', $reasons) . '. Hapus data terkait terlebih dahulu.');
+        }
+
+        $itinerary->update(['is_active' => false]);
+        $itinerary->delete();
+
+        return redirect()
+            ->route('itineraries.index')
+            ->with('success', 'Itinerary deactivated successfully.');
+    }
+
+    private function canManageItinerary(Itinerary $itinerary, string $ability = 'update'): bool
+    {
+        $user = auth()->user();
+        if (! $user) {
+            return false;
+        }
+        if (! in_array($ability, ['update', 'delete'], true)) {
+            $ability = 'update';
+        }
+
+        return $user->can($ability, $itinerary);
+    }
+
+    private function denyItineraryMutation(Itinerary $itinerary)
+    {
+        return redirect()
+            ->route('itineraries.show', $itinerary)
+            ->with('error', 'Hanya creator yang dapat mengubah atau menghapus itinerary ini.');
+    }
+
+    private function syncInquiryProcessedStatus(?int $inquiryId): void
+    {
+        if (! $inquiryId) {
+            return;
+        }
+        $inquiry = Inquiry::query()->find($inquiryId);
+        if (! $inquiry || $inquiry->isFinal()) {
+            return;
+        }
+        if (($inquiry->status ?? '') === 'draft') {
+            $inquiry->update(['status' => 'processed']);
+        }
     }
 
     private function validateScheduleItems(array $items, int $durationDays): void
@@ -1509,6 +1690,20 @@ SVG;
             ->take($limit)
             ->values()
             ->all();
+    }
+
+    private function resolveDestinationId(?string $destination): ?int
+    {
+        $destination = trim((string) $destination);
+        if ($destination === '') {
+            return null;
+        }
+
+        return Destination::query()
+            ->where('name', $destination)
+            ->orWhere('city', $destination)
+            ->orWhere('province', $destination)
+            ->value('id');
     }
 
 }

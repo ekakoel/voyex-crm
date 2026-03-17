@@ -12,6 +12,8 @@
                     'role' => $role,
                     'buttonLabel' => 'Update Role',
                     'selectedPermissions' => old('permissions', $selectedPermissions),
+                    'selectedTemplateRoleId' => null,
+                    'selectedTemplateRoleName' => null,
                 ])
             </form>
         </div>

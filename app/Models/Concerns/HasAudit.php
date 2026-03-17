@@ -58,4 +58,16 @@ trait HasAudit
     {
         return $this->belongsTo(User::class, 'updated_by');
     }
+
+    public function isCreator(?User $user): bool
+    {
+        if (! $user) {
+            return false;
+        }
+
+        return (int) ($this->created_by ?? 0) === (int) $user->id;
+    }
 }
+
+
+

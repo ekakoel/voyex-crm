@@ -5,9 +5,12 @@ namespace App\Http\Controllers\SuperAdmin;
 use App\Http\Controllers\Controller;
 use App\Models\Airport;
 use App\Models\Activity;
+use App\Models\Accommodation;
 use App\Models\Booking;
 use App\Models\Customer;
+use App\Models\Currency;
 use App\Models\Destination;
+use App\Models\FoodBeverage;
 use App\Models\Inquiry;
 use App\Models\InquiryFollowUp;
 use App\Models\Invoice;
@@ -15,6 +18,7 @@ use App\Models\Itinerary;
 use App\Models\Module;
 use App\Models\Quotation;
 use App\Models\TouristAttraction;
+use App\Models\Transport;
 use App\Models\User;
 use App\Models\Vendor;
 use Illuminate\Http\JsonResponse;
@@ -44,6 +48,10 @@ class DashboardController extends Controller
             'destinations' => Destination::query()->count(),
             'airports' => Airport::query()->count(),
             'tourist_attractions' => TouristAttraction::query()->count(),
+            'food_beverages' => FoodBeverage::query()->count(),
+            'accommodations' => Accommodation::query()->count(),
+            'transports' => Transport::query()->count(),
+            'currencies' => Currency::query()->count(),
         ];
 
         $moduleStats = [
@@ -351,17 +359,22 @@ class DashboardController extends Controller
     private function buildBusinessFunnel(array $systemCounts): array
     {
         $inquiries = max((int) ($systemCounts['inquiries'] ?? 0), 0);
+        $itineraries = max((int) ($systemCounts['itineraries'] ?? 0), 0); // Tambahkan ini
         $quotations = max((int) ($systemCounts['quotations'] ?? 0), 0);
         $bookings = max((int) ($systemCounts['bookings'] ?? 0), 0);
         $invoices = max((int) ($systemCounts['invoices'] ?? 0), 0);
 
-        $inqToQuote = $inquiries > 0 ? round(($quotations / $inquiries) * 100, 1) : 0.0;
+        // Hitung ulang konversi
+        $inqToItinerary = $inquiries > 0 ? round(($itineraries / $inquiries) * 100, 1) : 0.0;
+        $itineraryToQuote = $itineraries > 0 ? round(($quotations / $itineraries) * 100, 1) : 0.0;
         $quoteToBooking = $quotations > 0 ? round(($bookings / $quotations) * 100, 1) : 0.0;
         $bookingToInvoice = $bookings > 0 ? round(($invoices / $bookings) * 100, 1) : 0.0;
 
+        // Tambahkan Itinerary ke dalam array
         return [
             ['label' => 'Inquiries', 'value' => $inquiries, 'conversion' => null],
-            ['label' => 'Quotations', 'value' => $quotations, 'conversion' => $inqToQuote],
+            ['label' => 'Itineraries', 'value' => $itineraries, 'conversion' => $inqToItinerary],
+            ['label' => 'Quotations', 'value' => $quotations, 'conversion' => $itineraryToQuote],
             ['label' => 'Bookings', 'value' => $bookings, 'conversion' => $quoteToBooking],
             ['label' => 'Invoices', 'value' => $invoices, 'conversion' => $bookingToInvoice],
         ];
@@ -385,6 +398,10 @@ class DashboardController extends Controller
             'activities' => (int) ($systemCounts['activities'] ?? 0),
             'airports' => (int) ($systemCounts['airports'] ?? 0),
             'tourist_attractions' => (int) ($systemCounts['tourist_attractions'] ?? 0),
+            'food_beverages' => (int) ($systemCounts['food_beverages'] ?? 0),
+            'accommodations' => (int) ($systemCounts['accommodations'] ?? 0),
+            'transports' => (int) ($systemCounts['transports'] ?? 0),
+            'currencies' => (int) ($systemCounts['currencies'] ?? 0),
         ];
 
         $roleCoverageByPermission = DB::table('permissions')
@@ -439,10 +456,11 @@ class DashboardController extends Controller
                 ['key' => 'bookings', 'icon' => 'calendar-check', 'route' => 'bookings.index'],
                 ['key' => 'invoices', 'icon' => 'file-invoice-dollar', 'route' => 'invoices.index'],
             ],
-            'Product & Operations' => [
+            'Product & Reservation' => [
                 ['key' => 'destinations', 'icon' => 'map-location-dot', 'route' => 'destinations.index'],
                 ['key' => 'vendor_management', 'icon' => 'handshake', 'route' => 'vendors.index'],
                 ['key' => 'activities', 'icon' => 'person-hiking', 'route' => 'activities.index'],
+                ['key' => 'food_beverages', 'icon' => 'utensils', 'route' => 'food-beverages.index'],
                 ['key' => 'accommodations', 'icon' => 'hotel', 'route' => 'accommodations.index'],
                 ['key' => 'airports', 'icon' => 'plane-departure', 'route' => 'airports.index'],
                 ['key' => 'transports', 'icon' => 'bus', 'route' => 'transports.index'],
@@ -452,6 +470,7 @@ class DashboardController extends Controller
                 ['key' => 'service_manager', 'icon' => 'cubes', 'route' => 'services.index'],
                 ['key' => 'role_manager', 'icon' => 'user-shield', 'route' => 'roles.index'],
                 ['key' => 'user_manager', 'icon' => 'user-gear', 'route' => 'users.index'],
+                ['key' => 'currencies', 'icon' => 'coins', 'route' => 'currencies.index'],
             ],
         ];
 
@@ -465,13 +484,15 @@ class DashboardController extends Controller
             'vendor_management' => ['label' => 'Vendors', 'value' => (int) ($systemCounts['vendors'] ?? 0)],
             'destinations' => ['label' => 'Destinations', 'value' => (int) ($systemCounts['destinations'] ?? 0)],
             'activities' => ['label' => 'Activities', 'value' => (int) ($systemCounts['activities'] ?? 0)],
-            'accommodations' => ['label' => 'Accommodations', 'value' => 0],
+            'food_beverages' => ['label' => 'Food & Beverage', 'value' => (int) ($systemCounts['food_beverages'] ?? 0)],
+            'accommodations' => ['label' => 'Accommodations', 'value' => (int) ($systemCounts['accommodations'] ?? 0)],
             'airports' => ['label' => 'Airports', 'value' => (int) ($systemCounts['airports'] ?? 0)],
-            'transports' => ['label' => 'Transports', 'value' => 0],
+            'transports' => ['label' => 'Transports', 'value' => (int) ($systemCounts['transports'] ?? 0)],
             'tourist_attractions' => ['label' => 'Attractions', 'value' => (int) ($systemCounts['tourist_attractions'] ?? 0)],
             'service_manager' => ['label' => 'Disabled Modules', 'value' => (int) ($moduleStats['disabled'] ?? 0)],
             'role_manager' => ['label' => 'Roles', 'value' => (int) ($rolesAndPermissions['roles'] ?? 0)],
             'user_manager' => ['label' => 'Users', 'value' => (int) ($systemCounts['users'] ?? 0)],
+            'currencies' => ['label' => 'Currencies', 'value' => (int) ($systemCounts['currencies'] ?? 0)],
         ];
 
         $matrixByKey = $moduleHealthMatrix->keyBy('key');

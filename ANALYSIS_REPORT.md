@@ -149,19 +149,21 @@ Semua 20 migrations berhasil dijalankan:
 ### 1. **User Management & Authentication**
 ```
 Login → Dashboard Redirect → Role-Based Access
-         ├─ Admin Dashboard
-         ├─ Sales Dashboard
+         ├─ Administrator Dashboard
+         ├─ Manager Dashboard
+         ├─ Marketing Dashboard
          ├─ Finance Dashboard
-         ├─ Operations Dashboard
+         ├─ Reservation Dashboard
          └─ Director Dashboard
 ```
 
 **Roles:**
-- **Admin** - Kelola sistem (user, role, vendor, service)
-- **Sales Manager** - Kelola inquiry, quotation, approval
-- **Sales Agent** - Create inquiry & customer
-- **Finance** - Monitor finance dashboard
-- **Operations** - Manage bookings
+- **Administrator** - Kelola sistem (user, role, vendor, service)
+- **Manager** - Kelola inquiry, quotation, approval
+- **Marketing** - Create inquiry & customer
+- **Reservation** - Manage bookings
+- **Finance** - Monitor Finance dashboard
+- **Editor** - Kelola katalog layanan & konten master
 - **Director** - Director dashboard & approvals
 
 ### 2. **Workflow Inquiry → Quotation → Booking**
@@ -199,8 +201,8 @@ Booking (Pemesanan)
 
 ## 📁 Struktur Controller
 
-### Admin (Admin Only)
-- **DashboardController** - Admin dashboard
+### Administrator (Administrator Only)
+- **DashboardController** - Administrator dashboard
 - **ServiceController** - Kelola module services
 - **UserController** - CRUD user
 - **RoleController** - CRUD role
@@ -209,15 +211,15 @@ Booking (Pemesanan)
 - **QuotationTemplateController** - CRUD quotation templates
 - **PromotionController** - CRUD promotions
 
-### Sales (Sales Manager & Agent)
+### Sales (Manager & Marketing)
 - **DashboardController** - Sales dashboard
 - **CustomerController** - CRUD customer ✓
 - **InquiryController** - CRUD inquiry + follow-ups + communications ✓
 - **QuotationController** - CRUD quotation + approve/reject + PDF + CSV ✓
 - **CustomerImportController** - Import customer dari file
 
-### Operations (Operations & Sales Manager)
-- **DashboardController** - Operations dashboard
+### Reservation (Reservation & Manager)
+- **DashboardController** - Reservation dashboard
 - **BookingController** - CRUD booking + CSV export ✓
 
 ### Finance
@@ -292,16 +294,16 @@ Promotion
 ### Route Middleware
 ```
 auth - Require authenticated user
-role:Admin|Sales Manager - Check user role
+role:Administrator|Manager - Check user role
 permission:module.* - Check specific permission
 module:module_name - Module availability check
 ```
 
 ### Authorization
-- **Quotation Pricing:** Only Sales Manager & Director can apply discounts/promo
-- **Quotation Approval:** Only Sales Manager & Director can approve/reject
-- **Service Management:** Admin | Operations | Sales Manager
-- **Booking Management:** Operations & Sales Manager
+- **Quotation Pricing:** Only Manager & Director can apply discounts/promo
+- **Quotation Approval:** Only Manager & Director can approve/reject
+- **Service Management:** Administrator | Reservation | Manager
+- **Booking Management:** Reservation & Manager
 
 ---
 
@@ -498,7 +500,7 @@ Untuk testing, perlu membuat:
 - ✓ Permission checking
 - ✓ CSRF protection (Laravel default)
 - ⚠️ Recommend: Add rate limiting untuk API
-- ⚠️ Recommend: Add 2FA untuk admin
+- ⚠️ Recommend: Add 2FA untuk Administrator
 
 ### Performance
 - ✓ Eager loading implemented (with())
@@ -512,7 +514,7 @@ Untuk testing, perlu membuat:
 - ✓ Proper HTTP status codes
 - ✓ Validation messages
 - ⚠️ Recommend: Custom error pages
-- ⚠️ Recommend: Better logging di operations
+- ⚠️ Recommend: Better logging di Reservation
 
 ---
 
@@ -554,3 +556,5 @@ Semua error telah diperbaiki. Aplikasi:
 
 **Diberikan:** 13 Februari 2026  
 **Oleh:** GitHub Copilot
+
+

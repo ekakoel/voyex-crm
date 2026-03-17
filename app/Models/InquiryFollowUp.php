@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Models\User;
 
 class InquiryFollowUp extends Model
 {
@@ -13,8 +14,10 @@ class InquiryFollowUp extends Model
         'due_date',
         'channel',
         'note',
+        'created_by',
         'is_done',
         'done_at',
+        'done_reason',
     ];
 
     protected $casts = [
@@ -26,6 +29,11 @@ class InquiryFollowUp extends Model
     public function inquiry()
     {
         return $this->belongsTo(Inquiry::class);
+    }
+
+    public function creator()
+    {
+        return $this->belongsTo(User::class, 'created_by');
     }
 
     protected static function booted(): void
@@ -40,3 +48,6 @@ class InquiryFollowUp extends Model
         });
     }
 }
+
+
+

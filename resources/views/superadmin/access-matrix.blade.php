@@ -12,12 +12,12 @@
 
             <div class="space-y-5">
                 @foreach ($permissions as $group => $groupPermissions)
-                    <div class="rounded-lg border border-gray-200 dark:border-gray-700">
+                    <div class="app-card">
                         <div class="border-b border-gray-200 bg-gray-50 px-3 py-2 text-xs font-semibold uppercase tracking-wider text-gray-600 dark:border-gray-700 dark:bg-gray-900/40 dark:text-gray-300">
                             {{ \Illuminate\Support\Str::of($group)->replace(['-', '_'], ' ')->title() }}
                         </div>
                         <div class="overflow-x-auto">
-                            <table class="w-full min-w-[780px] divide-y divide-gray-200 text-sm dark:divide-gray-700">
+                            <table class="app-table w-full min-w-[780px] divide-y divide-gray-200 text-sm dark:divide-gray-700">
                                 <thead class="bg-white dark:bg-gray-800">
                                     <tr>
                                         <th class="sticky left-0 z-10 bg-white px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:bg-gray-800 dark:text-gray-300">Permission</th>

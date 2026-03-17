@@ -11,7 +11,7 @@
 
     <button
         type="button"
-        class="rounded-lg border border-rose-300 px-4 py-2 text-sm font-medium text-rose-700 hover:bg-rose-50 dark:border-rose-700 dark:text-rose-300 dark:hover:bg-rose-900/20"
+         class="btn-danger"
         x-data=""
         x-on:click.prevent="$dispatch('open-modal', 'confirm-user-deletion')"
     >{{ __('Delete Account') }}</button>
@@ -44,14 +44,15 @@
             </div>
 
             <div class="mt-6 flex justify-end">
-                <button type="button" x-on:click="$dispatch('close')" class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700">
+                <button type="button" x-on:click="$dispatch('close')"  class="btn-secondary">
                     {{ __('Cancel') }}
                 </button>
 
-                <button type="submit" class="ms-3 rounded-lg bg-rose-600 px-4 py-2 text-sm font-medium text-white hover:bg-rose-700">
+                <button type="submit"  class="ms-3 btn-danger">
                     {{ __('Delete Account') }}
                 </button>
             </div>
         </form>
     </x-modal>
 </section>
+

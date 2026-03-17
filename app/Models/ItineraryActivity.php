@@ -27,3 +27,6 @@ class ItineraryActivity extends Model
         return $this->belongsTo(Activity::class);
     }
 }
+
+
+

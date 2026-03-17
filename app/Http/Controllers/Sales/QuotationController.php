@@ -34,7 +34,7 @@ class QuotationController extends Controller
      */
     public function index()
     {
-        $query = Quotation::query()->with(['inquiry.customer', 'creator']);
+        $query = Quotation::query()->withTrashed()->with(['inquiry.customer', 'creator']);
 
         $query->when(request('q'), function ($q) {
             $term = request('q');
@@ -64,6 +64,7 @@ class QuotationController extends Controller
         $itineraries = Itinerary::query()
             ->with(['inquiry.customer'])
             ->whereDoesntHave('quotation')
+            ->where('is_active', true)
             ->orderByDesc('id')
             ->get(['id', 'title', 'inquiry_id', 'destination', 'duration_days', 'duration_nights', 'is_active']);
 
@@ -92,7 +93,7 @@ class QuotationController extends Controller
                 'exists:itineraries,id',
                 Rule::unique('quotations', 'itinerary_id'),
             ],
-            'status' => ['required', Rule::in(['draft', 'pending', 'sent', 'approved', 'rejected'])],
+            'status' => ['required', Rule::in(Quotation::STATUS_OPTIONS)],
             'validity_date' => ['required', 'date'],
             'discount_type' => ['nullable', Rule::in(['percent', 'fixed'])],
             'discount_value' => ['nullable', 'numeric', 'min:0'],
@@ -184,15 +185,18 @@ class QuotationController extends Controller
     public function edit(string $id)
     {
         $quotation = Quotation::query()->findOrFail($id);
+        if ($quotation->isFinal()) {
+            return redirect()
+                ->route('quotations.show', $quotation)
+                ->with('error', 'Final quotation cannot be edited.');
+        }
         if (($quotation->status ?? '') === 'approved') {
             return redirect()
                 ->route('quotations.show', $quotation)
                 ->with('error', 'Approved quotation cannot be edited.');
         }
-        if ((int) ($quotation->created_by ?? 0) !== (int) auth()->id()) {
-            return redirect()
-                ->route('quotations.show', $quotation)
-                ->with('error', 'Only the creator can edit this quotation.');
+        if (! $this->canManageQuotation($quotation, 'update')) {
+            return $this->denyQuotationMutation($quotation);
         }
         $quotation->load(['items', 'itinerary.inquiry.customer', 'itinerary.inquiry.assignedUser', 'itinerary.creator', 'comments.user', 'approvedBy', 'approvalNoteBy']);
 
@@ -214,15 +218,18 @@ class QuotationController extends Controller
     public function update(Request $request, string $id)
     {
         $quotation = Quotation::query()->findOrFail($id);
+        if ($quotation->isFinal()) {
+            return redirect()
+                ->route('quotations.show', $quotation)
+                ->with('error', 'Final quotation cannot be updated.');
+        }
         if (($quotation->status ?? '') === 'approved') {
             return redirect()
                 ->route('quotations.show', $quotation)
                 ->with('error', 'Approved quotation cannot be updated.');
         }
-        if ((int) ($quotation->created_by ?? 0) !== (int) auth()->id()) {
-            return redirect()
-                ->route('quotations.show', $quotation)
-                ->with('error', 'Only the creator can update this quotation.');
+        if (! $this->canManageQuotation($quotation, 'update')) {
+            return $this->denyQuotationMutation($quotation);
         }
 
         $items = collect($request->input('items', []))
@@ -238,7 +245,7 @@ class QuotationController extends Controller
                 'exists:itineraries,id',
                 Rule::unique('quotations', 'itinerary_id')->ignore($quotation->id),
             ],
-            'status' => ['required', Rule::in(['draft', 'pending', 'sent', 'approved', 'rejected'])],
+            'status' => ['required', Rule::in(Quotation::STATUS_OPTIONS)],
             'validity_date' => ['required', 'date'],
             'discount_type' => ['nullable', Rule::in(['percent', 'fixed'])],
             'discount_value' => ['nullable', 'numeric', 'min:0'],
@@ -301,12 +308,15 @@ class QuotationController extends Controller
 
     public function storeComment(Request $request, Quotation $quotation)
     {
+        if ($quotation->isFinal()) {
+            return redirect()->back()->with('error', 'Final quotation cannot be modified.');
+        }
         $user = $request->user();
         if (! $user) {
             return redirect()->back()->with('error', 'Please login first.');
         }
 
-        if (! $user->hasAnyRole(['Director', 'Sales Manager', 'Sales Agent'])) {
+        if (! $user->hasAnyRole(['Director', 'Manager', 'Marketing'])) {
             return redirect()->back()->with('error', 'You are not allowed to comment on this quotation.');
         }
 
@@ -333,6 +343,9 @@ class QuotationController extends Controller
 
     public function updateComment(Request $request, Quotation $quotation, QuotationComment $comment)
     {
+        if ($quotation->isFinal()) {
+            return redirect()->back()->with('error', 'Final quotation cannot be modified.');
+        }
         $user = $request->user();
         if (! $user) {
             return redirect()->back()->with('error', 'Please login first.');
@@ -342,7 +355,7 @@ class QuotationController extends Controller
             return redirect()->back()->with('error', 'Invalid comment.');
         }
 
-        if (! $user->hasAnyRole(['Director', 'Sales Manager', 'Sales Agent'])) {
+        if (! $user->hasAnyRole(['Director', 'Manager', 'Marketing'])) {
             return redirect()->back()->with('error', 'You are not allowed to edit comments.');
         }
 
@@ -368,6 +381,9 @@ class QuotationController extends Controller
 
     public function destroyComment(Request $request, Quotation $quotation, QuotationComment $comment)
     {
+        if ($quotation->isFinal()) {
+            return redirect()->back()->with('error', 'Final quotation cannot be modified.');
+        }
         $user = $request->user();
         if (! $user) {
             return redirect()->back()->with('error', 'Please login first.');
@@ -377,7 +393,7 @@ class QuotationController extends Controller
             return redirect()->back()->with('error', 'Invalid comment.');
         }
 
-        if (! $user->hasAnyRole(['Director', 'Sales Manager', 'Sales Agent'])) {
+        if (! $user->hasAnyRole(['Director', 'Manager', 'Marketing'])) {
             return redirect()->back()->with('error', 'You are not allowed to delete comments.');
         }
 
@@ -396,21 +412,56 @@ class QuotationController extends Controller
     public function destroy(string $id)
     {
         $quotation = Quotation::query()->findOrFail($id);
+        if ($quotation->isFinal()) {
+            return redirect()
+                ->route('quotations.show', $quotation)
+                ->with('error', 'Final quotation cannot be deleted.');
+        }
         if (($quotation->status ?? '') === 'approved') {
             return redirect()
                 ->route('quotations.show', $quotation)
                 ->with('error', 'Approved quotation cannot be deleted.');
         }
-        if ((int) ($quotation->created_by ?? 0) !== (int) auth()->id()) {
-            return redirect()
-                ->route('quotations.show', $quotation)
-                ->with('error', 'Only the creator can delete this quotation.');
+        if (! $this->canManageQuotation($quotation, 'delete')) {
+            return $this->denyQuotationMutation($quotation);
         }
         $quotation->delete();
 
         return redirect()
             ->route('quotations.index')
-            ->with('success', 'Quotation deleted successfully.');
+            ->with('success', 'Quotation deactivated successfully.');
+    }
+
+    public function toggleStatus($quotation)
+    {
+        $quotation = Quotation::withTrashed()->findOrFail($quotation);
+        if ($quotation->isFinal()) {
+            return redirect()
+                ->route('quotations.show', $quotation)
+                ->with('error', 'Final quotation cannot be changed.');
+        }
+        if (($quotation->status ?? '') === 'approved') {
+            return redirect()
+                ->route('quotations.show', $quotation)
+                ->with('error', 'Approved quotation cannot be deactivated.');
+        }
+        if (! $this->canManageQuotation($quotation, 'delete')) {
+            return $this->denyQuotationMutation($quotation);
+        }
+
+        if ($quotation->trashed()) {
+            $quotation->restore();
+
+            return redirect()
+                ->route('quotations.index')
+                ->with('success', 'Quotation activated successfully.');
+        }
+
+        $quotation->delete();
+
+        return redirect()
+            ->route('quotations.index')
+            ->with('success', 'Quotation deactivated successfully.');
     }
 
     public function generatePDF(Quotation $quotation)
@@ -475,6 +526,9 @@ class QuotationController extends Controller
 
     public function approve(Request $request, Quotation $quotation)
     {
+        if ($quotation->isFinal()) {
+            return redirect()->back()->with('error', 'Final quotation cannot be modified.');
+        }
         $payload = [
             'approved_by' => auth()->id(),
             'approved_at' => now(),
@@ -505,6 +559,9 @@ class QuotationController extends Controller
 
     public function reject(Request $request, Quotation $quotation)
     {
+        if ($quotation->isFinal()) {
+            return redirect()->back()->with('error', 'Final quotation cannot be modified.');
+        }
         $payload = [
             'approved_by' => auth()->id(),
             'approved_at' => now(),
@@ -531,6 +588,9 @@ class QuotationController extends Controller
 
     public function setPending(Request $request, Quotation $quotation)
     {
+        if ($quotation->isFinal()) {
+            return redirect()->back()->with('error', 'Final quotation cannot be modified.');
+        }
         $user = $request->user();
         if (! $user || ! $user->hasAnyRole(['Director'])) {
             return redirect()->back()->with('error', 'Only Director can set quotation to pending.');
@@ -676,8 +736,8 @@ class QuotationController extends Controller
     private function assertPricingPermission(array $validated): void
     {
         $hasDiscount = (float) ($validated['discount_value'] ?? 0) > 0;
-        if ($hasDiscount && ! auth()->user()->hasAnyRole(['Sales Manager', 'Director'])) {
-            abort(403, 'Only Sales Managers or Directors can apply discounts.');
+        if ($hasDiscount && ! auth()->user()->hasAnyRole(['Manager', 'Director'])) {
+            abort(403, 'Only Managers or Directors can apply discounts.');
         }
     }
 
@@ -691,6 +751,26 @@ class QuotationController extends Controller
         }
 
         return $itinerary->inquiry_id ? (int) $itinerary->inquiry_id : null;
+    }
+
+    private function canManageQuotation(Quotation $quotation, string $ability = 'update'): bool
+    {
+        $user = auth()->user();
+        if (! $user) {
+            return false;
+        }
+        if (! in_array($ability, ['update', 'delete'], true)) {
+            $ability = 'update';
+        }
+
+        return $user->can($ability, $quotation);
+    }
+
+    private function denyQuotationMutation(Quotation $quotation)
+    {
+        return redirect()
+            ->route('quotations.show', $quotation)
+            ->with('error', 'Hanya creator yang dapat mengubah atau menghapus quotation ini.');
     }
 
     public function itineraryItems(Itinerary $itinerary)

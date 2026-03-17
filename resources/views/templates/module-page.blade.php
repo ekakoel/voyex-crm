@@ -3,7 +3,7 @@
 @section('page_title', 'Module')
 @section('page_subtitle', 'Page description')
 @section('page_actions')
-    <a href="{{ route('route.create') }}" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">
+    <a href="{{ route('route.create') }}"  class="btn-primary">
         Action
     </a>
 @endsection
@@ -15,3 +15,4 @@
         </div>
     </div>
 @endsection
+

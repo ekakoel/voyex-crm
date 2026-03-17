@@ -11,7 +11,7 @@ class CustomerController extends Controller
 {
     public function index()
     {
-        $query = Customer::query()->with('creator');
+        $query = Customer::query()->withTrashed()->with('creator');
         $countries = $this->countryOptions();
 
         $query->when(request('q'), function ($q) {
@@ -34,7 +34,22 @@ class CustomerController extends Controller
         $customers = $query->latest()->paginate($perPage)->withQueryString();
         $creators = \App\Models\User::query()->orderBy('name')->get();
 
-        return view('modules.customers.index', compact('customers', 'creators', 'countries'));
+        $countryCount = Customer::query()->whereNotNull('country')->distinct('country')->count('country');
+        $topCountries = Customer::query()
+            ->selectRaw('country, COUNT(*) as total')
+            ->whereNotNull('country')
+            ->groupBy('country')
+            ->orderByDesc('total')
+            ->limit(5)
+            ->get();
+
+        return view('modules.customers.index', compact(
+            'customers',
+            'creators',
+            'countries',
+            'countryCount',
+            'topCountries'
+        ));
     }
 
     public function create()
@@ -99,7 +114,25 @@ class CustomerController extends Controller
 
         return redirect()
             ->route('customers.index')
-            ->with('success', 'Customer deleted successfully.');
+            ->with('success', 'Customer deactivated successfully.');
+    }
+
+    public function toggleStatus($customer)
+    {
+        $customer = Customer::withTrashed()->findOrFail($customer);
+        if ($customer->trashed()) {
+            $customer->restore();
+
+            return redirect()
+                ->route('customers.index')
+                ->with('success', 'Customer activated successfully.');
+        }
+
+        $customer->delete();
+
+        return redirect()
+            ->route('customers.index')
+            ->with('success', 'Customer deactivated successfully.');
     }
 
     public function checkCode(Request $request)

@@ -28,3 +28,6 @@ class Currency extends Model
         return $this->hasMany(CurrencyRateHistory::class);
     }
 }
+
+
+

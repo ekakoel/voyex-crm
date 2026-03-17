@@ -3,9 +3,11 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Activity extends Model
 {
+    use SoftDeletes;
     protected $fillable = [
         'vendor_id',
         'name',
@@ -47,3 +49,9 @@ class Activity extends Model
         return $this->belongsTo(ActivityType::class);
     }
 }
+
+
+
+
+
+

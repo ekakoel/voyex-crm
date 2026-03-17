@@ -4,7 +4,7 @@
     <div class="container">
 
         <h2 class="mb-4">
-            @if ($user->hasRole('Sales Manager'))
+            @if ($user->hasRole('Manager'))
                 Sales Team Dashboard
             @else
                 My Dashboard

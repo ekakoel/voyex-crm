@@ -1,415 +1,330 @@
 # VOYEX CRM -- SYSTEM ROADMAP
 
-Version: 1.0\
-Generated: 2026-03-02 02:34:20 UTC
+Version: 1.1  
+Last Updated: 2026-03-17
 
-Legend: - ✅ Implemented\
-- 🟡 Partial / Basic\
-- 🔴 Not Implemented\
-- 🔵 Planned / Future Enhancement
+Legend:  
+- DONE = Implemented  
+- PARTIAL = Basic/limited, needs improvement  
+- TODO = Not implemented  
+- FUTURE = Planned for later phase  
 
-------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 
 # PHASE 1 -- CORE CRM FOUNDATION
 
 ## Authentication & Access Control
 
-  Feature             Status   Notes
-  ------------------- -------- ------------------------
-  Login / Logout      ✅       Laravel auth
-  Role Management     🟡       Basic structure
-  Permission Matrix   🟡       Needs granular control
-  Access Matrix       🔴       UI not completed
-  User Activity Log   🔴       Audit trail needed
-
-------------------------------------------------------------------------
+Feature | Status | Notes
+--- | --- | ---
+Login / Logout | DONE | Laravel auth + Breeze
+Role Management | DONE | CRUD role, clone, template role, cache refresh
+Permission Matrix | DONE | Per-module Access + CRUD, role template, counters, auto-sync
+Access Matrix | DONE | Super Admin access matrix screen
+Module Toggle (Service Manager) | DONE | Module enable/disable control
+CRUD Permission Enforcement | DONE | `module.permission:{moduleKey}` middleware
+Friendly 403 Page | DONE | User-friendly 403 with actions
+User Activity Log | PARTIAL | Activity log UI exists, full audit trail not yet
 
 ## Customer & Inquiry
 
-  Feature                   Status
-  ------------------------- --------
-  Customer CRUD             ✅
-  Agent (B2B)               🟡
-  Inquiry Creation          ✅
-  Inquiry Assignment        🟡
-  Inquiry Status Tracking   🟡
-  Follow-up Reminder        🔴
-  Inquiry History Log       🔴
+Feature | Status | Notes
+--- | --- | ---
+Customer CRUD | DONE | Includes import
+Agent (B2B) | PARTIAL | Supported in data model, UX still basic
+Inquiry Creation | DONE | Includes inquiry number auto-format
+Inquiry Assignment | DONE | Assign to Manager/Marketing
+Inquiry Status Tracking | DONE | Unified statuses + Final lock
+Inquiry Deactivate/Activate | DONE | Soft delete on inquiries, toggle status in index
+Follow-up Reminder | TODO | Auto reminder not yet
+Inquiry History Log | PARTIAL | Communications & follow-ups exist
 
-------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 
 # PHASE 2 -- ITINERARY & SERVICE ENGINE
 
 ## Master Data Services
 
-  Data                  Status
-  --------------------- --------
-  Tourist Attractions   🟡
-  Activities            🟡
-  Accommodations        🟡
-  Transports            🟡
-  Vendors               🟡
-  Seasonal Pricing      🔴
-  Contract Rate Logic   🔴
+Feature | Status | Notes
+--- | --- | ---
+Destinations CRUD | DONE | Destination master + province seeder
+Vendors CRUD | DONE | Google Maps autofill
+Activities CRUD | DONE | Standardized activity types
+Food & Beverage CRUD | DONE | Standard forms
+Accommodations CRUD | DONE | Standard forms
+Airports CRUD | DONE | Simplified fields
+Transports CRUD | DONE | Standard forms
+Tourist Attractions CRUD | DONE | Standard forms
+Soft Delete / Deactivate Toggle | DONE | Master data modules use soft delete + activate toggle
+Location Autofill | DONE | Shared resolver for modules
+Seasonal Pricing | TODO | Not implemented
+Contract Rate Logic | TODO | Not implemented
 
 ## Itinerary Builder
 
-  Feature                  Status
-  ------------------------ --------
-  Multi-day Structure      🟡
-  Day Mapping              🟡
-  Drag & Drop Builder      🔴
-  Auto Price Calculation   🔴
-  Itinerary Template       🔴
-  Versioning               🔴
+Feature | Status | Notes
+--- | --- | ---
+Multi-day Structure | DONE | Day-based planner
+Day Mapping | DONE | Start/End points
+Accommodation Planning | DONE | Day/night planning
+Destination Filtering | DONE | Filtered options by destination
+PDF Generation | DONE | Itinerary PDF route
+Drag & Drop Builder | TODO | Not implemented
+Auto Price Calculation | TODO | Not implemented
+Itinerary Template | TODO | Not implemented
+Versioning | TODO | Not implemented
 
-------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 
 # PHASE 3 -- QUOTATION SYSTEM
 
-  Feature                 Status
-  ----------------------- --------
-  Create Quotation        🟡
-  Versioning              🟡
-  Auto Number Generator   ✅
-  Price Calculation       🟡
-  Discount Workflow       🔴
-  Approval Matrix         🔴
-  Quotation Template      🟡
-  PDF Generator           🟡
-  Margin Calculation      🔴
+Feature | Status | Notes
+--- | --- | ---
+Create Quotation | DONE | Full CRUD
+Auto Number Generator | DONE | Quotation number
+Price Calculation | DONE | Final amount calc
+Discount Workflow | DONE | Discount + approval guard
+Approval Workflow | DONE | Approve/Reject/Pending
+Quotation Template | DONE | Template support
+PDF Generator | DONE | PDF export
+CSV Export | DONE | CSV export
+Versioning | TODO | Not implemented
+Margin Calculation | TODO | Not implemented
 
-------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 
 # PHASE 4 -- BOOKING MANAGEMENT
 
-  Feature                        Status
-  ------------------------------ --------
-  Convert Quotation → Booking    🟡
-  Participant Management         🔴
-  Document Upload                🔴
-  Booking Status Workflow        🟡
-  Operational Checklist          🔴
-  Vendor Confirmation Tracking   🔴
+Feature | Status | Notes
+--- | --- | ---
+Convert Quotation → Booking | DONE | Booking creation flow
+Booking Status Workflow | DONE | Status + Final lock
+CSV Export | DONE | Export from bookings
+Participant Management | TODO | Not implemented
+Document Upload | TODO | Not implemented
+Operational Checklist | TODO | Not implemented
+Vendor Confirmation Tracking | TODO | Not implemented
 
-------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 
 # PHASE 5 -- INVOICE & FINANCIAL ENGINE
 
-  Feature                  Status
-  ------------------------ --------
-  Generate Invoice         🟡
-  Invoice Number           ✅
-  Partial Payment          🔴
-  Payment Tracking         🟡
-  Expense Input            🟡
-  Profit per Booking       🔴
-  Commission Calculation   🔴
-  Financial Reports        🔴
+Feature | Status | Notes
+--- | --- | ---
+Generate Invoice | DONE | Invoice service + UI
+Invoice Number | DONE | Auto numbering
+Invoice Status Workflow | DONE | Status + Final lock
+Payment Tracking | PARTIAL | Basic status + paid_at
+Expense Input | TODO | Not implemented
+Profit per Booking | TODO | Not implemented
+Commission Calculation | TODO | Not implemented
+Financial Reports | TODO | Not implemented
 
-------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 
 # PHASE 6 -- REPORTING & ANALYTICS
 
-  Feature                 Status
-  ----------------------- --------
-  Sales per Agent         🔴
-  Conversion Rate         🔴
-  Revenue Dashboard       🟡
-  Booking Trend           🔴
-  Customer Acquisition    🔴
-  Vendor Performance      🔴
-  Custom Report Builder   🔴
+Feature | Status | Notes
+--- | --- | ---
+Role Dashboards | DONE | Separate dashboard per role (except Super Admin)
+Revenue Dashboard | PARTIAL | KPI only, no advanced analytics
+Conversion Rate | PARTIAL | Basic KPI on Manager/Director
+Booking Trend | TODO | Not implemented
+Sales per Agent | TODO | Not implemented
+Customer Acquisition | TODO | Not implemented
+Vendor Performance | TODO | Not implemented
+Custom Report Builder | TODO | Not implemented
 
-------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 
 # PHASE 7 -- SAAS & SCALABILITY
 
-  Feature                     Status
-  --------------------------- --------
-  Multi-Tenant Architecture   🔵
-  Subscription Management     🔵
-  Manual Activation Mode      🔵
-  Usage Limitation            🔵
-  Tenant Isolation            🔵
-  Central Super Admin Panel   🔵
+Feature | Status | Notes
+--- | --- | ---
+Multi-Tenant Architecture | FUTURE | Planned
+Subscription Management | FUTURE | Planned
+Manual Activation Mode | FUTURE | Planned
+Usage Limitation | FUTURE | Planned
+Tenant Isolation | FUTURE | Planned
+Central Super Admin Panel | FUTURE | Planned
 
-------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 
 # PHASE 8 -- AUTOMATION & INTEGRATION
 
-  Feature                Status
-  ---------------------- --------
-  Email Integration      🟡
-  WhatsApp Integration   🟡
-  Payment Gateway        🔵
-  Google Calendar Sync   🔵
-  SMS Notification       🔵
-  Auto Reminder Engine   🔴
+Feature | Status | Notes
+--- | --- | ---
+Email Integration | TODO | Not implemented
+WhatsApp Integration | TODO | Not implemented
+Payment Gateway | FUTURE | Planned
+Google Calendar Sync | FUTURE | Planned
+SMS Notification | FUTURE | Planned
+Auto Reminder Engine | TODO | Not implemented
 
-------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 
-# CRITICAL PRIORITY
+# CRITICAL PRIORITY (NEXT)
 
-1.  Approval Workflow (Quotation)
-2.  Margin & Profit Calculation
-3.  Structured Itinerary Engine
-4.  Expense → Profit Linking
-5.  Audit Trail System
-6.  Participant Management
-7.  Auto Reminder Engine
+1. Approval Workflow (Quotation) — DONE (basic), enhance matrix + audit
+2. Margin & Profit Calculation — TODO
+3. Structured Itinerary Engine — DONE (basic), needs pricing + templates
+4. Expense → Profit Linking — TODO
+5. Audit Trail System — PARTIAL (activity logs only)
+6. Participant Management — TODO
+7. Auto Reminder Engine — TODO
 
-------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 
-# LONG TERM VISION
+# CHANGELOG (LATEST)
 
-VOYEX CRM → Travel Business Operating System\
-Scalable SaaS Travel Platform\
-Revenue Optimization Engine
+Date: 2026-03-13
+Completed in this cycle:
+- Added per-role dashboards (Administrator, Manager, Marketing, Reservation, Finance, Director, Editor) with Super Admin style.
+- Standardized module permissions to Access + CRUD and added UI enhancements (template role, counters, CRUD badge).
+- Implemented CRUD enforcement middleware (`module.permission:{moduleKey}`).
+- Added friendly 403 access denied page.
+- Updated sidebar to permission-first access for Itineraries.
+- Enforced Inquiry edit/delete to creator-only (others read-only) and updated UI actions.
+- Enforced creator-only edit/delete for Itineraries, Quotations, and Bookings (Super Admin override) with UI action guards.
+- Centralized creator-only rules in Laravel policies and updated UI guards to use `@can`.
+- Fixed dashboard KPI revenue aggregation to sum `quotations.final_amount` via joins (avoid missing column on bookings).
+- Fixed Manager dashboard assigned user relation to use `assignedUser`.
+- Standardized button styling system with modern hover/active states across UI.
+- Replaced primary/secondary action buttons across views with `btn-primary`/`btn-secondary` for consistent UI.
+- Converted status special buttons (Approve/Reject/Delete) to `btn-primary`/`btn-secondary`.
+- Added compact sizing for table action buttons and disabled-state styling for button system.
+- Added `btn-ghost` variant for tertiary actions (View/Back/Reset) and applied across views.
+- Standardized page header action spacing with responsive stacking in `page-actions`.
+- Added `filter-actions` layout helper to keep filter/reset rows aligned and responsive.
+- Wrapped all on-screen tables inside `app-card` for UI consistency (excluding PDFs).
+- Adjusted Customers table wrapper to ensure the card is visually applied.
+- Tweaked Customers index spacing to align table card with filter column.
+- Added `btn-outline` variant and applied it for neutral import/export actions.
 
-------------------------------------------------------------------------
+Date: 2026-03-17
+Completed in this cycle:
+- Enabled soft deletes for core modules (Vendors, Activities, F&B, Accommodations, Airports, Transports, Destinations, Tourist Attractions, Inquiries, Itineraries, Quotations, Customers).
+- Replaced Delete actions with Deactivate/Activate toggle buttons (Deactivate uses grey `btn-muted-sm`).
+- Added Active/Inactive status badges in index tables and mobile cards.
+- Updated controllers to use `withTrashed()` on index lists and to toggle soft delete state.
+- Aligned `btn-muted-sm` sizing/height with other action buttons for consistent table actions.
+- Converted table action buttons (Detail/View/Edit) to icon-only buttons to save space.
+- Aligned button palette to the provided UI colors (#2364aa, #3da5d9, #73bfb8, #fec601, #ea7317).
+- Added `btn-warning`/`btn-danger` variants and mapped to Set Pending / Reject / Delete actions.
+- Updated default UI theme to match the provided reference (teal accent, soft gray background, rounded cards).
+- Refined status badge styling to match the reference (pill, soft colors).
+- Standardized table typography/spacing and enforced `app-table` across views.
+- Updated Breeze button components to use the new button system (primary/secondary/danger).
+- Added subtle zebra striping and consistent hover for `app-table` rows.
+- Tightened action column spacing using `actions-compact` on index tables only.
+- Normalized detail/show table headers to use shared `app-table` styling (removed custom thead backgrounds).
+- Standardized show tables to `app-table w-full` for consistent spacing.
+- Redesigned Customers index layout to 4/8 grid with themed filter card and updated table actions.
+- Added Customers header statistics cards (country distribution + customer snapshot).
+- Compacted Customers statistics cards spacing/typography for a tighter layout.
+- Restyled Customers statistics cards to match Super Admin dashboard Action Center/Business Funnel look.
+- Adjusted Customers statistics grid to 8/4 columns for better balance.
+- Normalized Customers index view whitespace for cleaner templates.
+- Removed empty spacer lines in Customers index template (no blank gaps between closing tags).
+- Standardized all module index pages to Customers layout (12-col grid, filter card left, table/content right).
+- Converted remaining index action text-links to `btn-*` for consistency.
+- Normalized show/detail cards to use `app-card` for consistent spacing/typography.
+- Standardized index action cells with flex + gap-2 for consistent button layout.
+- Added `app-dl` typography for show page label/value consistency.
+- Fixed broken Actions column markup after bulk alignment pass.
+- Reduced button padding/size inside tables for more compact Actions.
+- Fixed Customers index action buttons markup so Edit/Delete work correctly.
+- Added hotels-related migrations (hotels, images, rooms, prices, types, promos, packages, facilities, extra beds) with corrected foreign keys and cleaned duplicate columns.
+- Added Hotel domain models and Accommodation->Hotel linkage for future management.
+- Removed ExtraBedOrder model and added RoomView model + migration, with HotelRoom linked to RoomView.
+- Renamed hotel_prices migration to run after hotel_rooms (fix FK ordering).
+- Renamed room_views migration to run before hotel_rooms (fix FK ordering).
+- Added facility_traditional/facility_simplified columns to hotels to match import SQL schema.
+- Added additional_info_traditional/additional_info_simplified columns to hotels to match import SQL schema.
+- Added cancellation_policy_traditional/cancellation_policy_simplified columns to hotels to match import SQL schema.
+- Added include/include_traditional/include_simplified columns to hotel_rooms to match import SQL schema.
+- Inquiries: removed status/assigned_to inputs on create/edit; status defaults to draft and assigned_to uses current user (no assigned UI shown).
+- Inquiries: updated filter grid so each input is at least half-card width (sm:grid-cols-2).
+- Inquiries: added status summary cards below the header to standardize index statistics display.
+- Inquiries: standardized status summary cards to use .app-card-grid (2 cols mobile, 6 cols desktop).
+- Inquiries: fixed undefined $canManageInquiry on detail view by passing policy-based flag from controller.
+- Customers: removed delete actions from UI and disabled destroy endpoint to prevent deletion.
+- Customers: aligned statistics cards with app-card/app-card-grid standard.
+- Customers: removed section headers so statistics show as points inside app-card.
+- Customers: reworked stats layout to match Inquiries (summary cards above, filter/table grid below).
+- Customers: replaced summary card letter badges with icons.
+- Inquiries: replaced status summary letter badges with icons.
+- Itineraries: inquiry detail notes now render sanitized HTML in preview.
+- Itineraries: removed status input, default status to draft on create, and auto-process related inquiry after save.
+- Airports: updated index UI to match Customers/Inquiries layout and card styling.
+- Accommodations, Activities, Food & Beverages, Destinations: started aligning index UI to Customers/Inquiries standard (header/actions, filter grid, app-card table, mobile cards).
+- Completed index UI alignment for Bookings, Invoices, Itineraries, Quotations, Roles, Services, Transports, Tourist Attractions, Users, Vendors, Currencies.
+- Visual sweep: replaced remaining text links in index action areas with btn-outline-sm (Itineraries, Quotations).
+- Added global index statistics composer and reusable component to standardize stats across all module index pages.
+- Fixed itinerary detail view ternary class for fnb type (syntax error).
+- Itinerary detail: fixed day control buttons (class hook + btn style toggle) for proper filtering and theme alignment.
+- Itineraries index: added title/destination/duration filters and standardized per-page controls.
+
+Date: 2026-03-16
+Completed in this cycle:
+- Itineraries index: destination filter now uses `destination_id` from Destinations module (strict match).
+- Itineraries index: added safe fallback if `destination_id` column is not yet migrated (avoid SQL error).
+- Global submit lock + spinner to prevent double submit on forms.
+- Itineraries index: destination filter labels now show destination name only.
+- Users index: added standard filters (search, role, per-page) with query persistence.
+- Inquiry: follow-up reminder form now allowed for Reservation/Director/Manager roles (plus creator).
+- Inquiry follow-up: store created_by and show creator name in reminder list.
+- Inquiry follow-up: require reason via modal when marking reminder as done.
+- Inquiry follow-up: moved reason modal outside table to keep table layout clean.
+- Inquiry follow-up: render reason modal only for pending reminders.
+- Inquiry follow-up: only inquiry creator can mark reminder done.
+- Inquiry follow-up: mark done allowed for creator or assigned_to.
+- Inquiry delete disabled (UI + controller).
+- Inquiry reminder: done status shows view-reason icon with tooltip.
+- Inquiry reminder: view-reason icon now opens modal with the reason.
+- Inquiry reminder: reason modal now also shows reminder note.
+- Inquiry reminder: note/reason now render stored HTML in modal.
+- Added centralized activity logging (`activity_logs`) with polymorphic subjects + timeline component.
+- Inquiry: activity timeline now includes reminder/communication events with user tracking.
+- Inquiry detail: Activity Timeline moved below Inquiry Overview card.
+- Activity timeline UI: simplified to short single-line format with timestamp + user.
+- Activity timeline UI: removed per-item borders for compact list.
+- Activity timeline UI: each item prefixed with "-".
+- PDF Itinerary: removed "Travel from ..." line in day header.
+- PDF Itinerary: each day starts on a new page (except day 1).
+- PDF Itinerary: renamed column label to "Image".
+- Itineraries index: show creator name under itinerary title.
+- Itineraries index: destination shown under Duration.
+- Itineraries index: removed Attractions column.
+- Itineraries: removed Room Qty input for start/end point in create/edit.
+- Itineraries: added color-coded cards for start/end points and item types.
+- Itineraries: start/end point cards now change color based on type (airport/accommodation).
+- Itineraries: base background for start/end point cards unified.
+- Itineraries: Inquiry Detail now shows Reminder Note and Done Reason when available.
+- Itineraries: Route Preview card is sticky on scroll (top-6).
+- Itineraries: Destination + Duration fields aligned in a single row.
+- Inquiry: Manager/Director can create and assign inquiry to Reservation users.
+- Inquiry policy: update allowed for creator or assigned_to user.
+
+Date: 2026-03-17
+Completed in this cycle:
+- Services index: added `app-card-grid--services` to use 4-column grid on desktop while keeping global app-card-grid defaults.
+- Services index: removed filter sidebar for a cleaner module overview layout.
+- Standardized input width inside app-card for all inputs/selects (min 50%, max 100%) while excluding textarea.
+- Standardized padding/typography for inputs/selects inside app-card to keep form UI consistent.
+- Enforced app-card input/select width standards with higher priority to neutralize custom width utilities.
+- Extended standardized input/select width rules to all forms across the app (global form-level enforcement).
+- Normalized Blade form inputs/selects to use `app-input` and removed custom width/padding/border classes across modules.
+- Forced Google Maps URL inputs to full width (100%) to improve usability.
+- Updated all Google Maps URL fields to full-width layout with Auto Fill button stacked below for consistent UI.
+- Destinations form: Google Maps URL field now uses inline Auto Fill button beside the input.
+- Destinations index: added per_page filter (10/25/50/100) with controller support.
+- Destinations index/detail: F&B tidak ditampilkan terpisah karena sudah diwakili oleh Vendor.
+- Destinations detail: moved Linked Modules card below header and renamed to Services Availability.
+- Destinations detail: Services Availability now uses the same stats style as Inquiries.
+- Standardized stats icons globally to use Font Awesome mapping in `<x-index-stats>`.
+- Vendors: added soft delete, Deactivate/Activate toggle, and block delete when linked to Activities/F&B.
+
+----------------------------------------------------------------------------------------------------
 
 END OF ROADMAP
-
-------------------------------------------------------------------------
-
-# ROADMAP STATUS UPDATE LOG
-
-Date: 2026-03-02
-
-Completed in this cycle:
-
-1. Super Admin dashboard upgraded with module-centric control layout
-   Status: Implemented
-   Notes:
-   - Added grouped module control center by domain.
-   - Added module health, permission coverage, and quick actions.
-
-2. Introduced role "Admin User" as company administrator scope
-   Status: Implemented
-   Notes:
-   - Added role seeding and default permission mapping.
-   - Limited system-level modules (module service manager, role manager, access matrix).
-   - Aligned sidebar and dashboard redirection behavior.
-
-3. Admin dashboard aligned to "Admin User" responsibilities
-   Status: Implemented
-   Notes:
-   - Added company governance panel, team stats, managed module summary.
-   - Added role-aware quick actions and accessible module cards.
-   - Accessible module cards now navigate directly to module pages.
-   - Disabled module cards now route to module management for faster recovery.
-
-4. Super Admin account isolation from User Manager flows
-   Status: Implemented
-   Notes:
-   - Super Admin accounts are hidden from user listings.
-   - Super Admin role is blocked from role assignment in create/update user forms.
-   - Added route middleware guard to block direct target access for Super Admin users.
-   - Added model helper methods to enforce centralized filtering rules.
-
-5. Inquiry list now exposes itinerary availability status
-   Status: Implemented
-   Notes:
-   - Added itinerary-aware filter on inquiry list (available / missing).
-   - Added itinerary status column and badges in desktop + mobile inquiry list.
-   - Added quick action "Create Itinerary" directly from inquiry rows when itinerary is missing.
-
-6. Inquiry itinerary labels now support direct navigation
-   Status: Implemented
-   Notes:
-   - Inquiry list itinerary titles are now clickable to itinerary detail pages.
-   - Link rendering is permission-aware and falls back to plain text when access is restricted.
-
-7. Itinerary now supports accommodation attachment
-   Status: Implemented
-   Notes:
-   - Added accommodation selection on itinerary create/edit forms.
-   - Added many-to-many persistence between itinerary and accommodation data.
-   - Added accommodation summary section on itinerary detail page.
-
-8. Itinerary accommodation planning upgraded to day/night scheduling
-   Status: Implemented
-   Notes:
-   - Added accommodation stay planner with day number and night count per entry.
-   - Added validation for itinerary day-range consistency and duplicate day assignments.
-   - Added pivot schema support for day_number and night_count on itinerary accommodation linkage.
-
-9. Itinerary destination-driven filtering
-   Status: Implemented
-   Notes:
-   - Added destination input on itinerary create/edit.
-   - Attraction, activity, and accommodation options are filtered by destination (city/province).
-   - Destination is now displayed on itinerary detail.
-
-10. Itinerary destination autocomplete from master data
-    Status: Implemented
-    Notes:
-    - Destination input now uses autocomplete options sourced from core master modules.
-    - Option source includes tourist attractions, accommodations, vendors, and transports.
-    - Reduces destination typo risk and improves consistency across itinerary records.
-
-11. Itinerary destination upgraded to async searchable dropdown
-    Status: Implemented
-    Notes:
-    - Replaced static datalist with AJAX-based searchable dropdown on itinerary form.
-    - Added destination suggestion endpoint with keyword search and result limit.
-    - Removed destination preload on create/edit to keep form performant on large master datasets.
-
-12. Itinerary form labeling improvements (create/edit)
-    Status: Implemented
-    Notes:
-    - Added clearer field labels on accommodation stay rows (accommodation, start day, nights, action).
-    - Added clearer field labels on schedule rows (item type, attraction/activity selector, start/end time, action).
-    - Improves usability for operational users during itinerary create and update flows.
-
-13. Itinerary flow anchors: accommodation-first with optional airport shuttle start/end
-    Status: Implemented
-    Notes:
-    - Removed manual start day input for accommodation; day sequence is now auto-derived from stay order and nights.
-    - Added optional arrival/departure airport shuttle selectors on itinerary form.
-    - Map route now includes accommodation location anchors per day and supports shuttle start/end points.
-
-14. Itinerary day/night flow refinement with per-day accommodation
-    Status: Implemented
-    Notes:
-    - Added `duration_nights` field and validation aligned with duration days.
-    - Accommodation input moved into each day block before schedule items for clearer operational flow.
-    - Form now auto-builds `accommodation_stays` payload from per-day accommodation selections.
-
-15. Daily itinerary closing point aligned to accommodation
-    Status: Implemented
-    Notes:
-    - Updated day route logic so each day ends at selected accommodation location.
-    - On final day, departure shuttle is now fallback only when accommodation is not set.
-
-16. Day UI endpoint badge for faster operational review
-    Status: Implemented
-    Notes:
-    - Added per-day badge text `Ends at: {Accommodation}` directly in itinerary builder.
-    - Badge updates in real-time when day accommodation selection changes.
-
-17. Per-day start/end route points in itinerary builder
-    Status: Implemented
-    Notes:
-    - Added explicit `Start Point` and `End Point` inputs on each day.
-    - Day flow now supports arrival airport/manual pickup at start and accommodation/departure at end.
-    - Route preview and accommodation stay payload are generated from per-day end points.
-
-18. Client-side validation for required day end point
-    Status: Implemented
-    Notes:
-    - Added UX validation to block submit when any day has empty `End Point`.
-    - Invalid day end-point fields are highlighted and the first invalid day is auto-scrolled into view.
-
-19. Start-point travel input to first itinerary item
-    Status: Implemented
-    Notes:
-    - Added per-day input `Travel to next item (minutes)` between start point and schedule items.
-    - Value is used for time calculation from start point to first attraction/activity and reflected on map route labels.
-
-20. Day-specific point label synchronization fix
-    Status: Implemented
-    Notes:
-    - Fixed day label sync so `Day 1 Start Point/End Point` no longer appears on cloned day sections.
-    - Start/end point labels and field names now always follow each section day index.
-
-21. Start/End point type-item workflow with Airport module
-    Status: Implemented
-    Notes:
-    - Day start/end point now uses two-step selection: choose type first, then choose item.
-    - Added airport master module (CRUD) and integrated airport data into itinerary point selection.
-    - Start/end point item options are filtered by itinerary destination for consistency and typo prevention.
-
-22. Simplified point item labels on itinerary form
-    Status: Implemented
-    Notes:
-    - Removed type prefix text (e.g., `[Accommodation]`, `[Airport]`) from day start/end point item options.
-    - Removed extra inline info text in options so users see clean item names only.
-    - Endpoint badge now reads selected item text directly without string splitting assumptions.
-
-23. Destination master module and cross-module location grouping
-    Status: Implemented
-    Notes:
-    - Added new `Destinations` module (CRUD) with module toggle, permission, route, and sidebar integration.
-    - Linked location-based modules (`vendors`, `accommodations`, `tourist_attractions`, `airports`, `transports`) to destination via `destination_id`.
-    - Added destination selector on related module forms and backfill logic from city/province for existing + seeded data.
-    - Updated Admin/Super Admin dashboard module mapping and metrics to include destination governance visibility.
-
-24. Destination standardization by province
-    Status: Implemented
-    Notes:
-    - Destination identity is now standardized by `province` as the main grouping key.
-    - Backfill and initial relation mapping now resolve destination primarily from province (fallback to city only if province is empty).
-    - Itinerary destination suggestion source is now focused on province-level values for consistency.
-
-25. Vendor destination auto-create from Google Maps URL
-    Status: Implemented
-    Notes:
-    - On vendor create/update, if `destination_id` is empty, system now resolves location from Google Maps URL (via coordinates + reverse geocode).
-    - Province result is used to auto-find existing destination; if not found, destination is created automatically.
-    - `destination_id` is then assigned automatically to keep vendor data consistent with destination master data.
-
-26. Standardized activity type selection in activity create/update
-    Status: Implemented
-    Notes:
-    - Replaced free-text `activity_type` input with predefined select options for common operational activity categories.
-    - Added backend validation whitelist (`Rule::in`) to enforce consistent activity type values.
-    - Included safe fallback option `other` and preserved legacy value during edit if existing data is outside current preset list.
-
-27. User-friendly activity type filter labels on activity list
-    Status: Implemented
-    Notes:
-    - Activity type filter options now use human-readable labels (no underscore).
-    - Filter option order is synchronized with standardized activity type sequence, then legacy unknown types.
-    - Activity type display in list table now also uses formatted labels for consistency.
-
-28. Activity create/update validation stability fix
-    Status: Implemented
-    Notes:
-    - Fixed false invalid error for `activity_type` on update by allowing existing legacy type values.
-    - Improved existing gallery image detection on update to support normalized JSON/string payloads.
-    - Prevents `gallery_images required` error on update when images are already stored.
-
-29. Legacy activity type hint on edit UI
-    Status: Implemented
-    Notes:
-    - Edit activity form now shows warning hint when selected `activity_type` is a legacy value.
-    - Legacy options are explicitly marked with `(Legacy)` in the activity type dropdown.
-    - Helps admin migrate old custom types to standardized activity type taxonomy.
-
-30. Global required-field asterisk indicator across forms
-    Status: Implemented
-    Notes:
-    - Added global UI enhancer in master layout to append `*` on labels for inputs with `required` attribute.
-    - Covers `input`, `select`, and `textarea`, including dynamically added form fields.
-    - Prevents duplicate markers and skips hidden/disabled fields for cleaner UX.
-
-31. Standardized Google Maps-based location autofill across location modules
-    Status: Implemented
-    Notes:
-    - Added centralized `LocationResolver` service + AJAX endpoint to resolve Google Maps URL into location metadata.
-    - Standardized location input UX (`Google Maps URL + Auto Fill`) in Destination, Accommodation, Vendor, Airport, Transport, and Tourist Attraction forms.
-    - Autofill now supports `country`, `destination`, `location`, `city`, `province`, `address`, `latitude`, `longitude`, and `timezone` fields.
-    - Added schema support for missing standardized location fields across modules and integrated backend fallback autofill on save.
-
-32. Airport module simplification: remove IATA/ICAO fields
-    Status: Implemented
-    Notes:
-    - Removed IATA/ICAO from Airport form, list, detail, and backend validation/search flow.
-    - Removed Airport model and itinerary query dependencies on `iata_code` / `icao_code`.
-    - Added migration to drop `iata_code` and `icao_code` columns from `airports` table.
-
-33. Destination province master seeder (Indonesia)
-    Status: Implemented
-    Notes:
-    - Added `DestinationProvinceSeeder` with full province list and capital-city mapping as destination baseline.
-    - Seeder uses `updateOrCreate` by province, sets destination name to province, country to Indonesia, and timezone by WIB/WITA/WIT region.
-    - Registered seeder in `DatabaseSeeder` before destination backfill so location-based modules map to standardized destination records.
-
-34. VendorController persistence guard for schema mismatch
-    Status: Implemented
-    Notes:
-    - Added runtime column filtering before vendor create/update to persist only fields that exist in current `vendors` table schema.
-    - Prevents SQL unknown-column failures when deployment schema is temporarily behind controller/form changes.
-    - Keeps location auto-fill flow functional while maintaining backward compatibility during staged migrations.

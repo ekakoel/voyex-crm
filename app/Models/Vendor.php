@@ -4,10 +4,12 @@ namespace App\Models;
 
 use App\Models\Concerns\HasAudit;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Vendor extends Model
 {
     use HasAudit;
+    use SoftDeletes;
 
     protected $fillable = [
         'name',
@@ -48,3 +50,6 @@ class Vendor extends Model
         return $this->hasMany(FoodBeverage::class);
     }
 }
+
+
+

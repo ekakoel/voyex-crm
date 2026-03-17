@@ -11,7 +11,7 @@
     <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Vendor</label>
-            <select name="vendor_id" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" required>
+            <select name="vendor_id" class="mt-1 dark:border-gray-600 app-input" required>
                 <option value="">Select vendor</option>
                 @foreach ($vendors as $vendor)
                     <option value="{{ $vendor->id }}" @selected((int) old('vendor_id', $foodBeverage->vendor_id ?? 0) === (int) $vendor->id)>
@@ -23,7 +23,7 @@
         </div>
         <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Service Name</label>
-            <input name="name" value="{{ old('name', $foodBeverage->name ?? '') }}" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" required>
+            <input name="name" value="{{ old('name', $foodBeverage->name ?? '') }}" class="mt-1 dark:border-gray-600 app-input" required>
             @error('name') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
         </div>
     </div>
@@ -31,7 +31,7 @@
     <div class="grid grid-cols-1 gap-4 md:grid-cols-4">
         <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Service Type</label>
-            <select name="service_type" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" required>
+            <select name="service_type" class="mt-1 dark:border-gray-600 app-input" required>
                 <option value="">Select service type</option>
                 @foreach ($serviceTypes as $type)
                     @php
@@ -51,17 +51,17 @@
         </div>
         <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Duration (minutes)</label>
-            <input name="duration_minutes" type="number" min="15" max="1440" value="{{ old('duration_minutes', $foodBeverage->duration_minutes ?? 60) }}" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" required>
+            <input name="duration_minutes" type="number" min="15" max="1440" value="{{ old('duration_minutes', $foodBeverage->duration_minutes ?? 60) }}" class="mt-1 dark:border-gray-600 app-input" required>
             @error('duration_minutes') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
         </div>
         <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Meal Period</label>
-            <input name="meal_period" maxlength="50" value="{{ old('meal_period', $foodBeverage->meal_period ?? '') }}" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" placeholder="Breakfast / Lunch / Dinner">
+            <input name="meal_period" maxlength="50" value="{{ old('meal_period', $foodBeverage->meal_period ?? '') }}" class="mt-1 dark:border-gray-600 app-input" placeholder="Breakfast / Lunch / Dinner">
             @error('meal_period') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
         </div>
         <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Currency</label>
-            <input name="currency" maxlength="3" value="{{ old('currency', $foodBeverage->currency ?? 'IDR') }}" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 uppercase text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" required>
+            <input name="currency" maxlength="3" value="{{ old('currency', $foodBeverage->currency ?? 'IDR') }}" class="mt-1 uppercase dark:border-gray-600 app-input" required>
             @error('currency') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
         </div>
     </div>
@@ -112,7 +112,7 @@
                     <div class="food-beverage-gallery-existing-item relative overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700" data-image-path="{{ $image }}">
                         <button
                             type="button"
-                            class="food-beverage-gallery-remove-btn absolute right-1 top-1 z-10 inline-flex h-6 w-6 items-center justify-center rounded-full bg-rose-600/95 text-xs font-bold text-white shadow hover:bg-rose-700"
+                             class="food-beverage-gallery-remove-btn absolute right-1 top-1 z-10 inline-flex h-6 w-6 items-center justify-center rounded-full bg-rose-600/95 text-xs font-bold text-white shadow hover:bg-rose-700"
                             title="Remove image"
                             aria-label="Remove image">
                             X
@@ -143,8 +143,8 @@
     </div>
 
     <div class="flex items-center gap-2">
-        <button class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">{{ $buttonLabel }}</button>
-        <a href="{{ route('food-beverages.index') }}" class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700">Cancel</a>
+        <button  class="btn-primary">{{ $buttonLabel }}</button>
+        <a href="{{ route('food-beverages.index') }}"  class="btn-secondary">Cancel</a>
     </div>
 </div>
 
@@ -235,3 +235,6 @@
         </script>
     @endpush
 @endonce
+
+
+

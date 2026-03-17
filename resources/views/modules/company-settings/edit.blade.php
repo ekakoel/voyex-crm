@@ -5,7 +5,7 @@
         
 
         @if (session('success'))
-            <div class="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300">
+            <div class="rounded-lg mb-6 border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300">
                 {{ session('success') }}
             </div>
         @endif
@@ -18,62 +18,62 @@
                 <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                     <div>
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Company Name *</label>
-                        <input name="company_name" value="{{ old('company_name', $settings->company_name) }}" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" required>
+                        <input name="company_name" value="{{ old('company_name', $settings->company_name) }}" class="mt-1 dark:border-gray-600 app-input" required>
                         @error('company_name') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Legal Name</label>
-                        <input name="legal_name" value="{{ old('legal_name', $settings->legal_name) }}" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+                        <input name="legal_name" value="{{ old('legal_name', $settings->legal_name) }}" class="mt-1 dark:border-gray-600 app-input">
                     </div>
                 </div>
 
                 <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
                     <div>
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Contact Email</label>
-                        <input type="email" name="contact_email" value="{{ old('contact_email', $settings->contact_email) }}" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+                        <input type="email" name="contact_email" value="{{ old('contact_email', $settings->contact_email) }}" class="mt-1 dark:border-gray-600 app-input">
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Contact Phone</label>
-                        <input name="contact_phone" value="{{ old('contact_phone', $settings->contact_phone) }}" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+                        <input name="contact_phone" value="{{ old('contact_phone', $settings->contact_phone) }}" class="mt-1 dark:border-gray-600 app-input">
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">WhatsApp</label>
-                        <input name="contact_whatsapp" value="{{ old('contact_whatsapp', $settings->contact_whatsapp) }}" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+                        <input name="contact_whatsapp" value="{{ old('contact_whatsapp', $settings->contact_whatsapp) }}" class="mt-1 dark:border-gray-600 app-input">
                     </div>
                 </div>
 
                 <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
                     <div class="md:col-span-2">
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Address</label>
-                        <input name="address" value="{{ old('address', $settings->address) }}" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+                        <input name="address" value="{{ old('address', $settings->address) }}" class="mt-1 dark:border-gray-600 app-input">
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Website</label>
-                        <input type="url" name="website" value="{{ old('website', $settings->website) }}" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+                        <input type="url" name="website" value="{{ old('website', $settings->website) }}" class="mt-1 dark:border-gray-600 app-input">
                     </div>
                 </div>
 
                 <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
                     <div>
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">City</label>
-                        <input name="city" value="{{ old('city', $settings->city) }}" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+                        <input name="city" value="{{ old('city', $settings->city) }}" class="mt-1 dark:border-gray-600 app-input">
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Country</label>
-                        <input name="country" value="{{ old('country', $settings->country) }}" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+                        <input name="country" value="{{ old('country', $settings->country) }}" class="mt-1 dark:border-gray-600 app-input">
                     </div>
                     <div class="grid grid-cols-2 gap-3">
                         <div>
                             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Timezone</label>
-                            <input name="timezone" value="{{ old('timezone', $settings->timezone) }}" placeholder="Asia/Jakarta" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+                            <input name="timezone" value="{{ old('timezone', $settings->timezone) }}" placeholder="Asia/Jakarta" class="mt-1 dark:border-gray-600 app-input">
                         </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Currency</label>
-                    <input name="currency" value="{{ old('currency', $settings->currency) }}" maxlength="3" placeholder="IDR" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm uppercase dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+                    <input name="currency" value="{{ old('currency', $settings->currency) }}" maxlength="3" placeholder="IDR" class="mt-1 uppercase dark:border-gray-600 app-input">
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">USD Rate (IDR per 1 USD)</label>
-                    <input name="usd_rate" type="number" step="0.01" min="1" value="{{ old('usd_rate', $settings->usd_rate ?? '') }}" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+                    <input name="usd_rate" type="number" step="0.01" min="1" value="{{ old('usd_rate', $settings->usd_rate ?? '') }}" class="mt-1 dark:border-gray-600 app-input">
                 </div>
                     </div>
                 </div>
@@ -109,11 +109,14 @@
                 </div>
 
                 <div class="flex items-center gap-2">
-                    <button class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">Save Changes</button>
+                    <button  class="btn-primary">Save Changes</button>
                 </div>
             </form>
         </div>
     </div>
 @endsection
+
+
+
 
 

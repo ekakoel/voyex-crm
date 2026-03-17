@@ -26,8 +26,12 @@ class DashboardRedirectController extends Controller
             return redirect()->route('superadmin.dashboard');
         }
 
-        if ($user->hasAnyRole(['Admin', 'Admin User'])) {
-            return redirect()->route('dashboard.admin');
+        if ($user->hasRole('Administrator')) {
+            return redirect()->route('dashboard.administrator');
+        }
+
+        if ($user->hasRole('Editor')) {
+            return redirect()->route('dashboard.editor');
         }
 
         if ($user->hasRole('Director')) {
@@ -38,12 +42,16 @@ class DashboardRedirectController extends Controller
             return redirect()->route('dashboard.finance');
         }
 
-        if ($user->hasRole('Operations')) {
-            return redirect()->route('dashboard.operations');
+        if ($user->hasRole('Reservation')) {
+            return redirect()->route('dashboard.reservation');
         }
 
-        if ($user->hasAnyRole(['Sales Manager', 'Sales Agent'])) {
-            return redirect()->route('dashboard.sales');
+        if ($user->hasRole('Manager')) {
+            return redirect()->route('dashboard.manager');
+        }
+
+        if ($user->hasRole('Marketing')) {
+            return redirect()->route('dashboard.marketing');
         }
 
         abort(403, 'This role has no dashboard.');

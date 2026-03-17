@@ -3,9 +3,7 @@
 @section('page_title', 'Add Customer')
 @section('page_subtitle', 'Create a new customer record.')
 @section('page_actions')
-    <a href="{{ route('customers.index') }}" class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700">
-        Back
-    </a>
+    <a href="{{ route('customers.index') }}"  class="btn-ghost">Back</a>
 @endsection
 
 @section('content')
@@ -21,7 +19,7 @@
                     </form>
                 </div>
             </div>
-            <aside class="space-y-6 xl:col-span-4">
+            <aside  class="space-y-6 xl:col-span-4">
                 <div class="rounded-xl border border-slate-200/80 bg-white p-5 text-sm text-slate-600 shadow-sm dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-300">
                     <p class="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Info</p>
                     <p class="mt-2">Fill in the customer identity and contact details. Use Company type if the customer is a business entity.</p>
@@ -30,3 +28,4 @@
         </div>
     </div>
 @endsection
+

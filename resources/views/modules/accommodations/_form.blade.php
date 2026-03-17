@@ -60,17 +60,17 @@
     <div class="grid grid-cols-1 gap-4 md:grid-cols-4">
         <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Code</label>
-            <input name="code" value="{{ old('code', $accommodation->code ?? '') }}" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm uppercase dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" required>
+            <input name="code" value="{{ old('code', $accommodation->code ?? '') }}" class="mt-1 uppercase dark:border-gray-600 app-input" required>
             @error('code') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
         </div>
         <div class="md:col-span-2">
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Accommodation Name</label>
-            <input name="name" value="{{ old('name', $accommodation->name ?? '') }}" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" required>
+            <input name="name" value="{{ old('name', $accommodation->name ?? '') }}" class="mt-1 dark:border-gray-600 app-input" required>
             @error('name') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
         </div>
         <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Category</label>
-            <select name="category" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" required>
+            <select name="category" class="mt-1 dark:border-gray-600 app-input" required>
                 <option value="">Select category</option>
                 @foreach ($categories as $category)
                     <option value="{{ $category }}" @selected(old('category', $accommodation->category ?? '') === $category)>{{ str_replace('_', ' ', ucfirst($category)) }}</option>
@@ -83,34 +83,36 @@
     <div class="grid grid-cols-1 gap-4 md:grid-cols-4">
         <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Star Rating</label>
-            <input name="star_rating" type="number" min="1" max="5" value="{{ old('star_rating', $accommodation->star_rating ?? '') }}" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+            <input name="star_rating" type="number" min="1" max="5" value="{{ old('star_rating', $accommodation->star_rating ?? '') }}" class="mt-1 dark:border-gray-600 app-input">
         </div>
         <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Check-in</label>
-            <input name="check_in_time" type="time" value="{{ old('check_in_time', isset($accommodation->check_in_time) ? substr((string) $accommodation->check_in_time, 0, 5) : '') }}" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+            <input name="check_in_time" type="time" value="{{ old('check_in_time', isset($accommodation->check_in_time) ? substr((string) $accommodation->check_in_time, 0, 5) : '') }}" class="mt-1 dark:border-gray-600 app-input">
         </div>
         <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Check-out</label>
-            <input name="check_out_time" type="time" value="{{ old('check_out_time', isset($accommodation->check_out_time) ? substr((string) $accommodation->check_out_time, 0, 5) : '') }}" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+            <input name="check_out_time" type="time" value="{{ old('check_out_time', isset($accommodation->check_out_time) ? substr((string) $accommodation->check_out_time, 0, 5) : '') }}" class="mt-1 dark:border-gray-600 app-input">
         </div>
         <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Website</label>
-            <input name="website" type="url" value="{{ old('website', $accommodation->website ?? '') }}" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+            <input name="website" type="url" value="{{ old('website', $accommodation->website ?? '') }}" class="mt-1 dark:border-gray-600 app-input">
         </div>
     </div>
 
     <div class="grid grid-cols-1 gap-4 md:grid-cols-5">
         <div class="md:col-span-2">
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Google Maps URL</label>
-            <div class="mt-1 flex items-center gap-2">
-                <input name="google_maps_url" data-location-field="google_maps_url" value="{{ old('google_maps_url', $accommodation->google_maps_url ?? '') }}" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" placeholder="https://maps.google.com/...">
-                <button type="button" data-location-autofill-trigger class="shrink-0 rounded-lg border border-indigo-300 px-3 py-2 text-xs font-semibold text-indigo-700">Auto Fill</button>
+            <div class="mt-1 space-y-2">
+                <input name="google_maps_url" data-location-field="google_maps_url" value="{{ old('google_maps_url', $accommodation->google_maps_url ?? '') }}" class="app-input" placeholder="https://maps.google.com/...">
+                <div class="flex justify-end">
+                    <button type="button" data-location-autofill-trigger class="btn-outline-sm">Auto Fill</button>
+                </div>
             </div>
             @error('google_maps_url') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
         </div>
         <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Destination</label>
-            <select name="destination_id" data-location-field="destination_id" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+            <select name="destination_id" data-location-field="destination_id" class="mt-1 dark:border-gray-600 app-input">
                 <option value="">Select destination</option>
                 @foreach ($destinations as $destination)
                     <option value="{{ $destination->id }}" data-city="{{ $destination->city ?? '' }}" data-province="{{ $destination->province ?? '' }}" @selected((string) old('destination_id', $accommodation->destination_id ?? '') === (string) $destination->id)>
@@ -122,53 +124,53 @@
         </div>
         <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Location</label>
-            <input name="location" data-location-field="location" value="{{ old('location', $accommodation->location ?? '') }}" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+            <input name="location" data-location-field="location" value="{{ old('location', $accommodation->location ?? '') }}" class="mt-1 dark:border-gray-600 app-input">
         </div>
         <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">City</label>
-            <input name="city" data-location-field="city" value="{{ old('city', $accommodation->city ?? '') }}" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+            <input name="city" data-location-field="city" value="{{ old('city', $accommodation->city ?? '') }}" class="mt-1 dark:border-gray-600 app-input">
         </div>
         <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Province</label>
-            <input name="province" data-location-field="province" value="{{ old('province', $accommodation->province ?? '') }}" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+            <input name="province" data-location-field="province" value="{{ old('province', $accommodation->province ?? '') }}" class="mt-1 dark:border-gray-600 app-input">
         </div>
         <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Address</label>
-            <input name="address" data-location-field="address" value="{{ old('address', $accommodation->address ?? '') }}" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+            <input name="address" data-location-field="address" value="{{ old('address', $accommodation->address ?? '') }}" class="mt-1 dark:border-gray-600 app-input">
         </div>
     </div>
 
     <div class="grid grid-cols-1 gap-4 md:grid-cols-6">
         <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Country</label>
-            <input name="country" data-location-field="country" value="{{ old('country', $accommodation->country ?? '') }}" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+            <input name="country" data-location-field="country" value="{{ old('country', $accommodation->country ?? '') }}" class="mt-1 dark:border-gray-600 app-input">
         </div>
         <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Timezone</label>
-            <input name="timezone" data-location-field="timezone" value="{{ old('timezone', $accommodation->timezone ?? '') }}" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+            <input name="timezone" data-location-field="timezone" value="{{ old('timezone', $accommodation->timezone ?? '') }}" class="mt-1 dark:border-gray-600 app-input">
         </div>
         <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Latitude</label>
-            <input name="latitude" data-location-field="latitude" type="number" step="0.0000001" value="{{ old('latitude', $accommodation->latitude ?? '') }}" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+            <input name="latitude" data-location-field="latitude" type="number" step="0.0000001" value="{{ old('latitude', $accommodation->latitude ?? '') }}" class="mt-1 dark:border-gray-600 app-input">
         </div>
         <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Longitude</label>
-            <input name="longitude" data-location-field="longitude" type="number" step="0.0000001" value="{{ old('longitude', $accommodation->longitude ?? '') }}" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+            <input name="longitude" data-location-field="longitude" type="number" step="0.0000001" value="{{ old('longitude', $accommodation->longitude ?? '') }}" class="mt-1 dark:border-gray-600 app-input">
         </div>
         <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Contact Name</label>
-            <input name="contact_name" value="{{ old('contact_name', $accommodation->contact_name ?? '') }}" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+            <input name="contact_name" value="{{ old('contact_name', $accommodation->contact_name ?? '') }}" class="mt-1 dark:border-gray-600 app-input">
         </div>
         <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Contact Phone</label>
-            <input name="contact_phone" value="{{ old('contact_phone', $accommodation->contact_phone ?? '') }}" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+            <input name="contact_phone" value="{{ old('contact_phone', $accommodation->contact_phone ?? '') }}" class="mt-1 dark:border-gray-600 app-input">
         </div>
     </div>
     <p data-location-status class="hidden text-xs"></p>
 
     <div>
         <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Contact Email</label>
-        <input name="contact_email" type="email" value="{{ old('contact_email', $accommodation->contact_email ?? '') }}" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+        <input name="contact_email" type="email" value="{{ old('contact_email', $accommodation->contact_email ?? '') }}" class="mt-1 dark:border-gray-600 app-input">
     </div>
 
     <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -204,7 +206,7 @@
                     <div class="accommodation-gallery-existing-item relative overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700" data-image-path="{{ $image }}">
                         <button
                             type="button"
-                            class="accommodation-gallery-remove-btn absolute right-1 top-1 z-10 inline-flex h-6 w-6 items-center justify-center rounded-full bg-rose-600/95 text-xs font-bold text-white shadow hover:bg-rose-700"
+                             class="accommodation-gallery-remove-btn absolute right-1 top-1 z-10 inline-flex h-6 w-6 items-center justify-center rounded-full bg-rose-600/95 text-xs font-bold text-white shadow hover:bg-rose-700"
                             title="Remove image"
                             aria-label="Remove image">
                             X
@@ -231,7 +233,7 @@
     <div class="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
         <div class="mb-3 flex items-center justify-between">
             <p class="text-sm font-semibold text-gray-800 dark:text-gray-100">Room Details (Contract)</p>
-            <button type="button" id="add-room-row" class="rounded-lg border border-indigo-300 px-3 py-1 text-xs font-medium text-indigo-700">Add Room</button>
+            <button type="button" id="add-room-row"  class="rounded-lg border border-indigo-300 px-3 py-1 text-xs font-medium text-indigo-700">Add Room</button>
         </div>
 
         <div id="room-rows" class="space-y-3">
@@ -246,30 +248,30 @@
                     <div class="grid grid-cols-1 gap-3 md:grid-cols-6">
                         <div class="md:col-span-2">
                             <label class="block text-xs text-gray-500">Room Name</label>
-                            <input name="rooms[{{ $index }}][name]" value="{{ $room['name'] ?? '' }}" class="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" required>
+                            <input name="rooms[{{ $index }}][name]" value="{{ $room['name'] ?? '' }}" class="mt-1 dark:border-gray-600 app-input" required>
                         </div>
                         <div>
                             <label class="block text-xs text-gray-500">Room Type</label>
-                            <input name="rooms[{{ $index }}][room_type]" value="{{ $room['room_type'] ?? '' }}" class="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+                            <input name="rooms[{{ $index }}][room_type]" value="{{ $room['room_type'] ?? '' }}" class="mt-1 dark:border-gray-600 app-input">
                         </div>
                         <div>
                             <label class="block text-xs text-gray-500">Bed Type</label>
-                            <input name="rooms[{{ $index }}][bed_type]" value="{{ $room['bed_type'] ?? '' }}" class="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+                            <input name="rooms[{{ $index }}][bed_type]" value="{{ $room['bed_type'] ?? '' }}" class="mt-1 dark:border-gray-600 app-input">
                         </div>
                         <div>
                             <label class="block text-xs text-gray-500">View</label>
-                            <input name="rooms[{{ $index }}][view_type]" value="{{ $room['view_type'] ?? '' }}" class="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+                            <input name="rooms[{{ $index }}][view_type]" value="{{ $room['view_type'] ?? '' }}" class="mt-1 dark:border-gray-600 app-input">
                         </div>
                         <div>
                             <label class="block text-xs text-gray-500">Max Pax</label>
-                            <input name="rooms[{{ $index }}][max_occupancy]" type="number" min="1" value="{{ $room['max_occupancy'] ?? 2 }}" class="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" required>
+                            <input name="rooms[{{ $index }}][max_occupancy]" type="number" min="1" value="{{ $room['max_occupancy'] ?? 2 }}" class="mt-1 dark:border-gray-600 app-input" required>
                         </div>
                     </div>
 
                     <div class="mt-3 grid grid-cols-1 gap-3 md:grid-cols-6">
                         <div>
                             <label class="block text-xs text-gray-500">Room Size (sqm)</label>
-                            <input name="rooms[{{ $index }}][room_size_sqm]" type="number" min="1" step="0.01" value="{{ $room['room_size_sqm'] ?? '' }}" class="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+                            <input name="rooms[{{ $index }}][room_size_sqm]" type="number" min="1" step="0.01" value="{{ $room['room_size_sqm'] ?? '' }}" class="mt-1 dark:border-gray-600 app-input">
                         </div>
                         <x-money-input
                             label="Contract Rate"
@@ -292,11 +294,11 @@
                         />
                         <div>
                             <label class="block text-xs text-gray-500">Currency</label>
-                            <input name="rooms[{{ $index }}][currency]" value="{{ $room['currency'] ?? 'IDR' }}" maxlength="3" class="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 uppercase text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" required>
+                            <input name="rooms[{{ $index }}][currency]" value="{{ $room['currency'] ?? 'IDR' }}" maxlength="3" class="mt-1 uppercase dark:border-gray-600 app-input" required>
                         </div>
                         <div>
                             <label class="block text-xs text-gray-500">Meal Plan</label>
-                            <select name="rooms[{{ $index }}][meal_plan]" class="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+                            <select name="rooms[{{ $index }}][meal_plan]" class="mt-1 dark:border-gray-600 app-input">
                                 @foreach ($mealPlans as $plan)
                                     <option value="{{ $plan }}" @selected(($room['meal_plan'] ?? 'room_only') === $plan)>{{ str_replace('_', ' ', ucfirst($plan)) }}</option>
                                 @endforeach
@@ -304,7 +306,7 @@
                         </div>
                         <div>
                             <label class="block text-xs text-gray-500">Qty Available</label>
-                            <input name="rooms[{{ $index }}][quantity_available]" type="number" min="0" value="{{ $room['quantity_available'] ?? '' }}" class="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+                            <input name="rooms[{{ $index }}][quantity_available]" type="number" min="0" value="{{ $room['quantity_available'] ?? '' }}" class="mt-1 dark:border-gray-600 app-input">
                         </div>
                     </div>
 
@@ -322,20 +324,20 @@
                     <div class="mt-3 grid grid-cols-1 gap-3 md:grid-cols-3">
                         <div>
                             <label class="block text-xs text-gray-500">Refundable</label>
-                            <select name="rooms[{{ $index }}][is_refundable]" class="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+                            <select name="rooms[{{ $index }}][is_refundable]" class="mt-1 dark:border-gray-600 app-input">
                                 <option value="0" @selected(($room['is_refundable'] ?? '0') === '0')>No</option>
                                 <option value="1" @selected(($room['is_refundable'] ?? '0') === '1')>Yes</option>
                             </select>
                         </div>
                         <div>
                             <label class="block text-xs text-gray-500">Room Status</label>
-                            <select name="rooms[{{ $index }}][is_active]" class="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+                            <select name="rooms[{{ $index }}][is_active]" class="mt-1 dark:border-gray-600 app-input">
                                 <option value="1" @selected(($room['is_active'] ?? '1') === '1')>Active</option>
                                 <option value="0" @selected(($room['is_active'] ?? '1') === '0')>Inactive</option>
                             </select>
                         </div>
                         <div class="flex items-end justify-end">
-                            <button type="button" class="remove-room-row rounded-lg border border-rose-300 px-3 py-2 text-xs font-medium text-rose-700">Remove Room</button>
+                            <button type="button"  class="remove-room-row rounded-lg border border-rose-300 px-3 py-2 text-xs font-medium text-rose-700">Remove Room</button>
                         </div>
                     </div>
 
@@ -355,10 +357,10 @@
                         <div class="room-existing-images mt-2 grid grid-cols-3 gap-2 md:grid-cols-6">
                             @foreach ($existingRoomImages as $image)
                                 <div class="room-existing-image-item relative overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700" data-image-path="{{ $image }}">
-                                    <input type="hidden" name="rooms[{{ $index }}][existing_images][]" value="{{ $image }}" class="room-existing-image-input">
+                                    <input type="hidden" name="rooms[{{ $index }}][existing_images][]" value="{{ $image }}" class="room-existing-image-inputapp-inputapp-input">
                                     <button
                                         type="button"
-                                        class="room-existing-image-remove absolute right-1 top-1 z-10 inline-flex h-6 w-6 items-center justify-center rounded-full bg-rose-600/95 text-xs font-bold text-white shadow hover:bg-rose-700"
+                                         class="room-existing-image-remove absolute right-1 top-1 z-10 inline-flex h-6 w-6 items-center justify-center rounded-full bg-rose-600/95 text-xs font-bold text-white shadow hover:bg-rose-700"
                                         title="Remove image"
                                         aria-label="Remove image">
                                         X
@@ -396,8 +398,8 @@
     </div>
 
     <div class="flex items-center gap-2">
-        <button class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">{{ $buttonLabel }}</button>
-        <a href="{{ route('accommodations.index') }}" class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700">Cancel</a>
+        <button  class="btn-primary">{{ $buttonLabel }}</button>
+        <a href="{{ route('accommodations.index') }}"  class="btn-secondary">Cancel</a>
     </div>
 </div>
 
@@ -406,33 +408,33 @@
         <div class="grid grid-cols-1 gap-3 md:grid-cols-6">
             <div class="md:col-span-2">
                 <label class="block text-xs text-gray-500">Room Name</label>
-                <input name="rooms[__INDEX__][name]" class="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" required>
+                <input name="rooms[__INDEX__][name]" class="mt-1 dark:border-gray-600 app-input" required>
             </div>
-            <div><label class="block text-xs text-gray-500">Room Type</label><input name="rooms[__INDEX__][room_type]" class="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"></div>
-            <div><label class="block text-xs text-gray-500">Bed Type</label><input name="rooms[__INDEX__][bed_type]" class="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"></div>
-            <div><label class="block text-xs text-gray-500">View</label><input name="rooms[__INDEX__][view_type]" class="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"></div>
-            <div><label class="block text-xs text-gray-500">Max Pax</label><input name="rooms[__INDEX__][max_occupancy]" type="number" min="1" value="2" class="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" required></div>
+            <div><label class="block text-gray-500 app-input">Room Type</label><input name="rooms[__INDEX__][room_type]" class="block text-gray-500 app-input"></div>
+            <div><label class="block text-gray-500 app-input">Bed Type</label><input name="rooms[__INDEX__][bed_type]" class="block text-gray-500 app-input"></div>
+            <div><label class="block text-gray-500 app-input">View</label><input name="rooms[__INDEX__][view_type]" class="block text-gray-500 app-input"></div>
+            <div><label class="block text-gray-500 app-input">Max Pax</label><input name="rooms[__INDEX__][max_occupancy]" type="number" min="1" value="2" class="block text-gray-500 app-input" required></div>
         </div>
 
         <div class="mt-3 grid grid-cols-1 gap-3 md:grid-cols-6">
-            <div><label class="block text-xs text-gray-500">Room Size (sqm)</label><input name="rooms[__INDEX__][room_size_sqm]" type="number" min="1" step="0.01" class="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"></div>
+            <div><label class="block text-gray-500 app-input">Room Size (sqm)</label><input name="rooms[__INDEX__][room_size_sqm]" type="number" min="1" step="0.01" class="block text-gray-500 app-input"></div>
             <div>
                 <label class="block text-xs text-gray-500">Contract Rate</label>
                 <div class="relative">
-                    <input name="rooms[__INDEX__][contract_rate]" type="number" min="0" step="0.01" data-money-input="1" class="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 pr-14 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" required>
+                    <input name="rooms[__INDEX__][contract_rate]" type="number" min="0" step="0.01" data-money-input="1" class="mt-1 pr-14 dark:border-gray-600 app-input" required>
                     <span class="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 rounded-md border border-gray-200 bg-gray-50 px-1.5 py-0.5 text-[10px] font-semibold text-gray-600 shadow-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200">{{ \App\Support\Currency::current() }}</span>
                 </div>
             </div>
             <div>
                 <label class="block text-xs text-gray-500">Publish Rate</label>
                 <div class="relative">
-                    <input name="rooms[__INDEX__][publish_rate]" type="number" min="0" step="0.01" data-money-input="1" class="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 pr-14 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+                    <input name="rooms[__INDEX__][publish_rate]" type="number" min="0" step="0.01" data-money-input="1" class="mt-1 pr-14 dark:border-gray-600 app-input">
                     <span class="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 rounded-md border border-gray-200 bg-gray-50 px-1.5 py-0.5 text-[10px] font-semibold text-gray-600 shadow-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200">{{ \App\Support\Currency::current() }}</span>
                 </div>
             </div>
-            <div><label class="block text-xs text-gray-500">Currency</label><input name="rooms[__INDEX__][currency]" value="IDR" maxlength="3" class="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 uppercase text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" required></div>
-            <div><label class="block text-xs text-gray-500">Meal Plan</label><select name="rooms[__INDEX__][meal_plan]" class="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">@foreach ($mealPlans as $plan)<option value="{{ $plan }}">{{ str_replace('_', ' ', ucfirst($plan)) }}</option>@endforeach</select></div>
-            <div><label class="block text-xs text-gray-500">Qty Available</label><input name="rooms[__INDEX__][quantity_available]" type="number" min="0" class="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"></div>
+            <div><label class="block text-gray-500 app-input">Currency</label><input name="rooms[__INDEX__][currency]" value="IDR" maxlength="3" class="block text-gray-500 app-input" required></div>
+            <div><label class="block text-gray-500 app-input">Meal Plan</label><select name="rooms[__INDEX__][meal_plan]" class="block text-gray-500 app-input">@foreach ($mealPlans as $plan)<option value="{{ $plan }}">{{ str_replace('_', ' ', ucfirst($plan)) }}</option>@endforeach</select></div>
+            <div><label class="block text-gray-500 app-input">Qty Available</label><input name="rooms[__INDEX__][quantity_available]" type="number" min="0" class="block text-gray-500 app-input"></div>
         </div>
 
         <div class="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
@@ -441,9 +443,9 @@
         </div>
 
         <div class="mt-3 grid grid-cols-1 gap-3 md:grid-cols-3">
-            <div><label class="block text-xs text-gray-500">Refundable</label><select name="rooms[__INDEX__][is_refundable]" class="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"><option value="0">No</option><option value="1">Yes</option></select></div>
-            <div><label class="block text-xs text-gray-500">Room Status</label><select name="rooms[__INDEX__][is_active]" class="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"><option value="1">Active</option><option value="0">Inactive</option></select></div>
-            <div class="flex items-end justify-end"><button type="button" class="remove-room-row rounded-lg border border-rose-300 px-3 py-2 text-xs font-medium text-rose-700">Remove Room</button></div>
+            <div><label class="block text-gray-500 app-input">Refundable</label><select name="rooms[__INDEX__][is_refundable]" class="block text-gray-500 app-input"><option value="0">No</option><option value="1">Yes</option></select></div>
+            <div><label class="block text-gray-500 app-input">Room Status</label><select name="rooms[__INDEX__][is_active]" class="block text-gray-500 app-input"><option value="1">Active</option><option value="0">Inactive</option></select></div>
+            <div class="flex items-end justify-end"><button type="button"  class="remove-room-row rounded-lg border border-rose-300 px-3 py-2 text-xs font-medium text-rose-700">Remove Room</button></div>
         </div>
 
         <div class="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
@@ -639,3 +641,6 @@
 })();
 </script>
 @endpush
+
+
+

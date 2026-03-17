@@ -3,9 +3,11 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Destination extends Model
 {
+    use SoftDeletes;
     protected $fillable = [
         'code',
         'name',
@@ -54,3 +56,9 @@ class Destination extends Model
         return $this->hasMany(Transport::class);
     }
 }
+
+
+
+
+
+
