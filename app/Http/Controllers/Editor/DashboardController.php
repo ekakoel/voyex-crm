@@ -16,18 +16,30 @@ class DashboardController extends Controller
 {
     public function index()
     {
+        $user = auth()->user();
+        $canDestinations = (bool) $user?->can('module.destinations.access');
+        $canVendors = (bool) $user?->can('module.vendor_management.access');
+        $canActivities = (bool) $user?->can('module.activities.access');
+        $canAccommodations = (bool) $user?->can('module.accommodations.access');
+
         $catalogCounts = [
-            'destinations' => Destination::query()->count(),
-            'vendors' => Vendor::query()->count(),
-            'activities' => Activity::query()->count(),
-            'accommodations' => Accommodation::query()->count(),
+            'destinations' => $canDestinations ? Destination::query()->count() : 0,
+            'vendors' => $canVendors ? Vendor::query()->count() : 0,
+            'activities' => $canActivities ? Activity::query()->count() : 0,
+            'accommodations' => $canAccommodations ? Accommodation::query()->count() : 0,
         ];
 
-        $recentDestinations = Destination::query()->latest()->limit(5)->get(['id', 'name', 'updated_at']);
+        $recentDestinations = $canDestinations
+            ? Destination::query()->latest()->limit(5)->get(['id', 'name', 'updated_at'])
+            : collect();
 
         return view('editor.dashboard', compact(
             'catalogCounts',
-            'recentDestinations'
+            'recentDestinations',
+            'canDestinations',
+            'canVendors',
+            'canActivities',
+            'canAccommodations'
         ));
     }
 }

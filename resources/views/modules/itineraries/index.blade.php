@@ -74,9 +74,6 @@
                             </td>
                             <td class="px-4 py-3 text-sm">
                                 <x-status-badge :status="$itinerary->status" size="xs" />
-                                @if (! $itinerary->is_active)
-                                    <span class="ml-2 rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600 dark:bg-gray-700 dark:text-gray-200">Inactive</span>
-                                @endif
                             </td>
                             <td class="px-4 py-3 text-right text-sm actions-compact">
     <div class="flex items-center justify-end gap-2">
@@ -85,19 +82,7 @@
                                     @if (!($itinerary->quotation && ($itinerary->quotation->status ?? '') === 'approved') && ! $itinerary->isFinal())
                                         <a href="{{ route('itineraries.edit', $itinerary) }}"  class="btn-secondary-sm" title="Edit" aria-label="Edit"><i class="fa-solid fa-pen"></i><span class="sr-only">Edit</span></a>
                                     @endif
-                                @endcan
-                                @can('delete', $itinerary)
-                                    @if (!$itinerary->quotation && ! $itinerary->isFinal())
-                                        <form action="{{ route('itineraries.toggle-status', $itinerary->id) }}" method="POST" class="inline">
-                                            @csrf
-                                            @method('PATCH')
-                                            <button type="submit" onclick="return confirm('{{ $itinerary->trashed() ? 'Activate this itinerary?' : 'Deactivate this itinerary?' }}')"   class="{{ $itinerary->trashed() ? 'btn-primary-sm' : 'btn-muted-sm' }}">{{ $itinerary->trashed() ? 'Activate' : 'Deactivate' }}</button>
-                                        </form>
-                                    @else
-                                        <span class="btn-outline-sm opacity-60 cursor-not-allowed" title="Itinerary terhubung dengan data lain atau sudah final. Hapus data terkait terlebih dahulu.">Delete</span>
-                                    @endif
-                                @endcan
-    </div>
+                                @endcan</div>
 </td>
                         </tr>
                     @empty
@@ -127,19 +112,7 @@
                             @if (!($itinerary->quotation && ($itinerary->quotation->status ?? '') === 'approved') && ! $itinerary->isFinal())
                                 <a href="{{ route('itineraries.edit', $itinerary) }}"  class="btn-secondary-sm" title="Edit" aria-label="Edit"><i class="fa-solid fa-pen"></i><span class="sr-only">Edit</span></a>
                             @endif
-                        @endcan
-                        @can('delete', $itinerary)
-                            @if (!$itinerary->quotation && ! $itinerary->isFinal())
-                                <form action="{{ route('itineraries.toggle-status', $itinerary->id) }}" method="POST" class="inline">
-                                    @csrf
-                                    @method('PATCH')
-                                    <button type="submit" onclick="return confirm('{{ $itinerary->trashed() ? 'Activate this itinerary?' : 'Deactivate this itinerary?' }}')"   class="{{ $itinerary->trashed() ? 'btn-primary-sm' : 'btn-muted-sm' }}">{{ $itinerary->trashed() ? 'Activate' : 'Deactivate' }}</button>
-                                </form>
-                            @else
-                                <span class="btn-outline-sm opacity-60 cursor-not-allowed" title="Itinerary terhubung dengan data lain atau sudah final. Hapus data terkait terlebih dahulu.">Delete</span>
-                            @endif
-                        @endcan
-                    </div>
+                        @endcan</div>
                 </div>
             @empty
                 <div class="app-card p-6 text-center text-sm text-gray-500 dark:text-gray-400">No itineraries available.</div>

@@ -38,9 +38,7 @@
                                 {{ $vendor->province ?? '-' }}</p>
                             <p class="text-xs text-gray-500 dark:text-gray-400">{{ $vendor->contact_email ?? '-' }}</p>
                             <p class="mt-2 text-xs">
-                                <span class="rounded-full px-2 py-0.5 text-[11px] font-semibold {{ $vendor->is_active ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300' : 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300' }}">
-                                    {{ $vendor->is_active ? 'Active' : 'Inactive' }}
-                                </span>
+                                <x-status-badge :status="$vendor->is_active ? 'active' : 'inactive'" size="xs" />
                             </p>
                             <div class="mt-3 flex flex-wrap gap-2">
                                 <a href="{{ route('vendors.edit', $vendor) }}" class="btn-secondary-sm" title="Edit" aria-label="Edit"><i class="fa-solid fa-pen"></i><span class="sr-only">Edit</span></a>
@@ -100,9 +98,7 @@
                                             {{ $vendor->contact_phone ?? '-' }}
                                         </td>
                                         <td class="px-4 py-3 text-center text-sm">
-                                            <span class="rounded-full px-2 py-0.5 text-[11px] font-semibold {{ $vendor->is_active ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300' : 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300' }}">
-                                                {{ $vendor->is_active ? 'Active' : 'Inactive' }}
-                                            </span>
+                                            <x-status-badge :status="$vendor->is_active ? 'active' : 'inactive'" size="xs" />
                                         </td>
                                         <td class="px-4 py-3 text-right text-sm actions-compact">
                                             <div class="flex items-center justify-end gap-2">

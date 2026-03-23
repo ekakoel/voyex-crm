@@ -107,11 +107,7 @@
                             <td class="px-4 py-3 text-sm text-right text-gray-700 dark:text-gray-200">{{ number_format((float) $currency->rate_to_idr, 6, '.', ',') }}</td>
                             <td class="px-4 py-3 text-sm text-right text-gray-700 dark:text-gray-200">{{ $currency->decimal_places }}</td>
                             <td class="px-4 py-3 text-sm text-center">
-                                @if ($currency->is_active)
-                                    <span class="rounded-full bg-emerald-100 px-2 py-1 text-[11px] font-semibold text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">Active</span>
-                                @else
-                                    <span class="rounded-full bg-gray-100 px-2 py-1 text-[11px] font-semibold text-gray-600 dark:bg-gray-700/60 dark:text-gray-300">Inactive</span>
-                                @endif
+                                <x-status-badge :status="$currency->is_active ? 'active' : 'inactive'" size="xs" />
                             </td>
                             <td class="px-4 py-3 text-right text-sm actions-compact">
     <div class="flex items-center justify-end gap-2">
@@ -155,11 +151,7 @@
                         <div>{{ $currency->decimal_places }}</div>
                         <div>Status</div>
                         <div>
-                            @if ($currency->is_active)
-                                <span class="rounded-full bg-emerald-100 px-2 py-1 text-[11px] font-semibold text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">Active</span>
-                            @else
-                                <span class="rounded-full bg-gray-100 px-2 py-1 text-[11px] font-semibold text-gray-600 dark:bg-gray-700/60 dark:text-gray-300">Inactive</span>
-                            @endif
+                            <x-status-badge :status="$currency->is_active ? 'active' : 'inactive'" size="xs" />
                         </div>
                     </div>
                     <div class="mt-3 flex flex-wrap gap-2">

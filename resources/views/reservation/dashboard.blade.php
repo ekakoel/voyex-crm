@@ -2,11 +2,58 @@
 
 @section('content')
 @php
-    $kpiCards = [
-        ['label' => 'Quotations Ready to Book', 'value' => $kpis['ready_to_book'] ?? 0, 'icon' => 'file-circle-check', 'color' => 'amber'],
-        ['label' => 'Upcoming Trips', 'value' => $kpis['upcoming_trips'] ?? 0, 'icon' => 'plane-departure', 'color' => 'sky'],
-        ['label' => 'Trips Pending Closure', 'value' => $kpis['pending_closure'] ?? 0, 'icon' => 'calendar-times', 'color' => 'rose'],
-        ['label' => 'Total Booked Value', 'value' => $kpis['total_booked_value'] ?? 0, 'icon' => 'wallet', 'color' => 'emerald', 'format' => 'money'],
+    $kpiCards = [];
+    if ($canBookings) {
+        $kpiCards[] = [
+            'label' => 'Bookings (This Month)',
+            'value' => $bookingCountMonth ?? 0,
+            'icon' => 'calendar-check',
+            'color' => 'emerald',
+            'breakdown' => $bookingStatusBreakdown ?? [],
+        ];
+    }
+    if ($canQuotations && $canBookings) {
+        $kpiCards[] = ['label' => 'Quotations Ready to Book', 'value' => $kpis['ready_to_book'] ?? 0, 'icon' => 'file-circle-check', 'color' => 'amber'];
+    }
+    if ($canBookings) {
+        $kpiCards[] = ['label' => 'Upcoming Trips', 'value' => $kpis['upcoming_trips'] ?? 0, 'icon' => 'plane-departure', 'color' => 'sky'];
+        $kpiCards[] = ['label' => 'Trips Pending Closure', 'value' => $kpis['pending_closure'] ?? 0, 'icon' => 'calendar-times', 'color' => 'rose'];
+    }
+    if ($canInquiries) {
+        $kpiCards[] = [
+            'label' => 'Inquiries',
+            'value' => $inquiryCount ?? 0,
+            'icon' => 'circle-question',
+            'color' => 'sky',
+            'statusCounts' => $inquiryStatusCounts ?? [],
+        ];
+    }
+    if ($canItineraries) {
+        $kpiCards[] = [
+            'label' => 'Itineraries',
+            'value' => $itineraryCount ?? 0,
+            'icon' => 'route',
+            'color' => 'indigo',
+            'statusCounts' => $itineraryStatusCounts ?? [],
+        ];
+    }
+    if ($canQuotations) {
+        $kpiCards[] = [
+            'label' => 'Quotations',
+            'value' => $quotationCount ?? 0,
+            'icon' => 'file-invoice-dollar',
+            'color' => 'teal',
+            'statusCounts' => $quotationStatusCounts ?? [],
+        ];
+    }
+
+    $statusBadges = [
+        'draft' => ['label' => 'D', 'bg' => 'bg-slate-100', 'text' => 'text-slate-700'],
+        'processed' => ['label' => 'PR', 'bg' => 'bg-sky-100', 'text' => 'text-sky-700'],
+        'pending' => ['label' => 'P', 'bg' => 'bg-amber-100', 'text' => 'text-amber-700'],
+        'approved' => ['label' => 'A', 'bg' => 'bg-emerald-100', 'text' => 'text-emerald-700'],
+        'rejected' => ['label' => 'R', 'bg' => 'bg-rose-100', 'text' => 'text-rose-700'],
+        'final' => ['label' => 'F', 'bg' => 'bg-violet-100', 'text' => 'text-violet-700'],
     ];
 @endphp
 
@@ -14,120 +61,233 @@
     @section('page_title', 'Reservation Dashboard')
     @section('page_subtitle', 'Manage approved quotations and monitor upcoming travel schedules.')
     @section('page_actions')
-         <a href="{{ route('bookings.index') }}"  class="btn-primary-sm">
-            <i class="fa-solid fa-calendar-check mr-2"></i>View All Bookings
-        </a>
+        @if($canBookings)
+             <a href="{{ route('bookings.index') }}"  class="btn-primary-sm">
+                <i class="fa-solid fa-calendar-check mr-2"></i>View All Bookings
+            </a>
+        @endif
     @endsection
 
     <div class="space-y-3">
-       <div class="sa-card p-5">
-             <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                @foreach($kpiCards as $card)
-                    <div class="sa-kpi sa-kpi-sm">
-                        <div class="flex items-center justify-between">
-                            <span class="sa-dot sa-{{ $card['color'] }}"><i class="fa-solid fa-{{ $card['icon'] }}"></i></span>
-                        </div>
-                        <p>{{ $card['label'] }}</p>
-                        <b>
-                            @if(($card['format'] ?? null) === 'money')
-                                <x-money :amount="$card['value']" />
-                            @else
-                                {{ number_format($card['value']) }}
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-6">
+            @foreach($kpiCards as $card)
+                <div class="app-card p-4">
+                    <div class="flex items-center justify-between h-full relative">
+                        <div class="data-card">
+                            <p class="text-xs font-semibold uppercase tracking-wide text-gray-400">{{ $card['label'] }}</p>
+                            @if(! empty($card['breakdown'] ?? null))
+                                <div class="mt-2 flex flex-wrap gap-1.5">
+                                    @foreach($card['breakdown'] as $item)
+                                        @php($itemCount = (int) ($item['count'] ?? 0))
+                                        @if($itemCount > 0)
+                                            <span class="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-semibold uppercase {{ $item['bg'] ?? 'bg-slate-100' }} {{ $item['text'] ?? 'text-slate-700' }}">
+                                                <span>{{ $item['label'] ?? '-' }}</span>
+                                                <span>{{ $itemCount }}</span>
+                                            </span>
+                                        @endif
+                                    @endforeach
+                                </div>
+                            @elseif(! empty($card['statusCounts'] ?? null))
+                                <div class="mt-2 flex flex-wrap gap-1.5">
+                                    @foreach($statusBadges as $statusKey => $badge)
+                                        @php($statusTotal = (int) ($card['statusCounts'][$statusKey] ?? 0))
+                                        @if($statusTotal > 0)
+                                            <span class="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-semibold uppercase {{ $badge['bg'] }} {{ $badge['text'] }}">
+                                                <span>{{ $badge['label'] }}</span>
+                                                <span>{{ $statusTotal }}</span>
+                                            </span>
+                                        @endif
+                                    @endforeach
+                                </div>
+                            @elseif(! empty($card['caption'] ?? null))
+                                <p class="mt-1 text-[11px] font-medium text-slate-500">{{ $card['caption'] }}</p>
                             @endif
-                        </b>
+                            <p class="mt-2 text-2xl font-semibold text-gray-900">
+                                @if(($card['format'] ?? null) === 'money')
+                                    <x-money :amount="$card['value']" />
+                                @else
+                                    {{ number_format($card['value']) }}
+                                @endif
+                            </p>
+                            
+                        </div>
+                        <div class="icon-kpi icon-kpi--{{ $card['color'] ?? 'slate' }}">
+                            <i class="fa-solid fa-{{ $card['icon'] }}"></i>
+                        </div>
                     </div>
-                @endforeach
-            </div>
+                </div>
+            @endforeach
         </div>
 
-        <div class="sa-card p-5">
-            <div class="flex items-center justify-between">
-                <h2 class="text-sm font-semibold text-slate-900 dark:text-slate-100">Action Center: Approved Quotations to Book</h2>
-                 <a href="{{ route('quotations.index', ['status' => 'approved']) }}" class="text-xs font-medium text-indigo-600 hover:text-indigo-500 dark:text-indigo-400">View all</a>
-            </div>
-            <div class="mt-3 flow-root">
-                <div class="-my-2 overflow-x-auto">
-                    <div class="inline-block min-w-full py-2 align-middle">
-                        <div class="relative overflow-hidden app-card">
-                             <table class="app-table min-w-full table-fixed divide-y divide-slate-200 dark:divide-slate-700">
-                                <tbody class="divide-y divide-slate-200 bg-white dark:divide-slate-700 dark:bg-slate-900">
-                                    @forelse($readyToBookQuotations as $quotation)
-                                    <tr>
-                                        <td class="whitespace-nowrap px-3 py-2 text-sm font-medium text-slate-900 dark:text-slate-200">
-                                            <a href="{{ route('quotations.show', $quotation) }}"  class="font-bold hover:text-indigo-600">
-                                                {{ $quotation->quotation_number }}
-                                            </a>
-                                            <p class="text-xs text-slate-500 dark:text-slate-400">
-                                                {{ $quotation->inquiry?->customer?->name ?? 'N/A' }}
-                                            </p>
-                                        </td>
-                                        <td class="whitespace-nowrap px-3 py-2 text-sm text-slate-500 dark:text-slate-300">
-                                            <p class="font-semibold text-slate-700 dark:text-slate-200"><x-money :amount="$quotation->final_amount" /></p>
-                                            <p class="text-xs">Final Amount</p>
-                                        </td>
-                                        <td class="whitespace-nowrap px-3 py-2 text-sm text-slate-500 dark:text-slate-300">
-                                             <p class="font-semibold text-slate-700 dark:text-slate-200">{{ $quotation->updated_at->format('d M, Y') }}</p>
-                                             <p class="text-xs">Approved Date</p>
-                                        </td>
-                                        <td class="whitespace-nowrap px-3 py-2 text-right text-sm">
-                                            <a href="{{ route('bookings.create', ['quotation_id' => $quotation->id]) }}" class="btn-primary-sm">
-                                                <i class="fa-solid fa-plus-circle mr-2"></i>Create Booking
-                                            </a>
-                                        </td>
-                                    </tr>
-                                    @empty
-                                    <tr>
-                                        <td colspan="4" class="py-8 text-center text-sm text-slate-500 dark:text-slate-400">
-                                            No approved quotations ready for booking.
-                                        </td>
-                                    </tr>
-                                    @endforelse
-                                </tbody>
-                             </table>
+        @if($canBookings)
+            <div class="grid grid-cols-1 gap-3 lg:grid-cols-3">
+                <div class="app-card p-4">
+                    <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100">Booking Insights (This Month)</h3>
+                    <div class="mt-3 space-y-2 text-xs text-slate-600 dark:text-slate-300">
+                        <div class="flex items-center justify-between">
+                            <span>Top Destination</span>
+                            <span class="font-semibold text-slate-700 dark:text-slate-100">{{ $topDestinationSummary ?? '?' }}</span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span>Avg SLA (Approval ? Booking)</span>
+                            <span class="font-semibold text-slate-700 dark:text-slate-100">
+                                {{ $slaDaysAvg !== null ? number_format($slaDaysAvg, 1) . ' days' : '?' }}
+                            </span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span>Overdue to Close</span>
+                            <span class="font-semibold text-rose-600 dark:text-rose-300">{{ number_format($overdueCloseCount ?? 0) }}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="app-card p-4">
+                    <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100">Weekly Booking Trend</h3>
+                    @php($maxWeekly = max(array_column($weeklyBookingTrend ?? [], 'count') ?: [0]))
+                    <div class="mt-3 space-y-2">
+                        @forelse($weeklyBookingTrend ?? [] as $week)
+                            @php($pct = $maxWeekly > 0 ? ($week['count'] / $maxWeekly) * 100 : 0)
+                            <div class="space-y-1">
+                                <div class="flex items-center justify-between text-xs text-slate-600 dark:text-slate-300">
+                                    <span>{{ $week['label'] }}</span>
+                                    <span class="font-semibold text-slate-700 dark:text-slate-100">{{ $week['count'] }}</span>
+                                </div>
+                                <div class="h-2 rounded-full bg-slate-100 dark:bg-slate-800">
+                                    <div class="h-2 rounded-full bg-teal-500" style="width: {{ $pct }}%"></div>
+                                </div>
+                            </div>
+                        @empty
+                            <p class="text-xs text-slate-500 dark:text-slate-400">No booking data this period.</p>
+                        @endforelse
+                    </div>
+                </div>
+
+                <div class="app-card p-4">
+                    <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100">Booking Performance (This Month)</h3>
+                    <div class="mt-3 space-y-3">
+                        <div>
+                            <p class="text-[11px] font-semibold uppercase text-slate-500 dark:text-slate-400">By Staff</p>
+                            <div class="mt-2 space-y-1">
+                                @forelse($bookingByStaff ?? [] as $row)
+                                    <div class="flex items-center justify-between text-xs">
+                                        <span class="text-slate-600 dark:text-slate-300">{{ $row->name }}</span>
+                                        <span class="font-semibold text-slate-700 dark:text-slate-100">{{ $row->total }}</span>
+                                    </div>
+                                @empty
+                                    <p class="text-xs text-slate-500 dark:text-slate-400">No booking data.</p>
+                                @endforelse
+                            </div>
+                        </div>
+                        <div>
+                            <p class="text-[11px] font-semibold uppercase text-slate-500 dark:text-slate-400">Top Customers</p>
+                            <div class="mt-2 space-y-1">
+                                @forelse($topCustomers ?? [] as $row)
+                                    <div class="flex items-center justify-between text-xs">
+                                        <span class="text-slate-600 dark:text-slate-300">{{ $row->name }}</span>
+                                        <span class="font-semibold text-slate-700 dark:text-slate-100"><x-money :amount="$row->total_value" /></span>
+                                    </div>
+                                @empty
+                                    <p class="text-xs text-slate-500 dark:text-slate-400">No booking data.</p>
+                                @endforelse
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
+        @endif
 
-        <div class="grid grid-cols-1 gap-3 lg:grid-cols-2">
-            <div class="sa-card p-4">
-                <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100">Upcoming Trips (Next 30 Days)</h3>
-                <div class="mt-3 space-y-2">
-                    @forelse($upcomingTrips as $booking)
-                        <a href="{{ route('bookings.show', $booking) }}"  class="block rounded-lg bg-slate-50 px-3 py-2 text-xs hover:bg-slate-100 dark:bg-slate-800/50 dark:hover:bg-slate-800">
-                            <div class="flex items-center justify-between">
-                                <p class="font-bold text-slate-700 dark:text-slate-200">{{ $booking->booking_number }}</p>
-                                <span class="font-semibold text-slate-600 dark:text-slate-300">{{ $booking->travel_date->format('d M, Y') }}</span>
+        @if($canQuotations && $canBookings)
+            <div class="sa-card p-5">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-sm font-semibold text-slate-900 dark:text-slate-100">Action Center: Approved Quotations to Book</h2>
+                     <a href="{{ route('quotations.index', ['status' => 'approved']) }}" class="text-xs font-medium text-indigo-600 hover:text-indigo-500 dark:text-indigo-400">View all</a>
+                </div>
+                <div class="mt-3 flow-root">
+                    <div class="-my-2 overflow-x-auto">
+                        <div class="inline-block min-w-full py-2 align-middle">
+                            <div class="relative overflow-hidden app-card">
+                                 <table class="app-table min-w-full table-fixed divide-y divide-slate-200 dark:divide-slate-700">
+                                    <tbody class="divide-y divide-slate-200 bg-white dark:divide-slate-700 dark:bg-slate-900">
+                                        @forelse($readyToBookQuotations as $quotation)
+                                        <tr>
+                                            <td class="whitespace-nowrap px-3 py-2 text-sm font-medium text-slate-900 dark:text-slate-200">
+                                                <a href="{{ route('quotations.show', $quotation) }}"  class="font-bold hover:text-indigo-600">
+                                                    {{ $quotation->quotation_number }}
+                                                </a>
+                                                <p class="text-xs text-slate-500 dark:text-slate-400">
+                                                    {{ $quotation->inquiry?->customer?->name ?? 'N/A' }}
+                                                </p>
+                                            </td>
+                                            <td class="whitespace-nowrap px-3 py-2 text-sm text-slate-500 dark:text-slate-300">
+                                                <p class="font-semibold text-slate-700 dark:text-slate-200"><x-money :amount="$quotation->final_amount" /></p>
+                                                <p class="text-xs">Final Amount</p>
+                                            </td>
+                                            <td class="whitespace-nowrap px-3 py-2 text-sm text-slate-500 dark:text-slate-300">
+                                                 <p class="font-semibold text-slate-700 dark:text-slate-200">{{ $quotation->updated_at->format('d M, Y') }}</p>
+                                                 <p class="text-xs">Approved Date</p>
+                                            </td>
+                                            <td class="whitespace-nowrap px-3 py-2 text-right text-sm">
+                                                <a href="{{ route('bookings.create', ['quotation_id' => $quotation->id]) }}" class="btn-primary-sm">
+                                                    <i class="fa-solid fa-plus-circle mr-2"></i>Create Booking
+                                                </a>
+                                            </td>
+                                        </tr>
+                                        @empty
+                                        <tr>
+                                            <td colspan="4" class="py-8 text-center text-sm text-slate-500 dark:text-slate-400">
+                                                No approved quotations ready for booking.
+                                            </td>
+                                        </tr>
+                                        @endforelse
+                                    </tbody>
+                                 </table>
                             </div>
-                            <p class="text-slate-500 dark:text-slate-400">
-                                Customer: {{ $booking->quotation?->inquiry?->customer?->name ?? 'N/A' }}
-                            </p>
-                        </a>
-                    @empty
-                        <p class="py-4 text-center text-xs text-slate-500 dark:text-slate-400">No upcoming trips.</p>
-                    @endforelse
+                        </div>
+                    </div>
                 </div>
             </div>
-            <div class="sa-card p-4">
-                <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100">Recently Confirmed Bookings</h3>
-                <div class="mt-3 space-y-2">
-                    @forelse($recentBookings as $booking)
-                        <a href="{{ route('bookings.show', $booking) }}"  class="block rounded-lg bg-slate-50 px-3 py-2 text-xs hover:bg-slate-100 dark:bg-slate-800/50 dark:hover:bg-slate-800">
-                            <div class="flex items-center justify-between">
-                                <p class="font-bold text-slate-700 dark:text-slate-200">{{ $booking->booking_number }}</p>
-                                <x-status-badge :status="$booking->status" />
-                            </div>
-                            <p class="text-slate-500 dark:text-slate-400">
-                                Confirmed on {{ $booking->created_at->format('d M, Y') }}
-                            </p>
-                        </a>
-                    @empty
-                        <p class="py-4 text-center text-xs text-slate-500 dark:text-slate-400">No recent bookings.</p>
-                    @endforelse
+        @endif
+
+        @if($canBookings)
+            <div class="grid grid-cols-1 gap-3 lg:grid-cols-2">
+                <div class="sa-card p-4">
+                    <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100">Upcoming Trips (Next 30 Days)</h3>
+                    <div class="mt-3 space-y-2">
+                        @forelse($upcomingTrips as $booking)
+                            <a href="{{ route('bookings.show', $booking) }}"  class="block rounded-lg bg-slate-50 px-3 py-2 text-xs hover:bg-slate-100 dark:bg-slate-800/50 dark:hover:bg-slate-800">
+                                <div class="flex items-center justify-between">
+                                    <p class="font-bold text-slate-700 dark:text-slate-200">{{ $booking->booking_number }}</p>
+                                    <span class="font-semibold text-slate-600 dark:text-slate-300">{{ $booking->travel_date->format('d M, Y') }}</span>
+                                </div>
+                                <p class="text-slate-500 dark:text-slate-400">
+                                    Customer: {{ $booking->quotation?->inquiry?->customer?->name ?? 'N/A' }}
+                                </p>
+                            </a>
+                        @empty
+                            <p class="py-4 text-center text-xs text-slate-500 dark:text-slate-400">No upcoming trips.</p>
+                        @endforelse
+                    </div>
+                </div>
+                <div class="sa-card p-4">
+                    <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100">Recently Confirmed Bookings</h3>
+                    <div class="mt-3 space-y-2">
+                        @forelse($recentBookings as $booking)
+                            <a href="{{ route('bookings.show', $booking) }}"  class="block rounded-lg bg-slate-50 px-3 py-2 text-xs hover:bg-slate-100 dark:bg-slate-800/50 dark:hover:bg-slate-800">
+                                <div class="flex items-center justify-between">
+                                    <p class="font-bold text-slate-700 dark:text-slate-200">{{ $booking->booking_number }}</p>
+                                    <x-status-badge :status="$booking->status" />
+                                </div>
+                                <p class="text-slate-500 dark:text-slate-400">
+                                    Confirmed on {{ $booking->created_at->format('d M, Y') }}
+                                </p>
+                            </a>
+                        @empty
+                            <p class="py-4 text-center text-xs text-slate-500 dark:text-slate-400">No recent bookings.</p>
+                        @endforelse
+                    </div>
                 </div>
             </div>
-        </div>
+        @endif
 
     </div>
 </div>
@@ -144,5 +304,6 @@
     })();
 </script>
 @endpush
+
 
 

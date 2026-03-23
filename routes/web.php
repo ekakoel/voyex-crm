@@ -166,14 +166,7 @@ Route::middleware('auth')->group(function () {
             'module:inquiries',
             'permission:module.inquiries.access',
             'module.permission:inquiries',
-        ]);
-    Route::patch('inquiries/{inquiry}/toggle-status', [SalesInquiryController::class, 'toggleStatus'])
-        ->name('inquiries.toggle-status')
-        ->middleware([
-            'module:inquiries',
-            'permission:module.inquiries.access',
-            'module.permission:inquiries',
-        ]);
+        ])->except(['destroy']);
     Route::post('inquiries/{inquiry}/followups', [SalesInquiryController::class, 'storeFollowUp'])
         ->name('inquiries.followups.store')
         ->middleware([
@@ -300,14 +293,7 @@ Route::middleware('auth')->group(function () {
                 'permission:module.itineraries.access',
                 'module.permission:itineraries',
             ]);
-        Route::resource('itineraries', AdminItineraryController::class)
-            ->middleware([
-                'module:itineraries',
-                'permission:module.itineraries.access',
-                'module.permission:itineraries',
-            ]);
-        Route::patch('itineraries/{itinerary}/toggle-status', [AdminItineraryController::class, 'toggleStatus'])
-            ->name('itineraries.toggle-status')
+        Route::resource('itineraries', AdminItineraryController::class)->except(['destroy'])
             ->middleware([
                 'module:itineraries',
                 'permission:module.itineraries.access',

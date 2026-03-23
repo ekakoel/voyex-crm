@@ -2,11 +2,16 @@
 
 @section('content')
 @php
-    $kpiCards = [
-        ['label' => 'Monthly Revenue', 'value' => $monthlyRevenue ?? 0, 'icon' => 'wallet', 'color' => 'emerald', 'format' => 'money'],
-        ['label' => 'Conversion Rate', 'value' => $conversionRate ?? 0, 'icon' => 'chart-line', 'color' => 'indigo', 'suffix' => '%'],
-        ['label' => 'Pending Approvals', 'value' => count($pendingApprovals ?? []), 'icon' => 'file-circle-check', 'color' => 'amber'],
-    ];
+    $kpiCards = [];
+    if ($canBookings) {
+        $kpiCards[] = ['label' => 'Monthly Revenue', 'value' => $monthlyRevenue ?? 0, 'icon' => 'wallet', 'color' => 'emerald', 'format' => 'money'];
+    }
+    if ($canBookings && $canInquiries) {
+        $kpiCards[] = ['label' => 'Conversion Rate', 'value' => $conversionRate ?? 0, 'icon' => 'chart-line', 'color' => 'indigo', 'suffix' => '%'];
+    }
+    if ($canQuotations) {
+        $kpiCards[] = ['label' => 'Pending Approvals', 'value' => count($pendingApprovals ?? []), 'icon' => 'file-circle-check', 'color' => 'amber'];
+    }
 @endphp
 
 <div class="sa-wrap rounded-3xl border border-slate-200/80 bg-slate-100/70 p-3 dark:border-slate-700 dark:bg-slate-900/60">
@@ -39,22 +44,24 @@
                 </div>
             </div>
 
-            <div class="sa-card p-5">
-                <div class="flex items-center justify-between">
-                    <h2 class="text-sm font-semibold text-slate-900 dark:text-slate-100">Pending Approvals</h2>
-                    <span class="text-[11px] text-slate-500 dark:text-slate-400">Quotation approvals</span>
+            @if($canQuotations)
+                <div class="sa-card p-5">
+                    <div class="flex items-center justify-between">
+                        <h2 class="text-sm font-semibold text-slate-900 dark:text-slate-100">Pending Approvals</h2>
+                        <span class="text-[11px] text-slate-500 dark:text-slate-400">Quotation approvals</span>
+                    </div>
+                    <div class="mt-3 space-y-2 text-xs">
+                        @forelse($pendingApprovals as $quotation)
+                            <div class="rounded-xl border border-slate-200 bg-white px-3 py-2 dark:border-slate-700 dark:bg-slate-900">
+                                <p class="font-medium text-slate-700 dark:text-slate-200">{{ $quotation->quotation_number }}</p>
+                                <p class="text-slate-500 dark:text-slate-400">{{ ucfirst($quotation->status) }}</p>
+                            </div>
+                        @empty
+                            <p class="text-xs text-slate-500 dark:text-slate-400">No pending approvals.</p>
+                        @endforelse
+                    </div>
                 </div>
-                <div class="mt-3 space-y-2 text-xs">
-                    @forelse($pendingApprovals as $quotation)
-                        <div class="rounded-xl border border-slate-200 bg-white px-3 py-2 dark:border-slate-700 dark:bg-slate-900">
-                            <p class="font-medium text-slate-700 dark:text-slate-200">{{ $quotation->quotation_number }}</p>
-                            <p class="text-slate-500 dark:text-slate-400">{{ ucfirst($quotation->status) }}</p>
-                        </div>
-                    @empty
-                        <p class="text-xs text-slate-500 dark:text-slate-400">No pending approvals.</p>
-                    @endforelse
-                </div>
-            </div>
+            @endif
         </section>
 
         <aside  class="xl:col-span-4 space-y-3">

@@ -52,9 +52,7 @@
                             </td>
                             <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">{{ $touristAttraction->city ?? '-' }} / {{ $touristAttraction->province ?? '-' }}</td>
                             <td class="px-4 py-3 text-center text-sm">
-                                <span class="rounded-full px-2 py-0.5 text-[11px] font-semibold {{ $isActive ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300' : 'bg-gray-200 text-gray-700 dark:bg-gray-700/60 dark:text-gray-300' }}">
-                                    {{ $isActive ? 'Active' : 'Inactive' }}
-                                </span>
+                                <x-status-badge :status="$isActive ? 'active' : 'inactive'" size="xs" />
                             </td>
                             <td class="px-4 py-3 text-right text-sm actions-compact">
     <div class="flex items-center justify-end gap-2">
@@ -85,7 +83,7 @@
                     <p class="text-xs text-gray-500 dark:text-gray-400">Entrance: {{ $touristAttraction->entrance_fee_per_pax !== null ? \App\Support\Currency::format((float) $touristAttraction->entrance_fee_per_pax, $touristAttraction->currency ?? 'IDR') : '-' }} / pax</p>
                     <p class="text-xs text-gray-500 dark:text-gray-400">{{ $touristAttraction->other_fee_label ?: 'Other Fee' }}: {{ $touristAttraction->other_fee_per_pax !== null ? \App\Support\Currency::format((float) $touristAttraction->other_fee_per_pax, $touristAttraction->currency ?? 'IDR') : '-' }} / pax</p>
                     <p class="text-xs text-gray-500 dark:text-gray-400">{{ $touristAttraction->city ?? '-' }} / {{ $touristAttraction->province ?? '-' }}</p>
-                    <p class="text-xs text-gray-500 dark:text-gray-400">Status: {{ $touristAttraction->trashed() ? 'Inactive' : 'Active' }}</p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">Status: <x-status-badge :status="$touristAttraction->trashed() ? 'inactive' : 'active'" size="xs" /></p>
                     <div class="mt-3 flex flex-wrap gap-2">
                         <a href="{{ route('tourist-attractions.edit', $touristAttraction) }}"  class="btn-secondary-sm" title="Edit" aria-label="Edit"><i class="fa-solid fa-pen"></i><span class="sr-only">Edit</span></a>
                         <form action="{{ route('tourist-attractions.toggle-status', $touristAttraction->id) }}" method="POST" class="inline">

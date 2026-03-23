@@ -24,50 +24,86 @@ class DashboardController extends Controller
 {
     public function index()
     {
+        $user = auth()->user();
+        $canUsers = (bool) $user?->can('module.user_manager.access');
+        $canRoles = (bool) $user?->can('module.role_manager.access');
+        $canServices = (bool) $user?->can('module.service_manager.access');
+        $canCustomers = (bool) $user?->can('module.customer_management.access');
+        $canInquiries = (bool) $user?->can('module.inquiries.access');
+        $canQuotations = (bool) $user?->can('module.quotations.access');
+        $canBookings = (bool) $user?->can('module.bookings.access');
+        $canVendors = (bool) $user?->can('module.vendor_management.access');
+        $canDestinations = (bool) $user?->can('module.destinations.access');
+        $canActivities = (bool) $user?->can('module.activities.access');
+        $canAccommodations = (bool) $user?->can('module.accommodations.access');
+        $canTransports = (bool) $user?->can('module.transports.access');
+        $canAttractions = (bool) $user?->can('module.tourist_attractions.access');
+        $canFoodBeverages = (bool) $user?->can('module.food_beverages.access');
+        $canAirports = (bool) $user?->can('module.airports.access');
+
         $systemManagementStats = [
-            'users' => User::query()->count(),
-            'roles' => Role::query()->count(),
-            'permissions' => Permission::query()->count(),
-            'modules_enabled' => Module::query()->where('is_enabled', true)->count(),
-            'modules_disabled' => Module::query()->where('is_enabled', false)->count(),
+            'users' => $canUsers ? User::query()->count() : 0,
+            'roles' => $canRoles ? Role::query()->count() : 0,
+            'permissions' => ($canUsers || $canRoles) ? Permission::query()->count() : 0,
+            'modules_enabled' => $canServices ? Module::query()->where('is_enabled', true)->count() : 0,
+            'modules_disabled' => $canServices ? Module::query()->where('is_enabled', false)->count() : 0,
         ];
 
         $operationalStats = [
-            'customers' => Customer::query()->count(),
-            'inquiries' => Inquiry::query()->count(),
-            'quotations' => Quotation::query()->count(),
-            'bookings' => Booking::query()->count(),
+            'customers' => $canCustomers ? Customer::query()->count() : 0,
+            'inquiries' => $canInquiries ? Inquiry::query()->count() : 0,
+            'quotations' => $canQuotations ? Quotation::query()->count() : 0,
+            'bookings' => $canBookings ? Booking::query()->count() : 0,
         ];
 
         $masterDataStats = [
-            'vendors' => Vendor::query()->count(),
-            'destinations' => Destination::query()->count(),
-            'activities' => Activity::query()->count(),
-            'accommodations' => Accommodation::query()->count(),
-            'transports' => Transport::query()->count(),
-            'tourist_attractions' => TouristAttraction::query()->count(),
-            'food_beverages' => FoodBeverage::query()->count(),
-            'airports' => Airport::query()->count(),
+            'vendors' => $canVendors ? Vendor::query()->count() : 0,
+            'destinations' => $canDestinations ? Destination::query()->count() : 0,
+            'activities' => $canActivities ? Activity::query()->count() : 0,
+            'accommodations' => $canAccommodations ? Accommodation::query()->count() : 0,
+            'transports' => $canTransports ? Transport::query()->count() : 0,
+            'tourist_attractions' => $canAttractions ? TouristAttraction::query()->count() : 0,
+            'food_beverages' => $canFoodBeverages ? FoodBeverage::query()->count() : 0,
+            'airports' => $canAirports ? Airport::query()->count() : 0,
         ];
 
-        $pendingQuotations = Quotation::query()
-            ->where('status', 'pending')
-            ->latest()
-            ->limit(5)
-            ->with('inquiry:id,customer_id', 'inquiry.customer:id,name')
-            ->get();
+        $pendingQuotations = $canQuotations
+            ? Quotation::query()
+                ->where('status', 'pending')
+                ->latest()
+                ->limit(5)
+                ->with('inquiry:id,customer_id', 'inquiry.customer:id,name')
+                ->get()
+            : collect();
 
-        $recentUsers = User::query()
-            ->latest('updated_at')
-            ->limit(5)
-            ->get();
+        $recentUsers = $canUsers
+            ? User::query()
+                ->latest('updated_at')
+                ->limit(5)
+                ->get()
+            : collect();
 
         return view('administrator.dashboard', compact(
             'systemManagementStats',
             'operationalStats',
             'masterDataStats',
             'pendingQuotations',
-            'recentUsers'
+            'recentUsers',
+            'canUsers',
+            'canRoles',
+            'canServices',
+            'canCustomers',
+            'canInquiries',
+            'canQuotations',
+            'canBookings',
+            'canVendors',
+            'canDestinations',
+            'canActivities',
+            'canAccommodations',
+            'canTransports',
+            'canAttractions',
+            'canFoodBeverages',
+            'canAirports'
         ));
     }
 }

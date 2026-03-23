@@ -31,6 +31,11 @@ class IndexStatsComposer
 
     public function compose(View $view): void
     {
+        $data = $view->getData();
+        if (! empty($data['statsCards'] ?? null)) {
+            return;
+        }
+
         $name = (string) $view->getName();
         $parts = explode('.', $name);
         $module = $parts[1] ?? null;

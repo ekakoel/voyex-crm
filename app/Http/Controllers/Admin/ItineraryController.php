@@ -70,7 +70,13 @@ class ItineraryController extends Controller
         $perPage = (int) request('per_page', 10);
         $perPage = $perPage > 0 && $perPage <= 100 ? $perPage : 10;
 
-        $itineraries = $query->orderBy('title')->paginate($perPage)->withQueryString();
+        $itineraries = $query
+            ->leftJoin('inquiries', 'itineraries.inquiry_id', '=', 'inquiries.id')
+            ->select('itineraries.*')
+            ->orderByRaw('inquiries.deadline IS NULL, inquiries.deadline ASC')
+            ->orderBy('itineraries.title')
+            ->paginate($perPage)
+            ->withQueryString();
         $destinations = Destination::query()
             ->where('is_active', true)
             ->orderBy('name')
@@ -124,6 +130,7 @@ class ItineraryController extends Controller
                     $query->latest('due_date')->limit(1);
                 },
             ])
+            ->withCount('itineraries')
             ->orderByDesc('id')
             ->get([
                 'id',
@@ -355,6 +362,7 @@ class ItineraryController extends Controller
                     $query->latest('due_date')->limit(1);
                 },
             ])
+            ->withCount('itineraries')
             ->orderByDesc('id')
             ->get([
                 'id',

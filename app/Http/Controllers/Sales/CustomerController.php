@@ -34,6 +34,14 @@ class CustomerController extends Controller
         $customers = $query->latest()->paginate($perPage)->withQueryString();
         $creators = \App\Models\User::query()->orderBy('name')->get();
 
+        $totalCustomers = Customer::withTrashed()->count();
+        $activeCustomers = Customer::query()->count();
+        $inactiveCustomers = Customer::onlyTrashed()->count();
+        $companyCustomers = Customer::withTrashed()->where('customer_type', 'company')->count();
+        $individualCustomers = Customer::withTrashed()->where('customer_type', 'individual')->count();
+        $newThisMonth = Customer::withTrashed()
+            ->whereDate('created_at', '>=', now()->startOfMonth())
+            ->count();
         $countryCount = Customer::query()->whereNotNull('country')->distinct('country')->count('country');
         $topCountries = Customer::query()
             ->selectRaw('country, COUNT(*) as total')
@@ -42,11 +50,58 @@ class CustomerController extends Controller
             ->orderByDesc('total')
             ->limit(5)
             ->get();
+        $topCountry = $topCountries->first();
+
+        $statsCards = [
+            [
+                'key' => 'total',
+                'label' => 'Total',
+                'value' => $totalCustomers,
+                'caption' => 'All customers',
+                'tone' => 'bg-slate-50 text-slate-700 border-slate-100',
+            ],
+            [
+                'key' => 'active',
+                'label' => 'Active',
+                'value' => $activeCustomers,
+                'caption' => 'Currently active',
+                'tone' => 'bg-emerald-50 text-emerald-700 border-emerald-100',
+            ],
+            [
+                'key' => 'inactive',
+                'label' => 'Inactive',
+                'value' => $inactiveCustomers,
+                'caption' => 'Deactivated',
+                'tone' => 'bg-rose-50 text-rose-700 border-rose-100',
+            ],
+            [
+                'key' => 'company',
+                'label' => 'Company',
+                'value' => $companyCustomers,
+                'caption' => 'Company type',
+                'tone' => 'bg-indigo-50 text-indigo-700 border-indigo-100',
+            ],
+            [
+                'key' => 'individual',
+                'label' => 'Individual',
+                'value' => $individualCustomers,
+                'caption' => 'Individual type',
+                'tone' => 'bg-sky-50 text-sky-700 border-sky-100',
+            ],
+            [
+                'key' => 'countries',
+                'label' => 'Countries',
+                'value' => $countryCount,
+                'caption' => 'Distinct countries',
+                'tone' => 'bg-teal-50 text-teal-700 border-teal-100',
+            ],
+        ];
 
         return view('modules.customers.index', compact(
             'customers',
             'creators',
             'countries',
+            'statsCards',
             'countryCount',
             'topCountries'
         ));

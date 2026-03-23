@@ -16,6 +16,8 @@ class DashboardController extends Controller
         $user = Auth::user();
         $now = Carbon::now();
         $salesTeamIds = [];
+        $canInquiries = (bool) $user?->can('module.inquiries.access');
+        $canBookings = (bool) $user?->can('module.bookings.access');
 
         // Determine data scope based on role
         if ($user->hasRole('Manager')) {
@@ -27,37 +29,45 @@ class DashboardController extends Controller
         }
 
         // 1. Monthly Revenue (team or individual based)
-        $monthlyRevenue = Booking::join('quotations', 'bookings.quotation_id', '=', 'quotations.id')
-            ->join('inquiries', 'quotations.inquiry_id', '=', 'inquiries.id')
-            ->whereIn('inquiries.assigned_to', $salesTeamIds)
-            ->whereMonth('bookings.created_at', $now->month)
-            ->whereYear('bookings.created_at', $now->year)
-            ->sum('quotations.final_amount');
+        $monthlyRevenue = $canBookings
+            ? Booking::join('quotations', 'bookings.quotation_id', '=', 'quotations.id')
+                ->join('inquiries', 'quotations.inquiry_id', '=', 'inquiries.id')
+                ->whereIn('inquiries.assigned_to', $salesTeamIds)
+                ->whereMonth('bookings.created_at', $now->month)
+                ->whereYear('bookings.created_at', $now->year)
+                ->sum('quotations.final_amount')
+            : 0;
 
         // 2. Conversion Rate (team or individual based)
-        $totalInquiry = Inquiry::whereIn('assigned_to', $salesTeamIds)->count();
-        $totalBooking = Booking::join('quotations', 'bookings.quotation_id', '=', 'quotations.id')
-            ->join('inquiries', 'quotations.inquiry_id', '=', 'inquiries.id')
-            ->whereIn('inquiries.assigned_to', $salesTeamIds)
-            ->count();
+        $totalInquiry = $canInquiries ? Inquiry::whereIn('assigned_to', $salesTeamIds)->count() : 0;
+        $totalBooking = $canBookings
+            ? Booking::join('quotations', 'bookings.quotation_id', '=', 'quotations.id')
+                ->join('inquiries', 'quotations.inquiry_id', '=', 'inquiries.id')
+                ->whereIn('inquiries.assigned_to', $salesTeamIds)
+                ->count()
+            : 0;
 
-        $conversionRate = $totalInquiry > 0
+        $conversionRate = ($canBookings && $canInquiries && $totalInquiry > 0)
             ? round(($totalBooking / $totalInquiry) * 100, 2)
             : 0;
 
         // 4. Inquiries that need follow-up (status 'draft' or 'processed')
-        $pendingInquiries = Inquiry::with('customer')
-            ->whereIn('status', ['draft', 'processed'])
-            ->whereIn('assigned_to', $salesTeamIds)
-            ->orderBy('created_at', 'desc')
-            ->limit(10)
-            ->get();
+        $pendingInquiries = $canInquiries
+            ? Inquiry::with('customer')
+                ->whereIn('status', ['draft', 'processed'])
+                ->whereIn('assigned_to', $salesTeamIds)
+                ->orderBy('created_at', 'desc')
+                ->limit(10)
+                ->get()
+            : collect();
 
         return view('sales.dashboard', compact(
             'user',
             'monthlyRevenue',
             'conversionRate',
-            'pendingInquiries'
+            'pendingInquiries',
+            'canInquiries',
+            'canBookings'
         ));
     }
 }

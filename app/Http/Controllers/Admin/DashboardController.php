@@ -19,6 +19,12 @@ class DashboardController extends Controller
     {
         $user = Auth::user();
         $now = Carbon::now();
+        $canUsers = (bool) $user?->can('module.user_manager.access');
+        $canRoles = (bool) $user?->can('module.role_manager.access');
+        $canServices = (bool) $user?->can('module.service_manager.access');
+        $canInquiries = (bool) $user?->can('module.inquiries.access');
+        $canQuotations = (bool) $user?->can('module.quotations.access');
+        $canBookings = (bool) $user?->can('module.bookings.access');
 
         /*
         |--------------------------------------------------------------------------
@@ -26,20 +32,22 @@ class DashboardController extends Controller
         |--------------------------------------------------------------------------
         | Use bookings.created_at to avoid ambiguity
         */
-        $monthlyRevenue = Booking::join('quotations', 'bookings.quotation_id', '=', 'quotations.id')
-            ->whereMonth('bookings.created_at', $now->month)
-            ->whereYear('bookings.created_at', $now->year)
-            ->sum('quotations.final_amount');
+        $monthlyRevenue = $canBookings
+            ? Booking::join('quotations', 'bookings.quotation_id', '=', 'quotations.id')
+                ->whereMonth('bookings.created_at', $now->month)
+                ->whereYear('bookings.created_at', $now->year)
+                ->sum('quotations.final_amount')
+            : 0;
 
         /*
         |--------------------------------------------------------------------------
         | 2. Conversion Rate
         |--------------------------------------------------------------------------
         */
-        $totalInquiry = Inquiry::count();
-        $totalBooking = Booking::count();
+        $totalInquiry = $canInquiries ? Inquiry::count() : 0;
+        $totalBooking = $canBookings ? Booking::count() : 0;
 
-        $conversionRate = $totalInquiry > 0
+        $conversionRate = ($canBookings && $canInquiries && $totalInquiry > 0)
             ? round(($totalBooking / $totalInquiry) * 100, 2)
             : 0;
 
@@ -48,35 +56,41 @@ class DashboardController extends Controller
         | 3. Deadline Quotations (Next 7 Days)
         |--------------------------------------------------------------------------
         */
-        $deadlineQuotations = Quotation::where('status', 'processed')
-            ->whereDate('validity_date', '<=', Carbon::now()->addDays(7))
-            ->orderBy('validity_date')
-            ->get();
+        $deadlineQuotations = $canQuotations
+            ? Quotation::where('status', 'processed')
+                ->whereDate('validity_date', '<=', Carbon::now()->addDays(7))
+                ->orderBy('validity_date')
+                ->get()
+            : collect();
 
         /*
         |--------------------------------------------------------------------------
         | 4. Upcoming Bookings
         |--------------------------------------------------------------------------
         */
-        $upcomingBookings = Booking::whereDate('travel_date', '>=', $now)
-            ->orderBy('travel_date')
-            ->limit(5)
-            ->get();
+        $upcomingBookings = $canBookings
+            ? Booking::whereDate('travel_date', '>=', $now)
+                ->orderBy('travel_date')
+                ->limit(5)
+                ->get()
+            : collect();
 
         /*
         |--------------------------------------------------------------------------
         | 5. Monthly Revenue Chart (Fix Ambiguous)
         |--------------------------------------------------------------------------
         */
-        $monthlyData = Booking::join('quotations', 'bookings.quotation_id', '=', 'quotations.id')
-            ->select(
-                DB::raw('MONTH(bookings.created_at) as month'),
-                DB::raw('SUM(quotations.final_amount) as total')
-            )
-            ->whereYear('bookings.created_at', $now->year)
-            ->groupBy(DB::raw('MONTH(bookings.created_at)'))
-            ->orderBy(DB::raw('MONTH(bookings.created_at)'))
-            ->pluck('total', 'month');
+        $monthlyData = $canBookings
+            ? Booking::join('quotations', 'bookings.quotation_id', '=', 'quotations.id')
+                ->select(
+                    DB::raw('MONTH(bookings.created_at) as month'),
+                    DB::raw('SUM(quotations.final_amount) as total')
+                )
+                ->whereYear('bookings.created_at', $now->year)
+                ->groupBy(DB::raw('MONTH(bookings.created_at)'))
+                ->orderBy(DB::raw('MONTH(bookings.created_at)'))
+                ->pluck('total', 'month')
+            : collect();
 
         $isEditor = (bool) ($user?->hasRole('Editor') && ! $user?->hasRole('Administrator'));
         $dashboardTitle = $isEditor ? 'Editor Dashboard' : 'Administrator Dashboard';
@@ -85,10 +99,10 @@ class DashboardController extends Controller
             : "Welcome back, {$user?->name}. Here's your performance overview.";
 
         $teamStats = [
-            'total_users' => User::query()->count(),
-            'sales_team' => User::role(['Manager', 'Marketing'])->count(),
-            'operations' => User::role('Reservation')->count(),
-            'finance' => User::role('Finance')->count(),
+            'total_users' => $canUsers ? User::query()->count() : 0,
+            'sales_team' => $canUsers ? User::role(['Manager', 'Marketing'])->count() : 0,
+            'operations' => $canUsers ? User::role('Reservation')->count() : 0,
+            'finance' => $canUsers ? User::role('Finance')->count() : 0,
         ];
 
         $managedModuleKeys = [
@@ -108,21 +122,23 @@ class DashboardController extends Controller
             'user_manager',
         ];
 
-        $managedModules = Module::query()
-            ->whereIn('key', $managedModuleKeys)
-            ->orderBy('name')
-            ->get(['key', 'name', 'is_enabled'])
-            ->map(function (Module $module) use ($user): array {
-                $permission = "module.{$module->key}.access";
+        $managedModules = $canServices
+            ? Module::query()
+                ->whereIn('key', $managedModuleKeys)
+                ->orderBy('name')
+                ->get(['key', 'name', 'is_enabled'])
+                ->map(function (Module $module) use ($user): array {
+                    $permission = "module.{$module->key}.access";
 
-                return [
-                    'key' => $module->key,
-                    'name' => $module->name,
-                    'is_enabled' => (bool) $module->is_enabled,
-                    'can_access' => (bool) $user?->can($permission),
-                ];
-            })
-            ->values();
+                    return [
+                        'key' => $module->key,
+                        'name' => $module->name,
+                        'is_enabled' => (bool) $module->is_enabled,
+                        'can_access' => (bool) $user?->can($permission),
+                    ];
+                })
+                ->values()
+            : collect();
 
         $moduleGovernance = [
             'visible' => $managedModules->where('can_access', true)->count(),
@@ -144,7 +160,13 @@ class DashboardController extends Controller
             'teamStats',
             'managedModules',
             'moduleGovernance',
-            'companyProfileReady'
+            'companyProfileReady',
+            'canUsers',
+            'canRoles',
+            'canServices',
+            'canInquiries',
+            'canQuotations',
+            'canBookings'
         ));
     }
 }

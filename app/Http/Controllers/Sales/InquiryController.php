@@ -119,7 +119,11 @@ class InquiryController extends Controller
         $perPage = (int) request('per_page', 10);
         $perPage = $perPage > 0 && $perPage <= 100 ? $perPage : 10;
 
-        $inquiries = $query->latest()->paginate($perPage)->withQueryString();
+        $inquiries = $query
+            ->orderByRaw('deadline IS NULL, deadline ASC')
+            ->orderByDesc('created_at')
+            ->paginate($perPage)
+            ->withQueryString();
         $customers = Customer::query()->orderBy('name')->get();
         $assignees = User::role(['Reservation', 'Manager', 'Director', 'Marketing'])->orderBy('name')->get();
 

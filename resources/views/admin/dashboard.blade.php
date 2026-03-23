@@ -22,6 +22,7 @@
 
     @if (! ($isEditor ?? false))
         <div class="grid grid-cols-1 xl:grid-cols-12 gap-6 mb-8">
+            @if($canUsers || $canServices)
             <div class="xl:col-span-7 bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-md border border-gray-200 dark:border-gray-700">
                 <div class="flex items-start justify-between">
                     <div>
@@ -32,6 +33,7 @@
                         {{ ($companyProfileReady ?? false) ? 'Company Profile Ready' : 'Company Profile Incomplete' }}
                     </span>
                 </div>
+                @if($canUsers)
                 <div class="mt-4 grid grid-cols-2 lg:grid-cols-4 gap-3">
                     <div class="rounded-xl bg-gray-50 dark:bg-gray-900 p-3">
                         <p class="text-xs text-gray-500 dark:text-gray-400">Total Users</p>
@@ -50,6 +52,8 @@
                         <p class="text-xl font-bold text-gray-800 dark:text-gray-100">{{ number_format($teamStats['finance'] ?? 0) }}</p>
                     </div>
                 </div>
+                @endif
+                @if($canServices)
                 <div class="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div class="rounded-xl border border-gray-200 dark:border-gray-700 p-3">
                         <p class="text-xs text-gray-500 dark:text-gray-400">Managed Modules</p>
@@ -65,6 +69,7 @@
                     </div>
                 </div>
             </div>
+            @endif
 
             <div class="xl:col-span-5 bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-md border border-gray-200 dark:border-gray-700">
                 <h2 class="text-xl font-semibold text-gray-800 dark:text-gray-100">Quick Actions</h2>
@@ -86,6 +91,7 @@
             </div>
         </div>
 
+        @if($canServices)
         <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-md border border-gray-200 dark:border-gray-700 mb-8">
             @php
                 $moduleRoutes = [
@@ -146,11 +152,13 @@
                 @endforelse
             </div>
         </div>
+        @endif
     @endif
 
     <!-- Main KPI Grid -->
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
         <!-- Monthly Revenue -->
+        @if($canBookings)
         <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-md border border-gray-200 dark:border-gray-700 transition-all duration-300 hover:shadow-lg hover:-translate-y-1">
             <div class="flex justify-between items-start">
                 <div>
@@ -162,8 +170,10 @@
                 </div>
             </div>
         </div>
+        @endif
 
         <!-- Conversion Rate -->
+        @if($canBookings && $canInquiries)
         <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-md border border-gray-200 dark:border-gray-700 transition-all duration-300 hover:shadow-lg hover:-translate-y-1">
             <div class="flex justify-between items-start">
                 <div>
@@ -175,12 +185,14 @@
                 </div>
             </div>
         </div>
+        @endif
 
     </div>
 
     <!-- Chart and List -->
     <div class="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
         <!-- Revenue Chart -->
+        @if($canBookings)
         <div class="lg:col-span-2 bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-md border border-gray-200 dark:border-gray-700">
             <div class="flex items-center justify-between mb-4">
                 <h2 class="text-xl font-semibold text-gray-800 dark:text-gray-100">Revenue Trend</h2>
@@ -188,8 +200,10 @@
             </div>
             <canvas id="revenueChart" class="max-h-80"></canvas>
         </div>
+        @endif
 
         <!-- Deadline Quotations -->
+        @if($canQuotations)
         <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-md border border-gray-200 dark:border-gray-700">
             <h3 class="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-4">Expiring Quotations</h3>
             <div class="space-y-4 max-h-80 overflow-y-auto">
@@ -210,9 +224,11 @@
                 @endforelse
             </div>
         </div>
+        @endif
     </div>
 
     <!-- Upcoming Bookings -->
+    @if($canBookings)
     <div class="mt-8 app-card p-6">
         <h3 class="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-4">Upcoming Bookings</h3>
         <div class="overflow-x-auto">
@@ -250,8 +266,10 @@
             </table>
         </div>
     </div>
+    @endif
 
     @push('scripts')
+    @if($canBookings)
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
         const labels = @json($chartLabels);
@@ -340,6 +358,7 @@
             }
         });
     </script>
+    @endif
     @endpush
 @endsection
 

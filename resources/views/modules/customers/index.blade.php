@@ -12,28 +12,6 @@
         <x-index-stats :cards="$statsCards ?? []" />
         <div class="grid grid-cols-1 gap-6 xl:grid-cols-12">
             <aside class="space-y-4 xl:col-span-3">
-                <div class="app-card p-5 space-y-4 mb-6">
-                    <div class="text-left">
-                        <div class="text-[11px] uppercase tracking-widest text-slate-400 dark:text-slate-500">Countries</div>
-                    </div>
-                    @php($maxCountryTotal = max(1, (int) ($topCountries->max('total') ?? 1)))
-                    <div class="space-y-2">
-                        @forelse ($topCountries as $country)
-                            @php($ratio = min(100, (int) round(($country->total / $maxCountryTotal) * 100)))
-                            <div class="rounded-xl border border-slate-200 p-3 dark:border-slate-700">
-                                <div class="flex items-center justify-between text-xs">
-                                    <div class="font-medium text-slate-700 dark:text-slate-200">{{ $country->country }}</div>
-                                    <div class="text-slate-500 dark:text-slate-400">{{ $country->total }}</div>
-                                </div>
-                                <div class="mt-2 h-1.5 rounded-full bg-slate-100 dark:bg-slate-700">
-                                    <div class="h-1.5 rounded-full bg-teal-500" style="width: {{ $ratio }}%"></div>
-                                </div>
-                            </div>
-                        @empty
-                            <div class="text-sm text-slate-500 dark:text-slate-400">No country data yet.</div>
-                        @endforelse
-                    </div>
-                </div>
                 <div class="app-card p-5 space-y-4">
                     <div>
                         <h2 class="text-base font-semibold text-gray-800 dark:text-gray-100">Filters</h2>
@@ -84,44 +62,6 @@
                         {{ session('error') }}
                     </div>
                 @endif
-                <div class="md:hidden space-y-3">
-                    @forelse ($customers as $customer)
-                        <div class="app-card p-4">
-                            <div class="flex items-start justify-between gap-3">
-                                <div>
-                                    <p class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ $customer->name }}
-                                    </p>
-                                    <p class="text-xs text-gray-500 dark:text-gray-400">{{ $customer->code }} -
-                                        {{ $customer->email ?? '-' }}</p>
-                                </div>
-                                <span
-                                    class="text-xs font-medium rounded-full bg-gray-100 px-2 py-0.5 text-gray-700 dark:bg-gray-900/40 dark:text-gray-300">{{ $customer->customer_type }}</span>
-                            </div>
-                            <div class="mt-3 grid grid-cols-2 gap-2 text-xs text-gray-600 dark:text-gray-300">
-                                <div>Phone</div>
-                                <div>{{ $customer->phone ?? '-' }}</div>
-                                <div>Country</div>
-                                <div>{{ $customer->country ?? '-' }}</div>
-                                <div>Company</div>
-                                <div>{{ $customer->company_name ?? '-' }}</div>
-                                <div>Status</div>
-                                <div>{{ $customer->trashed() ? 'Inactive' : 'Active' }}</div>
-                            </div>
-                            <div class="mt-3 flex flex-wrap gap-2">
-                                <a href="{{ route('customers.edit', $customer) }}" class="btn-secondary-sm" title="Edit" aria-label="Edit"><i class="fa-solid fa-pen"></i><span class="sr-only">Edit</span></a>
-                                <form action="{{ route('customers.toggle-status', $customer->id) }}" method="POST" class="inline">
-                                    @csrf
-                                    @method('PATCH')
-                                    <button type="submit" onclick="return confirm('{{ $customer->trashed() ? 'Activate this customer?' : 'Deactivate this customer?' }}')" class="{{ $customer->trashed() ? 'btn-primary-sm' : 'btn-muted-sm' }}">{{ $customer->trashed() ? 'Activate' : 'Deactivate' }}</button>
-                                </form>
-                            </div>
-                        </div>
-                    @empty
-                        <div class="app-card p-6 text-center text-sm text-gray-500 dark:text-gray-400">
-                            No customers available.
-                        </div>
-                    @endforelse
-                </div>
                 <div class="hidden md:block app-card overflow-hidden">
                     <div class="overflow-x-auto">
                         <table class="app-table w-full divide-y divide-gray-200 dark:divide-gray-700">
@@ -167,9 +107,7 @@
                                         <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">
                                             {{ $customer->company_name ?? '-' }}</td>
                                         <td class="px-4 py-3 text-center text-sm">
-                                            <span class="rounded-full px-2 py-0.5 text-[11px] font-semibold {{ $isActive ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300' : 'bg-gray-200 text-gray-700 dark:bg-gray-700/60 dark:text-gray-300' }}">
-                                                {{ $isActive ? 'Active' : 'Inactive' }}
-                                            </span>
+                                            <x-status-badge :status="$isActive ? 'active' : 'inactive'" size="xs" />
                                         </td>
                                         <td class="px-4 py-3 text-right text-sm actions-compact">
                                             <div class="flex items-center justify-end gap-2">
@@ -192,6 +130,44 @@
                             </tbody>
                         </table>
                     </div>
+                </div>
+                <div class="md:hidden space-y-3">
+                    @forelse ($customers as $customer)
+                        <div class="app-card p-4">
+                            <div class="flex items-start justify-between gap-3">
+                                <div>
+                                    <p class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ $customer->name }}
+                                    </p>
+                                    <p class="text-xs text-gray-500 dark:text-gray-400">{{ $customer->code }} -
+                                        {{ $customer->email ?? '-' }}</p>
+                                </div>
+                                <span
+                                    class="text-xs font-medium rounded-full bg-gray-100 px-2 py-0.5 text-gray-700 dark:bg-gray-900/40 dark:text-gray-300">{{ $customer->customer_type }}</span>
+                            </div>
+                            <div class="mt-3 grid grid-cols-2 gap-2 text-xs text-gray-600 dark:text-gray-300">
+                                <div>Phone</div>
+                                <div>{{ $customer->phone ?? '-' }}</div>
+                                <div>Country</div>
+                                <div>{{ $customer->country ?? '-' }}</div>
+                                <div>Company</div>
+                                <div>{{ $customer->company_name ?? '-' }}</div>
+                                <div>Status</div>
+                                <div><x-status-badge :status="$customer->trashed() ? 'inactive' : 'active'" size="xs" /></div>
+                            </div>
+                            <div class="mt-3 flex flex-wrap gap-2">
+                                <a href="{{ route('customers.edit', $customer) }}" class="btn-secondary-sm" title="Edit" aria-label="Edit"><i class="fa-solid fa-pen"></i><span class="sr-only">Edit</span></a>
+                                <form action="{{ route('customers.toggle-status', $customer->id) }}" method="POST" class="inline">
+                                    @csrf
+                                    @method('PATCH')
+                                    <button type="submit" onclick="return confirm('{{ $customer->trashed() ? 'Activate this customer?' : 'Deactivate this customer?' }}')" class="{{ $customer->trashed() ? 'btn-primary-sm' : 'btn-muted-sm' }}">{{ $customer->trashed() ? 'Activate' : 'Deactivate' }}</button>
+                                </form>
+                            </div>
+                        </div>
+                    @empty
+                        <div class="app-card p-6 text-center text-sm text-gray-500 dark:text-gray-400">
+                            No customers available.
+                        </div>
+                    @endforelse
                 </div>
                 <div>{{ $customers->links() }}</div>
             </div>

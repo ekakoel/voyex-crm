@@ -53,9 +53,7 @@
                                         </td>
                                         <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">{{ trim(($airport->city ?? '') . (($airport->city && $airport->province) ? ', ' : '') . ($airport->province ?? '')) ?: '-' }}</td>
                                         <td class="px-4 py-3 text-center text-sm">
-                                            <span class="rounded-full px-2 py-0.5 text-[11px] font-semibold {{ $isActive ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300' : 'bg-gray-200 text-gray-700 dark:bg-gray-700/60 dark:text-gray-300' }}">
-                                                {{ $isActive ? 'Active' : 'Inactive' }}
-                                            </span>
+                                            <x-status-badge :status="$isActive ? 'active' : 'inactive'" size="xs" />
                                         </td>
                                         <td class="px-4 py-3 text-right text-sm actions-compact">
                                             <div class="flex items-center justify-end gap-2">
@@ -94,7 +92,7 @@
                                 <div>Destination</div>
                                 <div>{{ $airport->destination?->name ?? '-' }}</div>
                                 <div>Status</div>
-                                <div>{{ $airport->trashed() ? 'Inactive' : 'Active' }}</div>
+                                <div><x-status-badge :status="$airport->trashed() ? 'inactive' : 'active'" size="xs" /></div>
                             </div>
                             <div class="mt-3 flex flex-wrap gap-2">
                                 <a href="{{ route('airports.show', $airport) }}" class="btn-outline-sm" title="View" aria-label="View"><i class="fa-solid fa-eye"></i><span class="sr-only">View</span></a>

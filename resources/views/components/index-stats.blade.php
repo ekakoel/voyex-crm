@@ -8,7 +8,37 @@
                 $label = (string) ($card['label'] ?? '-');
                 $value = (int) ($card['value'] ?? 0);
                 $caption = (string) ($card['caption'] ?? 'Total');
-                $tone = (string) ($card['tone'] ?? 'bg-slate-50 text-slate-700 border-slate-100');
+                $tone = (string) ($card['tone'] ?? 'slate');
+                $colorMap = [
+                    'total' => 'slate',
+                    'all' => 'slate',
+                    'active' => 'emerald',
+                    'approved' => 'emerald',
+                    'processed' => 'emerald',
+                    'enabled' => 'emerald',
+                    'inactive' => 'rose',
+                    'rejected' => 'rose',
+                    'disabled' => 'rose',
+                    'pending' => 'amber',
+                    'draft' => 'slate',
+                    'final' => 'violet',
+                    'vendors' => 'teal',
+                    'accommodations' => 'indigo',
+                    'attractions' => 'sky',
+                    'airports' => 'sky',
+                    'transports' => 'cyan',
+                    'customers' => 'indigo',
+                    'inquiries' => 'amber',
+                    'quotations' => 'teal',
+                    'bookings' => 'emerald',
+                    'invoices' => 'violet',
+                    'sales' => 'indigo',
+                    'revenue' => 'emerald',
+                    'payments' => 'teal',
+                    'expenses' => 'rose',
+                    'countries' => 'sky',
+                    'top-country' => 'violet',
+                ];
                 $iconMap = [
                     'total' => 'fa-layer-group',
                     'all' => 'fa-layer-group',
@@ -36,17 +66,20 @@
                     'revenue' => 'fa-sack-dollar',
                     'payments' => 'fa-credit-card',
                     'expenses' => 'fa-file-invoice',
+                    'countries' => 'fa-flag',
+                    'top-country' => 'fa-location-dot',
                 ];
                 $iconClass = $iconMap[$key] ?? 'fa-chart-pie';
+                $colorKey = (string) ($card['color'] ?? $colorMap[$key] ?? $tone);
             @endphp
             <div class="app-card p-4">
-                <div class="flex items-center justify-between">
-                    <div>
+                <div class="flex items-center justify-between h-full relative">
+                    <div class="data-card">
                         <p class="text-xs font-semibold uppercase tracking-wide text-gray-400">{{ $label }}</p>
                         <p class="mt-2 text-2xl font-semibold text-gray-900">{{ number_format($value) }}</p>
                         <p class="mt-1 text-xs text-gray-500">{{ $caption }}</p>
                     </div>
-                    <div class="inline-flex h-11 w-11 items-center justify-center rounded-full border {{ $tone }}">
+                    <div class="icon-kpi icon-kpi--{{ $colorKey }}">
                         <i class="fa-solid {{ $iconClass }}"></i>
                     </div>
                 </div>

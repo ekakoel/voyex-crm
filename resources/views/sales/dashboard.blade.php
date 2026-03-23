@@ -12,57 +12,67 @@
         </h2>
 
         {{-- Main KPI row --}}
-        <div class="row">
-            <div class="col-md-4">
-                <div class="card">
-                    <div class="card-body">
-                        <h6>Monthly Revenue</h6>
-                        <h4><x-money :amount="$monthlyRevenue ?? 0" currency="IDR" /></h4>
+        @if($canBookings || $canInquiries)
+            <div class="row">
+                @if($canBookings)
+                    <div class="col-md-4">
+                        <div class="card">
+                            <div class="card-body">
+                                <h6>Monthly Revenue</h6>
+                                <h4><x-money :amount="$monthlyRevenue ?? 0" currency="IDR" /></h4>
+                            </div>
+                        </div>
                     </div>
-                </div>
+                @endif
+
+                @if($canBookings && $canInquiries)
+                    <div class="col-md-4">
+                        <div class="card">
+                            <div class="card-body">
+                                <h6>Conversion Rate</h6>
+                                <h4>{{ $conversionRate }}%</h4>
+                            </div>
+                        </div>
+                    </div>
+                @endif
+
+                @if($canInquiries)
+                    <div class="col-md-4">
+                        <div class="card">
+                            <div class="card-body">
+                                <h6>Pending Follow-up</h6>
+                                <h4>{{ $pendingInquiries->count() }}</h4>
+                            </div>
+                        </div>
+                    </div>
+                @endif
             </div>
 
-            <div class="col-md-4">
-                <div class="card">
-                    <div class="card-body">
-                        <h6>Conversion Rate</h6>
-                        <h4>{{ $conversionRate }}%</h4>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-md-4">
-                <div class="card">
-                    <div class="card-body">
-                        <h6>Pending Follow-up</h6>
-                        <h4>{{ $pendingInquiries->count() }}</h4>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <hr class="my-4">
+            <hr class="my-4">
+        @endif
 
         {{-- List of inquiries that require follow-up --}}
-        <div class="row">
-            <div class="col-12">
-                <h5>Pending Inquiries</h5>
-                <div class="card">
-                    <div class="card-body">
-                        <ul class="list-group list-group-flush">
-                            @forelse ($pendingInquiries as $inquiry)
-                                <li class="list-group-item d-flex justify-content-between align-items-center">
-                                    <span>{{ $inquiry->inquiry_number }} - <strong>{{ $inquiry->customer->name }}</strong></span>
-                                    <span class="badge bg-primary rounded-pill">{{ $inquiry->status }}</span>
-                                </li>
-                            @empty
-                                <li class="list-group-item">No pending inquiries. Great job!</li>
-                            @endforelse
-                        </ul>
+        @if($canInquiries)
+            <div class="row">
+                <div class="col-12">
+                    <h5>Pending Inquiries</h5>
+                    <div class="card">
+                        <div class="card-body">
+                            <ul class="list-group list-group-flush">
+                                @forelse ($pendingInquiries as $inquiry)
+                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                        <span>{{ $inquiry->inquiry_number }} - <strong>{{ $inquiry->customer->name }}</strong></span>
+                                        <span class="badge bg-primary rounded-pill">{{ $inquiry->status }}</span>
+                                    </li>
+                                @empty
+                                    <li class="list-group-item">No pending inquiries. Great job!</li>
+                                @endforelse
+                            </ul>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
+        @endif
 
     </div>
 @endsection

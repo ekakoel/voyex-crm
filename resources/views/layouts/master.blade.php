@@ -152,7 +152,7 @@
     </div>
 
     <!-- MAIN CONTENT -->
-    <div class="flex-1 flex flex-col">
+    <div class="flex-1 flex flex-col min-h-0">
 
         <header class="sticky top-0 z-20 bg-white/95 dark:bg-gray-800/95 backdrop-blur shadow-sm px-3 py-3 sm:px-4 sm:py-3 md:px-6 md:py-4 flex items-center justify-between gap-3">
             <!-- mobile-only button -->
@@ -239,7 +239,7 @@
         </header>
 
         <!-- PAGE CONTENT -->
-        <main class="app-content flex-1 p-3 overflow-y-auto">
+        <main class="app-content flex-1 min-h-0 p-3 overflow-y-auto">
             @php
                 $routeName = (string) (Route::currentRouteName() ?? '');
                 $routeParts = $routeName !== '' ? explode('.', $routeName) : [];

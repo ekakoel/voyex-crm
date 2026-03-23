@@ -2,11 +2,14 @@
 
 @section('content')
 @php
-    $kpiCards = [
-        ['label' => 'Monthly Total', 'value' => $monthlyTotal ?? 0, 'icon' => 'wallet', 'color' => 'emerald', 'format' => 'money'],
-        ['label' => 'Pending Invoices', 'value' => $pendingInvoices ?? 0, 'icon' => 'file-invoice', 'color' => 'amber'],
-        ['label' => 'Overdue', 'value' => $overdueInvoices ?? 0, 'icon' => 'triangle-exclamation', 'color' => 'rose'],
-    ];
+    $kpiCards = [];
+    if ($canInvoices) {
+        $kpiCards = [
+            ['label' => 'Monthly Total', 'value' => $monthlyTotal ?? 0, 'icon' => 'wallet', 'color' => 'emerald', 'format' => 'money'],
+            ['label' => 'Pending Invoices', 'value' => $pendingInvoices ?? 0, 'icon' => 'file-invoice', 'color' => 'amber'],
+            ['label' => 'Overdue', 'value' => $overdueInvoices ?? 0, 'icon' => 'triangle-exclamation', 'color' => 'rose'],
+        ];
+    }
 @endphp
 
 <div class="sa-wrap rounded-3xl border border-slate-200/80 bg-slate-100/70 p-3 dark:border-slate-700 dark:bg-slate-900/60">
@@ -17,6 +20,7 @@
     @endsection
 
     <div class="grid grid-cols-1 gap-3 xl:grid-cols-12">
+        @if($canInvoices)
         <section class="xl:col-span-8 space-y-3">
             <div class="sa-card p-5">
                 <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -56,6 +60,7 @@
                 </div>
             </div>
         </aside>
+        @endif
     </div>
 </div>
 @endsection

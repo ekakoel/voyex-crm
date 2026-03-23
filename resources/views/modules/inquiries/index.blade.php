@@ -100,7 +100,12 @@
                                         <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">
                                             {{ $inquiry->priority }}</td>
                                         <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">
-                                            {{ $inquiry->assignedUser->name ?? '-' }}</td>
+                                            @if(($inquiry->assigned_to ?? null) === (auth()->user()?->id ?? null))
+                                                You
+                                            @else
+                                                {{ $inquiry->assignedUser->name ?? '-' }}
+                                            @endif
+                                        </td>
                                         <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">
                                             {{ $inquiry->deadline ? $inquiry->deadline->format('Y-m-d') : '-' }}</td>
                                         <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">
@@ -137,16 +142,9 @@
                                                             class="btn-secondary-sm" title="Edit" aria-label="Edit"><i class="fa-solid fa-pen"></i><span class="sr-only">Edit</span></a>
                                                     @endif
                                                 @endcan
-                                                @if (($inquiry->itineraries_count ?? 0) === 0 && !$inquiry->isFinal())
-                                                    <a href="{{ route('itineraries.create', ['inquiry_id' => $inquiry->id]) }}"
-                                                        class="btn-outline-sm">Create Itinerary</a>
-                                                @endif
-                                                <form action="{{ route('inquiries.toggle-status', $inquiry->id) }}" method="POST" class="inline">
-                                                    @csrf
-                                                    @method('PATCH')
-                                                    <button type="submit" onclick="return confirm('{{ $inquiry->trashed() ? 'Activate this inquiry?' : 'Deactivate this inquiry?' }}')" class="{{ $inquiry->trashed() ? 'btn-primary-sm' : 'btn-muted-sm' }}">{{ $inquiry->trashed() ? 'Activate' : 'Deactivate' }}</button>
-                                                </form>
-                                            </div>
+                                                <a href="{{ route('itineraries.create', ['inquiry_id' => $inquiry->id]) }}"
+                                                    class="btn-outline-sm">Create Itinerary</a>
+</div>
                                         </td>
                                     </tr>
                                 @empty
@@ -176,7 +174,13 @@
                                 <div>Priority</div>
                                 <div>{{ $inquiry->priority }}</div>
                                 <div>Assigned</div>
-                                <div>{{ $inquiry->assignedUser->name ?? '-' }}</div>
+                                <div>
+                                    @if(($inquiry->assigned_to ?? null) === (auth()->user()?->id ?? null))
+                                        You
+                                    @else
+                                        {{ $inquiry->assignedUser->name ?? '-' }}
+                                    @endif
+                                </div>
                                 <div>Deadline</div>
                                 <div>{{ $inquiry->deadline ? $inquiry->deadline->format('Y-m-d') : '-' }}</div>
                             </div>
@@ -215,18 +219,11 @@
                                         <a href="{{ route('inquiries.edit', $inquiry) }}" class="btn-secondary-sm" title="Edit" aria-label="Edit"><i class="fa-solid fa-pen"></i><span class="sr-only">Edit</span></a>
                                     @endif
                                 @endcan
-                                @if (($inquiry->itineraries_count ?? 0) === 0 && !$inquiry->isFinal())
-                                    <a href="{{ route('itineraries.create', ['inquiry_id' => $inquiry->id]) }}"
-                                        class="btn-outline-sm">
-                                        Create Itinerary
-                                    </a>
-                                @endif
-                                <form action="{{ route('inquiries.toggle-status', $inquiry->id) }}" method="POST" class="inline">
-                                    @csrf
-                                    @method('PATCH')
-                                    <button type="submit" onclick="return confirm('{{ $inquiry->trashed() ? 'Activate this inquiry?' : 'Deactivate this inquiry?' }}')" class="{{ $inquiry->trashed() ? 'btn-primary-sm' : 'btn-muted-sm' }}">{{ $inquiry->trashed() ? 'Activate' : 'Deactivate' }}</button>
-                                </form>
-                            </div>
+                                <a href="{{ route('itineraries.create', ['inquiry_id' => $inquiry->id]) }}"
+                                    class="btn-outline-sm">
+                                    Create Itinerary
+                                </a>
+</div>
                         </div>
                     @empty
                         <div class="app-card p-6 text-center text-sm text-gray-500 dark:text-gray-400">

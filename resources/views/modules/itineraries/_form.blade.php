@@ -287,6 +287,7 @@
                 'priority' => (string) ($inquiry->priority ?? '-'),
                 'source' => (string) ($inquiry->source ?? '-'),
                 'assigned_to' => (string) ($inquiry->assignedUser?->name ?? '-'),
+                'itinerary_count' => (int) ($inquiry->itineraries_count ?? 0),
                 'deadline' => $inquiry->deadline ? $inquiry->deadline->format('Y-m-d') : '-',
                 'created_at' => $inquiry->created_at ? $inquiry->created_at->format('Y-m-d H:i') : '-',
                 'notes' => \App\Support\SafeRichText::sanitize($inquiry->notes ?? null) ?: '-',
@@ -305,13 +306,11 @@
             <option value="">Independent itinerary (no inquiry)</option>
             @foreach ($inquiries as $inquiry)
                 <option value="{{ $inquiry->id }}" @selected((string) $selectedInquiryId === (string) $inquiry->id)>
-                    {{ $inquiry->inquiry_number }}
+                    {{ date('y-m-d',strtotime($inquiry->deadline)) }}
                     @if (!empty($inquiry->customer?->name))
                         | {{ $inquiry->customer->name }}
                     @endif
-                    @if (!empty($inquiry->status))
-                        | {{ ucfirst((string) $inquiry->status) }}
-                    @endif
+                    | Itineraries: {{ (int) ($inquiry->itineraries_count ?? 0) }}
                 </option>
             @endforeach
         </select>
@@ -934,11 +933,6 @@
         @enderror
     </div>
 
-    <div class="flex items-center gap-2">
-        <input type="checkbox" name="is_active" value="1" class="rounded border-gray-300 text-indigo-600"
-            @checked(old('is_active', $itinerary->is_active ?? true))>
-        <span class="text-sm text-gray-700 dark:text-gray-200">Active</span>
-    </div>
     <div class="flex items-center gap-2">
         <button
              class="btn-primary">{{ $buttonLabel }}</button>
