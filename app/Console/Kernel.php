@@ -13,6 +13,8 @@ class Kernel extends ConsoleKernel
     protected function schedule(Schedule $schedule): void
     {
         $schedule->command('inquiries:send-followup-reminders')->dailyAt('08:00');
+        $schedule->command('hotels:sync-status-from-prices')->dailyAt('00:10');
+        $schedule->command('currencies:sync-market-rates')->dailyAt('06:00');
     }
 
     /**

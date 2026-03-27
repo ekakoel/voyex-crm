@@ -29,7 +29,7 @@ Sistem ini berfokus pada otomatisasi proses bisnis utama travel agent dengan out
 - Multi-day structured itinerary
 - Tourist attractions integration
 - Activity management
-- Accommodation & transport integration
+- Accommodation, hotel & transport integration
 - Customizable travel plans
 
 ### 3. Quotation System
@@ -54,13 +54,18 @@ Sistem ini berfokus pada otomatisasi proses bisnis utama travel agent dengan out
 - Expense tracking per booking
 - Profit calculation per booking
 
-### 6. Vendor Management
+
+### 6. Hotel Management
+- Hotel master data (rooms, rates, promos, packages)
+- Linked to accommodations for itinerary planning
+
+### 7. Vendor Management
 - Vendor database
 - Service contracts
 - Commission configuration
 - Performance monitoring
 
-### 7. Role & Permission System
+### 8. Role & Permission System
 - Role-Based Access Control (RBAC)
 - Granular permission matrix
 - Module-level access configuration

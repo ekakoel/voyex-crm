@@ -1,7 +1,7 @@
 # VOYEX CRM -- SYSTEM ROADMAP
 
 Version: 1.1  
-Last Updated: 2026-03-17
+Last Updated: 2026-03-23
 
 Legend:  
 - DONE = Implemented  
@@ -52,6 +52,7 @@ Vendors CRUD | DONE | Google Maps autofill
 Activities CRUD | DONE | Standardized activity types
 Food & Beverage CRUD | DONE | Standard forms
 Accommodations CRUD | DONE | Standard forms
+Hotels CRUD | PARTIAL | Admin CRUD + base UI, pricing/promos input added
 Airports CRUD | DONE | Simplified fields
 Transports CRUD | DONE | Standard forms
 Tourist Attractions CRUD | DONE | Standard forms
@@ -176,6 +177,21 @@ Auto Reminder Engine | TODO | Not implemented
 ----------------------------------------------------------------------------------------------------
 
 # CHANGELOG (LATEST)
+
+Date: 2026-03-23
+Completed in this cycle:
+- Started Hotels module implementation (admin controller, routes, sidebar, permissions, and base CRUD views).
+- Added Hotels form sections for rooms, images, extra beds, seasonal prices, packages, and promos.
+- Added Hotels into Super Admin Module Control Center (Product & Reservation group).
+- Added auto-registration for Hotels module/permissions via ModuleService.
+- Linked Transports to Vendors/Providers (vendor_id) for consistent provider data.
+- Standardized Google Map location block template for Hotels Create/Edit: Location on Map -> Map URL -> Latitude/Longitude -> Address -> City/Province -> Country -> Destination.
+- Documented map-field standard (address, city, province, country, latitude, longitude, destination) as rollout baseline for all map-enabled modules.
+- Continued map-standard rollout to Accommodations, Airports, Vendors, and Tourist Attractions forms using the same field order template.
+- Vendors form adjusted so Address uses standard `input` control (auto fill from Google Maps URL) for consistency with the map template.
+- Added reusable partial `components/map-standard-section.blade.php` and refactored map-enabled forms to consume a single template include.
+
+
 
 Date: 2026-03-13
 Completed in this cycle:

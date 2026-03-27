@@ -15,13 +15,21 @@ class CompanySetting extends Model
         'website',
         'address',
         'city',
+        'province',
         'country',
+        'destination_id',
+        'google_maps_url',
+        'latitude',
+        'longitude',
         'timezone',
-        'currency',
-        'usd_rate',
         'footer_note',
         'favicon_path',
         'logo_path',
+    ];
+
+    protected $casts = [
+        'latitude' => 'float',
+        'longitude' => 'float',
     ];
 }
 

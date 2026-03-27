@@ -66,8 +66,13 @@
             </thead>
             <tbody>
             @forelse ($quotation->items as $item)
+                @php
+                    $meta = is_array($item->serviceable_meta ?? null) ? $item->serviceable_meta : [];
+                    $paxType = strtolower((string) ($meta['pax_type'] ?? ''));
+                    $paxSuffix = $paxType === 'adult' ? ' [Adult Publish Rate]' : ($paxType === 'child' ? ' [Child Publish Rate]' : '');
+                @endphp
                 <tr>
-                    <td>{{ $item->description }}</td>
+                    <td>{{ $item->description }}{{ $paxSuffix }}</td>
                     <td class="right">{{ $item->qty }}</td>
                     <td class="right"><x-money :amount="$item->unit_price" currency="IDR" /></td>
                     <td>{{ ($item->discount_type ?? 'fixed') === 'percent' ? 'Percent' : 'Fixed' }}</td>

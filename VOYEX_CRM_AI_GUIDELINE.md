@@ -63,13 +63,14 @@ Semua fitur harus mendukung alur ini.
 2.  Vendors
 3.  Activities
 4.  Accommodations
-5.  Transports
-6.  Tourist Attractions
-7.  Modules
-8.  Role & Permissions
-9.  Access Matrix
-10. User Manager
-11. Quotation Templates
+5.  Hotels
+6.  Transports
+7.  Tourist Attractions
+8.  Modules
+9.  Role & Permissions
+10. Access Matrix
+11. User Manager
+12. Quotation Templates
 
 ### Transactional Data
 

@@ -1,19 +1,40 @@
 @extends('layouts.master')
 
-@section('content')
-    <div class="max-w-4xl space-y-6">
-        
+@section('page_title', 'Create Role')
+@section('page_subtitle', 'Buat role baru dan atur permission dengan cepat.')
+@section('page_actions')
+    <a href="{{ route('roles.index') }}" class="btn-secondary">
+        Back to Roles
+    </a>
+@endsection
 
-        <div class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
-            <form method="POST" action="{{ route('roles.store') }}">
-                @csrf
-                @include('modules.roles._form', [
-                    'buttonLabel' => 'Save Role',
-                    'selectedPermissions' => old('permissions', []),
-                    'selectedTemplateRoleId' => $selectedTemplateRoleId ?? null,
-                    'selectedTemplateRoleName' => $selectedTemplateRoleName ?? null,
-                ])
-            </form>
+@section('content')
+    <div class="space-y-6 module-page">
+        <div class="module-grid-9-3">
+            <section class="module-grid-main">
+                <div class="module-form-wrap">
+                    <form method="POST" action="{{ route('roles.store') }}">
+                        @csrf
+                        @include('modules.roles._form', [
+                            'buttonLabel' => 'Save Role',
+                            'selectedPermissions' => old('permissions', []),
+                            'selectedTemplateRoleId' => $selectedTemplateRoleId ?? null,
+                            'selectedTemplateRoleName' => $selectedTemplateRoleName ?? null,
+                        ])
+                    </form>
+                </div>
+            </section>
+
+            <aside class="module-grid-side">
+                <div class="app-card p-6 space-y-3">
+                    <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Quick Guide</p>
+                    <ul class="space-y-2 text-sm text-gray-600 dark:text-gray-300">
+                        <li>Pilih template role untuk mempercepat setup permission.</li>
+                        <li>Gunakan custom permission hanya jika belum ada di modul.</li>
+                        <li>Gunakan tombol `All/None` per modul untuk kontrol cepat.</li>
+                    </ul>
+                </div>
+            </aside>
         </div>
     </div>
 @endsection

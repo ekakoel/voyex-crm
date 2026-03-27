@@ -5,184 +5,128 @@
 @endphp
 
 <div class="space-y-4" data-location-autofill data-location-resolve-url="{{ route('location.resolve-google-map') }}">
-    <div>
-        <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Name</label>
-        <input name="name" value="{{ old('name', $touristAttraction->name ?? '') }}" class="mt-1 dark:border-gray-600 app-input" required>
-        @error('name') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
-    </div>
-
-    <div>
-        <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Ideal Visit Duration (minutes)</label>
-        <input
-            name="ideal_visit_minutes"
-            type="number"
-            min="15"
-            max="1440"
-            step="5"
-            value="{{ old('ideal_visit_minutes', $touristAttraction->ideal_visit_minutes ?? 120) }}"
-            class="mt-1 dark:border-gray-600 app-input"
-            required
-        >
-        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Contoh: 120 berarti estimasi kunjungan 2 jam.</p>
-        @error('ideal_visit_minutes') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
-    </div>
-
-    <div class="grid grid-cols-1 gap-4 sm:grid-cols-4">
+    <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div>
-            <x-money-input
-                label="Entrance Fee (per pax)"
-                name="entrance_fee_per_pax"
-                :value="old('entrance_fee_per_pax', $touristAttraction->entrance_fee_per_pax ?? '')"
-                min="0"
-                step="0.01"
-            />
-            @error('entrance_fee_per_pax') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Gallery Images</label>
+            <div id="tourist-attraction-gallery-preview"
+                class="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3"
+                data-remove-endpoint-template="{{ isset($touristAttraction) ? route('tourist-attractions.gallery-images.remove', $touristAttraction) : '' }}"
+                data-csrf-token="{{ csrf_token() }}">
+                @if (!empty($touristAttraction?->gallery_images))
+                    @foreach ($touristAttraction->gallery_images as $image)
+                        <div class="tourist-gallery-item tourist-gallery-existing-item relative overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700" data-image-path="{{ $image }}">
+                            <button
+                                type="button"
+                                class="tourist-gallery-remove-btn absolute right-1 top-1 z-10 inline-flex h-6 w-6 items-center justify-center rounded-full bg-rose-600/95 text-xs font-bold text-white shadow hover:bg-rose-700"
+                                title="Remove image"
+                                aria-label="Remove image">
+                                X
+                            </button>
+                            <div class="room-cover-preview image-preview flex w-full items-center justify-center overflow-hidden rounded-lg border-0 bg-gray-50 dark:bg-gray-800/40">
+                                <div class="image-preview-placeholder">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                        <path d="M4 7h3l2-2h6l2 2h3a1 1 0 0 1 1 1v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a1 1 0 0 1 1-1z"></path>
+                                        <circle cx="12" cy="13" r="4"></circle>
+                                    </svg>
+                                    <span>Select image to preview</span>
+                                </div>
+                                <img
+                                    src="{{ asset('storage/' . \App\Support\ImageThumbnailGenerator::thumbnailPathFor($image)) }}"
+                                    onload="this.classList.add('image-loaded');var p=this.closest('.image-preview');if(p){p.classList.add('has-image');}"
+                                    onerror="if(this.dataset.fallbackApplied){var p=this.closest('.image-preview');if(p){p.classList.remove('has-image');}this.remove();}else{this.dataset.fallbackApplied='1';this.src='{{ asset('storage/' . $image) }}';}"
+                                    alt="Tourist attraction gallery"
+                                    class="h-full w-full object-cover">
+                            </div>
+                        </div>
+                    @endforeach
+                @else
+                    <div class="tourist-gallery-empty">
+                        <div class="room-cover-preview image-preview flex w-full items-center justify-center overflow-hidden rounded-lg border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800/40">
+                            <div class="image-preview-placeholder">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <path d="M4 7h3l2-2h6l2 2h3a1 1 0 0 1 1 1v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a1 1 0 0 1 1-1z"></path>
+                                    <circle cx="12" cy="13" r="4"></circle>
+                                </svg>
+                                <span>Select image to preview</span>
+                            </div>
+                        </div>
+                    </div>
+                @endif
+            </div>
+            <input id="tourist-attraction-gallery-input" type="file" name="gallery_images[]" accept="image/*" multiple class="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+            @error('gallery_images') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+            @error('gallery_images.*') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+            @error('removed_gallery_images.*') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
         </div>
+    </div>
+
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Other Fee Label</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Name</label>
+            <input name="name" value="{{ old('name', $touristAttraction->name ?? '') }}" class="mt-1 dark:border-gray-600 app-input" required>
+            @error('name') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+        </div>
+
+        <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Ideal Visit Duration (minutes)</label>
             <input
-                name="other_fee_label"
-                maxlength="100"
-                value="{{ old('other_fee_label', $touristAttraction->other_fee_label ?? '') }}"
-                placeholder="Contoh: Camera Fee / Guide Local"
+                name="ideal_visit_minutes"
+                type="number"
+                min="15"
+                max="1440"
+                step="5"
+                value="{{ old('ideal_visit_minutes', $touristAttraction->ideal_visit_minutes ?? 120) }}"
                 class="mt-1 dark:border-gray-600 app-input"
-            >
-            @error('other_fee_label') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
-        </div>
-        <div>
-            <x-money-input
-                label="Other Fee (per pax)"
-                name="other_fee_per_pax"
-                :value="old('other_fee_per_pax', $touristAttraction->other_fee_per_pax ?? '')"
-                min="0"
-                step="0.01"
-            />
-            @error('other_fee_per_pax') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
-        </div>
-        <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Currency</label>
-            <input
-                name="currency"
-                maxlength="3"
-                value="{{ old('currency', $touristAttraction->currency ?? 'IDR') }}"
-                class="mt-1 uppercase dark:border-gray-600 app-input"
                 required
             >
-            @error('currency') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+            @error('ideal_visit_minutes') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
         </div>
     </div>
-
-    <div class="grid grid-cols-1 gap-4 sm:grid-cols-4">
-        <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Destination</label>
-            <select id="destination_id" data-location-field="destination_id" name="destination_id" class="mt-1 dark:border-gray-600 app-input">
-                <option value="">Select destination</option>
-                @foreach ($destinations as $destination)
-                    <option value="{{ $destination->id }}"
-                        data-city="{{ $destination->city ?? '' }}"
-                        data-province="{{ $destination->province ?? '' }}"
-                        @selected((string) old('destination_id', $touristAttraction->destination_id ?? '') === (string) $destination->id)>
-                        {{ $destination->province ?: $destination->name }}
-                    </option>
-                @endforeach
-            </select>
-            @error('destination_id') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
-        </div>
-        <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Location</label>
-            <input id="location" data-location-field="location" name="location" value="{{ old('location', $touristAttraction->location ?? '') }}" class="mt-1 dark:border-gray-600 app-input">
-            @error('location') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
-        </div>
-        <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">City</label>
-            <input id="city" data-location-field="city" name="city" value="{{ old('city', $touristAttraction->city ?? '') }}" class="mt-1 dark:border-gray-600 app-input">
-            @error('city') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
-        </div>
-        <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Province</label>
-            <input id="province" data-location-field="province" name="province" value="{{ old('province', $touristAttraction->province ?? '') }}" class="mt-1 dark:border-gray-600 app-input">
-            @error('province') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
-        </div>
-    </div>
-
-    <div class="grid grid-cols-1 gap-4 sm:grid-cols-4">
-        <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Country</label>
-            <input data-location-field="country" name="country" value="{{ old('country', $touristAttraction->country ?? '') }}" class="mt-1 dark:border-gray-600 app-input">
-        </div>
-        <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Timezone</label>
-            <input data-location-field="timezone" name="timezone" value="{{ old('timezone', $touristAttraction->timezone ?? '') }}" class="mt-1 dark:border-gray-600 app-input">
-        </div>
-        <div class="sm:col-span-2">
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Address</label>
-            <input data-location-field="address" name="address" value="{{ old('address', $touristAttraction->address ?? '') }}" class="mt-1 dark:border-gray-600 app-input">
-        </div>
-    </div>
+    
+    @include('components.map-standard-section', [
+        'title' => 'Map & Location Standard',
+        'mapPartial' => 'modules.hotels.partials._location-map',
+        'mapValue' => old('google_maps_url', $touristAttraction->google_maps_url ?? ''),
+        'latitudeValue' => old('latitude', $touristAttraction->latitude ?? ''),
+        'longitudeValue' => old('longitude', $touristAttraction->longitude ?? ''),
+        'addressValue' => old('address', $touristAttraction->address ?? ''),
+        'cityValue' => old('city', $touristAttraction->city ?? ''),
+        'provinceValue' => old('province', $touristAttraction->province ?? ''),
+        'countryValue' => old('country', $touristAttraction->country ?? ''),
+        'destinationValue' => old('destination_id', $touristAttraction->destination_id ?? ''),
+        'destinations' => $destinations,
+    ])
+    <input type="hidden" id="location" data-location-field="location" name="location" value="{{ old('location', $touristAttraction->location ?? '') }}">
     <div>
-        <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Google Maps URL</label>
-        <div class="mt-1 space-y-2">
-            <input id="google_maps_url" data-location-field="google_maps_url" name="google_maps_url" type="url" value="{{ old('google_maps_url', $touristAttraction->google_maps_url ?? '') }}" placeholder="https://maps.google.com/..." class="app-input">
-            <div class="flex justify-end">
-                <button type="button" data-location-autofill-trigger class="btn-outline-sm">Auto Fill</button>
-            </div>
-        </div>
-        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Paste Google Maps link to auto-fill all location fields.</p>
-        @error('google_maps_url') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Timezone</label>
+        <input data-location-field="timezone" name="timezone" value="{{ old('timezone', $touristAttraction->timezone ?? '') }}" class="mt-1 dark:border-gray-600 app-input">
     </div>
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Latitude</label>
-            <input id="latitude" data-location-field="latitude" name="latitude" type="number" step="0.0000001" value="{{ old('latitude', $touristAttraction->latitude ?? '') }}" class="mt-1 dark:border-gray-600 app-input">
-            @error('latitude') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+            <x-money-input
+                label="Contract Rate (per pax)"
+                name="contract_rate_per_pax"
+                :value="old('contract_rate_per_pax', $touristAttraction->contract_rate_per_pax ?? '')"
+                min="0"
+                step="0.01"
+            />
+            @error('contract_rate_per_pax') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
         </div>
         <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Longitude</label>
-            <input id="longitude" data-location-field="longitude" name="longitude" type="number" step="0.0000001" value="{{ old('longitude', $touristAttraction->longitude ?? '') }}" class="mt-1 dark:border-gray-600 app-input">
-            @error('longitude') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+            <x-money-input
+                label="Publish Rate (per pax)"
+                name="publish_rate_per_pax"
+                :value="old('publish_rate_per_pax', $touristAttraction->publish_rate_per_pax ?? '')"
+                min="0"
+                step="0.01"
+            />
+            @error('publish_rate_per_pax') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
         </div>
     </div>
-    <p data-location-status class="hidden text-xs"></p>
-
     <div>
         <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Description</label>
         <textarea name="description" rows="4" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">{{ old('description', $touristAttraction->description ?? '') }}</textarea>
         @error('description') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
-    </div>
-
-    <div>
-        <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Gallery Images</label>
-        <div id="tourist-attraction-gallery-preview"
-            class="mt-2 grid grid-cols-3 gap-2"
-            data-remove-endpoint-template="{{ isset($touristAttraction) ? route('tourist-attractions.gallery-images.remove', $touristAttraction) : '' }}"
-            data-csrf-token="{{ csrf_token() }}">
-            @if (!empty($touristAttraction?->gallery_images))
-                @foreach ($touristAttraction->gallery_images as $image)
-                    <div class="tourist-gallery-existing-item relative overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700" data-image-path="{{ $image }}">
-                        <button
-                            type="button"
-                             class="tourist-gallery-remove-btn absolute right-1 top-1 z-10 inline-flex h-6 w-6 items-center justify-center rounded-full bg-rose-600/95 text-xs font-bold text-white shadow hover:bg-rose-700"
-                            title="Remove image"
-                            aria-label="Remove image">
-                            X
-                        </button>
-                        <div class="w-full overflow-hidden bg-gray-100 dark:bg-gray-800" style="aspect-ratio: 4 / 3;">
-                            <img
-                                src="{{ asset('storage/' . \App\Support\ImageThumbnailGenerator::thumbnailPathFor($image)) }}"
-                                onerror="this.onerror=null;this.src='{{ asset('storage/' . $image) }}';"
-                                alt="Attraction gallery"
-                                class="h-full w-full object-cover">
-                        </div>
-                    </div>
-                @endforeach
-            @endif
-        </div>
-        <input id="tourist-attraction-gallery-input" type="file" name="gallery_images[]" accept="image/*" multiple class="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
-        <p id="tourist-attraction-gallery-limit-note" class="mt-1 hidden text-xs text-amber-600"></p>
-        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Upload gambar tanpa batas jenis/ukuran. Saat edit, klik X untuk menghapus per gambar, dan upload baru untuk menambah/mengganti. Semua gambar diproses crop rasio 3:2 dan dibuat thumbnail.</p>
-        @error('gallery_images') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
-        @error('gallery_images.*') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
-        @error('removed_gallery_images.*') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
     </div>
 
     <div class="flex items-center gap-2">
@@ -203,34 +147,63 @@
             (function () {
                 const input = document.getElementById('tourist-attraction-gallery-input');
                 const preview = document.getElementById('tourist-attraction-gallery-preview');
-                const limitNote = document.getElementById('tourist-attraction-gallery-limit-note');
                 if (!input || !preview) return;
+
+                const buildPreviewPlaceholder = () => `
+                    <div class="image-preview-placeholder">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M4 7h3l2-2h6l2 2h3a1 1 0 0 1 1 1v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a1 1 0 0 1 1-1z"></path>
+                            <circle cx="12" cy="13" r="4"></circle>
+                        </svg>
+                        <span>Select image to preview</span>
+                    </div>
+                `;
+
+                const ensureEmptyState = () => {
+                    const hasItems = preview.querySelector('.tourist-gallery-item');
+                    const empty = preview.querySelector('.tourist-gallery-empty');
+                    if (!hasItems && !empty) {
+                        const node = document.createElement('div');
+                        node.className = 'tourist-gallery-empty';
+                        node.innerHTML = `
+                            <div class="room-cover-preview image-preview flex w-full items-center justify-center overflow-hidden rounded-lg border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800/40">
+                                ${buildPreviewPlaceholder()}
+                            </div>
+                        `;
+                        preview.appendChild(node);
+                    }
+                    if (hasItems && empty) {
+                        empty.remove();
+                    }
+                };
 
                 const renderNewUploads = () => {
                     preview.querySelectorAll('.tourist-gallery-new-item').forEach((node) => node.remove());
-                    if (limitNote) {
-                        limitNote.classList.add('hidden');
-                        limitNote.textContent = '';
-                    }
 
                     const files = Array.from(input.files || []);
-                    const filesToRender = files;
-
-                    filesToRender.forEach((file) => {
+                    files.forEach((file) => {
                         if (!String(file.type || '').startsWith('image/')) {
                             return;
                         }
                         const url = URL.createObjectURL(file);
                         const wrapper = document.createElement('div');
-                        wrapper.className = 'tourist-gallery-new-item overflow-hidden rounded-lg border border-indigo-200 bg-indigo-50/30 dark:border-indigo-700/60 dark:bg-indigo-900/10';
+                        wrapper.className = 'tourist-gallery-item tourist-gallery-new-item relative overflow-hidden rounded-lg border border-indigo-200 bg-indigo-50/30 dark:border-indigo-700/60 dark:bg-indigo-900/10';
                         const media = document.createElement('div');
-                        media.className = 'w-full overflow-hidden bg-gray-100 dark:bg-gray-800';
-                        media.style.aspectRatio = '4 / 3';
+                        media.className = 'room-cover-preview image-preview flex w-full items-center justify-center overflow-hidden rounded-lg border-0 bg-gray-50 dark:bg-gray-800/40';
+                        media.innerHTML = buildPreviewPlaceholder();
                         const image = document.createElement('img');
-                        image.src = url;
                         image.alt = 'Attraction gallery preview';
                         image.className = 'h-full w-full object-cover';
-                        image.addEventListener('load', () => URL.revokeObjectURL(url), { once: true });
+                        image.addEventListener('load', () => {
+                            image.classList.add('image-loaded');
+                            media.classList.add('has-image');
+                            URL.revokeObjectURL(url);
+                        }, { once: true });
+                        image.addEventListener('error', () => {
+                            media.classList.remove('has-image');
+                            image.remove();
+                        }, { once: true });
+                        image.src = url;
                         media.appendChild(image);
                         wrapper.appendChild(media);
                         const badge = document.createElement('div');
@@ -239,6 +212,8 @@
                         wrapper.appendChild(badge);
                         preview.appendChild(wrapper);
                     });
+
+                    ensureEmptyState();
                 };
 
                 input.addEventListener('change', renderNewUploads);
@@ -276,16 +251,20 @@
                         }
                         wrapper.remove();
                         renderNewUploads();
+                        ensureEmptyState();
                     } catch (_) {
                         button.disabled = false;
                         button.classList.remove('opacity-70');
                         alert('Gagal menghapus image. Silakan coba lagi.');
                     }
                 });
+
+                ensureEmptyState();
             })();
         </script>
     @endpush
 @endonce
+
 
 
 

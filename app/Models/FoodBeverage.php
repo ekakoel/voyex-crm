@@ -2,20 +2,20 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasAudit;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class FoodBeverage extends Model
 {
-    use SoftDeletes;
+    use HasAudit, SoftDeletes;
     protected $fillable = [
         'vendor_id',
         'name',
         'service_type',
         'duration_minutes',
-        'contract_price',
-        'agent_price',
-        'currency',
+        'contract_rate',
+        'publish_rate',
         'meal_period',
         'menu_highlights',
         'notes',
@@ -25,8 +25,8 @@ class FoodBeverage extends Model
 
     protected $casts = [
         'duration_minutes' => 'integer',
-        'contract_price' => 'decimal:2',
-        'agent_price' => 'decimal:2',
+        'contract_rate' => 'decimal:2',
+        'publish_rate' => 'decimal:2',
         'gallery_images' => 'array',
         'is_active' => 'boolean',
     ];

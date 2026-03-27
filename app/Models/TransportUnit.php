@@ -3,26 +3,34 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class TransportUnit extends Model
 {
+    use SoftDeletes;
+
+    protected $table = 'transports';
+
     protected $fillable = [
-        'transport_id',
+        'code',
         'name',
-        'vehicle_type',
+        'transport_type',
+        'vendor_id',
+        'description',
+        'inclusions',
+        'exclusions',
+        'cancellation_policy',
         'brand_model',
         'seat_capacity',
         'luggage_capacity',
         'contract_rate',
         'publish_rate',
         'overtime_rate',
-        'currency',
         'fuel_type',
         'transmission',
         'air_conditioned',
         'with_driver',
         'images',
-        'benefits',
         'notes',
         'is_active',
     ];
@@ -41,7 +49,7 @@ class TransportUnit extends Model
 
     public function transport()
     {
-        return $this->belongsTo(Transport::class);
+        return $this->hasOne(Transport::class, 'id', 'id');
     }
 }
 

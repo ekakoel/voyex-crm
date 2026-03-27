@@ -28,11 +28,12 @@ class ActivitiesSmokeTest extends ModuleSmokeTestCase
         $this->post(route('activities.store'), [
             'vendor_id' => $vendor->id,
             'name' => $name,
-            'activity_type' => 'Adventure',
+            'activity_type_name' => 'Adventure',
             'duration_minutes' => 120,
-            'currency' => 'IDR',
-            'contract_price' => 500000,
-            'agent_price' => 650000,
+            'adult_contract_rate' => 500000,
+            'child_contract_rate' => 350000,
+            'adult_publish_rate' => 650000,
+            'child_publish_rate' => 450000,
             'capacity_min' => 1,
             'capacity_max' => 10,
             'gallery_images' => [

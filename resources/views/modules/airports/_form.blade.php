@@ -5,6 +5,9 @@
 @endphp
 
 <div class="space-y-4" data-location-autofill data-location-resolve-url="{{ route('location.resolve-google-map') }}">
+    <div>
+        <p class="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Basic Information</p>
+    </div>
     <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
         <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Code</label>
@@ -22,84 +25,28 @@
         </div>
     </div>
 
-    <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Country</label>
-            <input name="country" data-location-field="country" value="{{ old('country', $airport->country ?? '') }}"
-                class="mt-1 dark:border-gray-600 app-input">
-        </div>
-        <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Timezone</label>
-            <input name="timezone" data-location-field="timezone" value="{{ old('timezone', $airport->timezone ?? '') }}"
-                class="mt-1 dark:border-gray-600 app-input">
-        </div>
-    </div>
-
+    @include('components.map-standard-section', [
+        'title' => 'Map & Location Standard',
+        'mapPartial' => 'modules.airports.partials._location-map',
+        'mapValue' => old('google_maps_url', $airport->google_maps_url ?? ''),
+        'latitudeValue' => old('latitude', $airport->latitude ?? ''),
+        'longitudeValue' => old('longitude', $airport->longitude ?? ''),
+        'addressValue' => old('address', $airport->address ?? ''),
+        'cityValue' => old('city', $airport->city ?? ''),
+        'provinceValue' => old('province', $airport->province ?? ''),
+        'countryValue' => old('country', $airport->country ?? ''),
+        'destinationValue' => old('destination_id', $airport->destination_id ?? ''),
+        'destinations' => $destinations,
+    ])
+    <input type="hidden" name="location" data-location-field="location" value="{{ old('location', $airport->location ?? '') }}">
     <div>
-        <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Google Maps URL</label>
-        <div class="mt-1 space-y-2">
-            <input name="google_maps_url" data-location-field="google_maps_url" value="{{ old('google_maps_url', $airport->google_maps_url ?? '') }}"
-                class="app-input"
-                placeholder="https://maps.google.com/...">
-            <div class="flex justify-end">
-                <button type="button" data-location-autofill-trigger class="btn-outline-sm">Auto Fill</button>
-            </div>
-        </div>
-        @error('google_maps_url') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Timezone</label>
+        <input name="timezone" data-location-field="timezone" value="{{ old('timezone', $airport->timezone ?? '') }}"
+            class="mt-1 dark:border-gray-600 app-input">
     </div>
-
-    <div class="grid grid-cols-1 gap-4 md:grid-cols-5">
-        <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Destination</label>
-            <select name="destination_id" data-location-field="destination_id"
-                class="mt-1 dark:border-gray-600 app-input">
-                <option value="">Select destination</option>
-                @foreach ($destinations as $destination)
-                    <option value="{{ $destination->id }}" data-city="{{ $destination->city ?? '' }}" data-province="{{ $destination->province ?? '' }}" @selected((string) old('destination_id', $airport->destination_id ?? '') === (string) $destination->id)>
-                        {{ $destination->province ?: $destination->name }}
-                    </option>
-                @endforeach
-            </select>
-            @error('destination_id') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
-        </div>
-        <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Location</label>
-            <input name="location" data-location-field="location" value="{{ old('location', $airport->location ?? '') }}"
-                class="mt-1 dark:border-gray-600 app-input">
-        </div>
-        <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">City</label>
-            <input name="city" data-location-field="city" value="{{ old('city', $airport->city ?? '') }}"
-                class="mt-1 dark:border-gray-600 app-input">
-        </div>
-        <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Province</label>
-            <input name="province" data-location-field="province" value="{{ old('province', $airport->province ?? '') }}"
-                class="mt-1 dark:border-gray-600 app-input">
-        </div>
-        <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Address</label>
-            <input name="address" data-location-field="address" value="{{ old('address', $airport->address ?? '') }}"
-                class="mt-1 dark:border-gray-600 app-input">
-        </div>
+    <div>
+        <p class="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Additional Notes</p>
     </div>
-
-    <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Latitude</label>
-            <input name="latitude" data-location-field="latitude" value="{{ old('latitude', $airport->latitude ?? '') }}"
-                class="mt-1 dark:border-gray-600 app-input">
-            @error('latitude') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
-        </div>
-        <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Longitude</label>
-            <input name="longitude" data-location-field="longitude" value="{{ old('longitude', $airport->longitude ?? '') }}"
-                class="mt-1 dark:border-gray-600 app-input">
-            @error('longitude') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
-        </div>
-    </div>
-    <p data-location-status class="hidden text-xs"></p>
-
     <div>
         <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Notes</label>
         <textarea name="notes" rows="3"

@@ -19,6 +19,11 @@ class EnsureModulePermission
             return $next($request);
         }
 
+        // Deletion across module resources is restricted to Super Admin only.
+        if ($request->isMethod('DELETE')) {
+            abort(403, 'Only Super Admin can delete module data.');
+        }
+
         $action = $request->route()?->getActionMethod();
         $permission = match ($action) {
             'index', 'show' => "module.{$moduleKey}.read",

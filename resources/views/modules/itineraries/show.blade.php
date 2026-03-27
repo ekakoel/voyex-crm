@@ -37,31 +37,31 @@
 
         
 
-        @if ($itinerary->accommodations->isNotEmpty())
+        @if ($itinerary->hotels->isNotEmpty())
             <div class="app-card p-4">
-                <h2 class="text-sm font-semibold uppercase tracking-wide text-gray-700 dark:text-gray-200">Accommodations</h2>
+                <h2 class="text-sm font-semibold uppercase tracking-wide text-gray-700 dark:text-gray-200">Hotels</h2>
                 @php
-                    $dayPointByDayForAccommodation = $itinerary->dayPoints->keyBy(fn ($point) => (int) $point->day_number);
+                    $dayPointByDayForHotel = $itinerary->dayPoints->keyBy(fn ($point) => (int) $point->day_number);
                 @endphp
                 <div class="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3 lg:grid-cols-4">
-                    @foreach($itinerary->accommodations as $accommodation)
+                    @foreach($itinerary->hotels as $hotel)
                         @php
-                            $stayDay = (int) ($accommodation->pivot->day_number ?? 1);
-                            $stayPoint = $dayPointByDayForAccommodation[$stayDay] ?? null;
-                            if ($stayPoint && (int) ($stayPoint->end_accommodation_id ?? 0) !== (int) $accommodation->id) {
+                            $stayDay = (int) ($hotel->pivot->day_number ?? 1);
+                            $stayPoint = $dayPointByDayForHotel[$stayDay] ?? null;
+                            if ($stayPoint && (int) ($stayPoint->end_hotel_id ?? 0) !== (int) $hotel->id) {
                                 $stayPoint = null;
                             }
-                            $roomName = (string) ($stayPoint?->endAccommodationRoom?->name ?? '');
-                            $roomType = (string) ($stayPoint?->endAccommodationRoom?->room_type ?? '');
+                            $roomName = (string) ($stayPoint?->endHotelRoom?->rooms ?? '');
+                            $roomType = (string) ($stayPoint?->endHotelRoom?->view ?? '');
                         @endphp
                         <div class="rounded-lg mb-6 border border-gray-200 px-3 py-2 text-sm dark:border-gray-700">
-                            <p class="font-semibold text-gray-800 dark:text-gray-100">{{ $accommodation->name }}</p>
+                            <p class="font-semibold text-gray-800 dark:text-gray-100">{{ $hotel->name }}</p>
                             <p class="text-xs text-gray-500 dark:text-gray-400">
-                                {{ $accommodation->category ?: '-' }}
-                                @if(!is_null($accommodation->star_rating))
-                                    | {{ $accommodation->star_rating }} star
+                                {{ $hotel->category ?: '-' }}
+                                @if(!is_null($hotel->star_rating))
+                                    | {{ $hotel->star_rating }} star
                                 @endif
-                                | {{ $accommodation->city ?: '-' }}
+                                | {{ $hotel->city ?: '-' }}
                             </p>
                             @if ($roomName !== '')
                                 <p class="mt-1 text-xs text-gray-600 dark:text-gray-300">
@@ -69,7 +69,7 @@
                                 </p>
                             @endif
                             <p class="mt-1 text-xs font-medium text-indigo-600 dark:text-indigo-300">
-                                Day {{ $accommodation->pivot->day_number ?? 1 }} | {{ $accommodation->pivot->night_count ?? 1 }} night(s)
+                                Day {{ $hotel->pivot->day_number ?? 1 }} | {{ $hotel->pivot->night_count ?? 1 }} night(s)
                             </p>
                         </div>
                     @endforeach
@@ -111,16 +111,16 @@
                                 if ($type === 'airport') {
                                     return $dayPoint->startAirport?->name ?: 'Not set';
                                 }
-                                if ($type === 'accommodation') {
-                                    $accommodationName = (string) ($dayPoint->startAccommodation?->name ?? 'Not set');
-                                    $roomName = (string) ($dayPoint->startAccommodationRoom?->name ?? '');
-                                    if ($accommodationName === 'Not set') {
+                                if ($type === 'hotel') {
+                                    $hotelName = (string) ($dayPoint->startHotel?->name ?? 'Not set');
+                                    $roomName = (string) ($dayPoint->startHotelRoom?->rooms ?? '');
+                                    if ($hotelName === 'Not set') {
                                         return 'Not set';
                                     }
                                     if ($roomName !== '') {
-                                        return $accommodationName . ' - ' . $roomName;
+                                        return $hotelName . ' - ' . $roomName;
                                     }
-                                    return $accommodationName;
+                                    return $hotelName;
                                 }
                                 return 'Not set';
                             }
@@ -128,16 +128,16 @@
                             if ($type === 'airport') {
                                 return $dayPoint->endAirport?->name ?: 'Not set';
                             }
-                            if ($type === 'accommodation') {
-                                $accommodationName = (string) ($dayPoint->endAccommodation?->name ?? 'Not set');
-                                $roomName = (string) ($dayPoint->endAccommodationRoom?->name ?? '');
-                                if ($accommodationName === 'Not set') {
+                            if ($type === 'hotel') {
+                                $hotelName = (string) ($dayPoint->endHotel?->name ?? 'Not set');
+                                $roomName = (string) ($dayPoint->endHotelRoom?->rooms ?? '');
+                                if ($hotelName === 'Not set') {
                                     return 'Not set';
                                 }
                                 if ($roomName !== '') {
-                                    return $accommodationName . ' - ' . $roomName;
+                                    return $hotelName . ' - ' . $roomName;
                                 }
-                                return $accommodationName;
+                                return $hotelName;
                             }
                             return 'Not set';
                         };
@@ -153,8 +153,8 @@
                                 if ($type === 'airport') {
                                     return $dayPoint->startAirport?->location;
                                 }
-                                if ($type === 'accommodation') {
-                                    return $dayPoint->startAccommodation?->location;
+                                if ($type === 'hotel') {
+                                    return $dayPoint->startHotel?->address;
                                 }
                                 return null;
                             }
@@ -162,8 +162,8 @@
                             if ($type === 'airport') {
                                 return $dayPoint->endAirport?->location;
                             }
-                            if ($type === 'accommodation') {
-                                return $dayPoint->endAccommodation?->location;
+                            if ($type === 'hotel') {
+                                return $dayPoint->endHotel?->address;
                             }
                             return null;
                         };
@@ -198,6 +198,8 @@
                                     'excludes' => $activity->excludes ?? null,
                                     'benefits' => $activity->benefits ?? null,
                                     'pax' => $activityItem->pax,
+                                    'pax_adult' => $activityItem->pax_adult ?? $activityItem->pax,
+                                    'pax_child' => $activityItem->pax_child ?? 0,
                                     'start_time' => $activityItem->start_time,
                                     'end_time' => $activityItem->end_time,
                                     'travel_minutes_to_next' => $activityItem->travel_minutes_to_next,
@@ -215,8 +217,8 @@
                                     'description' => $foodBeverage->notes ?? $foodBeverage->menu_highlights ?? null,
                                     'meal_period' => $foodBeverage->meal_period ?? null,
                                     'service_type' => $foodBeverage->service_type ?? null,
-                                    'agent_price' => $foodBeverage->agent_price ?? null,
-                                    'currency' => $foodBeverage->currency ?? 'IDR',
+                                    'publish_rate' => $foodBeverage->publish_rate ?? null,
+                                    'currency' => 'IDR',
                                     'pax' => $foodBeverageItem->pax,
                                     'start_time' => $foodBeverageItem->start_time,
                                     'end_time' => $foodBeverageItem->end_time,
@@ -232,14 +234,14 @@
                             $previousEndLocation = $resolvePointLocation($previousDayPoint, 'end');
                             $startPointTypeRaw = (string) ($dayPoint->start_point_type ?? '');
                             $startPointType = $startPointTypeRaw === 'previous_day_end'
-                                ? (string) ($previousDayPoint->end_point_type ?? 'accommodation')
+                                ? (string) ($previousDayPoint->end_point_type ?? 'hotel')
                                 : $startPointTypeRaw;
-                            if (!in_array($startPointType, ['airport', 'accommodation'], true)) {
-                                $startPointType = 'accommodation';
+                            if (!in_array($startPointType, ['airport', 'hotel'], true)) {
+                                $startPointType = 'hotel';
                             }
-                            $endPointType = (string) ($dayPoint->end_point_type ?? 'accommodation');
-                            if (!in_array($endPointType, ['airport', 'accommodation'], true)) {
-                                $endPointType = 'accommodation';
+                            $endPointType = (string) ($dayPoint->end_point_type ?? 'hotel');
+                            if (!in_array($endPointType, ['airport', 'hotel'], true)) {
+                                $endPointType = 'hotel';
                             }
                             $startPointLabel = $dayPoint
                                 ? $resolvePointLabel($dayPoint, 'start', $previousEndLabel)
@@ -549,18 +551,18 @@
                         'lng' => $dayPoint->startAirport->longitude,
                     ];
                 }
-                if ($type === 'accommodation' && $dayPoint->startAccommodation) {
-                    $accommodationName = (string) ($dayPoint->startAccommodation->name ?? 'Start Point');
-                    $roomName = (string) ($dayPoint->startAccommodationRoom?->name ?? '');
+                if ($type === 'hotel' && $dayPoint->startHotel) {
+                    $hotelName = (string) ($dayPoint->startHotel->name ?? 'Start Point');
+                    $roomName = (string) ($dayPoint->startHotelRoom?->rooms ?? '');
                     $pointName = $roomName !== ''
-                        ? ($accommodationName . ' - ' . $roomName)
-                        : $accommodationName;
+                        ? ($hotelName . ' - ' . $roomName)
+                        : $hotelName;
                     return [
-                        'type' => 'accommodation',
+                        'type' => 'hotel',
                         'name' => $pointName,
-                        'location' => (string) ($dayPoint->startAccommodation->location ?? '-'),
-                        'lat' => $dayPoint->startAccommodation->latitude,
-                        'lng' => $dayPoint->startAccommodation->longitude,
+                        'location' => (string) ($dayPoint->startHotel->address ?? '-'),
+                        'lat' => $dayPoint->startHotel->latitude,
+                        'lng' => $dayPoint->startHotel->longitude,
                     ];
                 }
                 return null;
@@ -576,18 +578,18 @@
                     'lng' => $dayPoint->endAirport->longitude,
                 ];
             }
-            if ($type === 'accommodation' && $dayPoint->endAccommodation) {
-                $accommodationName = (string) ($dayPoint->endAccommodation->name ?? 'End Point');
-                $roomName = (string) ($dayPoint->endAccommodationRoom?->name ?? '');
+            if ($type === 'hotel' && $dayPoint->endHotel) {
+                $hotelName = (string) ($dayPoint->endHotel->name ?? 'End Point');
+                $roomName = (string) ($dayPoint->endHotelRoom?->rooms ?? '');
                 $pointName = $roomName !== ''
-                    ? ($accommodationName . ' - ' . $roomName)
-                    : $accommodationName;
+                    ? ($hotelName . ' - ' . $roomName)
+                    : $hotelName;
                 return [
-                    'type' => 'accommodation',
+                    'type' => 'hotel',
                     'name' => $pointName,
-                    'location' => (string) ($dayPoint->endAccommodation->location ?? '-'),
-                    'lat' => $dayPoint->endAccommodation->latitude,
-                    'lng' => $dayPoint->endAccommodation->longitude,
+                    'location' => (string) ($dayPoint->endHotel->address ?? '-'),
+                    'lat' => $dayPoint->endHotel->latitude,
+                    'lng' => $dayPoint->endHotel->longitude,
                 ];
             }
             return null;
@@ -678,10 +680,16 @@
         }
 
         $mapPoints = $mapPoints->merge($dayPointMarkers)->values();
+        $dayTransportTypes = collect($transportUnitByDay ?? [])
+            ->mapWithKeys(function ($item, $day) {
+                return [(int) $day => (string) ($item->transportUnit?->transport?->transport_type ?? '')];
+            })
+            ->all();
     @endphp
     <script>
         (function () {
             const points = @json($mapPoints);
+            const dayTransportTypes = @json($dayTransportTypes);
 
             const validPoints = points.filter((point) =>
                 typeof point.lat === 'number' && Number.isFinite(point.lat) &&
@@ -715,7 +723,7 @@
                 if (type === 'activity') return 'activity';
                 if (type === 'fnb') return 'fnb';
                 if (type === 'airport') return 'airport';
-                if (type === 'accommodation') return 'accommodation';
+                if (type === 'hotel') return 'hotel';
                 return 'attraction';
             };
 
@@ -723,7 +731,7 @@
                 if (type === 'activity') return 'fa-solid fa-person-hiking';
                 if (type === 'fnb') return 'fa-solid fa-utensils';
                 if (type === 'airport') return 'fa-solid fa-plane';
-                if (type === 'accommodation') return 'fa-solid fa-bed';
+                if (type === 'hotel') return 'fa-solid fa-bed';
                 return 'fa-solid fa-location-dot';
             };
 
@@ -742,6 +750,18 @@
             }, {});
 
             const dayColors = ['#2563eb', '#16a34a', '#ea580c', '#db2777', '#7c3aed', '#0891b2'];
+            const normalizeTransportType = (value) => String(value || '').toLowerCase().trim();
+            const isRoadTransportType = (transportType) => {
+                const type = normalizeTransportType(transportType);
+                if (type === '') return true;
+                return ['car', 'van', 'bus', 'other'].includes(type);
+            };
+            const segmentLineStyle = (transportType, color) => {
+                if (isRoadTransportType(transportType)) {
+                    return { color, weight: 4, opacity: 0.9 };
+                }
+                return { color, weight: 4, opacity: 0.9, dashArray: '8 8' };
+            };
             const clearRouteLayers = () => {
                 routeLayers.forEach((layer) => map.removeLayer(layer));
                 routeLayers.length = 0;
@@ -770,7 +790,7 @@
                         activity: 'Activity',
                         fnb: 'F&B',
                         airport: 'Airport',
-                        accommodation: 'Accommodation',
+                        hotel: 'Hotel',
                     };
                     const type = typeLabelMap[item.type] || 'Point';
                     const dayLabel = `Day ${item.day_number}`;
@@ -778,10 +798,10 @@
                         ? 'fa-solid fa-person-hiking'
                         : (item.type === 'fnb'
                             ? 'fa-solid fa-utensils'
-                            : (item.type === 'airport' ? 'fa-solid fa-plane' : (item.type === 'accommodation' ? 'fa-solid fa-bed' : 'fa-solid fa-location-dot')));
+                            : (item.type === 'airport' ? 'fa-solid fa-plane' : (item.type === 'hotel' ? 'fa-solid fa-bed' : 'fa-solid fa-location-dot')));
                     const iconTypeClass = item.type === 'activity'
                         ? 'activity'
-                        : (item.type === 'fnb' ? 'fnb' : (item.type === 'airport' || item.type === 'accommodation' ? 'point' : 'attraction'));
+                        : (item.type === 'fnb' ? 'fnb' : (item.type === 'airport' || item.type === 'hotel' ? 'point' : 'attraction'));
                     const timeLabel = pointRole === 'start'
                         ? `Start Tour: ${start}`
                         : (pointRole === 'end' ? `End Tour: ${end}` : `${start} - ${end}`);
@@ -830,7 +850,7 @@
                         activity: 'Activity',
                         fnb: 'F&B',
                         airport: 'Airport',
-                        accommodation: 'Accommodation',
+                        hotel: 'Hotel',
                     };
                     const pointTypeLabel = typeLabelMap[point.type] || 'Point';
                     const popupTimeLabel = pointRole === 'start'
@@ -862,15 +882,26 @@
                 for (const day of activeDays) {
                     const dayPoints = (groupedByDay[String(day)] || []).slice().sort((a, b) => (a.visit_order - b.visit_order));
                     if (dayPoints.length < 2) continue;
+                    const dayTransportType = normalizeTransportType(dayTransportTypes[String(day)] || dayTransportTypes[day] || '');
+                    const dayIndex = Math.max(0, dayValues.indexOf(day));
+                    const color = dayColors[dayIndex % dayColors.length];
+                    const fallbackCoordinates = dayPoints.map((point) => [point.lat, point.lng]);
+                    const fallbackLayer = L.polyline(fallbackCoordinates, segmentLineStyle(dayTransportType, color)).addTo(map);
+                    routeLayers.push(fallbackLayer);
+
+                    if (!isRoadTransportType(dayTransportType)) {
+                        continue;
+                    }
+
                     const coordinates = dayPoints.map((point) => `${point.lng},${point.lat}`).join(';');
                     try {
                         const response = await fetch(`https://router.project-osrm.org/route/v1/driving/${coordinates}?overview=full&geometries=geojson`);
                         const data = await response.json();
                         const geometry = data?.routes?.[0]?.geometry;
                         if (!geometry) continue;
-                        const dayIndex = Math.max(0, dayValues.indexOf(day));
+                        map.removeLayer(fallbackLayer);
                         const layer = L.geoJSON(geometry, {
-                            style: { color: dayColors[dayIndex % dayColors.length], weight: 4, opacity: 0.9 }
+                            style: { color, weight: 4, opacity: 0.9 }
                         }).addTo(map);
                         routeLayers.push(layer);
                     } catch (_) {}
@@ -925,6 +956,10 @@
         })();
     </script>
 @endpush
+
+
+
+
 
 
 

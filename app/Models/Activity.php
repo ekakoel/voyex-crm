@@ -2,11 +2,13 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasAudit;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Activity extends Model
 {
+    use HasAudit;
     use SoftDeletes;
     protected $fillable = [
         'vendor_id',
@@ -17,8 +19,10 @@ class Activity extends Model
         'benefits',
         'descriptions',
         'contract_price',
-        'agent_price',
-        'currency',
+        'adult_contract_rate',
+        'child_contract_rate',
+        'adult_publish_rate',
+        'child_publish_rate',
         'capacity_min',
         'capacity_max',
         'includes',
@@ -32,7 +36,10 @@ class Activity extends Model
     protected $casts = [
         'duration_minutes' => 'integer',
         'contract_price' => 'decimal:2',
-        'agent_price' => 'decimal:2',
+        'adult_contract_rate' => 'decimal:2',
+        'child_contract_rate' => 'decimal:2',
+        'adult_publish_rate' => 'decimal:2',
+        'child_publish_rate' => 'decimal:2',
         'capacity_min' => 'integer',
         'capacity_max' => 'integer',
         'gallery_images' => 'array',

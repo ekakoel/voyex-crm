@@ -19,13 +19,14 @@
 ])
 
 @php
-    $currentCurrency = $currency ?: \App\Support\Currency::current();
-    $badgeText = $badge ?? $currentCurrency;
+    $badgeText = $badge ?? 'IDR';
     $wrapperClass = $wrapperClass ?? ($compact ? '' : 'space-y-1');
     $baseInputClass = $compact
         ? 'app-input pr-14'
         : 'mt-1 app-input pr-14';
     $inputClass = trim($baseInputClass . ' ' . ($inputClass ?? ''));
+    $baseBadgeClass = 'input-right-affix rounded-md border border-gray-200 bg-gray-50 px-1.5 py-0.5 text-[10px] font-semibold text-gray-600 shadow-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200';
+    $badgeClass = trim($baseBadgeClass . ' ' . ($badgeClass ?? ''));
 @endphp
 
 <div class="{{ $wrapperClass }}">
@@ -35,7 +36,7 @@
             class="{{ $labelClass ?? 'block text-sm font-medium text-gray-700 dark:text-gray-200' }}"
         >{{ $label }}</label>
     @endif
-    <div class="relative">
+    <div class="input-with-right-affix">
         <input
             @if ($name) name="{{ $name }}" @endif
             @if ($id) id="{{ $id }}" @endif
@@ -47,10 +48,11 @@
             @if ($readonly) readonly @endif
             @if ($placeholder) placeholder="{{ $placeholder }}" @endif
             data-money-input="1"
+            data-money-currency="IDR"
             {{ $attributes->merge(['class' => $inputClass]) }}
         >
         <span
-            class="{{ $badgeClass ?? 'pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 rounded-md border border-gray-200 bg-gray-50 px-1.5 py-0.5 text-[10px] font-semibold text-gray-600 shadow-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200' }}"
+            class="{{ $badgeClass }}"
             data-money-badge="1"
             data-money-badge-default="{{ $badgeText }}"
         >

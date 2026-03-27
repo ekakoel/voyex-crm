@@ -46,6 +46,7 @@ class RolePermissionSeeder extends Seeder
                 'module.activities.access',
                 'module.food_beverages.access',
                 'module.airports.access',
+                'module.hotels.access',
             ],
             'Marketing' => [
                 'dashboard.marketing.view',
@@ -57,6 +58,7 @@ class RolePermissionSeeder extends Seeder
                 'module.activities.access',
                 'module.food_beverages.access',
                 'module.airports.access',
+                'module.hotels.access',
             ],
             'Director' => [
                 'dashboard.director.view',
@@ -84,6 +86,7 @@ class RolePermissionSeeder extends Seeder
                 'module.activities.access',
                 'module.food_beverages.access',
                 'module.airports.access',
+                'module.hotels.access',
             ],
             'Editor' => [
                 'dashboard.editor.view',
@@ -91,7 +94,7 @@ class RolePermissionSeeder extends Seeder
                 'module.destinations.access',
                 'module.activities.access',
                 'module.food_beverages.access',
-                'module.accommodations.access',
+                'module.hotels.access',
                 'module.airports.access',
                 'module.transports.access',
                 'module.tourist_attractions.access',
@@ -107,6 +110,7 @@ class RolePermissionSeeder extends Seeder
             }
 
             $permissionNames = $this->expandModulePermissions($permissionNames, $moduleKeys);
+            $permissionNames = array_values(array_unique($permissionNames));
 
             $validPermissions = Permission::query()
                 ->whereIn('name', $permissionNames)

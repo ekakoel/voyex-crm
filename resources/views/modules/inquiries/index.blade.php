@@ -9,8 +9,8 @@
 @section('content')
     <div class="space-y-6 module-page module-page--inquiries">
         <x-index-stats :cards="$statsCards ?? []" />
-        <div class="grid grid-cols-1 gap-6 xl:grid-cols-12">
-            <aside class="space-y-4 xl:col-span-3">
+        <div class="module-grid-3-9">
+            <aside class="module-grid-side space-y-4">
                 <div class="app-card p-5 space-y-4">
                     <div>
                         <h2 class="text-base font-semibold text-gray-800 dark:text-gray-100">Filters</h2>
@@ -53,7 +53,7 @@
                     </form>
                 </div>
             </aside>
-            <div class="space-y-4 xl:col-span-9">
+            <div class="module-grid-main space-y-4">
                 @if (session('success'))
                     <div
                         class="rounded-lg mb-6 border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300">
@@ -236,4 +236,5 @@
         </div>
     </div>
 @endsection
+
 

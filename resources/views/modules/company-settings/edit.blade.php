@@ -1,6 +1,9 @@
 @extends('layouts.master')
 
 @section('content')
+    @php
+        $destinations = $destinations ?? collect();
+    @endphp
     <div class="max-w-5xl space-y-6">
         
 
@@ -11,7 +14,7 @@
         @endif
 
         <div class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
-            <form method="POST" action="{{ route('company-settings.update') }}" enctype="multipart/form-data" class="space-y-6">
+            <form method="POST" action="{{ route('company-settings.update') }}" enctype="multipart/form-data" class="space-y-6" data-location-autofill data-location-resolve-url="{{ route('location.resolve-google-map') }}">
                 @csrf
                 @method('PATCH')
 
@@ -43,40 +46,33 @@
                 </div>
 
                 <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
-                    <div class="md:col-span-2">
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Address</label>
-                        <input name="address" value="{{ old('address', $settings->address) }}" class="mt-1 dark:border-gray-600 app-input">
-                    </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Website</label>
                         <input type="url" name="website" value="{{ old('website', $settings->website) }}" class="mt-1 dark:border-gray-600 app-input">
                     </div>
-                </div>
-
-                <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">City</label>
-                        <input name="city" value="{{ old('city', $settings->city) }}" class="mt-1 dark:border-gray-600 app-input">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Country</label>
-                        <input name="country" value="{{ old('country', $settings->country) }}" class="mt-1 dark:border-gray-600 app-input">
-                    </div>
-                    <div class="grid grid-cols-2 gap-3">
+                    <div class="md:col-span-2">
                         <div>
                             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Timezone</label>
                             <input name="timezone" value="{{ old('timezone', $settings->timezone) }}" placeholder="Asia/Jakarta" class="mt-1 dark:border-gray-600 app-input">
                         </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Currency</label>
-                    <input name="currency" value="{{ old('currency', $settings->currency) }}" maxlength="3" placeholder="IDR" class="mt-1 uppercase dark:border-gray-600 app-input">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">USD Rate (IDR per 1 USD)</label>
-                    <input name="usd_rate" type="number" step="0.01" min="1" value="{{ old('usd_rate', $settings->usd_rate ?? '') }}" class="mt-1 dark:border-gray-600 app-input">
-                </div>
                     </div>
                 </div>
+
+                @include('components.map-standard-section', [
+                    'title' => 'Map & Location Standard',
+                    'mapPartial' => 'modules.company-settings.partials._location-map',
+                    'mapFieldName' => 'google_maps_url',
+                    'mapFieldErrorKey' => 'google_maps_url',
+                    'mapValue' => old('google_maps_url', $settings->google_maps_url ?? ''),
+                    'latitudeValue' => old('latitude', $settings->latitude ?? ''),
+                    'longitudeValue' => old('longitude', $settings->longitude ?? ''),
+                    'addressValue' => old('address', $settings->address ?? ''),
+                    'cityValue' => old('city', $settings->city ?? ''),
+                    'provinceValue' => old('province', $settings->province ?? ''),
+                    'countryValue' => old('country', $settings->country ?? ''),
+                    'destinationValue' => old('destination_id', $settings->destination_id ?? ''),
+                    'destinations' => $destinations,
+                ])
 
                 <div>
                     <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Footer Note</label>

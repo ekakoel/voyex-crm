@@ -10,8 +10,13 @@
 
 @section('content')
     <div class="space-y-6 module-page">
-        <div class="module-card p-6">
-            <!-- Page content -->
+        <div class="module-grid-9-3">
+            <section class="module-grid-main module-card p-6">
+                <!-- Main content -->
+            </section>
+            <aside class="module-grid-side module-card p-6">
+                <!-- Supporting panel -->
+            </aside>
         </div>
     </div>
 @endsection

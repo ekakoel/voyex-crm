@@ -14,7 +14,13 @@
         <!-- Scripts -->
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     </head>
-    <body class="font-sans antialiased">
+    <body class="app-shell font-sans antialiased">
+        <div class="page-spinner" data-page-spinner aria-hidden="true">
+            <div class="page-spinner__inner">
+                <div class="page-spinner__ring" aria-hidden="true"></div>
+                <div class="page-spinner__text">Loading...</div>
+            </div>
+        </div>
         <div class="min-h-screen bg-gray-100">
             @include('layouts.navigation')
 
@@ -28,7 +34,7 @@
             @endif
 
             <!-- Page Content -->
-            <main>
+            <main class="app-main flex-1 min-h-0 overflow-y-auto">
                 {{ $slot }}
             </main>
         </div>

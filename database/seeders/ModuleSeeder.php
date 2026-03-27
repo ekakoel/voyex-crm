@@ -87,9 +87,9 @@ class ModuleSeeder extends Seeder
                 'is_enabled' => true,
             ],
             [
-                'key' => 'accommodations',
-                'name' => 'Accommodations',
-                'description' => 'Manage accommodation partners, room types, and contract rates.',
+                'key' => 'hotels',
+                'name' => 'Hotels',
+                'description' => 'Manage hotel master data, rooms, and pricing.',
                 'is_enabled' => true,
             ],
             [
@@ -140,7 +140,6 @@ class ModuleSeeder extends Seeder
             'director_dashboard',
             'quotation_templates',
             'services',
-            'services_accommodations',
             'services_transports',
             'services_guides',
             'services_attractions',

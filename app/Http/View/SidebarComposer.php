@@ -128,24 +128,24 @@ class SidebarComposer
                 'title' => 'Product & Reservation',
             ],
             [
+                'title' => 'Destinations',
+                'route' => 'destinations.index',
+                'icon'  => 'map-location-dot',
+                'module' => 'destinations',
+                'roles' => ['Administrator', 'Super Admin', 'Reservation', 'Manager', 'Marketing', 'Editor'],
+            ],
+            [
+                'title' => 'Vendors / Providers',
+                'route' => 'vendors.index',
+                'icon'  => 'handshake',
+                'module' => 'vendor_management',
+                'roles' => ['Administrator', 'Super Admin', 'Reservation', 'Manager', 'Marketing', 'Editor'],
+            ],
+            [
                 'title' => 'Service Items',
                 'route' => '#',
                 'icon'  => 'briefcase',
                 'children' => [
-                    [
-                        'title' => 'Destinations',
-                        'route' => 'destinations.index',
-                        'icon'  => 'map-location-dot',
-                        'module' => 'destinations',
-                        'roles' => ['Administrator', 'Super Admin', 'Reservation', 'Manager', 'Marketing', 'Editor'],
-                    ],
-                    [
-                        'title' => 'Vendors',
-                        'route' => 'vendors.index',
-                        'icon'  => 'handshake',
-                        'module' => 'vendor_management',
-                        'roles' => ['Administrator', 'Super Admin', 'Reservation', 'Manager', 'Marketing', 'Editor'],
-                    ],
                     [
                         'title' => 'Activities',
                         'route' => 'activities.index',
@@ -161,10 +161,10 @@ class SidebarComposer
                         'roles' => ['Administrator', 'Super Admin', 'Reservation', 'Manager', 'Marketing', 'Editor'],
                     ],
                     [
-                        'title' => 'Accommodations',
-                        'route' => 'accommodations.index',
-                        'icon'  => 'hotel',
-                        'module' => 'accommodations',
+                        'title' => 'Hotels',
+                        'route' => 'hotels.index',
+                        'icon'  => 'bed',
+                        'module' => 'hotels',
                         'roles' => ['Administrator', 'Super Admin', 'Reservation', 'Manager', 'Marketing', 'Editor'],
                     ],
                     [
@@ -220,6 +220,13 @@ class SidebarComposer
                         'title' => 'Modules',
                         'route' => 'services.index',
                         'icon'  => 'cubes',
+                        'module' => 'service_manager',
+                        'roles' => ['Administrator', 'Super Admin'],
+                    ],
+                    [
+                        'title' => 'Service Map',
+                        'route' => 'services.map',
+                        'icon'  => 'earth-asia',
                         'module' => 'service_manager',
                         'roles' => ['Administrator', 'Super Admin'],
                     ],

@@ -12,9 +12,6 @@
     if ($canActivities) {
         $kpiCards[] = ['label' => 'Activities', 'value' => $catalogCounts['activities'] ?? 0, 'icon' => 'person-hiking', 'color' => 'lime'];
     }
-    if ($canAccommodations) {
-        $kpiCards[] = ['label' => 'Accommodations', 'value' => $catalogCounts['accommodations'] ?? 0, 'icon' => 'hotel', 'color' => 'indigo'];
-    }
 @endphp
 
 <div class="sa-wrap rounded-3xl border border-slate-200/80 bg-slate-100/70 p-3 dark:border-slate-700 dark:bg-slate-900/60">
@@ -52,7 +49,7 @@
                         <p class="text-xs font-semibold text-slate-700 dark:text-slate-200">Destinations</p>
                         <div class="mt-2 space-y-1 text-xs">
                             @forelse($recentDestinations as $item)
-                                <p class="text-slate-500 dark:text-slate-400">{{ $item->name }} â€¢ {{ optional($item->updated_at)->diffForHumans() }}</p>
+                                <p class="text-slate-500 dark:text-slate-400">{{ $item->name }} • {{ optional($item->updated_at)->diffForHumans() }}</p>
                             @empty
                                 <p class="text-slate-500 dark:text-slate-400">No updates.</p>
                             @endforelse
@@ -76,9 +73,6 @@
                     @if($canActivities)
                         <div class="sa-mini"><span>Activities</span><b>{{ number_format($catalogCounts['activities'] ?? 0) }}</b></div>
                     @endif
-                    @if($canAccommodations)
-                        <div class="sa-mini"><span>Accommodations</span><b>{{ number_format($catalogCounts['accommodations'] ?? 0) }}</b></div>
-                    @endif
                 </div>
             </div>
         </aside>
@@ -97,4 +91,3 @@
     })();
 </script>
 @endpush
-

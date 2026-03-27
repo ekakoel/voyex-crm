@@ -18,7 +18,7 @@ class BookingsSmokeTest extends ModuleSmokeTestCase
         $this->post(route('bookings.store'), [
             'quotation_id' => $quotation->id,
             'travel_date' => now()->addDay()->format('Y-m-d'),
-            'status' => 'confirmed',
+            'status' => 'draft',
             'notes' => 'Smoke booking',
         ])->assertRedirect(route('bookings.index'));
 
@@ -27,4 +27,3 @@ class BookingsSmokeTest extends ModuleSmokeTestCase
         $this->get(route('bookings.show', $booking))->assertOk();
     }
 }
-

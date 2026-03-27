@@ -4,6 +4,7 @@ namespace Tests\Feature\Modules;
 
 use App\Models\Module;
 use App\Models\Transport;
+use App\Models\Vendor;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Str;
 
@@ -19,46 +20,37 @@ class TransportsSmokeTest extends ModuleSmokeTestCase
         $this->get(route('transports.index'))->assertOk();
         $this->get(route('transports.create'))->assertOk();
 
-        $code = 'TRN-' . Str::upper(Str::random(6));
-        $name = 'Smoke Transport ' . Str::upper(Str::random(5));
-        $this->post(route('transports.store'), [
-            'code' => $code,
-            'name' => $name,
-            'transport_type' => 'van',
-            'provider_name' => 'Smoke Transport Provider',
-            'service_scope' => 'daily_tour',
+        $vendor = Vendor::query()->create([
+            'name' => 'Smoke Transport Vendor ' . Str::upper(Str::random(4)),
             'location' => 'Ubud',
             'city' => 'Gianyar',
             'province' => 'Bali',
-            'contact_name' => 'Smoke PIC',
-            'contact_phone' => '081234567890',
+            'is_active' => true,
+        ]);
+
+        $name = 'Smoke Transport ' . Str::upper(Str::random(5));
+        $this->post(route('transports.store'), [
+            'name' => $name,
+            'transport_type' => 'van',
+            'vendor_id' => $vendor->id,
             'description' => 'Smoke transport description',
-            'gallery_images' => [
+            'brand_model' => 'Toyota Hiace Premio',
+            'seat_capacity' => 12,
+            'luggage_capacity' => 8,
+            'contract_rate' => 1300000,
+            'publish_rate' => 1600000,
+            'overtime_rate' => 120000,
+            'fuel_type' => 'diesel',
+            'transmission' => 'manual',
+            'air_conditioned' => 1,
+            'with_driver' => 1,
+            'images' => [
                 UploadedFile::fake()->image('transport-1.jpg'),
-            ],
-            'units' => [
-                [
-                    'name' => 'Toyota Hiace Premio',
-                    'vehicle_type' => 'Minibus',
-                    'brand_model' => 'Toyota Hiace Premio',
-                    'seat_capacity' => 12,
-                    'luggage_capacity' => 8,
-                    'contract_rate' => 1300000,
-                    'publish_rate' => 1600000,
-                    'overtime_rate' => 120000,
-                    'currency' => 'IDR',
-                    'fuel_type' => 'diesel',
-                    'transmission' => 'manual',
-                    'air_conditioned' => 1,
-                    'with_driver' => 1,
-                    'benefits' => 'Driver included',
-                    'is_active' => 1,
-                ],
             ],
             'is_active' => 1,
         ])->assertRedirect(route('transports.index'));
 
-        $transport = Transport::query()->where('code', $code)->latest()->firstOrFail();
+        $transport = Transport::query()->where('name', $name)->latest()->firstOrFail();
         $this->get(route('transports.show', $transport))->assertOk();
         $this->get(route('transports.edit', $transport))->assertOk();
     }

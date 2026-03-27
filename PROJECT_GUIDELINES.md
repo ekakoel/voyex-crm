@@ -86,13 +86,24 @@ Aturan penting:
 - Status Active/Inactive ditampilkan di index (desktop + mobile).
 - Filter/form dropdown hanya memuat data aktif (exclude soft-deleted).
 - Vendors: gunakan soft delete (`deleted_at`) dan nonaktifkan vendor lewat toggle `is_active` (Deactivate/Activate).
-- Vendor delete diblokir jika masih dipakai oleh Activities atau Food & Beverage; tampilkan pesan dan arahkan untuk Deactivate.
+- Vendors menyimpan data perusahaan/provider untuk layanan Activities, Food & Beverage, dan Transport.
+- Vendor delete diblokir jika masih dipakai oleh Activities, Food & Beverage, atau Transports; tampilkan pesan dan arahkan untuk Deactivate.
 - Setiap halaman index menampilkan statistik tepat di bawah header memakai `<x-index-stats :cards="$statsCards ?? []" />` (diisi via `IndexStatsComposer`).
 - Itinerary detail day filter wajib memakai `day-filter-btn` + `btn-outline-sm`, dan toggle JS ke `btn-primary-sm` saat aktif.
 - Itineraries index memiliki filter Title/Destination/Duration dan memakai `per_page` standar (10/25/50/100).
 - Itineraries index: filter Destination memakai `destination_id` dari modul Destinations (label menampilkan `name` saja).
 - Jika `destination_id` belum ada di database (migrasi belum dijalankan), filter otomatis fallback ke kolom `destination` agar tidak error.
 - Semua form submit menampilkan spinner dan disable tombol submit untuk mencegah double submit (bisa di-skip dengan `data-skip-spinner="1"` pada button atau `data-disable-submit-lock="1"` pada form).
+- Standar filter index lintas modul mengacu ke pola `Activities` (baseline resmi):
+  1. Wrapper halaman: `data-<module>-index` + `data-page-spinner="off"`.
+  2. Form filter: `data-<module>-index-form` + `data-disable-submit-lock="1"` + `data-page-spinner="off"`.
+  3. Input filter yang memicu refresh: `data-<module>-filter-input`.
+  4. Tombol reset filter: `data-<module>-filter-reset` (link, bukan submit).
+  5. Area hasil: `data-<module>-index-results-wrap`.
+  6. Hasil list/table dipisah ke partial `resources/views/modules/<module>/partials/_index-results.blade.php`.
+  7. Controller index wajib dukung AJAX fragment (`html` + `url`) via method `wantsAjaxFragment()` dan header `X-<Module>-Ajax`.
+  8. Pagination di partial wajib mempertahankan query filter (`withQueryString()` di controller).
+- Implementasi standar filter ini sudah diterapkan untuk `Activities`, `Hotels`, dan `Tourist Attractions`; modul lain yang belum sesuai wajib mengikuti pola yang sama saat refactor berikutnya.
 
 ## 4. Modul Aktif (Seeder)
 Modul yang terdaftar dan dikontrol via tabel `modules` (lihat `ModuleSeeder`):
@@ -109,6 +120,7 @@ Modul yang terdaftar dan dikontrol via tabel `modules` (lihat `ModuleSeeder`):
 - Activities (`activities`)
 - Food & Beverage (`food_beverages`)
 - Accommodations (`accommodations`)
+- Hotels (`hotels`)
 - Airports (`airports`)
 - Transports (`transports`)
 - Itineraries (`itineraries`)
@@ -335,6 +347,7 @@ Catatan:
 - Quotation hasMany QuotationItem, hasOne Booking
 - QuotationItem belongsTo Service
 - Service belongsTo Vendor
+- Transport belongsTo Vendor (provider)
 - Accommodation hasOne Hotel
 - Hotel hasMany HotelRoom, HotelImage, HotelType, HotelPrice, HotelPromo, HotelPackage, ExtraBed
 - RoomView hasMany HotelRoom
@@ -366,10 +379,33 @@ Catatan:
   `btn-secondary`, `btn-primary-sm`, `btn-secondary-sm`, `btn-ghost`,
   `btn-ghost-sm`, `btn-outline`, `btn-outline-sm` atau tombol ber-style rounded
   untuk efek hover dinamis yang konsisten.
-- Semua input (kecuali textarea) di seluruh form wajib lebar seragam (min 50%, max 100%) dan padding/typography standar; gunakan styling global `app-content form input/select` (tetap berlaku di dalam `app-card`).
-- Template form wajib memakai `app-input` pada input/select dan tidak memakai class width/padding/border custom (kecuali kebutuhan fungsional seperti `uppercase`, `pr-*`, dll). Checkbox/radio/hidden dikecualikan.
+- Semua input (kecuali `textarea`) wajib mengikuti standar global yang sama: tinggi control `42px`, ukuran font `14px`, border radius `0.5rem`, dan state focus seragam; terapkan lewat `app-content` + class `app-input`.
+- Semua label field wajib konsisten (`min-height` label standar, font size 14px, line-height seragam) agar alignment antar field stabil.
+- Template form wajib memakai `app-input` pada `input/select` dan tidak memakai style custom per-field untuk tinggi/padding/font (kecuali kebutuhan fungsional seperti `uppercase`).
+- Untuk field dengan icon/label di dalam input (suffix/prefix), gunakan wrapper `input-with-right-affix` dan elemen `input-right-affix` agar posisi selalu vertical-center dan rata kanan.
 - Khusus input `google_maps_url`, lebar wajib 100% (override global min-width 50%).
 - Field `Google Maps URL` ditampilkan full-width; default layout vertikal dengan tombol Auto Fill di baris bawah. Khusus halaman Destinations, tombol Auto Fill ditampilkan inline di kanan input.
+- Halaman detail Quotation mengikuti pola UX standar:
+  1. Header action ringkas (`Edit` bila diizinkan, `PDF`, `Back`) memakai kelas tombol standar.
+  2. Konten utama `module-grid-9-3`: kiri untuk overview + pricing + items, kanan untuk context (inquiry/itinerary), validation flow, comment, audit.
+  3. Gunakan `app-card` konsisten di semua section (hindari campuran card style lama).
+  4. Wajib ada versi mobile-friendly untuk item list (card stack) selain tabel desktop.
+  5. Financial summary menonjolkan `Final Amount` sebagai titik keputusan utama user.
+- Standar field untuk modul yang memakai Google Map URL wajib mencakup 7 data: `address`, `city`, `province`, `country`, `latitude`, `longitude`, `destination_id`.
+- Urutan blok wajib pada halaman Create/Edit (template standar map):
+  1. `Location on Map (open map)`
+  2. `Map URL (Google Maps)` (input + tombol Auto Fill)
+  3. `Latitude` dan `Longitude` (auto fill dari Map URL)
+  4. `Address` (auto fill dari Map URL)
+  5. `City` dan `Province` (auto fill dari Map URL)
+  6. `Country` (auto fill dari Map URL)
+  7. `Destination` (sinkronisasi dengan hasil lokasi/province)
+- Implementasi awal standar ini dimulai dari modul Hotels dan menjadi patokan untuk modul lain secara bertahap.
+- Wajib gunakan partial reusable `resources/views/components/map-standard-section.blade.php` untuk semua modul yang memakai Google Maps URL agar tidak terjadi drift layout/field.
+- Cara pakai standar:
+  1. Siapkan container form dengan `data-location-autofill` + `data-location-resolve-url`.
+  2. Include partial map standar dan kirim `mapPartial`, `mapValue`, `latitudeValue`, `longitudeValue`, `addressValue`, `cityValue`, `provinceValue`, `countryValue`, `destinationValue`, `destinations`.
+  3. Simpan field tambahan non-standar (misalnya `location` hidden, `timezone`) di luar partial, setelah blok map standar.
   Palet warna tombol standar (berdasarkan referensi UI):
   - Primary: #1ea7a0
   - Secondary: #ffffff (border #e5e7eb)

@@ -16,6 +16,8 @@
         "vite": "^5.0.0"
     },
     "dependencies": {
-        "@fortawesome/fontawesome-free": "^7.2.0"
+        "@fortawesome/fontawesome-free": "^7.2.0",
+        "leaflet": "^1.9.4",
+        "leaflet.markercluster": "^1.5.3"
     }
 }

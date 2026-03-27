@@ -17,6 +17,6 @@ class BookingPolicy
 
     public function delete(User $user, Booking $booking): bool
     {
-        return $booking->isCreator($user);
+        return $user->hasRole('Super Admin');
     }
 }

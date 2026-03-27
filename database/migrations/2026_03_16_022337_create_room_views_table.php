@@ -9,7 +9,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('room_views', function (Blueprint $table) {
-            $table->id();
+            $table->bigIncrements('id');
             $table->string('name')->unique();
             $table->string('slug')->unique();
             $table->text('description')->nullable();

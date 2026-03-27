@@ -118,6 +118,17 @@
                 @php
                     $row = $items[$i] ?? ['description' => '', 'qty' => 1, 'unit_price' => 0, 'discount_type' => 'fixed', 'discount' => 0];
                     $serviceableMetaValue = $row['serviceable_meta'] ?? '';
+                    $serviceableMetaArray = [];
+                    if (is_array($serviceableMetaValue)) {
+                        $serviceableMetaArray = $serviceableMetaValue;
+                    } elseif (is_string($serviceableMetaValue) && $serviceableMetaValue !== '') {
+                        $decodedMeta = json_decode($serviceableMetaValue, true);
+                        if (json_last_error() === JSON_ERROR_NONE && is_array($decodedMeta)) {
+                            $serviceableMetaArray = $decodedMeta;
+                        }
+                    }
+                    $paxType = strtolower((string) ($serviceableMetaArray['pax_type'] ?? ''));
+                    $paxBadgeLabel = $paxType === 'adult' ? 'Adult Publish Rate' : ($paxType === 'child' ? 'Child Publish Rate' : '');
                     if (is_array($serviceableMetaValue)) {
                         $serviceableMetaValue = json_encode($serviceableMetaValue);
                     }
@@ -126,6 +137,12 @@
                     <div class="sm:col-span-2">
                         <label class="block text-xs text-gray-500">Description</label>
                         <input data-field="description" name="items[{{ $i }}][description]" value="{{ $row['description'] ?? '' }}" class="mt-1 dark:border-gray-600 app-input">
+                        <span
+                            data-field="pax_type_badge"
+                            class="{{ $paxBadgeLabel !== '' ? 'inline-flex' : 'hidden' }} mt-1 items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide {{ $paxType === 'child' ? 'border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-900/30 dark:text-amber-300' : 'border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300' }}"
+                        >
+                            {{ $paxBadgeLabel }}
+                        </span>
                     </div>
                     <div>
                         <label class="block text-xs text-gray-500">Qty</label>
@@ -174,6 +191,7 @@
                 <div class="sm:col-span-2">
                     <label class="block text-xs text-gray-500">Description</label>
                     <input data-field="description" class="mt-1 dark:border-gray-600 app-input">
+                    <span data-field="pax_type_badge" class="hidden mt-1 items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide"></span>
                 </div>
                 <div>
                     <label class="block text-xs text-gray-500">Qty</label>
@@ -315,7 +333,11 @@
                 const canUseItinerary = Boolean(itinerarySelect && generateBtn);
 
                 const parseNumber = (value) => {
-                    const num = Number.parseFloat(String(value ?? '').replace(',', '.'));
+                    const normalized = String(value ?? '')
+                        .replace(/[^\d,.-]/g, '')
+                        .replace(/\./g, '')
+                        .replace(',', '.');
+                    const num = Number.parseFloat(normalized);
                     return Number.isFinite(num) ? num : 0;
                 };
                 const formatCurrency = (value, from = 'IDR') => {
@@ -449,6 +471,45 @@
                     });
                 };
 
+                const parseMetaValue = (value) => {
+                    if (value && typeof value === 'object') {
+                        return value;
+                    }
+                    const raw = String(value ?? '').trim();
+                    if (!raw) return null;
+                    try {
+                        const parsed = JSON.parse(raw);
+                        return parsed && typeof parsed === 'object' ? parsed : null;
+                    } catch (e) {
+                        return null;
+                    }
+                };
+
+                const applyPaxTypeBadge = (rowEl, sourceRow = null) => {
+                    if (!rowEl) return;
+                    const badgeEl = rowEl.querySelector('[data-field="pax_type_badge"]');
+                    if (!badgeEl) return;
+
+                    const metaFromSource = sourceRow?.serviceable_meta ?? null;
+                    const metaInputValue = rowEl.querySelector('[data-field="serviceable_meta"]')?.value ?? null;
+                    const meta = parseMetaValue(metaFromSource) || parseMetaValue(metaInputValue);
+                    const paxType = String(meta?.pax_type ?? '').toLowerCase();
+
+                    if (paxType !== 'adult' && paxType !== 'child') {
+                        badgeEl.textContent = '';
+                        badgeEl.className = 'hidden mt-1 items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide';
+                        return;
+                    }
+
+                    const isChild = paxType === 'child';
+                    badgeEl.textContent = isChild ? 'Child Publish Rate' : 'Adult Publish Rate';
+                    badgeEl.className = `inline-flex mt-1 items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
+                        isChild
+                            ? 'border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-900/30 dark:text-amber-300'
+                            : 'border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300'
+                    }`;
+                };
+
                 const buildRow = (index, row) => {
                     const node = itemsTemplate.content.firstElementChild.cloneNode(true);
                     const setValue = (input, value, fallback) => {
@@ -492,6 +553,7 @@
                         }
                         setValue(input, row?.[field] ?? '', '');
                     });
+                    applyPaxTypeBadge(node, row);
                     return node;
                 };
 
@@ -595,6 +657,7 @@
                 itemsContainer.querySelectorAll('[data-field="discount_type"]').forEach((el) => {
                     el.dataset.prevType = el.value || 'fixed';
                 });
+                itemsContainer.querySelectorAll('.quotation-item-row').forEach((row) => applyPaxTypeBadge(row));
                 recalcTotals();
                 toggleItemsVisibility();
 

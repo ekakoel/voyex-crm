@@ -5,12 +5,12 @@ namespace App\Http\Controllers\SuperAdmin;
 use App\Http\Controllers\Controller;
 use App\Models\Airport;
 use App\Models\Activity;
-use App\Models\Accommodation;
 use App\Models\Booking;
 use App\Models\Customer;
 use App\Models\Currency;
 use App\Models\Destination;
 use App\Models\FoodBeverage;
+use App\Models\Hotel;
 use App\Models\Inquiry;
 use App\Models\InquiryFollowUp;
 use App\Models\Invoice;
@@ -49,7 +49,7 @@ class DashboardController extends Controller
             'airports' => Airport::query()->count(),
             'tourist_attractions' => TouristAttraction::query()->count(),
             'food_beverages' => FoodBeverage::query()->count(),
-            'accommodations' => Accommodation::query()->count(),
+            'hotels' => Hotel::query()->count(),
             'transports' => Transport::query()->count(),
             'currencies' => Currency::query()->count(),
         ];
@@ -399,7 +399,7 @@ class DashboardController extends Controller
             'airports' => (int) ($systemCounts['airports'] ?? 0),
             'tourist_attractions' => (int) ($systemCounts['tourist_attractions'] ?? 0),
             'food_beverages' => (int) ($systemCounts['food_beverages'] ?? 0),
-            'accommodations' => (int) ($systemCounts['accommodations'] ?? 0),
+            'hotels' => (int) ($systemCounts['hotels'] ?? 0),
             'transports' => (int) ($systemCounts['transports'] ?? 0),
             'currencies' => (int) ($systemCounts['currencies'] ?? 0),
         ];
@@ -461,7 +461,7 @@ class DashboardController extends Controller
                 ['key' => 'vendor_management', 'icon' => 'handshake', 'route' => 'vendors.index'],
                 ['key' => 'activities', 'icon' => 'person-hiking', 'route' => 'activities.index'],
                 ['key' => 'food_beverages', 'icon' => 'utensils', 'route' => 'food-beverages.index'],
-                ['key' => 'accommodations', 'icon' => 'hotel', 'route' => 'accommodations.index'],
+                ['key' => 'hotels', 'icon' => 'bed', 'route' => 'hotels.index'],
                 ['key' => 'airports', 'icon' => 'plane-departure', 'route' => 'airports.index'],
                 ['key' => 'transports', 'icon' => 'bus', 'route' => 'transports.index'],
                 ['key' => 'tourist_attractions', 'icon' => 'landmark', 'route' => 'tourist-attractions.index'],
@@ -485,7 +485,7 @@ class DashboardController extends Controller
             'destinations' => ['label' => 'Destinations', 'value' => (int) ($systemCounts['destinations'] ?? 0)],
             'activities' => ['label' => 'Activities', 'value' => (int) ($systemCounts['activities'] ?? 0)],
             'food_beverages' => ['label' => 'Food & Beverage', 'value' => (int) ($systemCounts['food_beverages'] ?? 0)],
-            'accommodations' => ['label' => 'Accommodations', 'value' => (int) ($systemCounts['accommodations'] ?? 0)],
+            'hotels' => ['label' => 'Hotels', 'value' => (int) ($systemCounts['hotels'] ?? 0)],
             'airports' => ['label' => 'Airports', 'value' => (int) ($systemCounts['airports'] ?? 0)],
             'transports' => ['label' => 'Transports', 'value' => (int) ($systemCounts['transports'] ?? 0)],
             'tourist_attractions' => ['label' => 'Attractions', 'value' => (int) ($systemCounts['tourist_attractions'] ?? 0)],
@@ -561,3 +561,4 @@ class DashboardController extends Controller
         return $groups;
     }
 }
+

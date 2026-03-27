@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Destination;
 use App\Models\FoodBeverage;
 use App\Models\Vendor;
 use App\Support\ImageThumbnailGenerator;
@@ -24,20 +25,50 @@ class FoodBeverageController extends Controller
             $query->where('service_type', (string) $request->string('service_type'));
         }
 
-        $foodBeverages = $query->paginate(10)->withQueryString();
+        $perPage = (int) $request->input('per_page', 10);
+        $perPage = in_array($perPage, [10, 25, 50, 100], true) ? $perPage : 10;
+        $foodBeverages = $query->paginate($perPage)->withQueryString();
         $vendors = Vendor::query()->where('is_active', true)->orderBy('name')->get(['id', 'name', 'city', 'province']);
         $types = $this->buildTypeFilterOptions();
 
         return view('modules.food-beverages.index', compact('foodBeverages', 'vendors', 'types'));
     }
 
-    public function create()
+    public function create(Request $request)
     {
-        $vendors = Vendor::query()->where('is_active', true)->orderBy('name')->get(['id', 'name', 'city', 'province']);
+        $vendors = Vendor::query()->where('is_active', true)->orderBy('name')->get(['id', 'name', 'city', 'province', 'destination_id']);
+        $destinations = Destination::query()
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'name', 'city', 'province']);
         $standardServiceTypes = $this->serviceTypes();
         $serviceTypes = $standardServiceTypes;
+        $prefill = [];
+        $copiedFrom = null;
 
-        return view('modules.food-beverages.create', compact('vendors', 'serviceTypes', 'standardServiceTypes'));
+        $copyId = (int) $request->integer('copy');
+        if ($copyId > 0) {
+            $copiedFrom = FoodBeverage::query()
+                ->withTrashed()
+                ->find($copyId);
+
+            if ($copiedFrom) {
+                $prefill = [
+                    'vendor_id' => $copiedFrom->vendor_id,
+                    'name' => trim(((string) $copiedFrom->name) . ' (Copy)'),
+                    'service_type' => $copiedFrom->service_type,
+                    'duration_minutes' => $copiedFrom->duration_minutes,
+                    'meal_period' => $copiedFrom->meal_period,
+                    'contract_rate' => $copiedFrom->contract_rate,
+                    'publish_rate' => $copiedFrom->publish_rate,
+                    'menu_highlights' => $copiedFrom->menu_highlights,
+                    'notes' => $copiedFrom->notes,
+                    'is_active' => (bool) $copiedFrom->is_active,
+                ];
+            }
+        }
+
+        return view('modules.food-beverages.create', compact('vendors', 'destinations', 'serviceTypes', 'standardServiceTypes', 'prefill', 'copiedFrom'));
     }
 
     public function store(Request $request)
@@ -51,14 +82,19 @@ class FoodBeverageController extends Controller
 
     public function edit(FoodBeverage $foodBeverage)
     {
-        $vendors = Vendor::query()->where('is_active', true)->orderBy('name')->get(['id', 'name', 'city', 'province']);
+        $foodBeverage->loadMissing('vendor:id,name,contact_name,contact_phone,contact_email,website,location,address,city,province,country,timezone');
+        $vendors = Vendor::query()->where('is_active', true)->orderBy('name')->get(['id', 'name', 'city', 'province', 'destination_id']);
+        $destinations = Destination::query()
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'name', 'city', 'province']);
         $standardServiceTypes = $this->serviceTypes();
         $serviceTypes = $standardServiceTypes;
         if (! in_array((string) $foodBeverage->service_type, $serviceTypes, true)) {
             $serviceTypes[] = (string) $foodBeverage->service_type;
         }
 
-        return view('modules.food-beverages.edit', compact('foodBeverage', 'vendors', 'serviceTypes', 'standardServiceTypes'));
+        return view('modules.food-beverages.edit', compact('foodBeverage', 'vendors', 'destinations', 'serviceTypes', 'standardServiceTypes'));
     }
 
     public function update(Request $request, FoodBeverage $foodBeverage)
@@ -136,6 +172,14 @@ class FoodBeverageController extends Controller
 
     private function validatePayload(Request $request, ?FoodBeverage $foodBeverage): array
     {
+        // Backward compatibility for legacy payload keys during transition.
+        if (! $request->has('contract_rate') && $request->has('contract_price')) {
+            $request->merge(['contract_rate' => $request->input('contract_price')]);
+        }
+        if (! $request->has('publish_rate') && $request->has('agent_price')) {
+            $request->merge(['publish_rate' => $request->input('agent_price')]);
+        }
+
         $existingGallery = $this->normalizeGalleryImages($foodBeverage?->gallery_images ?? []);
         $requestedRemoved = $request->input('removed_gallery_images', []);
         $requestedRemoved = is_array($requestedRemoved) ? $requestedRemoved : [];
@@ -156,9 +200,8 @@ class FoodBeverageController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'service_type' => ['required', 'string', 'max:100', Rule::in($allowedTypes)],
             'duration_minutes' => ['required', 'integer', 'min:15', 'max:1440'],
-            'contract_price' => ['nullable', 'numeric', 'min:0'],
-            'agent_price' => ['nullable', 'numeric', 'min:0'],
-            'currency' => ['required', 'string', 'size:3'],
+            'contract_rate' => ['nullable', 'numeric', 'min:0'],
+            'publish_rate' => ['nullable', 'numeric', 'min:0'],
             'meal_period' => ['nullable', 'string', 'max:50'],
             'menu_highlights' => ['nullable', 'string'],
             'notes' => ['nullable', 'string'],
@@ -169,7 +212,6 @@ class FoodBeverageController extends Controller
             'is_active' => ['nullable', 'boolean'],
         ]);
 
-        $validated['currency'] = strtoupper($validated['currency']);
         $validated['is_active'] = $request->boolean('is_active');
 
         return $validated;

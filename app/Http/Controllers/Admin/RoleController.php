@@ -15,14 +15,32 @@ use Spatie\Permission\PermissionRegistrar;
 
 class RoleController extends Controller
 {
-    public function index(): View
+    public function index(Request $request): View
     {
+        $perPage = (int) $request->input('per_page', 10);
+        $perPage = in_array($perPage, [10, 25, 50, 100], true) ? $perPage : 10;
+        $search = trim((string) $request->input('search', ''));
+
         $roles = Role::query()
             ->with('permissions')
+            ->when($search !== '', function ($query) use ($search) {
+                $query->where('name', 'like', "%{$search}%")
+                    ->orWhereHas('permissions', function ($permissionQuery) use ($search) {
+                        $permissionQuery->where('name', 'like', "%{$search}%");
+                    });
+            })
             ->orderBy('name')
-            ->get();
+            ->paginate($perPage)
+            ->withQueryString();
 
-        return view('modules.roles.index', compact('roles'));
+        if ($this->wantsAjaxFragment($request)) {
+            return response()->json([
+                'html' => view('modules.roles.partials._index-results', compact('roles'))->render(),
+                'url' => route('roles.index', $request->query()),
+            ]);
+        }
+
+        return view('modules.roles.index', compact('roles', 'search'));
     }
 
     public function create(Request $request): View
@@ -232,6 +250,13 @@ class RoleController extends Controller
             ->all();
 
         return [$templateRoles, $rolePermissionMap];
+    }
+
+    private function wantsAjaxFragment(Request $request): bool
+    {
+        return $request->ajax()
+            || $request->expectsJson()
+            || $request->header('X-Roles-Ajax') === '1';
     }
 }
 

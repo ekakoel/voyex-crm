@@ -19,20 +19,16 @@ class ItineraryDayPoint extends Model
         'main_food_beverage_id',
         'start_point_type',
         'start_airport_id',
-        'start_accommodation_id',
-        'start_accommodation_room_id',
-        'start_accommodation_room_qty',
+        'start_hotel_id',
+        'start_hotel_room_id',
         'end_point_type',
         'end_airport_id',
-        'end_accommodation_id',
-        'end_accommodation_room_id',
-        'end_accommodation_room_qty',
+        'end_hotel_id',
+        'end_hotel_room_id',
     ];
 
     protected $casts = [
         'day_start_travel_minutes' => 'integer',
-        'start_accommodation_room_qty' => 'integer',
-        'end_accommodation_room_qty' => 'integer',
     ];
 
     public function itinerary()
@@ -45,14 +41,14 @@ class ItineraryDayPoint extends Model
         return $this->belongsTo(Airport::class, 'start_airport_id');
     }
 
-    public function startAccommodation()
+    public function startHotel()
     {
-        return $this->belongsTo(Accommodation::class, 'start_accommodation_id');
+        return $this->belongsTo(Hotel::class, 'start_hotel_id');
     }
 
-    public function startAccommodationRoom()
+    public function startHotelRoom()
     {
-        return $this->belongsTo(AccommodationRoom::class, 'start_accommodation_room_id');
+        return $this->belongsTo(HotelRoom::class, 'start_hotel_room_id');
     }
 
     public function endAirport()
@@ -60,15 +56,16 @@ class ItineraryDayPoint extends Model
         return $this->belongsTo(Airport::class, 'end_airport_id');
     }
 
-    public function endAccommodation()
+    public function endHotel()
     {
-        return $this->belongsTo(Accommodation::class, 'end_accommodation_id');
+        return $this->belongsTo(Hotel::class, 'end_hotel_id');
     }
 
-    public function endAccommodationRoom()
+    public function endHotelRoom()
     {
-        return $this->belongsTo(AccommodationRoom::class, 'end_accommodation_room_id');
+        return $this->belongsTo(HotelRoom::class, 'end_hotel_room_id');
     }
+
 
     public function mainTouristAttraction()
     {

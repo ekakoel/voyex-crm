@@ -31,4 +31,10 @@ return [
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
+    'fx' => [
+        'url' => env('FX_API_URL', 'https://api.frankfurter.app/latest'),
+        'base' => env('FX_BASE_CURRENCY', 'USD'),
+        'timeout' => (int) env('FX_TIMEOUT', 10),
+    ],
+
 ];

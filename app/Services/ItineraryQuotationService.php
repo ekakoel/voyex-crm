@@ -2,9 +2,9 @@
 
 namespace App\Services;
 
-use App\Models\AccommodationRoom;
 use App\Models\Activity;
 use App\Models\FoodBeverage;
+use App\Models\HotelRoom;
 use App\Models\Itinerary;
 use App\Models\TouristAttraction;
 use App\Models\TransportUnit;
@@ -17,12 +17,12 @@ class ItineraryQuotationService
     public function buildItems(Itinerary $itinerary): array
     {
         $itinerary->loadMissing([
-            'touristAttractions:id,name,entrance_fee_per_pax,other_fee_per_pax,other_fee_label',
-            'itineraryActivities.activity:id,name,agent_price',
-            'itineraryFoodBeverages.foodBeverage:id,name,agent_price',
-            'itineraryTransportUnits.transportUnit:id,name,vehicle_type,publish_rate',
-            'dayPoints.endAccommodationRoom:id,accommodation_id,name,room_type,publish_rate',
-            'dayPoints.endAccommodation:id,name',
+            'touristAttractions:id,name,publish_rate_per_pax',
+            'itineraryActivities.activity:id,name,adult_publish_rate,child_publish_rate',
+            'itineraryFoodBeverages.foodBeverage:id,name,publish_rate',
+            'itineraryTransportUnits.transportUnit:id,name,publish_rate',
+            'dayPoints.endHotelRoom:id,hotels_id,rooms,view',
+            'dayPoints.endHotel:id,name',
         ]);
 
         $dayRows = [];
@@ -34,9 +34,6 @@ class ItineraryQuotationService
             }
             $day = (int) ($transportItem->day_number ?? 0);
             $label = 'Transport: ' . $unit->name;
-            if ($unit->vehicle_type) {
-                $label .= ' (' . $unit->vehicle_type . ')';
-            }
             $dayRows[] = [
                 'day' => $day,
                 'type_order' => 0,
@@ -58,7 +55,7 @@ class ItineraryQuotationService
 
         foreach ($itinerary->touristAttractions as $attraction) {
             $day = (int) ($attraction->pivot->day_number ?? 0);
-            $price = (float) ($attraction->entrance_fee_per_pax ?? 0) + (float) ($attraction->other_fee_per_pax ?? 0);
+            $price = (float) ($attraction->publish_rate_per_pax ?? 0);
             $dayRows[] = [
                 'day' => $day,
                 'type_order' => 1,
@@ -88,30 +85,63 @@ class ItineraryQuotationService
                 continue;
             }
             $day = (int) ($activityItem->day_number ?? 0);
-            $qty = max(1, (int) ($activityItem->pax ?? 1));
-            $price = (float) ($activity->agent_price ?? 0);
-            $dayRows[] = [
-                'day' => $day,
-                'type_order' => 2,
-                'item' => $this->makeItem(
-                    $this->dayPrefix($day) . 'Activity: ' . $activity->name,
-                    $qty,
-                    $price,
-                    0,
-                    Activity::class,
-                    (int) $activity->id,
-                    $day,
-                    [
-                        'day_number' => $day,
-                        'pax' => $qty,
-                        'start_time' => $this->normalizeTime($activityItem->start_time ?? null),
-                        'end_time' => $this->normalizeTime($activityItem->end_time ?? null),
-                        'travel_minutes_to_next' => $this->normalizeInt($activityItem->travel_minutes_to_next ?? null),
-                        'visit_order' => $this->normalizeInt($activityItem->visit_order ?? null),
-                    ],
-                    'activity'
-                ),
+            $adultQty = max(0, (int) ($activityItem->pax_adult ?? 0));
+            $childQty = max(0, (int) ($activityItem->pax_child ?? 0));
+            $totalQty = max(1, (int) ($activityItem->pax ?? 1));
+            if (($adultQty + $childQty) <= 0) {
+                $adultQty = $totalQty;
+                $childQty = 0;
+            }
+
+            $activityMeta = [
+                'day_number' => $day,
+                'start_time' => $this->normalizeTime($activityItem->start_time ?? null),
+                'end_time' => $this->normalizeTime($activityItem->end_time ?? null),
+                'travel_minutes_to_next' => $this->normalizeInt($activityItem->travel_minutes_to_next ?? null),
+                'visit_order' => $this->normalizeInt($activityItem->visit_order ?? null),
             ];
+
+            if ($adultQty > 0) {
+                $dayRows[] = [
+                    'day' => $day,
+                    'type_order' => 2,
+                    'item' => $this->makeItem(
+                        $this->dayPrefix($day) . 'Activity: ' . $activity->name . ' (Adult)',
+                        $adultQty,
+                        (float) ($activity->adult_publish_rate ?? 0),
+                        0,
+                        Activity::class,
+                        (int) $activity->id,
+                        $day,
+                        array_merge($activityMeta, [
+                            'pax' => $adultQty,
+                            'pax_type' => 'adult',
+                        ]),
+                        'activity'
+                    ),
+                ];
+            }
+
+            if ($childQty > 0) {
+                $dayRows[] = [
+                    'day' => $day,
+                    'type_order' => 2,
+                    'item' => $this->makeItem(
+                        $this->dayPrefix($day) . 'Activity: ' . $activity->name . ' (Child)',
+                        $childQty,
+                        (float) ($activity->child_publish_rate ?? $activity->adult_publish_rate ?? 0),
+                        0,
+                        Activity::class,
+                        (int) $activity->id,
+                        $day,
+                        array_merge($activityMeta, [
+                            'pax' => $childQty,
+                            'pax_type' => 'child',
+                        ]),
+                        'activity'
+                    ),
+                ];
+            }
         }
 
         foreach ($itinerary->itineraryFoodBeverages as $foodItem) {
@@ -121,7 +151,7 @@ class ItineraryQuotationService
             }
             $day = (int) ($foodItem->day_number ?? 0);
             $qty = max(1, (int) ($foodItem->pax ?? 1));
-            $price = (float) ($food->agent_price ?? 0);
+            $price = (float) ($food->publish_rate ?? 0);
             $dayRows[] = [
                 'day' => $day,
                 'type_order' => 3,
@@ -147,42 +177,41 @@ class ItineraryQuotationService
         }
 
         foreach ($itinerary->dayPoints as $dayPoint) {
-            if (($dayPoint->end_point_type ?? null) !== 'accommodation') {
+            if (($dayPoint->end_point_type ?? null) !== 'hotel') {
                 continue;
             }
-            $room = $dayPoint->endAccommodationRoom;
+            $room = $dayPoint->endHotelRoom;
             if (! $room) {
                 continue;
             }
             $day = (int) ($dayPoint->day_number ?? 0);
-            $accommodationName = $dayPoint->endAccommodation?->name ?: 'Accommodation';
-            $label = 'Accommodation: ' . $accommodationName;
-            if ($room->name) {
-                $label .= ' - ' . $room->name;
+            $hotelName = $dayPoint->endHotel?->name ?: 'Hotel';
+            $label = 'Hotel: ' . $hotelName;
+            if ($room->rooms) {
+                $label .= ' - ' . $room->rooms;
             }
-            if ($room->room_type) {
-                $label .= ' (' . $room->room_type . ')';
+            if ($room->view) {
+                $label .= ' (' . $room->view . ')';
             }
-            $qty = max(1, (int) ($dayPoint->end_accommodation_room_qty ?? 1));
+            $qty = 1;
             $dayRows[] = [
                 'day' => $day,
                 'type_order' => 4,
                 'item' => $this->makeItem(
                     $this->dayPrefix($day) . $label,
                     $qty,
-                    (float) ($room->publish_rate ?? 0),
                     0,
-                    AccommodationRoom::class,
+                    0,
+                    HotelRoom::class,
                     (int) $room->id,
                     $day,
                     [
                         'day_number' => $day,
-                        'end_accommodation_id' => $this->normalizeInt($dayPoint->end_accommodation_id ?? null),
-                        'end_accommodation_room_id' => (int) $room->id,
-                        'end_accommodation_room_qty' => $qty,
-                        'end_point_type' => (string) ($dayPoint->end_point_type ?? 'accommodation'),
+                        'end_hotel_id' => $this->normalizeInt($dayPoint->end_hotel_id ?? null),
+                        'end_hotel_room_id' => (int) $room->id,
+                        'end_point_type' => (string) ($dayPoint->end_point_type ?? 'hotel'),
                     ],
-                    'accommodation_day_end'
+                    'hotel_day_end'
                 ),
             ];
         }
@@ -261,3 +290,5 @@ class ItineraryQuotationService
         return (int) $value;
     }
 }
+
+

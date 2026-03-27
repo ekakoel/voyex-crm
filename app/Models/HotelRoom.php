@@ -38,16 +38,6 @@ class HotelRoom extends Model
         return $this->hasMany(HotelPrice::class, 'rooms_id');
     }
 
-    public function promos()
-    {
-        return $this->hasMany(HotelPromo::class, 'rooms_id');
-    }
-
-    public function packages()
-    {
-        return $this->hasMany(HotelPackage::class, 'rooms_id');
-    }
-
     public function facilities()
     {
         return $this->hasOne(RoomFacility::class, 'rooms_id');

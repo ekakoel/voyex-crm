@@ -2,11 +2,13 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasAudit;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Airport extends Model
 {
+    use HasAudit;
     use SoftDeletes;
     protected $fillable = [
         'code',
@@ -23,6 +25,8 @@ class Airport extends Model
         'longitude',
         'notes',
         'is_active',
+        'created_by',
+        'updated_by',
     ];
 
     protected $casts = [

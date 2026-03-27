@@ -1,131 +1,35 @@
-@extends('layouts.master')
+﻿@extends('layouts.master')
 
 @section('content')
-    <div class="space-y-6">
-        @section('page_actions')<a href="{{ route('transports.edit', $transport) }}"  class="btn-primary">Edit</a>
-                <a href="{{ route('transports.index') }}"  class="btn-ghost">Back</a>@endsection
+    <div class="space-y-6 module-page module-page--transports">
+        @section('page_actions')
+            <a href="{{ route('transports.edit', $transport) }}" class="btn-primary">Edit</a>
+            <a href="{{ route('transports.index') }}" class="btn-ghost">Back</a>
+        @endsection
 
-        <div class="grid grid-cols-1 gap-4 xl:grid-cols-3">
-            <div class="app-card p-4 xl:col-span-2">
-                <h2 class="text-sm font-semibold text-gray-800 dark:text-gray-100">Overview</h2>
+        <div class="module-grid-9-3">
+            <div class="module-grid-main app-card p-4">
+                <h2 class="text-sm font-semibold text-gray-800 dark:text-gray-100">Transport Unit Detail</h2>
                 <div class="mt-3 grid grid-cols-1 gap-3 text-sm md:grid-cols-2">
-                    <div><span class="text-gray-500 dark:text-gray-400">Name:</span> <span class="text-gray-800 dark:text-gray-100">{{ $transport->name }}</span></div>
                     <div><span class="text-gray-500 dark:text-gray-400">Code:</span> <span class="text-gray-800 dark:text-gray-100">{{ $transport->code ?: '-' }}</span></div>
+                    <div><span class="text-gray-500 dark:text-gray-400">Name:</span> <span class="text-gray-800 dark:text-gray-100">{{ $transport->name }}</span></div>
                     <div><span class="text-gray-500 dark:text-gray-400">Type:</span> <span class="text-gray-800 dark:text-gray-100">{{ $transport->transport_type ? ucfirst(str_replace('_', ' ', (string) $transport->transport_type)) : '-' }}</span></div>
-                    <div><span class="text-gray-500 dark:text-gray-400">Provider:</span> <span class="text-gray-800 dark:text-gray-100">{{ $transport->provider_name ?: '-' }}</span></div>
-                    <div><span class="text-gray-500 dark:text-gray-400">Service Scope:</span> <span class="text-gray-800 dark:text-gray-100">{{ $transport->service_scope ? ucfirst(str_replace('_', ' ', $transport->service_scope)) : '-' }}</span></div>
-                    <div><span class="text-gray-500 dark:text-gray-400">Location:</span> <span class="text-gray-800 dark:text-gray-100">{{ $transport->location ?: '-' }}</span></div>
-                    <div><span class="text-gray-500 dark:text-gray-400">City/Province:</span> <span class="text-gray-800 dark:text-gray-100">{{ trim(($transport->city ?? '') . (($transport->city && $transport->province) ? ', ' : '') . ($transport->province ?? '')) ?: '-' }}</span></div>
-                </div>
-
-                @if ($transport->description)
-                    <div class="mt-4">
-                        <h3 class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Description</h3>
-                        <p class="mt-1 text-sm text-gray-700 dark:text-gray-200">{{ $transport->description }}</p>
-                    </div>
-                @endif
-
-                @if ($transport->inclusions || $transport->exclusions)
-                    <div class="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
-                        <div>
-                            <h3 class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Inclusions</h3>
-                            <p class="mt-1 text-sm text-gray-700 dark:text-gray-200">{{ $transport->inclusions ?: '-' }}</p>
-                        </div>
-                        <div>
-                            <h3 class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Exclusions</h3>
-                            <p class="mt-1 text-sm text-gray-700 dark:text-gray-200">{{ $transport->exclusions ?: '-' }}</p>
-                        </div>
-                    </div>
-                @endif
-            </div>
-
-            <div class="app-card p-4">
-                <h2 class="text-sm font-semibold text-gray-800 dark:text-gray-100">Contact</h2>
-                <div class="mt-3 space-y-2 text-sm">
-                    <div><span class="text-gray-500 dark:text-gray-400">PIC:</span> <span class="text-gray-800 dark:text-gray-100">{{ $transport->contact_name ?: '-' }}</span></div>
-                    <div><span class="text-gray-500 dark:text-gray-400">Phone:</span> <span class="text-gray-800 dark:text-gray-100">{{ $transport->contact_phone ?: '-' }}</span></div>
-                    <div><span class="text-gray-500 dark:text-gray-400">Email:</span> <span class="text-gray-800 dark:text-gray-100">{{ $transport->contact_email ?: '-' }}</span></div>
-                    <div>
-                        <span class="text-gray-500 dark:text-gray-400">Website:</span>
-                        @if ($transport->website)
-                            <a href="{{ $transport->website }}" target="_blank" rel="noopener" class="text-indigo-600 hover:text-indigo-700 dark:text-indigo-400">{{ $transport->website }}</a>
-                        @else
-                            <span class="text-gray-800 dark:text-gray-100">-</span>
-                        @endif
-                    </div>
+                    <div><span class="text-gray-500 dark:text-gray-400">Vendor:</span> <span class="text-gray-800 dark:text-gray-100">{{ $transport->vendor?->name ?? '-' }}</span></div>
+                    <div><span class="text-gray-500 dark:text-gray-400">Vehicle:</span> <span class="text-gray-800 dark:text-gray-100">{{ $transport->brand_model ?: '-' }}</span></div>
+                    <div><span class="text-gray-500 dark:text-gray-400">Capacity:</span> <span class="text-gray-800 dark:text-gray-100">{{ (int) ($transport->seat_capacity ?? 0) }} seats, luggage {{ $transport->luggage_capacity ?? '-' }}</span></div>
+                    <div><span class="text-gray-500 dark:text-gray-400">Contract Rate:</span> <span class="text-gray-800 dark:text-gray-100">@if($transport->contract_rate !== null)<x-money :amount="(float) $transport->contract_rate" currency="IDR" />@else - @endif</span></div>
+                    <div><span class="text-gray-500 dark:text-gray-400">Publish Rate:</span> <span class="text-gray-800 dark:text-gray-100">{{ $transport->publish_rate !== null ? \App\Support\Currency::format((float) $transport->publish_rate, 'IDR') : '-' }}</span></div>
+                    <div><span class="text-gray-500 dark:text-gray-400">Overtime Rate:</span> <span class="text-gray-800 dark:text-gray-100">{{ $transport->overtime_rate !== null ? \App\Support\Currency::format((float) $transport->overtime_rate, 'IDR') : '-' }}</span></div>
+                    <div><span class="text-gray-500 dark:text-gray-400">Transmission:</span> <span class="text-gray-800 dark:text-gray-100">{{ $transport->transmission ? ucfirst((string) $transport->transmission) : '-' }}</span></div>
+                    <div><span class="text-gray-500 dark:text-gray-400">AC/Driver:</span> <span class="text-gray-800 dark:text-gray-100">{{ $transport->air_conditioned ? 'AC' : 'Non-AC' }} | {{ $transport->with_driver ? 'With Driver' : 'Without Driver' }}</span></div>
                     <div><span class="text-gray-500 dark:text-gray-400">Status:</span> <span class="{{ $transport->is_active ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400' }}">{{ $transport->is_active ? 'Active' : 'Inactive' }}</span></div>
+                    <div><span class="text-gray-500 dark:text-gray-400">Notes:</span> <span class="text-gray-800 dark:text-gray-100">{{ $transport->notes ?: '-' }}</span></div>
                 </div>
             </div>
-        </div>
 
-        @if (!empty($transport->gallery_images))
-            <div class="app-card p-4">
-                <h2 class="text-sm font-semibold text-gray-800 dark:text-gray-100">Transport Gallery</h2>
-                <div class="mt-3 grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-5">
-                    @foreach ($transport->gallery_images as $image)
-                        <div class="overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700">
-                            <img
-                                src="{{ asset('storage/' . \App\Support\ImageThumbnailGenerator::thumbnailPathFor($image)) }}"
-                                onerror="this.onerror=null;this.src='{{ asset('storage/' . $image) }}';"
-                                alt="Transport gallery"
-                                class="h-28 w-full object-cover">
-                        </div>
-                    @endforeach
-                </div>
-            </div>
-        @endif
-
-        <div class="app-card p-4">
-            <h2 class="text-sm font-semibold text-gray-800 dark:text-gray-100">Unit Details</h2>
-            <div class="mt-3 overflow-x-auto app-card">
-                <table class="app-table w-full divide-y divide-gray-200 text-sm dark:divide-gray-700">
-                    <thead>
-                        <tr>
-                            <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">Unit</th>
-                            <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">Capacity</th>
-                            <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">Contract</th>
-                            <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">Publish</th>
-                            <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">Overtime</th>
-                            <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">Benefits</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
-                        @forelse ($transport->units as $unit)
-                            <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/30">
-                                <td class="px-3 py-2 text-gray-800 dark:text-gray-100">
-                                    <div class="font-medium">{{ $unit->name }}</div>
-                                    <div class="text-xs text-gray-500 dark:text-gray-400">{{ $unit->vehicle_type ?: '-' }} • {{ $unit->brand_model ?: '-' }} • {{ ucfirst((string) $unit->transmission) }}</div>
-                                    @if (!empty($unit->images))
-                                        <div class="mt-2 flex flex-wrap gap-2">
-                                            @foreach ($unit->images as $image)
-                                                <div class="overflow-hidden rounded-md border border-gray-200 dark:border-gray-700">
-                                                    <img
-                                                        src="{{ asset('storage/' . \App\Support\ImageThumbnailGenerator::thumbnailPathFor($image)) }}"
-                                                        onerror="this.onerror=null;this.src='{{ asset('storage/' . $image) }}';"
-                                                        alt="Unit image"
-                                                        class="h-12 w-16 object-cover">
-                                                </div>
-                                            @endforeach
-                                        </div>
-                                    @endif
-                                </td>
-                                <td class="px-3 py-2 text-gray-700 dark:text-gray-200">{{ $unit->seat_capacity }} seat{{ $unit->seat_capacity > 1 ? 's' : '' }}<br><span class="text-xs text-gray-500 dark:text-gray-400">Luggage: {{ $unit->luggage_capacity ?? '-' }}</span></td>
-                                <td class="px-3 py-2 text-gray-700 dark:text-gray-200"><x-money :amount="(float) $unit->contract_rate" :currency="$unit->currency ?? 'IDR'" /></td>
-                                <td class="px-3 py-2 text-gray-700 dark:text-gray-200">{{ $unit->publish_rate !== null ? \App\Support\Currency::format((float) $unit->publish_rate, $unit->currency ?? 'IDR') : '-' }}</td>
-                                <td class="px-3 py-2 text-gray-700 dark:text-gray-200">{{ $unit->overtime_rate !== null ? \App\Support\Currency::format((float) $unit->overtime_rate, $unit->currency ?? 'IDR') : '-' }}</td>
-                                <td class="px-3 py-2 text-gray-700 dark:text-gray-200">{{ $unit->benefits ?: '-' }}</td>
-                            </tr>
-                        @empty
-                            <tr>
-                                <td colspan="6" class="px-3 py-4 text-center text-gray-500 dark:text-gray-400">No unit data.</td>
-                            </tr>
-                        @endforelse
-                    </tbody>
-                </table>
-            </div>
+            <aside class="module-grid-side space-y-6">
+                @include('partials._audit-info', ['record' => $transport])
+            </aside>
         </div>
     </div>
 @endsection
-
-
-

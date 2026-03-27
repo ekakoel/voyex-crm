@@ -29,18 +29,6 @@ return new class extends Migration
             }
         });
 
-        Schema::table('accommodations', function (Blueprint $table) {
-            if (! Schema::hasColumn('accommodations', 'google_maps_url')) {
-                $table->text('google_maps_url')->nullable()->after('province');
-            }
-            if (! Schema::hasColumn('accommodations', 'country')) {
-                $table->string('country')->nullable()->after('province');
-            }
-            if (! Schema::hasColumn('accommodations', 'timezone')) {
-                $table->string('timezone')->nullable()->after('country');
-            }
-        });
-
         Schema::table('airports', function (Blueprint $table) {
             if (! Schema::hasColumn('airports', 'google_maps_url')) {
                 $table->text('google_maps_url')->nullable()->after('destination_id');
@@ -98,18 +86,6 @@ return new class extends Migration
             }
             if (Schema::hasColumn('tourist_attractions', 'country')) {
                 $table->dropColumn('country');
-            }
-        });
-
-        Schema::table('accommodations', function (Blueprint $table) {
-            if (Schema::hasColumn('accommodations', 'timezone')) {
-                $table->dropColumn('timezone');
-            }
-            if (Schema::hasColumn('accommodations', 'country')) {
-                $table->dropColumn('country');
-            }
-            if (Schema::hasColumn('accommodations', 'google_maps_url')) {
-                $table->dropColumn('google_maps_url');
             }
         });
 

@@ -11,14 +11,34 @@ use Illuminate\Support\Facades\Schema;
 
 class VendorController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
+        $perPage = (int) $request->integer('per_page', 10);
+        if (! in_array($perPage, [10, 25, 50, 100], true)) {
+            $perPage = 10;
+        }
+
+        $search = trim((string) $request->query('q', ''));
+
         $vendors = Vendor::query()
             ->withTrashed()
             ->with('destination:id,name')
-            ->withCount(['activities', 'foodBeverages'])
+            ->withCount(['activities', 'foodBeverages', 'transports'])
+            ->when($search !== '', function ($query) use ($search) {
+                $query->where(function ($inner) use ($search) {
+                    $inner->where('name', 'like', "%{$search}%")
+                        ->orWhere('location', 'like', "%{$search}%")
+                        ->orWhere('city', 'like', "%{$search}%")
+                        ->orWhere('province', 'like', "%{$search}%")
+                        ->orWhere('contact_name', 'like', "%{$search}%")
+                        ->orWhere('contact_email', 'like', "%{$search}%")
+                        ->orWhere('contact_phone', 'like', "%{$search}%");
+                });
+            })
             ->orderBy('name')
-            ->paginate(10);
+            ->paginate($perPage)
+            ->withQueryString();
+
         return view('modules.vendors.index', compact('vendors'));
     }
 
@@ -54,6 +74,7 @@ class VendorController extends Controller
             'contact_name' => ['nullable', 'string', 'max:255'],
             'contact_email' => ['nullable', 'email', 'max:255'],
             'contact_phone' => ['nullable', 'string', 'max:50'],
+            'website' => ['nullable', 'url', 'max:500'],
             'address' => ['nullable', 'string'],
             'is_active' => ['nullable', 'boolean'],
         ]);
@@ -105,6 +126,7 @@ class VendorController extends Controller
             'contact_name' => ['nullable', 'string', 'max:255'],
             'contact_email' => ['nullable', 'email', 'max:255'],
             'contact_phone' => ['nullable', 'string', 'max:50'],
+            'website' => ['nullable', 'url', 'max:500'],
             'address' => ['nullable', 'string'],
             'is_active' => ['nullable', 'boolean'],
         ]);
@@ -126,11 +148,11 @@ class VendorController extends Controller
 
     public function destroy(Vendor $vendor)
     {
-        $vendor->loadCount(['activities', 'foodBeverages']);
-        if (($vendor->activities_count ?? 0) > 0 || ($vendor->food_beverages_count ?? 0) > 0) {
+        $vendor->loadCount(['activities', 'foodBeverages', 'transports']);
+        if (($vendor->activities_count ?? 0) > 0 || ($vendor->food_beverages_count ?? 0) > 0 || ($vendor->transports_count ?? 0) > 0) {
             return redirect()
                 ->route('vendors.index')
-                ->with('error', 'Vendor cannot be deleted because it is used by Activities or Food & Beverage. Deactivate it instead.');
+                ->with('error', 'Vendor cannot be deleted because it is used by Activities, Food & Beverage, or Transports. Deactivate it instead.');
         }
 
         $vendor->delete();

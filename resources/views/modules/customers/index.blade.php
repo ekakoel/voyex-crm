@@ -10,8 +10,8 @@
 @section('content')
     <div class="space-y-6 module-page module-page--customers">
         <x-index-stats :cards="$statsCards ?? []" />
-        <div class="grid grid-cols-1 gap-6 xl:grid-cols-12">
-            <aside class="space-y-4 xl:col-span-3">
+        <div class="module-grid-3-9">
+            <aside class="module-grid-side space-y-4">
                 <div class="app-card p-5 space-y-4">
                     <div>
                         <h2 class="text-base font-semibold text-gray-800 dark:text-gray-100">Filters</h2>
@@ -49,7 +49,7 @@
                     </form>
                 </div>
             </aside>
-            <div class="space-y-4 xl:col-span-9">
+            <div class="module-grid-main space-y-4">
                 @if (session('success'))
                     <div
                         class="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300">
@@ -67,6 +67,9 @@
                         <table class="app-table w-full divide-y divide-gray-200 dark:divide-gray-700">
                             <thead>
                                 <tr>
+                                    <th
+                                        class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">
+                                        #</th>
                                     <th
                                         class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">
                                         Code</th>
@@ -91,9 +94,10 @@
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
-                                @forelse ($customers as $customer)
+                                @forelse ($customers as $index => $customer)
                                     @php($isActive = ! $customer->trashed())
                                     <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/30">
+                                        <td class="px-4 py-3 text-sm font-medium text-gray-800 dark:text-gray-100">{{ ++$index }}</td>
                                         <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">
                                             {{ $customer->code }}</td>
                                         <td class="px-4 py-3 text-sm text-gray-800 dark:text-gray-100">
@@ -122,7 +126,7 @@
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="7"
+                                        <td colspan="8"
                                             class="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">No
                                             customers available.</td>
                                     </tr>
@@ -174,6 +178,7 @@
         </div>
     </div>
 @endsection
+
 
 
 

@@ -25,6 +25,7 @@ class Vendor extends Model
         'contact_name',
         'contact_email',
         'contact_phone',
+        'website',
         'address',
         'is_active',
     ];
@@ -49,6 +50,13 @@ class Vendor extends Model
     {
         return $this->hasMany(FoodBeverage::class);
     }
+
+
+    public function transports()
+    {
+        return $this->hasMany(Transport::class);
+    }
+
 }
 
 

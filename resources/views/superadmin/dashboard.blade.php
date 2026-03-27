@@ -77,14 +77,14 @@
                     <h2 class="text-sm font-semibold text-slate-900 dark:text-slate-100">Module Control Center</h2>
                     <span class="text-[11px] text-slate-500 dark:text-slate-400">Grouped by domain for full-system management</span>
                 </div>
-                <div class="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">
+                <div class="space-y-4">
                     @forelse(($moduleGroups ?? []) as $group)
-                        <div class="flex h-full flex-col rounded-xl border border-slate-200 p-3 dark:border-slate-700">
+                        <div class="rounded-xl border border-slate-200 p-3 dark:border-slate-700">
                             <div class="mb-3 flex items-center justify-between">
                                 <h3 class="text-xs font-semibold uppercase tracking-wide text-slate-700 dark:text-slate-200">{{ $group['name'] }}</h3>
                                 <span class="text-[11px] text-slate-500 dark:text-slate-400">{{ count($group['modules'] ?? []) }} modules</span>
                             </div>
-                            <div class="space-y-3">
+                            <div class="grid grid-cols-1 gap-3 md:grid-cols-3">
                                 @foreach(($group['modules'] ?? []) as $module)
                                     @php
                                         $healthClass = match ($module['health'] ?? 'healthy') {

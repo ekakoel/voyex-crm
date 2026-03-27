@@ -17,7 +17,7 @@ class InvoicesSmokeTest extends ModuleSmokeTestCase
             'booking_number' => 'BK-SMK-' . now()->format('YmdHis') . '-' . random_int(100, 999),
             'quotation_id' => $quotation->id,
             'travel_date' => now()->subDay()->format('Y-m-d'),
-            'status' => 'completed',
+            'status' => 'final',
             'notes' => 'Smoke booking for invoice',
         ]);
 
@@ -27,7 +27,7 @@ class InvoicesSmokeTest extends ModuleSmokeTestCase
             'invoice_date' => now()->toDateString(),
             'due_date' => now()->addDays(7)->toDateString(),
             'total_amount' => 100000,
-            'status' => 'issued',
+            'status' => 'draft',
             'generated_by' => auth()->id(),
         ]);
 
@@ -35,4 +35,3 @@ class InvoicesSmokeTest extends ModuleSmokeTestCase
         $this->get(route('invoices.show', $invoice))->assertOk();
     }
 }
-

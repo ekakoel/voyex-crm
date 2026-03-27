@@ -28,7 +28,13 @@
     @stack('styles')
 </head>
 
-<body class="bg-gray-100 dark:bg-gray-900 transition-colors duration-300" data-currency="{{ $currentCurrency ?? 'IDR' }}">
+<body class="app-shell bg-gray-100 dark:bg-gray-900 transition-colors duration-300" data-currency="{{ $currentCurrency ?? 'IDR' }}">
+<div class="page-spinner" data-page-spinner aria-hidden="true">
+    <div class="page-spinner__inner">
+        <div class="page-spinner__ring" aria-hidden="true"></div>
+        <div class="page-spinner__text">Loading...</div>
+    </div>
+</div>
 
 <div class="flex h-screen overflow-hidden">
 
@@ -373,32 +379,105 @@
     }
 
     function attachMoneyHints(root = document) {
-        const currency = window.appCurrency || 'IDR';
         const moneyPattern = /(price|rate|amount|fee|cost|discount|total)/i;
-        const fields = root.querySelectorAll('input[type="number"], input[inputmode="decimal"], input[inputmode="numeric"]');
+        const fields = root.querySelectorAll('input[data-money-input="1"], input[type="number"], input[inputmode="decimal"], input[inputmode="numeric"], input[type="text"]');
+
+        const toIdrInteger = (value) => {
+            const raw = String(value ?? '').trim();
+            if (raw === '') {
+                return null;
+            }
+
+            // Case 1: pure decimal from backend (e.g. "1000000.00")
+            if (/^\d+([.,]\d{1,2})?$/.test(raw) && !raw.includes(' ')) {
+                const numeric = Number(raw.replace(',', '.'));
+                if (Number.isFinite(numeric)) {
+                    return Math.round(numeric);
+                }
+            }
+
+            // Case 2: grouped user input (e.g. "1.000.000")
+            const digits = raw.replace(/[^\d]/g, '');
+            if (digits === '') {
+                return null;
+            }
+            return Number(digits);
+        };
+
+        const toIdrGrouped = (value) => {
+            const integerValue = toIdrInteger(value);
+            if (integerValue === null || !Number.isFinite(integerValue)) {
+                return '';
+            }
+            return new Intl.NumberFormat('id-ID', {
+                maximumFractionDigits: 0,
+            }).format(integerValue);
+        };
 
         fields.forEach((field) => {
-            if (field.dataset.moneyHintBound === '1' || field.dataset.moneyInput === '1') {
+            if (field.dataset.moneyHintBound === '1') {
                 return;
             }
 
             const name = (field.getAttribute('name') || field.id || '').trim();
-            if (!name || !moneyPattern.test(name)) {
+            const explicitMoneyInput = field.dataset.moneyInput === '1';
+            const looksLikeMoneyField = name && moneyPattern.test(name);
+            if (!explicitMoneyInput && !looksLikeMoneyField) {
                 return;
             }
 
-            const hint = document.createElement('div');
-            hint.className = 'money-hint text-[10px] text-gray-500 dark:text-gray-400 mt-1';
-            hint.textContent = `Currency: ${currency}`;
-
-            field.insertAdjacentElement('afterend', hint);
             field.dataset.moneyHintBound = '1';
+            field.dataset.moneyFormatBound = '1';
+            field.dataset.moneyCurrency = 'IDR';
+            field.setAttribute('inputmode', 'numeric');
+            field.setAttribute('autocomplete', 'off');
+
+            if (field.type === 'number') {
+                field.type = 'text';
+            }
+
+            const badge = field.parentElement?.querySelector('[data-money-badge="1"]');
+            if (badge) {
+                badge.textContent = 'IDR';
+            }
+
+            const applyFormat = () => {
+                field.value = toIdrGrouped(field.value);
+            };
+
+            if (field.value) {
+                applyFormat();
+            }
+
+            field.addEventListener('input', applyFormat);
+            field.addEventListener('change', applyFormat);
+
+            // Global hint intentionally disabled: all money inputs already enforce IDR formatting.
         });
     }
 
+    function normalizeMoneyInputsBeforeSubmit() {
+        document.addEventListener('submit', (event) => {
+            const form = event.target;
+            if (!(form instanceof HTMLFormElement)) {
+                return;
+            }
+
+            form.querySelectorAll('input[data-money-format-bound="1"]').forEach((field) => {
+                if (!(field instanceof HTMLInputElement)) {
+                    return;
+                }
+                field.value = String(field.value ?? '').replace(/[^\d]/g, '');
+            });
+        }, true);
+    }
+
     document.addEventListener('DOMContentLoaded', () => {
+        normalizeMoneyInputsBeforeSubmit();
         attachRequiredMarkers(document);
         attachMoneyHints(document);
+        enhanceAddButtons(document);
+        enhanceRemoveButtons(document);
 
         const observer = new MutationObserver((mutations) => {
             mutations.forEach((mutation) => {
@@ -406,6 +485,8 @@
                     if (node.nodeType === Node.ELEMENT_NODE) {
                         attachRequiredMarkers(node);
                         attachMoneyHints(node);
+                        enhanceAddButtons(node);
+                        enhanceRemoveButtons(node);
                     }
                 });
             });
@@ -533,6 +614,15 @@
                 }
             };
 
+            let resolveTimer = null;
+            const scheduleResolve = () => {
+                if (resolveTimer) {
+                    clearTimeout(resolveTimer);
+                }
+                resolveTimer = setTimeout(resolveLocation, 400);
+            };
+
+            urlInput.addEventListener('input', scheduleResolve);
             urlInput.addEventListener('change', resolveLocation);
             urlInput.addEventListener('blur', resolveLocation);
             if (triggerButton) {
@@ -543,12 +633,16 @@
 
     document.addEventListener('DOMContentLoaded', () => {
         initLocationAutofill(document);
+        enhanceAddButtons(document);
+        enhanceRemoveButtons(document);
 
         const observer = new MutationObserver((mutations) => {
             mutations.forEach((mutation) => {
                 mutation.addedNodes.forEach((node) => {
                     if (node.nodeType === Node.ELEMENT_NODE) {
                         initLocationAutofill(node);
+                        enhanceAddButtons(node);
+                        enhanceRemoveButtons(node);
                     }
                 });
             });
@@ -556,10 +650,78 @@
 
         observer.observe(document.body, { childList: true, subtree: true });
     });
+
+    function enhanceAddButtons(root = document) {
+        const nodes = root.querySelectorAll('a, button');
+        nodes.forEach((node) => {
+            if (node.dataset.addStyled === '1' || node.dataset.skipAddStyle === '1') {
+                return;
+            }
+
+            const label = (node.textContent || '').trim();
+            if (!/^(add|tambah)\b/i.test(label)) {
+                return;
+            }
+
+            const classList = node.classList;
+            const isSmall = Array.from(classList).some((item) => item.endsWith('-sm'));
+            const removeList = [
+                'btn-ghost', 'btn-outline', 'btn-secondary', 'btn-muted', 'btn-danger', 'btn-warning',
+                'btn-ghost-sm', 'btn-outline-sm', 'btn-secondary-sm', 'btn-muted-sm', 'btn-danger-sm', 'btn-warning-sm',
+            ];
+            removeList.forEach((cls) => classList.remove(cls));
+            classList.add(isSmall ? 'btn-primary-sm' : 'btn-primary');
+
+            if (!node.querySelector('.btn-add-icon')) {
+                const icon = document.createElement('i');
+                icon.className = 'fa-solid fa-plus btn-add-icon';
+                node.insertAdjacentElement('afterbegin', icon);
+            }
+
+            node.dataset.addStyled = '1';
+        });
+    }
+
+    function enhanceRemoveButtons(root = document) {
+        const nodes = root.querySelectorAll('a, button');
+        nodes.forEach((node) => {
+            if (node.dataset.removeStyled === '1' || node.dataset.skipRemoveStyle === '1') {
+                return;
+            }
+
+            if (node.closest('table') || node.closest('.app-table')) {
+                return;
+            }
+
+            const label = (node.textContent || '').trim();
+            if (!/^(remove|hapus)\b/i.test(label)) {
+                return;
+            }
+
+            const classList = node.classList;
+            const isSmall = Array.from(classList).some((item) => item.endsWith('-sm'));
+            const removeList = [
+                'btn-ghost', 'btn-outline', 'btn-secondary', 'btn-muted', 'btn-warning',
+                'btn-ghost-sm', 'btn-outline-sm', 'btn-secondary-sm', 'btn-muted-sm', 'btn-warning-sm',
+            ];
+            removeList.forEach((cls) => classList.remove(cls));
+            classList.add(isSmall ? 'btn-danger-sm' : 'btn-danger');
+
+            if (!node.querySelector('.btn-remove-icon')) {
+                const icon = document.createElement('i');
+                icon.className = 'fa-solid fa-trash btn-remove-icon';
+                node.insertAdjacentElement('afterbegin', icon);
+            }
+
+            node.dataset.removeStyled = '1';
+        });
+    }
 </script>
 @stack('scripts')
 
 </body>
 </html>
+
+
 
 

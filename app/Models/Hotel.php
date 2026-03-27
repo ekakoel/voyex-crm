@@ -3,18 +3,22 @@
 namespace App\Models;
 
 use App\Models\ActivityLog;
+use App\Models\Concerns\HasAudit;
 use App\Traits\LogsActivity;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Hotel extends Model
 {
-    use SoftDeletes, LogsActivity;
+    use HasAudit, SoftDeletes, LogsActivity;
 
     protected $fillable = [
-        'accommodation_id',
+        'destination_id',
         'name',
         'code',
+        'city',
+        'province',
+        'country',
         'region',
         'address',
         'airport_duration',
@@ -42,16 +46,21 @@ class Hotel extends Model
         'check_in_time',
         'check_out_time',
         'map',
-        'benefits',
-        'optional_rate',
+        'latitude',
+        'longitude',
         'cancellation_policy',
         'cancellation_policy_traditional',
         'cancellation_policy_simplified',
     ];
 
-    public function accommodation()
+    protected $casts = [
+        'latitude' => 'float',
+        'longitude' => 'float',
+    ];
+
+    public function destination()
     {
-        return $this->belongsTo(Accommodation::class);
+        return $this->belongsTo(Destination::class);
     }
 
     public function rooms()
@@ -72,21 +81,6 @@ class Hotel extends Model
     public function prices()
     {
         return $this->hasMany(HotelPrice::class, 'hotels_id');
-    }
-
-    public function promos()
-    {
-        return $this->hasMany(HotelPromo::class, 'hotels_id');
-    }
-
-    public function packages()
-    {
-        return $this->hasMany(HotelPackage::class, 'hotels_id');
-    }
-
-    public function extraBeds()
-    {
-        return $this->hasMany(ExtraBed::class, 'hotels_id');
     }
 
     public function activities()

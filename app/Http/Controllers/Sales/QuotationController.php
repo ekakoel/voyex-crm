@@ -3,9 +3,9 @@
 namespace App\Http\Controllers\Sales;
 
 use PDF;
-use App\Models\AccommodationRoom;
 use App\Models\Activity;
 use App\Models\FoodBeverage;
+use App\Models\HotelRoom;
 use App\Models\Itinerary;
 use App\Models\Quotation;
 use App\Models\QuotationComment;
@@ -632,7 +632,7 @@ class QuotationController extends Controller
             Activity::class,
             FoodBeverage::class,
             TransportUnit::class,
-            AccommodationRoom::class,
+            HotelRoom::class,
         ];
     }
 
@@ -646,7 +646,7 @@ class QuotationController extends Controller
             'attraction',
             'activity',
             'fnb',
-            'accommodation_day_end',
+            'hotel_day_end',
         ];
     }
 

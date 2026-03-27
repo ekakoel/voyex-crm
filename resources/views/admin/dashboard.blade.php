@@ -104,7 +104,6 @@
                     'vendor_management' => 'vendors.index',
                     'destinations' => 'destinations.index',
                     'activities' => 'activities.index',
-                    'accommodations' => 'accommodations.index',
                     'airports' => 'airports.index',
                     'transports' => 'transports.index',
                     'tourist_attractions' => 'tourist-attractions.index',
@@ -361,4 +360,5 @@
     @endif
     @endpush
 @endsection
+
 

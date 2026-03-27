@@ -68,7 +68,7 @@ class DestinationBackfillSeeder extends Seeder
         };
 
         $syncByCityProvince('vendors');
-        $syncByCityProvince('accommodations');
+        $syncByCityProvince('hotels');
         $syncByCityProvince('tourist_attractions');
         $syncByCityProvince('airports');
         $syncByCityProvince('transports');

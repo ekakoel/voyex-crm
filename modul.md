@@ -17,3 +17,5 @@
 16. Vendor Management
 
 
+
+17. Hotels

@@ -23,7 +23,6 @@
                     'draft' => 'slate',
                     'final' => 'violet',
                     'vendors' => 'teal',
-                    'accommodations' => 'indigo',
                     'attractions' => 'sky',
                     'airports' => 'sky',
                     'transports' => 'cyan',
@@ -53,7 +52,6 @@
                     'draft' => 'fa-file-lines',
                     'final' => 'fa-award',
                     'vendors' => 'fa-handshake',
-                    'accommodations' => 'fa-hotel',
                     'attractions' => 'fa-landmark',
                     'airports' => 'fa-plane-departure',
                     'transports' => 'fa-bus',
@@ -87,3 +85,4 @@
         @endforeach
     </div>
 @endif
+

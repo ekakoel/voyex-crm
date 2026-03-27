@@ -36,9 +36,6 @@
     if ($canActivities) {
         $masterDataKpis[] = ['label' => 'Activities', 'value' => $masterDataStats['activities'] ?? 0, 'icon' => 'person-hiking', 'route' => 'activities.index'];
     }
-    if ($canAccommodations) {
-        $masterDataKpis[] = ['label' => 'Accommodations', 'value' => $masterDataStats['accommodations'] ?? 0, 'icon' => 'hotel', 'route' => 'accommodations.index'];
-    }
     if ($canTransports) {
         $masterDataKpis[] = ['label' => 'Transports', 'value' => $masterDataStats['transports'] ?? 0, 'icon' => 'bus', 'route' => 'transports.index'];
     }
@@ -147,7 +144,7 @@
                     @endif
                 </div>
             </div>
-            
+
             @if($canQuotations)
             <div class="sa-card p-4">
                 <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100">Pending Quotations</h3>
@@ -200,4 +197,3 @@
     })();
 </script>
 @endpush
-

@@ -21,6 +21,6 @@ class InquiryPolicy
 
     public function delete(User $user, Inquiry $inquiry): bool
     {
-        return $inquiry->isCreator($user);
+        return $user->hasRole('Super Admin');
     }
 }

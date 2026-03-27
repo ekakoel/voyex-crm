@@ -3,8 +3,12 @@
     $itinerary = $itinerary ?? null;
     $inquiries = $inquiries ?? collect();
     $airports = $airports ?? collect();
+    $hotels = $hotels ?? collect();
     $transportUnits = $transportUnits ?? collect();
     $prefillInquiryId = $prefillInquiryId ?? null;
+    $normalizePointType = static fn ($value, string $default = ''): string => trim((string) $value) !== ''
+        ? trim((string) $value)
+        : $default;
     $selectedInquiryId = old('inquiry_id', $itinerary->inquiry_id ?? $prefillInquiryId);
     $durationNights = max(
         0,
@@ -85,21 +89,21 @@
                 if ($day <= 0) {
                     continue;
                 }
-                $dailyEndPointTypes[$day] = (string) ($dayPoint->end_point_type ?? 'accommodation');
+                $dailyEndPointTypes[$day] = $normalizePointType($dayPoint->end_point_type ?? '', 'hotel');
                 $dailyEndPointItems[$day] =
                     (string) ($dailyEndPointTypes[$day] === 'airport'
                         ? $dayPoint->end_airport_id ?? ''
-                        : $dayPoint->end_accommodation_id ?? '');
-                $dailyEndPointRoomIds[$day] = (string) ($dayPoint->end_accommodation_room_id ?? '');
+                        : $dayPoint->end_hotel_id ?? '');
+                $dailyEndPointRoomIds[$day] = (string) ($dayPoint->end_hotel_room_id ?? '');
             }
         } elseif (isset($itinerary)) {
-            foreach ($itinerary->accommodations as $acc) {
-                $startDay = (int) ($acc->pivot->day_number ?? 1);
-                $nightCount = max(1, (int) ($acc->pivot->night_count ?? 1));
-                $roomCount = max(1, (int) ($acc->pivot->room_count ?? 1));
+            foreach ($itinerary->hotels as $hotel) {
+                $startDay = (int) ($hotel->pivot->day_number ?? 1);
+                $nightCount = max(1, (int) ($hotel->pivot->night_count ?? 1));
+                $roomCount = max(1, (int) ($hotel->pivot->room_count ?? 1));
                 for ($day = $startDay; $day < $startDay + $nightCount; $day++) {
-                    $dailyEndPointTypes[$day] = 'accommodation';
-                    $dailyEndPointItems[$day] = (string) $acc->id;
+                    $dailyEndPointTypes[$day] = 'hotel';
+                    $dailyEndPointItems[$day] = (string) $hotel->id;
                     $dailyEndPointRoomCounts[$day] = $roomCount;
                     $dailyEndPointRoomIds[$day] = '';
                 }
@@ -145,13 +149,15 @@
                 if ($day <= 0) {
                     continue;
                 }
-                $dailyStartPointTypes[$day] =
-                    (string) ($dayPoint->start_point_type ?? ($day === 1 ? 'airport' : 'previous_day_end'));
+                $dailyStartPointTypes[$day] = $normalizePointType(
+                    $dayPoint->start_point_type ?? '',
+                    $day === 1 ? 'airport' : 'previous_day_end',
+                );
                 $dailyStartPointItems[$day] =
                     (string) ($dailyStartPointTypes[$day] === 'airport'
                         ? $dayPoint->start_airport_id ?? ''
-                        : $dayPoint->start_accommodation_id ?? '');
-                $dailyStartPointRoomIds[$day] = (string) ($dayPoint->start_accommodation_room_id ?? '');
+                        : $dayPoint->start_hotel_id ?? '');
+                $dailyStartPointRoomIds[$day] = (string) ($dayPoint->start_hotel_room_id ?? '');
             }
         }
         for ($day = 1; $day <= $durationDays; $day++) {
@@ -367,15 +373,15 @@
             class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">{{ old('description', $itinerary->description ?? '') }}</textarea>
     </div>
 
-    <input type="hidden" id="accommodation-stays-hidden-enabled" value="1" class="app-input">
-    <div id="accommodation-stays-hidden"></div>
-    @error('accommodation_stays')
+    <input type="hidden" id="hotel-stays-hidden-enabled" value="1" class="app-input">
+    <div id="hotel-stays-hidden"></div>
+    @error('hotel_stays')
         <p class="text-xs text-rose-600">{{ $message }}</p>
     @enderror
-    @error('accommodation_stays.*')
+    @error('hotel_stays.*')
         <p class="text-xs text-rose-600">{{ $message }}</p>
     @enderror
-    @error('accommodation_stays.*.room_count')
+    @error('hotel_stays.*.room_count')
         <p class="text-xs text-rose-600">{{ $message }}</p>
     @enderror
     @error('daily_start_point_room_ids.*')
@@ -418,11 +424,13 @@
                 <div class="day-section rounded-xl border border-gray-400 bg-white p-3 shadow-sm dark:border-gray-700 dark:bg-gray-800"
                     data-day="{{ $day }}">
                     @php
-                        $startType =
-                            (string) ($dailyStartPointTypes[$day] ?? ($day === 1 ? 'airport' : 'previous_day_end'));
+                        $startType = $normalizePointType(
+                            $dailyStartPointTypes[$day] ?? '',
+                            $day === 1 ? 'airport' : 'previous_day_end',
+                        );
                         $startItem = (string) ($dailyStartPointItems[$day] ?? '');
                         $startRoomId = (string) ($dailyStartPointRoomIds[$day] ?? '');
-                        $endType = (string) ($dailyEndPointTypes[$day] ?? 'accommodation');
+                        $endType = $normalizePointType($dailyEndPointTypes[$day] ?? '', 'hotel');
                         $endItem = (string) ($dailyEndPointItems[$day] ?? '');
                         $endRoomId = (string) ($dailyEndPointRoomIds[$day] ?? '');
                         $dayStartTravelMinutes = old(
@@ -516,8 +524,7 @@
                                             <option value="previous_day_end" @selected($startType === 'previous_day_end')>Previous Day
                                                 Endpoint (Auto)</option>
                                         @endif
-                                        <option value="accommodation" @selected($startType === 'accommodation')>Accommodation
-                                        </option>
+                                        <option value="hotel" @selected($startType === 'hotel')>Hotel</option>
                                         <option value="airport" @selected($startType === 'airport')>Airport</option>
                                     </select>
                                 </div>
@@ -525,15 +532,15 @@
                                     <select name="daily_start_point_items[{{ $day }}]"
                                         class="day-start-point-item dark:border-gray-600 app-input">
                                         <option value="">Select start point item</option>
-                                        @foreach ($accommodations ?? collect() as $accommodation)
-                                            <option value="{{ $accommodation->id }}" data-point-type="accommodation"
-                                                data-location="{{ $accommodation->location ?? '' }}"
-                                                data-city="{{ $accommodation->city ?? '' }}"
-                                                data-province="{{ $accommodation->province ?? '' }}"
-                                                data-latitude="{{ $accommodation->latitude ?? '' }}"
-                                                data-longitude="{{ $accommodation->longitude ?? '' }}"
-                                                @selected($startType === 'accommodation' && $startItem === (string) $accommodation->id)>
-                                                {{ $accommodation->name }}{{ !empty($accommodation->city) ? ' (' . $accommodation->city . ')' : '' }}
+                                        @foreach ($hotels as $hotel)
+                                            <option value="{{ $hotel->id }}" data-point-type="hotel"
+                                                data-location="{{ $hotel->address ?? '' }}"
+                                                data-city="{{ $hotel->city ?? '' }}"
+                                                data-province="{{ $hotel->province ?? '' }}"
+                                                data-latitude="{{ $hotel->latitude ?? '' }}"
+                                                data-longitude="{{ $hotel->longitude ?? '' }}"
+                                                @selected($startType === 'hotel' && $startItem === (string) $hotel->id)>
+                                                {{ $hotel->name }}{{ !empty($hotel->city) ? ' (' . $hotel->city . ')' : '' }}
                                             </option>
                                         @endforeach
                                         @foreach ($airports ?? collect() as $airport)
@@ -551,22 +558,22 @@
                                 </div>
                             </div>
                             <div
-                                class="day-start-room-wrap {{ $startType === 'accommodation' ? '' : 'hidden' }} md:max-w-4xl">
+                                class="day-start-room-wrap {{ $startType === 'hotel' ? '' : 'hidden' }} md:max-w-4xl">
                                 <div class="grid grid-cols-1 gap-2 md:grid-cols-12">
                                     <div class="md:col-span-8">
                                         <label
                                             class="mb-1 mt-2 block text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300">Room</label>
                                         <select name="daily_start_point_room_ids[{{ $day }}]"
                                             class="day-start-room-select dark:border-gray-600 app-input"
-                                            {{ $startType === 'accommodation' ? '' : 'disabled' }}>
+                                            {{ $startType === 'hotel' ? '' : 'disabled' }}>
                                             <option value="">Select room</option>
-                                            @foreach ($accommodations ?? collect() as $accommodation)
-                                                @foreach ($accommodation->rooms ?? collect() as $room)
+                                            @foreach ($hotels as $hotel)
+                                                @foreach ($hotel->rooms ?? collect() as $room)
                                                     <option value="{{ $room->id }}"
-                                                        data-accommodation-id="{{ $accommodation->id }}"
-                                                        @selected($startType === 'accommodation' && $startRoomId === (string) $room->id)>
-                                                        {{ $accommodation->name }} -
-                                                        {{ $room->name }}{{ !empty($room->room_type) ? ' (' . $room->room_type . ')' : '' }}
+                                                        data-hotel-id="{{ $hotel->id }}"
+                                                        @selected($startType === 'hotel' && $startRoomId === (string) $room->id)>
+                                                        {{ $hotel->name }} -
+                                                        {{ $room->rooms }}{{ !empty($room->view) ? ' (' . $room->view . ')' : '' }}
                                                     </option>
                                                 @endforeach
                                             @endforeach
@@ -825,8 +832,7 @@
                                 <div class="md:col-span-4">
                                     <select name="daily_end_point_types[{{ $day }}]"
                                         class="day-end-point-type dark:border-gray-600 app-input">
-                                        <option value="accommodation" @selected($endType === 'accommodation')>Accommodation
-                                        </option>
+                                        <option value="hotel" @selected($endType === 'hotel')>Hotel</option>
                                         @if ($day === $durationDays)
                                             <option value="airport" @selected($endType === 'airport')>Airport</option>
                                         @endif
@@ -836,15 +842,15 @@
                                     <select name="daily_end_point_items[{{ $day }}]"
                                         class="day-end-point-item day-end-point-select dark:border-gray-600 app-input">
                                         <option value="">Select end point item</option>
-                                        @foreach ($accommodations ?? collect() as $accommodation)
-                                            <option value="{{ $accommodation->id }}" data-point-type="accommodation"
-                                                data-location="{{ $accommodation->location ?? '' }}"
-                                                data-city="{{ $accommodation->city ?? '' }}"
-                                                data-province="{{ $accommodation->province ?? '' }}"
-                                                data-latitude="{{ $accommodation->latitude ?? '' }}"
-                                                data-longitude="{{ $accommodation->longitude ?? '' }}"
-                                                @selected($endType === 'accommodation' && $endItem === (string) $accommodation->id)>
-                                                {{ $accommodation->name }}{{ !empty($accommodation->city) ? ' (' . $accommodation->city . ')' : '' }}
+                                        @foreach ($hotels as $hotel)
+                                            <option value="{{ $hotel->id }}" data-point-type="hotel"
+                                                data-location="{{ $hotel->address ?? '' }}"
+                                                data-city="{{ $hotel->city ?? '' }}"
+                                                data-province="{{ $hotel->province ?? '' }}"
+                                                data-latitude="{{ $hotel->latitude ?? '' }}"
+                                                data-longitude="{{ $hotel->longitude ?? '' }}"
+                                                @selected($endType === 'hotel' && $endItem === (string) $hotel->id)>
+                                                {{ $hotel->name }}{{ !empty($hotel->city) ? ' (' . $hotel->city . ')' : '' }}
                                             </option>
                                         @endforeach
                                         @foreach ($airports ?? collect() as $airport)
@@ -861,22 +867,22 @@
                                     </select>
                                 </div>
                             </div>
-                            <div class="day-end-room-wrap {{ $endType === 'accommodation' ? '' : 'hidden' }} md:max-w-4xl">
+                            <div class="day-end-room-wrap {{ $endType === 'hotel' ? '' : 'hidden' }} md:max-w-4xl">
                                 <div class="grid grid-cols-1 gap-2 md:grid-cols-12">
                                     <div class="md:col-span-8">
                                         <label
                                             class="mb-1 mt-2 block text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300">Room</label>
                                         <select name="daily_end_point_room_ids[{{ $day }}]"
                                             class="day-end-room-select dark:border-gray-600 app-input"
-                                            {{ $endType === 'accommodation' ? '' : 'disabled' }}>
+                                            {{ $endType === 'hotel' ? '' : 'disabled' }}>
                                             <option value="">Select room</option>
-                                            @foreach ($accommodations ?? collect() as $accommodation)
-                                                @foreach ($accommodation->rooms ?? collect() as $room)
+                                            @foreach ($hotels as $hotel)
+                                                @foreach ($hotel->rooms ?? collect() as $room)
                                                     <option value="{{ $room->id }}"
-                                                        data-accommodation-id="{{ $accommodation->id }}"
-                                                        @selected($endType === 'accommodation' && $endRoomId === (string) $room->id)>
-                                                        {{ $accommodation->name }} -
-                                                        {{ $room->name }}{{ !empty($room->room_type) ? ' (' . $room->room_type . ')' : '' }}
+                                                        data-hotel-id="{{ $hotel->id }}"
+                                                        @selected($endType === 'hotel' && $endRoomId === (string) $room->id)>
+                                                        {{ $hotel->name }} -
+                                                        {{ $room->rooms }}{{ !empty($room->view) ? ' (' . $room->view . ')' : '' }}
                                                     </option>
                                                 @endforeach
                                             @endforeach
@@ -973,8 +979,8 @@
                 border-color: #a5b4fc !important;
                 background-color: rgba(129, 140, 248, 0.16) !important;
             }
-            .day-start-point-card.theme-accommodation,
-            .day-end-point-card.theme-accommodation {
+            .day-start-point-card.theme-hotel,
+            .day-end-point-card.theme-hotel {
                 border-color: #93c5fd !important;
                 background-color: rgba(59, 130, 246, 0.12) !important;
             }
@@ -983,16 +989,87 @@
                 border-color: rgba(129, 140, 248, 0.55) !important;
                 background-color: rgba(67, 56, 202, 0.3) !important;
             }
-            .dark .day-start-point-card.theme-accommodation,
-            .dark .day-end-point-card.theme-accommodation {
+            .dark .day-start-point-card.theme-hotel,
+            .dark .day-end-point-card.theme-hotel {
                 border-color: rgba(59, 130, 246, 0.5) !important;
                 background-color: rgba(30, 64, 175, 0.3) !important;
             }
+            .itinerary-marker-badge {
+                position: relative;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                width: 34px;
+                height: 34px;
+                border-radius: 9999px;
+                color: #fff;
+                border: 2px solid rgba(255, 255, 255, 0.96);
+                box-shadow: 0 10px 24px rgba(15, 23, 42, 0.22);
+                font-size: 14px;
+                line-height: 1;
+            }
+            .itinerary-marker-badge.attraction {
+                background: #0ea5e9;
+            }
+            .itinerary-marker-badge.activity {
+                background: #10b981;
+            }
+            .itinerary-marker-badge.fnb {
+                background: #f59e0b;
+            }
+            .itinerary-marker-badge.airport {
+                background: #6366f1;
+            }
+            .itinerary-marker-badge.hotel {
+                background: #2563eb;
+            }
+            .itinerary-marker-badge.is-highlighted {
+                transform: scale(1.12);
+                box-shadow: 0 0 0 4px rgba(250, 204, 21, 0.95), 0 16px 30px rgba(15, 23, 42, 0.3);
+                z-index: 2;
+            }
+            .itinerary-marker-number {
+                position: absolute;
+                right: -4px;
+                top: -5px;
+                min-width: 16px;
+                height: 16px;
+                padding: 0 4px;
+                border-radius: 9999px;
+                background: #0f172a;
+                color: #fff;
+                border: 1px solid rgba(255, 255, 255, 0.92);
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 9px;
+                font-weight: 700;
+                line-height: 1;
+            }
+            .travel-time-badge {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                min-height: 22px;
+                padding: 0 8px;
+                border-radius: 9999px;
+                background: rgba(15, 23, 42, 0.88);
+                color: #fff;
+                font-size: 10px;
+                font-weight: 700;
+                box-shadow: 0 6px 18px rgba(15, 23, 42, 0.2);
+                white-space: nowrap;
+            }
+            .leaflet-routing-container {
+                display: none !important;
+            }
         </style>
         <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+        <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.css" crossorigin="">
     @endpush
     @push('scripts')
         <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+        <script src="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.js" crossorigin=""></script>
         <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
         <script>
             (() => {
@@ -1030,35 +1107,140 @@
                 const daySections = document.getElementById('day-sections');
                 const durationInput = document.getElementById('duration-days');
                 const durationNightsInput = document.getElementById('duration-nights');
-                const accommodationStaysHidden = document.getElementById('accommodation-stays-hidden');
+                const hotelStaysHidden = document.getElementById('hotel-stays-hidden');
                 const mapEl = document.getElementById('itinerary-map');
+                const routeDebugSummary = document.getElementById('itinerary-route-debug-summary');
+                const routeDebugDetails = document.getElementById('itinerary-route-debug-details');
                 const form = daySections?.closest('form');
                 if (!daySections || !durationInput || !mapEl || typeof L === 'undefined') return;
                 const map = L.map(mapEl).setView([-6.2, 106.816666], 5);
-                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                const baseTileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                     maxZoom: 19,
                     attribution: '&copy; OpenStreetMap contributors'
                 }).addTo(map);
                 const markers = L.layerGroup().addTo(map);
                 const routeLayers = [];
+                const clearDynamicMapLayers = () => {
+                    markers.clearLayers();
+                    markerLookup.clear();
+                    map.eachLayer((layer) => {
+                        if (layer === baseTileLayer || layer === markers) return;
+                        map.removeLayer(layer);
+                    });
+                    const panes = typeof map.getPanes === 'function' ? map.getPanes() : null;
+                    [
+                        panes?.markerPane,
+                        panes?.shadowPane,
+                        panes?.overlayPane,
+                        panes?.popupPane,
+                        panes?.tooltipPane,
+                    ].forEach((pane) => {
+                        if (!pane) return;
+                        while (pane.firstChild) {
+                            pane.removeChild(pane.firstChild);
+                        }
+                    });
+                    routeLayers.length = 0;
+                };
+                const drawRouteLine = (coordinates, color = '#ef4444') => {
+                    const line = L.polyline(coordinates, {
+                        color,
+                        weight: 7,
+                        opacity: 1,
+                        lineCap: 'round',
+                        lineJoin: 'round',
+                    }).addTo(map);
+                    routeLayers.push(line);
+                    if (typeof line.bringToFront === 'function') {
+                        line.bringToFront();
+                    }
+                    return line;
+                };
+                const setRouteDebug = (summaryLines = [], detailLines = []) => {
+                    if (routeDebugSummary) {
+                        routeDebugSummary.innerHTML = summaryLines.length ? summaryLines.join('<br>') : 'No route debug data.';
+                    }
+                    if (routeDebugDetails) {
+                        routeDebugDetails.textContent = detailLines.join('\n');
+                    }
+                };
                 const toMin = (t) => /^\d{2}:\d{2}$/.test(t || '') ? (parseInt(t.slice(0, 2), 10) * 60) + parseInt(t.slice(
                     3, 5), 10) : null;
                 const fromMin = (m) => {
                     const n = Math.max(0, Math.min(1439, m));
                     return `${String(Math.floor(n/60)).padStart(2,'0')}:${String(n%60).padStart(2,'0')}`;
                 };
-                const rowType = (r) => {
-                    const type = String(r.dataset.itemType || '');
-                    if (type === 'activity' || type === 'fnb') return type;
-                    return 'attraction';
+                const normalizePointType = (value, fallback = '') => {
+                    const type = String(value || '').trim();
+                    return type !== '' ? type : fallback;
                 };
-                const activeSelect = (r) => {
-                    const type = rowType(r);
-                    if (type === 'activity') return r.querySelector('.item-activity');
-                    if (type === 'fnb') return r.querySelector('.item-fnb');
-                    return r.querySelector('.item-attraction');
+                const isHotelPointType = (value) => normalizePointType(value) === 'hotel';
+                const getRowSelection = (row) => {
+                    const typeFieldValue = String(row.querySelector('.item-type')?.value || '').trim();
+                    const datasetTypeValue = String(row.dataset.itemType || '').trim();
+                    const candidates = [{
+                            type: 'attraction',
+                            select: row.querySelector('.item-attraction')
+                        },
+                        {
+                            type: 'activity',
+                            select: row.querySelector('.item-activity')
+                        },
+                        {
+                            type: 'fnb',
+                            select: row.querySelector('.item-fnb')
+                        },
+                    ];
+                    const byType = Object.fromEntries(candidates.map((candidate) => [candidate.type, candidate.select]));
+                    const fallbackType = typeFieldValue === 'activity' || typeFieldValue === 'fnb' ?
+                        typeFieldValue :
+                        (datasetTypeValue === 'activity' || datasetTypeValue === 'fnb' ? datasetTypeValue :
+                            'attraction');
+                    const preferredTypes = [];
+                    [typeFieldValue, datasetTypeValue].forEach((type) => {
+                        if ((type === 'attraction' || type === 'activity' || type === 'fnb') &&
+                            !preferredTypes.includes(type)) {
+                            preferredTypes.push(type);
+                        }
+                    });
+                    candidates.forEach((candidate) => {
+                        if (!preferredTypes.includes(candidate.type)) {
+                            preferredTypes.push(candidate.type);
+                        }
+                    });
+
+                    const resolveOption = (select) => {
+                        if (!select) return null;
+                        const option = select.selectedOptions?.[0] || null;
+                        const value = String(select.value || '').trim();
+                        if (!option || value === '') return null;
+                        return option;
+                    };
+
+                    for (const type of preferredTypes) {
+                        const select = byType[type] || null;
+                        const option = resolveOption(select);
+                        if (option) {
+                            return {
+                                type,
+                                select,
+                                option,
+                                source: type === typeFieldValue ? 'type-field' : (type === datasetTypeValue ?
+                                    'dataset' : 'fallback')
+                            };
+                        }
+                    }
+
+                    return {
+                        type: fallbackType,
+                        select: byType[fallbackType] || byType.attraction || null,
+                        option: null,
+                        source: 'empty'
+                    };
                 };
-                const selected = (r) => (activeSelect(r)?.value || '') !== '';
+                const rowType = (r) => getRowSelection(r).type;
+                const activeSelect = (r) => getRowSelection(r).select;
+                const selected = (r) => getRowSelection(r).option !== null;
                 const toggleType = (r, t, reset = true) => {
                     const type = t === 'activity' || t === 'fnb' ? t : 'attraction';
                     r.dataset.itemType = type;
@@ -1126,11 +1308,11 @@
                     });
                 };
                 const getPointLabelFromTypeAndItem = (typeSelect, itemSelect, previousDayEndLabel = 'Not set') => {
-                    const type = String(typeSelect?.value || '');
+                    const type = normalizePointType(typeSelect?.value || '');
                     if (type === 'previous_day_end') {
                         return previousDayEndLabel || 'Not set';
                     }
-                    if (type !== 'accommodation' && type !== 'airport') {
+                    if (!isHotelPointType(type) && type !== 'airport') {
                         return 'Not set';
                     }
                     const option = itemSelect?.selectedOptions?.[0];
@@ -1349,24 +1531,24 @@
                     if (type === 'activity') return 'activity';
                     if (type === 'fnb') return 'fnb';
                     if (type === 'airport') return 'airport';
-                    if (type === 'accommodation') return 'accommodation';
+                    if (type === 'hotel') return 'hotel';
                     return 'attraction';
                 };
                 const updateDayPointTheme = (section) => {
                     if (!section) return;
                     const startCard = section.querySelector('.day-start-point-card');
                     const endCard = section.querySelector('.day-end-point-card');
-                    const startType = section.querySelector('.day-start-point-type')?.value || '';
-                    const endType = section.querySelector('.day-end-point-type')?.value || '';
+                    const startType = normalizePointType(section.querySelector('.day-start-point-type')?.value || '');
+                    const endType = normalizePointType(section.querySelector('.day-end-point-type')?.value || '');
                     if (startCard) {
-                        startCard.classList.remove('theme-airport', 'theme-accommodation');
+                        startCard.classList.remove('theme-airport', 'theme-hotel');
                         if (startType === 'airport') startCard.classList.add('theme-airport');
-                        if (startType === 'accommodation') startCard.classList.add('theme-accommodation');
+                        if (isHotelPointType(startType)) startCard.classList.add('theme-hotel');
                     }
                     if (endCard) {
-                        endCard.classList.remove('theme-airport', 'theme-accommodation');
+                        endCard.classList.remove('theme-airport', 'theme-hotel');
                         if (endType === 'airport') endCard.classList.add('theme-airport');
-                        if (endType === 'accommodation') endCard.classList.add('theme-accommodation');
+                        if (isHotelPointType(endType)) endCard.classList.add('theme-hotel');
                     }
                 };
                 const updateScheduleRowTheme = (row) => {
@@ -1385,7 +1567,7 @@
                     if (type === 'activity') return 'fa-solid fa-person-hiking';
                     if (type === 'fnb') return 'fa-solid fa-utensils';
                     if (type === 'airport') return 'fa-solid fa-plane';
-                    if (type === 'accommodation') return 'fa-solid fa-bed';
+                    if (type === 'hotel') return 'fa-solid fa-bed';
                     return 'fa-solid fa-location-dot';
                 };
                 const createBadgeIcon = (order, type, highlighted = false) => L.divIcon({
@@ -1409,7 +1591,7 @@
                         lat,
                         lng,
                         name: option.textContent.trim(),
-                        type: typeOverride || option.dataset.pointType || 'accommodation',
+                        type: normalizePointType(typeOverride || option.dataset.pointType || '', 'hotel'),
                     };
                 };
                 const pointOptionCache = new WeakMap();
@@ -1438,9 +1620,8 @@
 
                         const applyFilter = (typeSelect, itemSelect) => {
                             if (!typeSelect || !itemSelect) return;
-                            const selectedType = String(typeSelect.value || '');
-                            const requiresItem = selectedType === 'accommodation' || selectedType ===
-                                'airport';
+                            const selectedType = normalizePointType(typeSelect.value || '');
+                            const requiresItem = isHotelPointType(selectedType) || selectedType === 'airport';
                             const selectedValue = String(itemSelect.value || '');
                             let allOptions = pointOptionCache.get(itemSelect);
                             if (!allOptions) {
@@ -1463,7 +1644,7 @@
 
                             itemSelect.disabled = false;
                             allOptions.slice(1).forEach((option) => {
-                                const pointType = option.dataset.pointType || '';
+                                const pointType = normalizePointType(option.dataset.pointType || '');
                                 if (pointType !== selectedType) return;
                                 if (selectedType !== 'airport' && !matchesDestinationOption(option)) return;
                                 const clone = option.cloneNode(true);
@@ -1482,23 +1663,23 @@
                         applyFilter(startType, startItem);
                         applyFilter(endType, endItem);
 
-                        const startAccommodation = String(startType?.value || '') === 'accommodation';
-                        if (startRoomWrap) startRoomWrap.classList.toggle('hidden', !startAccommodation);
+                        const startHotel = isHotelPointType(startType?.value || '');
+                        if (startRoomWrap) startRoomWrap.classList.toggle('hidden', !startHotel);
                         if (startRoomSelect) {
-                            const selectedAccommodationId = String(startItem?.value || '');
+                            const selectedHotelId = String(startItem?.value || '');
                             Array.from(startRoomSelect.options).forEach((option, idx) => {
                                 if (idx === 0) {
                                     option.hidden = false;
                                     option.disabled = false;
                                     return;
                                 }
-                                const match = String(option.dataset.accommodationId || '') ===
-                                    selectedAccommodationId;
+                                const match = String(option.dataset.hotelId || '') ===
+                                    selectedHotelId;
                                 option.hidden = !match;
                                 option.disabled = !match;
                             });
-                            startRoomSelect.disabled = !startAccommodation;
-                            if (!startAccommodation) {
+                            startRoomSelect.disabled = !startHotel;
+                            if (!startHotel) {
                                 startRoomSelect.value = '';
                             } else if (String(startRoomSelect.value || '') === '' || startRoomSelect
                                 .selectedOptions?.[0]?.hidden) {
@@ -1506,27 +1687,27 @@
                             }
                         }
                         if (startRoomInput) {
-                            startRoomInput.disabled = !startAccommodation;
-                            if (!startAccommodation) startRoomInput.value = '1';
+                            startRoomInput.disabled = !startHotel;
+                            if (!startHotel) startRoomInput.value = '1';
                         }
 
-                        const endAccommodation = String(endType?.value || '') === 'accommodation';
-                        if (endRoomWrap) endRoomWrap.classList.toggle('hidden', !endAccommodation);
+                        const endHotel = isHotelPointType(endType?.value || '');
+                        if (endRoomWrap) endRoomWrap.classList.toggle('hidden', !endHotel);
                         if (endRoomSelect) {
-                            const selectedAccommodationId = String(endItem?.value || '');
+                            const selectedHotelId = String(endItem?.value || '');
                             Array.from(endRoomSelect.options).forEach((option, idx) => {
                                 if (idx === 0) {
                                     option.hidden = false;
                                     option.disabled = false;
                                     return;
                                 }
-                                const match = String(option.dataset.accommodationId || '') ===
-                                    selectedAccommodationId;
+                                const match = String(option.dataset.hotelId || '') ===
+                                    selectedHotelId;
                                 option.hidden = !match;
                                 option.disabled = !match;
                             });
-                            endRoomSelect.disabled = !endAccommodation;
-                            if (!endAccommodation) {
+                            endRoomSelect.disabled = !endHotel;
+                            if (!endHotel) {
                                 endRoomSelect.value = '';
                             } else if (String(endRoomSelect.value || '') === '' || endRoomSelect.selectedOptions
                                 ?.[0]?.hidden) {
@@ -1534,8 +1715,8 @@
                             }
                         }
                         if (endRoomInput) {
-                            endRoomInput.disabled = !endAccommodation;
-                            if (!endAccommodation) endRoomInput.value = '1';
+                            endRoomInput.disabled = !endHotel;
+                            if (!endHotel) endRoomInput.value = '1';
                         }
                     });
                 };
@@ -1603,11 +1784,11 @@
                     if (!section) return null;
                     const typeSelect = section.querySelector('.day-start-point-type');
                     const itemSelect = section.querySelector('.day-start-point-item');
-                    const selectedType = String(typeSelect?.value || '');
+                    const selectedType = normalizePointType(typeSelect?.value || '');
                     if (selectedType === 'previous_day_end') {
                         return previousEndPoint;
                     }
-                    if (selectedType === 'accommodation' || selectedType === 'airport') {
+                    if (isHotelPointType(selectedType) || selectedType === 'airport') {
                         return parseItemOptionPoint(itemSelect?.selectedOptions?.[0] || null, selectedType);
                     }
                     return previousEndPoint;
@@ -1617,8 +1798,8 @@
                     if (!section) return null;
                     const typeSelect = section.querySelector('.day-end-point-type');
                     const itemSelect = section.querySelector('.day-end-point-item');
-                    const selectedType = String(typeSelect?.value || '');
-                    if (selectedType === 'accommodation' || selectedType === 'airport') {
+                    const selectedType = normalizePointType(typeSelect?.value || '');
+                    if (isHotelPointType(selectedType) || selectedType === 'airport') {
                         return parseItemOptionPoint(itemSelect?.selectedOptions?.[0] || null, selectedType);
                     }
                     return null;
@@ -1631,23 +1812,22 @@
                         endByDay
                     };
                 };
-                const buildAccommodationStaysPayload = (durationDays) => {
+                const buildHotelStaysPayload = (durationDays) => {
                     const perDay = [];
                     for (let day = 1; day <= durationDays; day++) {
                         const section = daySections.querySelector(`.day-section[data-day="${day}"]`);
                         const typeSelect = section?.querySelector('.day-end-point-type');
                         const itemSelect = section?.querySelector('.day-end-point-item');
                         const roomInput = section?.querySelector('.day-end-room-count');
-                        const selectedType = String(typeSelect?.value || '');
-                        const accommodationId = selectedType === 'accommodation' ? parseInt(itemSelect?.value || '0',
-                            10) : 0;
-                        const roomCount = selectedType === 'accommodation' ?
+                        const selectedType = normalizePointType(typeSelect?.value || '');
+                        const hotelId = isHotelPointType(selectedType) ? parseInt(itemSelect?.value || '0', 10) : 0;
+                        const roomCount = isHotelPointType(selectedType) ?
                             Math.max(1, parseInt(roomInput?.value || '1', 10)) :
                             0;
-                        if (accommodationId > 0) {
+                        if (hotelId > 0) {
                             perDay.push({
                                 day,
-                                accommodationId,
+                                hotelId,
                                 roomCount
                             });
                         }
@@ -1656,12 +1836,12 @@
                     const stays = [];
                     perDay.forEach((item) => {
                         const last = stays[stays.length - 1];
-                        if (last && last.accommodationId === item.accommodationId && last.roomCount === item
+                        if (last && last.hotelId === item.hotelId && last.roomCount === item
                             .roomCount && (last.dayNumber + last.nightCount) === item.day) {
                             last.nightCount += 1;
                         } else {
                             stays.push({
-                                accommodationId: item.accommodationId,
+                                hotelId: item.hotelId,
                                 dayNumber: item.day,
                                 nightCount: 1,
                                 roomCount: item.roomCount,
@@ -1670,15 +1850,15 @@
                     });
                     return stays;
                 };
-                const syncAccommodationStaysHidden = () => {
-                    if (!accommodationStaysHidden) return;
+                const syncHotelStaysHidden = () => {
+                    if (!hotelStaysHidden) return;
                     const totalDays = Math.max(1, parseInt(durationInput.value || '1', 10));
-                    const stays = buildAccommodationStaysPayload(totalDays);
-                    accommodationStaysHidden.innerHTML = stays.map((stay, index) => `
-                        <input type="hidden" name="accommodation_stays[${index}][accommodation_id]" value="${stay.accommodationId}" class="app-input">
-                        <input type="hidden" name="accommodation_stays[${index}][day_number]" value="${stay.dayNumber}" class="app-input">
-                        <input type="hidden" name="accommodation_stays[${index}][night_count]" value="${stay.nightCount}" class="app-input">
-                        <input type="hidden" name="accommodation_stays[${index}][room_count]" value="${stay.roomCount}" class="app-input">
+                    const stays = buildHotelStaysPayload(totalDays);
+                    hotelStaysHidden.innerHTML = stays.map((stay, index) => `
+                        <input type="hidden" name="hotel_stays[${index}][hotel_id]" value="${stay.hotelId}" class="app-input">
+                        <input type="hidden" name="hotel_stays[${index}][day_number]" value="${stay.dayNumber}" class="app-input">
+                        <input type="hidden" name="hotel_stays[${index}][night_count]" value="${stay.nightCount}" class="app-input">
+                        <input type="hidden" name="hotel_stays[${index}][room_count]" value="${stay.roomCount}" class="app-input">
                     `).join('');
                 };
                 const updateDayEndpointBadges = () => {
@@ -1708,44 +1888,79 @@
                 let highlightedMarker = null;
                 let highlightedMarkerOrder = null;
                 let highlightedMarkerType = null;
+                let renderMapRunId = 0;
                 
                 const renderMap = async () => {
-                    markers.clearLayers();
-                    markerLookup.clear();
+                    const currentRenderId = ++renderMapRunId;
+                    const isStaleRender = () => currentRenderId !== renderMapRunId;
+                    const debugSummary = [];
+                    const debugDetails = [];
+                    clearDynamicMapLayers();
                     highlightedMarker = null;
                     highlightedMarkerOrder = null;
                     highlightedMarkerType = null;
-                    routeLayers.forEach((layer) => map.removeLayer(layer));
-                    routeLayers.length = 0;
                     const totalDays = Math.max(1, parseInt(durationInput.value || '1', 10));
                     const anchors = buildDayAnchors(totalDays);
                     let previousEndPoint = null;
                     for (let day = 1; day <= totalDays; day++) {
                         const startPoint = await getDayStartPoint(day, previousEndPoint);
                         const endPoint = await getDayEndPoint(day);
+                        if (isStaleRender()) return;
                         anchors.startByDay[day] = startPoint;
                         // Only render end point when explicitly selected.
                         anchors.endByDay[day] = endPoint;
                         // Still carry forward the last explicit endpoint for "previous_day_end".
                         previousEndPoint = endPoint || previousEndPoint;
                     }
+                    debugSummary.push(`Total days: ${totalDays}`);
+                    for (let day = 1; day <= totalDays; day++) {
+                        const startAnchor = anchors.startByDay[day];
+                        const endAnchor = anchors.endByDay[day];
+                        debugDetails.push(
+                            `Anchors Day ${day}: start=${startAnchor ? `${startAnchor.name} [${startAnchor.lat}, ${startAnchor.lng}]` : 'null'} | end=${endAnchor ? `${endAnchor.name} [${endAnchor.lat}, ${endAnchor.lng}]` : 'null'}`
+                        );
+                    }
 
                     const points = [];
-                    daySections.querySelectorAll('.schedule-row').forEach((r) => {
-                        if (!selected(r)) return;
-                        const opt = activeSelect(r)?.selectedOptions?.[0];
-                        const lat = parseFloat(opt?.dataset?.latitude || '');
-                        const lng = parseFloat(opt?.dataset?.longitude || '');
-                        if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+                    const rowDebugLines = [];
+                    const scheduleRows = [...daySections.querySelectorAll('.schedule-row')];
+                    scheduleRows.forEach((r, rowIndex) => {
+                        const selection = getRowSelection(r);
+                        const opt = selection.option;
+                        const label = opt?.textContent?.trim() || '(empty)';
                         const day = parseInt(r.querySelector('.item-day')?.value || '1', 10);
                         const order = parseInt(r.querySelector('.item-order')?.value || '0', 10);
+                        const lat = parseFloat(opt?.dataset?.latitude || '');
+                        const lng = parseFloat(opt?.dataset?.longitude || '');
+                        const attractionValue = String(r.querySelector('.item-attraction')?.value || '');
+                        const activityValue = String(r.querySelector('.item-activity')?.value || '');
+                        const fnbValue = String(r.querySelector('.item-fnb')?.value || '');
+                        const typeFieldValue = String(r.querySelector('.item-type')?.value || '');
+
+                        if (!opt) {
+                            rowDebugLines.push(
+                                `Row ${rowIndex + 1} | Day ${day} | type=${selection.type} | source=${selection.source} | typeField=${typeFieldValue} | values[a=${attractionValue || '-'}, act=${activityValue || '-'}, fnb=${fnbValue || '-'}] | skipped: no selected option`
+                            );
+                            return;
+                        }
+
+                        if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+                            rowDebugLines.push(
+                                `Row ${rowIndex + 1} | Day ${day} | type=${selection.type} | source=${selection.source} | typeField=${typeFieldValue} | values[a=${attractionValue || '-'}, act=${activityValue || '-'}, fnb=${fnbValue || '-'}] | ${label} | skipped: invalid coordinates [${opt?.dataset?.latitude || ''}, ${opt?.dataset?.longitude || ''}]`
+                            );
+                            return;
+                        }
+
                         const travelRaw = r.querySelector('.item-travel')?.value || '';
                         const travelInput = travelRaw !== '' ? parseInt(travelRaw, 10) : null;
+                        rowDebugLines.push(
+                            `Row ${rowIndex + 1} | Day ${day} | order=${order} | type=${selection.type} | source=${selection.source} | typeField=${typeFieldValue} | values[a=${attractionValue || '-'}, act=${activityValue || '-'}, fnb=${fnbValue || '-'}] | ${label} [${lat}, ${lng}]`
+                        );
                         points.push({
                             lat,
                             lng,
-                            name: opt.textContent.trim(),
-                            type: rowType(r),
+                            name: label,
+                            type: selection.type,
                             day,
                             order,
                             isMainExperience: r.querySelector('.item-main-experience')?.checked ===
@@ -1754,6 +1969,10 @@
                                 null
                         });
                     });
+                    debugSummary.push(`Schedule rows: ${scheduleRows.length}`);
+                    debugSummary.push(`Schedule points parsed: ${points.length}`);
+                    debugDetails.push('Schedule rows:');
+                    debugDetails.push(...rowDebugLines);
                     const scheduleByDay = points.reduce((acc, point) => {
                         const key = String(point.day);
                         (acc[key] = acc[key] || []).push(point);
@@ -1776,7 +1995,7 @@
                                 lat: startAnchor.lat,
                                 lng: startAnchor.lng,
                                 name: startAnchor.name,
-                                type: startAnchor.type || 'accommodation',
+                                type: normalizePointType(startAnchor.type || '', 'hotel'),
                                 day,
                                 order: 0,
                                 anchorRole: 'start',
@@ -1802,7 +2021,7 @@
                                     lat: endAnchor.lat,
                                     lng: endAnchor.lng,
                                     name: endAnchor.name,
-                                    type: endAnchor.type || 'accommodation',
+                                    type: normalizePointType(endAnchor.type || '', 'hotel'),
                                     day,
                                     order: dayPoints.length + 1,
                                     anchorRole: 'end',
@@ -1814,10 +2033,17 @@
                         if (dayPoints.length > 0) {
                             routePointsByDay[String(day)] = dayPoints;
                         }
+                        debugDetails.push(
+                            `Day ${day}: ${dayPoints.length} point(s) | ` +
+                            dayPoints.map((point) => `${point.order}:${point.name} [${point.lat}, ${point.lng}]`).join(' -> ')
+                        );
                     }
 
                     const allPoints = Object.values(routePointsByDay).flat();
+                    debugSummary.push(`Renderable points: ${allPoints.length}`);
                     if (!allPoints.length) {
+                        if (isStaleRender()) return;
+                        setRouteDebug(debugSummary, debugDetails);
                         map.setView([-6.2, 106.816666], 5);
                         return;
                     }
@@ -1859,7 +2085,7 @@
                             attraction: 'Attraction',
                             activity: 'Activity',
                             fnb: 'F&B',
-                            accommodation: 'Accommodation',
+                            hotel: 'Hotel',
                             airport: 'Airport',
                         };
                         const label = labelMap[p.type] || 'Point';
@@ -1868,7 +2094,7 @@
                             (p.type === 'fnb' ?
                                 'fnb' :
                                 (p.type === 'attraction' ? 'attraction' : (p.type === 'airport' ?
-                                    'airport' : 'accommodation')));
+                                    'airport' : 'hotel')));
                         const dayKey = String(p.day);
                         const isAnchor = Boolean(p.anchorRole && p.anchorRole !== '');
                         const meta = dayMeta[dayKey] || {
@@ -1894,90 +2120,60 @@
                         
                         // Keep anchor points consistent with other items: icon + number only (no labels).
                     });
+                    if (isStaleRender()) return;
 
                     for (const [dayKey, dayPoints] of Object.entries(routePointsByDay)) {
                         const sorted = dayPoints.sort((a, b) => a.order - b.order);
-                        if (sorted.length < 2) continue;
+                        if (sorted.length < 2) {
+                            debugDetails.push(`Day ${dayKey}: skipped route, only ${sorted.length} point.`);
+                            continue;
+                        }
                         const color = routeColors[(parseInt(dayKey, 10) - 1) % routeColors.length];
+                        const fallbackCoordinates = sorted.map((point) => [point.lat, point.lng]);
+                        const fallbackLine = drawRouteLine(fallbackCoordinates, color);
+                        debugDetails.push(`Day ${dayKey}: fallback line drawn with ${fallbackCoordinates.length} coordinates.`);
+
+                        const coordinates = sorted.map((point) => `${point.lng},${point.lat}`).join(';');
+                        try {
+                            const response = await fetch(
+                                `https://router.project-osrm.org/route/v1/driving/${coordinates}?overview=full&geometries=geojson`
+                            );
+                            if (isStaleRender()) return;
+                            debugDetails.push(`Day ${dayKey}: OSRM HTTP ${response.status}.`);
+                            const data = await response.json();
+                            if (isStaleRender()) return;
+                            const geometry = data?.routes?.[0]?.geometry;
+                            if (geometry && Array.isArray(geometry.coordinates) && geometry.coordinates.length > 1) {
+                                map.removeLayer(fallbackLine);
+                                routeLayers.pop();
+                                const routeCoordinates = geometry.coordinates.map((point) => [point[1], point[0]]);
+                                drawRouteLine(routeCoordinates, color);
+                                debugDetails.push(`Day ${dayKey}: OSRM success, geometry points ${geometry.coordinates.length}.`);
+                            } else {
+                                debugDetails.push(`Day ${dayKey}: OSRM returned no geometry.`);
+                            }
+                        } catch (error) {
+                            debugDetails.push(`Day ${dayKey}: OSRM error -> ${error?.message || 'unknown error'}`);
+                        }
+
                         for (let i = 0; i < sorted.length - 1; i++) {
                             const from = sorted[i];
                             const to = sorted[i + 1];
-                            const url =
-                                `https://router.project-osrm.org/route/v1/driving/${from.lng},${from.lat};${to.lng},${to.lat}?overview=full&geometries=geojson`;
-                            try {
-                                const response = await fetch(url);
-                                const data = await response.json();
-                                const route = data?.routes?.[0];
-                                const geometry = route?.geometry;
-                                const minutesFromApi = Number.isFinite(route?.duration) ? Math.max(1, Math.round(
-                                    route.duration / 60)) : null;
-                                const labelMinutes = from.travelInput !== null ? from.travelInput : minutesFromApi;
-
-                                if (geometry && Array.isArray(geometry.coordinates) && geometry.coordinates.length >
-                                    1) {
-                                    const layer = L.geoJSON(geometry, {
-                                        style: {
-                                            color,
-                                            weight: 3,
-                                            opacity: 0.85
-                                        }
-                                    }).addTo(map);
-                                    routeLayers.push(layer);
-
-                                    if (labelMinutes !== null) {
-                                        const mid = geometry.coordinates[Math.floor(geometry.coordinates.length /
-                                            2)];
-                                        const badge = L.marker([mid[1], mid[0]], {
-                                            icon: travelBadgeIcon(labelMinutes),
-                                            interactive: false
-                                        }).addTo(map);
-                                        routeLayers.push(badge);
-                                    }
-                                } else {
-                                    const fallbackPoints = [
-                                        [from.lat, from.lng],
-                                        [to.lat, to.lng]
-                                    ];
-                                    const fallback = L.polyline(fallbackPoints, {
-                                        color,
-                                        weight: 3,
-                                        opacity: 0.8
-                                    }).addTo(map);
-                                    routeLayers.push(fallback);
-                                    if (labelMinutes !== null) {
-                                        const midLat = (from.lat + to.lat) / 2;
-                                        const midLng = (from.lng + to.lng) / 2;
-                                        const badge = L.marker([midLat, midLng], {
-                                            icon: travelBadgeIcon(labelMinutes),
-                                            interactive: false
-                                        }).addTo(map);
-                                        routeLayers.push(badge);
-                                    }
-                                }
-                            } catch (_) {
-                                const fallbackPoints = [
-                                    [from.lat, from.lng],
-                                    [to.lat, to.lng]
-                                ];
-                                const fallback = L.polyline(fallbackPoints, {
-                                    color,
-                                    weight: 3,
-                                    opacity: 0.8
-                                }).addTo(map);
-                                routeLayers.push(fallback);
-                                if (from.travelInput !== null) {
-                                    const midLat = (from.lat + to.lat) / 2;
-                                    const midLng = (from.lng + to.lng) / 2;
-                                    const badge = L.marker([midLat, midLng], {
-                                        icon: travelBadgeIcon(from.travelInput),
-                                        interactive: false
-                                    }).addTo(map);
-                                    routeLayers.push(badge);
-                                }
-                            }
+                            if (from.travelInput === null) continue;
+                            const midLat = (from.lat + to.lat) / 2;
+                            const midLng = (from.lng + to.lng) / 2;
+                            const badge = L.marker([midLat, midLng], {
+                                icon: travelBadgeIcon(from.travelInput),
+                                interactive: false
+                            }).addTo(map);
+                            routeLayers.push(badge);
                         }
                     }
 
+                    if (isStaleRender()) return;
+                    debugSummary.push(`Marker layers: ${markers.getLayers().length}`);
+                    debugSummary.push(`Active route layers: ${routeLayers.length}`);
+                    setRouteDebug(debugSummary, debugDetails);
                     if (ll.length === 1) map.setView(ll[0], 14);
                     else map.fitBounds(ll, {
                         padding: [20, 20]
@@ -2032,7 +2228,7 @@
                     syncPointItemVisibility();
                     await recalcAll();
                     reindex();
-                    syncAccommodationStaysHidden();
+                    syncHotelStaysHidden();
                     updateDayEndpointBadges();
                     daySections.querySelectorAll('.day-section').forEach(updateDayPointTheme);
                     await renderMap();
@@ -2205,7 +2401,7 @@
                             const dayEndPointType = c.querySelector('.day-end-point-type');
                             if (dayEndPointType) {
                                 dayEndPointType.name = `daily_end_point_types[${i}]`;
-                                dayEndPointType.value = 'accommodation';
+                                dayEndPointType.value = 'hotel';
                             }
                             const dayEndPointSelect = c.querySelector('.day-end-point-item');
                             if (dayEndPointSelect) {
@@ -2335,7 +2531,7 @@
                     e.preventDefault();
                     await recalcAll();
                     reindex();
-                    syncAccommodationStaysHidden();
+                    syncHotelStaysHidden();
                     const hasA = [...daySections.querySelectorAll('.schedule-row')].some((r) => rowType(r) ===
                         'attraction' && selected(r));
                     if (!hasA) {

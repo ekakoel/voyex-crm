@@ -23,7 +23,9 @@ class CurrencyController extends Controller
             });
         }
 
-        $currencies = $query->orderByDesc('is_default')->orderBy('code')->paginate(15)->withQueryString();
+        $perPage = (int) $request->input('per_page', 10);
+        $perPage = in_array($perPage, [10, 25, 50, 100], true) ? $perPage : 10;
+        $currencies = $query->orderByDesc('is_default')->orderBy('code')->paginate($perPage)->withQueryString();
         $bulkCurrencies = Currency::query()
             ->where('is_active', true)
             ->orderByDesc('is_default')

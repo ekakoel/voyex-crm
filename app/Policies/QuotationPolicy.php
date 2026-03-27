@@ -17,6 +17,6 @@ class QuotationPolicy
 
     public function delete(User $user, Quotation $quotation): bool
     {
-        return $quotation->isCreator($user);
+        return $user->hasRole('Super Admin');
     }
 }

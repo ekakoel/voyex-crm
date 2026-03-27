@@ -4,8 +4,8 @@
     <div class="space-y-6 module-page module-page--bookings">
         
 
-        <div class="grid gap-6 xl:grid-cols-12">
-            <div class="xl:col-span-8">
+        <div class="module-grid-9-3">
+            <div class="module-grid-main">
                 <div class="module-form-wrap">
                     <form method="POST" action="{{ route('bookings.update', $booking) }}">
                         @csrf
@@ -17,12 +17,13 @@
                     </form>
                 </div>
             </div>
-            <aside  class="xl:col-span-4">
+            <aside  class="module-grid-side">
                 @include('partials._audit-info', ['record' => $booking])
             </aside>
         </div>
     </div>
 @endsection
+
 
 
 

@@ -68,3 +68,73 @@ If a page should not render a header at all:
 ```blade
 @section('page_header_hidden', '1')
 ```
+
+## Standard Grid Baseline (Global)
+To keep UI/UX consistent across modules, use this split as default for all non-dashboard pages:
+
+- `Index`: `4 / 8` (left filter/sidebar, right data/list)
+- `Create/Edit/Detail`: `8 / 4` (left form/content, right supporting panel)
+- `Dashboard`: **excluded** (can use custom KPI/analytics layout)
+
+CSS utility classes are available in `resources/css/app.css`:
+
+- `.module-grid-3-9`
+- `.module-grid-9-3`
+- `.module-grid-main`
+- `.module-grid-side`
+
+### Index Template (4/8)
+```blade
+@section('content')
+    <div class="space-y-6 module-page">
+        <div class="module-grid-3-9">
+            <aside class="module-grid-side module-card p-4">
+                {{-- filters / quick actions --}}
+            </aside>
+
+            <section class="module-grid-main module-card p-6">
+                {{-- table / cards / list --}}
+            </section>
+        </div>
+    </div>
+@endsection
+```
+
+### Create/Edit/Detail Template (8/4)
+```blade
+@section('content')
+    <div class="space-y-6 module-page">
+        <div class="module-grid-9-3">
+            <section class="module-grid-main module-form-wrap">
+                {{-- form or main detail --}}
+            </section>
+
+            <aside class="module-grid-side space-y-6">
+                {{-- audit info / map / metadata --}}
+            </aside>
+        </div>
+    </div>
+@endsection
+```
+
+### Migration Rule
+- Use this baseline on all module pages going forward.
+- For existing pages, migrate per module to avoid large risky refactors in one release.
+- Keep dashboard pages on their own layout system.
+
+## Map Standard Section (Create/Edit)
+For modules that use Google Maps URL autofill, use a single reusable partial:
+
+`resources/views/components/map-standard-section.blade.php`
+
+Required field order inside the section:
+1. `Location on Map (open map)`
+2. `Map URL (Google Maps)`
+3. `Latitude` + `Longitude`
+4. `Address`
+5. `City` + `Province`
+6. `Country`
+7. `Destination`
+
+Implementation note:
+- Keep non-standard location fields (for example `location` hidden input, `timezone`) outside this partial.

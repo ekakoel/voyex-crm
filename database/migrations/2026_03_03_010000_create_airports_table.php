@@ -12,8 +12,6 @@ return new class extends Migration
             $table->id();
             $table->string('code', 30)->unique();
             $table->string('name');
-            $table->string('iata_code', 10)->nullable()->index();
-            $table->string('icao_code', 10)->nullable()->index();
             $table->string('location')->nullable();
             $table->string('city')->nullable();
             $table->string('province')->nullable();

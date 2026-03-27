@@ -61,13 +61,15 @@
                     </div>
                     <div class="mt-3 flex flex-wrap gap-2">
                         <a href="{{ route('users.edit', $user) }}"  class="btn-secondary-sm" title="Edit" aria-label="Edit"><i class="fa-solid fa-pen"></i><span class="sr-only">Edit</span></a>
-                        <form action="{{ route('users.destroy', $user) }}" method="POST" class="inline">
-                            @csrf
-                            @method('DELETE')
-                            <button type="submit" onclick="return confirm('Are you sure you want to delete this employee?')"   class="btn-danger-sm">
-                                Delete
-                            </button>
-                        </form>
+                        @if (auth()->user()?->hasRole('Super Admin'))
+                            <form action="{{ route('users.destroy', $user) }}" method="POST" class="inline">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" onclick="return confirm('Are you sure you want to delete this employee?')"   class="btn-danger-sm">
+                                    Delete
+                                </button>
+                            </form>
+                        @endif
                     </div>
                 </div>
             @empty
@@ -81,6 +83,7 @@
             <table class="app-table w-full divide-y divide-gray-200 dark:divide-gray-700">
                 <thead>
                     <tr>
+                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">#</th>
                         <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">Name</th>
                         <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">Email</th>
                         <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">Role</th>
@@ -88,8 +91,9 @@
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
-                    @forelse ($users as $user)
+                    @forelse ($users as $index => $user)
                         <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/30">
+                            <td class="px-4 py-3 text-sm font-medium text-gray-800 dark:text-gray-100">{{ ++$index }}</td>
                             <td class="px-4 py-3 text-sm text-gray-800 dark:text-gray-100">{{ $user->name }}</td>
                             <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">{{ $user->email }}</td>
                             <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">
@@ -105,21 +109,23 @@
     <div class="flex items-center justify-end gap-2">
         <a href="{{ route('users.edit', $user) }}"
                                     class="btn-secondary-sm" title="Edit" aria-label="Edit"><i class="fa-solid fa-pen"></i><span class="sr-only">Edit</span></a>
-                                <form action="{{ route('users.destroy', $user) }}" method="POST" class="inline">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button
-                                        type="submit"
-                                        onclick="return confirm('Are you sure you want to delete this employee?')"
-                                          class="btn-danger-sm">Delete
-                                    </button>
-                                </form>
+                                @if (auth()->user()?->hasRole('Super Admin'))
+                                    <form action="{{ route('users.destroy', $user) }}" method="POST" class="inline">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button
+                                            type="submit"
+                                            onclick="return confirm('Are you sure you want to delete this employee?')"
+                                              class="btn-danger-sm">Delete
+                                        </button>
+                                    </form>
+                                @endif
     </div>
 </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="4" class="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">
+                            <td colspan="5" class="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">
                                 No employee data available.
                             </td>
                         </tr>

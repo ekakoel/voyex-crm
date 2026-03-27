@@ -12,13 +12,38 @@ use Illuminate\Support\Facades\Storage;
 
 class TouristAttractionController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $touristAttractions = TouristAttraction::query()
+        $perPage = (int) $request->input('per_page', 10);
+        $perPage = in_array($perPage, [10, 25, 50, 100], true) ? $perPage : 10;
+
+        $query = TouristAttraction::query()
             ->withTrashed()
-            ->with('destination:id,name')
+            ->with('destination:id,name');
+
+        if ($request->filled('q')) {
+            $term = trim((string) $request->input('q'));
+            $query->where(function ($builder) use ($term) {
+                $builder
+                    ->where('name', 'like', "%{$term}%")
+                    ->orWhere('location', 'like', "%{$term}%")
+                    ->orWhere('city', 'like', "%{$term}%")
+                    ->orWhere('province', 'like', "%{$term}%")
+                    ->orWhere('country', 'like', "%{$term}%");
+            });
+        }
+
+        $touristAttractions = $query
             ->orderBy('name')
-            ->paginate(10);
+            ->paginate($perPage)
+            ->withQueryString();
+
+        if ($this->wantsAjaxFragment($request)) {
+            return response()->json([
+                'html' => view('modules.tourist-attractions.partials._index-results', compact('touristAttractions'))->render(),
+                'url' => route('tourist-attractions.index', $request->query()),
+            ]);
+        }
 
         return view('modules.tourist-attractions.index', compact('touristAttractions'));
     }
@@ -142,10 +167,8 @@ class TouristAttractionController extends Controller
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'ideal_visit_minutes' => ['required', 'integer', 'min:15', 'max:1440'],
-            'entrance_fee_per_pax' => ['nullable', 'numeric', 'min:0'],
-            'other_fee_per_pax' => ['nullable', 'numeric', 'min:0'],
-            'other_fee_label' => ['nullable', 'string', 'max:100'],
-            'currency' => ['required', 'string', 'size:3'],
+            'contract_rate_per_pax' => ['nullable', 'numeric', 'min:0'],
+            'publish_rate_per_pax' => ['nullable', 'numeric', 'min:0'],
             'location' => ['nullable', 'string', 'max:255'],
             'city' => ['nullable', 'string', 'max:100'],
             'province' => ['nullable', 'string', 'max:100'],
@@ -164,7 +187,6 @@ class TouristAttractionController extends Controller
             'is_active' => ['nullable', 'boolean'],
         ]);
 
-        $validated['currency'] = strtoupper((string) ($validated['currency'] ?? 'IDR'));
         $validated['is_active'] = $request->boolean('is_active');
         app(LocationResolver::class)->enrichFromGoogleMapsUrl($validated);
         $this->applyDestinationContext($validated);
@@ -240,6 +262,13 @@ class TouristAttractionController extends Controller
         if (empty($validated['timezone']) && ! empty($destination->timezone)) {
             $validated['timezone'] = (string) $destination->timezone;
         }
+    }
+
+    private function wantsAjaxFragment(Request $request): bool
+    {
+        return $request->ajax()
+            || $request->expectsJson()
+            || $request->header('X-Tourist-Attractions-Ajax') === '1';
     }
 }
 

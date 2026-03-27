@@ -198,7 +198,7 @@
                             @else
                                 <div><strong>Unit:</strong> {{ $dayTransport['unit_name'] ?? '-' }}</div>
                                 <div><strong>Transport:</strong> {{ $dayTransport['transport_name'] ?? '-' }} ({{ $dayTransport['transport_type'] ?? '-' }})</div>
-                                <div><strong>Vehicle:</strong> {{ $dayTransport['vehicle_type'] ?? '-' }} | {{ $dayTransport['brand_model'] ?? '-' }}</div>
+                                <div><strong>Vehicle:</strong> {{ $dayTransport['brand_model'] ?? '-' }}</div>
                                 <div><strong>Capacity:</strong> Seat {{ $dayTransport['seat_capacity'] ?? '-' }} | Luggage {{ $dayTransport['luggage_capacity'] ?? '-' }}</div>
                                 <div><strong>Driver:</strong> {{ !empty($dayTransport['with_driver']) ? 'With driver' : 'Without driver' }} | <strong>AC:</strong> {{ !empty($dayTransport['air_conditioned']) ? 'Yes' : 'No' }}</div>
                             @endif

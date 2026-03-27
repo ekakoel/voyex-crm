@@ -11,7 +11,8 @@
 @endphp
 
 <div class="space-y-6">
-    <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
+    <div class="app-card p-6">
+        <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <div class="space-y-1.5">
             <label for="name" class="block text-sm font-medium text-gray-700 dark:text-gray-200">Role Name</label>
             <input
@@ -19,7 +20,7 @@
                 name="name"
                 type="text"
                 value="{{ $nameValue }}"
-                class="dark:border-gray-600app-inputapp-input"
+                class="app-input"
                 required
             >
             @error('name')
@@ -32,7 +33,7 @@
             <select
                 id="template_role_id"
                 name="template_role_id"
-                class="dark:border-gray-600app-inputapp-input"
+                class="app-input"
             >
                 <option value="">- None -</option>
                 @foreach (($templateRoles ?? []) as $templateRole)
@@ -55,7 +56,7 @@
                 type="text"
                 value="{{ old('custom_permission') }}"
                 placeholder="example: reports.view"
-                class="dark:border-gray-600app-inputapp-input"
+                class="app-input"
             >
             <p class="text-xs text-gray-500 dark:text-gray-400">Use this only for permission di luar module yang sudah tersedia.</p>
             @error('custom_permission')
@@ -63,8 +64,9 @@
             @enderror
         </div>
     </div>
+    </div>
 
-    <div class="rounded-xl bg-gray-50/70 p-4 dark:bg-gray-900/30">
+    <div class="app-card p-6">
         <div class="mb-3 flex items-center justify-between gap-3">
             <p class="text-sm font-semibold text-gray-700 dark:text-gray-200">Permissions per Module</p>
             <div class="flex items-center gap-2">
@@ -128,7 +130,7 @@
     </div>
 
     @if (! empty($otherPermissions))
-        <div class="rounded-xl bg-gray-50/70 p-4 dark:bg-gray-900/30">
+        <div class="app-card p-6">
             <p class="mb-2 block text-sm font-semibold text-gray-700 dark:text-gray-200">Other Permissions</p>
             <div class="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
                 @foreach ($otherPermissions as $permission)
@@ -157,14 +159,14 @@
     <div class="flex items-center gap-2 pt-1">
         <button
             type="submit"
-             class="btn-primary"
+            class="btn-primary"
         >
             {{ $buttonLabel }}
         </button>
 
         <a
             href="{{ route('roles.index') }}"
-             class="btn-secondary"
+            class="btn-secondary"
         >
             Cancel
         </a>

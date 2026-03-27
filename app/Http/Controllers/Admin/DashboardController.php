@@ -115,7 +115,7 @@ class DashboardController extends Controller
             'vendor_management',
             'destinations',
             'activities',
-            'accommodations',
+            'hotels',
             'airports',
             'transports',
             'tourist_attractions',

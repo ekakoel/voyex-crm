@@ -59,6 +59,7 @@ Guard spesifik:
   - Transport Units
   - Day Points
   - Accommodation stays
+  - Hotels (rooms, rates, promos)
 - Create/Edit:
   - Field status tidak ditampilkan, default `draft`
   - Setelah create/update, inquiry terkait otomatis `processed` (jika belum final)

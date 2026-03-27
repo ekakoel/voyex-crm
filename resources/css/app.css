@@ -1,10 +1,17 @@
 @import "@fortawesome/fontawesome-free/css/all.min.css";
+@import "leaflet/dist/leaflet.css";
+@import "leaflet.markercluster/dist/MarkerCluster.css";
+@import "leaflet.markercluster/dist/MarkerCluster.Default.css";
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
     [x-cloak] { display: none !important; }
+
+    html, body {
+        height: 100%;
+    }
 }
 
 @layer components {
@@ -22,6 +29,18 @@
         --app-text: #111827;
         --app-text-dark: #f3f4f6;
         --app-focus: #6366f1;
+        --app-form-control-h: 42px;
+        --app-form-label-h: 20px;
+        --app-form-font-size: 14px;
+    }
+
+    .app-shell {
+        overflow: hidden;
+    }
+
+    .app-shell .app-main {
+        min-height: 0;
+        overflow-y: auto;
     }
 
     /* Keep card containers visually consistent without heavy borders */
@@ -39,7 +58,11 @@
     .app-content input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']):not([type='file']):not([type='submit']):not([type='button']),
     .app-content select,
     .app-content textarea {
-        min-height: 40px;
+        min-height: var(--app-form-control-h);
+        border-radius: 0.5rem;
+        padding: 0.5rem 0.75rem;
+        font-size: var(--app-form-font-size);
+        line-height: 1.25rem;
         border-width: 1px;
         border-style: solid;
         border-color: #d1d5db;
@@ -70,6 +93,10 @@
     }
 
     .app-content label {
+        display: block;
+        min-height: var(--app-form-label-h);
+        line-height: 1.25rem;
+        font-size: var(--app-form-font-size);
         letter-spacing: 0.01em;
     }
 
@@ -122,6 +149,26 @@
 
     .btn-danger {
         @apply border-rose-200 bg-rose-100 text-rose-700 hover:bg-rose-200 focus-visible:ring-rose-400;
+    }
+
+    .btn-loading {
+        position: relative;
+        pointer-events: none;
+        opacity: 0.8;
+    }
+
+    .btn-spinner {
+        display: inline-block;
+        width: 1rem;
+        height: 1rem;
+        border-radius: 9999px;
+        border: 2px solid currentColor;
+        border-right-color: transparent;
+        animation: btnSpin 0.75s linear infinite;
+    }
+
+    .btn-loading .btn-spinner {
+        margin-left: 0.35rem;
     }
 
     .btn-primary-sm,
@@ -346,8 +393,8 @@
         background: #0284c7;
     }
 
-    .itinerary-form-page .itinerary-marker-badge.accommodation,
-    .itinerary-form-map .itinerary-marker-badge.accommodation {
+    .itinerary-form-page .itinerary-marker-badge.hotel,
+    .itinerary-form-map .itinerary-marker-badge.hotel {
         background: #0f766e;
     }
 
@@ -475,7 +522,7 @@
         background: #0284c7;
     }
 
-    .itinerary-show-page .itinerary-marker-badge.accommodation {
+    .itinerary-show-page .itinerary-marker-badge.hotel {
         background: #0f766e;
     }
 
@@ -656,6 +703,40 @@
         width: 100%;
     }
 
+    /* Standardized page splits (except dashboards):
+       - index pages: 4 / 8
+       - create/edit/show pages: 8 / 4 */
+    .module-grid-4-8,
+    .module-grid-8-4,
+    .module-grid-9-3,
+    .module-grid-3-9 {
+        display: grid;
+        gap: 1rem;
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .module-grid-main,
+    .module-grid-side {
+        min-width: 0;
+    }
+
+    @media (min-width: 768px) {
+        .module-grid-4-8 {
+            grid-template-columns: minmax(0, 4fr) minmax(0, 8fr);
+        }
+
+        .module-grid-8-4 {
+            grid-template-columns: minmax(0, 8fr) minmax(0, 4fr);
+        }
+        .module-grid-3-9 {
+            grid-template-columns: minmax(0, 3fr) minmax(0, 9fr);
+        }
+
+        .module-grid-9-3 {
+            grid-template-columns: minmax(0, 9fr) minmax(0, 3fr);
+        }
+    }
+
     .app-page-header {
         display: flex;
         align-items: flex-start;
@@ -734,10 +815,11 @@
 
     .app-input {
         width: 100%;
+        min-height: var(--app-form-control-h);
         border-radius: 0.5rem;
         border: 1px solid #d1d5db;
         padding: 0.5rem 0.75rem;
-        font-size: 0.875rem;
+        font-size: var(--app-form-font-size);
         line-height: 1.25rem;
         color: #111827;
         background: #ffffff;
@@ -753,6 +835,31 @@
         border-color: #4b5563;
         background: #111827;
         color: #f3f4f6;
+    }
+
+    .input-with-right-affix {
+        position: relative;
+        margin-top: 0;
+    }
+
+    .input-with-right-affix .app-input {
+        padding-right: 3.25rem;
+        margin-top: 0;
+    }
+
+    .input-right-affix {
+        pointer-events: none;
+        position: absolute;
+        right: 0.3rem;
+        top: 50%;
+        transform: translateY(-50%);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: calc(var(--app-form-control-h) - 10px);
+        max-height: calc(var(--app-form-control-h) - 8px);
+        border-radius: 0.375rem;
+        white-space: nowrap;
     }
 
     /* Filter forms: force full-width inputs in index sidebars */
@@ -1219,6 +1326,83 @@
     100% { opacity: 1; }
 }
 
+.page-spinner {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(15, 23, 42, 0.25);
+    backdrop-filter: blur(2px);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 160ms ease;
+    z-index: 9999;
+}
+
+.page-spinner__inner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 1rem 1.4rem;
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.95);
+    border: 1px solid #e5e7eb;
+    box-shadow: 0 18px 40px rgba(15, 23, 42, 0.15);
+}
+
+.page-spinner__ring {
+    width: 46px;
+    height: 46px;
+    border-radius: 9999px;
+    border: 4px solid rgba(79, 70, 229, 0.25);
+    border-top-color: #4f46e5;
+    animation: pageSpinnerSpin 0.9s linear infinite;
+}
+
+.page-spinner__text {
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #1f2937;
+}
+
+.dark .page-spinner {
+    background: rgba(15, 23, 42, 0.45);
+}
+
+.dark .page-spinner__inner {
+    background: rgba(15, 23, 42, 0.92);
+    border-color: #334155;
+    box-shadow: 0 18px 36px rgba(2, 6, 23, 0.55);
+}
+
+.dark .page-spinner__ring {
+    border-color: rgba(129, 140, 248, 0.3);
+    border-top-color: #a5b4fc;
+}
+
+.dark .page-spinner__text {
+    color: #e2e8f0;
+}
+
+body.page-loading .page-spinner {
+    opacity: 1;
+    pointer-events: all;
+}
+
+@keyframes pageSpinnerSpin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+@keyframes btnSpin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
 /* Custom Scrollbar */
 ::-webkit-scrollbar {
     width: 6px;
@@ -1226,4 +1410,163 @@
 ::-webkit-scrollbar-thumb {
     background: #cbd5e1;
     border-radius: 10px;
+}
+
+/* Hotel form textarea sizing */
+.hotel-form textarea.app-input {
+    width: 100%;
+    max-width: 100%;
+}
+
+@media (min-width: 768px) {
+    .hotel-form textarea.app-input {
+        max-width: 50%;
+    }
+}
+
+/* Force hotel textareas to half card width on desktop */
+@media (min-width: 768px) {
+    .hotel-form textarea.app-input {
+        width: 50% !important;
+        max-width: 50% !important;
+    }
+}
+
+/* Hotels: nested card contrast */
+.module-page--hotels .app-card .app-card {
+    background: #ffffff;
+    border-color: #ababab;
+}
+
+.dark .module-page--hotels .app-card .app-card {
+    background: #111827;
+    border-color: #374151;
+}
+
+
+.room-cover-preview {
+    aspect-ratio: 3 / 2;
+}
+
+
+.image-preview {
+    position: relative;
+    background-color: #e5e7eb;
+}
+
+.dark .image-preview {
+    background-color: #374151;
+}
+
+.image-preview-placeholder {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    text-align: center;
+    color: #6b7280;
+    font-size: 11px;
+    letter-spacing: 0.2px;
+    pointer-events: none;
+}
+
+.dark .image-preview-placeholder {
+    color: #9ca3af;
+}
+
+.image-preview-placeholder svg {
+    width: 28px;
+    height: 28px;
+}
+
+.image-preview img {
+    display: none;
+}
+
+.image-preview img.image-loaded {
+    display: block;
+}
+
+.image-preview.has-image .image-preview-placeholder {
+    display: none;
+}
+
+
+
+
+.remove-adaptive-btn {
+    gap: 0.35rem;
+}
+
+.remove-adaptive-btn .remove-btn-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 0.85rem;
+    font-size: 0.85rem;
+    line-height: 1;
+    font-weight: 700;
+}
+
+.remove-adaptive-btn .remove-btn-text {
+    white-space: nowrap;
+}
+
+.remove-adaptive-btn.remove-btn-icon-only {
+    gap: 0;
+}
+
+.remove-adaptive-btn.remove-btn-icon-only .remove-btn-text {
+    display: none;
+}
+
+@layer components {
+    .vx-pagination-wrap {
+        @apply mt-4;
+    }
+
+    .vx-pagination-mobile {
+        @apply flex items-center justify-between gap-2;
+    }
+
+    .vx-page-meta {
+        @apply text-sm text-slate-600 dark:text-slate-300;
+    }
+
+    .vx-page-meta-value {
+        @apply font-semibold text-slate-900 dark:text-slate-100;
+    }
+
+    .vx-page-mobile-label {
+        @apply text-xs font-medium text-slate-600 dark:text-slate-300;
+    }
+
+    .vx-page-list {
+        @apply inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white p-1 shadow-sm dark:border-slate-700 dark:bg-slate-900;
+    }
+
+    .vx-page-btn,
+    .vx-page-number,
+    .vx-page-icon {
+        @apply inline-flex min-h-[34px] min-w-[34px] items-center justify-center rounded-lg border border-transparent px-3 text-sm font-medium text-slate-700 transition hover:border-slate-200 hover:bg-slate-50 dark:text-slate-200 dark:hover:border-slate-600 dark:hover:bg-slate-800;
+    }
+
+    .vx-page-number {
+        @apply px-2.5;
+    }
+
+    .vx-page-number-active {
+        @apply border-teal-200 bg-teal-600 text-white hover:bg-teal-600 dark:border-teal-400/50 dark:bg-teal-500 dark:text-white;
+    }
+
+    .vx-page-btn-disabled {
+        @apply cursor-not-allowed border-transparent bg-transparent text-slate-300 hover:border-transparent hover:bg-transparent dark:text-slate-600;
+    }
+
+    .vx-page-ellipsis {
+        @apply inline-flex min-h-[34px] min-w-[20px] items-center justify-center px-1 text-sm text-slate-400 dark:text-slate-500;
+    }
 }

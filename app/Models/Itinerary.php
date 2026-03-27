@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Models\Destination;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Schema;
 
 class Itinerary extends Model
 {
@@ -103,13 +104,17 @@ class Itinerary extends Model
         return $this->hasOne(Quotation::class);
     }
 
-    public function accommodations()
+    public function hotels()
     {
-        return $this->belongsToMany(Accommodation::class)
-            ->withPivot(['day_number', 'night_count', 'room_count'])
-            ->withTimestamps()
-            ->orderByPivot('day_number')
-            ->orderBy('name');
+        if (Schema::hasTable('hotel_itinerary')) {
+            return $this->belongsToMany(Hotel::class, 'hotel_itinerary', 'itinerary_id', 'hotel_id')
+                ->withPivot(['day_number', 'night_count', 'room_count'])
+                ->withTimestamps()
+                ->orderByPivot('day_number')
+                ->orderBy('name');
+        }
+
+        return $this->hasMany(Hotel::class, 'id', 'id')->whereRaw('1 = 0');
     }
 
     public function arrivalTransport()

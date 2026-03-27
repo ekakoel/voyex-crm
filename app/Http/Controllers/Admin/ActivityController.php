@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Activity;
 use App\Models\ActivityType;
+use App\Models\Destination;
 use App\Models\Vendor;
 use App\Support\ImageThumbnailGenerator;
 use Illuminate\Http\Request;
@@ -27,21 +28,54 @@ class ActivityController extends Controller
             $query->where('activity_type', (string) $request->string('activity_type'));
         }
 
-        $activities = $query->paginate(10)->withQueryString();
+        $perPage = (int) $request->input('per_page', 10);
+        $perPage = in_array($perPage, [10, 25, 50, 100], true) ? $perPage : 10;
+        $activities = $query->paginate($perPage)->withQueryString();
         $vendors = Vendor::query()->where('is_active', true)->orderBy('name')->get(['id', 'name', 'city', 'province']);
         $types = $this->buildTypeFilterOptions();
+        $statsCards = [
+            [
+                'key' => 'total',
+                'label' => 'Total Activities',
+                'value' => Activity::query()->count(),
+                'caption' => 'All records',
+            ],
+            [
+                'key' => 'active',
+                'label' => 'Active Activities',
+                'value' => Activity::query()->whereNull('deleted_at')->count(),
+                'caption' => 'Currently active',
+            ],
+            [
+                'key' => 'vendors',
+                'label' => 'Vendors',
+                'value' => Vendor::query()->where('is_active', true)->count(),
+                'caption' => 'Active vendors',
+            ],
+        ];
 
-        return view('modules.activities.index', compact('activities', 'vendors', 'types'));
+        if ($this->wantsAjaxFragment($request)) {
+            return response()->json([
+                'html' => view('modules.activities.partials._index-results', compact('activities'))->render(),
+                'url' => route('activities.index', $request->query()),
+            ]);
+        }
+
+        return view('modules.activities.index', compact('activities', 'vendors', 'types', 'statsCards'));
     }
 
     public function create()
     {
-        $vendors = Vendor::query()->where('is_active', true)->orderBy('name')->get(['id', 'name', 'city', 'province']);
+        $vendors = Vendor::query()->where('is_active', true)->orderBy('name')->get(['id', 'name', 'city', 'province', 'destination_id']);
+        $destinations = Destination::query()
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'name', 'city', 'province']);
         $activityTypes = ActivityType::query()
             ->orderBy('name')
             ->get(['id', 'name', 'is_active']);
 
-        return view('modules.activities.create', compact('vendors', 'activityTypes'));
+        return view('modules.activities.create', compact('vendors', 'destinations', 'activityTypes'));
     }
 
     public function store(Request $request)
@@ -55,7 +89,11 @@ class ActivityController extends Controller
 
     public function edit(Activity $activity)
     {
-        $vendors = Vendor::query()->where('is_active', true)->orderBy('name')->get(['id', 'name', 'city', 'province']);
+        $vendors = Vendor::query()->where('is_active', true)->orderBy('name')->get(['id', 'name', 'city', 'province', 'destination_id']);
+        $destinations = Destination::query()
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'name', 'city', 'province']);
         $activityTypes = ActivityType::query()
             ->orderBy('name')
             ->get(['id', 'name', 'is_active']);
@@ -65,7 +103,17 @@ class ActivityController extends Controller
             $activity->save();
         }
 
-        return view('modules.activities.edit', compact('activity', 'vendors', 'activityTypes'));
+        return view('modules.activities.edit', compact('activity', 'vendors', 'destinations', 'activityTypes'));
+    }
+
+    public function show($activity)
+    {
+        $activity = Activity::query()
+            ->withTrashed()
+            ->with(['vendor:id,name,contact_name,contact_phone,contact_email,website,location,address,city,province,country,timezone', 'activityType:id,name'])
+            ->findOrFail($activity);
+
+        return view('modules.activities.show', compact('activity'));
     }
 
     public function update(Request $request, Activity $activity)
@@ -150,9 +198,10 @@ class ActivityController extends Controller
             'duration_minutes' => ['required', 'integer', 'min:15', 'max:1440'],
             'benefits' => ['nullable', 'string'],
             'descriptions' => ['nullable', 'string'],
-            'contract_price' => ['nullable', 'numeric', 'min:0'],
-            'agent_price' => ['nullable', 'numeric', 'min:0'],
-            'currency' => ['required', 'string', 'size:3'],
+            'adult_contract_rate' => ['nullable', 'numeric', 'min:0'],
+            'child_contract_rate' => ['nullable', 'numeric', 'min:0'],
+            'adult_publish_rate' => ['nullable', 'numeric', 'min:0'],
+            'child_publish_rate' => ['nullable', 'numeric', 'min:0'],
             'capacity_min' => ['nullable', 'integer', 'min:1'],
             'capacity_max' => ['nullable', 'integer', 'min:1', 'gte:capacity_min'],
             'includes' => ['nullable', 'string'],
@@ -173,10 +222,20 @@ class ActivityController extends Controller
         $validated['activity_type'] = (string) $type->name;
         unset($validated['activity_type_name']);
 
-        $validated['currency'] = strtoupper($validated['currency']);
         $validated['is_active'] = $request->boolean('is_active');
 
+        // Keep backward compatibility for flows that still read `contract_price`.
+        $validated['adult_contract_rate'] = $validated['adult_contract_rate'] ?? null;
+        $validated['contract_price'] = $validated['adult_contract_rate'];
+
         return $validated;
+    }
+
+    private function wantsAjaxFragment(Request $request): bool
+    {
+        return $request->ajax()
+            || $request->expectsJson()
+            || $request->header('X-Activities-Ajax') === '1';
     }
 
     /**

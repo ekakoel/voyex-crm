@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Modules;
 
+use Spatie\Permission\Models\Role;
 use Illuminate\Support\Str;
 
 class UsersSmokeTest extends ModuleSmokeTestCase
@@ -11,13 +12,17 @@ class UsersSmokeTest extends ModuleSmokeTestCase
         $this->get(route('users.index'))->assertOk();
         $this->get(route('users.create'))->assertOk();
 
+        $role = Role::query()->firstOrCreate([
+            'name' => 'Manager',
+            'guard_name' => 'web',
+        ]);
+
         $this->post(route('users.store'), [
             'name' => 'Smoke User',
             'email' => 'smoke-user-' . Str::random(8) . '@example.com',
             'password' => 'password123',
             'password_confirmation' => 'password123',
-            'roles' => ['Super Admin'],
+            'roles' => [$role->name],
         ])->assertRedirect(route('users.index'));
     }
 }
-

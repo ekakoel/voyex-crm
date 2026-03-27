@@ -190,3 +190,12 @@ Semua error telah diperbaiki:
 **By:** GitHub Copilot (Claude Haiku 4.5)
 
 
+
+
+---
+
+Update 2026-03-23: Hotels module implementation started (admin CRUD + base UI).
+
+Update 2026-03-23 (cont.): Hotels module auto-registered into modules & permissions and appears in Super Admin Module Control Center (Product & Reservation).
+
+Update 2026-03-23 (cont.): Transports now link to Vendors/Providers via vendor_id for unified provider data.

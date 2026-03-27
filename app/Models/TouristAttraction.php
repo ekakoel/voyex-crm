@@ -2,19 +2,18 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasAudit;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class TouristAttraction extends Model
 {
-    use SoftDeletes;
+    use HasAudit, SoftDeletes;
     protected $fillable = [
         'name',
         'ideal_visit_minutes',
-        'entrance_fee_per_pax',
-        'other_fee_per_pax',
-        'other_fee_label',
-        'currency',
+        'contract_rate_per_pax',
+        'publish_rate_per_pax',
         'location',
         'city',
         'province',
@@ -33,8 +32,8 @@ class TouristAttraction extends Model
     protected $casts = [
         'is_active' => 'boolean',
         'ideal_visit_minutes' => 'integer',
-        'entrance_fee_per_pax' => 'decimal:2',
-        'other_fee_per_pax' => 'decimal:2',
+        'contract_rate_per_pax' => 'decimal:2',
+        'publish_rate_per_pax' => 'decimal:2',
         'latitude' => 'float',
         'longitude' => 'float',
         'gallery_images' => 'array',

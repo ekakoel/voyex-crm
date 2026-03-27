@@ -35,7 +35,6 @@ class TransportSeeder extends Seeder
                 'units' => [
                     [
                         'name' => 'Toyota Avanza',
-                        'vehicle_type' => 'MPV',
                         'brand_model' => 'Toyota Avanza 1.5 G',
                         'seat_capacity' => 5,
                         'luggage_capacity' => 3,
@@ -53,7 +52,6 @@ class TransportSeeder extends Seeder
                     ],
                     [
                         'name' => 'Toyota Innova Zenix',
-                        'vehicle_type' => 'MPV',
                         'brand_model' => 'Toyota Innova Zenix Hybrid',
                         'seat_capacity' => 6,
                         'luggage_capacity' => 4,
@@ -71,7 +69,6 @@ class TransportSeeder extends Seeder
                     ],
                     [
                         'name' => 'Toyota Alphard',
-                        'vehicle_type' => 'Luxury MPV',
                         'brand_model' => 'Toyota Alphard 2.5',
                         'seat_capacity' => 5,
                         'luggage_capacity' => 3,
@@ -111,7 +108,6 @@ class TransportSeeder extends Seeder
                 'units' => [
                     [
                         'name' => 'Medium Bus 31 Seats',
-                        'vehicle_type' => 'Bus',
                         'brand_model' => 'Hino RK8',
                         'seat_capacity' => 31,
                         'luggage_capacity' => 25,
@@ -129,7 +125,6 @@ class TransportSeeder extends Seeder
                     ],
                     [
                         'name' => 'Big Bus 45 Seats',
-                        'vehicle_type' => 'Bus',
                         'brand_model' => 'Mercedes OH 1626',
                         'seat_capacity' => 45,
                         'luggage_capacity' => 35,
@@ -147,7 +142,6 @@ class TransportSeeder extends Seeder
                     ],
                     [
                         'name' => 'Hiace Commuter',
-                        'vehicle_type' => 'Minibus',
                         'brand_model' => 'Toyota Hiace Commuter',
                         'seat_capacity' => 14,
                         'luggage_capacity' => 8,
@@ -165,7 +159,6 @@ class TransportSeeder extends Seeder
                     ],
                     [
                         'name' => 'Hiace Premio',
-                        'vehicle_type' => 'Minibus',
                         'brand_model' => 'Toyota Hiace Premio',
                         'seat_capacity' => 12,
                         'luggage_capacity' => 8,
@@ -205,7 +198,6 @@ class TransportSeeder extends Seeder
                 'units' => [
                     [
                         'name' => 'Suzuki APV',
-                        'vehicle_type' => 'Van',
                         'brand_model' => 'Suzuki APV GX',
                         'seat_capacity' => 7,
                         'luggage_capacity' => 4,
@@ -223,7 +215,6 @@ class TransportSeeder extends Seeder
                     ],
                     [
                         'name' => 'Isuzu Elf Short',
-                        'vehicle_type' => 'Minibus',
                         'brand_model' => 'Isuzu Elf NLR',
                         'seat_capacity' => 16,
                         'luggage_capacity' => 10,
@@ -241,7 +232,6 @@ class TransportSeeder extends Seeder
                     ],
                     [
                         'name' => 'Isuzu Elf Long',
-                        'vehicle_type' => 'Minibus',
                         'brand_model' => 'Isuzu Elf Long Chassis',
                         'seat_capacity' => 19,
                         'luggage_capacity' => 12,
@@ -281,7 +271,6 @@ class TransportSeeder extends Seeder
                 'units' => [
                     [
                         'name' => 'Toyota Camry',
-                        'vehicle_type' => 'Sedan',
                         'brand_model' => 'Toyota Camry 2.5 V',
                         'seat_capacity' => 3,
                         'luggage_capacity' => 2,
@@ -299,7 +288,6 @@ class TransportSeeder extends Seeder
                     ],
                     [
                         'name' => 'Toyota Fortuner',
-                        'vehicle_type' => 'SUV',
                         'brand_model' => 'Toyota Fortuner VRZ',
                         'seat_capacity' => 5,
                         'luggage_capacity' => 4,
@@ -317,7 +305,6 @@ class TransportSeeder extends Seeder
                     ],
                     [
                         'name' => 'Hyundai Ioniq 5',
-                        'vehicle_type' => 'EV',
                         'brand_model' => 'Hyundai Ioniq 5 Signature',
                         'seat_capacity' => 4,
                         'luggage_capacity' => 3,
@@ -357,7 +344,6 @@ class TransportSeeder extends Seeder
                 'units' => [
                     [
                         'name' => 'Fast Boat 15 Pax',
-                        'vehicle_type' => 'Speedboat',
                         'brand_model' => 'Yamaha Twin Engine 250HP',
                         'seat_capacity' => 15,
                         'luggage_capacity' => 10,
@@ -375,7 +361,6 @@ class TransportSeeder extends Seeder
                     ],
                     [
                         'name' => 'Fast Boat 25 Pax',
-                        'vehicle_type' => 'Speedboat',
                         'brand_model' => 'Yamaha Triple Engine 300HP',
                         'seat_capacity' => 25,
                         'luggage_capacity' => 15,
@@ -393,7 +378,6 @@ class TransportSeeder extends Seeder
                     ],
                     [
                         'name' => 'Phinisi Day Cruise',
-                        'vehicle_type' => 'Phinisi',
                         'brand_model' => 'Luxury Phinisi 8 Cabins',
                         'seat_capacity' => 20,
                         'luggage_capacity' => 20,
@@ -411,7 +395,6 @@ class TransportSeeder extends Seeder
                     ],
                     [
                         'name' => 'Open Deck Boat 10 Pax',
-                        'vehicle_type' => 'Wooden Boat',
                         'brand_model' => 'Traditional Open Deck',
                         'seat_capacity' => 10,
                         'luggage_capacity' => 6,

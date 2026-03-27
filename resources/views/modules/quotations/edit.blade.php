@@ -14,9 +14,9 @@
 
 
 
-        <div class="grid gap-6 xl:grid-cols-12">
+        <div class="module-grid-9-3">
 
-            <div class="xl:col-span-8">
+            <div class="module-grid-main">
 
                 <div class="module-form-wrap">
 
@@ -44,7 +44,7 @@
 
 
 
-            <aside  class="xl:col-span-4">
+            <aside  class="module-grid-side">
 
                 @if ($quotation->itinerary?->inquiry)
 
@@ -315,6 +315,7 @@
     </div>
 
 @endsection
+
 
 
 

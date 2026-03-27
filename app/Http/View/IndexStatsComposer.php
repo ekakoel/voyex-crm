@@ -9,7 +9,6 @@ use Illuminate\View\View;
 class IndexStatsComposer
 {
     private array $modelMap = [
-        'accommodations' => \App\Models\Accommodation::class,
         'activities' => \App\Models\Activity::class,
         'airports' => \App\Models\Airport::class,
         'bookings' => \App\Models\Booking::class,

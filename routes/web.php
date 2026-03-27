@@ -3,14 +3,15 @@
 use App\Http\Controllers\Administrator\DashboardController as AdministratorDashboardController;
 // ...existing code...
 use App\Http\Controllers\Admin\ActivityController as AdminActivityController;
-use App\Http\Controllers\Admin\AccommodationController as AdminAccommodationController;
 use App\Http\Controllers\Admin\AirportController as AdminAirportController;
 use App\Http\Controllers\Admin\CurrencyController as AdminCurrencyController;
 use App\Http\Controllers\Admin\DestinationController as AdminDestinationController;
 use App\Http\Controllers\Admin\FoodBeverageController as AdminFoodBeverageController;
+use App\Http\Controllers\Admin\HotelController as AdminHotelController;
 use App\Http\Controllers\Admin\TransportController as AdminTransportController;
 use App\Http\Controllers\Admin\RoleController as AdminRoleController;
 use App\Http\Controllers\Admin\ServiceController as AdminServiceController;
+use App\Http\Controllers\Admin\ServiceMapController as AdminServiceMapController;
 use App\Http\Controllers\Admin\ItineraryController as AdminItineraryController;
 use App\Http\Controllers\Admin\LocationResolverController as AdminLocationResolverController;
 use App\Http\Controllers\Admin\TouristAttractionController as AdminTouristAttractionController;
@@ -268,6 +269,9 @@ Route::middleware('auth')->group(function () {
         Route::get('/services', [AdminServiceController::class, 'index'])
             ->name('services.index')
             ->middleware('permission:module.service_manager.access');
+        Route::get('/services/map', [AdminServiceMapController::class, 'index'])
+            ->name('services.map')
+            ->middleware('permission:module.service_manager.access');
         Route::patch('/services/{module}/toggle', [AdminServiceController::class, 'toggle'])
             ->name('services.toggle')
             ->middleware('permission:module.service_manager.access');
@@ -327,25 +331,39 @@ Route::middleware('auth')->group(function () {
                 'permission:module.tourist_attractions.access',
                 'module.permission:tourist_attractions',
             ]);
-        Route::resource('accommodations', AdminAccommodationController::class)
+        Route::resource('hotels', AdminHotelController::class)
             ->middleware([
-                'module:accommodations',
-                'permission:module.accommodations.access',
-                'module.permission:accommodations',
+                'module:hotels',
+                'permission:module.hotels.access',
+                'module.permission:hotels',
             ]);
-        Route::patch('accommodations/{accommodation}/toggle-status', [AdminAccommodationController::class, 'toggleStatus'])
-            ->name('accommodations.toggle-status')
+        Route::patch('hotels/{hotel}/info', [AdminHotelController::class, 'updateInfo'])
+            ->name('hotels.update-info')
             ->middleware([
-                'module:accommodations',
-                'permission:module.accommodations.access',
-                'module.permission:accommodations',
+                'module:hotels',
+                'permission:module.hotels.access',
+                'module.permission:hotels',
             ]);
-        Route::post('accommodations/{accommodation}/gallery-images/remove', [AdminAccommodationController::class, 'removeGalleryImage'])
-            ->name('accommodations.gallery-images.remove')
+        Route::patch('hotels/{hotel}/rooms', [AdminHotelController::class, 'updateRooms'])
+            ->name('hotels.update-rooms')
             ->middleware([
-                'module:accommodations',
-                'permission:module.accommodations.access',
-                'module.permission:accommodations',
+                'module:hotels',
+                'permission:module.hotels.access',
+                'module.permission:hotels',
+            ]);
+        Route::patch('hotels/{hotel}/prices', [AdminHotelController::class, 'updatePrices'])
+            ->name('hotels.update-prices')
+            ->middleware([
+                'module:hotels',
+                'permission:module.hotels.access',
+                'module.permission:hotels',
+            ]);
+        Route::patch('hotels/{hotel}/toggle-status', [AdminHotelController::class, 'toggleStatus'])
+            ->name('hotels.toggle-status')
+            ->middleware([
+                'module:hotels',
+                'permission:module.hotels.access',
+                'module.permission:hotels',
             ]);
         Route::resource('airports', AdminAirportController::class)
             ->middleware([
@@ -426,6 +444,13 @@ Route::middleware('auth')->group(function () {
             ]);
         Route::resource('activities', AdminActivityController::class)
             ->except(['show'])
+            ->middleware([
+                'module:activities',
+                'permission:module.activities.access',
+                'module.permission:activities',
+            ]);
+        Route::get('activities/{activity}', [AdminActivityController::class, 'show'])
+            ->name('activities.show')
             ->middleware([
                 'module:activities',
                 'permission:module.activities.access',

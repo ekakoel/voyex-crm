@@ -5,31 +5,41 @@
     <a href="{{ route('transports.create') }}" class="btn-primary">Add Transport</a>
 @endsection
 @section('content')
-    <div class="space-y-6 module-page module-page--transports">
+    <div class="space-y-6 module-page module-page--transports" data-service-filter-page data-page-spinner="off">
         <x-index-stats :cards="$statsCards ?? []" />
-        <div class="grid grid-cols-1 gap-6 xl:grid-cols-12">
-            <aside class="space-y-4 xl:col-span-3">
+        <div class="module-grid-3-9">
+            <aside class="module-grid-side space-y-4">
                 <div class="app-card p-5 space-y-4">
                     <div>
                         <h2 class="text-base font-semibold text-gray-800 dark:text-gray-100">Filters</h2>
                         <p class="text-sm text-gray-500 dark:text-gray-400">Refine your list quickly.</p>
                     </div>
-                    <form method="GET" class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                        <input name="q" value="{{ request('q') }}" placeholder="Search code/name/provider/city" class="app-input sm:col-span-2">
-                        <select name="transport_type" class="app-input">
+                    <form method="GET" action="{{ route('transports.index') }}" class="grid grid-cols-1 gap-3 sm:grid-cols-2" data-service-filter-form data-disable-submit-lock="1" data-page-spinner="off">
+                        <input name="q" value="{{ request('q') }}" placeholder="Search code/name/type/vendor" class="app-input sm:col-span-2" data-service-filter-input>
+                        <select name="vendor_id" class="app-input" data-service-filter-input>
+                            <option value="">All Vendors</option>
+                            @foreach ($vendors as $vendor)
+                                <option value="{{ $vendor->id }}" @selected((string) request('vendor_id') === (string) $vendor->id)>{{ $vendor->name }}</option>
+                            @endforeach
+                        </select>
+                        <select name="transport_type" class="app-input" data-service-filter-input>
                             <option value="">All Types</option>
                             @foreach ($types as $type)
                                 <option value="{{ $type }}" @selected((string) request('transport_type') === (string) $type)>{{ ucfirst(str_replace('_', ' ', $type)) }}</option>
                             @endforeach
                         </select>
+                        <select name="per_page" class="app-input" data-service-filter-input>
+                            @foreach ([10,25,50,100] as $size)
+                                <option value="{{ $size }}" @selected((string) request('per_page', 10) === (string) $size)>{{ $size }}/page</option>
+                            @endforeach
+                        </select>
                         <div class="flex items-center gap-2 sm:col-span-2 filter-actions">
-                            <button class="btn-primary">Filter</button>
-                            <a href="{{ route('transports.index') }}" class="btn-ghost">Reset</a>
+                            <a href="{{ route('transports.index') }}" class="btn-ghost" data-service-filter-reset>Reset</a>
                         </div>
                     </form>
                 </div>
             </aside>
-            <div class="space-y-4 xl:col-span-9">
+            <div class="module-grid-main space-y-4" data-service-filter-results>
         @if (session('success'))
             <div class="rounded-lg mb-6 border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300">{{ session('success') }}</div>
         @endif
@@ -38,32 +48,37 @@
             <table class="app-table w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">
                 <thead>
                     <tr>
-                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">Code</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">#</th>
                         <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">Service</th>
                         <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">Type</th>
-                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">Location</th>
-                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">Units</th>
-                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">Min Contract Rate</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">Unit Spec</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">Rate / Day</th>
                         <th class="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">Status</th>
                         <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300 actions-compact">Actions</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
-                    @forelse ($transports as $transport)
+                    @forelse ($transports as $index=>$transport)
                         <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/30">
                             @php($isActive = ! $transport->trashed())
-                            <td class="px-4 py-3 text-sm font-medium text-gray-800 dark:text-gray-100">{{ $transport->code }}</td>
+                            <td class="px-4 py-3 text-sm font-medium text-gray-800 dark:text-gray-100">{{ ++$index }}</td>
                             <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">
                                 <div>{{ $transport->name }}</div>
-                                <div class="text-xs text-gray-500 dark:text-gray-400">{{ $transport->provider_name ?: '-' }}</div>
-                                <div class="text-xs text-indigo-600 dark:text-indigo-300">{{ $transport->destination?->name ?? '-' }}</div>
+                                <div class="text-xs text-gray-500 dark:text-gray-400">{{ $transport->vendor?->name ?? '-' }}</div>
                             </td>
                             <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">{{ ucfirst(str_replace('_', ' ', $transport->transport_type)) }}</td>
-                            <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">{{ trim(($transport->city ?? '') . (($transport->city && $transport->province) ? ', ' : '') . ($transport->province ?? '')) ?: '-' }}</td>
-                            <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">{{ $transport->units_count }}</td>
                             <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">
-                                @if ($transport->units_min_contract_rate !== null)
-                                    <x-money :amount="(float) $transport->units_min_contract_rate" currency="IDR" />
+                                {{ $transport->brand_model ?: '-' }}<br>
+                                <span class="text-xs text-gray-500 dark:text-gray-400">{{ (int) ($transport->seat_capacity ?? 0) }} seats</span>
+                            </td>
+                            <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">
+                                @if ($transport->contract_rate !== null)
+                                    <div>
+                                        Contract: <x-money :amount="(float) $transport->contract_rate" currency="IDR" />
+                                    </div>
+                                    <div class="text-xs text-gray-500 dark:text-gray-400">
+                                        Publish: <x-money :amount="(float) $transport->publish_rate" currency="IDR" />
+                                    </div>
                                 @else
                                     -
                                 @endif
@@ -85,7 +100,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="8" class="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">No transport services available.</td>
+                            <td colspan="7" class="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">No transport services available.</td>
                         </tr>
                     @endforelse
                 </tbody>
@@ -104,15 +119,13 @@
                     </div>
                     <div class="mt-3 grid grid-cols-2 gap-2 text-xs text-gray-600 dark:text-gray-300">
                         <div>Provider</div>
-                        <div>{{ $transport->provider_name ?: '-' }}</div>
-                        <div>Location</div>
-                        <div>{{ trim(($transport->city ?? '') . (($transport->city && $transport->province) ? ', ' : '') . ($transport->province ?? '')) ?: '-' }}</div>
-                        <div>Units</div>
-                        <div>{{ $transport->units_count }}</div>
-                        <div>Min Rate</div>
+                        <div>{{ $transport->vendor?->name ?? '-' }}</div>
+                        <div>Unit</div>
+                        <div>{{ $transport->brand_model ?: '-' }}</div>
+                        <div>Rate</div>
                         <div>
-                            @if ($transport->units_min_contract_rate !== null)
-                                <x-money :amount="(float) $transport->units_min_contract_rate" currency="IDR" />
+                            @if ($transport->contract_rate !== null)
+                                <x-money :amount="(float) $transport->contract_rate" currency="IDR" />
                             @else
                                 -
                             @endif
@@ -139,5 +152,6 @@
         </div>
 </div>
 @endsection
+
 
 

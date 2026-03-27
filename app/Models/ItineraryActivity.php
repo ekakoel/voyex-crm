@@ -11,6 +11,8 @@ class ItineraryActivity extends Model
         'activity_id',
         'day_number',
         'pax',
+        'pax_adult',
+        'pax_child',
         'start_time',
         'end_time',
         'travel_minutes_to_next',

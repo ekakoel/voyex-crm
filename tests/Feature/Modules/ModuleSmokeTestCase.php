@@ -7,6 +7,7 @@ use App\Models\Inquiry;
 use App\Models\Quotation;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Str;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
@@ -38,7 +39,20 @@ abstract class ModuleSmokeTestCase extends TestCase
         }
 
         if (! $user->hasRole($role->name)) {
-            $user->assignRole($role);
+            $attempt = 0;
+            beginning:
+            try {
+                $user->assignRole($role);
+            } catch (QueryException $e) {
+                $attempt++;
+                $message = (string) $e->getMessage();
+                $isDeadlock = str_contains($message, 'Deadlock found when trying to get lock');
+                if ($isDeadlock && $attempt < 3) {
+                    usleep(150000);
+                    goto beginning;
+                }
+                throw $e;
+            }
         }
 
         $this->actingAs($user);
@@ -63,7 +77,7 @@ abstract class ModuleSmokeTestCase extends TestCase
         return Inquiry::query()->create(array_merge([
             'customer_id' => $customer->id,
             'source' => 'website',
-            'status' => 'new',
+            'status' => 'draft',
             'priority' => 'normal',
             'notes' => 'Smoke inquiry',
             'reminder_enabled' => true,
@@ -87,4 +101,3 @@ abstract class ModuleSmokeTestCase extends TestCase
         ], $overrides));
     }
 }
-

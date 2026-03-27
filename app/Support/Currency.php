@@ -2,7 +2,6 @@
 
 namespace App\Support;
 
-use App\Models\CompanySetting;
 use App\Models\Currency as CurrencyModel;
 use Illuminate\Support\Facades\Schema;
 
@@ -31,9 +30,7 @@ class Currency
             }
         }
 
-        $settings = CompanySetting::query()->first();
-        $base = strtoupper((string) ($settings?->currency ?? 'IDR'));
-        return $base !== '' ? $base : 'IDR';
+        return 'IDR';
     }
 
     public static function rate(string $from, string $to): float
@@ -53,9 +50,7 @@ class Currency
         }
 
         if ($fromRate <= 0 || $toRate <= 0) {
-            $settings = CompanySetting::query()->first();
-            $idrPerUsd = (float) ($settings?->usd_rate ?? 16000);
-            $idrPerUsd = $idrPerUsd > 0 ? $idrPerUsd : 16000;
+            $idrPerUsd = 16000.0;
 
             if ($from === 'IDR' && $to === 'USD') {
                 return 1 / $idrPerUsd;

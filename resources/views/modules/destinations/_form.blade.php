@@ -24,14 +24,10 @@
 
     <div class="grid grid-cols-1 gap-4 md:grid-cols-1">
         <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Google Maps URL</label>
-            <div class="mt-1 flex items-center gap-3">
-                <input name="google_maps_url" data-location-field="google_maps_url" value="{{ old('google_maps_url', $destination->google_maps_url ?? '') }}"
-                    class="app-input"
-                    placeholder="https://maps.google.com/...">
-                <button type="button" data-location-autofill-trigger class="btn-outline-sm shrink-0">Auto Fill</button>
-            </div>
-            @error('google_maps_url') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+            <x-google-maps-autofill-row
+                name="google_maps_url"
+                :value="old('google_maps_url', $destination->google_maps_url ?? '')"
+            />
         </div>
     </div>
     <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -60,7 +56,7 @@
         </div>
     </div>
 
-    <div class="grid grid-cols-1 gap-4 md:grid-cols-4">
+    <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Country</label>
             <input name="country" data-location-field="country" value="{{ old('country', $destination->country ?? '') }}"
@@ -71,19 +67,11 @@
             <input name="timezone" data-location-field="timezone" value="{{ old('timezone', $destination->timezone ?? '') }}"
                 class="mt-1 dark:border-gray-600 app-input">
         </div>
-        <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Latitude</label>
-            <input name="latitude" data-location-field="latitude" value="{{ old('latitude', $destination->latitude ?? '') }}"
-                class="mt-1 dark:border-gray-600 app-input">
-            @error('latitude') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
-        </div>
-        <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Longitude</label>
-            <input name="longitude" data-location-field="longitude" value="{{ old('longitude', $destination->longitude ?? '') }}"
-                class="mt-1 dark:border-gray-600 app-input">
-            @error('longitude') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
-        </div>
     </div>
+    <x-location-coordinate-row
+        :latitude-value="old('latitude', $destination->latitude ?? '')"
+        :longitude-value="old('longitude', $destination->longitude ?? '')"
+    />
     <p data-location-status class="hidden text-xs"></p>
 
     <div>
@@ -104,5 +92,3 @@
              class="btn-secondary">Cancel</a>
     </div>
 </div>
-
-

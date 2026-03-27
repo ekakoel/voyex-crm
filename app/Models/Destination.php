@@ -2,12 +2,13 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasAudit;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Destination extends Model
 {
-    use SoftDeletes;
+    use HasAudit, SoftDeletes;
     protected $fillable = [
         'code',
         'name',
@@ -36,9 +37,9 @@ class Destination extends Model
         return $this->hasMany(Vendor::class);
     }
 
-    public function accommodations()
+    public function hotels()
     {
-        return $this->hasMany(Accommodation::class);
+        return $this->hasMany(Hotel::class);
     }
 
     public function touristAttractions()
@@ -51,10 +52,6 @@ class Destination extends Model
         return $this->hasMany(Airport::class);
     }
 
-    public function transports()
-    {
-        return $this->hasMany(Transport::class);
-    }
 }
 
 

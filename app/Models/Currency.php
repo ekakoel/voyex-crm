@@ -11,6 +11,8 @@ class Currency extends Model
         'name',
         'symbol',
         'rate_to_idr',
+        'market_rate_to_idr',
+        'market_rate_synced_at',
         'decimal_places',
         'is_active',
         'is_default',
@@ -18,6 +20,8 @@ class Currency extends Model
 
     protected $casts = [
         'rate_to_idr' => 'float',
+        'market_rate_to_idr' => 'float',
+        'market_rate_synced_at' => 'datetime',
         'decimal_places' => 'int',
         'is_active' => 'bool',
         'is_default' => 'bool',

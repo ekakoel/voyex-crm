@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Administrator;
 
 use App\Http\Controllers\Controller;
-use App\Models\Accommodation;
 use App\Models\Activity;
 use App\Models\Airport;
 use App\Models\Booking;
@@ -35,7 +34,6 @@ class DashboardController extends Controller
         $canVendors = (bool) $user?->can('module.vendor_management.access');
         $canDestinations = (bool) $user?->can('module.destinations.access');
         $canActivities = (bool) $user?->can('module.activities.access');
-        $canAccommodations = (bool) $user?->can('module.accommodations.access');
         $canTransports = (bool) $user?->can('module.transports.access');
         $canAttractions = (bool) $user?->can('module.tourist_attractions.access');
         $canFoodBeverages = (bool) $user?->can('module.food_beverages.access');
@@ -60,7 +58,6 @@ class DashboardController extends Controller
             'vendors' => $canVendors ? Vendor::query()->count() : 0,
             'destinations' => $canDestinations ? Destination::query()->count() : 0,
             'activities' => $canActivities ? Activity::query()->count() : 0,
-            'accommodations' => $canAccommodations ? Accommodation::query()->count() : 0,
             'transports' => $canTransports ? Transport::query()->count() : 0,
             'tourist_attractions' => $canAttractions ? TouristAttraction::query()->count() : 0,
             'food_beverages' => $canFoodBeverages ? FoodBeverage::query()->count() : 0,
@@ -99,7 +96,6 @@ class DashboardController extends Controller
             'canVendors',
             'canDestinations',
             'canActivities',
-            'canAccommodations',
             'canTransports',
             'canAttractions',
             'canFoodBeverages',

@@ -13,9 +13,6 @@ return new class extends Migration
         Schema::table('vendors', function (Blueprint $table) {
             $table->foreignId('destination_id')->nullable()->after('province')->constrained('destinations')->nullOnDelete();
         });
-        Schema::table('accommodations', function (Blueprint $table) {
-            $table->foreignId('destination_id')->nullable()->after('province')->constrained('destinations')->nullOnDelete();
-        });
         Schema::table('tourist_attractions', function (Blueprint $table) {
             $table->foreignId('destination_id')->nullable()->after('province')->constrained('destinations')->nullOnDelete();
         });
@@ -86,7 +83,6 @@ return new class extends Migration
         };
 
         $syncByCityProvince('vendors');
-        $syncByCityProvince('accommodations');
         $syncByCityProvince('tourist_attractions');
         $syncByCityProvince('airports');
         $syncByCityProvince('transports');
@@ -101,9 +97,6 @@ return new class extends Migration
             $table->dropConstrainedForeignId('destination_id');
         });
         Schema::table('tourist_attractions', function (Blueprint $table) {
-            $table->dropConstrainedForeignId('destination_id');
-        });
-        Schema::table('accommodations', function (Blueprint $table) {
             $table->dropConstrainedForeignId('destination_id');
         });
         Schema::table('vendors', function (Blueprint $table) {

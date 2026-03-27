@@ -39,6 +39,7 @@
             <table class="app-table w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">
                 <thead>
                     <tr>
+                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">#</th>
                         <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">Invoice</th>
                         <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">Booking</th>
                         <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">Customer</th>
@@ -50,8 +51,9 @@
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
-                    @forelse ($invoices as $invoice)
+                    @forelse ($invoices as $index => $invoice)
                         <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/30">
+                            <td class="px-4 py-3 text-sm font-medium text-gray-800 dark:text-gray-100">{{ ++$index }}</td>
                             <td class="px-4 py-3 text-sm text-gray-800 dark:text-gray-100">{{ $invoice->invoice_number }}</td>
                             <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">{{ $invoice->booking->booking_number ?? '-' }}</td>
                             <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">{{ $invoice->booking?->quotation?->inquiry?->customer?->name ?? '-' }}</td>
@@ -67,7 +69,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="8" class="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">No invoices available.</td>
+                            <td colspan="9" class="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">No invoices available.</td>
                         </tr>
                     @endforelse
                 </tbody>

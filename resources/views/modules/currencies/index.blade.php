@@ -16,6 +16,11 @@
                     </div>
                     <form method="GET" class="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <input name="q" value="{{ request('q') }}" placeholder="Search code/name" class="app-input sm:col-span-2">
+            <select name="per_page" class="app-input">
+                @foreach ([10,25,50,100] as $size)
+                    <option value="{{ $size }}" @selected((string) request('per_page', 10) === (string) $size)>{{ $size }}/page</option>
+                @endforeach
+            </select>
             <div class="flex items-center gap-2 sm:col-span-2 filter-actions">
                 <button  class="btn-primary">Filter</button>
                 <a href="{{ route('currencies.index') }}"  class="btn-ghost">Reset</a>
@@ -84,6 +89,7 @@
             <table class="app-table w-full divide-y divide-gray-200 text-sm dark:divide-gray-700">
                 <thead>
                     <tr>
+                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">#</th>
                         <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">Code</th>
                         <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">Name</th>
                         <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">Symbol</th>
@@ -94,8 +100,9 @@
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
-                    @forelse ($currencies as $currency)
+                    @forelse ($currencies as $index => $currency)
                         <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/30">
+                            <td class="px-4 py-3 text-sm font-medium text-gray-800 dark:text-gray-100">{{ ++$index }}</td>
                             <td class="px-4 py-3 text-sm font-semibold text-gray-800 dark:text-gray-100">
                                 {{ $currency->code }}
                                 @if ($currency->is_default)
@@ -104,7 +111,7 @@
                             </td>
                             <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">{{ $currency->name }}</td>
                             <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">{{ $currency->symbol ?? '-' }}</td>
-                            <td class="px-4 py-3 text-sm text-right text-gray-700 dark:text-gray-200">{{ number_format((float) $currency->rate_to_idr, 6, '.', ',') }}</td>
+                            <td class="px-4 py-3 text-sm text-right text-gray-700 dark:text-gray-200">{{ number_format((float) $currency->rate_to_idr, (int) ($currency->decimal_places ?? 0), '.', ',') }}</td>
                             <td class="px-4 py-3 text-sm text-right text-gray-700 dark:text-gray-200">{{ $currency->decimal_places }}</td>
                             <td class="px-4 py-3 text-sm text-center">
                                 <x-status-badge :status="$currency->is_active ? 'active' : 'inactive'" size="xs" />
@@ -112,17 +119,19 @@
                             <td class="px-4 py-3 text-right text-sm actions-compact">
     <div class="flex items-center justify-end gap-2">
         <a href="{{ route('currencies.edit', $currency) }}"  class="btn-secondary-sm" title="Edit" aria-label="Edit"><i class="fa-solid fa-pen"></i><span class="sr-only">Edit</span></a>
+                                @if (auth()->user()?->hasRole('Super Admin'))
                                 <form action="{{ route('currencies.destroy', $currency) }}" method="POST" class="inline">
                                     @csrf
                                     @method('DELETE')
                                     <button type="submit" onclick="return confirm('Delete this currency?')"   class="btn-danger-sm">Delete</button>
                                 </form>
+                                @endif
     </div>
 </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7" class="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">No currency data.</td>
+                            <td colspan="8" class="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">No currency data.</td>
                         </tr>
                     @endforelse
                 </tbody>
@@ -130,7 +139,7 @@
             </div>
         </div>
                 <div class="md:hidden space-y-3">
-            @forelse ($currencies as $currency)
+            @forelse ($currencies as $index => $currency)
                 <div class="app-card p-4">
                     <div class="flex items-start justify-between gap-3">
                         <div>
@@ -146,7 +155,7 @@
                     </div>
                     <div class="mt-3 grid grid-cols-2 gap-2 text-xs text-gray-600 dark:text-gray-300">
                         <div>Rate to IDR</div>
-                        <div>{{ number_format((float) $currency->rate_to_idr, 6, '.', ',') }}</div>
+                        <div>{{ number_format((float) $currency->rate_to_idr, (int) ($currency->decimal_places ?? 0), '.', ',') }}</div>
                         <div>Decimals</div>
                         <div>{{ $currency->decimal_places }}</div>
                         <div>Status</div>
@@ -156,11 +165,13 @@
                     </div>
                     <div class="mt-3 flex flex-wrap gap-2">
                         <a href="{{ route('currencies.edit', $currency) }}" class="btn-secondary-sm" title="Edit" aria-label="Edit"><i class="fa-solid fa-pen"></i><span class="sr-only">Edit</span></a>
+                        @if (auth()->user()?->hasRole('Super Admin'))
                         <form action="{{ route('currencies.destroy', $currency) }}" method="POST" class="inline">
                             @csrf
                             @method('DELETE')
                             <button type="submit" onclick="return confirm('Delete this currency?')" class="btn-danger-sm">Delete</button>
                         </form>
+                        @endif
                     </div>
                 </div>
             @empty
@@ -172,6 +183,20 @@
         </div>
 </div>
 @endsection
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

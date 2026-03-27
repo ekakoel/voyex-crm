@@ -52,9 +52,9 @@
 
 
 
-        <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <div class="module-grid-9-3">
 
-            <div class="lg:col-span-1 space-y-6">
+            <div class="module-grid-side lg:order-2 space-y-6">
                 <div class="app-card p-5 mb-6">
 
                     <h2 class="text-sm font-semibold text-gray-800 dark:text-gray-100">Inquiry Overview</h2>
@@ -141,7 +141,7 @@
 
 
 
-            <div class="lg:col-span-2 space-y-6">
+            <div class="module-grid-main lg:order-1 space-y-6">
 
                 <div class="app-card p-6 space-y-4 mb-6">
 
@@ -480,6 +480,7 @@
     </div>
 
 @endsection
+
 
 
 

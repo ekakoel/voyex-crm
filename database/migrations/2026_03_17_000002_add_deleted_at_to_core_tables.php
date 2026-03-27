@@ -11,7 +11,6 @@ return new class extends Migration
         $tables = [
             'activities',
             'food_beverages',
-            'accommodations',
             'airports',
             'transports',
             'destinations',
@@ -36,7 +35,6 @@ return new class extends Migration
         $tables = [
             'activities',
             'food_beverages',
-            'accommodations',
             'airports',
             'transports',
             'destinations',

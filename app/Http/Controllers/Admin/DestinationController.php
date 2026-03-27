@@ -14,7 +14,7 @@ class DestinationController extends Controller
     {
         $query = Destination::query()
             ->withTrashed()
-            ->withCount(['vendors', 'accommodations', 'touristAttractions', 'airports', 'transports'])
+            ->withCount(['vendors', 'hotels', 'touristAttractions', 'airports'])
             ->latest('id');
 
         if ($request->filled('q')) {
@@ -49,7 +49,7 @@ class DestinationController extends Controller
 
     public function show(Destination $destination)
     {
-        $destination->loadCount(['vendors', 'accommodations', 'touristAttractions', 'airports', 'transports']);
+        $destination->loadCount(['vendors', 'hotels', 'touristAttractions', 'airports']);
 
         return view('modules.destinations.show', compact('destination'));
     }

@@ -7,6 +7,7 @@ use App\Models\Airport;
 use App\Models\Destination;
 use App\Support\LocationResolver;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 
 class AirportController extends Controller
@@ -16,6 +17,18 @@ class AirportController extends Controller
         $query = Airport::query()
             ->withTrashed()
             ->with('destination:id,name')
+            ->select([
+                'id',
+                'code',
+                'name',
+                'location',
+                'city',
+                'province',
+                'country',
+                'destination_id',
+                'is_active',
+                'deleted_at',
+            ])
             ->latest('id');
 
         if ($request->filled('q')) {
@@ -28,9 +41,34 @@ class AirportController extends Controller
             });
         }
 
-        $airports = $query->paginate(10)->withQueryString();
+        $perPage = (int) $request->input('per_page', 10);
+        $perPage = in_array($perPage, [10, 25, 50, 100], true) ? $perPage : 10;
+        $airports = $query->paginate($perPage)->withQueryString();
+        $statsCards = [
+            [
+                'key' => 'total',
+                'label' => 'Total Airports',
+                'value' => Airport::query()->count(),
+                'caption' => 'All records',
+            ],
+            [
+                'key' => 'active',
+                'label' => 'Active Airports',
+                'value' => Airport::query()->whereNull('deleted_at')->count(),
+                'caption' => 'Currently active',
+            ],
+            [
+                'key' => 'mapped',
+                'label' => 'With Coordinates',
+                'value' => Airport::query()
+                    ->whereNotNull('latitude')
+                    ->whereNotNull('longitude')
+                    ->count(),
+                'caption' => 'Ready for maps',
+            ],
+        ];
 
-        return view('modules.airports.index', compact('airports'));
+        return view('modules.airports.index', compact('airports', 'statsCards'));
     }
 
     public function create()
@@ -54,12 +92,25 @@ class AirportController extends Controller
     public function show(Airport $airport)
     {
         $airport->load('destination:id,name');
+        if (Schema::hasColumn('airports', 'created_by')) {
+            $airport->load('creator:id,name');
+        }
+        if (Schema::hasColumn('airports', 'updated_by')) {
+            $airport->load('updater:id,name');
+        }
 
         return view('modules.airports.show', compact('airport'));
     }
 
     public function edit(Airport $airport)
     {
+        if (Schema::hasColumn('airports', 'created_by')) {
+            $airport->load('creator:id,name');
+        }
+        if (Schema::hasColumn('airports', 'updated_by')) {
+            $airport->load('updater:id,name');
+        }
+
         $destinations = Destination::query()
             ->where('is_active', true)
             ->orderBy('name')
