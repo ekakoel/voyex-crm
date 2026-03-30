@@ -57,19 +57,6 @@
 
                 </div>
 
-                <div class="mt-4 rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800 itinerary-form-map-panel">
-                    <div class="flex items-start justify-between gap-2">
-                        <p class="text-xs font-semibold uppercase tracking-wide text-gray-700 dark:text-gray-200">Itinerary Route Preview</p>
-                        <span class="text-[10px] text-gray-500 dark:text-gray-400">OpenStreetMap + OSRM</span>
-                    </div>
-                    <div id="itinerary-map" class="mt-2 w-full rounded-lg border border-gray-300 dark:border-gray-600" style="height: 360px;"></div>
-                    <div class="mt-3 rounded-lg border border-amber-200 bg-amber-50/70 p-3 text-xs dark:border-amber-700/40 dark:bg-amber-900/10">
-                        <p class="font-semibold uppercase tracking-wide text-amber-800 dark:text-amber-200">Route Debug</p>
-                        <div id="itinerary-route-debug-summary" class="mt-2 text-amber-900 dark:text-amber-100">Preparing debug data...</div>
-                        <pre id="itinerary-route-debug-details" class="mt-2 overflow-x-auto whitespace-pre-wrap text-[11px] leading-5 text-amber-900 dark:text-amber-100"></pre>
-                    </div>
-                </div>
-
                 <div class="mt-4">
                     @include('partials._audit-info', ['record' => $itinerary, 'title' => 'Audit Info'])
 
@@ -82,7 +69,6 @@
     </div>
 
 @endsection
-
 
 
 

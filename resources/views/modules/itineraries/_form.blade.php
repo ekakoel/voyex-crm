@@ -17,60 +17,54 @@
 
     $rawAttractions = old('itinerary_items');
     if (!is_array($rawAttractions)) {
-        $rawAttractions = isset($itinerary)
-            ? $itinerary->touristAttractions
-                ->map(
-                    fn($a) => [
-                        'tourist_attraction_id' => $a->id,
-                        'day_number' => $a->pivot->day_number ?? 1,
-                        'start_time' => $a->pivot->start_time ? substr((string) $a->pivot->start_time, 0, 5) : '',
-                        'end_time' => $a->pivot->end_time ? substr((string) $a->pivot->end_time, 0, 5) : '',
-                        'travel_minutes_to_next' => $a->pivot->travel_minutes_to_next ?? null,
-                        'visit_order' => $a->pivot->visit_order ?? null,
-                    ],
-                )
-                ->values()
-                ->toArray()
-            : [];
+        $rawAttractions = [];
+        if (isset($itinerary)) {
+            foreach ($itinerary->touristAttractions as $a) {
+                $rawAttractions[] = [
+                    'tourist_attraction_id' => $a->id,
+                    'day_number' => $a->pivot->day_number ?? 1,
+                    'start_time' => $a->pivot->start_time ? substr((string) $a->pivot->start_time, 0, 5) : '',
+                    'end_time' => $a->pivot->end_time ? substr((string) $a->pivot->end_time, 0, 5) : '',
+                    'travel_minutes_to_next' => $a->pivot->travel_minutes_to_next ?? null,
+                    'visit_order' => $a->pivot->visit_order ?? null,
+                ];
+            }
+        }
     }
 
     $rawActivities = old('itinerary_activity_items');
     if (!is_array($rawActivities)) {
-        $rawActivities = isset($itinerary)
-            ? $itinerary->itineraryActivities
-                ->map(
-                    fn($a) => [
-                        'activity_id' => $a->activity_id,
-                        'pax' => $a->pax ?? 1,
-                        'day_number' => $a->day_number ?? 1,
-                        'start_time' => $a->start_time ? substr((string) $a->start_time, 0, 5) : '',
-                        'end_time' => $a->end_time ? substr((string) $a->end_time, 0, 5) : '',
-                        'travel_minutes_to_next' => $a->travel_minutes_to_next ?? null,
-                        'visit_order' => $a->visit_order ?? null,
-                    ],
-                )
-                ->values()
-                ->toArray()
-            : [];
+        $rawActivities = [];
+        if (isset($itinerary)) {
+            foreach ($itinerary->itineraryActivities as $a) {
+                $rawActivities[] = [
+                    'activity_id' => $a->activity_id,
+                    'pax' => $a->pax ?? 1,
+                    'day_number' => $a->day_number ?? 1,
+                    'start_time' => $a->start_time ? substr((string) $a->start_time, 0, 5) : '',
+                    'end_time' => $a->end_time ? substr((string) $a->end_time, 0, 5) : '',
+                    'travel_minutes_to_next' => $a->travel_minutes_to_next ?? null,
+                    'visit_order' => $a->visit_order ?? null,
+                ];
+            }
+        }
     }
     $rawFoodBeverages = old('itinerary_food_beverage_items');
     if (!is_array($rawFoodBeverages)) {
-        $rawFoodBeverages = isset($itinerary)
-            ? $itinerary->itineraryFoodBeverages
-                ->map(
-                    fn($f) => [
-                        'food_beverage_id' => $f->food_beverage_id,
-                        'pax' => $f->pax ?? 1,
-                        'day_number' => $f->day_number ?? 1,
-                        'start_time' => $f->start_time ? substr((string) $f->start_time, 0, 5) : '',
-                        'end_time' => $f->end_time ? substr((string) $f->end_time, 0, 5) : '',
-                        'travel_minutes_to_next' => $f->travel_minutes_to_next ?? null,
-                        'visit_order' => $f->visit_order ?? null,
-                    ],
-                )
-                ->values()
-                ->toArray()
-            : [];
+        $rawFoodBeverages = [];
+        if (isset($itinerary)) {
+            foreach ($itinerary->itineraryFoodBeverages as $f) {
+                $rawFoodBeverages[] = [
+                    'food_beverage_id' => $f->food_beverage_id,
+                    'pax' => $f->pax ?? 1,
+                    'day_number' => $f->day_number ?? 1,
+                    'start_time' => $f->start_time ? substr((string) $f->start_time, 0, 5) : '',
+                    'end_time' => $f->end_time ? substr((string) $f->end_time, 0, 5) : '',
+                    'travel_minutes_to_next' => $f->travel_minutes_to_next ?? null,
+                    'visit_order' => $f->visit_order ?? null,
+                ];
+            }
+        }
     }
 
     $durationDays = max(1, (int) old('duration_days', $itinerary->duration_days ?? 1));
@@ -280,28 +274,27 @@
         })
         ->groupBy('day_number');
 
-    $inquiryPreviewMap = $inquiries->mapWithKeys(function ($inquiry) {
+    $inquiryPreviewData = [];
+    foreach ($inquiries as $inquiry) {
         $latestFollowUp = $inquiry->followUps->first();
-        return [
-            (string) $inquiry->id => [
-                'inquiry_number' => (string) ($inquiry->inquiry_number ?? '-'),
-                'customer' => trim(
-                    (string) (($inquiry->customer?->code ? '(' . $inquiry->customer->code . ') ' : '') .
-                        ($inquiry->customer?->name ?? '-')),
-                ),
-                'status' => (string) ($inquiry->status ?? '-'),
-                'priority' => (string) ($inquiry->priority ?? '-'),
-                'source' => (string) ($inquiry->source ?? '-'),
-                'assigned_to' => (string) ($inquiry->assignedUser?->name ?? '-'),
-                'itinerary_count' => (int) ($inquiry->itineraries_count ?? 0),
-                'deadline' => $inquiry->deadline ? $inquiry->deadline->format('Y-m-d') : '-',
-                'created_at' => $inquiry->created_at ? $inquiry->created_at->format('Y-m-d H:i') : '-',
-                'notes' => \App\Support\SafeRichText::sanitize($inquiry->notes ?? null) ?: '-',
-                'reminder_note' => \App\Support\SafeRichText::sanitize($latestFollowUp?->note ?? null) ?: '-',
-                'reminder_reason' => \App\Support\SafeRichText::sanitize($latestFollowUp?->done_reason ?? null) ?: '-',
-            ],
+        $inquiryPreviewData[(string) $inquiry->id] = [
+            'inquiry_number' => (string) ($inquiry->inquiry_number ?? '-'),
+            'customer' => trim(
+                (string) (($inquiry->customer?->code ? '(' . $inquiry->customer->code . ') ' : '') .
+                    ($inquiry->customer?->name ?? '-')),
+            ),
+            'status' => (string) ($inquiry->status ?? '-'),
+            'priority' => (string) ($inquiry->priority ?? '-'),
+            'source' => (string) ($inquiry->source ?? '-'),
+            'assigned_to' => (string) ($inquiry->assignedUser?->name ?? '-'),
+            'itinerary_count' => (int) ($inquiry->itineraries_count ?? 0),
+            'deadline' => $inquiry->deadline ? $inquiry->deadline->format('Y-m-d') : '-',
+            'created_at' => $inquiry->created_at ? $inquiry->created_at->format('Y-m-d H:i') : '-',
+            'notes' => \App\Support\SafeRichText::sanitize($inquiry->notes ?? null) ?: '-',
+            'reminder_note' => \App\Support\SafeRichText::sanitize($latestFollowUp?->note ?? null) ?: '-',
+            'reminder_reason' => \App\Support\SafeRichText::sanitize($latestFollowUp?->done_reason ?? null) ?: '-',
         ];
-    });
+    }
 @endphp
 
 <div class="space-y-4 itinerary-form-page">
@@ -479,13 +472,13 @@
                         </div>
                         <div class="flex items-center gap-2">
                             <button type="button"
-                                 class="add-attraction rounded-lg border border-indigo-300 px-3 py-1 text-xs font-medium text-indigo-700">Add
+                                 class="add-attraction rounded-lg border px-3 py-1 text-xs font-medium text-white-700">Add
                                 Attraction</button>
                             <button type="button"
-                                 class="add-activity rounded-lg border border-emerald-300 px-3 py-1 text-xs font-medium text-emerald-700">Add
+                                 class="add-activity rounded-lg border px-3 py-1 text-xs font-medium text-white-700">Add
                                 Activity</button>
                             <button type="button"
-                                 class="add-fnb rounded-lg border border-amber-300 px-3 py-1 text-xs font-medium text-amber-700">Add
+                                 class="add-fnb rounded-lg border px-3 py-1 text-xs font-medium text-white-700">Add
                                 F&B</button>
                         </div>
                     </div>
@@ -994,86 +987,13 @@
                 border-color: rgba(59, 130, 246, 0.5) !important;
                 background-color: rgba(30, 64, 175, 0.3) !important;
             }
-            .itinerary-marker-badge {
-                position: relative;
-                display: inline-flex;
-                align-items: center;
-                justify-content: center;
-                width: 34px;
-                height: 34px;
-                border-radius: 9999px;
-                color: #fff;
-                border: 2px solid rgba(255, 255, 255, 0.96);
-                box-shadow: 0 10px 24px rgba(15, 23, 42, 0.22);
-                font-size: 14px;
-                line-height: 1;
-            }
-            .itinerary-marker-badge.attraction {
-                background: #0ea5e9;
-            }
-            .itinerary-marker-badge.activity {
-                background: #10b981;
-            }
-            .itinerary-marker-badge.fnb {
-                background: #f59e0b;
-            }
-            .itinerary-marker-badge.airport {
-                background: #6366f1;
-            }
-            .itinerary-marker-badge.hotel {
-                background: #2563eb;
-            }
-            .itinerary-marker-badge.is-highlighted {
-                transform: scale(1.12);
-                box-shadow: 0 0 0 4px rgba(250, 204, 21, 0.95), 0 16px 30px rgba(15, 23, 42, 0.3);
-                z-index: 2;
-            }
-            .itinerary-marker-number {
-                position: absolute;
-                right: -4px;
-                top: -5px;
-                min-width: 16px;
-                height: 16px;
-                padding: 0 4px;
-                border-radius: 9999px;
-                background: #0f172a;
-                color: #fff;
-                border: 1px solid rgba(255, 255, 255, 0.92);
-                display: inline-flex;
-                align-items: center;
-                justify-content: center;
-                font-size: 9px;
-                font-weight: 700;
-                line-height: 1;
-            }
-            .travel-time-badge {
-                display: inline-flex;
-                align-items: center;
-                justify-content: center;
-                min-height: 22px;
-                padding: 0 8px;
-                border-radius: 9999px;
-                background: rgba(15, 23, 42, 0.88);
-                color: #fff;
-                font-size: 10px;
-                font-weight: 700;
-                box-shadow: 0 6px 18px rgba(15, 23, 42, 0.2);
-                white-space: nowrap;
-            }
-            .leaflet-routing-container {
-                display: none !important;
-            }
         </style>
-        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
-        <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.css" crossorigin="">
     @endpush
     @push('scripts')
-        <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
-        <script src="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.js" crossorigin=""></script>
         <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
         <script>
             (() => {
-                const inquiryPreviewMap = @json($inquiryPreviewMap);
+                const inquiryPreviewData = @json($inquiryPreviewData);
                 const inquirySelect = document.getElementById('inquiry-select');
                 const detailEmpty = document.getElementById('inquiry-detail-empty');
                 const detailContent = document.getElementById('inquiry-detail-content');
@@ -1081,7 +1001,7 @@
                 const setDetail = () => {
                     if (!inquirySelect || !detailEmpty || !detailContent) return;
                     const key = String(inquirySelect.value || '');
-                    const detail = inquiryPreviewMap[key] || null;
+                    const detail = inquiryPreviewData[key] || null;
                     if (!detail) {
                         detailEmpty.classList.remove('hidden');
                         detailContent.classList.add('hidden');
@@ -1108,62 +1028,8 @@
                 const durationInput = document.getElementById('duration-days');
                 const durationNightsInput = document.getElementById('duration-nights');
                 const hotelStaysHidden = document.getElementById('hotel-stays-hidden');
-                const mapEl = document.getElementById('itinerary-map');
-                const routeDebugSummary = document.getElementById('itinerary-route-debug-summary');
-                const routeDebugDetails = document.getElementById('itinerary-route-debug-details');
                 const form = daySections?.closest('form');
-                if (!daySections || !durationInput || !mapEl || typeof L === 'undefined') return;
-                const map = L.map(mapEl).setView([-6.2, 106.816666], 5);
-                const baseTileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                    maxZoom: 19,
-                    attribution: '&copy; OpenStreetMap contributors'
-                }).addTo(map);
-                const markers = L.layerGroup().addTo(map);
-                const routeLayers = [];
-                const clearDynamicMapLayers = () => {
-                    markers.clearLayers();
-                    markerLookup.clear();
-                    map.eachLayer((layer) => {
-                        if (layer === baseTileLayer || layer === markers) return;
-                        map.removeLayer(layer);
-                    });
-                    const panes = typeof map.getPanes === 'function' ? map.getPanes() : null;
-                    [
-                        panes?.markerPane,
-                        panes?.shadowPane,
-                        panes?.overlayPane,
-                        panes?.popupPane,
-                        panes?.tooltipPane,
-                    ].forEach((pane) => {
-                        if (!pane) return;
-                        while (pane.firstChild) {
-                            pane.removeChild(pane.firstChild);
-                        }
-                    });
-                    routeLayers.length = 0;
-                };
-                const drawRouteLine = (coordinates, color = '#ef4444') => {
-                    const line = L.polyline(coordinates, {
-                        color,
-                        weight: 7,
-                        opacity: 1,
-                        lineCap: 'round',
-                        lineJoin: 'round',
-                    }).addTo(map);
-                    routeLayers.push(line);
-                    if (typeof line.bringToFront === 'function') {
-                        line.bringToFront();
-                    }
-                    return line;
-                };
-                const setRouteDebug = (summaryLines = [], detailLines = []) => {
-                    if (routeDebugSummary) {
-                        routeDebugSummary.innerHTML = summaryLines.length ? summaryLines.join('<br>') : 'No route debug data.';
-                    }
-                    if (routeDebugDetails) {
-                        routeDebugDetails.textContent = detailLines.join('\n');
-                    }
-                };
+                if (!daySections || !durationInput) return;
                 const toMin = (t) => /^\d{2}:\d{2}$/.test(t || '') ? (parseInt(t.slice(0, 2), 10) * 60) + parseInt(t.slice(
                     3, 5), 10) : null;
                 const fromMin = (m) => {
@@ -1191,7 +1057,10 @@
                             select: row.querySelector('.item-fnb')
                         },
                     ];
-                    const byType = Object.fromEntries(candidates.map((candidate) => [candidate.type, candidate.select]));
+                    const byType = {};
+                    candidates.forEach((candidate) => {
+                        byType[candidate.type] = candidate.select;
+                    });
                     const fallbackType = typeFieldValue === 'activity' || typeFieldValue === 'fnb' ?
                         typeFieldValue :
                         (datasetTypeValue === 'activity' || datasetTypeValue === 'fnb' ? datasetTypeValue :
@@ -1527,13 +1396,6 @@
                         }
                     });
                 };
-                const markerTypeClass = (type) => {
-                    if (type === 'activity') return 'activity';
-                    if (type === 'fnb') return 'fnb';
-                    if (type === 'airport') return 'airport';
-                    if (type === 'hotel') return 'hotel';
-                    return 'attraction';
-                };
                 const updateDayPointTheme = (section) => {
                     if (!section) return;
                     const startCard = section.querySelector('.day-start-point-card');
@@ -1562,37 +1424,6 @@
                     } else {
                         row.classList.add('item-theme-attraction');
                     }
-                };
-                const markerTypeIcon = (type) => {
-                    if (type === 'activity') return 'fa-solid fa-person-hiking';
-                    if (type === 'fnb') return 'fa-solid fa-utensils';
-                    if (type === 'airport') return 'fa-solid fa-plane';
-                    if (type === 'hotel') return 'fa-solid fa-bed';
-                    return 'fa-solid fa-location-dot';
-                };
-                const createBadgeIcon = (order, type, highlighted = false) => L.divIcon({
-                    className: '',
-                    html: `<div class="itinerary-marker-badge ${markerTypeClass(type)} ${highlighted ? 'is-highlighted' : ''}"><i class="${markerTypeIcon(type)}"></i><span class="itinerary-marker-number">${order}</span></div>`,
-                    iconSize: [28, 28],
-                    iconAnchor: [14, 14]
-                });
-                const travelBadgeIcon = (minutes) => L.divIcon({
-                    className: 'travel-time-label',
-                    html: `<div class="travel-time-badge">${minutes} m</div>`,
-                    iconSize: [0, 0],
-                    iconAnchor: [0, 0]
-                });
-                const parseItemOptionPoint = (option, typeOverride = null) => {
-                    if (!option) return null;
-                    const lat = parseFloat(option.dataset.latitude || '');
-                    const lng = parseFloat(option.dataset.longitude || '');
-                    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
-                    return {
-                        lat,
-                        lng,
-                        name: option.textContent.trim(),
-                        type: normalizePointType(typeOverride || option.dataset.pointType || '', 'hotel'),
-                    };
                 };
                 const pointOptionCache = new WeakMap();
                 const destinationInput = document.getElementById('itinerary-destination');
@@ -1625,7 +1456,10 @@
                             const selectedValue = String(itemSelect.value || '');
                             let allOptions = pointOptionCache.get(itemSelect);
                             if (!allOptions) {
-                                allOptions = Array.from(itemSelect.options).map((opt) => opt.cloneNode(true));
+                                allOptions = [];
+                                Array.from(itemSelect.options).forEach((opt) => {
+                                    allOptions.push(opt.cloneNode(true));
+                                });
                                 pointOptionCache.set(itemSelect, allOptions);
                             }
 
@@ -1779,39 +1613,6 @@
                     typeSelect.value = type;
                     itemSelect.value = itemId;
                 };
-                const getDayStartPoint = async (day, previousEndPoint = null) => {
-                    const section = daySections.querySelector(`.day-section[data-day="${day}"]`);
-                    if (!section) return null;
-                    const typeSelect = section.querySelector('.day-start-point-type');
-                    const itemSelect = section.querySelector('.day-start-point-item');
-                    const selectedType = normalizePointType(typeSelect?.value || '');
-                    if (selectedType === 'previous_day_end') {
-                        return previousEndPoint;
-                    }
-                    if (isHotelPointType(selectedType) || selectedType === 'airport') {
-                        return parseItemOptionPoint(itemSelect?.selectedOptions?.[0] || null, selectedType);
-                    }
-                    return previousEndPoint;
-                };
-                const getDayEndPoint = async (day) => {
-                    const section = daySections.querySelector(`.day-section[data-day="${day}"]`);
-                    if (!section) return null;
-                    const typeSelect = section.querySelector('.day-end-point-type');
-                    const itemSelect = section.querySelector('.day-end-point-item');
-                    const selectedType = normalizePointType(typeSelect?.value || '');
-                    if (isHotelPointType(selectedType) || selectedType === 'airport') {
-                        return parseItemOptionPoint(itemSelect?.selectedOptions?.[0] || null, selectedType);
-                    }
-                    return null;
-                };
-                const buildDayAnchors = (durationDays) => {
-                    const startByDay = {};
-                    const endByDay = {};
-                    return {
-                        startByDay,
-                        endByDay
-                    };
-                };
                 const buildHotelStaysPayload = (durationDays) => {
                     const perDay = [];
                     for (let day = 1; day <= durationDays; day++) {
@@ -1854,12 +1655,16 @@
                     if (!hotelStaysHidden) return;
                     const totalDays = Math.max(1, parseInt(durationInput.value || '1', 10));
                     const stays = buildHotelStaysPayload(totalDays);
-                    hotelStaysHidden.innerHTML = stays.map((stay, index) => `
+                    let html = '';
+                    stays.forEach((stay, index) => {
+                        html += `
                         <input type="hidden" name="hotel_stays[${index}][hotel_id]" value="${stay.hotelId}" class="app-input">
                         <input type="hidden" name="hotel_stays[${index}][day_number]" value="${stay.dayNumber}" class="app-input">
                         <input type="hidden" name="hotel_stays[${index}][night_count]" value="${stay.nightCount}" class="app-input">
                         <input type="hidden" name="hotel_stays[${index}][room_count]" value="${stay.roomCount}" class="app-input">
-                    `).join('');
+                    `;
+                    });
+                    hotelStaysHidden.innerHTML = html;
                 };
                 const updateDayEndpointBadges = () => {
                     const sections = [...daySections.querySelectorAll('.day-section')].sort((a, b) => Number(a.dataset
@@ -1883,346 +1688,6 @@
                         previousEndLabel = endLabel;
                     });
                 };
-                const routeColors = ['#2563eb', '#16a34a', '#ea580c', '#db2777', '#7c3aed', '#0891b2'];
-                const markerLookup = new Map();
-                let highlightedMarker = null;
-                let highlightedMarkerOrder = null;
-                let highlightedMarkerType = null;
-                let renderMapRunId = 0;
-                
-                const renderMap = async () => {
-                    const currentRenderId = ++renderMapRunId;
-                    const isStaleRender = () => currentRenderId !== renderMapRunId;
-                    const debugSummary = [];
-                    const debugDetails = [];
-                    clearDynamicMapLayers();
-                    highlightedMarker = null;
-                    highlightedMarkerOrder = null;
-                    highlightedMarkerType = null;
-                    const totalDays = Math.max(1, parseInt(durationInput.value || '1', 10));
-                    const anchors = buildDayAnchors(totalDays);
-                    let previousEndPoint = null;
-                    for (let day = 1; day <= totalDays; day++) {
-                        const startPoint = await getDayStartPoint(day, previousEndPoint);
-                        const endPoint = await getDayEndPoint(day);
-                        if (isStaleRender()) return;
-                        anchors.startByDay[day] = startPoint;
-                        // Only render end point when explicitly selected.
-                        anchors.endByDay[day] = endPoint;
-                        // Still carry forward the last explicit endpoint for "previous_day_end".
-                        previousEndPoint = endPoint || previousEndPoint;
-                    }
-                    debugSummary.push(`Total days: ${totalDays}`);
-                    for (let day = 1; day <= totalDays; day++) {
-                        const startAnchor = anchors.startByDay[day];
-                        const endAnchor = anchors.endByDay[day];
-                        debugDetails.push(
-                            `Anchors Day ${day}: start=${startAnchor ? `${startAnchor.name} [${startAnchor.lat}, ${startAnchor.lng}]` : 'null'} | end=${endAnchor ? `${endAnchor.name} [${endAnchor.lat}, ${endAnchor.lng}]` : 'null'}`
-                        );
-                    }
-
-                    const points = [];
-                    const rowDebugLines = [];
-                    const scheduleRows = [...daySections.querySelectorAll('.schedule-row')];
-                    scheduleRows.forEach((r, rowIndex) => {
-                        const selection = getRowSelection(r);
-                        const opt = selection.option;
-                        const label = opt?.textContent?.trim() || '(empty)';
-                        const day = parseInt(r.querySelector('.item-day')?.value || '1', 10);
-                        const order = parseInt(r.querySelector('.item-order')?.value || '0', 10);
-                        const lat = parseFloat(opt?.dataset?.latitude || '');
-                        const lng = parseFloat(opt?.dataset?.longitude || '');
-                        const attractionValue = String(r.querySelector('.item-attraction')?.value || '');
-                        const activityValue = String(r.querySelector('.item-activity')?.value || '');
-                        const fnbValue = String(r.querySelector('.item-fnb')?.value || '');
-                        const typeFieldValue = String(r.querySelector('.item-type')?.value || '');
-
-                        if (!opt) {
-                            rowDebugLines.push(
-                                `Row ${rowIndex + 1} | Day ${day} | type=${selection.type} | source=${selection.source} | typeField=${typeFieldValue} | values[a=${attractionValue || '-'}, act=${activityValue || '-'}, fnb=${fnbValue || '-'}] | skipped: no selected option`
-                            );
-                            return;
-                        }
-
-                        if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
-                            rowDebugLines.push(
-                                `Row ${rowIndex + 1} | Day ${day} | type=${selection.type} | source=${selection.source} | typeField=${typeFieldValue} | values[a=${attractionValue || '-'}, act=${activityValue || '-'}, fnb=${fnbValue || '-'}] | ${label} | skipped: invalid coordinates [${opt?.dataset?.latitude || ''}, ${opt?.dataset?.longitude || ''}]`
-                            );
-                            return;
-                        }
-
-                        const travelRaw = r.querySelector('.item-travel')?.value || '';
-                        const travelInput = travelRaw !== '' ? parseInt(travelRaw, 10) : null;
-                        rowDebugLines.push(
-                            `Row ${rowIndex + 1} | Day ${day} | order=${order} | type=${selection.type} | source=${selection.source} | typeField=${typeFieldValue} | values[a=${attractionValue || '-'}, act=${activityValue || '-'}, fnb=${fnbValue || '-'}] | ${label} [${lat}, ${lng}]`
-                        );
-                        points.push({
-                            lat,
-                            lng,
-                            name: label,
-                            type: selection.type,
-                            day,
-                            order,
-                            isMainExperience: r.querySelector('.item-main-experience')?.checked ===
-                                true,
-                            travelInput: Number.isFinite(travelInput) ? Math.max(0, travelInput) :
-                                null
-                        });
-                    });
-                    debugSummary.push(`Schedule rows: ${scheduleRows.length}`);
-                    debugSummary.push(`Schedule points parsed: ${points.length}`);
-                    debugDetails.push('Schedule rows:');
-                    debugDetails.push(...rowDebugLines);
-                    const scheduleByDay = points.reduce((acc, point) => {
-                        const key = String(point.day);
-                        (acc[key] = acc[key] || []).push(point);
-                        return acc;
-                    }, {});
-                    const routePointsByDay = {};
-                    for (let day = 1; day <= totalDays; day++) {
-                        const daySection = daySections.querySelector(`.day-section[data-day="${day}"]`);
-                        const startTravelRaw = daySection?.querySelector('.day-start-travel')?.value || '';
-                        const startTravelMinutes = startTravelRaw !== '' ? Math.max(0, parseInt(startTravelRaw,
-                            10)) : null;
-                        const daySchedule = (scheduleByDay[String(day)] || []).sort((a, b) => a.order - b.order);
-                        const dayPoints = [];
-
-                        const startAnchor = anchors.startByDay[day];
-                        const endAnchor = anchors.endByDay[day];
-
-                        if (startAnchor && Number.isFinite(startAnchor.lat) && Number.isFinite(startAnchor.lng)) {
-                            dayPoints.push({
-                                lat: startAnchor.lat,
-                                lng: startAnchor.lng,
-                                name: startAnchor.name,
-                                type: normalizePointType(startAnchor.type || '', 'hotel'),
-                                day,
-                                order: 0,
-                                anchorRole: 'start',
-                                travelInput: Number.isFinite(startTravelMinutes) ? startTravelMinutes :
-                                    null,
-                            });
-                        }
-
-                        daySchedule.forEach((item, index) => {
-                            dayPoints.push({
-                                ...item,
-                                order: index + 1,
-                            });
-                        });
-
-                        const lastPoint = dayPoints[dayPoints.length - 1] || null;
-                        if (endAnchor && Number.isFinite(endAnchor.lat) && Number.isFinite(endAnchor.lng)) {
-                            const isDuplicateLast = lastPoint && Math.abs(lastPoint.lat - endAnchor.lat) <
-                                0.000001 &&
-                                Math.abs(lastPoint.lng - endAnchor.lng) < 0.000001;
-                            if (!isDuplicateLast) {
-                                dayPoints.push({
-                                    lat: endAnchor.lat,
-                                    lng: endAnchor.lng,
-                                    name: endAnchor.name,
-                                    type: normalizePointType(endAnchor.type || '', 'hotel'),
-                                    day,
-                                    order: dayPoints.length + 1,
-                                    anchorRole: 'end',
-                                    travelInput: null,
-                                });
-                            }
-                        }
-
-                        if (dayPoints.length > 0) {
-                            routePointsByDay[String(day)] = dayPoints;
-                        }
-                        debugDetails.push(
-                            `Day ${day}: ${dayPoints.length} point(s) | ` +
-                            dayPoints.map((point) => `${point.order}:${point.name} [${point.lat}, ${point.lng}]`).join(' -> ')
-                        );
-                    }
-
-                    const allPoints = Object.values(routePointsByDay).flat();
-                    debugSummary.push(`Renderable points: ${allPoints.length}`);
-                    if (!allPoints.length) {
-                        if (isStaleRender()) return;
-                        setRouteDebug(debugSummary, debugDetails);
-                        map.setView([-6.2, 106.816666], 5);
-                        return;
-                    }
-
-                    const ll = [];
-                    const scheduleIndexByDay = {};
-                    const dayMeta = {};
-                    const sortedPoints = allPoints.sort((a, b) => (a.day - b.day) || (a.order - b.order));
-
-                    sortedPoints.forEach((p) => {
-                        const dayKey = String(p.day);
-                        if (!dayMeta[dayKey]) {
-                            dayMeta[dayKey] = {
-                                hasStart: false,
-                                hasEnd: false,
-                                maxScheduleOrder: 0,
-                            };
-                        }
-                        const isAnchor = Boolean(p.anchorRole && p.anchorRole !== '');
-                        if (isAnchor) {
-                            if (p.anchorRole === 'start') dayMeta[dayKey].hasStart = true;
-                            if (p.anchorRole === 'end') dayMeta[dayKey].hasEnd = true;
-                            return;
-                        }
-
-                        const fallbackIndex = (scheduleIndexByDay[dayKey] || 0) + 1;
-                        const scheduleOrder = Number.isFinite(p.order) && p.order > 0 ? p.order : fallbackIndex;
-                        scheduleIndexByDay[dayKey] = fallbackIndex;
-                        p._scheduleOrder = scheduleOrder;
-                        if (scheduleOrder > dayMeta[dayKey].maxScheduleOrder) {
-                            dayMeta[dayKey].maxScheduleOrder = scheduleOrder;
-                        }
-                    });
-
-                    sortedPoints.forEach((p) => {
-                        const pt = [p.lat, p.lng];
-                        ll.push(pt);
-                        const labelMap = {
-                            attraction: 'Attraction',
-                            activity: 'Activity',
-                            fnb: 'F&B',
-                            hotel: 'Hotel',
-                            airport: 'Airport',
-                        };
-                        const label = labelMap[p.type] || 'Point';
-                        const markerType = p.type === 'activity' ?
-                            'activity' :
-                            (p.type === 'fnb' ?
-                                'fnb' :
-                                (p.type === 'attraction' ? 'attraction' : (p.type === 'airport' ?
-                                    'airport' : 'hotel')));
-                        const dayKey = String(p.day);
-                        const isAnchor = Boolean(p.anchorRole && p.anchorRole !== '');
-                        const meta = dayMeta[dayKey] || {
-                            hasStart: false,
-                            hasEnd: false,
-                            maxScheduleOrder: 0
-                        };
-                        const baseIndex = meta.hasStart ? 1 : 0;
-                        const scheduleOrder = !isAnchor ? (p._scheduleOrder || 1) : 0;
-                        const badgeNo = isAnchor ?
-                            (p.anchorRole === 'start' ? 1 : (baseIndex + meta.maxScheduleOrder + (meta.hasEnd ?
-                                1 : 0))) :
-                            (baseIndex + scheduleOrder);
-                        const marker = L.marker(pt, {
-                                icon: createBadgeIcon(badgeNo, markerType, p.isMainExperience === true)
-                            })
-                            .bindPopup(`#${badgeNo} | Day ${p.day} | ${label}: ${p.name}`)
-                            .addTo(markers);
-                        
-                        // Store marker in lookup for schedule item button clicks
-                        const markerKey = String(isAnchor ? `${p.anchorRole}-point-day-${p.day}` : `schedule-${p.day}-${scheduleOrder}`);
-                        markerLookup.set(markerKey, { marker, badgeNo, type: markerType });
-                        
-                        // Keep anchor points consistent with other items: icon + number only (no labels).
-                    });
-                    if (isStaleRender()) return;
-
-                    for (const [dayKey, dayPoints] of Object.entries(routePointsByDay)) {
-                        const sorted = dayPoints.sort((a, b) => a.order - b.order);
-                        if (sorted.length < 2) {
-                            debugDetails.push(`Day ${dayKey}: skipped route, only ${sorted.length} point.`);
-                            continue;
-                        }
-                        const color = routeColors[(parseInt(dayKey, 10) - 1) % routeColors.length];
-                        const fallbackCoordinates = sorted.map((point) => [point.lat, point.lng]);
-                        const fallbackLine = drawRouteLine(fallbackCoordinates, color);
-                        debugDetails.push(`Day ${dayKey}: fallback line drawn with ${fallbackCoordinates.length} coordinates.`);
-
-                        const coordinates = sorted.map((point) => `${point.lng},${point.lat}`).join(';');
-                        try {
-                            const response = await fetch(
-                                `https://router.project-osrm.org/route/v1/driving/${coordinates}?overview=full&geometries=geojson`
-                            );
-                            if (isStaleRender()) return;
-                            debugDetails.push(`Day ${dayKey}: OSRM HTTP ${response.status}.`);
-                            const data = await response.json();
-                            if (isStaleRender()) return;
-                            const geometry = data?.routes?.[0]?.geometry;
-                            if (geometry && Array.isArray(geometry.coordinates) && geometry.coordinates.length > 1) {
-                                map.removeLayer(fallbackLine);
-                                routeLayers.pop();
-                                const routeCoordinates = geometry.coordinates.map((point) => [point[1], point[0]]);
-                                drawRouteLine(routeCoordinates, color);
-                                debugDetails.push(`Day ${dayKey}: OSRM success, geometry points ${geometry.coordinates.length}.`);
-                            } else {
-                                debugDetails.push(`Day ${dayKey}: OSRM returned no geometry.`);
-                            }
-                        } catch (error) {
-                            debugDetails.push(`Day ${dayKey}: OSRM error -> ${error?.message || 'unknown error'}`);
-                        }
-
-                        for (let i = 0; i < sorted.length - 1; i++) {
-                            const from = sorted[i];
-                            const to = sorted[i + 1];
-                            if (from.travelInput === null) continue;
-                            const midLat = (from.lat + to.lat) / 2;
-                            const midLng = (from.lng + to.lng) / 2;
-                            const badge = L.marker([midLat, midLng], {
-                                icon: travelBadgeIcon(from.travelInput),
-                                interactive: false
-                            }).addTo(map);
-                            routeLayers.push(badge);
-                        }
-                    }
-
-                    if (isStaleRender()) return;
-                    debugSummary.push(`Marker layers: ${markers.getLayers().length}`);
-                    debugSummary.push(`Active route layers: ${routeLayers.length}`);
-                    setRouteDebug(debugSummary, debugDetails);
-                    if (ll.length === 1) map.setView(ll[0], 14);
-                    else map.fitBounds(ll, {
-                        padding: [20, 20]
-                    });
-                };
-                
-                const focusSchedulePoint = async (day, markerKey) => {
-                    if (!Number.isFinite(day) || !markerKey) return;
-                    
-                    const markerData = markerLookup.get(String(markerKey));
-                    if (!markerData?.marker) return;
-                    
-                    const marker = markerData.marker;
-                    const badgeNo = markerData.badgeNo;
-                    
-                    // Reset previous highlight
-                    if (highlightedMarker && highlightedMarkerOrder !== null) {
-                        highlightedMarker.setIcon(createBadgeIcon(highlightedMarkerOrder, highlightedMarkerType, false));
-                    }
-                    
-                    // Highlight new marker
-                    marker.setIcon(createBadgeIcon(badgeNo, markerData.type, true));
-                    highlightedMarker = marker;
-                    highlightedMarkerOrder = badgeNo;
-                    highlightedMarkerType = markerData.type;
-                    
-                    // Pan to marker and show popup
-                    map.panTo(marker.getLatLng(), { animate: true, duration: 0.35 });
-                    marker.openPopup();
-                };
-                
-                const attachScheduleItemButtonListeners = () => {
-                    const scheduleItemButtons = document.querySelectorAll('.schedule-item-index-btn');
-                    scheduleItemButtons.forEach((button) => {
-                        // Remove old listeners by replacing with cloned node
-                        const newButton = button.cloneNode(true);
-                        button.parentNode.replaceChild(newButton, button);
-                        
-                        // Attach new listener
-                        newButton.addEventListener('click', async () => {
-                            const day = Number(newButton.dataset.day || '');
-                            const markerKey = String(newButton.dataset.markerKey || '');
-                            if (Number.isFinite(day) && markerKey) {
-                                await focusSchedulePoint(day, markerKey);
-                            }
-                        });
-                    });
-                };
-                
                 const recalcNoConnectorRebuild = async () => {
                     syncDayPointOptionRules();
                     syncPointItemVisibility();
@@ -2231,8 +1696,6 @@
                     syncHotelStaysHidden();
                     updateDayEndpointBadges();
                     daySections.querySelectorAll('.day-section').forEach(updateDayPointTheme);
-                    await renderMap();
-                    attachScheduleItemButtonListeners();
                 };
                 const recalc = async () => {
                     daySections.querySelectorAll('.day-section').forEach(rebuildTravelConnectors);
@@ -2566,7 +2029,6 @@
                     form.submit();
                 });
                 recalc();
-                attachScheduleItemButtonListeners();
             })
             ();
         </script>
@@ -2622,13 +2084,14 @@
                         hideDropdown();
                         return;
                     }
-                    destinationDropdown.innerHTML = items
-                        .map((item, idx) => {
-                            const safeValue = String(item).replace(/&/g, '&amp;').replace(/</g, '&lt;')
-                                .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-                            return `<button type="button" data-index="${idx}" data-destination-value="${safeValue}"  class="block w-full rounded-md px-3 py-2 text-left text-sm text-gray-700 hover:bg-indigo-50 dark:text-gray-100 dark:hover:bg-indigo-900/30">${safeValue}</button>`;
-                        })
-                        .join('');
+                    let html = '';
+                    items.forEach((item, idx) => {
+                        const safeValue = String(item).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+                            .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+                        html +=
+                            `<button type="button" data-index="${idx}" data-destination-value="${safeValue}"  class="block w-full rounded-md px-3 py-2 text-left text-sm text-gray-700 hover:bg-indigo-50 dark:text-gray-100 dark:hover:bg-indigo-900/30">${safeValue}</button>`;
+                    });
+                    destinationDropdown.innerHTML = html;
                     destinationDropdown.classList.remove('hidden');
                     setActiveItem(-1);
                 };

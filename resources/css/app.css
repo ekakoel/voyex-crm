@@ -1297,10 +1297,6 @@
         flex-wrap: wrap;
         gap: 0.5rem;
         align-items: center;
-        border: 1px solid #cbd5e1;
-        border-radius: 12px;
-        background: linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%);
-        padding: 0.6rem;
     }
 
     .day-card-header-pill {
