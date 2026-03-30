@@ -2070,6 +2070,7 @@
                             }
 
                             itemSelect.disabled = false;
+                            let appendedCount = 0;
                             allOptions.slice(1).forEach((option) => {
                                 const pointType = normalizePointType(option.dataset.pointType || '');
                                 if (pointType !== selectedType) return;
@@ -2081,6 +2082,24 @@
                                     clone.selected = true;
                                 }
                                 itemSelect.appendChild(clone);
+                                appendedCount += 1;
+                            });
+
+                            // Safety fallback for Day End Point Airport:
+                            // if destination filter yields zero matches, still show airport list.
+                            const isEndPointSelect = itemSelect.classList.contains('day-end-point-item');
+                            if (isEndPointSelect && selectedType === 'airport' && appendedCount === 0) {
+                                allOptions.slice(1).forEach((option) => {
+                                    const pointType = normalizePointType(option.dataset.pointType || '');
+                                    if (pointType !== 'airport') return;
+                                    const clone = option.cloneNode(true);
+                                    clone.hidden = false;
+                                    clone.disabled = false;
+                                    if (clone.value === selectedValue) {
+                                        clone.selected = true;
+                                    }
+                                    itemSelect.appendChild(clone);
+                                });
                             });
 
                             if (selectedValue !== '' &&
