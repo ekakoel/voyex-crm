@@ -5,6 +5,8 @@
     $airports = $airports ?? collect();
     $hotels = $hotels ?? collect();
     $transportUnits = $transportUnits ?? collect();
+    $destinations = $destinations ?? collect();
+    $destinationNameById = $destinations->pluck('name', 'id')->toArray();
     $prefillInquiryId = $prefillInquiryId ?? null;
     $normalizePointType = static fn ($value, string $default = ''): string => trim((string) $value) !== ''
         ? trim((string) $value)
@@ -68,6 +70,36 @@
     }
 
     $durationDays = max(1, (int) old('duration_days', $itinerary->duration_days ?? 1));
+    $touristAttractionsSorted = collect($touristAttractions ?? [])
+        ->sortBy(function ($item) {
+            $city = strtolower(trim((string) ($item->city ?? '')));
+            $name = strtolower(trim((string) ($item->name ?? '')));
+            return $city . '|' . $name;
+        })
+        ->values();
+    $activitiesSorted = collect($activities ?? [])
+        ->sortBy(function ($item) {
+            $city = strtolower(trim((string) ($item->vendor?->city ?? '')));
+            $name = strtolower(trim((string) ($item->name ?? '')));
+            $vendor = strtolower(trim((string) ($item->vendor?->name ?? '')));
+            return $city . '|' . $name . '|' . $vendor;
+        })
+        ->values();
+    $foodBeveragesSorted = collect($foodBeverages ?? [])
+        ->sortBy(function ($item) {
+            $city = strtolower(trim((string) ($item->vendor?->city ?? '')));
+            $name = strtolower(trim((string) ($item->name ?? '')));
+            $vendor = strtolower(trim((string) ($item->vendor?->name ?? '')));
+            return $city . '|' . $name . '|' . $vendor;
+        })
+        ->values();
+    $hotelsSorted = collect($hotels ?? [])
+        ->sortBy(function ($item) {
+            $city = strtolower(trim((string) ($item->city ?? '')));
+            $name = strtolower(trim((string) ($item->name ?? '')));
+            return $city . '|' . $name;
+        })
+        ->values();
     $dailyEndPointTypes = old('daily_end_point_types');
     $dailyEndPointItems = old('daily_end_point_items');
     $dailyStartPointRoomIds = old('daily_start_point_room_ids');
@@ -492,8 +524,11 @@
                                 class="day-transport-unit dark:border-gray-600 app-input">
                                 <option value="">Select transport unit</option>
                                 @foreach ($transportUnits ?? collect() as $unit)
-                                    <option value="{{ $unit->id }}" data-city="{{ $unit->transport->city ?? '' }}"
-                                        data-province="{{ $unit->transport->province ?? '' }}"
+                                    <option value="{{ $unit->id }}"
+                                        data-city="{{ $unit->transport?->vendor?->city ?? '' }}"
+                                        data-province="{{ $unit->transport?->vendor?->province ?? '' }}"
+                                        data-location="{{ $unit->transport?->vendor?->location ?? '' }}"
+                                        data-destination="{{ $unit->transport?->vendor?->destination?->name ?? '' }}"
                                         @selected((string) ($dailyTransportUnitItems[$day]['transport_unit_id'] ?? '') === (string) $unit->id)>
                                         {{ $unit->name }}{{ !empty($unit->transport?->name) ? ' - ' . $unit->transport->name : '' }}{{ !empty($unit->seat_capacity) ? ' (' . $unit->seat_capacity . ' seats)' : '' }}
                                     </option>
@@ -525,15 +560,16 @@
                                     <select name="daily_start_point_items[{{ $day }}]"
                                         class="day-start-point-item dark:border-gray-600 app-input">
                                         <option value="">Select start point item</option>
-                                        @foreach ($hotels as $hotel)
+                                        @foreach ($hotelsSorted as $hotel)
                                             <option value="{{ $hotel->id }}" data-point-type="hotel"
                                                 data-location="{{ $hotel->address ?? '' }}"
                                                 data-city="{{ $hotel->city ?? '' }}"
                                                 data-province="{{ $hotel->province ?? '' }}"
+                                                data-destination="{{ $destinationNameById[$hotel->destination_id] ?? '' }}"
                                                 data-latitude="{{ $hotel->latitude ?? '' }}"
                                                 data-longitude="{{ $hotel->longitude ?? '' }}"
                                                 @selected($startType === 'hotel' && $startItem === (string) $hotel->id)>
-                                                {{ $hotel->name }}{{ !empty($hotel->city) ? ' (' . $hotel->city . ')' : '' }}
+                                                {{ !empty($hotel->city) ? $hotel->city : '-' }} - {{ $hotel->name }}
                                             </option>
                                         @endforeach
                                         @foreach ($airports ?? collect() as $airport)
@@ -541,6 +577,7 @@
                                                 data-location="{{ $airport->location ?? '' }}"
                                                 data-city="{{ $airport->city ?? '' }}"
                                                 data-province="{{ $airport->province ?? '' }}"
+                                                data-destination="{{ $destinationNameById[$airport->destination_id] ?? '' }}"
                                                 data-latitude="{{ $airport->latitude ?? '' }}"
                                                 data-longitude="{{ $airport->longitude ?? '' }}"
                                                 @selected($startType === 'airport' && $startItem === (string) $airport->id)>
@@ -636,41 +673,41 @@
                                     <select
                                         class="item-attraction {{ $r['item_type'] !== 'attraction' ? 'hidden' : '' }} dark:border-gray-600 app-input">
                                         <option value="">Select attraction</option>
-                                        @foreach ($touristAttractions as $a)
+                                        @foreach ($touristAttractionsSorted as $a)
                                             <option value="{{ $a->id }}"
                                                 data-duration="{{ $a->ideal_visit_minutes ?? 120 }}"
                                                 data-city="{{ $a->city ?? '' }}"
                                                 data-province="{{ $a->province ?? '' }}"
                                                 data-latitude="{{ $a->latitude }}"
                                                 data-longitude="{{ $a->longitude }}" @selected((string) ($r['tourist_attraction_id'] ?? '') === (string) $a->id)>
-                                                {{ $a->name }}</option>
+                                                {{ !empty($a->city) ? $a->city : '-' }} - {{ $a->name }}</option>
                                         @endforeach
                                     </select>
                                     <div class="flex flex-col gap-2 sm:flex-row">
                                         <select
                                             class="item-activity {{ $r['item_type'] !== 'activity' ? 'hidden' : '' }} dark:border-gray-600 app-input">
                                             <option value="">Select activity</option>
-                                            @foreach ($activities ?? collect() as $a)
+                                            @foreach ($activitiesSorted as $a)
                                                 <option value="{{ $a->id }}"
                                                     data-duration="{{ $a->duration_minutes ?? 60 }}"
-                                                    data-city="{{ $a->vendor->city ?? '' }}"
-                                                    data-province="{{ $a->vendor->province ?? '' }}"
-                                                    data-latitude="{{ $a->vendor->latitude ?? '' }}"
-                                                    data-longitude="{{ $a->vendor->longitude ?? '' }}"
-                                                    @selected((string) ($r['activity_id'] ?? '') === (string) $a->id)>{{ $a->name }}</option>
+                                                    data-city="{{ $a->vendor?->city ?? '' }}"
+                                                    data-province="{{ $a->vendor?->province ?? '' }}"
+                                                    data-latitude="{{ $a->vendor?->latitude ?? '' }}"
+                                                    data-longitude="{{ $a->vendor?->longitude ?? '' }}"
+                                                    @selected((string) ($r['activity_id'] ?? '') === (string) $a->id)>{{ !empty($a->vendor?->city) ? $a->vendor->city : '-' }} - {{ $a->name }} - {{ !empty($a->vendor?->name) ? $a->vendor->name : '-' }}</option>
                                             @endforeach
                                         </select>
                                         <select
                                             class="item-fnb {{ $r['item_type'] !== 'fnb' ? 'hidden' : '' }} dark:border-gray-600 app-input">
                                             <option value="">Select F&B</option>
-                                            @foreach ($foodBeverages ?? collect() as $f)
+                                            @foreach ($foodBeveragesSorted as $f)
                                                 <option value="{{ $f->id }}"
                                                     data-duration="{{ $f->duration_minutes ?? 60 }}"
-                                                    data-city="{{ $f->vendor->city ?? '' }}"
-                                                    data-province="{{ $f->vendor->province ?? '' }}"
-                                                    data-latitude="{{ $f->vendor->latitude ?? '' }}"
-                                                    data-longitude="{{ $f->vendor->longitude ?? '' }}"
-                                                    @selected((string) ($r['food_beverage_id'] ?? '') === (string) $f->id)>{{ $f->name }}</option>
+                                                    data-city="{{ $f->vendor?->city ?? '' }}"
+                                                    data-province="{{ $f->vendor?->province ?? '' }}"
+                                                    data-latitude="{{ $f->vendor?->latitude ?? '' }}"
+                                                    data-longitude="{{ $f->vendor?->longitude ?? '' }}"
+                                                    @selected((string) ($r['food_beverage_id'] ?? '') === (string) $f->id)>{{ !empty($f->vendor?->city) ? $f->vendor->city : '-' }} - {{ $f->name }} - {{ !empty($f->vendor?->name) ? $f->vendor->name : '-' }}</option>
                                             @endforeach
                                         </select>
                                         <input type="hidden" value="{{ $r['pax'] ?? 1 }}" class="item-pax app-input">
@@ -739,38 +776,38 @@
                                     <select
                                         class="item-attraction dark:border-gray-600 app-input">
                                         <option value="">Select attraction</option>
-                                        @foreach ($touristAttractions as $a)
+                                        @foreach ($touristAttractionsSorted as $a)
                                             <option value="{{ $a->id }}"
                                                 data-duration="{{ $a->ideal_visit_minutes ?? 120 }}"
                                                 data-city="{{ $a->city ?? '' }}"
                                                 data-province="{{ $a->province ?? '' }}"
                                                 data-latitude="{{ $a->latitude }}"
-                                                data-longitude="{{ $a->longitude }}">{{ $a->name }}</option>
+                                                data-longitude="{{ $a->longitude }}">{{ !empty($a->city) ? $a->city : '-' }} - {{ $a->name }}</option>
                                         @endforeach
                                     </select>
                                     <div class="flex flex-col gap-2 sm:flex-row"><select
                                             class="item-activity hidden dark:border-gray-600 app-input">
                                             <option value="">Select activity</option>
-                                            @foreach ($activities ?? collect() as $a)
+                                            @foreach ($activitiesSorted as $a)
                                                 <option value="{{ $a->id }}"
                                                     data-duration="{{ $a->duration_minutes ?? 60 }}"
-                                                    data-city="{{ $a->vendor->city ?? '' }}"
-                                                    data-province="{{ $a->vendor->province ?? '' }}"
-                                                    data-latitude="{{ $a->vendor->latitude ?? '' }}"
-                                                    data-longitude="{{ $a->vendor->longitude ?? '' }}">
-                                                    {{ $a->name }}</option>
+                                                    data-city="{{ $a->vendor?->city ?? '' }}"
+                                                    data-province="{{ $a->vendor?->province ?? '' }}"
+                                                    data-latitude="{{ $a->vendor?->latitude ?? '' }}"
+                                                    data-longitude="{{ $a->vendor?->longitude ?? '' }}">
+                                                    {{ !empty($a->vendor?->city) ? $a->vendor->city : '-' }} - {{ $a->name }} - {{ !empty($a->vendor?->name) ? $a->vendor->name : '-' }}</option>
                                             @endforeach
                                         </select><select
                                             class="item-fnb hidden dark:border-gray-600 app-input">
                                             <option value="">Select F&B</option>
-                                            @foreach ($foodBeverages ?? collect() as $f)
+                                            @foreach ($foodBeveragesSorted as $f)
                                                 <option value="{{ $f->id }}"
                                                     data-duration="{{ $f->duration_minutes ?? 60 }}"
-                                                    data-city="{{ $f->vendor->city ?? '' }}"
-                                                    data-province="{{ $f->vendor->province ?? '' }}"
-                                                    data-latitude="{{ $f->vendor->latitude ?? '' }}"
-                                                    data-longitude="{{ $f->vendor->longitude ?? '' }}">
-                                                    {{ $f->name }}</option>
+                                                    data-city="{{ $f->vendor?->city ?? '' }}"
+                                                    data-province="{{ $f->vendor?->province ?? '' }}"
+                                                    data-latitude="{{ $f->vendor?->latitude ?? '' }}"
+                                                    data-longitude="{{ $f->vendor?->longitude ?? '' }}">
+                                                    {{ !empty($f->vendor?->city) ? $f->vendor->city : '-' }} - {{ $f->name }} - {{ !empty($f->vendor?->name) ? $f->vendor->name : '-' }}</option>
                                             @endforeach
                                         </select><input type="hidden" value="1" class="item-pax app-input">
                                     </div>
@@ -835,15 +872,16 @@
                                     <select name="daily_end_point_items[{{ $day }}]"
                                         class="day-end-point-item day-end-point-select dark:border-gray-600 app-input">
                                         <option value="">Select end point item</option>
-                                        @foreach ($hotels as $hotel)
+                                        @foreach ($hotelsSorted as $hotel)
                                             <option value="{{ $hotel->id }}" data-point-type="hotel"
                                                 data-location="{{ $hotel->address ?? '' }}"
                                                 data-city="{{ $hotel->city ?? '' }}"
                                                 data-province="{{ $hotel->province ?? '' }}"
+                                                data-destination="{{ $destinationNameById[$hotel->destination_id] ?? '' }}"
                                                 data-latitude="{{ $hotel->latitude ?? '' }}"
                                                 data-longitude="{{ $hotel->longitude ?? '' }}"
                                                 @selected($endType === 'hotel' && $endItem === (string) $hotel->id)>
-                                                {{ $hotel->name }}{{ !empty($hotel->city) ? ' (' . $hotel->city . ')' : '' }}
+                                                {{ !empty($hotel->city) ? $hotel->city : '-' }} - {{ $hotel->name }}
                                             </option>
                                         @endforeach
                                         @foreach ($airports ?? collect() as $airport)
@@ -851,6 +889,7 @@
                                                 data-location="{{ $airport->location ?? '' }}"
                                                 data-city="{{ $airport->city ?? '' }}"
                                                 data-province="{{ $airport->province ?? '' }}"
+                                                data-destination="{{ $destinationNameById[$airport->destination_id] ?? '' }}"
                                                 data-latitude="{{ $airport->latitude ?? '' }}"
                                                 data-longitude="{{ $airport->longitude ?? '' }}"
                                                 @selected($endType === 'airport' && $endItem === (string) $airport->id)>
@@ -987,9 +1026,70 @@
                 border-color: rgba(59, 130, 246, 0.5) !important;
                 background-color: rgba(30, 64, 175, 0.3) !important;
             }
+            .itinerary-map-marker {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                width: 30px;
+                height: 30px;
+                border-radius: 9999px;
+                font-size: 13px;
+                font-weight: 700;
+                color: #fff;
+                border: 1px solid rgba(255, 255, 255, 0.95);
+                box-shadow: 0 6px 14px rgba(15, 23, 42, 0.28);
+                position: relative;
+            }
+            .itinerary-map-marker--attraction {
+                background: #0ea5e9;
+            }
+            .itinerary-map-marker--activity {
+                background: #10b981;
+            }
+            .itinerary-map-marker--fnb {
+                background: #f59e0b;
+            }
+            .itinerary-map-marker--hotel {
+                background: #2563eb;
+            }
+            .itinerary-map-marker--airport {
+                background: #6366f1;
+            }
+            .itinerary-map-marker-number {
+                position: absolute;
+                top: -6px;
+                right: -6px;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                min-width: 16px;
+                height: 16px;
+                padding: 0 4px;
+                border-radius: 9999px;
+                font-size: 9px;
+                font-weight: 700;
+                color: #fff;
+                background: #0f172a;
+                border: 1px solid rgba(255, 255, 255, 0.95);
+            }
+            .itinerary-map-travel-badge {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                min-height: 20px;
+                padding: 0 8px;
+                border-radius: 9999px;
+                font-size: 10px;
+                font-weight: 700;
+                color: #fff;
+                background: rgba(15, 23, 42, 0.86);
+                border: 1px solid rgba(255, 255, 255, 0.8);
+            }
         </style>
+        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
     @endpush
     @push('scripts')
+        <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
         <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
         <script>
             (() => {
@@ -1028,8 +1128,15 @@
                 const durationInput = document.getElementById('duration-days');
                 const durationNightsInput = document.getElementById('duration-nights');
                 const hotelStaysHidden = document.getElementById('hotel-stays-hidden');
+                const mapEl = document.getElementById('itinerary-map');
+                const mapDayTabsEl = document.getElementById('itinerary-map-day-tabs');
+                const mapLegendEl = document.getElementById('itinerary-map-legend');
                 const form = daySections?.closest('form');
                 if (!daySections || !durationInput) return;
+                let itineraryMap = null;
+                let itineraryMarkerLayer = null;
+                let itineraryRouteLayers = [];
+                const routePalette = ['#2563eb', '#16a34a', '#ea580c', '#7c3aed', '#db2777', '#0891b2'];
                 const toMin = (t) => /^\d{2}:\d{2}$/.test(t || '') ? (parseInt(t.slice(0, 2), 10) * 60) + parseInt(t.slice(
                     3, 5), 10) : null;
                 const fromMin = (m) => {
@@ -1143,6 +1250,487 @@
                         }
                     }
                 };
+                let itineraryDataLayer = null;
+                let mapBusy = false;
+                let renderPendingAfterMove = false;
+                let hardResetInProgress = false;
+                let mapRenderSeq = 0;
+                let activeRouteFetchController = null;
+                let mapSelectedDay = null;
+                const initItineraryMap = () => {
+                    if (!mapEl || typeof L === 'undefined') return null;
+                    if (itineraryMap) return itineraryMap;
+                    itineraryMap = L.map(mapEl, {
+                        zoomControl: true,
+                        preferCanvas: false,
+                        renderer: L.svg(),
+                    }).setView([-2.5, 118], 4);
+                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                        attribution: '&copy; OpenStreetMap contributors',
+                        maxZoom: 19,
+                    }).addTo(itineraryMap);
+                    itineraryDataLayer = L.featureGroup().addTo(itineraryMap);
+                    itineraryMarkerLayer = itineraryDataLayer;
+                    itineraryMap.on('zoomstart movestart', () => {
+                        mapBusy = true;
+                    });
+                    itineraryMap.on('zoomend moveend', () => {
+                        mapBusy = false;
+                        if (renderPendingAfterMove) {
+                            renderPendingAfterMove = false;
+                            requestRenderItineraryMap();
+                        }
+                    });
+                    setTimeout(() => {
+                        if (!itineraryMap) return;
+                        itineraryMap.invalidateSize();
+                    }, 0);
+                    return itineraryMap;
+                };
+                const hardResetItineraryMap = () => {
+                    if (hardResetInProgress) return;
+                    hardResetInProgress = true;
+                    try {
+                        activeRouteFetchController?.abort();
+                    } catch (_) {}
+                    activeRouteFetchController = null;
+                    try {
+                        if (itineraryMap) {
+                            itineraryMap.off();
+                            itineraryMap.remove();
+                        }
+                    } catch (_) {}
+                    itineraryMap = null;
+                    itineraryDataLayer = null;
+                    itineraryMarkerLayer = null;
+                    itineraryRouteLayers = [];
+                    mapBusy = false;
+                    renderPendingAfterMove = false;
+                    setTimeout(() => {
+                        hardResetInProgress = false;
+                        requestRenderItineraryMap();
+                    }, 0);
+                };
+                const clearItineraryMapLayers = () => {
+                    if (!itineraryMap) return;
+                    if (itineraryDataLayer) {
+                        try {
+                            itineraryDataLayer.clearLayers();
+                        } catch (_) {}
+                    }
+                    itineraryRouteLayers = [];
+                };
+                const canRenderMapNow = (mapInstance) => {
+                    if (!mapEl || !mapInstance) return false;
+                    if (!mapEl.isConnected) return false;
+                    const rect = mapEl.getBoundingClientRect();
+                    if (!Number.isFinite(rect.width) || !Number.isFinite(rect.height) || rect.width < 8 || rect.height < 8) {
+                        return false;
+                    }
+                    return true;
+                };
+                const isLatitudeInRange = (value) => Number.isFinite(value) && value >= -90 && value <= 90;
+                const isLongitudeInRange = (value) => Number.isFinite(value) && value >= -180 && value <= 180;
+                const normalizeLatLngPair = (rawLat, rawLng) => {
+                    let lat = Number(rawLat);
+                    let lng = Number(rawLng);
+                    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+                    if (isLatitudeInRange(lat) && isLongitudeInRange(lng)) {
+                        return { lat, lng };
+                    }
+                    // Guard for swapped coordinates (common data-entry issue).
+                    if (isLatitudeInRange(lng) && isLongitudeInRange(lat)) {
+                        return { lat: lng, lng: lat };
+                    }
+                    return null;
+                };
+                const isFiniteLatLng = (point) => {
+                    if (!point || typeof point !== 'object') return false;
+                    const normalized = normalizeLatLngPair(point.lat, point.lng);
+                    return normalized !== null;
+                };
+                const normalizeMapPointType = (rawType) => {
+                    const type = String(rawType || '').trim().toLowerCase();
+                    if (type === 'activity' || type === 'fnb' || type === 'hotel' || type === 'airport' || type === 'attraction') {
+                        return type;
+                    }
+                    return 'attraction';
+                };
+                const markerTypeClass = (type) => {
+                    const normalized = normalizeMapPointType(type);
+                    if (normalized === 'activity') return 'itinerary-map-marker--activity';
+                    if (normalized === 'fnb') return 'itinerary-map-marker--fnb';
+                    if (normalized === 'hotel') return 'itinerary-map-marker--hotel';
+                    if (normalized === 'airport') return 'itinerary-map-marker--airport';
+                    return 'itinerary-map-marker--attraction';
+                };
+                const markerTypeIcon = (type) => {
+                    const normalized = normalizeMapPointType(type);
+                    if (normalized === 'activity') return 'fa-solid fa-person-hiking';
+                    if (normalized === 'fnb') return 'fa-solid fa-utensils';
+                    if (normalized === 'hotel') return 'fa-solid fa-bed';
+                    if (normalized === 'airport') return 'fa-solid fa-plane';
+                    return 'fa-solid fa-location-dot';
+                };
+                const markerByTypeWithOrder = (type, order) => L.divIcon({
+                    className: '',
+                    html: `<span class="itinerary-map-marker ${markerTypeClass(type)}"><i class="${markerTypeIcon(type)}"></i><span class="itinerary-map-marker-number">${order}</span></span>`,
+                    iconSize: [30, 30],
+                    iconAnchor: [15, 15],
+                });
+                const parseOptionPoint = (option, typeHint = null) => {
+                    if (!option) return null;
+                    const normalized = normalizeLatLngPair(
+                        parseFloat(option.dataset.latitude || ''),
+                        parseFloat(option.dataset.longitude || ''),
+                    );
+                    if (!normalized) return null;
+                    return {
+                        lat: normalized.lat,
+                        lng: normalized.lng,
+                        name: String(option.textContent || '').trim() || '-',
+                        type: normalizeMapPointType(typeHint || option.dataset.pointType || ''),
+                    };
+                };
+                const toLeafletLatLng = (rawLat, rawLng) => {
+                    const normalized = normalizeLatLngPair(rawLat, rawLng);
+                    if (!normalized) return null;
+                    try {
+                        const latLng = L.latLng(normalized.lat, normalized.lng);
+                        if (!Number.isFinite(latLng.lat) || !Number.isFinite(latLng.lng)) return null;
+                        return latLng;
+                    } catch (_) {
+                        return null;
+                    }
+                };
+                const closestPointOnRoute = (routeCoords, targetLatLng) => {
+                    if (!Array.isArray(routeCoords) || routeCoords.length === 0 || !targetLatLng) return null;
+                    let best = null;
+                    let bestDistance = Number.POSITIVE_INFINITY;
+                    routeCoords.forEach((coord) => {
+                        if (!coord || !Number.isFinite(coord.lat) || !Number.isFinite(coord.lng)) return;
+                        const dLat = coord.lat - targetLatLng.lat;
+                        const dLng = coord.lng - targetLatLng.lng;
+                        const distanceSq = (dLat * dLat) + (dLng * dLng);
+                        if (distanceSq < bestDistance) {
+                            bestDistance = distanceSq;
+                            best = coord;
+                        }
+                    });
+                    return best;
+                };
+                const fetchRoadRouteGeometry = async (latLngPoints, signal) => {
+                    if (!Array.isArray(latLngPoints) || latLngPoints.length < 2) return null;
+                    const coordinateString = latLngPoints
+                        .map((point) => `${point.lng},${point.lat}`)
+                        .join(';');
+                    const endpoint =
+                        `https://router.project-osrm.org/route/v1/driving/${coordinateString}?overview=full&geometries=geojson`;
+                    const response = await fetch(endpoint, {
+                        method: 'GET',
+                        headers: {
+                            Accept: 'application/json',
+                        },
+                        signal,
+                    });
+                    if (!response.ok) return null;
+                    const payload = await response.json();
+                    const coordinates = payload?.routes?.[0]?.geometry?.coordinates;
+                    if (!Array.isArray(coordinates) || coordinates.length < 2) return null;
+                    const routePoints = [];
+                    coordinates.forEach((coord) => {
+                        if (!Array.isArray(coord) || coord.length < 2) return;
+                        const latLng = toLeafletLatLng(coord[1], coord[0]);
+                        if (latLng) routePoints.push(latLng);
+                    });
+                    return routePoints.length >= 2 ? routePoints : null;
+                };
+                const getDayEndPoint = (day) => {
+                    const section = daySections.querySelector(`.day-section[data-day="${day}"]`);
+                    if (!section) return null;
+                    const endType = normalizePointType(section.querySelector('.day-end-point-type')?.value || '');
+                    if (endType !== 'airport' && endType !== 'hotel') return null;
+                    return parseOptionPoint(section.querySelector('.day-end-point-item')?.selectedOptions?.[0] || null, endType);
+                };
+                const collectDayRoutePoints = (day) => {
+                    const section = daySections.querySelector(`.day-section[data-day="${day}"]`);
+                    if (!section) return [];
+                    const points = [];
+                    const startType = normalizePointType(section.querySelector('.day-start-point-type')?.value || '');
+                    let startPoint = null;
+                    if (startType === 'previous_day_end' && day > 1) {
+                        startPoint = getDayEndPoint(day - 1);
+                    } else {
+                        const startOpt = section.querySelector('.day-start-point-item')?.selectedOptions?.[0] || null;
+                        startPoint = parseOptionPoint(startOpt, startType);
+                    }
+                    if ((startType === 'airport' || startType === 'hotel') && startPoint) {
+                        points.push({
+                            day,
+                            role: 'start',
+                            type: startPoint.type || normalizeMapPointType(startType),
+                            lat: startPoint.lat,
+                            lng: startPoint.lng,
+                            name: startPoint.name,
+                            travelMinutes: Math.max(0, parseInt(section.querySelector('.day-start-travel')?.value || '0', 10) || 0),
+                        });
+                    } else if (startType === 'previous_day_end' && startPoint) {
+                        points.push({
+                            day,
+                            role: 'start',
+                            type: startPoint.type || 'hotel',
+                            lat: startPoint.lat,
+                            lng: startPoint.lng,
+                            name: startPoint.name,
+                            travelMinutes: Math.max(0, parseInt(section.querySelector('.day-start-travel')?.value || '0', 10) || 0),
+                        });
+                    }
+                    const rows = [...section.querySelectorAll('.schedule-row')];
+                    rows.forEach((row) => {
+                        if (!selected(row)) return;
+                        const selection = getRowSelection(row);
+                        const option = selection.option;
+                        const point = parseOptionPoint(option, selection.type);
+                        if (!point) return;
+                        const order = Number(row.querySelector('.item-order')?.value || '0');
+                        points.push({
+                            day,
+                            role: 'schedule',
+                            order: Number.isFinite(order) && order > 0 ? order : 9999,
+                            type: selection.type,
+                            lat: point.lat,
+                            lng: point.lng,
+                            name: point.name,
+                            travelMinutes: Math.max(0, parseInt(row.querySelector('.item-travel')?.value || '0', 10) || 0),
+                        });
+                    });
+                    points.sort((a, b) => {
+                        const aRank = a.role === 'start' ? 0 : (a.role === 'schedule' ? 1 : 2);
+                        const bRank = b.role === 'start' ? 0 : (b.role === 'schedule' ? 1 : 2);
+                        if (aRank !== bRank) return aRank - bRank;
+                        return (a.order || 0) - (b.order || 0);
+                    });
+                    const endType = normalizePointType(section.querySelector('.day-end-point-type')?.value || '');
+                    const endOpt = section.querySelector('.day-end-point-item')?.selectedOptions?.[0] || null;
+                    const endPoint = parseOptionPoint(endOpt, endType);
+                    if ((endType === 'airport' || endType === 'hotel') && endPoint) {
+                        points.push({
+                            day,
+                            role: 'end',
+                            type: endPoint.type || normalizeMapPointType(endType),
+                            lat: endPoint.lat,
+                            lng: endPoint.lng,
+                            name: endPoint.name,
+                            travelMinutes: 0,
+                        });
+                    }
+                    return points;
+                };
+                const refreshMapDayOptions = () => {
+                    if (!mapDayTabsEl) return;
+                    const totalDays = Math.max(1, parseInt(durationInput.value || '1', 10));
+                    if (mapSelectedDay !== null && (mapSelectedDay < 1 || mapSelectedDay > totalDays)) {
+                        mapSelectedDay = null;
+                    }
+                    let html = `
+                        <button type="button" data-map-day=""
+                            class="itinerary-map-day-tab inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold transition ${mapSelectedDay === null ? 'border-blue-300 bg-blue-50 text-blue-700 dark:border-blue-700 dark:bg-blue-900/30 dark:text-blue-200' : 'border-gray-300 bg-white text-gray-700 hover:border-blue-300 hover:text-blue-700 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:border-blue-600 dark:hover:text-blue-300'}"
+                            aria-pressed="${mapSelectedDay === null ? 'true' : 'false'}">All Days</button>
+                    `;
+                    for (let day = 1; day <= totalDays; day++) {
+                        const active = mapSelectedDay === day;
+                        html += `
+                            <button type="button" data-map-day="${day}"
+                                class="itinerary-map-day-tab inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold transition ${active ? 'border-blue-300 bg-blue-50 text-blue-700 dark:border-blue-700 dark:bg-blue-900/30 dark:text-blue-200' : 'border-gray-300 bg-white text-gray-700 hover:border-blue-300 hover:text-blue-700 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:border-blue-600 dark:hover:text-blue-300'}"
+                                aria-pressed="${active ? 'true' : 'false'}">Day ${day}</button>
+                        `;
+                    }
+                    mapDayTabsEl.innerHTML = html;
+                };
+                const renderMapLegend = (dayList) => {
+                    if (!mapLegendEl) return;
+                    if (!Array.isArray(dayList) || dayList.length === 0) {
+                        mapLegendEl.innerHTML = '<span class="text-[11px] text-gray-500 dark:text-gray-400">No day route selected.</span>';
+                        return;
+                    }
+                    let html = '';
+                    dayList.forEach((day) => {
+                        const color = routePalette[(Number(day) - 1) % routePalette.length];
+                        html += `
+                            <span class="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white/90 px-2 py-0.5 dark:border-gray-700 dark:bg-gray-800/80">
+                                <span class="inline-block h-2.5 w-2.5 rounded-full" style="background:${color}"></span>
+                                <span>Day ${day}</span>
+                            </span>
+                        `;
+                    });
+                    mapLegendEl.innerHTML = html;
+                };
+                const renderItineraryMap = async () => {
+                    const map = initItineraryMap();
+                    if (!map || !itineraryDataLayer) return;
+                    if (!canRenderMapNow(map)) {
+                        renderPendingAfterMove = true;
+                        return;
+                    }
+                    if (mapBusy) {
+                        renderPendingAfterMove = true;
+                        return;
+                    }
+                    try {
+                        const renderSeq = ++mapRenderSeq;
+                        try {
+                            activeRouteFetchController?.abort();
+                        } catch (_) {}
+                        activeRouteFetchController = typeof AbortController !== 'undefined' ? new AbortController() :
+                            null;
+                        const routeSignal = activeRouteFetchController?.signal;
+                        map.invalidateSize(false);
+                        refreshMapDayOptions();
+                        clearItineraryMapLayers();
+                        const totalDays = Math.max(1, parseInt(durationInput.value || '1', 10));
+                        const dayFilter = mapSelectedDay !== null && mapSelectedDay >= 1 && mapSelectedDay <= totalDays ?
+                            mapSelectedDay : null;
+                        const dayList = dayFilter ? [dayFilter] : Array.from({ length: totalDays }, (_, idx) => idx + 1);
+                        renderMapLegend(dayList);
+                        const groupedRoutes = dayList.map((day) => ({
+                            day,
+                            points: collectDayRoutePoints(day).filter(isFiniteLatLng),
+                        })).filter((entry) => entry.points.length > 0);
+                        if (!groupedRoutes.length) {
+                            map.setView([-2.5, 118], 4);
+                            return;
+                        }
+                        const bounds = [];
+                        let markerIndex = 1;
+                        for (const {
+                                day,
+                                points
+                            }
+                            of groupedRoutes) {
+                            if (renderSeq !== mapRenderSeq) return;
+                            const safePoints = points.filter(isFiniteLatLng);
+                            if (!safePoints.length) continue;
+                            const polylineCoords = [];
+                            safePoints.forEach((point) => {
+                                const latLng = toLeafletLatLng(point.lat, point.lng);
+                                if (!latLng) return;
+                                bounds.push([latLng.lat, latLng.lng]);
+                                polylineCoords.push(latLng);
+                                const markerType = normalizeMapPointType(point.type || (point.role === 'end' || point.role === 'start' ? 'hotel' : 'attraction'));
+                                const marker = L.marker(latLng, {
+                                    icon: markerByTypeWithOrder(markerType, markerIndex),
+                                }).addTo(itineraryDataLayer);
+                                marker.bindPopup(`#${markerIndex} | Day ${day} | ${markerType.toUpperCase()} | ${point.name}`);
+                                markerIndex += 1;
+                            });
+                            const validPolylineCoords = polylineCoords
+                                .filter((coord) => coord && Number.isFinite(coord.lat) && Number.isFinite(coord.lng));
+                            let displayedRouteCoords = validPolylineCoords;
+                            if (validPolylineCoords.length >= 2) {
+                                let skipRouteDrawForThisSegment = false;
+                                // Keep OSRM requests bounded to avoid URL overflow and reduce flakiness.
+                                if (validPolylineCoords.length <= 25) {
+                                    try {
+                                        const roadRoute = await fetchRoadRouteGeometry(validPolylineCoords, routeSignal);
+                                        if (renderSeq !== mapRenderSeq) return;
+                                        if (roadRoute && roadRoute.length >= 2) {
+                                            displayedRouteCoords = roadRoute;
+                                        }
+                                    } catch (fetchError) {
+                                        if (renderSeq !== mapRenderSeq) return;
+                                        if (fetchError?.name === 'AbortError') {
+                                            // Render is being superseded by a newer run; skip drawing this segment
+                                            // to avoid transient straight-line artifacts.
+                                            skipRouteDrawForThisSegment = true;
+                                        }
+                                        if (fetchError?.name !== 'AbortError') {
+                                            console.warn('Road route fetch failed, fallback to straight polyline.', fetchError);
+                                        }
+                                    }
+                                }
+                                if (!skipRouteDrawForThisSegment) {
+                                    const route = L.polyline(displayedRouteCoords, {
+                                        color: routePalette[(Number(day) - 1) % routePalette.length],
+                                        weight: 4,
+                                        opacity: 0.95,
+                                        interactive: false,
+                                        bubblingMouseEvents: false,
+                                    }).addTo(itineraryDataLayer);
+                                    itineraryRouteLayers.push(route);
+                                }
+                            }
+                            for (let i = 0; i < safePoints.length - 1; i++) {
+                                const from = safePoints[i];
+                                const to = safePoints[i + 1];
+                                if (!isFiniteLatLng(from) || !isFiniteLatLng(to)) continue;
+                                const minutes = Math.max(0, Number(from.travelMinutes || 0));
+                                if (minutes <= 0) continue;
+                                const normFrom = normalizeLatLngPair(from.lat, from.lng);
+                                const normTo = normalizeLatLngPair(to.lat, to.lng);
+                                if (!normFrom || !normTo) continue;
+                                const midLat = (normFrom.lat + normTo.lat) / 2;
+                                const midLng = (normFrom.lng + normTo.lng) / 2;
+                                const midLatLng = toLeafletLatLng(midLat, midLng);
+                                if (!midLatLng) continue;
+                                const badgeLatLng = closestPointOnRoute(displayedRouteCoords, midLatLng) || midLatLng;
+                                const badge = L.tooltip({
+                                    permanent: true,
+                                    direction: 'top',
+                                    className: 'itinerary-map-travel-badge',
+                                    offset: [0, -6],
+                                    interactive: false,
+                                })
+                                    .setLatLng(badgeLatLng)
+                                    .setContent(`${minutes}m`)
+                                    .addTo(itineraryDataLayer);
+                                itineraryRouteLayers.push(badge);
+                            }
+                        }
+                        const validBounds = bounds
+                            .filter((coord) =>
+                                Array.isArray(coord) &&
+                                normalizeLatLngPair(coord[0], coord[1]) !== null
+                            );
+                        if (validBounds.length === 0) {
+                            map.setView([-2.5, 118], 4);
+                            return;
+                        }
+                        if (validBounds.length === 1) {
+                            map.setView(validBounds[0], 13);
+                        } else {
+                            map.fitBounds(validBounds, { padding: [24, 24] });
+                        }
+                    } catch (error) {
+                        if (error?.name !== 'AbortError') {
+                            console.error('Failed to render itinerary map:', error);
+                        }
+                        setTimeout(() => {
+                            hardResetItineraryMap();
+                        }, 0);
+                    }
+                };
+                let renderQueued = false;
+                const requestRenderItineraryMap = () => {
+                    if (renderQueued) return;
+                    renderQueued = true;
+                    const runner = () => {
+                        renderQueued = false;
+                        renderItineraryMap();
+                    };
+                    if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
+                        window.requestAnimationFrame(runner);
+                    } else {
+                        setTimeout(runner, 0);
+                    }
+                };
+                mapDayTabsEl?.addEventListener('click', (event) => {
+                    const target = event.target instanceof HTMLElement ? event.target.closest('button[data-map-day]') : null;
+                    if (!target) return;
+                    const dayRaw = String(target.dataset.mapDay ?? '').trim();
+                    const parsedDay = Number(dayRaw);
+                    mapSelectedDay = dayRaw === '' || !Number.isFinite(parsedDay) || parsedDay < 1 ? null : parsedDay;
+                    requestRenderItineraryMap();
+                });
                 const rebuildTravelConnectors = (sec) => {
                     const container = sec.querySelector('.day-items');
                     if (!container) return;
@@ -1434,7 +2022,9 @@
                     const city = normalizeDestination(option.dataset.city);
                     const province = normalizeDestination(option.dataset.province);
                     const location = normalizeDestination(option.dataset.location);
-                    return city.includes(keyword) || province.includes(keyword) || location.includes(keyword);
+                    const destination = normalizeDestination(option.dataset.destination);
+                    return city.includes(keyword) || province.includes(keyword) || location.includes(keyword) ||
+                        destination.includes(keyword);
                 };
                 const syncPointItemVisibility = () => {
                     daySections.querySelectorAll('.day-section').forEach((section) => {
@@ -1458,7 +2048,10 @@
                             if (!allOptions) {
                                 allOptions = [];
                                 Array.from(itemSelect.options).forEach((opt) => {
-                                    allOptions.push(opt.cloneNode(true));
+                                    const cacheClone = opt.cloneNode(true);
+                                    cacheClone.hidden = false;
+                                    cacheClone.disabled = false;
+                                    allOptions.push(cacheClone);
                                 });
                                 pointOptionCache.set(itemSelect, allOptions);
                             }
@@ -1480,8 +2073,10 @@
                             allOptions.slice(1).forEach((option) => {
                                 const pointType = normalizePointType(option.dataset.pointType || '');
                                 if (pointType !== selectedType) return;
-                                if (selectedType !== 'airport' && !matchesDestinationOption(option)) return;
+                                if (!matchesDestinationOption(option)) return;
                                 const clone = option.cloneNode(true);
+                                clone.hidden = false;
+                                clone.disabled = false;
                                 if (clone.value === selectedValue) {
                                     clone.selected = true;
                                 }
@@ -1696,6 +2291,7 @@
                     syncHotelStaysHidden();
                     updateDayEndpointBadges();
                     daySections.querySelectorAll('.day-section').forEach(updateDayPointTheme);
+                    requestRenderItineraryMap();
                 };
                 const recalc = async () => {
                     daySections.querySelectorAll('.day-section').forEach(rebuildTravelConnectors);
@@ -2127,7 +2723,12 @@
                     if (!keyword) return true;
                     const city = normalize(option.dataset.city);
                     const province = normalize(option.dataset.province);
-                    return city.includes(keyword) || province.includes(keyword);
+                    const location = normalize(option.dataset.location);
+                    const destination = normalize(option.dataset.destination);
+                    return city.includes(keyword) ||
+                        province.includes(keyword) ||
+                        location.includes(keyword) ||
+                        destination.includes(keyword);
                 };
 
                 const applyFilterToSelect = (select) => {

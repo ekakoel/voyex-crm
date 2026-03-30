@@ -119,7 +119,8 @@ class ItineraryController extends Controller
         $transportUnits = TransportUnit::query()
             ->with([
                 'transport:id,name,is_active,vendor_id',
-                'transport.vendor:id,destination_id,city,province',
+                'transport.vendor:id,name,location,destination_id,city,province',
+                'transport.vendor.destination:id,name,city,province',
             ])
             ->where('is_active', true)
             ->whereHas('transport', fn ($q) => $q->where('is_active', true))
@@ -226,7 +227,7 @@ class ItineraryController extends Controller
             'itinerary_food_beverage_items.*.visit_order' => ['nullable', 'integer', 'min:1'],
             'daily_transport_units' => ['nullable', 'array'],
             'daily_transport_units.*.day_number' => ['required', 'integer', 'min:1'],
-            'daily_transport_units.*.transport_unit_id' => ['nullable', 'integer', 'exists:transport_units,id'],
+            'daily_transport_units.*.transport_unit_id' => ['nullable', 'integer', 'exists:transports,id'],
         ]);
 
         $validated['is_active'] = $request->boolean('is_active');
@@ -360,7 +361,8 @@ class ItineraryController extends Controller
         $transportUnits = TransportUnit::query()
             ->with([
                 'transport:id,name,transport_type,is_active,vendor_id',
-                'transport.vendor:id,destination_id,city,province',
+                'transport.vendor:id,name,location,destination_id,city,province',
+                'transport.vendor.destination:id,name,city,province',
             ])
             ->where('is_active', true)
             ->whereHas('transport', fn ($q) => $q->where('is_active', true))
@@ -903,7 +905,7 @@ SVG;
             'itinerary_food_beverage_items.*.visit_order' => ['nullable', 'integer', 'min:1'],
             'daily_transport_units' => ['nullable', 'array'],
             'daily_transport_units.*.day_number' => ['required', 'integer', 'min:1'],
-            'daily_transport_units.*.transport_unit_id' => ['nullable', 'integer', 'exists:transport_units,id'],
+            'daily_transport_units.*.transport_unit_id' => ['nullable', 'integer', 'exists:transports,id'],
         ]);
 
         $validated['is_active'] = $request->boolean('is_active');
@@ -1727,8 +1729,6 @@ SVG;
     }
 
 }
-
-
 
 
 

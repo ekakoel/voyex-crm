@@ -56,6 +56,16 @@
                     </dl>
 
                 </div>
+                <div class="mt-4 rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800 xl:sticky xl:top-0">
+                    <p class="text-xs font-semibold uppercase tracking-wide text-gray-700 dark:text-gray-200">Itinerary Route Preview</p>
+                    <div id="itinerary-map-day-tabs" class="mt-2 flex flex-wrap items-center gap-2">
+                        <button type="button" data-map-day=""
+                            class="itinerary-map-day-tab inline-flex items-center rounded-full border border-blue-300 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700 dark:border-blue-700 dark:bg-blue-900/30 dark:text-blue-200"
+                            aria-pressed="true">All Days</button>
+                    </div>
+                    <div id="itinerary-map-legend" class="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-gray-600 dark:text-gray-300"></div>
+                    <div id="itinerary-map" class="mt-2 w-full rounded-lg border border-gray-300 dark:border-gray-600" style="height: 360px;"></div>
+                </div>
 
                 <div class="mt-4">
                     @include('partials._audit-info', ['record' => $itinerary, 'title' => 'Audit Info'])
@@ -69,11 +79,6 @@
     </div>
 
 @endsection
-
-
-
-
-
 
 
 
