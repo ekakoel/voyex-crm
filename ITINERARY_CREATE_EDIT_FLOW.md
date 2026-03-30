@@ -519,7 +519,19 @@ Dalam `normalizeDayPoints()` terdapat blok validasi start hotel dan end hotel ya
 
 Itu bukan mengubah flow utama, tetapi menunjukkan area ini pernah diubah dan belum dirapikan.
 
-## 12. Gambaran Mental Sistem Create/Edit
+## 12. Referensi Map Detail Itinerary (Show Page)
+
+Dokumen ini fokus pada create/edit flow.  
+Untuk implementasi map pada halaman detail itinerary (`show`) gunakan referensi khusus:
+
+- `ITINERARY_DETAIL_MAP_ARCHITECTURE.md`
+
+Kenapa dipisah:
+- Create/edit map adalah preview berbasis state DOM form.
+- Show map adalah render berbasis data itinerary tersimpan.
+- Logika polyline show map sudah diset untuk route jalan saja (tanpa fallback garis lurus).
+
+## 13. Gambaran Mental Sistem Create/Edit
 
 Cara paling tepat membayangkan sistem ini adalah:
 
@@ -539,7 +551,7 @@ Source of truth yang sesungguhnya saat create/edit adalah kombinasi:
 - hasil `reindex()`
 - hasil `normalizeDayPoints()` di backend
 
-## 13. Kesimpulan Praktis
+## 14. Kesimpulan Praktis
 
 Halaman create/edit itinerary saat ini adalah form dinamis yang sangat padat, dengan tiga lapisan logika:
 

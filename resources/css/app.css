@@ -547,6 +547,20 @@
         transform: scale(1.08);
     }
 
+    .itinerary-show-page .itinerary-map-travel-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 20px;
+        padding: 0 8px;
+        border-radius: 9999px;
+        font-size: 10px;
+        font-weight: 700;
+        color: #fff;
+        background: rgba(15, 23, 42, 0.86);
+        border: 1px solid rgba(255, 255, 255, 0.8);
+    }
+
     .itinerary-show-page .timeline-travel-label {
         writing-mode: vertical-rl;
         text-orientation: mixed;

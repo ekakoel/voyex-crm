@@ -188,6 +188,18 @@ Important behavior:
 Known risk area from docs:
 - Transport unit submit validation has been noted as potential table/model mismatch and should be verified before related refactors.
 
+### 8.1 Itinerary Detail Map (Show Page) Reference
+
+Map pada halaman detail itinerary memiliki arsitektur khusus dan sudah didokumentasikan terpisah di:
+- `ITINERARY_DETAIL_MAP_ARCHITECTURE.md`
+
+Ringkasan aturan penting:
+- Marker diambil dari kombinasi start point, item schedule (attraction/activity/F&B), dan end point per day.
+- Polyline harus mengikuti route jalan (OSRM), tanpa fallback garis lurus.
+- Render harus memakai guard concurrency/stabilitas (render token + abort fetch + busy guard).
+- Mode renderer yang dipakai untuk stabilitas adalah SVG (`preferCanvas: false`, `renderer: L.svg()`).
+- Tombol `All Days` dan `Day N` wajib memfilter marker + route sesuai day yang dipilih.
+
 ---
 
 ## 9. Engineering and Architecture Principles
@@ -252,6 +264,7 @@ After each change, minimum QA expectation:
 - `LAYOUT_GUIDE.md`
 - `CHEAT_SHEET.md`
 - `ITINERARY_CREATE_EDIT_FLOW.md`
+- `ITINERARY_DETAIL_MAP_ARCHITECTURE.md`
 - `ANALYSIS_REPORT.md`
 - `SIDEBAR_COLLAPSE_FIX.md`
 - `modul.md`
@@ -267,4 +280,3 @@ If a conflict exists between docs, follow this priority:
 2. `VOYEX_CRM_SYSTEM_ROADMAP.md`
 3. `LAYOUT_GUIDE.md`
 4. Other supporting docs
-

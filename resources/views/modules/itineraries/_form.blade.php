@@ -2030,6 +2030,27 @@
                     }
                 };
                 const pointOptionCache = new WeakMap();
+                const clonePointOptions = (sourceSelect, targetSelect) => {
+                    if (!sourceSelect || !targetSelect) return;
+                    let sourceOptions = pointOptionCache.get(sourceSelect);
+                    if (!sourceOptions || sourceOptions.length === 0) {
+                        sourceOptions = Array.from(sourceSelect.options).map((option) => {
+                            const clone = option.cloneNode(true);
+                            clone.hidden = false;
+                            clone.disabled = false;
+                            return clone;
+                        });
+                    }
+                    const targetOptions = sourceOptions.map((option) => {
+                        const clone = option.cloneNode(true);
+                        clone.hidden = false;
+                        clone.disabled = false;
+                        return clone;
+                    });
+                    targetSelect.innerHTML = '';
+                    targetOptions.forEach((option) => targetSelect.appendChild(option.cloneNode(true)));
+                    pointOptionCache.set(targetSelect, targetOptions);
+                };
                 const destinationInput = document.getElementById('itinerary-destination');
                 const normalizeDestination = (value) => String(value || '').toLowerCase().trim();
                 const matchesDestinationOption = (option) => {
@@ -2455,6 +2476,12 @@
                         if (!daySections.querySelector(`.day-section[data-day="${i}"]`) && secs.length) {
                             const c = secs[0].cloneNode(true);
                             resetClonedWysiwyg(c);
+                            const sourceStartPointSelect = secs[0].querySelector('.day-start-point-item');
+                            const sourceEndPointSelect = secs[0].querySelector('.day-end-point-item');
+                            const cloneStartPointSelect = c.querySelector('.day-start-point-item');
+                            const cloneEndPointSelect = c.querySelector('.day-end-point-item');
+                            clonePointOptions(sourceStartPointSelect, cloneStartPointSelect);
+                            clonePointOptions(sourceEndPointSelect, cloneEndPointSelect);
                             c.dataset.day = String(i);
                             const cloneDayTitle = c.querySelector('.day-title-label');
                             if (cloneDayTitle) cloneDayTitle.textContent = `Day ${i}`;
