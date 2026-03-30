@@ -2001,6 +2001,22 @@
                         if (isHotelPointType(endType)) endCard.classList.add('theme-hotel');
                     }
                 };
+                const resetClonedWysiwyg = (section) => {
+                    if (!section) return;
+                    section.querySelectorAll('.wysiwyg').forEach((wrapper) => wrapper.remove());
+                    section.querySelectorAll('textarea[data-wysiwyg-initialized], textarea[data-wysiwyg-hidden]')
+                        .forEach((textarea) => {
+                            textarea.removeAttribute('data-wysiwyg-initialized');
+                            textarea.removeAttribute('data-wysiwyg-hidden');
+                            textarea.style.position = '';
+                            textarea.style.left = '';
+                            textarea.style.top = '';
+                            textarea.style.width = '';
+                            textarea.style.height = '';
+                            textarea.style.opacity = '';
+                            textarea.style.pointerEvents = '';
+                        });
+                };
                 const updateScheduleRowTheme = (row) => {
                     if (!row) return;
                     const type = rowType(row);
@@ -2100,7 +2116,7 @@
                                     }
                                     itemSelect.appendChild(clone);
                                 });
-                            });
+                            }
 
                             if (selectedValue !== '' &&
                                 !Array.from(itemSelect.options).some((option) => option.value === selectedValue)) {
@@ -2438,6 +2454,7 @@
                     for (let i = 1; i <= d; i++) {
                         if (!daySections.querySelector(`.day-section[data-day="${i}"]`) && secs.length) {
                             const c = secs[0].cloneNode(true);
+                            resetClonedWysiwyg(c);
                             c.dataset.day = String(i);
                             const cloneDayTitle = c.querySelector('.day-title-label');
                             if (cloneDayTitle) cloneDayTitle.textContent = `Day ${i}`;
