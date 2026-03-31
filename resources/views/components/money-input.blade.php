@@ -19,7 +19,12 @@
 ])
 
 @php
-    $badgeText = $badge ?? 'IDR';
+    $activeCurrencyCode = strtoupper((string) (\App\Support\Currency::current() ?: 'IDR'));
+    $activeCurrencyMeta = \App\Support\Currency::meta($activeCurrencyCode);
+    $activeCurrencySymbol = is_array($activeCurrencyMeta) && !empty($activeCurrencyMeta['symbol'])
+        ? (string) $activeCurrencyMeta['symbol']
+        : ($activeCurrencyCode === 'USD' ? '$' : 'Rp');
+    $badgeText = $badge ?? $activeCurrencySymbol;
     $wrapperClass = $wrapperClass ?? ($compact ? '' : 'space-y-1');
     $baseInputClass = $compact
         ? 'app-input pr-14'
@@ -48,7 +53,7 @@
             @if ($readonly) readonly @endif
             @if ($placeholder) placeholder="{{ $placeholder }}" @endif
             data-money-input="1"
-            data-money-currency="IDR"
+            data-money-currency="{{ $activeCurrencyCode }}"
             {{ $attributes->merge(['class' => $inputClass]) }}
         >
         <span

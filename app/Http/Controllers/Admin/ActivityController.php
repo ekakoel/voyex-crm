@@ -11,6 +11,8 @@ use App\Support\ImageThumbnailGenerator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class ActivityController extends Controller
 {
@@ -200,6 +202,10 @@ class ActivityController extends Controller
             'descriptions' => ['nullable', 'string'],
             'adult_contract_rate' => ['nullable', 'numeric', 'min:0'],
             'child_contract_rate' => ['nullable', 'numeric', 'min:0'],
+            'adult_markup_type' => ['nullable', Rule::in(['fixed', 'percent'])],
+            'adult_markup' => ['nullable', 'numeric', 'min:0'],
+            'child_markup_type' => ['nullable', Rule::in(['fixed', 'percent'])],
+            'child_markup' => ['nullable', 'numeric', 'min:0'],
             'adult_publish_rate' => ['nullable', 'numeric', 'min:0'],
             'child_publish_rate' => ['nullable', 'numeric', 'min:0'],
             'capacity_min' => ['nullable', 'integer', 'min:1'],
@@ -223,12 +229,56 @@ class ActivityController extends Controller
         unset($validated['activity_type_name']);
 
         $validated['is_active'] = $request->boolean('is_active');
+        $validated['adult_markup_type'] = (($validated['adult_markup_type'] ?? 'fixed') === 'percent') ? 'percent' : 'fixed';
+        $validated['child_markup_type'] = (($validated['child_markup_type'] ?? 'fixed') === 'percent') ? 'percent' : 'fixed';
+        $validated['adult_contract_rate'] = max(0, (float) ($validated['adult_contract_rate'] ?? 0));
+        $validated['child_contract_rate'] = max(0, (float) ($validated['child_contract_rate'] ?? 0));
+        $validated['adult_markup'] = max(0, (float) ($validated['adult_markup'] ?? 0));
+        $validated['child_markup'] = max(0, (float) ($validated['child_markup'] ?? 0));
+
+        if ($validated['adult_markup_type'] === 'percent' && $validated['adult_markup'] > 100) {
+            throw ValidationException::withMessages([
+                'adult_markup' => 'Adult markup percent cannot be greater than 100.',
+            ]);
+        }
+        if ($validated['child_markup_type'] === 'percent' && $validated['child_markup'] > 100) {
+            throw ValidationException::withMessages([
+                'child_markup' => 'Child markup percent cannot be greater than 100.',
+            ]);
+        }
+
+        $validated['adult_publish_rate'] = round($this->calculatePublishRate(
+            $validated['adult_contract_rate'],
+            $validated['adult_markup_type'],
+            $validated['adult_markup']
+        ), 0);
+        $validated['child_publish_rate'] = round($this->calculatePublishRate(
+            $validated['child_contract_rate'],
+            $validated['child_markup_type'],
+            $validated['child_markup']
+        ), 0);
+        $validated['adult_contract_rate'] = round($validated['adult_contract_rate'], 0);
+        $validated['child_contract_rate'] = round($validated['child_contract_rate'], 0);
+        $validated['adult_markup'] = round($validated['adult_markup'], 0);
+        $validated['child_markup'] = round($validated['child_markup'], 0);
 
         // Keep backward compatibility for flows that still read `contract_price`.
         $validated['adult_contract_rate'] = $validated['adult_contract_rate'] ?? null;
         $validated['contract_price'] = $validated['adult_contract_rate'];
 
         return $validated;
+    }
+
+    private function calculatePublishRate(float $contractRate, string $markupType, float $markup): float
+    {
+        $base = max(0, $contractRate);
+        $value = max(0, $markup);
+
+        if ($markupType === 'percent') {
+            return $base + ($base * ($value / 100));
+        }
+
+        return $base + $value;
     }
 
     private function wantsAjaxFragment(Request $request): bool

@@ -8,6 +8,11 @@
     $transportTypes = ['car', 'van', 'bus', 'boat', 'ferry', 'train', 'helicopter', 'other'];
     $fuelTypes = ['petrol', 'diesel', 'electric', 'hybrid', 'other'];
     $transmissions = ['manual', 'automatic'];
+    $defaultMarkupType = old('markup_type', $transport->markup_type ?? 'fixed');
+    $defaultMarkup = old('markup', $transport->markup ?? null);
+    if ($defaultMarkup === null) {
+        $defaultMarkup = max(0, (float) (($transport->publish_rate ?? 0) - ($transport->contract_rate ?? 0)));
+    }
 @endphp
 
 <div class="space-y-5">
@@ -121,7 +126,7 @@
         </div>
     </div>
 
-    <div class="grid grid-cols-1 gap-4 md:grid-cols-5">
+    <div class="grid grid-cols-1 gap-4 md:grid-cols-6">
         <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Seats</label>
             <input name="seat_capacity" type="number" min="1" value="{{ old('seat_capacity', $transport->seat_capacity ?? 4) }}" class="mt-1 dark:border-gray-600 app-input" required>
@@ -137,17 +142,37 @@
             label-class="block text-sm font-medium text-gray-700 dark:text-gray-200"
             name="contract_rate"
             :value="old('contract_rate', $transport->contract_rate ?? '')"
+            id="transport-contract-rate"
             min="0"
             step="0.01"
             required
         />
+        <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Markup Type</label>
+            <select name="markup_type" id="transport-markup-type" class="mt-1 dark:border-gray-600 app-input">
+                <option value="fixed" @selected($defaultMarkupType === 'fixed')>Fixed</option>
+                <option value="percent" @selected($defaultMarkupType === 'percent')>Percent</option>
+            </select>
+            @error('markup_type') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+        </div>
         <x-money-input
-            label="Publish Rate"
+            label="Markup"
+            label-class="block text-sm font-medium text-gray-700 dark:text-gray-200"
+            name="markup"
+            :value="$defaultMarkup"
+            id="transport-markup"
+            min="0"
+            step="0.01"
+        />
+        <x-money-input
+            label="Publish Rate (Auto)"
             label-class="block text-sm font-medium text-gray-700 dark:text-gray-200"
             name="publish_rate"
             :value="old('publish_rate', $transport->publish_rate ?? '')"
+            id="transport-publish-rate"
             min="0"
             step="0.01"
+            readonly
         />
         <x-money-input
             label="Overtime Rate"
@@ -240,7 +265,57 @@
                 const vendorSelect = document.getElementById('transport-vendor-select');
                 const input = document.getElementById('transport-gallery-input');
                 const preview = document.getElementById('transport-gallery-preview');
+                const contractRateInput = document.getElementById('transport-contract-rate');
+                const markupTypeSelect = document.getElementById('transport-markup-type');
+                const markupInput = document.getElementById('transport-markup');
+                const publishRateInput = document.getElementById('transport-publish-rate');
                 if (!input || !preview) return;
+
+                const parseMoney = (value) => {
+                    const raw = String(value ?? '').trim();
+                    if (raw === '') return 0;
+
+                    // Decimal style from backend (example: "2800000.00")
+                    if (/^\d+([.,]\d{1,2})?$/.test(raw) && !raw.includes(' ')) {
+                        const numeric = Number(raw.replace(',', '.'));
+                        return Number.isFinite(numeric) ? Math.round(numeric) : 0;
+                    }
+
+                    // Grouped style from UI (example: "2.800.000")
+                    const digits = raw.replace(/[^\d]/g, '');
+                    if (digits === '') return 0;
+                    const numeric = Number(digits);
+                    return Number.isFinite(numeric) ? numeric : 0;
+                };
+
+                const syncMarkupBadge = () => {
+                    if (!markupInput || !markupTypeSelect) return;
+                    const badge = markupInput.parentElement?.querySelector('[data-money-badge="1"]');
+                    if (!badge) return;
+                    badge.textContent = markupTypeSelect.value === 'percent'
+                        ? '%'
+                        : (window.appCurrencySymbol || window.appCurrency || 'IDR');
+                };
+
+                const recalcPublishRate = () => {
+                    if (!publishRateInput || !contractRateInput || !markupInput || !markupTypeSelect) return;
+
+                    const contractRate = parseMoney(contractRateInput.value);
+                    let markupValue = parseMoney(markupInput.value);
+                    const markupType = markupTypeSelect.value === 'percent' ? 'percent' : 'fixed';
+
+                    if (markupType === 'percent' && markupValue > 100) {
+                        markupValue = 100;
+                        markupInput.value = '100';
+                    }
+
+                    const publishRate = markupType === 'percent'
+                        ? contractRate + (contractRate * (markupValue / 100))
+                        : contractRate + markupValue;
+
+                    publishRateInput.value = String(Math.max(0, Math.round(publishRate)));
+                    syncMarkupBadge();
+                };
 
                 const applyVendorFilter = () => {
                     if (!destinationFilter || !vendorSelect) return;
@@ -336,6 +411,9 @@
 
                 input.addEventListener('change', renderNewUploads);
                 destinationFilter?.addEventListener('change', applyVendorFilter);
+                contractRateInput?.addEventListener('input', recalcPublishRate);
+                markupInput?.addEventListener('input', recalcPublishRate);
+                markupTypeSelect?.addEventListener('change', recalcPublishRate);
 
                 preview.addEventListener('click', async (event) => {
                     const button = event.target.closest('.transport-gallery-remove-btn');
@@ -380,6 +458,7 @@
 
                 ensureEmptyState();
                 applyVendorFilter();
+                recalcPublishRate();
             })();
         </script>
     @endpush

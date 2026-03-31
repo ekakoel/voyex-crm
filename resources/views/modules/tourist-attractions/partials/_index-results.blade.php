@@ -30,6 +30,12 @@
                                 <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">
                                     <div>Contract: {{ $touristAttraction->contract_rate_per_pax !== null ? \App\Support\Currency::format((float) $touristAttraction->contract_rate_per_pax, 'IDR') : '-' }}</div>
                                     <div class="text-xs text-gray-500 dark:text-gray-400">
+                                        Markup:
+                                        {{ ($touristAttraction->markup_type ?? 'fixed') === 'percent'
+                                            ? rtrim(rtrim(number_format((float) ($touristAttraction->markup ?? 0), 2, '.', ''), '0'), '.') . '%'
+                                            : \App\Support\Currency::format((float) ($touristAttraction->markup ?? 0), 'IDR') }}
+                                    </div>
+                                    <div class="text-xs text-gray-500 dark:text-gray-400">
                                         Publish:
                                         {{ $touristAttraction->publish_rate_per_pax !== null ? \App\Support\Currency::format((float) $touristAttraction->publish_rate_per_pax, 'IDR') : '-' }}
                                     </div>
@@ -65,6 +71,12 @@
                     <p class="text-xs text-indigo-600 dark:text-indigo-300">{{ $touristAttraction->destination?->name ?? '-' }}</p>
                     <p class="text-xs text-gray-500 dark:text-gray-400">Ideal: {{ $touristAttraction->ideal_visit_minutes }} min</p>
                     <p class="text-xs text-gray-500 dark:text-gray-400">Contract: {{ $touristAttraction->contract_rate_per_pax !== null ? \App\Support\Currency::format((float) $touristAttraction->contract_rate_per_pax, 'IDR') : '-' }} / pax</p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">
+                        Markup:
+                        {{ ($touristAttraction->markup_type ?? 'fixed') === 'percent'
+                            ? rtrim(rtrim(number_format((float) ($touristAttraction->markup ?? 0), 2, '.', ''), '0'), '.') . '%'
+                            : \App\Support\Currency::format((float) ($touristAttraction->markup ?? 0), 'IDR') }}
+                    </p>
                     <p class="text-xs text-gray-500 dark:text-gray-400">Publish: {{ $touristAttraction->publish_rate_per_pax !== null ? \App\Support\Currency::format((float) $touristAttraction->publish_rate_per_pax, 'IDR') : '-' }} / pax</p>
                     <p class="text-xs text-gray-500 dark:text-gray-400">{{ trim(($touristAttraction->city ?? '') . (($touristAttraction->city && $touristAttraction->province) ? ', ' : '') . ($touristAttraction->province ?? '')) ?: '-' }}</p>
                     <p class="text-xs text-gray-500 dark:text-gray-400">{{ $touristAttraction->country ?? '-' }}</p>

@@ -10,7 +10,7 @@
 
 @section('content')
     <div class="space-y-6 module-page">
-        <div class="module-grid-9-3">
+        <div class="module-grid-8-4">
             <section class="module-grid-main module-card p-6">
                 <!-- Main content -->
             </section>

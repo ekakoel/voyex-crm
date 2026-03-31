@@ -13,7 +13,7 @@
             <a href="{{ route('bookings.index') }}"  class="btn-ghost">Back</a>
         @endsection
 
-        <div class="module-grid-9-3">
+        <div class="module-grid-8-4">
             <div class="module-grid-main">
                 <div class="module-card p-6 space-y-4">
                     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">

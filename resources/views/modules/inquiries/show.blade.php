@@ -52,7 +52,7 @@
 
 
 
-        <div class="module-grid-9-3">
+        <div class="module-grid-8-4">
 
             <div class="module-grid-side lg:order-2 space-y-6">
                 <div class="app-card p-5 mb-6">

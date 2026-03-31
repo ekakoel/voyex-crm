@@ -12,7 +12,7 @@ use App\Models\TransportUnit;
 class ItineraryQuotationService
 {
     /**
-     * @return array<int, array{description:string, qty:int, unit_price:float, discount:float, serviceable_type?:string, serviceable_id?:int, day_number?:int, serviceable_meta?:array, itinerary_item_type?:string}>
+     * @return array<int, array{description:string, qty:int, contract_rate:float, markup_type:string, markup:float, unit_price:float, discount:float, serviceable_type?:string, serviceable_id?:int, day_number?:int, serviceable_meta?:array, itinerary_item_type?:string}>
      */
     public function buildItems(Itinerary $itinerary): array
     {
@@ -236,7 +236,7 @@ class ItineraryQuotationService
     }
 
     /**
-     * @return array{description:string, qty:int, unit_price:float, discount:float, serviceable_type?:string, serviceable_id?:int, day_number?:int, serviceable_meta?:array, itinerary_item_type?:string}
+     * @return array{description:string, qty:int, contract_rate:float, markup_type:string, markup:float, unit_price:float, discount:float, serviceable_type?:string, serviceable_id?:int, day_number?:int, serviceable_meta?:array, itinerary_item_type?:string}
      */
     private function makeItem(
         string $description,
@@ -253,6 +253,9 @@ class ItineraryQuotationService
         $item = [
             'description' => trim($description),
             'qty' => max(1, $qty),
+            'contract_rate' => max(0, $unitPrice),
+            'markup_type' => 'fixed',
+            'markup' => 0,
             'unit_price' => max(0, $unitPrice),
             'discount' => max(0, $discount),
         ];

@@ -2,6 +2,11 @@
     $buttonLabel = $buttonLabel ?? 'Save';
     $touristAttraction = $touristAttraction ?? null;
     $destinations = $destinations ?? collect();
+    $defaultMarkupType = old('markup_type', $touristAttraction->markup_type ?? 'fixed');
+    $defaultMarkup = old('markup', $touristAttraction->markup ?? null);
+    if ($defaultMarkup === null) {
+        $defaultMarkup = max(0, (float) (($touristAttraction->publish_rate_per_pax ?? 0) - ($touristAttraction->contract_rate_per_pax ?? 0)));
+    }
 @endphp
 
 <div class="space-y-4" data-location-autofill data-location-resolve-url="{{ route('location.resolve-google-map') }}">
@@ -101,24 +106,46 @@
         <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Timezone</label>
         <input data-location-field="timezone" name="timezone" value="{{ old('timezone', $touristAttraction->timezone ?? '') }}" class="mt-1 dark:border-gray-600 app-input">
     </div>
-    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div>
             <x-money-input
                 label="Contract Rate (per pax)"
                 name="contract_rate_per_pax"
                 :value="old('contract_rate_per_pax', $touristAttraction->contract_rate_per_pax ?? '')"
+                id="tourist-contract-rate"
                 min="0"
-                step="0.01"
+                step="1"
             />
             @error('contract_rate_per_pax') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
         </div>
         <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Markup Type</label>
+            <select name="markup_type" id="tourist-markup-type" class="mt-1 dark:border-gray-600 app-input">
+                <option value="fixed" @selected($defaultMarkupType === 'fixed')>Fixed</option>
+                <option value="percent" @selected($defaultMarkupType === 'percent')>Percent</option>
+            </select>
+            @error('markup_type') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+        </div>
+        <div>
             <x-money-input
-                label="Publish Rate (per pax)"
+                label="Markup (per pax)"
+                name="markup"
+                :value="$defaultMarkup"
+                id="tourist-markup"
+                min="0"
+                step="1"
+            />
+            @error('markup') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+        </div>
+        <div>
+            <x-money-input
+                label="Publish Rate (Auto / per pax)"
                 name="publish_rate_per_pax"
+                id="tourist-publish-rate"
                 :value="old('publish_rate_per_pax', $touristAttraction->publish_rate_per_pax ?? '')"
                 min="0"
-                step="0.01"
+                step="1"
+                readonly
             />
             @error('publish_rate_per_pax') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
         </div>
@@ -147,7 +174,55 @@
             (function () {
                 const input = document.getElementById('tourist-attraction-gallery-input');
                 const preview = document.getElementById('tourist-attraction-gallery-preview');
+                const contractRateInput = document.getElementById('tourist-contract-rate');
+                const markupTypeSelect = document.getElementById('tourist-markup-type');
+                const markupInput = document.getElementById('tourist-markup');
+                const publishRateInput = document.getElementById('tourist-publish-rate');
                 if (!input || !preview) return;
+
+                const parseMoney = (value) => {
+                    const raw = String(value ?? '').trim();
+                    if (raw === '') return 0;
+
+                    if (/^\d+([.,]\d{1,2})?$/.test(raw) && !raw.includes(' ')) {
+                        const numeric = Number(raw.replace(',', '.'));
+                        return Number.isFinite(numeric) ? Math.round(numeric) : 0;
+                    }
+
+                    const digits = raw.replace(/[^\d]/g, '');
+                    if (digits === '') return 0;
+                    const numeric = Number(digits);
+                    return Number.isFinite(numeric) ? numeric : 0;
+                };
+
+                const syncMarkupBadge = () => {
+                    if (!markupInput || !markupTypeSelect) return;
+                    const badge = markupInput.parentElement?.querySelector('[data-money-badge="1"]');
+                    if (!badge) return;
+                    badge.textContent = markupTypeSelect.value === 'percent'
+                        ? '%'
+                        : (window.appCurrencySymbol || window.appCurrency || 'IDR');
+                };
+
+                const recalcPublishRate = () => {
+                    if (!publishRateInput || !contractRateInput || !markupInput || !markupTypeSelect) return;
+
+                    const contractRate = parseMoney(contractRateInput.value);
+                    let markupValue = parseMoney(markupInput.value);
+                    const markupType = markupTypeSelect.value === 'percent' ? 'percent' : 'fixed';
+
+                    if (markupType === 'percent' && markupValue > 100) {
+                        markupValue = 100;
+                        markupInput.value = '100';
+                    }
+
+                    const publishRate = markupType === 'percent'
+                        ? contractRate + (contractRate * (markupValue / 100))
+                        : contractRate + markupValue;
+
+                    publishRateInput.value = String(Math.max(0, Math.round(publishRate)));
+                    syncMarkupBadge();
+                };
 
                 const buildPreviewPlaceholder = () => `
                     <div class="image-preview-placeholder">
@@ -217,6 +292,9 @@
                 };
 
                 input.addEventListener('change', renderNewUploads);
+                contractRateInput?.addEventListener('input', recalcPublishRate);
+                markupInput?.addEventListener('input', recalcPublishRate);
+                markupTypeSelect?.addEventListener('change', recalcPublishRate);
 
                 preview.addEventListener('click', async (event) => {
                     const button = event.target.closest('.tourist-gallery-remove-btn');
@@ -260,11 +338,10 @@
                 });
 
                 ensureEmptyState();
+                recalcPublishRate();
             })();
         </script>
     @endpush
 @endonce
-
-
 
 

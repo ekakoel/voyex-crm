@@ -77,6 +77,9 @@
                                         Contract: <x-money :amount="(float) $transport->contract_rate" currency="IDR" />
                                     </div>
                                     <div class="text-xs text-gray-500 dark:text-gray-400">
+                                        Markup: {{ ($transport->markup_type ?? 'fixed') === 'percent' ? rtrim(rtrim(number_format((float) ($transport->markup ?? 0), 2, '.', ''), '0'), '.') . '%' : \App\Support\Currency::format((float) ($transport->markup ?? 0), 'IDR') }}
+                                    </div>
+                                    <div class="text-xs text-gray-500 dark:text-gray-400">
                                         Publish: <x-money :amount="(float) $transport->publish_rate" currency="IDR" />
                                     </div>
                                 @else
@@ -125,7 +128,10 @@
                         <div>Rate</div>
                         <div>
                             @if ($transport->contract_rate !== null)
-                                <x-money :amount="(float) $transport->contract_rate" currency="IDR" />
+                                <div><x-money :amount="(float) $transport->contract_rate" currency="IDR" /></div>
+                                <div class="text-gray-500 dark:text-gray-400">
+                                    {{ ($transport->markup_type ?? 'fixed') === 'percent' ? rtrim(rtrim(number_format((float) ($transport->markup ?? 0), 2, '.', ''), '0'), '.') . '%' : \App\Support\Currency::format((float) ($transport->markup ?? 0), 'IDR') }}
+                                </div>
                             @else
                                 -
                             @endif

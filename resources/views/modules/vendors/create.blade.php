@@ -3,7 +3,7 @@
 @section('page_subtitle', 'Create a new vendors / provider.')
 @section('content')
     <div class="space-y-6 module-page module-page--vendors">
-        <div class="module-grid-9-3">
+        <div class="module-grid-8-4">
             <div class="module-grid-main">
                 <div class="module-form-wrap">
                     <form method="POST" action="{{ route('vendors.store') }}">

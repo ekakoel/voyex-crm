@@ -45,7 +45,7 @@
             <x-index-stats :cards="$serviceCards" />
         </div>
 
-        <div class="module-grid-9-3">
+        <div class="module-grid-8-4">
             <div class="module-grid-main">
                 <div class="app-card p-4 mb-6">
                     <div class="grid grid-cols-1 gap-3 text-sm md:grid-cols-2">

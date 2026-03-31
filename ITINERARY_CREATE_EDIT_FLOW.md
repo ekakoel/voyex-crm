@@ -160,14 +160,19 @@ Setiap `day-section` memiliki:
 - tombol add attraction/activity/F&B
 - transport unit harian
 - day start point
+- day start point disusun satu baris untuk pasangan selector type (`Airport/Hotel`) + item
 - day start room bila start point hotel
 - travel minutes dari start point ke item pertama
 - kumpulan `schedule-row`
 - day end point
+- day end point disusun satu baris untuk pasangan selector type (`Airport/Hotel`) + item
+- end-time text indicator di pojok kanan atas card day end point (sinkron dengan end time kalkulasi)
 - day end room bila end point hotel
 - hidden main experience type/item
 - day includes
 - day excludes
+- frontend required rules untuk field wajib (termasuk conditional required untuk point item/room berdasarkan type)
+- indikator visual wajib (`*` merah) otomatis tampil pada label field yang required (termasuk required dinamis)
 
 ## 5. Struktur `schedule-row`
 
@@ -178,6 +183,7 @@ Komponennya:
 - drag handle
 - badge urutan item
 - item type selector
+- region selector (`city`) per row
 - select attraction
 - select activity
 - select F&B
@@ -190,6 +196,11 @@ Komponennya:
 - hidden day number
 - hidden visit order
 
+Format label option pada selector item:
+- Attraction: tampil `Attraction name`
+- Activity: tampil `Activity name - Vendor name`
+- F&B: tampil `F&B name - Vendor name`
+
 Row tidak langsung punya `name` untuk semua input. `name` baru dipasang ulang oleh JavaScript saat `reindex()` sesuai tipe item dan hanya untuk row yang dianggap aktif/terpilih.
 
 ## 6. Sidebar Inquiry Detail
@@ -200,8 +211,9 @@ Alurnya:
 
 - `inquiryPreviewMap` di-embed dari Blade ke JS
 - saat inquiry select berubah, fungsi `setDetail()` dijalankan
+- card `Inquiry Detail` disembunyikan jika inquiry belum dipilih
 - field sidebar diisi dari map tersebut
-- bila inquiry kosong, blok detail disembunyikan
+- bila inquiry kosong, card detail tidak ditampilkan
 
 Artinya sidebar inquiry tidak fetch ulang ke server saat user memilih inquiry.
 
@@ -223,6 +235,10 @@ Flow-nya:
   - start point item
   - end point item
   - transport unit
+- perubahan region pada row schedule memicu filter lokal row tersebut:
+  - item attraction
+  - item activity
+  - item F&B
 
 Ada juga `MutationObserver` supaya filter destination dijalankan ulang saat DOM berubah, misalnya ketika day/row baru diclone.
 
@@ -255,6 +271,8 @@ Mengubah row ke mode attraction/activity/F&B:
 Membangun ulang UI connector travel antar item.
 
 Travel antar item sebenarnya disimpan pada hidden input `.item-travel`, tetapi ditampilkan sebagai card connector terpisah di antara row.
+UI connector disederhanakan menjadi input setengah lebar, tanpa label terpisah (menggunakan placeholder), dengan ikon mobil di sisi kiri dalam input.
+Untuk menghindari overlap ikon dengan placeholder/text, input menggunakan wrapper left-affix dengan `padding-left` khusus.
 
 ### `recalcDay(section)`
 
@@ -551,6 +569,10 @@ Source of truth yang sesungguhnya saat create/edit adalah kombinasi:
 - hasil `reindex()`
 - hasil `normalizeDayPoints()` di backend
 
+Catatan UI terbaru untuk point hotel:
+- Saat type point = `hotel`, susunan input dibuat satu baris: `Type + Item + Room` (baik Start Point maupun End Point).
+- Implementasi layout row menggunakan grup flex responsif agar stabil di tablet/desktop dan tetap aman di mobile.
+
 ## 14. Kesimpulan Praktis
 
 Halaman create/edit itinerary saat ini adalah form dinamis yang sangat padat, dengan tiga lapisan logika:
@@ -566,3 +588,19 @@ Jika ada bug di halaman ini, biasanya akar masalahnya jatuh ke salah satu dari t
 - relasi antara state DOM, hidden payload, dan normalisasi controller belum sinkron
 
 Dokumen ini sengaja ditulis sebagai peta navigasi sebelum melakukan perbaikan lebih lanjut pada halaman create/edit itinerary.
+
+## 15. Responsive Hardening (Mobile/Tablet)
+
+Per 2026-03-30, itinerary views (`create`, `edit`, `_form`, `show`, `index`) ditambah guard untuk mencegah konten terpotong di layar kecil:
+
+- Wrapper grid/card/aside itinerary diberi `min-w-0` agar child bisa shrink dan tidak memaksa overflow.
+- Header day card di `_form` tidak lagi memakai `min-w-[280px]` pada pill endpoint summary.
+- Meta text `Starts at / Ends at` pada day header sekarang boleh wrap.
+- Baris `Start Tour / End Tour` sekarang mobile-safe:
+  - group bisa wrap,
+  - label tetap singkat (`whitespace-nowrap`),
+  - input time pakai lebar responsif (`w-full sm:w-36`).
+- Group tombol `Add Attraction / Add Activity / Add F&B` sekarang boleh wrap di mobile.
+- Fallback CSS mobile (`max-width: 640px`) menumpuk day header secara vertikal dan memaksa `travel-connector` full width.
+
+Tujuan perubahan ini: memastikan seluruh form itinerary tetap utuh (tidak terpotong kanan/kiri) pada perangkat mobile dan tablet tanpa mengubah perilaku bisnis/payload.

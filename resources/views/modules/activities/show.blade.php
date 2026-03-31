@@ -13,7 +13,7 @@
     @php($isActive = ! $activity->trashed())
     @php($firstGalleryImage = !empty($gallery) ? asset('storage/'.$gallery[0]) : null)
     <div class="space-y-6 module-page module-page--activities">
-        <div class="module-grid-9-3 activity-detail-print-grid">
+        <div class="module-grid-8-4 activity-detail-print-grid">
             <div class="module-grid-main space-y-4">
                 <div class="app-card p-5">
                     <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">Gallery</h3>
@@ -90,8 +90,28 @@
                             <p class="text-sm font-medium text-gray-800 dark:text-gray-100"><x-money :amount="(float) ($activity->adult_publish_rate ?? 0)" currency="IDR" /></p>
                         </div>
                         <div>
+                            <p class="text-xs text-gray-500 dark:text-gray-400">Adult Markup</p>
+                            <p class="text-sm font-medium text-gray-800 dark:text-gray-100">
+                                @if (($activity->adult_markup_type ?? 'fixed') === 'percent')
+                                    {{ rtrim(rtrim(number_format((float) ($activity->adult_markup ?? 0), 2, '.', ''), '0'), '.') }}%
+                                @else
+                                    <x-money :amount="(float) ($activity->adult_markup ?? 0)" currency="IDR" />
+                                @endif
+                            </p>
+                        </div>
+                        <div>
                             <p class="text-xs text-gray-500 dark:text-gray-400">Child Publish Rate</p>
                             <p class="text-sm font-medium text-gray-800 dark:text-gray-100"><x-money :amount="(float) ($activity->child_publish_rate ?? 0)" currency="IDR" /></p>
+                        </div>
+                        <div>
+                            <p class="text-xs text-gray-500 dark:text-gray-400">Child Markup</p>
+                            <p class="text-sm font-medium text-gray-800 dark:text-gray-100">
+                                @if (($activity->child_markup_type ?? 'fixed') === 'percent')
+                                    {{ rtrim(rtrim(number_format((float) ($activity->child_markup ?? 0), 2, '.', ''), '0'), '.') }}%
+                                @else
+                                    <x-money :amount="(float) ($activity->child_markup ?? 0)" currency="IDR" />
+                                @endif
+                            </p>
                         </div>
                     </div>
                 </div>

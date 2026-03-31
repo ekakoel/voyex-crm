@@ -72,6 +72,12 @@
                                     Contract: <x-money :amount="(float) ($foodBeverage->contract_rate ?? 0)" currency="IDR" />
                                 </div>
                                 <div class="text-xs text-gray-500 dark:text-gray-400">
+                                    Markup:
+                                    {{ ($foodBeverage->markup_type ?? 'fixed') === 'percent'
+                                        ? rtrim(rtrim(number_format((float) ($foodBeverage->markup ?? 0), 2, '.', ''), '0'), '.') . '%'
+                                        : \App\Support\Currency::format((float) ($foodBeverage->markup ?? 0), 'IDR') }}
+                                </div>
+                                <div class="text-xs text-gray-500 dark:text-gray-400">
                                     Publish: <x-money :amount="(float) ($foodBeverage->publish_rate ?? 0)" currency="IDR" />
                                 </div>
                             </td>
@@ -92,7 +98,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="8" class="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">No F&B service available.</td>
+                            <td colspan="7" class="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">No F&B service available.</td>
                         </tr>
                     @endforelse
                 </tbody>
@@ -115,6 +121,12 @@
                         <div>Rate</div>
                         <div>
                             <div>Contract: <x-money :amount="(float) ($foodBeverage->contract_rate ?? 0)" currency="IDR" /></div>
+                            <div class="text-gray-500 dark:text-gray-400">
+                                Markup:
+                                {{ ($foodBeverage->markup_type ?? 'fixed') === 'percent'
+                                    ? rtrim(rtrim(number_format((float) ($foodBeverage->markup ?? 0), 2, '.', ''), '0'), '.') . '%'
+                                    : \App\Support\Currency::format((float) ($foodBeverage->markup ?? 0), 'IDR') }}
+                            </div>
                             <div class="text-gray-500 dark:text-gray-400">Publish: <x-money :amount="(float) ($foodBeverage->publish_rate ?? 0)" currency="IDR" /></div>
                         </div>
                         <div>Status</div>

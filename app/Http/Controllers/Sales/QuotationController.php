@@ -16,9 +16,11 @@ use App\Services\ItineraryQuotationService;
 use App\Services\InvoiceService;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class QuotationController extends Controller
 {
@@ -61,12 +63,12 @@ class QuotationController extends Controller
     public function create()
     {
         $prefillItineraryId = request()->integer('itinerary_id') ?: null;
-        $itineraries = Itinerary::query()
-            ->with(['inquiry.customer'])
-            ->whereDoesntHave('quotation')
-            ->where('is_active', true)
+        $itineraries = $this->availableItinerariesQuery()
+            ->whereNotIn('id', Quotation::withTrashed()
+                ->select('itinerary_id')
+                ->whereNotNull('itinerary_id'))
             ->orderByDesc('id')
-            ->get(['id', 'title', 'inquiry_id', 'destination', 'duration_days', 'duration_nights', 'is_active']);
+            ->get(['id', 'title', 'inquiry_id', 'destination', 'duration_days', 'duration_nights', 'is_active', 'status']);
 
         if ($prefillItineraryId && ! $itineraries->firstWhere('id', $prefillItineraryId)) {
             $prefillItineraryId = null;
@@ -100,6 +102,9 @@ class QuotationController extends Controller
             'items' => ['required', 'array', 'min:1'],
             'items.*.description' => ['required', 'string', 'max:255'],
             'items.*.qty' => ['required', 'integer', 'min:1'],
+            'items.*.contract_rate' => ['nullable', 'numeric', 'min:0'],
+            'items.*.markup_type' => ['nullable', Rule::in(['percent', 'fixed'])],
+            'items.*.markup' => ['nullable', 'numeric', 'min:0'],
             'items.*.unit_price' => ['required', 'numeric', 'min:0'],
             'items.*.discount_type' => ['nullable', Rule::in(['percent', 'fixed'])],
             'items.*.discount' => ['nullable', 'numeric', 'min:0'],
@@ -111,6 +116,13 @@ class QuotationController extends Controller
         ]);
 
         foreach ($validated['items'] as $index => $item) {
+            $markupType = ($item['markup_type'] ?? 'fixed') === 'percent' ? 'percent' : 'fixed';
+            $markupValue = (float) ($item['markup'] ?? 0);
+            if ($markupType === 'percent' && $markupValue > 100) {
+                throw ValidationException::withMessages([
+                    "items.{$index}.markup" => 'Markup percent cannot be greater than 100.',
+                ]);
+            }
             $type = ($item['discount_type'] ?? 'fixed') === 'percent' ? 'percent' : 'fixed';
             $value = (float) ($item['discount'] ?? 0);
             if ($type === 'percent' && $value > 100) {
@@ -200,14 +212,15 @@ class QuotationController extends Controller
         }
         $quotation->load(['items', 'itinerary.inquiry.customer', 'itinerary.inquiry.assignedUser', 'itinerary.creator', 'comments.user', 'approvedBy', 'approvalNoteBy']);
 
-        $itineraries = Itinerary::query()
-            ->with(['inquiry.customer'])
+        $itineraries = $this->availableItinerariesQuery()
             ->where(function ($query) use ($quotation) {
-                $query->whereDoesntHave('quotation')
+                $query->whereDoesntHave('quotation', function (Builder $quotationQuery): void {
+                    $quotationQuery->whereNull('deleted_at');
+                })
                     ->orWhere('id', $quotation->itinerary_id);
             })
             ->orderByDesc('id')
-            ->get(['id', 'title', 'inquiry_id', 'destination', 'duration_days', 'duration_nights', 'is_active']);
+            ->get(['id', 'title', 'inquiry_id', 'destination', 'duration_days', 'duration_nights', 'is_active', 'status']);
 
         return view('modules.quotations.edit', compact('quotation', 'itineraries'));
     }
@@ -252,6 +265,9 @@ class QuotationController extends Controller
             'items' => ['required', 'array', 'min:1'],
             'items.*.description' => ['required', 'string', 'max:255'],
             'items.*.qty' => ['required', 'integer', 'min:1'],
+            'items.*.contract_rate' => ['nullable', 'numeric', 'min:0'],
+            'items.*.markup_type' => ['nullable', Rule::in(['percent', 'fixed'])],
+            'items.*.markup' => ['nullable', 'numeric', 'min:0'],
             'items.*.unit_price' => ['required', 'numeric', 'min:0'],
             'items.*.discount_type' => ['nullable', Rule::in(['percent', 'fixed'])],
             'items.*.discount' => ['nullable', 'numeric', 'min:0'],
@@ -263,6 +279,13 @@ class QuotationController extends Controller
         ]);
 
         foreach ($validated['items'] as $index => $item) {
+            $markupType = ($item['markup_type'] ?? 'fixed') === 'percent' ? 'percent' : 'fixed';
+            $markupValue = (float) ($item['markup'] ?? 0);
+            if ($markupType === 'percent' && $markupValue > 100) {
+                throw ValidationException::withMessages([
+                    "items.{$index}.markup" => 'Markup percent cannot be greater than 100.',
+                ]);
+            }
             $type = ($item['discount_type'] ?? 'fixed') === 'percent' ? 'percent' : 'fixed';
             $value = (float) ($item['discount'] ?? 0);
             if ($type === 'percent' && $value > 100) {
@@ -676,10 +699,18 @@ class QuotationController extends Controller
 
         foreach ($items as $item) {
             $qty = (int) $item['qty'];
-            $unitPrice = (float) $item['unit_price'];
+            $contractRate = (float) ($item['contract_rate'] ?? 0);
+            $markupType = ($item['markup_type'] ?? 'fixed') === 'percent' ? 'percent' : 'fixed';
+            $markup = (float) ($item['markup'] ?? 0);
+            $unitPriceFromMarkup = $markupType === 'percent'
+                ? ($contractRate + ($contractRate * ($markup / 100)))
+                : ($contractRate + $markup);
+            $unitPrice = array_key_exists('contract_rate', $item)
+                ? max(0, $unitPriceFromMarkup)
+                : max(0, (float) ($item['unit_price'] ?? 0));
             $discount = (float) ($item['discount'] ?? 0);
-            $discountType = ($item['discount_type'] ?? 'fixed') === 'percent' ? 'percent' : 'fixed';
-            $discountAmount = $discountType === 'percent'
+            $itemDiscountType = ($item['discount_type'] ?? 'fixed') === 'percent' ? 'percent' : 'fixed';
+            $discountAmount = $itemDiscountType === 'percent'
                 ? (($qty * $unitPrice) * ($discount / 100))
                 : $discount;
             $total = max(0, ($qty * $unitPrice) - $discountAmount);
@@ -688,8 +719,11 @@ class QuotationController extends Controller
             $normalized = [
                 'description' => $item['description'],
                 'qty' => $qty,
+                'contract_rate' => $contractRate,
+                'markup_type' => $markupType,
+                'markup' => $markup,
                 'unit_price' => $unitPrice,
-                'discount_type' => ($item['discount_type'] ?? 'fixed') === 'percent' ? 'percent' : 'fixed',
+                'discount_type' => $itemDiscountType,
                 'discount' => $discount,
                 'total' => $total,
             ];
@@ -751,6 +785,23 @@ class QuotationController extends Controller
         }
 
         return $itinerary->inquiry_id ? (int) $itinerary->inquiry_id : null;
+    }
+
+    private function availableItinerariesQuery(): Builder
+    {
+        $query = Itinerary::query()->with(['inquiry.customer']);
+
+        if (Schema::hasColumn('itineraries', 'is_active')) {
+            $query->where(function (Builder $builder): void {
+                $builder->where('is_active', true)->orWhereNull('is_active');
+            });
+        }
+
+        if (Schema::hasColumn('itineraries', 'status')) {
+            $query->where('status', '!=', Itinerary::FINAL_STATUS);
+        }
+
+        return $query;
     }
 
     private function canManageQuotation(Quotation $quotation, string $ability = 'update'): bool

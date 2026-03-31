@@ -77,8 +77,8 @@
             </div>
         @endif
 
-        <div class="grid grid-cols-1 gap-6 lg:grid-cols-12">
-            <div class="app-card p-4 lg:col-span-7">
+        <div class="grid min-w-0 grid-cols-1 gap-6 lg:grid-cols-12">
+            <div class="app-card min-w-0 p-4 lg:col-span-7">
                 <h2 class="text-sm font-semibold uppercase tracking-wide text-gray-700 dark:text-gray-200">Schedule by Day</h2>
                 <div class="mt-3 space-y-4 text-sm text-gray-700 dark:text-gray-200">
                     @php
@@ -448,7 +448,7 @@
                     @endfor
                 </div>
             </div>
-            <div class="app-card p-4 lg:col-span-5">
+            <div class="app-card min-w-0 h-fit p-4 lg:col-span-5 lg:self-start">
                 <h2 class="text-sm font-semibold uppercase tracking-wide text-gray-700 dark:text-gray-200">Itinerary Map</h2>
                 <div id="itinerary-show-map" class="mt-3 h-[520px] md:h-[640px] w-full rounded-lg border border-gray-300 dark:border-gray-700"></div>
                 <div class="mt-3">
@@ -535,6 +535,9 @@
                     'lng' => (float) $startData['lng'],
                     'day_number' => $day,
                     'visit_order' => 0,
+                    'travel_minutes_to_next' => $dayPoint && $dayPoint->day_start_travel_minutes !== null
+                        ? max(0, (int) $dayPoint->day_start_travel_minutes)
+                        : null,
                 ]);
             }
 
@@ -550,6 +553,9 @@
                     'lng' => (float) $attraction->longitude,
                     'day_number' => $day,
                     'visit_order' => (int) ($attraction->pivot->visit_order ?? 999999),
+                    'travel_minutes_to_next' => $attraction->pivot->travel_minutes_to_next !== null
+                        ? max(0, (int) $attraction->pivot->travel_minutes_to_next)
+                        : null,
                 ]);
             }
             foreach (($activityDayGroups[$day] ?? collect()) as $activityItem) {
@@ -566,6 +572,9 @@
                     'lng' => (float) $lng,
                     'day_number' => $day,
                     'visit_order' => (int) ($activityItem->visit_order ?? 999999),
+                    'travel_minutes_to_next' => $activityItem->travel_minutes_to_next !== null
+                        ? max(0, (int) $activityItem->travel_minutes_to_next)
+                        : null,
                 ]);
             }
             foreach (($foodBeverageDayGroups[$day] ?? collect()) as $foodBeverageItem) {
@@ -582,6 +591,9 @@
                     'lng' => (float) $lng,
                     'day_number' => $day,
                     'visit_order' => (int) ($foodBeverageItem->visit_order ?? 999999),
+                    'travel_minutes_to_next' => $foodBeverageItem->travel_minutes_to_next !== null
+                        ? max(0, (int) $foodBeverageItem->travel_minutes_to_next)
+                        : null,
                 ]);
             }
 
@@ -594,12 +606,37 @@
                     'lng' => (float) $endData['lng'],
                     'day_number' => $day,
                     'visit_order' => 999999,
+                    'travel_minutes_to_next' => null,
                 ]);
             }
 
             $previousEndCoordinates = $endData ?: $previousEndCoordinates;
         }
     @endphp
+    <style>
+        .itinerary-show-map-marker-icon.itinerary-show-map-marker-active {
+            transform: scale(1.15);
+            filter: drop-shadow(0 0 6px rgba(245, 158, 11, 0.95));
+            z-index: 1200 !important;
+        }
+        .itinerary-show-map-travel-badge {
+            background: rgba(17, 24, 39, 0.9);
+            border: 1px solid rgba(255, 255, 255, 0.9);
+            color: #fff;
+            font-size: 11px;
+            font-weight: 600;
+            line-height: 1;
+            padding: 4px 8px;
+            border-radius: 9999px;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+            pointer-events: auto;
+            cursor: pointer;
+            user-select: none;
+        }
+        .itinerary-show-map-travel-badge::before {
+            display: none;
+        }
+    </style>
     <script>
         (function () {
             const points = @json($mapPoints->sortBy(fn ($point) => ((int) $point['day_number'] * 1000000) + (int) $point['visit_order'])->values());
@@ -667,7 +704,7 @@
                             ? '#0284c7'
                             : (markerType === 'hotel' ? '#0f766e' : '#1d4ed8')));
                 return L.divIcon({
-                    className: '',
+                    className: 'itinerary-show-map-marker-icon',
                     html: `<span style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:9999px;background:${color};color:#fff;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.25);font-size:12px;position:relative"><i class="${iconByType(markerType)}"></i><span style="position:absolute;right:-5px;bottom:-5px;min-width:14px;height:14px;border-radius:9999px;background:#111827;color:#fff;border:1px solid #fff;font-size:9px;line-height:14px;text-align:center;padding:0 3px">${order}</span></span>`,
                     iconSize: [28, 28],
                     iconAnchor: [14, 14],
@@ -685,6 +722,7 @@
                         day_number: Number(point?.day_number || 0),
                         visit_order: Number(point?.visit_order || 0),
                         type: normalizeType(point?.type),
+                        travel_minutes_to_next: Number(point?.travel_minutes_to_next ?? 0),
                     };
                 })
                 .filter((point) => point && point.day_number > 0)
@@ -709,6 +747,10 @@
             let activeRouteFetchController = null;
             let mapBusy = false;
             let renderPendingAfterMove = false;
+            const highlightedSegmentState = {
+                markerElements: [],
+                haloLayers: [],
+            };
 
             map.on('zoomstart movestart', () => {
                 mapBusy = true;
@@ -744,24 +786,69 @@
                 });
                 return routePoints.length >= 2 ? routePoints : null;
             };
-            const fetchRoadRouteForDay = async (dayPoints, signal) => {
-                if (!Array.isArray(dayPoints) || dayPoints.length < 2) return null;
+            const fetchRoadRouteForDay = async (dayLatLngPoints, signal) => {
+                if (!Array.isArray(dayLatLngPoints) || dayLatLngPoints.length < 2) return null;
                 // Build road-following route segment-by-segment to avoid URL length limits.
                 const mergedRoute = [];
-                for (let index = 0; index < dayPoints.length - 1; index += 1) {
-                    const from = dayPoints[index];
-                    const to = dayPoints[index + 1];
+                const segmentRoutes = [];
+                for (let index = 0; index < dayLatLngPoints.length - 1; index += 1) {
+                    const from = dayLatLngPoints[index];
+                    const to = dayLatLngPoints[index + 1];
                     const segment = await fetchRoadRouteGeometry([from, to], signal);
                     if (!Array.isArray(segment) || segment.length < 2) {
                         return null;
                     }
+                    segmentRoutes.push(segment);
                     if (mergedRoute.length === 0) {
                         mergedRoute.push(...segment);
                     } else {
                         mergedRoute.push(...segment.slice(1));
                     }
                 }
-                return mergedRoute.length >= 2 ? mergedRoute : null;
+                return mergedRoute.length >= 2 ? { mergedRoute, segmentRoutes } : null;
+            };
+            const midpointOfRoute = (routeCoords) => {
+                if (!Array.isArray(routeCoords) || routeCoords.length === 0) return null;
+                const index = Math.floor((routeCoords.length - 1) / 2);
+                const point = routeCoords[index];
+                return point && Number.isFinite(point.lat) && Number.isFinite(point.lng) ? point : null;
+            };
+            const clearSegmentHighlight = () => {
+                highlightedSegmentState.markerElements.forEach((element) => {
+                    try {
+                        element.classList.remove('itinerary-show-map-marker-active');
+                    } catch (_) {}
+                });
+                highlightedSegmentState.markerElements = [];
+                highlightedSegmentState.haloLayers.forEach((layer) => {
+                    try {
+                        mapDataLayer.removeLayer(layer);
+                    } catch (_) {}
+                });
+                highlightedSegmentState.haloLayers = [];
+            };
+            const highlightMarkerPair = (fromMarker, toMarker) => {
+                clearSegmentHighlight();
+                [fromMarker, toMarker].forEach((marker) => {
+                    if (!marker) return;
+                    const markerElement = marker.getElement?.();
+                    if (markerElement) {
+                        markerElement.classList.add('itinerary-show-map-marker-active');
+                        highlightedSegmentState.markerElements.push(markerElement);
+                    }
+                    const latLng = marker.getLatLng?.();
+                    if (!latLng) return;
+                    const halo = L.circleMarker(latLng, {
+                        radius: 18,
+                        color: '#f59e0b',
+                        weight: 3,
+                        fillColor: '#fde68a',
+                        fillOpacity: 0.18,
+                        interactive: false,
+                        bubblingMouseEvents: false,
+                    }).addTo(mapDataLayer);
+                    highlightedSegmentState.haloLayers.push(halo);
+                });
             };
 
             const renderMarkers = async (day = null) => {
@@ -772,6 +859,7 @@
                 activeRouteFetchController = typeof AbortController !== 'undefined' ? new AbortController() : null;
                 const routeSignal = activeRouteFetchController?.signal;
                 mapDataLayer.clearLayers();
+                clearSegmentHighlight();
                 const activePoints = day === null
                     ? validPoints
                     : validPoints.filter((point) => Number(point.day_number) === Number(day));
@@ -782,6 +870,7 @@
 
                 const bounds = [];
                 const dayCounter = {};
+                const dayMarkers = {};
                 activePoints.forEach((point) => {
                     dayCounter[point.day_number] = (dayCounter[point.day_number] || 0) + 1;
                     const index = dayCounter[point.day_number];
@@ -790,6 +879,9 @@
                     bounds.push([latLng.lat, latLng.lng]);
                     const marker = L.marker(latLng, { icon: markerBadge(index, point.type) }).addTo(mapDataLayer);
                     marker.bindPopup(`#${index} | Day ${point.day_number} | ${escapeHtml(point.name || '-')}<br>${escapeHtml(point.location || '-')}`);
+                    const dayKey = String(point.day_number);
+                    if (!dayMarkers[dayKey]) dayMarkers[dayKey] = [];
+                    dayMarkers[dayKey].push(marker);
                 });
 
                 const pointsByDay = activePoints.reduce((carry, point) => {
@@ -802,25 +894,26 @@
                     .map(Number)
                     .sort((a, b) => a - b);
                 for (const dayNumber of orderedDays) {
-                    const dayPoints = pointsByDay[String(dayNumber)]
+                    const dayPointEntries = pointsByDay[String(dayNumber)]
                         .slice()
-                        .sort((a, b) => (a.visit_order - b.visit_order))
+                        .sort((a, b) => (a.visit_order - b.visit_order));
+                    const dayLatLngPoints = dayPointEntries
                         .map((point) => toLatLng(point.lat, point.lng))
                         .filter((point) => point && Number.isFinite(point.lat) && Number.isFinite(point.lng));
-                    if (dayPoints.length < 2) continue;
+                    if (dayLatLngPoints.length < 2) continue;
 
                     const color = routePalette[(dayNumber - 1) % routePalette.length];
-                    let roadRoute = null;
+                    let roadRouteData = null;
                     try {
-                        roadRoute = await fetchRoadRouteForDay(dayPoints, routeSignal);
+                        roadRouteData = await fetchRoadRouteForDay(dayLatLngPoints, routeSignal);
                         if (currentToken !== routeRenderToken) return;
                     } catch (_) {}
-                    if (!roadRoute || roadRoute.length < 2) {
+                    if (!roadRouteData || !Array.isArray(roadRouteData.mergedRoute) || roadRouteData.mergedRoute.length < 2) {
                         // Explicitly skip drawing if road route cannot be resolved.
                         continue;
                     }
 
-                    L.polyline(roadRoute, {
+                    L.polyline(roadRouteData.mergedRoute, {
                         color,
                         weight: 4,
                         opacity: 0.9,
@@ -829,6 +922,30 @@
                         interactive: false,
                         bubblingMouseEvents: false,
                     }).addTo(mapDataLayer);
+
+                    for (let index = 0; index < dayPointEntries.length - 1; index += 1) {
+                        const minutes = Math.max(0, Math.round(Number(dayPointEntries[index]?.travel_minutes_to_next ?? 0)));
+                        if (!Number.isFinite(minutes) || minutes <= 0) continue;
+                        const segmentRoute = roadRouteData.segmentRoutes?.[index] ?? null;
+                        const labelLatLng = midpointOfRoute(segmentRoute);
+                        if (!labelLatLng) continue;
+                        const dayMarkerList = dayMarkers[String(dayNumber)] || [];
+                        const fromMarker = dayMarkerList[index] || null;
+                        const toMarker = dayMarkerList[index + 1] || null;
+                        const durationLabel = L.tooltip({
+                            permanent: true,
+                            direction: 'top',
+                            offset: [0, -8],
+                            className: 'itinerary-show-map-travel-badge',
+                            interactive: true,
+                        })
+                            .setLatLng(labelLatLng)
+                            .setContent(`${minutes}m`)
+                            .addTo(mapDataLayer);
+                        durationLabel.on('click', () => {
+                            highlightMarkerPair(fromMarker, toMarker);
+                        });
+                    }
                 }
 
                 const safeBounds = bounds.filter((coord) =>

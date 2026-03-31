@@ -104,6 +104,8 @@ Aturan penting:
   7. Controller index wajib dukung AJAX fragment (`html` + `url`) via method `wantsAjaxFragment()` dan header `X-<Module>-Ajax`.
   8. Pagination di partial wajib mempertahankan query filter (`withQueryString()` di controller).
 - Implementasi standar filter ini sudah diterapkan untuk `Activities`, `Hotels`, dan `Tourist Attractions`; modul lain yang belum sesuai wajib mengikuti pola yang sama saat refactor berikutnya.
+- Setiap perubahan code wajib dicatat di `VOYEX_CRM_SYSTEM_ROADMAP.md` pada bagian `CHANGELOG (LATEST)`.
+- Setiap perubahan code wajib memperbarui dokumentasi `.md` yang relevan; jika perubahan lintas modul/konvensi, wajib sinkronkan juga `PROJECT_KNOWLEDGE_BASE.md`.
 
 ## 4. Modul Aktif (Seeder)
 Modul yang terdaftar dan dikontrol via tabel `modules` (lihat `ModuleSeeder`):
@@ -387,7 +389,7 @@ Catatan:
 - Field `Google Maps URL` ditampilkan full-width; default layout vertikal dengan tombol Auto Fill di baris bawah. Khusus halaman Destinations, tombol Auto Fill ditampilkan inline di kanan input.
 - Halaman detail Quotation mengikuti pola UX standar:
   1. Header action ringkas (`Edit` bila diizinkan, `PDF`, `Back`) memakai kelas tombol standar.
-  2. Konten utama `module-grid-9-3`: kiri untuk overview + pricing + items, kanan untuk context (inquiry/itinerary), validation flow, comment, audit.
+  2. Konten utama `module-grid-8-4`: kiri untuk overview + pricing + items, kanan untuk context (inquiry/itinerary), validation flow, comment, audit.
   3. Gunakan `app-card` konsisten di semua section (hindari campuran card style lama).
   4. Wajib ada versi mobile-friendly untuk item list (card stack) selain tabel desktop.
   5. Financial summary menonjolkan `Final Amount` sebagai titik keputusan utama user.

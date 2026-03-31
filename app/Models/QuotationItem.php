@@ -12,6 +12,9 @@ class QuotationItem extends Model
         'serviceable_type',
         'description',
         'qty',
+        'contract_rate',
+        'markup_type',
+        'markup',
         'unit_price',
         'discount_type',
         'discount',
@@ -23,6 +26,9 @@ class QuotationItem extends Model
 
     protected $casts = [
         'unit_price' => 'decimal:2',
+        'contract_rate' => 'decimal:2',
+        'markup_type' => 'string',
+        'markup' => 'decimal:2',
         'discount_type' => 'string',
         'discount' => 'decimal:2',
         'total' => 'decimal:2',

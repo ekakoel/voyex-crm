@@ -10,6 +10,10 @@
             'start_date' => $price->start_date,
             'end_date' => $price->end_date,
             'contract_rate' => $price->contract_rate,
+            'markup_type' => $price->markup_type ?? 'fixed',
+            'markup' => $price->markup ?? max(0, (float) (($price->publish_rate ?? 0) - ($price->contract_rate ?? 0))),
+            'publish_rate' => $price->publish_rate,
+            'kick_back' => $price->kick_back,
         ])->toArray() ?? [];
     }
     if (empty($priceRows)) {
@@ -35,23 +39,30 @@
                             @endforeach
                         </select>
                     </div>
-                    <div class="md:col-span-2">
-                        <label class="block text-xs text-gray-500">Start Date</label>
+                    <div class="md:col-span-4">                        <label class="block text-xs text-gray-500">Start Date</label>
                         <input type="date" name="hotel_prices[{{ $index }}][start_date]" value="{{ $row['start_date'] ?? '' }}" class="mt-1 app-input">
                     </div>
-                    <div class="md:col-span-2">
-                        <label class="block text-xs text-gray-500">End Date</label>
+                    <div class="md:col-span-4">                        <label class="block text-xs text-gray-500">End Date</label>
                         <input type="date" name="hotel_prices[{{ $index }}][end_date]" value="{{ $row['end_date'] ?? '' }}" class="mt-1 app-input">
                     </div>
-                    <div class="md:col-span-3">
-                        <label class="block text-xs text-gray-500">Contract Rate (IDR)</label>
-                        <input type="number" min="0" name="hotel_prices[{{ $index }}][contract_rate]" data-no-money-hint="1" value="{{ $row['contract_rate'] ?? '' }}" class="mt-1 app-input">
+                    <div class="md:col-span-3">                        <label class="block text-xs text-gray-500">Contract Rate (IDR)</label>
+                        <input type="number" min="0" step="1" name="hotel_prices[{{ $index }}][contract_rate]" data-hotel-rate="contract" value="{{ $row['contract_rate'] ?? '' }}" class="mt-1 app-input">
                     </div>
-                    
-                    
-                    <div class="md:col-span-1">
-                        <label class="block text-xs text-transparent select-none">Action</label>
-                        <button type="button" class="mt-1 btn-ghost-sm h-[38px] w-full" data-remove-row>Remove</button>
+                    <div class="md:col-span-3">                        <label class="block text-xs text-gray-500">Markup Type</label>
+                        <select name="hotel_prices[{{ $index }}][markup_type]" data-hotel-rate="markup_type" class="mt-1 app-input">
+                            <option value="fixed" @selected(($row['markup_type'] ?? 'fixed') === 'fixed')>Fixed</option>
+                            <option value="percent" @selected(($row['markup_type'] ?? 'fixed') === 'percent')>Percent</option>
+                        </select>
+                    </div>
+                    <div class="md:col-span-3">                        <label class="block text-xs text-gray-500">Markup</label>
+                        <input type="number" min="0" step="1" name="hotel_prices[{{ $index }}][markup]" data-hotel-rate="markup" value="{{ $row['markup'] ?? '' }}" class="mt-1 app-input">
+                    </div>
+                    <div class="md:col-span-3">                        <label class="block text-xs text-gray-500">Publish Rate (Auto)</label>
+                        <input type="number" min="0" step="1" name="hotel_prices[{{ $index }}][publish_rate]" data-hotel-rate="publish" value="{{ $row['publish_rate'] ?? '' }}" class="mt-1 app-input" readonly>
+                    </div>
+
+                    <div class="md:col-span-12 flex justify-end">
+                        <button type="button" class="mt-1 btn-ghost-sm h-[38px] w-full md:w-auto" data-remove-row>Remove</button>
                     </div>
                 </div>
             @endforeach
@@ -59,3 +70,7 @@
     </div>
 
 </div>
+
+
+
+

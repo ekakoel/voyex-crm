@@ -4,8 +4,8 @@
     <div class="space-y-6 module-page module-page--invoices">
         @section('page_actions')<a href="{{ route('invoices.index') }}"  class="btn-ghost">Back</a>@endsection
 
-        <div class="grid gap-6 xl:grid-cols-12">
-            <div class="xl:col-span-8">
+        <div class="module-grid-8-4">
+            <div class="module-grid-main">
                 <div class="app-card p-5">
                     <dl class="app-dl" class="grid grid-cols-1 gap-4 md:grid-cols-2">
                         <div><dt class="text-xs text-gray-500 dark:text-gray-400">Invoice Number</dt><dd class="text-sm font-medium text-gray-800 dark:text-gray-100">{{ $invoice->invoice_number }}</dd></div>
@@ -21,12 +21,13 @@
                     </dl>
                 </div>
             </div>
-            <aside  class="xl:col-span-4">
+            <aside class="module-grid-side">
                 @include('partials._audit-info', ['record' => $invoice])
             </aside>
         </div>
     </div>
 @endsection
+
 
 
 

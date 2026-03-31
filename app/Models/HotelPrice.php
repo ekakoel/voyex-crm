@@ -11,10 +11,20 @@ class HotelPrice extends Model
         'rooms_id',
         'start_date',
         'end_date',
+        'markup_type',
         'markup',
         'kick_back',
         'contract_rate',
+        'publish_rate',
         'author',
+    ];
+
+    protected $casts = [
+        'contract_rate' => 'decimal:0',
+        'markup_type' => 'string',
+        'markup' => 'decimal:0',
+        'publish_rate' => 'decimal:0',
+        'kick_back' => 'decimal:0',
     ];
 
     public function hotel()

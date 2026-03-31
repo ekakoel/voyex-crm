@@ -9,6 +9,8 @@ use App\Support\ImageThumbnailGenerator;
 use App\Support\LocationResolver;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class TouristAttractionController extends Controller
 {
@@ -168,6 +170,8 @@ class TouristAttractionController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'ideal_visit_minutes' => ['required', 'integer', 'min:15', 'max:1440'],
             'contract_rate_per_pax' => ['nullable', 'numeric', 'min:0'],
+            'markup_type' => ['nullable', Rule::in(['fixed', 'percent'])],
+            'markup' => ['nullable', 'numeric', 'min:0'],
             'publish_rate_per_pax' => ['nullable', 'numeric', 'min:0'],
             'location' => ['nullable', 'string', 'max:255'],
             'city' => ['nullable', 'string', 'max:100'],
@@ -188,6 +192,24 @@ class TouristAttractionController extends Controller
         ]);
 
         $validated['is_active'] = $request->boolean('is_active');
+        $validated['markup_type'] = (($validated['markup_type'] ?? 'fixed') === 'percent') ? 'percent' : 'fixed';
+        $validated['contract_rate_per_pax'] = max(0, (float) ($validated['contract_rate_per_pax'] ?? 0));
+        $validated['markup'] = max(0, (float) ($validated['markup'] ?? 0));
+
+        if ($validated['markup_type'] === 'percent' && $validated['markup'] > 100) {
+            throw ValidationException::withMessages([
+                'markup' => 'Markup percent cannot be greater than 100.',
+            ]);
+        }
+
+        $validated['publish_rate_per_pax'] = round($this->calculatePublishRate(
+            $validated['contract_rate_per_pax'],
+            $validated['markup_type'],
+            $validated['markup']
+        ), 0);
+        $validated['contract_rate_per_pax'] = round($validated['contract_rate_per_pax'], 0);
+        $validated['markup'] = round($validated['markup'], 0);
+
         app(LocationResolver::class)->enrichFromGoogleMapsUrl($validated);
         $this->applyDestinationContext($validated);
         app(LocationResolver::class)->resolveDestinationId($validated, true);
@@ -199,6 +221,18 @@ class TouristAttractionController extends Controller
         }
 
         return $validated;
+    }
+
+    private function calculatePublishRate(float $contractRate, string $markupType, float $markup): float
+    {
+        $base = max(0, $contractRate);
+        $value = max(0, $markup);
+
+        if ($markupType === 'percent') {
+            return $base + ($base * ($value / 100));
+        }
+
+        return $base + $value;
     }
 
     private function storeGalleryImages(array $files, string $directory): array

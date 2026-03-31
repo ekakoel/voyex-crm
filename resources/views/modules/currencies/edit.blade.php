@@ -4,8 +4,8 @@
     <div class="space-y-6 module-page module-page--currencies">
         @section('page_actions')<a href="{{ route('currencies.index') }}"  class="btn-ghost">Back</a>@endsection
 
-        <div class="grid gap-6 xl:grid-cols-12">
-            <div class="xl:col-span-8">
+        <div class="module-grid-8-4">
+            <div class="module-grid-main">
                 <div class="module-form-wrap">
                     <form method="POST" action="{{ route('currencies.update', $currency) }}">
                         @csrf
@@ -14,7 +14,7 @@
                     </form>
                 </div>
             </div>
-            <aside  class="xl:col-span-4 space-y-4">
+            <aside class="module-grid-side space-y-4">
                 <div class="module-card p-6">
                     <p class="text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300">Rate History</p>
                     @if (!empty($rateHistories) && $rateHistories->count() > 0)
@@ -47,6 +47,7 @@
         </div>
     </div>
 @endsection
+
 
 
 

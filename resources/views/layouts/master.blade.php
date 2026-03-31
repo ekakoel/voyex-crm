@@ -340,10 +340,15 @@
         $currencyMeta = \App\Support\Currency::meta($currentCurrency ?? 'IDR');
         $currencyRateToIdr = is_array($currencyMeta) ? (float) ($currencyMeta['rate_to_idr'] ?? 1) : 1;
         $currencyDecimals = is_array($currencyMeta) ? (int) ($currencyMeta['decimal_places'] ?? 0) : 0;
+        $currencySymbol = is_array($currencyMeta) ? (string) ($currencyMeta['symbol'] ?? '') : '';
+        if ($currencySymbol === '') {
+            $currencySymbol = ($currentCurrency ?? 'IDR') === 'USD' ? '$' : 'Rp';
+        }
     @endphp
     window.appCurrency = @json($currentCurrency ?? 'IDR');
     window.appCurrencyRateToIdr = @json($currencyRateToIdr);
     window.appCurrencyDecimals = @json($currencyDecimals);
+    window.appCurrencySymbol = @json($currencySymbol);
 
     function attachRequiredMarkers(root = document) {
         const fields = root.querySelectorAll('input[required], select[required], textarea[required]');
@@ -428,7 +433,7 @@
 
             field.dataset.moneyHintBound = '1';
             field.dataset.moneyFormatBound = '1';
-            field.dataset.moneyCurrency = 'IDR';
+            field.dataset.moneyCurrency = String(window.appCurrency || 'IDR').toUpperCase();
             field.setAttribute('inputmode', 'numeric');
             field.setAttribute('autocomplete', 'off');
 
@@ -438,7 +443,7 @@
 
             const badge = field.parentElement?.querySelector('[data-money-badge="1"]');
             if (badge) {
-                badge.textContent = 'IDR';
+                badge.textContent = window.appCurrencySymbol || window.appCurrency || 'IDR';
             }
 
             const applyFormat = () => {
@@ -721,7 +726,6 @@
 
 </body>
 </html>
-
 
 
 

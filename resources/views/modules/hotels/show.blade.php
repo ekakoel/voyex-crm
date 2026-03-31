@@ -250,6 +250,8 @@
                                     <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">Start</th>
                                     <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">End</th>
                                     <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">Contract Rate</th>
+                                    <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">Markup</th>
+                                    <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">Publish Rate</th>
                                     <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">Status</th>
                                 </tr>
                             </thead>
@@ -269,19 +271,26 @@
                                         <td class="px-3 py-2 text-gray-700 dark:text-gray-200">{{ $end ?: '-' }}</td>
                                         <td class="px-3 py-2 text-gray-700 dark:text-gray-200"><x-money :amount="(float) ($price->contract_rate ?? 0)" currency="IDR" /></td>
                                         <td class="px-3 py-2 text-gray-700 dark:text-gray-200">
+                                            @if (($price->markup_type ?? 'fixed') === 'percent')
+                                                {{ rtrim(rtrim(number_format((float) ($price->markup ?? 0), 2, '.', ''), '0'), '.') }}%
+                                            @else
+                                                <x-money :amount="(float) ($price->markup ?? 0)" currency="IDR" />
+                                            @endif
+                                        </td>
+                                        <td class="px-3 py-2 text-gray-700 dark:text-gray-200"><x-money :amount="(float) ($price->publish_rate ?? 0)" currency="IDR" /></td>
+                                        <td class="px-3 py-2 text-gray-700 dark:text-gray-200">
                                             <x-status-badge :status="$periodStatusKey" :label="$periodStatusLabel" size="xs" />
                                         </td>
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="4" class="px-3 py-4 text-center text-gray-500 dark:text-gray-400">No rate data.</td>
+                                        <td colspan="7" class="px-3 py-4 text-center text-gray-500 dark:text-gray-400">No rate data.</td>
                                     </tr>
                                 @endforelse
                             </tbody>
                         </table>
                     </div>
                 </div>
-
                 <div class="app-card p-5">
                     <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">Descriptions & Policies</h3>
                     <div class="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -479,10 +488,4 @@
         </script>
     @endpush
 @endif
-
-
-
-
-
-
 

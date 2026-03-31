@@ -168,7 +168,6 @@ class ItineraryController extends Controller
             'duration_days' => ['required', 'integer', 'min:1'],
             'duration_nights' => ['required', 'integer', 'min:0', 'lte:duration_days'],
             'description' => ['nullable', 'string'],
-            'is_active' => ['nullable', 'boolean'],
             'daily_start_point_types' => ['nullable', 'array'],
             'daily_start_point_types.*' => ['nullable', 'string', 'in:previous_day_end,hotel,airport'],
             'daily_start_point_items' => ['nullable', 'array'],
@@ -230,7 +229,8 @@ class ItineraryController extends Controller
             'daily_transport_units.*.transport_unit_id' => ['nullable', 'integer', 'exists:transports,id'],
         ]);
 
-        $validated['is_active'] = $request->boolean('is_active');
+        // Business rule: new itinerary must always start as active.
+        $validated['is_active'] = true;
         $validated['created_by'] = auth()->id();
         $validated['status'] = 'draft';
         $validated['destination_id'] = $this->resolveDestinationId($validated['destination'] ?? null);
@@ -298,7 +298,7 @@ class ItineraryController extends Controller
 
         $this->syncInquiryProcessedStatus($itinerary->inquiry_id);
 
-        return redirect()->route('itineraries.index')->with('success', 'Itinerary created successfully.');
+        return redirect()->route('itineraries.show', $itinerary)->with('success', 'Itinerary created successfully.');
     }
 
     public function edit(Itinerary $itinerary)
@@ -974,7 +974,7 @@ SVG;
 
         $this->syncInquiryProcessedStatus($itinerary->inquiry_id);
 
-        return redirect()->route('itineraries.index')->with('success', 'Itinerary updated successfully.');
+        return redirect()->route('itineraries.show', $itinerary)->with('success', 'Itinerary updated successfully.');
     }
 
     public function destroy(Itinerary $itinerary)
@@ -1729,8 +1729,6 @@ SVG;
     }
 
 }
-
-
 
 
 

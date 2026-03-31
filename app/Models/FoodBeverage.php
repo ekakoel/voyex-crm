@@ -15,6 +15,8 @@ class FoodBeverage extends Model
         'service_type',
         'duration_minutes',
         'contract_rate',
+        'markup_type',
+        'markup',
         'publish_rate',
         'meal_period',
         'menu_highlights',
@@ -25,8 +27,10 @@ class FoodBeverage extends Model
 
     protected $casts = [
         'duration_minutes' => 'integer',
-        'contract_rate' => 'decimal:2',
-        'publish_rate' => 'decimal:2',
+        'contract_rate' => 'decimal:0',
+        'markup_type' => 'string',
+        'markup' => 'decimal:0',
+        'publish_rate' => 'decimal:0',
         'gallery_images' => 'array',
         'is_active' => 'boolean',
     ];

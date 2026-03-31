@@ -32,12 +32,24 @@
                                     @if ($activity->adult_contract_rate !== null)
                                         <div>ACR: <x-money :amount="(float) $activity->adult_contract_rate" currency="IDR" /></div>
                                     @endif
+                                    <div class="text-xs text-gray-500 dark:text-gray-400">
+                                        AM:
+                                        {{ ($activity->adult_markup_type ?? 'fixed') === 'percent'
+                                            ? rtrim(rtrim(number_format((float) ($activity->adult_markup ?? 0), 2, '.', ''), '0'), '.') . '%'
+                                            : \App\Support\Currency::format((float) ($activity->adult_markup ?? 0), 'IDR') }}
+                                    </div>
                                     @if ($activity->adult_publish_rate !== null)
                                         <div class="text-xs text-gray-500 dark:text-gray-400">APR: <x-money :amount="(float) $activity->adult_publish_rate" currency="IDR" /></div>
                                     @endif
                                     @if ($activity->child_contract_rate !== null)
                                         <div>CCR: <x-money :amount="(float) $activity->child_contract_rate" currency="IDR" /></div>
                                     @endif
+                                    <div class="text-xs text-gray-500 dark:text-gray-400">
+                                        CM:
+                                        {{ ($activity->child_markup_type ?? 'fixed') === 'percent'
+                                            ? rtrim(rtrim(number_format((float) ($activity->child_markup ?? 0), 2, '.', ''), '0'), '.') . '%'
+                                            : \App\Support\Currency::format((float) ($activity->child_markup ?? 0), 'IDR') }}
+                                    </div>
                                     @if ($activity->child_publish_rate !== null)
                                         <div class="text-xs text-gray-500 dark:text-gray-400">CPR: <x-money :amount="(float) $activity->child_publish_rate" currency="IDR" /></div>
                                     @endif
@@ -84,12 +96,24 @@
                             @if ($activity->adult_contract_rate !== null)
                                 <div>ACR: <x-money :amount="(float) $activity->adult_contract_rate" currency="IDR" /></div>
                             @endif
+                            <div>
+                                AM:
+                                {{ ($activity->adult_markup_type ?? 'fixed') === 'percent'
+                                    ? rtrim(rtrim(number_format((float) ($activity->adult_markup ?? 0), 2, '.', ''), '0'), '.') . '%'
+                                    : \App\Support\Currency::format((float) ($activity->adult_markup ?? 0), 'IDR') }}
+                            </div>
                             @if ($activity->adult_publish_rate !== null)
                                 <div>APR: <x-money :amount="(float) $activity->adult_publish_rate" currency="IDR" /></div>
                             @endif
                             @if ($activity->child_contract_rate !== null)
                                 <div>CCR: <x-money :amount="(float) $activity->child_contract_rate" currency="IDR" /></div>
                             @endif
+                            <div>
+                                CM:
+                                {{ ($activity->child_markup_type ?? 'fixed') === 'percent'
+                                    ? rtrim(rtrim(number_format((float) ($activity->child_markup ?? 0), 2, '.', ''), '0'), '.') . '%'
+                                    : \App\Support\Currency::format((float) ($activity->child_markup ?? 0), 'IDR') }}
+                            </div>
                             @if ($activity->child_publish_rate !== null)
                                 <div>CPR: <x-money :amount="(float) $activity->child_publish_rate" currency="IDR" /></div>
                             @endif

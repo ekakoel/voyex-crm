@@ -200,6 +200,21 @@ Ringkasan aturan penting:
 - Mode renderer yang dipakai untuk stabilitas adalah SVG (`preferCanvas: false`, `renderer: L.svg()`).
 - Tombol `All Days` dan `Day N` wajib memfilter marker + route sesuai day yang dipilih.
 
+### 8.2 Quotation Create/Edit: Critical Notes
+
+Area quotation create/edit (`resources/views/modules/quotations/create.blade.php`, `edit.blade.php`, `_form.blade.php`, `QuotationController`) memiliki aturan penting berikut:
+- Form item bersifat generated + editable:
+  - item dapat diisi otomatis dari itinerary melalui endpoint `quotations/itinerary-items/{itinerary}`.
+  - setelah generate, user tetap boleh menyesuaikan qty/harga/discount.
+- Perhitungan final amount wajib memakai dua lapis discount yang benar:
+  - discount per-item (row level),
+  - discount quotation (header level).
+- Bug historis yang sudah diperbaiki:
+  - variabel discount type per-item sempat menimpa discount type quotation di `computeTotals()`.
+  - dampaknya final amount bisa salah.
+  - implementasi saat ini sudah memisahkan variabel item-level vs quotation-level agar kalkulasi konsisten.
+- Halaman edit quotation wajib dijaga markup Blade-nya tetap bersih karena sidebar validation/comment/inquiry detail cukup padat dan sensitif terhadap struktur HTML yang rusak.
+
 ---
 
 ## 9. Engineering and Architecture Principles
@@ -280,3 +295,8 @@ If a conflict exists between docs, follow this priority:
 2. `VOYEX_CRM_SYSTEM_ROADMAP.md`
 3. `LAYOUT_GUIDE.md`
 4. Other supporting docs
+
+Mandatory documentation discipline:
+1. Setiap perubahan code wajib dicatat di `VOYEX_CRM_SYSTEM_ROADMAP.md` pada bagian `CHANGELOG (LATEST)`.
+2. Setiap perubahan code wajib update minimal satu dokumen `.md` terkait scope perubahan.
+3. Jika perubahan menyentuh lintas modul/arsitektur, wajib update file ini (`PROJECT_KNOWLEDGE_BASE.md`) agar source of truth tetap sinkron.

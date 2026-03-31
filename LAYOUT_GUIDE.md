@@ -73,13 +73,13 @@ If a page should not render a header at all:
 To keep UI/UX consistent across modules, use this split as default for all non-dashboard pages:
 
 - `Index`: `4 / 8` (left filter/sidebar, right data/list)
-- `Create/Edit/Detail`: `8 / 4` (left form/content, right supporting panel)
+- `Create/Edit/Detail`: `8 / 4` (left form/content, right supporting panel, active on `xl` breakpoint to match Itinerary baseline)
 - `Dashboard`: **excluded** (can use custom KPI/analytics layout)
 
 CSS utility classes are available in `resources/css/app.css`:
 
 - `.module-grid-3-9`
-- `.module-grid-9-3`
+- `.module-grid-8-4`
 - `.module-grid-main`
 - `.module-grid-side`
 
@@ -104,7 +104,7 @@ CSS utility classes are available in `resources/css/app.css`:
 ```blade
 @section('content')
     <div class="space-y-6 module-page">
-        <div class="module-grid-9-3">
+        <div class="module-grid-8-4">
             <section class="module-grid-main module-form-wrap">
                 {{-- form or main detail --}}
             </section>
@@ -116,6 +116,10 @@ CSS utility classes are available in `resources/css/app.css`:
     </div>
 @endsection
 ```
+
+### Breakpoint Behavior
+- `module-grid-8-4` and `module-grid-8-4` stack in mobile/tablet and split to `8/4` on `xl` (Itinerary baseline).
+- `module-grid-3-9` and `module-grid-4-8` remain for index/list pages (`md` and up).
 
 ### Migration Rule
 - Use this baseline on all module pages going forward.
@@ -138,3 +142,5 @@ Required field order inside the section:
 
 Implementation note:
 - Keep non-standard location fields (for example `location` hidden input, `timezone`) outside this partial.
+
+

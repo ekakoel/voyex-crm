@@ -804,6 +804,55 @@ function initHotelPrices(root = document) {
         containers.unshift(scope);
     }
 
+    const parseMoney = (value) => {
+        const raw = String(value ?? '').trim();
+        if (raw === '') {
+            return 0;
+        }
+
+        if (/^\d+([.,]\d{1,2})?$/.test(raw) && !raw.includes(' ')) {
+            const numeric = Number(raw.replace(',', '.'));
+            return Number.isFinite(numeric) ? Math.max(0, numeric) : 0;
+        }
+
+        const digits = raw.replace(/[^\d]/g, '');
+        if (digits === '') {
+            return 0;
+        }
+
+        const numeric = Number(digits);
+        return Number.isFinite(numeric) ? Math.max(0, numeric) : 0;
+    };
+
+    const recalcRowPublishRate = (row) => {
+        if (!(row instanceof Element)) {
+            return;
+        }
+
+        const contractInput = row.querySelector('[data-hotel-rate="contract"]');
+        const markupTypeSelect = row.querySelector('[data-hotel-rate="markup_type"]');
+        const markupInput = row.querySelector('[data-hotel-rate="markup"]');
+        const publishInput = row.querySelector('[data-hotel-rate="publish"]');
+        if (!contractInput || !markupTypeSelect || !markupInput || !publishInput) {
+            return;
+        }
+
+        const contractRate = parseMoney(contractInput.value);
+        let markupValue = parseMoney(markupInput.value);
+        const markupType = markupTypeSelect.value === 'percent' ? 'percent' : 'fixed';
+
+        if (markupType === 'percent' && markupValue > 100) {
+            markupValue = 100;
+            markupInput.value = '100';
+        }
+
+        const publishRate = markupType === 'percent'
+            ? contractRate + (contractRate * (markupValue / 100))
+            : contractRate + markupValue;
+
+        publishInput.value = String(Math.max(0, Math.round(publishRate)));
+    };
+
     containers.forEach((container) => {
         if (container.dataset.hotelPricesBound === '1') {
             return;
@@ -834,27 +883,65 @@ function initHotelPrices(root = document) {
                                 ${roomOptions}
                             </select>
                         </div>
-                        <div class="md:col-span-2">
-                            <label class="block text-xs text-gray-500">Start Date</label>
+                        <div class="md:col-span-4">                            <label class="block text-xs text-gray-500">Start Date</label>
                             <input type="date" name="hotel_prices[${idx}][start_date]" class="mt-1 app-input">
                         </div>
-                        <div class="md:col-span-2">
-                            <label class="block text-xs text-gray-500">End Date</label>
+                        <div class="md:col-span-4">                            <label class="block text-xs text-gray-500">End Date</label>
                             <input type="date" name="hotel_prices[${idx}][end_date]" class="mt-1 app-input">
                         </div>
-                        <div class="md:col-span-3">
-                            <label class="block text-xs text-gray-500">Contract Rate (IDR)</label>
-                            <input type="number" min="0" name="hotel_prices[${idx}][contract_rate]" data-no-money-hint="1" class="mt-1 app-input">
+                        <div class="md:col-span-3">                            <label class="block text-xs text-gray-500">Contract Rate (IDR)</label>
+                            <input type="number" min="0" step="1" name="hotel_prices[${idx}][contract_rate]" data-hotel-rate="contract" class="mt-1 app-input">
                         </div>
-                        <div class="md:col-span-1">
-                            <label class="block text-xs text-transparent select-none">Action</label>
-                            <button type="button" class="mt-1 btn-ghost-sm h-[38px] w-full" data-remove-row>Remove</button>
+                        <div class="md:col-span-3">                            <label class="block text-xs text-gray-500">Markup Type</label>
+                            <select name="hotel_prices[${idx}][markup_type]" data-hotel-rate="markup_type" class="mt-1 app-input">
+                                <option value="fixed">Fixed</option>
+                                <option value="percent">Percent</option>
+                            </select>
+                        </div>
+                        <div class="md:col-span-3">                            <label class="block text-xs text-gray-500">Markup</label>
+                            <input type="number" min="0" step="1" name="hotel_prices[${idx}][markup]" data-hotel-rate="markup" class="mt-1 app-input">
+                        </div>
+                        <div class="md:col-span-3">                            <label class="block text-xs text-gray-500">Publish Rate (Auto)</label>
+                            <input type="number" min="0" step="1" name="hotel_prices[${idx}][publish_rate]" data-hotel-rate="publish" class="mt-1 app-input" readonly>
+                        </div>
+
+                        <div class="md:col-span-12 flex justify-end">
+                            <button type="button" class="mt-1 btn-ghost-sm h-[38px] w-full md:w-auto" data-remove-row>Remove</button>
                         </div>
                     </div>
                 `;
-                container.appendChild(wrapper.firstElementChild);
+                const row = wrapper.firstElementChild;
+                if (!row) {
+                    return;
+                }
+                container.appendChild(row);
+                recalcRowPublishRate(row);
             });
         }
+
+        container.addEventListener('input', (event) => {
+            const target = event.target;
+            if (!(target instanceof HTMLInputElement || target instanceof HTMLSelectElement)) {
+                return;
+            }
+            if (!target.matches('[data-hotel-rate="contract"], [data-hotel-rate="markup"], [data-hotel-rate="markup_type"]')) {
+                return;
+            }
+            const row = target.closest('[data-row]');
+            recalcRowPublishRate(row);
+        });
+
+        container.addEventListener('change', (event) => {
+            const target = event.target;
+            if (!(target instanceof HTMLInputElement || target instanceof HTMLSelectElement)) {
+                return;
+            }
+            if (!target.matches('[data-hotel-rate="contract"], [data-hotel-rate="markup"], [data-hotel-rate="markup_type"]')) {
+                return;
+            }
+            const row = target.closest('[data-row]');
+            recalcRowPublishRate(row);
+        });
 
         container.addEventListener('click', (event) => {
             const button = event.target.closest('[data-remove-row]');
@@ -866,10 +953,10 @@ function initHotelPrices(root = document) {
                 row.remove();
             }
         });
+
+        container.querySelectorAll('[data-row]').forEach((row) => recalcRowPublishRate(row));
     });
 }
-
-
 function initHotelInfoCover(root = document) {
     const scope = root instanceof Element || root instanceof Document ? root : document;
     const wrappers = scope.matches?.('[data-hotel-info-cover]')
@@ -2073,4 +2160,8 @@ if (window.axios) {
         }
     );
 }
+
+
+
+
 

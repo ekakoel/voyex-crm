@@ -1,7 +1,7 @@
 # VOYEX CRM -- SYSTEM ROADMAP
 
-Version: 1.1  
-Last Updated: 2026-03-23
+Version: 1.2  
+Last Updated: 2026-03-30
 
 Legend:  
 - DONE = Implemented  
@@ -176,10 +176,115 @@ Auto Reminder Engine | TODO | Not implemented
 
 ----------------------------------------------------------------------------------------------------
 
+# MANDATORY CHANGE LOG & DOCUMENTATION POLICY (REQUIRED)
+
+Kebijakan ini wajib untuk setiap update code (penambahan, perubahan, pengurangan) di project VOYEX CRM.
+
+1. Setiap perubahan code WAJIB dicatat di bagian `# CHANGELOG (LATEST)` pada file ini.
+2. Setiap perubahan code WAJIB memperbarui minimal 1 file dokumentasi `.md` yang paling relevan dengan scope perubahan.
+3. Jika perubahan berdampak lintas modul, WAJIB update juga:
+   - `PROJECT_KNOWLEDGE_BASE.md` (ringkasan source of truth),
+   - dan dokumen modul/fitur terkait (contoh: itinerary map, flow create/edit, dsb).
+4. Pull/merge dianggap belum selesai jika:
+   - perubahan code ada tetapi changelog roadmap belum diupdate, atau
+   - tidak ada update dokumentasi teknis yang relevan.
+5. Catatan changelog minimal harus memuat:
+   - tanggal,
+   - area/module yang diubah,
+   - ringkasan perubahan,
+   - dampak perilaku sistem,
+   - catatan QA singkat (jika ada).
+
+----------------------------------------------------------------------------------------------------
+
 # CHANGELOG (LATEST)
+
+Date: 2026-03-30
+Completed in this cycle:
+
+- Standardized Create/Edit/Detail grid display across modules to follow Itinerary baseline UX:
+  - mobile/tablet: stacked layout,
+  - desktop (xl): main 8 / side 4 split.
+- Updated global grid behavior in resources/css/app.css so module-grid-8-4 and module-grid-8-4 resolve to 8/4 at xl breakpoint (matching Itinerary pattern).
+- Migrated outlier pages to shared grid structure:
+  - currencies (create/edit),
+  - users (create/edit),
+  - hotels (create/edit),
+  - invoices (show),
+  - company-settings (edit).
+- Added supporting sidebar info cards on migrated pages to keep right-panel UX consistent.
+- QA note: passed php artisan view:cache after layout migration.
+- Quotation Create/Edit hardening:
+  - fixed corrupted Blade structure in `resources/views/modules/quotations/edit.blade.php` (Inquiry sidebar markup) that could break UI rendering.
+  - aligned Create/Edit page header/actions with shared system standard (`page_title`, `page_subtitle`, `btn-*` actions).
+  - standardized generate button style in quotation form to shared button system (`btn-outline-sm`).
+  - fixed Quotation create itinerary dropdown source query so available itineraries are listed reliably (active + non-final + no active quotation).
+  - tightened Quotation create itinerary filter to only show itineraries with no quotation record at all (including soft-deleted quotations), enforcing 1 itinerary = 1 quotation rule.
+  - aligned Quotation edit itinerary source query with the same availability rules while still allowing the current itinerary.
+  - added create-form empty-state hint when no eligible itinerary is available.
+- Itinerary create hardening:
+  - forced `is_active = true` on `ItineraryController@store` so every newly created itinerary is always active regardless of request payload.
+- Quotation create UI consistency:
+  - set `Generate` button minimum height to `42px` to match standard `app-input` control height.
+  - aligned quotation item row vertical baseline by adding top margin (`mt-1`) on compact money inputs (`Unit Price` and `Discount`) so label/input alignment matches other fields.
+  - removed helper/preview text below quotation item money fields so `Unit Price` and `Discount` no longer show extra text under inputs.
+  - added dedicated quotation item row alignment classes (`quotation-item-label`, `quotation-item-control`, `quotation-item-money-field`) so Description/Qty/Unit Price/Discount Type/Discount stay perfectly aligned per row.
+  - added new item pricing fields on Quotation create/edit: `Contract Rate` (readonly), `Markup Type` (`Fixed/Percent`), and `Markup`.
+  - `Unit Price` on item row is now auto-calculated from `Contract Rate + Markup` and kept readonly for consistency.
+  - backend validation and total calculation now include `contract_rate`, `markup_type`, and `markup`, including max 100% guard for percent markup.
+  - added migration `2026_03_31_120000_add_contract_rate_and_markup_to_quotation_items_table.php` and updated `QuotationItem` model casts/fillable.
+- Transport module rollout (`markup_type`, `markup`) completed:
+  - added transport DB migration `2026_03_31_130000_add_markup_fields_to_transports_table.php` with safe backfill from legacy `publish_rate - contract_rate`.
+  - updated `Transport` model fillable/casts for `markup_type` and `markup`.
+  - updated `TransportController` validation + guard (percent markup max 100) and server-side auto compute for `publish_rate`.
+  - updated transport create/edit form to include `Markup Type` and `Markup`, and set `Publish Rate` to readonly auto-calculated value.
+  - updated transport index/show views to display markup information.
+  - fixed transport create/edit JS money parser so backend decimal-formatted values are not misread as x100 (publish rate auto-calc now accurate).
+  - enforced integer money scale for transport pricing (`contract_rate`, `markup`, `publish_rate`) and rounded server-side compute output.
+  - added migration `2026_03_31_140000_change_transport_rate_precision_to_zero_scale.php` to switch those columns to `DECIMAL(15,0)`.
+- added item-level UX validation improvements (`required` fields + item error banner) on quotation form.
+- Fixed critical quotation total-calculation bug in `QuotationController::computeTotals()`:
+  - per-item discount type variable no longer overrides quotation-level discount type,
+  - ensures `discount_amount` and `final_amount` are computed from the correct header discount setting.
+- QA note: passed `php -l app/Http/Controllers/Sales/QuotationController.php` and `php artisan view:cache`.
+- Adjusted itinerary detail right-side map card layout to `h-fit lg:self-start` so card height follows map content and removes empty stretched space below the map.
+- Performed responsive hardening for Itinerary views (`create`, `edit`, `_form`, `show`, `index`) to prevent mobile/tablet horizontal clipping.
+- Removed width-forcing day header constraint (`min-w-[280px]`) in itinerary form and enabled safe text wrapping for endpoint meta.
+- Refined `Start Tour / End Tour` control row in itinerary form to wrap safely on small screens (labels no-wrap, time inputs responsive width, action buttons wrap).
+- Added `min-w-0` guards on itinerary grid/card/aside wrappers and module-level CSS safety rules to avoid overflow-driven content cut-off.
+- Added mobile CSS fallback for itinerary day header stacking and full-width travel connector rendering.
+- QA note: static responsive audit completed on Blade/CSS structure; no new fixed-width class remains in itinerary day header area.
+- Rebuilt itinerary detail map (`show`) with robust Leaflet initialization guard and safe render cycle.
+- Standardized detail map route rendering to road-following polyline via OSRM only (removed straight-line fallback).
+- Added itinerary detail map day filter stabilization (`All Days` / `Day N`) with safe re-render behavior.
+- Added duration labels (`Xm`) per route segment on itinerary detail map.
+- Added click interaction on duration labels to highlight connected marker pairs for overlapping route clarity.
+- Fixed dynamic Day clone behavior in itinerary create/edit so start-point travel connector remains visible on Day N+.
+- Clarified create/edit field label: `Travel from Day N Start Point to first item (minutes)`.
+- Added per-row `Region (City)` selector beside `Item Type` on itinerary create/edit schedule items to filter Attraction/Activity/F&B options faster for large datasets.
+- Standardized itinerary schedule option labels on create/edit:
+  - Attraction: `Attraction name`
+  - Activity: `Activity name - Vendor name`
+  - F&B: `F&B name - Vendor name`
+- Added `End Time` text indicator in top-right of each `Day N End Point` card (text-only, synchronized with itinerary time calculation) so users do not need to scroll to top.
+- Added frontend `required` enforcement on mandatory itinerary create/edit fields, including dynamic conditional-required logic for start/end point items and hotel room selectors.
+- Added automatic red `*` required indicator on labels for required fields in itinerary create/edit, including dynamic required fields.
+- Simplified UI for all `Travel to next item (minutes)` inputs on itinerary create/edit:
+  - half-width layout,
+  - label removed (moved to placeholder),
+  - car icon moved inside input (left side),
+  - adjusted left-affix spacing so icon does not overlap placeholder/text.
+- Adjusted `Day N Start Point` and `Day N End Point` layout so `Airport/Hotel` type selector and item selector stay in one row.
+- Finalized Start/End Point hotel layout: when `Hotel` is selected, `Type + Item + Room` are now rendered in a single row (not split to next line).
+- Refined Start/End Point row layout using responsive flex grouping to ensure `Type + Item + Room` remains one-row on tablet/desktop and does not break unexpectedly.
+- Updated itinerary create/edit sidebar behavior: `Inquiry Detail` card is hidden when no inquiry is selected, and shown only after inquiry is chosen.
+- Changed itinerary create/update post-submit redirect to itinerary detail page (`itineraries.show`).
+- Added dedicated technical documentation: `ITINERARY_DETAIL_MAP_ARCHITECTURE.md`.
+- Synced references in `PROJECT_KNOWLEDGE_BASE.md` and `ITINERARY_CREATE_EDIT_FLOW.md`.
 
 Date: 2026-03-23
 Completed in this cycle:
+
 - Started Hotels module implementation (admin controller, routes, sidebar, permissions, and base CRUD views).
 - Added Hotels form sections for rooms, images, extra beds, seasonal prices, packages, and promos.
 - Added Hotels into Super Admin Module Control Center (Product & Reservation group).
@@ -195,6 +300,7 @@ Completed in this cycle:
 
 Date: 2026-03-13
 Completed in this cycle:
+
 - Added per-role dashboards (Administrator, Manager, Marketing, Reservation, Finance, Director, Editor) with Super Admin style.
 - Standardized module permissions to Access + CRUD and added UI enhancements (template role, counters, CRUD badge).
 - Implemented CRUD enforcement middleware (`module.permission:{moduleKey}`).
@@ -219,6 +325,7 @@ Completed in this cycle:
 
 Date: 2026-03-17
 Completed in this cycle:
+
 - Enabled soft deletes for core modules (Vendors, Activities, F&B, Accommodations, Airports, Transports, Destinations, Tourist Attractions, Inquiries, Itineraries, Quotations, Customers).
 - Replaced Delete actions with Deactivate/Activate toggle buttons (Deactivate uses grey `btn-muted-sm`).
 - Added Active/Inactive status badges in index tables and mobile cards.
@@ -283,6 +390,7 @@ Completed in this cycle:
 
 Date: 2026-03-16
 Completed in this cycle:
+
 - Itineraries index: destination filter now uses `destination_id` from Destinations module (strict match).
 - Itineraries index: added safe fallback if `destination_id` column is not yet migrated (avoid SQL error).
 - Global submit lock + spinner to prevent double submit on forms.
@@ -324,6 +432,7 @@ Completed in this cycle:
 
 Date: 2026-03-17
 Completed in this cycle:
+
 - Services index: added `app-card-grid--services` to use 4-column grid on desktop while keeping global app-card-grid defaults.
 - Services index: removed filter sidebar for a cleaner module overview layout.
 - Standardized input width inside app-card for all inputs/selects (min 50%, max 100%) while excluding textarea.
@@ -340,7 +449,35 @@ Completed in this cycle:
 - Destinations detail: Services Availability now uses the same stats style as Inquiries.
 - Standardized stats icons globally to use Font Awesome mapping in `<x-index-stats>`.
 - Vendors: added soft delete, Deactivate/Activate toggle, and block delete when linked to Activities/F&B.
+- Food & Beverages: added `markup_type` + `markup` fields (with backfill from legacy publish-contract delta).
+- Food & Beverages: publish rate is now auto-calculated server-side from contract rate + markup (fixed/percent).
+- Food & Beverages: create/edit form now includes Markup Type + Markup and readonly auto Publish Rate.
+- Food & Beverages: standardized `contract_rate`, `markup`, `publish_rate` to zero-decimal precision (`DECIMAL(15,0)`).
+- Food & Beverages: index list now displays Contract, Markup, and Publish rates consistently.
+- Tourist Attractions: added `markup_type` + `markup` fields (with backfill from legacy publish-contract delta).
+- Tourist Attractions: publish rate now auto-calculated server-side from contract rate + markup (fixed/percent).
+- Tourist Attractions: create/edit form now includes Markup Type + Markup and readonly auto Publish Rate.
+- Tourist Attractions: standardized `contract_rate_per_pax`, `markup`, `publish_rate_per_pax` to zero-decimal precision (`DECIMAL(15,0)`).
+- Tourist Attractions: avoided `Number::format` usage in markup display to prevent `intl` extension dependency error.
+- Activities: added adult/child markup fields (`adult_markup_type`, `adult_markup`, `child_markup_type`, `child_markup`) with backfill from legacy publish-contract deltas.
+- Activities: adult/child publish rates now auto-calculated server-side from respective contract rate + markup (fixed/percent).
+- Activities: create/edit form now includes adult/child markup type + markup, and publish rates are readonly auto-calculated.
+- Activities: standardized activity pricing rates to zero-decimal precision (`DECIMAL(15,0)`) for `contract_price`, adult/child contract, adult/child markup, and adult/child publish.
+- Activities: markup display uses native PHP number formatting (no `Number::format`) to avoid `intl` extension dependency.
 
+- Hotels (Prices step): added `markup_type` and auto `publish_rate` fields per seasonal room rate.
+- Hotels: publish rate now auto-calculated from contract rate + markup (fixed/percent) on frontend and backend.
+- Hotels: standardized hotel price rates to `DECIMAL(15,0)` (`contract_rate`, `markup`, `publish_rate`, `kick_back`) for zero-decimal consistency.
+- Hotels: hotel detail rates table now shows Contract, Markup, and Publish rates for transparency.
+- Hotels: implementation avoids `Number::format` so create/edit flows remain safe without PHP `intl` extension.
 ----------------------------------------------------------------------------------------------------
 
 END OF ROADMAP
+
+
+
+
+
+
+
+

@@ -620,22 +620,67 @@ class HotelController extends Controller
     private function normalizePrices(array $rows, array $allowedRoomIds = []): array
     {
         $payload = [];
-        foreach ($rows as $row) {
+        foreach ($rows as $index => $row) {
             $roomsId = (int) ($row['rooms_id'] ?? 0);
             if ($roomsId <= 0 || ($allowedRoomIds !== [] && !in_array($roomsId, $allowedRoomIds, true))) {
                 continue;
             }
+
+            $contractRate = $this->parseRateValue($row['contract_rate'] ?? 0);
+            $markupType = (($row['markup_type'] ?? 'fixed') === 'percent') ? 'percent' : 'fixed';
+            $markup = $this->parseRateValue($row['markup'] ?? 0);
+            $kickBack = $this->parseRateValue($row['kick_back'] ?? 0);
+
+            if ($markupType === 'percent' && $markup > 100) {
+                throw ValidationException::withMessages([
+                    "hotel_prices.{$index}.markup" => 'Markup percent cannot be greater than 100.',
+                ]);
+            }
+
             $payload[] = [
                 'rooms_id' => $roomsId,
                 'start_date' => $row['start_date'] ?? null,
                 'end_date' => $row['end_date'] ?? null,
-                'markup' => $row['markup'] ?? null,
-                'kick_back' => $row['kick_back'] ?? null,
-                'contract_rate' => (int) ($row['contract_rate'] ?? 0),
+                'markup_type' => $markupType,
+                'markup' => round($markup, 0),
+                'kick_back' => round($kickBack, 0),
+                'contract_rate' => round($contractRate, 0),
+                'publish_rate' => round($this->calculatePublishRate($contractRate, $markupType, $markup), 0),
                 'author' => auth()->id(),
             ];
         }
         return $payload;
+    }
+
+    private function parseRateValue($value): float
+    {
+        $raw = trim((string) $value);
+        if ($raw === '') {
+            return 0;
+        }
+
+        if (preg_match('/^\d+([.,]\d{1,2})?$/', $raw) === 1 && ! str_contains($raw, ' ')) {
+            return max(0, (float) str_replace(',', '.', $raw));
+        }
+
+        $digitsOnly = preg_replace('/[^\d]/', '', $raw);
+        if (! is_string($digitsOnly) || $digitsOnly === '') {
+            return 0;
+        }
+
+        return max(0, (float) $digitsOnly);
+    }
+
+    private function calculatePublishRate(float $contractRate, string $markupType, float $markup): float
+    {
+        $base = max(0, $contractRate);
+        $value = max(0, $markup);
+
+        if ($markupType === 'percent') {
+            return $base + ($base * ($value / 100));
+        }
+
+        return $base + $value;
     }
 
 

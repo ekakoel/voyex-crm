@@ -164,6 +164,10 @@ Saat menerima instruksi:
     -   Optimal
     -   Clean
     -   Siap dikembangkan di masa depan
+5.  Setiap AI melakukan update code, WAJIB:
+    -   Menambahkan catatan perubahan pada `VOYEX_CRM_SYSTEM_ROADMAP.md` bagian `CHANGELOG (LATEST)`
+    -   Memperbarui dokumentasi `.md` yang relevan dengan perubahan
+    -   Memperbarui `PROJECT_KNOWLEDGE_BASE.md` jika perubahan berdampak lintas modul/konvensi
 
 ------------------------------------------------------------------------
 
@@ -192,5 +196,4 @@ Itinerary, Quotation, dan Invoice secara efisien, akurat, dan scalable.
 ------------------------------------------------------------------------
 
 END OF DOCUMENT
-
 

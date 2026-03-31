@@ -8,6 +8,11 @@
     $selectedServiceType = (string) old('service_type', $foodBeverage->service_type ?? ($prefill['service_type'] ?? ''));
     $isLegacyServiceType = $selectedServiceType !== '' && ! in_array($selectedServiceType, $standardServiceTypes, true);
     $selectedDestinationId = (int) old('destination_filter_id', $foodBeverage->vendor->destination_id ?? 0);
+    $defaultMarkupType = old('markup_type', $foodBeverage->markup_type ?? ($prefill['markup_type'] ?? 'fixed'));
+    $defaultMarkup = old('markup', $foodBeverage->markup ?? ($prefill['markup'] ?? null));
+    if ($defaultMarkup === null) {
+        $defaultMarkup = max(0, (float) (($foodBeverage->publish_rate ?? ($prefill['publish_rate'] ?? 0)) - ($foodBeverage->contract_rate ?? ($prefill['contract_rate'] ?? 0))));
+    }
 @endphp
 
 <div class="space-y-4">
@@ -136,24 +141,46 @@
         </div>
     </div>
 
-    <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+    <div class="grid grid-cols-1 gap-4 md:grid-cols-4">
         <div>
             <x-money-input
                 label="Contract Rate (per pax)"
                 name="contract_rate"
                 :value="old('contract_rate', $foodBeverage->contract_rate ?? ($prefill['contract_rate'] ?? ($prefill['contract_price'] ?? '')))"
+                id="food-beverage-contract-rate"
                 min="0"
-                step="0.01"
+                step="1"
             />
             @error('contract_rate') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
         </div>
         <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Markup Type</label>
+            <select name="markup_type" id="food-beverage-markup-type" class="mt-1 dark:border-gray-600 app-input">
+                <option value="fixed" @selected($defaultMarkupType === 'fixed')>Fixed</option>
+                <option value="percent" @selected($defaultMarkupType === 'percent')>Percent</option>
+            </select>
+            @error('markup_type') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+        </div>
+        <div>
             <x-money-input
-                label="Publish Rate (per pax)"
+                label="Markup (per pax)"
+                name="markup"
+                :value="$defaultMarkup"
+                id="food-beverage-markup"
+                min="0"
+                step="1"
+            />
+            @error('markup') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+        </div>
+        <div>
+            <x-money-input
+                label="Publish Rate (Auto / per pax)"
                 name="publish_rate"
+                id="food-beverage-publish-rate"
                 :value="old('publish_rate', $foodBeverage->publish_rate ?? ($prefill['publish_rate'] ?? ($prefill['agent_price'] ?? '')))"
                 min="0"
-                step="0.01"
+                step="1"
+                readonly
             />
             @error('publish_rate') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
         </div>
@@ -191,7 +218,55 @@
                 const vendorSelect = document.getElementById('food-beverage-vendor-select');
                 const input = document.getElementById('food-beverage-gallery-input');
                 const preview = document.getElementById('food-beverage-gallery-preview');
+                const contractRateInput = document.getElementById('food-beverage-contract-rate');
+                const markupTypeSelect = document.getElementById('food-beverage-markup-type');
+                const markupInput = document.getElementById('food-beverage-markup');
+                const publishRateInput = document.getElementById('food-beverage-publish-rate');
                 if (!input || !preview) return;
+
+                const parseMoney = (value) => {
+                    const raw = String(value ?? '').trim();
+                    if (raw === '') return 0;
+
+                    if (/^\d+([.,]\d{1,2})?$/.test(raw) && !raw.includes(' ')) {
+                        const numeric = Number(raw.replace(',', '.'));
+                        return Number.isFinite(numeric) ? Math.round(numeric) : 0;
+                    }
+
+                    const digits = raw.replace(/[^\d]/g, '');
+                    if (digits === '') return 0;
+                    const numeric = Number(digits);
+                    return Number.isFinite(numeric) ? numeric : 0;
+                };
+
+                const syncMarkupBadge = () => {
+                    if (!markupInput || !markupTypeSelect) return;
+                    const badge = markupInput.parentElement?.querySelector('[data-money-badge="1"]');
+                    if (!badge) return;
+                    badge.textContent = markupTypeSelect.value === 'percent'
+                        ? '%'
+                        : (window.appCurrencySymbol || window.appCurrency || 'IDR');
+                };
+
+                const recalcPublishRate = () => {
+                    if (!publishRateInput || !contractRateInput || !markupInput || !markupTypeSelect) return;
+
+                    const contractRate = parseMoney(contractRateInput.value);
+                    let markupValue = parseMoney(markupInput.value);
+                    const markupType = markupTypeSelect.value === 'percent' ? 'percent' : 'fixed';
+
+                    if (markupType === 'percent' && markupValue > 100) {
+                        markupValue = 100;
+                        markupInput.value = '100';
+                    }
+
+                    const publishRate = markupType === 'percent'
+                        ? contractRate + (contractRate * (markupValue / 100))
+                        : contractRate + markupValue;
+
+                    publishRateInput.value = String(Math.max(0, Math.round(publishRate)));
+                    syncMarkupBadge();
+                };
 
                 const applyVendorFilter = () => {
                     if (!destinationFilter || !vendorSelect) return;
@@ -287,6 +362,9 @@
 
                 input.addEventListener('change', renderNewUploads);
                 destinationFilter?.addEventListener('change', applyVendorFilter);
+                contractRateInput?.addEventListener('input', recalcPublishRate);
+                markupInput?.addEventListener('input', recalcPublishRate);
+                markupTypeSelect?.addEventListener('change', recalcPublishRate);
 
                 preview.addEventListener('click', async (event) => {
                     const button = event.target.closest('.food-beverage-gallery-remove-btn');
@@ -331,6 +409,7 @@
 
                 ensureEmptyState();
                 applyVendorFilter();
+                recalcPublishRate();
             })();
         </script>
     @endpush

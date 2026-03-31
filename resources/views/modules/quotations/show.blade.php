@@ -39,7 +39,7 @@
             </div>
         @endif
 
-        <div class="module-grid-9-3">
+        <div class="module-grid-8-4">
             <div class="module-grid-main space-y-4">
                 <div class="app-card p-6 space-y-4">
                     <div class="flex flex-wrap items-start justify-between gap-3">

@@ -20,6 +20,7 @@ Di `show.blade.php`:
 - tombol filter hari: `.itinerary-day-filter-btn`
   - `data-day=""` untuk `All Days`
   - `data-day="N"` untuk `Day N`
+- card map sisi kanan memakai `h-fit lg:self-start` agar tinggi card mengikuti tinggi konten map (tidak stretch mengikuti kolom kiri dan tidak menyisakan ruang kosong bawah).
 
 ## 3. Sumber Data Titik (Server-side / PHP)
 

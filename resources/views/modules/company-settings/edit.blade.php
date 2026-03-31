@@ -4,7 +4,9 @@
     @php
         $destinations = $destinations ?? collect();
     @endphp
-    <div class="max-w-5xl space-y-6">
+    <div class="space-y-6 module-page module-page--company-settings">
+        <div class="module-grid-8-4">
+            <div class="module-grid-main">
         
 
         @if (session('success'))
@@ -13,7 +15,7 @@
             </div>
         @endif
 
-        <div class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+        <div class="module-form-wrap">
             <form method="POST" action="{{ route('company-settings.update') }}" enctype="multipart/form-data" class="space-y-6" data-location-autofill data-location-resolve-url="{{ route('location.resolve-google-map') }}">
                 @csrf
                 @method('PATCH')
@@ -109,8 +111,19 @@
                 </div>
             </form>
         </div>
+            </div>
+            <aside class="module-grid-side">
+                <div class="module-card p-5 text-sm text-slate-600 dark:text-slate-300">
+                    <p class="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Info</p>
+                    <p class="mt-2">Update informasi perusahaan utama, kontak, dan logo untuk dipakai lintas modul.</p>
+                </div>
+            </aside>
+        </div>
     </div>
 @endsection
+
+
+
 
 
 

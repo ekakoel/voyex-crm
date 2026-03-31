@@ -5,6 +5,16 @@
     $destinations = $destinations ?? collect();
     $selectedActivityTypeName = (string) old('activity_type_name', $activity->activityType->name ?? $activity->activity_type ?? '');
     $selectedDestinationId = (int) old('destination_filter_id', $activity->vendor->destination_id ?? 0);
+    $defaultAdultMarkupType = old('adult_markup_type', $activity->adult_markup_type ?? 'fixed');
+    $defaultAdultMarkup = old('adult_markup', $activity->adult_markup ?? null);
+    if ($defaultAdultMarkup === null) {
+        $defaultAdultMarkup = max(0, (float) (($activity->adult_publish_rate ?? 0) - ($activity->adult_contract_rate ?? 0)));
+    }
+    $defaultChildMarkupType = old('child_markup_type', $activity->child_markup_type ?? 'fixed');
+    $defaultChildMarkup = old('child_markup', $activity->child_markup ?? null);
+    if ($defaultChildMarkup === null) {
+        $defaultChildMarkup = max(0, (float) (($activity->child_publish_rate ?? 0) - ($activity->child_contract_rate ?? 0)));
+    }
 @endphp
 
 <div class="space-y-4">
@@ -133,46 +143,95 @@
         </div>
     </div>
 
-    <div class="grid grid-cols-1 gap-4 md:grid-cols-4">
-        <div>
-            <x-money-input
-                label="Adult Contract Rate"
-                name="adult_contract_rate"
-                :value="old('adult_contract_rate', $activity->adult_contract_rate ?? $activity->contract_price ?? '')"
-                min="0"
-                step="0.01"
-            />
-            @error('adult_contract_rate') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+    <div class="space-y-4">
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-4">
+            <div>
+                <x-money-input
+                    label="Adult Contract Rate"
+                    name="adult_contract_rate"
+                    :value="old('adult_contract_rate', $activity->adult_contract_rate ?? $activity->contract_price ?? '')"
+                    id="activity-adult-contract-rate"
+                    min="0"
+                    step="1"
+                />
+                @error('adult_contract_rate') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Adult Markup Type</label>
+                <select name="adult_markup_type" id="activity-adult-markup-type" class="mt-1 dark:border-gray-600 app-input">
+                    <option value="fixed" @selected($defaultAdultMarkupType === 'fixed')>Fixed</option>
+                    <option value="percent" @selected($defaultAdultMarkupType === 'percent')>Percent</option>
+                </select>
+                @error('adult_markup_type') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+            </div>
+            <div>
+                <x-money-input
+                    label="Adult Markup"
+                    name="adult_markup"
+                    :value="$defaultAdultMarkup"
+                    id="activity-adult-markup"
+                    min="0"
+                    step="1"
+                />
+                @error('adult_markup') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+            </div>
+            <div>
+                <x-money-input
+                    label="Adult Publish Rate (Auto)"
+                    name="adult_publish_rate"
+                    :value="old('adult_publish_rate', $activity->adult_publish_rate ?? '')"
+                    id="activity-adult-publish-rate"
+                    min="0"
+                    step="1"
+                    readonly
+                />
+                @error('adult_publish_rate') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+            </div>
         </div>
-        <div>
-            <x-money-input
-                label="Child Contract Rate"
-                name="child_contract_rate"
-                :value="old('child_contract_rate', $activity->child_contract_rate ?? '')"
-                min="0"
-                step="0.01"
-            />
-            @error('child_contract_rate') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
-        </div>
-        <div>
-            <x-money-input
-                label="Adult Publish Rate"
-                name="adult_publish_rate"
-                :value="old('adult_publish_rate', $activity->adult_publish_rate ?? '')"
-                min="0"
-                step="0.01"
-            />
-            @error('adult_publish_rate') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
-        </div>
-        <div>
-            <x-money-input
-                label="Child Publish Rate"
-                name="child_publish_rate"
-                :value="old('child_publish_rate', $activity->child_publish_rate ?? '')"
-                min="0"
-                step="0.01"
-            />
-            @error('child_publish_rate') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-4">
+            <div>
+                <x-money-input
+                    label="Child Contract Rate"
+                    name="child_contract_rate"
+                    :value="old('child_contract_rate', $activity->child_contract_rate ?? '')"
+                    id="activity-child-contract-rate"
+                    min="0"
+                    step="1"
+                />
+                @error('child_contract_rate') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Child Markup Type</label>
+                <select name="child_markup_type" id="activity-child-markup-type" class="mt-1 dark:border-gray-600 app-input">
+                    <option value="fixed" @selected($defaultChildMarkupType === 'fixed')>Fixed</option>
+                    <option value="percent" @selected($defaultChildMarkupType === 'percent')>Percent</option>
+                </select>
+                @error('child_markup_type') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+            </div>
+            <div>
+                <x-money-input
+                    label="Child Markup"
+                    name="child_markup"
+                    :value="$defaultChildMarkup"
+                    id="activity-child-markup"
+                    min="0"
+                    step="1"
+                />
+                @error('child_markup') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+            </div>
+            <div>
+                <x-money-input
+                    label="Child Publish Rate (Auto)"
+                    name="child_publish_rate"
+                    :value="old('child_publish_rate', $activity->child_publish_rate ?? '')"
+                    id="activity-child-publish-rate"
+                    min="0"
+                    step="1"
+                    readonly
+                />
+                @error('child_publish_rate') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+            </div>
         </div>
     </div>
 
@@ -233,7 +292,64 @@
                 const vendorSelect = document.getElementById('activity-vendor-select');
                 const input = document.getElementById('activity-gallery-input');
                 const preview = document.getElementById('activity-gallery-preview');
+                const adultContractRateInput = document.getElementById('activity-adult-contract-rate');
+                const adultMarkupTypeSelect = document.getElementById('activity-adult-markup-type');
+                const adultMarkupInput = document.getElementById('activity-adult-markup');
+                const adultPublishRateInput = document.getElementById('activity-adult-publish-rate');
+                const childContractRateInput = document.getElementById('activity-child-contract-rate');
+                const childMarkupTypeSelect = document.getElementById('activity-child-markup-type');
+                const childMarkupInput = document.getElementById('activity-child-markup');
+                const childPublishRateInput = document.getElementById('activity-child-publish-rate');
                 if (!input || !preview) return;
+
+                const parseMoney = (value) => {
+                    const raw = String(value ?? '').trim();
+                    if (raw === '') return 0;
+
+                    if (/^\d+([.,]\d{1,2})?$/.test(raw) && !raw.includes(' ')) {
+                        const numeric = Number(raw.replace(',', '.'));
+                        return Number.isFinite(numeric) ? Math.round(numeric) : 0;
+                    }
+
+                    const digits = raw.replace(/[^\d]/g, '');
+                    if (digits === '') return 0;
+                    const numeric = Number(digits);
+                    return Number.isFinite(numeric) ? numeric : 0;
+                };
+
+                const syncMarkupBadge = (inputEl, typeEl) => {
+                    if (!inputEl || !typeEl) return;
+                    const badge = inputEl.parentElement?.querySelector('[data-money-badge="1"]');
+                    if (!badge) return;
+                    badge.textContent = typeEl.value === 'percent'
+                        ? '%'
+                        : (window.appCurrencySymbol || window.appCurrency || 'IDR');
+                };
+
+                const recalcRate = (contractEl, typeEl, markupEl, publishEl) => {
+                    if (!contractEl || !typeEl || !markupEl || !publishEl) return;
+
+                    const contractRate = parseMoney(contractEl.value);
+                    let markupValue = parseMoney(markupEl.value);
+                    const markupType = typeEl.value === 'percent' ? 'percent' : 'fixed';
+
+                    if (markupType === 'percent' && markupValue > 100) {
+                        markupValue = 100;
+                        markupEl.value = '100';
+                    }
+
+                    const publishRate = markupType === 'percent'
+                        ? contractRate + (contractRate * (markupValue / 100))
+                        : contractRate + markupValue;
+
+                    publishEl.value = String(Math.max(0, Math.round(publishRate)));
+                    syncMarkupBadge(markupEl, typeEl);
+                };
+
+                const recalcAllRates = () => {
+                    recalcRate(adultContractRateInput, adultMarkupTypeSelect, adultMarkupInput, adultPublishRateInput);
+                    recalcRate(childContractRateInput, childMarkupTypeSelect, childMarkupInput, childPublishRateInput);
+                };
 
                 const applyVendorFilter = () => {
                     if (!destinationFilter || !vendorSelect) return;
@@ -329,6 +445,12 @@
 
                 input.addEventListener('change', renderNewUploads);
                 destinationFilter?.addEventListener('change', applyVendorFilter);
+                adultContractRateInput?.addEventListener('input', recalcAllRates);
+                adultMarkupInput?.addEventListener('input', recalcAllRates);
+                adultMarkupTypeSelect?.addEventListener('change', recalcAllRates);
+                childContractRateInput?.addEventListener('input', recalcAllRates);
+                childMarkupInput?.addEventListener('input', recalcAllRates);
+                childMarkupTypeSelect?.addEventListener('change', recalcAllRates);
 
                 preview.addEventListener('click', async (event) => {
                     const button = event.target.closest('.activity-gallery-remove-btn');
@@ -373,6 +495,7 @@
 
                 ensureEmptyState();
                 applyVendorFilter();
+                recalcAllRates();
             })();
         </script>
     @endpush

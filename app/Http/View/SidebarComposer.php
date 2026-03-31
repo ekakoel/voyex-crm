@@ -128,6 +128,13 @@ class SidebarComposer
                 'title' => 'Product & Reservation',
             ],
             [
+                'title' => 'Airports',
+                'route' => 'airports.index',
+                'icon'  => 'plane-departure',
+                'module' => 'airports',
+                'roles' => ['Administrator', 'Super Admin', 'Reservation', 'Manager', 'Marketing', 'Editor'],
+            ],
+            [
                 'title' => 'Destinations',
                 'route' => 'destinations.index',
                 'icon'  => 'map-location-dot',
@@ -165,13 +172,6 @@ class SidebarComposer
                         'route' => 'hotels.index',
                         'icon'  => 'bed',
                         'module' => 'hotels',
-                        'roles' => ['Administrator', 'Super Admin', 'Reservation', 'Manager', 'Marketing', 'Editor'],
-                    ],
-                    [
-                        'title' => 'Airports',
-                        'route' => 'airports.index',
-                        'icon'  => 'plane-departure',
-                        'module' => 'airports',
                         'roles' => ['Administrator', 'Super Admin', 'Reservation', 'Manager', 'Marketing', 'Editor'],
                     ],
                     [
