@@ -2,11 +2,19 @@
 @section('page_title', 'Quotations')
 @section('page_subtitle', 'Manage quotation data.')
 @section('page_actions')
-    <a href="{{ route('quotations.export', request()->only(['q','status','per_page'])) }}" class="btn-secondary">Export CSV</a>
+    <a href="{{ route('quotations.export', request()->only(['q','status','per_page','needs_my_approval'])) }}" class="btn-secondary">Export CSV</a>
     <a href="{{ route('quotations.create') }}" class="btn-primary">Add Quotation</a>
 @endsection
 @section('content')
     <div class="space-y-6 module-page module-page--quotations">
+        @if (request()->boolean('needs_my_approval'))
+            <div class="flex items-center">
+                <span class="inline-flex items-center gap-2 rounded-full border border-sky-300 bg-sky-50 px-3 py-1 text-xs font-semibold text-sky-700 dark:border-sky-700 dark:bg-sky-900/20 dark:text-sky-300">
+                    <i class="fa-solid fa-bell"></i>
+                    Needs My Approval
+                </span>
+            </div>
+        @endif
         <x-index-stats :cards="$statsCards ?? []" />
         <div class="module-grid-3-9">
             <aside class="module-grid-side space-y-4">
@@ -41,12 +49,22 @@
                 {{ session('success') }}
             </div>
         @endif
+        @if (request()->boolean('needs_my_approval'))
+            <div class="rounded-lg mb-6 border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-700 dark:border-sky-700 dark:bg-sky-900/20 dark:text-sky-300">
+                Showing: Quotations requiring your approval.
+            </div>
+        @endif
         <div class="md:hidden space-y-3">
             @forelse ($quotations as $quotation)
                 <div class="app-card p-4">
                     <div class="flex items-start justify-between gap-3">
                         <div>
                             <p class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ $quotation->quotation_number }}</p>
+                            @if ((bool) ($quotation->needs_my_approval_badge ?? false))
+                                <span class="mt-1 inline-flex items-center rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-300">
+                                    Need Approval
+                                </span>
+                            @endif
                         </div>
                         <x-status-badge :status="$quotation->status" size="xs" />
                     </div>
@@ -58,7 +76,7 @@
                         <div>Created By</div>
                         <div>
                             {{ $quotation->creator?->name ?? '-' }}<br>
-                            {{ $quotation->created_at?->format('Y-m-d H:i') ?? '-' }}
+                            <x-local-time :value="$quotation->created_at" />
                         </div>
                     </div>
                     <div class="mt-3 flex flex-wrap gap-2">
@@ -68,7 +86,9 @@
                                 <a href="{{ route('quotations.edit', $quotation) }}"  class="btn-secondary-sm" title="Edit" aria-label="Edit"><i class="fa-solid fa-pen"></i><span class="sr-only">Edit</span></a>
                             @endif
                         @endcan
-                        <a href="{{ route('quotations.pdf', $quotation) }}" target="_blank" rel="noopener"  class="btn-outline-sm">PDF</a>
+                        @if (($quotation->status ?? '') === 'approved')
+                            <a href="{{ route('quotations.pdf', $quotation) }}" target="_blank" rel="noopener"  class="btn-outline-sm">PDF</a>
+                        @endif
                         @can('delete', $quotation)
                             @if (! in_array(($quotation->status ?? ''), ['approved', 'final'], true))
                                 <form action="{{ route('quotations.toggle-status', $quotation->id) }}" method="POST" class="inline">
@@ -106,7 +126,16 @@
                     @forelse ($quotations as $index=>$quotation)
                         <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/30">
                             <td class="px-4 py-3 text-sm text-gray-800 dark:text-gray-100">{{ ++$index }}</td>
-                            <td class="px-4 py-3 text-sm text-gray-800 dark:text-gray-100">{{ $quotation->quotation_number }}</td>
+                            <td class="px-4 py-3 text-sm text-gray-800 dark:text-gray-100">
+                                <div class="flex flex-col items-start">
+                                    <span>{{ $quotation->quotation_number }}</span>
+                                    @if ((bool) ($quotation->needs_my_approval_badge ?? false))
+                                        <span class="mt-1 inline-flex items-center rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-300">
+                                            Need Approval
+                                        </span>
+                                    @endif
+                                </div>
+                            </td>
                             <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">
                                 <x-status-badge :status="$quotation->status" size="xs" />
                             </td>
@@ -114,9 +143,8 @@
                             <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200"><x-money :amount="$quotation->final_amount ?? 0" currency="IDR" /></td>
                             <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">
                                 {{ $quotation->creator?->name ?? '-' }}<br>
-                                <i>{{ $quotation->created_at?->format('Y-m-d H:i') ?? '-' }}</i>
+                                <i><x-local-time :value="$quotation->created_at" /></i>
                             </td>
-                            <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200"></td>
                             <td class="px-4 py-3 text-right text-sm actions-compact">
     <div class="flex items-center justify-end gap-2">
         <a href="{{ route('quotations.show', $quotation) }}" class="btn-outline-sm" title="View" aria-label="View"><i class="fa-solid fa-eye"></i><span class="sr-only">View</span></a>
@@ -125,7 +153,9 @@
                                         <a href="{{ route('quotations.edit', $quotation) }}"  class="btn-secondary-sm" title="Edit" aria-label="Edit"><i class="fa-solid fa-pen"></i><span class="sr-only">Edit</span></a>
                                     @endif
                                 @endcan
-                                <a href="{{ route('quotations.pdf', $quotation) }}" target="_blank" rel="noopener"  class="btn-outline-sm">PDF</a>
+                                @if (($quotation->status ?? '') === 'approved')
+                                    <a href="{{ route('quotations.pdf', $quotation) }}" target="_blank" rel="noopener"  class="btn-outline-sm">PDF</a>
+                                @endif
                                 @can('delete', $quotation)
                                     @if (! in_array(($quotation->status ?? ''), ['approved', 'final'], true))
                                         <form action="{{ route('quotations.toggle-status', $quotation->id) }}" method="POST" class="inline">
@@ -153,6 +183,7 @@
         </div>
 </div>
 @endsection
+
 
 
 

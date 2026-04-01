@@ -9,6 +9,20 @@ Voyex CRM adalah Travel Management System untuk membantu travel agent
 mengelola data dan menghasilkan Itinerary, Quotation, dan Invoice secara
 efisien, akurat, dan scalable.
 
+## 1A. Mandatory Execution Protocol (Wajib Dipatuhi)
+Aturan ini adalah patokan wajib untuk setiap perubahan code ke depan, tanpa pengecualian:
+
+1. Sebelum melakukan perubahan apa pun, wajib membaca, menganalisa, dan memahami penuh code pada halaman/flow terkait sampai alur sistem benar-benar jelas.
+2. Wajib menyusun solusi yang matang dan terbaik dari sisi:
+   - performa,
+   - UI/UX,
+   - user friendly,
+   - serta tidak merusak, mengganggu, atau menimbulkan error pada sistem yang sudah berjalan.
+3. Implementasi solusi wajib dilakukan dengan benar dan aman agar tidak menimbulkan error/regression.
+4. Setelah implementasi, wajib memastikan hasil perubahan berjalan normal end-to-end pada file/flow terkait.
+
+Catatan: protokol ini menjadi standar kerja tetap untuk semua aksi pengembangan berikutnya.
+
 ## 2. Stack & Lingkungan
 - Framework: Laravel 10.50
 - PHP: 8.2.x
@@ -470,3 +484,29 @@ Untuk detail tambahan, rujuk:
 - VOYEX_CRM_SYSTEM_ROADMAP.md
 - LAYOUT_GUIDE.md
 - modul.md
+# Dashboard KPI Grid Standard
+
+Untuk semua halaman dashboard, grid KPI wajib menggunakan standar layout yang sama agar konsisten:
+
+- Gunakan class CSS: `dashboard-kpi-grid`
+- Breakpoint standard:
+  - Mobile: `1` kolom
+  - `sm`: `2` kolom
+  - `lg` ke atas: `6` kolom
+- Jika jumlah KPI kurang dari 6, tetap gunakan grid standard (card akan mengisi sebagian kolom).
+- Jika jumlah KPI lebih dari 6, card otomatis lanjut ke baris berikutnya dengan pola yang sama.
+
+Implementasi acuan saat ini:
+
+- `resources/css/app.css` pada `.dashboard-kpi-grid`
+- Dashboard yang sudah mengikuti standar:
+  - `resources/views/manager/dashboard.blade.php`
+  - `resources/views/director/dashboard.blade.php`
+  - `resources/views/finance/dashboard.blade.php`
+  - `resources/views/admin/dashboard.blade.php` (Main KPI Grid)
+  - `resources/views/sales/dashboard.blade.php` (Main KPI row)
+
+Catatan:
+
+- Untuk dashboard yang memakai `<x-index-stats>`, tambahkan `class="dashboard-kpi-grid"` di pemanggilan komponen.
+- Jangan membuat grid KPI baru dengan variasi breakpoint berbeda kecuali ada keputusan UI global yang didokumentasikan.

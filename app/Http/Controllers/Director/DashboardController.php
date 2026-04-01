@@ -7,6 +7,7 @@ use App\Models\Booking;
 use App\Models\Inquiry;
 use App\Models\Quotation;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
@@ -19,22 +20,47 @@ class DashboardController extends Controller
         $canInquiries = (bool) $user?->can('module.inquiries.access');
         $canQuotations = (bool) $user?->can('module.quotations.access');
         $canBookings = (bool) $user?->can('module.bookings.access');
+        $currentMonthStart = $now->copy()->startOfMonth();
+        $previousMonthStart = $now->copy()->subMonthNoOverflow()->startOfMonth();
+        $previousMonthEnd = $previousMonthStart->copy()->endOfMonth();
 
         $monthlyRevenue = $canBookings
             ? Booking::join('quotations', 'bookings.quotation_id', '=', 'quotations.id')
-                ->whereMonth('bookings.created_at', $now->month)
-                ->whereYear('bookings.created_at', $now->year)
+                ->whereBetween('bookings.created_at', [$currentMonthStart, $now])
                 ->sum('quotations.final_amount')
             : 0;
+        $previousMonthlyRevenue = $canBookings
+            ? Booking::join('quotations', 'bookings.quotation_id', '=', 'quotations.id')
+                ->whereBetween('bookings.created_at', [$previousMonthStart, $previousMonthEnd])
+                ->sum('quotations.final_amount')
+            : 0;
+        $revenueGrowthPercent = $previousMonthlyRevenue > 0
+            ? round((($monthlyRevenue - $previousMonthlyRevenue) / $previousMonthlyRevenue) * 100, 2)
+            : ($monthlyRevenue > 0 ? 100 : 0);
 
         $totalInquiry = $canInquiries ? Inquiry::count() : 0;
+        $inquiriesThisMonth = $canInquiries
+            ? Inquiry::query()->whereBetween('created_at', [$currentMonthStart, $now])->count()
+            : 0;
+
+        $totalQuotation = $canQuotations ? Quotation::query()->count() : 0;
+        $quotationStatusCounts = $canQuotations
+            ? Quotation::query()
+                ->select('status', DB::raw('COUNT(*) as total'))
+                ->groupBy('status')
+                ->pluck('total', 'status')
+            : collect();
+
         $totalBooking = $canBookings ? Booking::count() : 0;
+        $bookingsThisMonth = $canBookings
+            ? Booking::query()->whereBetween('created_at', [$currentMonthStart, $now])->count()
+            : 0;
 
         $conversionRate = ($canBookings && $canInquiries && $totalInquiry > 0)
             ? round(($totalBooking / $totalInquiry) * 100, 2)
             : 0;
 
-        $monthlyData = $canBookings
+        $monthlyDataRaw = $canBookings
             ? Booking::join('quotations', 'bookings.quotation_id', '=', 'quotations.id')
                 ->select(
                     DB::raw('MONTH(bookings.created_at) as month'),
@@ -46,27 +72,95 @@ class DashboardController extends Controller
                 ->pluck('total', 'month')
             : collect();
 
+        $monthlyData = collect(range(1, 12))->map(function (int $month) use ($monthlyDataRaw) {
+            return [
+                'month' => $month,
+                'label' => Carbon::create()->month($month)->format('M'),
+                'total' => (float) ($monthlyDataRaw[$month] ?? 0),
+            ];
+        });
+
+        $maxMonthlyRevenue = (float) $monthlyData->max('total');
+
+        $hasReservationOtherApproval = function (Builder $query): void {
+            $query->where('approval_role', 'reservation')
+                ->where(function (Builder $inner): void {
+                    $inner->whereNull('quotations.created_by')
+                        ->orWhereColumn('quotation_approvals.user_id', '<>', 'quotations.created_by');
+                });
+        };
+
+        $needsReservationApprovalCount = $canQuotations
+            ? Quotation::query()
+                ->where('status', 'pending')
+                ->whereDoesntHave('approvals', $hasReservationOtherApproval)
+                ->count()
+            : 0;
+        $needsManagerApprovalCount = $canQuotations
+            ? Quotation::query()
+                ->where('status', 'pending')
+                ->whereHas('approvals', $hasReservationOtherApproval)
+                ->whereDoesntHave('approvals', fn (Builder $q) => $q->where('approval_role', 'manager'))
+                ->count()
+            : 0;
+        $needsDirectorApprovalCount = $canQuotations
+            ? Quotation::query()
+                ->where('status', 'pending')
+                ->whereHas('approvals', $hasReservationOtherApproval)
+                ->whereHas('approvals', fn (Builder $q) => $q->where('approval_role', 'manager'))
+                ->whereDoesntHave('approvals', fn (Builder $q) => $q->where('approval_role', 'director'))
+                ->where(function (Builder $q) use ($user): void {
+                    $q->whereNull('created_by')
+                        ->orWhere('created_by', '!=', (int) ($user?->id ?? 0));
+                })
+                ->count()
+            : 0;
+
         $pendingApprovals = $canQuotations
-            ? Quotation::where('status', 'pending')
-                ->latest()
-                ->limit(5)
-                ->get(['id', 'quotation_number', 'status', 'validity_date'])
+            ? Quotation::query()
+                ->with(['inquiry.customer'])
+                ->where('status', 'pending')
+                ->whereHas('approvals', $hasReservationOtherApproval)
+                ->whereHas('approvals', fn (Builder $q) => $q->where('approval_role', 'manager'))
+                ->whereDoesntHave('approvals', fn (Builder $q) => $q->where('approval_role', 'director'))
+                ->where(function (Builder $q) use ($user): void {
+                    $q->whereNull('created_by')
+                        ->orWhere('created_by', '!=', (int) ($user?->id ?? 0));
+                })
+                ->orderByRaw('validity_date IS NULL, validity_date ASC')
+                ->orderByDesc('id')
+                ->limit(8)
+                ->get(['id', 'quotation_number', 'status', 'validity_date', 'final_amount', 'inquiry_id'])
             : collect();
 
         $upcomingBookings = $canBookings
-            ? Booking::whereDate('travel_date', '>=', $now)
+            ? Booking::query()
+                ->with(['quotation:id,quotation_number,inquiry_id', 'quotation.inquiry:id,customer_id', 'quotation.inquiry.customer:id,name'])
+                ->whereDate('travel_date', '>=', $now)
                 ->orderBy('travel_date')
-                ->limit(5)
-                ->get()
+                ->limit(6)
+                ->get(['id', 'booking_number', 'quotation_id', 'travel_date', 'status'])
             : collect();
 
         return view('director.dashboard', compact(
             'user',
             'monthlyRevenue',
+            'previousMonthlyRevenue',
+            'revenueGrowthPercent',
             'conversionRate',
             'monthlyData',
+            'maxMonthlyRevenue',
             'pendingApprovals',
             'upcomingBookings',
+            'totalInquiry',
+            'inquiriesThisMonth',
+            'totalQuotation',
+            'quotationStatusCounts',
+            'totalBooking',
+            'bookingsThisMonth',
+            'needsReservationApprovalCount',
+            'needsManagerApprovalCount',
+            'needsDirectorApprovalCount',
             'canInquiries',
             'canQuotations',
             'canBookings'

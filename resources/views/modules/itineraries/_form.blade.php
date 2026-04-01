@@ -330,7 +330,7 @@
             'assigned_to' => (string) ($inquiry->assignedUser?->name ?? '-'),
             'itinerary_count' => (int) ($inquiry->itineraries_count ?? 0),
             'deadline' => $inquiry->deadline ? $inquiry->deadline->format('Y-m-d') : '-',
-            'created_at' => $inquiry->created_at ? $inquiry->created_at->format('Y-m-d H:i') : '-',
+            'created_at_iso' => $inquiry->created_at ? $inquiry->created_at->toIso8601String() : null,
             'notes' => \App\Support\SafeRichText::sanitize($inquiry->notes ?? null) ?: '-',
             'reminder_note' => \App\Support\SafeRichText::sanitize($latestFollowUp?->note ?? null) ?: '-',
             'reminder_reason' => \App\Support\SafeRichText::sanitize($latestFollowUp?->done_reason ?? null) ?: '-',
@@ -1139,6 +1139,21 @@
                 const detailEmpty = document.getElementById('inquiry-detail-empty');
                 const detailContent = document.getElementById('inquiry-detail-content');
                 const detailField = (id) => document.getElementById(id);
+                const localizeIso = (iso) => {
+                    const text = String(iso || '').trim();
+                    if (!text) return '-';
+                    const parsed = new Date(text);
+                    if (Number.isNaN(parsed.getTime())) return '-';
+                    return new Intl.DateTimeFormat(undefined, {
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        hour12: false,
+                        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                    }).format(parsed);
+                };
                 const setDetail = () => {
                     if (!inquirySelect || !detailEmpty || !detailContent) return;
                     const key = String(inquirySelect.value || '');
@@ -1159,7 +1174,7 @@
                     detailField('inq-detail-source').textContent = detail.source || '-';
                     detailField('inq-detail-assigned').textContent = detail.assigned_to || '-';
                     detailField('inq-detail-deadline').textContent = detail.deadline || '-';
-                    detailField('inq-detail-created').textContent = detail.created_at || '-';
+                    detailField('inq-detail-created').textContent = localizeIso(detail.created_at_iso);
                     detailField('inq-detail-notes').innerHTML = detail.notes || '-';
                     detailField('inq-detail-reminder-note').innerHTML = detail.reminder_note || '-';
                     detailField('inq-detail-reminder-reason').innerHTML = detail.reminder_reason || '-';

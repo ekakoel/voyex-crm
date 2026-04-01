@@ -10,8 +10,10 @@ use App\Models\Itinerary;
 use App\Models\Quotation;
 use App\Models\User;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class DashboardController extends Controller
 {
@@ -24,123 +26,173 @@ class DashboardController extends Controller
         $canItineraries = (bool) $user?->can('module.itineraries.access');
         $canBookings = (bool) $user?->can('module.bookings.access');
 
-        // A manager sees data from their whole team (Marketing + other Managers)
+        // Manager dashboard scope: Manager + Marketing team data.
         $teamIds = User::role(['Manager', 'Marketing'])->pluck('id')->toArray();
-        if ($user?->id && !in_array($user->id, $teamIds, true)) {
+        if ($user?->id && ! in_array($user->id, $teamIds, true)) {
             $teamIds[] = $user->id;
         }
         if (empty($teamIds) && $user?->id) {
             $teamIds = [$user->id];
         }
 
-        $kpis = [];
-        $funnel = [];
+        $currentMonthStart = $now->copy()->startOfMonth();
+        $currentMonthEnd = $now->copy()->endOfDay();
 
-        // KPI: Team Revenue This Month
+        $teamInquiryQuery = Inquiry::query()->whereIn('assigned_to', $teamIds);
+        $teamQuotationQuery = Quotation::query()->whereHas('inquiry', fn (Builder $q) => $q->whereIn('assigned_to', $teamIds));
+        $teamBookingQuery = Booking::query()
+            ->join('quotations', 'bookings.quotation_id', '=', 'quotations.id')
+            ->join('inquiries', 'quotations.inquiry_id', '=', 'inquiries.id')
+            ->whereIn('inquiries.assigned_to', $teamIds);
+
+        $hasReservationOtherApproval = function (Builder $query): void {
+            $query->where('approval_role', 'reservation')
+                ->where(function (Builder $inner): void {
+                    $inner->whereNull('quotations.created_by')
+                        ->orWhereColumn('quotation_approvals.user_id', '<>', 'quotations.created_by');
+                });
+        };
+
+        $excludeCreatorScope = function (Builder $query) use ($user): void {
+            if (! Schema::hasColumn('quotations', 'created_by')) {
+                return;
+            }
+
+            $query->where(function (Builder $inner) use ($user): void {
+                $inner->whereNull('created_by')
+                    ->orWhere('created_by', '!=', (int) ($user?->id ?? 0));
+            });
+        };
+
+        $totalInquiries = $canInquiries ? (clone $teamInquiryQuery)->count() : 0;
+        $inquiriesThisMonth = $canInquiries
+            ? (clone $teamInquiryQuery)->whereBetween('created_at', [$currentMonthStart, $currentMonthEnd])->count()
+            : 0;
+
+        $totalQuotations = $canQuotations ? (clone $teamQuotationQuery)->count() : 0;
+        $quotationsThisMonth = $canQuotations
+            ? (clone $teamQuotationQuery)->whereBetween('created_at', [$currentMonthStart, $currentMonthEnd])->count()
+            : 0;
+
+        $totalItineraries = $canItineraries
+            ? Itinerary::query()->whereHas('inquiry', fn (Builder $q) => $q->whereIn('assigned_to', $teamIds))->count()
+            : 0;
+
+        $totalBookings = $canBookings ? (clone $teamBookingQuery)->count('bookings.id') : 0;
+        $bookingsThisMonth = $canBookings
+            ? (clone $teamBookingQuery)->whereBetween('bookings.created_at', [$currentMonthStart, $currentMonthEnd])->count('bookings.id')
+            : 0;
+
+        $kpis = [];
         $kpis['monthly_revenue'] = $canBookings
-            ? Booking::query()
-                ->join('quotations', 'bookings.quotation_id', '=', 'quotations.id')
-                ->join('inquiries', 'quotations.inquiry_id', '=', 'inquiries.id')
-                ->whereIn('bookings.status', ['processed', 'approved', 'final'])
-                ->whereIn('inquiries.assigned_to', $teamIds)
-                ->whereMonth('bookings.travel_date', $now->month)
-                ->whereYear('bookings.travel_date', $now->year)
+            ? (clone $teamBookingQuery)
+                ->whereBetween('bookings.created_at', [$currentMonthStart, $currentMonthEnd])
                 ->sum('quotations.final_amount')
             : 0;
 
-        // Data for Funnel & Conversion Rate
-        $totalInquiries = $canInquiries
-            ? Inquiry::query()->count()
-            : 0;
-        $totalQuotations = $canQuotations
-            ? Quotation::query()->count()
-            : 0;
-        $totalItineraries = $canItineraries
-            ? Itinerary::query()->count()
-            : 0;
-        $totalBookings = $canBookings
-            ? Booking::query()->count()
-            : 0;
-
-        // KPI: Conversion Rate (Inquiry to Booking)
         $kpis['conversion_rate'] = ($canBookings && $canInquiries && $totalInquiries > 0)
             ? round(($totalBookings / $totalInquiries) * 100, 1)
             : 0;
-        
-        // KPI: Pending Quotations
-        $kpis['pending_quotations'] = $canQuotations
-            ? Quotation::query()
-                ->where('status', 'pending')
-                ->whereHas('inquiry', fn ($q) => $q->whereIn('assigned_to', $teamIds))
-                ->count()
-            : 0;
 
-        // KPI: Overdue Follow-ups
         $kpis['overdue_followups'] = $canInquiries
             ? InquiryFollowUp::query()
                 ->where('is_done', false)
                 ->whereDate('due_date', '<', $now->toDateString())
-                ->whereHas('inquiry', fn ($q) => $q->whereIn('assigned_to', $teamIds))
+                ->whereHas('inquiry', fn (Builder $q) => $q->whereIn('assigned_to', $teamIds))
+                ->count()
+            : 0;
+
+        $teamPendingQuotations = $canQuotations
+            ? (clone $teamQuotationQuery)->where('status', 'pending')
+            : Quotation::query()->whereRaw('1 = 0');
+
+        $needsReservationApprovalCount = $canQuotations
+            ? (clone $teamPendingQuotations)
+                ->whereDoesntHave('approvals', $hasReservationOtherApproval)
+                ->count()
+            : 0;
+
+        $needsManagerApprovalCount = $canQuotations
+            ? (clone $teamPendingQuotations)
+                ->whereHas('approvals', $hasReservationOtherApproval)
+                ->whereDoesntHave('approvals', fn (Builder $q) => $q->where('approval_role', 'manager'))
+                ->where($excludeCreatorScope)
+                ->count()
+            : 0;
+
+        $needsDirectorApprovalCount = $canQuotations
+            ? (clone $teamPendingQuotations)
+                ->whereHas('approvals', $hasReservationOtherApproval)
+                ->whereHas('approvals', fn (Builder $q) => $q->where('approval_role', 'manager'))
+                ->whereDoesntHave('approvals', fn (Builder $q) => $q->where('approval_role', 'director'))
                 ->count()
             : 0;
 
         $statsCards = [];
+
         if ($canBookings) {
             $statsCards[] = [
                 'key' => 'revenue',
-                'label' => 'Revenue (Month)',
+                'label' => 'Team Revenue (MTD)',
                 'value' => (int) round($kpis['monthly_revenue']),
-                'caption' => $now->format('M Y'),
+                'caption' => $now->format('M Y').' bookings',
                 'tone' => 'bg-emerald-50 text-emerald-700 border-emerald-100',
             ];
         }
+
         if ($canInquiries) {
             $statsCards[] = [
                 'key' => 'inquiries',
                 'label' => 'Team Inquiries',
                 'value' => $totalInquiries,
-                'caption' => 'Total assigned',
+                'caption' => number_format($inquiriesThisMonth).' this month',
                 'tone' => 'bg-slate-50 text-slate-700 border-slate-100',
             ];
         }
-        if ($canBookings) {
+
+        if ($canQuotations) {
             $statsCards[] = [
-                'key' => 'bookings',
-                'label' => 'Bookings',
-                'value' => $totalBookings,
-                'caption' => 'Converted',
+                'key' => 'quotations',
+                'label' => 'Team Quotations',
+                'value' => $totalQuotations,
+                'caption' => number_format($quotationsThisMonth).' this month',
                 'tone' => 'bg-sky-50 text-sky-700 border-sky-100',
             ];
         }
-        if ($canBookings && $canInquiries) {
+
+        if ($canBookings) {
             $statsCards[] = [
-                'key' => 'sales',
-                'label' => 'Conversion Rate',
-                'value' => (int) round($kpis['conversion_rate']),
-                'caption' => 'Inquiry → Booking (%)',
+                'key' => 'bookings',
+                'label' => 'Team Bookings',
+                'value' => $totalBookings,
+                'caption' => number_format($bookingsThisMonth).' this month',
                 'tone' => 'bg-indigo-50 text-indigo-700 border-indigo-100',
             ];
         }
+
         if ($canQuotations) {
             $statsCards[] = [
-                'key' => 'pending',
-                'label' => 'Pending Approvals',
-                'value' => $kpis['pending_quotations'],
-                'caption' => 'Awaiting action',
+                'key' => 'manager_action_queue',
+                'label' => 'Manager Action Queue',
+                'value' => $needsManagerApprovalCount,
+                'caption' => 'Need your approval',
                 'tone' => 'bg-amber-50 text-amber-700 border-amber-100',
             ];
         }
+
         if ($canInquiries) {
             $statsCards[] = [
-                'key' => 'inactive',
+                'key' => 'overdue',
                 'label' => 'Overdue Follow-ups',
                 'value' => $kpis['overdue_followups'],
-                'caption' => 'Past due',
+                'caption' => 'Past due follow-ups',
                 'tone' => 'bg-rose-50 text-rose-700 border-rose-100',
             ];
         }
-            
-        // Build Funnel
+
+        // Standard dashboard KPI grid: max 6 cards.
+        $statsCards = array_values(array_slice($statsCards, 0, 6));
+
         $funnel = [];
         if ($canInquiries) {
             $funnel[] = ['label' => 'Inquiries', 'value' => $totalInquiries];
@@ -154,41 +206,49 @@ class DashboardController extends Controller
         if ($canBookings) {
             $funnel[] = ['label' => 'Bookings', 'value' => $totalBookings];
         }
+        if ($canBookings && $canInquiries) {
+            $funnel[] = ['label' => 'Conversion (%)', 'value' => $kpis['conversion_rate']];
+        }
 
-        // Inquiry stats by status
         $inquiryByStatus = $canInquiries
-            ? Inquiry::query()
+            ? (clone $teamInquiryQuery)
                 ->select('status', DB::raw('COUNT(*) as total'))
-                ->whereIn('assigned_to', $teamIds)
                 ->groupBy('status')
                 ->pluck('total', 'status')
             : collect();
 
-        // Lists for Action Center
-        $pendingQuotationsList = $canQuotations
-            ? Quotation::query()
-                ->where('status', 'pending')
-                ->whereHas('inquiry', fn ($query) => $query->whereIn('assigned_to', $teamIds))
+        $managerApprovalQueue = $canQuotations
+            ? (clone $teamPendingQuotations)
+                ->whereHas('approvals', $hasReservationOtherApproval)
+                ->whereDoesntHave('approvals', fn (Builder $q) => $q->where('approval_role', 'manager'))
+                ->where($excludeCreatorScope)
                 ->with('inquiry.customer:id,name')
-                ->latest()
-                ->limit(5)
-                ->get()
+                ->orderByRaw('validity_date IS NULL, validity_date ASC')
+                ->latest('id')
+                ->limit(8)
+                ->get(['id', 'quotation_number', 'status', 'validity_date', 'final_amount', 'inquiry_id'])
+            : collect();
+
+        $quotationStatusCounts = $canQuotations
+            ? (clone $teamQuotationQuery)
+                ->select('status', DB::raw('COUNT(*) as total'))
+                ->groupBy('status')
+                ->pluck('total', 'status')
             : collect();
 
         $upcomingFollowUps = $canInquiries
             ? InquiryFollowUp::query()
                 ->where('is_done', false)
-                ->whereHas('inquiry', fn ($query) => $query->whereIn('assigned_to', $teamIds))
+                ->whereHas('inquiry', fn (Builder $query) => $query->whereIn('assigned_to', $teamIds))
                 ->with('inquiry:id,inquiry_number')
                 ->orderBy('due_date')
                 ->limit(7)
                 ->get()
             : collect();
-            
+
         $recentInquiries = $canInquiries
-            ? Inquiry::query()
+            ? (clone $teamInquiryQuery)
                 ->with('customer:id,name', 'assignedUser:id,name')
-                ->whereIn('assigned_to', $teamIds)
                 ->latest()
                 ->limit(5)
                 ->get()
@@ -204,9 +264,13 @@ class DashboardController extends Controller
             'canBookings',
             'funnel',
             'inquiryByStatus',
-            'pendingQuotationsList',
+            'managerApprovalQueue',
             'recentInquiries',
-            'upcomingFollowUps'
+            'upcomingFollowUps',
+            'needsReservationApprovalCount',
+            'needsManagerApprovalCount',
+            'needsDirectorApprovalCount',
+            'quotationStatusCounts'
         ));
     }
 }

@@ -13,7 +13,7 @@
             </div>
             <div class="flex justify-between gap-3">
                 <dt class="text-gray-500 dark:text-gray-400">Created At</dt>
-                <dd class="font-medium text-right">{{ $record->created_at?->format('Y-m-d H:i') ?? '-' }}</dd>
+                <dd class="font-medium text-right"><x-local-time :value="$record->created_at" /></dd>
             </div>
             <div class="flex justify-between gap-3">
                 <dt class="text-gray-500 dark:text-gray-400">Updated By</dt>
@@ -21,8 +21,9 @@
             </div>
             <div class="flex justify-between gap-3">
                 <dt class="text-gray-500 dark:text-gray-400">Updated At</dt>
-                <dd class="font-medium text-right">{{ $record->updated_at?->format('Y-m-d H:i') ?? '-' }}</dd>
+                <dd class="font-medium text-right"><x-local-time :value="$record->updated_at" /></dd>
             </div>
         </dl>
     </div>
 @endif
+

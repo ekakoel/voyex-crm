@@ -12,6 +12,10 @@ class QuotationPolicy
 
     public function update(User $user, Quotation $quotation): bool
     {
+        if ($user->hasAnyRole(['Super Admin', 'Manager', 'Director'])) {
+            return true;
+        }
+
         return $quotation->isCreator($user);
     }
 

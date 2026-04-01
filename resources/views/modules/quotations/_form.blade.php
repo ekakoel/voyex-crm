@@ -53,6 +53,8 @@
         $markupType = ($item->markup_type ?? 'fixed') === 'percent' ? 'percent' : 'fixed';
         $markup = (float) ($item->markup ?? 0);
         $unitPrice = (float) ($item->unit_price ?? 0);
+        $hasStoredMarkupType = in_array(($item->markup_type ?? null), ['fixed', 'percent'], true);
+        $hasStoredMarkup = $item->markup !== null && $item->markup !== '';
 
         if ($contractRate <= 0 && ($item->serviceable_type ?? null) === \App\Models\TransportUnit::class) {
             $source = $transportRateLookup->get((int) ($item->serviceable_id ?? 0));
@@ -61,11 +63,11 @@
                 $sourcePublish = (float) ($source->publish_rate ?? 0);
                 $contractRate = $sourceContract > 0 ? $sourceContract : ($sourcePublish > 0 ? $sourcePublish : $contractRate);
 
-                if ($markup <= 0) {
+                if (! $hasStoredMarkup) {
                     $markup = max(0, $sourcePublish - $contractRate);
-                    $markupType = 'fixed';
-                } else {
-                    $markupType = ($source->markup_type ?? $markupType) === 'percent' ? 'percent' : 'fixed';
+                }
+                if (! $hasStoredMarkupType) {
+                    $markupType = ($source->markup_type ?? 'fixed') === 'percent' ? 'percent' : 'fixed';
                 }
 
                 if ($unitPrice <= 0) {
@@ -87,8 +89,10 @@
                 $sourcePublish = (float) ($source->publish_rate ?? 0);
 
                 $contractRate = $sourceContract > 0 ? $sourceContract : ($sourcePublish > 0 ? $sourcePublish : $contractRate);
-                if ($markup <= 0) {
+                if (! $hasStoredMarkup) {
                     $markup = $sourceMarkup;
+                }
+                if (! $hasStoredMarkupType) {
                     $markupType = $sourceMarkupType;
                 }
                 if ($unitPrice <= 0) {
@@ -134,6 +138,31 @@
     $hasItems = collect($items)
         ->filter(fn ($row) => trim((string) ($row['description'] ?? '')) !== '')
         ->isNotEmpty();
+
+    $storedSubTotal = (float) old('sub_total', $quotation->sub_total ?? 0);
+    $storedDiscountType = (string) old('discount_type', $quotation->discount_type ?? '');
+    $storedDiscountValue = (float) old('discount_value', $quotation->discount_value ?? 0);
+    $storedGlobalDiscountAmount = 0.0;
+    if ($storedDiscountType === 'percent') {
+        $storedGlobalDiscountAmount = $storedSubTotal * ($storedDiscountValue / 100);
+    } elseif ($storedDiscountType === 'fixed') {
+        $storedGlobalDiscountAmount = $storedDiscountValue;
+    }
+
+    $storedItemDiscountTotal = 0.0;
+    if (isset($quotation) && $quotation->relationLoaded('items')) {
+        $storedItemDiscountTotal = (float) $quotation->items->sum(function ($item) {
+            $qty = (int) ($item->qty ?? 0);
+            $unitPrice = (float) ($item->unit_price ?? 0);
+            $discountType = ($item->discount_type ?? 'fixed') === 'percent' ? 'percent' : 'fixed';
+            $discountValue = (float) ($item->discount ?? 0);
+            if ($discountType === 'percent') {
+                return ($qty * $unitPrice) * ($discountValue / 100);
+            }
+
+            return $discountValue;
+        });
+    }
 @endphp
 
 <div class="space-y-5 module-form quotation-form-no-labels">
@@ -217,6 +246,16 @@
             <span id="itinerary-items-summary" class="text-xs text-gray-500 dark:text-gray-400"></span>
         </div>
         <div id="quotation-items" class="mt-3 divide-y divide-gray-200 dark:divide-gray-700">
+            <div class="hidden sm:grid sm:grid-cols-9 sm:gap-2 sticky top-0 z-10 mb-2 rounded-md border border-slate-800 px-2 py-2 text-[11px] font-semibold uppercase tracking-wide text-white bg-slate-900">
+                <div class="sm:col-span-2">Description</div>
+                <div>Qty</div>
+                <div>Contract Rate</div>
+                <div>Markup Type</div>
+                <div>Markup</div>
+                <div>Discount Type</div>
+                <div>Discount</div>
+                <div>Unit Price</div>
+            </div>
             @for ($i = 0; $i < max($minRows, count($items)); $i++)
                 @php
                     $row = $items[$i] ?? ['description' => '', 'qty' => 1, 'contract_rate' => 0, 'markup_type' => 'fixed', 'markup' => 0, 'unit_price' => 0, 'discount_type' => 'fixed', 'discount' => 0];
@@ -437,8 +476,8 @@
                     $row = $manualItems[$j] ?? ['description' => '', 'qty' => 1, 'contract_rate' => 0, 'markup_type' => 'fixed', 'markup' => 0, 'discount_type' => 'fixed', 'discount' => 0, 'unit_price' => 0];
                     $idx = count($items) + $j;
                     $manualQty = max(1, (int) ($row['qty'] ?? 1));
-                    $manualTotal = (float) ($row['unit_price'] ?? 0);
-                    $manualRate = $manualQty > 0 ? ($manualTotal / $manualQty) : $manualTotal;
+                    $manualRate = (float) ($row['unit_price'] ?? 0);
+                    $manualTotal = $manualQty * $manualRate;
                 @endphp
                 <div class="grid grid-cols-1 gap-2 py-2 sm:grid-cols-12 quotation-manual-row" data-row-mode="manual">
                     <div class="sm:col-span-5">
@@ -454,6 +493,7 @@
                             label="Rate"
                             label-class="block text-xs text-gray-500 sm:hidden"
                             wrapper-class="quotation-item-money-field w-full"
+                            name="items[{{ $idx }}][rate]"
                             :value="$manualRate"
                             data-field="rate"
                             input-class="quotation-item-control"
@@ -556,47 +596,15 @@
         </template>
     </div>
 
-    <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Global Discount Type</label>
-            <select name="discount_type" class="mt-1 app-input">
-                <option value="">-</option>
-                <option value="percent" @selected(old('discount_type', $quotation->discount_type ?? '') === 'percent')>Percent</option>
-                <option value="fixed" @selected(old('discount_type', $quotation->discount_type ?? '') === 'fixed')>Fixed</option>
-            </select>
-            @error('discount_type')
-                <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
-            @enderror
-        </div>
-        <div>
-            <x-money-input
-                label="Global Discount Value"
-                name="discount_value"
-                :value="old('discount_value', $quotation->discount_value ?? 0)"
-                step="0.01"
-            />
-            @error('discount_value')
-                <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
-            @enderror
-        </div>
-        <div>
-            <x-money-input
-                label="Global Discount Amount (Auto)"
-                id="quotation-discount-amount"
-                step="0.01"
-                value="0"
-                readonly
-            />
-        </div>
-    </div>
-
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <input type="hidden" id="main-global-discount-type" name="discount_type" value="{{ old('discount_type', $quotation->discount_type ?? '') }}">
+        <input type="hidden" id="main-global-discount-value" name="discount_value" value="{{ old('discount_value', $quotation->discount_value ?? 0) }}">
         <div>
             <x-money-input
                 label="Item Discount (Auto)"
                 id="quotation-item-discount-total"
                 step="0.01"
-                value="0"
+                :value="$storedItemDiscountTotal"
                 readonly
             />
         </div>
@@ -606,6 +614,15 @@
                 id="quotation-sub-total"
                 step="0.01"
                 :value="old('sub_total', $quotation->sub_total ?? 0)"
+                readonly
+            />
+        </div>
+        <div>
+            <x-money-input
+                label="Global Discount Amount (Auto)"
+                id="quotation-global-discount-amount"
+                step="0.01"
+                :value="$storedGlobalDiscountAmount"
                 readonly
             />
         </div>
@@ -673,16 +690,16 @@
                 const addItemBtn = document.getElementById('quotation-add-item-btn');
                 const itemDiscountTotalInput = document.getElementById('quotation-item-discount-total');
                 const subTotalInput = document.getElementById('quotation-sub-total');
-                const discountAmountInput = document.getElementById('quotation-discount-amount');
+                const discountAmountInput = document.getElementById('quotation-global-discount-amount');
                 const finalAmountInput = document.getElementById('quotation-final-amount');
-                const discountTypeSelect = document.querySelector('select[name="discount_type"]');
-                const discountValueInput = document.querySelector('input[name="discount_value"]');
+                const formEl = itemsContainer.closest('form');
+                const discountTypeInput = formEl?.querySelector('#main-global-discount-type');
+                const discountValueInput = formEl?.querySelector('#main-global-discount-value');
 
                 const endpoint = itinerarySelect ? (itinerarySelect.dataset.endpoint || '') : '';
                 const canUseItinerary = Boolean(itinerarySelect && generateBtn);
                 const currencyCode = String(window.appCurrency || 'IDR').toUpperCase();
                 const rateToIdr = Number(window.appCurrencyRateToIdr || 1);
-                const formEl = itemsContainer.closest('form');
 
                 const parseInteger = (value) => {
                     const raw = String(value ?? '').trim();
@@ -703,10 +720,28 @@
                 };
 
                 const parsePercent = (value) => {
-                    const normalized = String(value ?? '')
-                        .replace(/[^\d,.-]/g, '')
-                        .replace(/\./g, '')
-                        .replace(',', '.');
+                    const raw = String(value ?? '').trim();
+                    if (raw === '') return 0;
+
+                    // Plain decimal format from DB (e.g. "10.00")
+                    if (/^-?\d+(\.\d+)?$/.test(raw)) {
+                        const direct = Number.parseFloat(raw);
+                        return Number.isFinite(direct) ? direct : 0;
+                    }
+
+                    let normalized = raw.replace(/[^\d,.-]/g, '');
+                    if (normalized === '') return 0;
+
+                    const hasComma = normalized.includes(',');
+                    const hasDot = normalized.includes('.');
+                    if (hasComma && hasDot) {
+                        // Locale format: 1.234,56
+                        normalized = normalized.replace(/\./g, '').replace(',', '.');
+                    } else if (hasComma) {
+                        // Locale format: 10,5
+                        normalized = normalized.replace(',', '.');
+                    }
+
                     const num = Number.parseFloat(normalized);
                     return Number.isFinite(num) ? num : 0;
                 };
@@ -766,8 +801,11 @@
                 };
 
                 const updateOverallDiscountBadge = () => {
+                    if (!discountValueInput || String(discountValueInput.type || '').toLowerCase() === 'hidden') {
+                        return;
+                    }
                     const currency = window.appCurrencySymbol || window.appCurrency || 'IDR';
-                    const type = discountTypeSelect?.value || '';
+                    const type = discountTypeInput?.value || '';
                     const badgeText = type === 'percent' ? '%' : currency;
                     setBadge(discountValueInput, badgeText);
                 };
@@ -901,15 +939,19 @@
 
                     });
 
-                    const discountType = discountTypeSelect?.value || '';
-                    const discountValue = discountType === 'percent'
+                    const discountType = discountTypeInput?.value || '';
+                    let rawDiscountValue = discountType === 'percent'
                         ? parsePercent(discountValueInput?.value)
                         : parseInteger(discountValueInput?.value);
+                    if (discountType === 'percent') {
+                        rawDiscountValue = Math.max(0, Math.min(100, rawDiscountValue));
+                    }
                     let discountAmount = 0;
                     if (discountType === 'percent') {
-                        discountAmount = subTotal * (discountValue / 100);
+                        discountAmount = subTotal * (rawDiscountValue / 100);
                     } else if (discountType === 'fixed') {
-                        discountAmount = discountValue;
+                        // Hidden global discount value is stored in IDR; convert to current display currency.
+                        discountAmount = idrToDisplay(rawDiscountValue);
                     }
 
                     const finalAmount = Math.max(0, subTotal - discountAmount);
@@ -1152,13 +1194,17 @@
                         const isManualRow = (row?.dataset?.rowMode || '') === 'manual';
                         if (isManualRow) {
                             const qty = Math.max(1, parseInteger(row.querySelector('[data-field="qty"]')?.value) || 1);
-                            const unitPriceInput = row.querySelector('[data-field="unit_price"]');
-                            const totalDisplay = idrToDisplay(parseInteger(unitPriceInput?.value));
                             const rateInput = row.querySelector('[data-field="rate"]');
-                            if (rateInput) {
-                                setMoneyInputDisplay(rateInput, Math.round(totalDisplay / qty));
+                            const unitPriceInput = row.querySelector('[data-field="unit_price"]');
+                            // Manual item source of truth is per-unit rate.
+                            // Fallback to legacy payload where unit_price may still contain row total.
+                            let perUnitDisplay = idrToDisplay(parseInteger(rateInput?.value));
+                            if (perUnitDisplay <= 0) {
+                                const fallbackTotalDisplay = idrToDisplay(parseInteger(unitPriceInput?.value));
+                                perUnitDisplay = qty > 0 ? (fallbackTotalDisplay / qty) : fallbackTotalDisplay;
                             }
-                            setMoneyInputDisplay(unitPriceInput, totalDisplay);
+                            if (rateInput) setMoneyInputDisplay(rateInput, perUnitDisplay);
+                            setMoneyInputDisplay(unitPriceInput, perUnitDisplay * qty);
                             return;
                         }
 
@@ -1297,6 +1343,7 @@
                 };
 
                 formEl?.addEventListener('submit', () => {
+                    reindexItems();
                     getAllRows().forEach((row) => {
                         const isManualRow = (row?.dataset?.rowMode || '') === 'manual';
                         const markupType = row.querySelector('[data-field="markup_type"]')?.value || 'fixed';
@@ -1310,7 +1357,10 @@
                                 row.querySelector('[data-field="contract_rate"]').value = '';
                                 row.querySelector('[data-field="markup"]').value = '0';
                                 row.querySelector('[data-field="discount"]').value = '0';
-                                convertFieldDisplayToIdr(unitPriceInput);
+                                convertFieldDisplayToIdr(row.querySelector('[data-field="rate"]'));
+                                // For manual rows: persist rate-per-unit as unit_price.
+                                const rateIdr = parseInteger(row.querySelector('[data-field="rate"]')?.value);
+                                unitPriceInput.value = String(rateIdr);
                             } else {
                                 const baseAmountDisplay = Math.max(0, computeRowBaseAmount(row));
                                 const baseUnitDisplay = Math.round(baseAmountDisplay / qty);
@@ -1326,9 +1376,6 @@
                         }
                     });
 
-                    if ((discountTypeSelect?.value || '') !== 'percent') {
-                        convertFieldDisplayToIdr(discountValueInput);
-                    }
                     convertFieldDisplayToIdr(itemDiscountTotalInput);
                     convertFieldDisplayToIdr(subTotalInput);
                     convertFieldDisplayToIdr(discountAmountInput);
@@ -1374,7 +1421,6 @@
                     reindexItems();
                     recalcTotals();
                 });
-                discountTypeSelect?.addEventListener('change', recalcTotals);
                 discountValueInput?.addEventListener('input', recalcTotals);
 
                 getAllRows().forEach((row) => {
@@ -1386,9 +1432,6 @@
                     });
                 });
                 convertExistingRowsFromIdrToDisplay();
-                if ((discountTypeSelect?.value || '') !== 'percent') {
-                    setMoneyInputDisplay(discountValueInput, idrToDisplay(parseInteger(discountValueInput?.value)));
-                }
                 itemsContainer.querySelectorAll('.quotation-item-row').forEach((row) => {
                     const descriptionInput = row.querySelector('[data-field="description"]');
                     const descriptionText = row.querySelector('[data-role="description-text"]');

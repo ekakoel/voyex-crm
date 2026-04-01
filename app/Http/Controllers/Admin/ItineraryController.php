@@ -456,10 +456,10 @@ class ItineraryController extends Controller
             'dayPoints',
             'dayPoints.startAirport:id,name,location,city,province',
             'dayPoints.startHotel:id,name,address,city,province',
-            'dayPoints.startHotelRoom:id,hotels_id,rooms,view,images',
+            'dayPoints.startHotelRoom:id,hotels_id,rooms,view,cover',
             'dayPoints.endAirport:id,name,location,city,province',
             'dayPoints.endHotel:id,name,address,city,province',
-            'dayPoints.endHotelRoom:id,hotels_id,rooms,view,images',
+            'dayPoints.endHotelRoom:id,hotels_id,rooms,view,cover',
             'inquiry:id,inquiry_number,customer_id,status,priority,source,deadline,notes',
             'inquiry.customer:id,name,code',
         ]);
@@ -514,7 +514,7 @@ class ItineraryController extends Controller
                         'location' => (string) ($dayPoint->startHotel?->address ?? '-'),
                         'type' => 'Hotel',
                         'label' => $label,
-                        'thumbnail_data_uri' => $this->resolveGalleryImageDataUri($dayPoint->startHotelRoom?->images ?? []),
+                        'thumbnail_data_uri' => $this->resolveHotelRoomCoverDataUri($dayPoint->startHotelRoom?->cover),
                     ];
                 }
                 return ['name' => 'Not set', 'location' => '-', 'type' => 'Unknown', 'label' => 'Not set', 'thumbnail_data_uri' => null];
@@ -541,7 +541,7 @@ class ItineraryController extends Controller
                     'location' => (string) ($dayPoint->endHotel?->address ?? '-'),
                     'type' => 'Hotel',
                     'label' => $label,
-                    'thumbnail_data_uri' => $this->resolveGalleryImageDataUri($dayPoint->endHotelRoom?->images ?? []),
+                    'thumbnail_data_uri' => $this->resolveHotelRoomCoverDataUri($dayPoint->endHotelRoom?->cover),
                 ];
             }
             return ['name' => 'Not set', 'location' => '-', 'type' => 'Unknown', 'label' => 'Not set', 'thumbnail_data_uri' => null];
@@ -611,6 +611,8 @@ class ItineraryController extends Controller
                         'source_type' => 'fnb',
                         'source_id' => (int) ($item->food_beverage_id ?? 0),
                         'name' => (string) ($item->foodBeverage->name ?? '-'),
+                        'vendor_name' => (string) ($item->foodBeverage->vendor->name ?? '-'),
+                        'menu_highlights' => (string) ($item->foodBeverage->menu_highlights ?? ''),
                         'location' => (string) ($item->foodBeverage->vendor->location ?? '-'),
                         'description' => (string) ($item->foodBeverage->notes ?? $item->foodBeverage->menu_highlights ?? '-'),
                         'thumbnail_data_uri' => $this->resolveGalleryImageDataUri($item->foodBeverage->gallery_images ?? []),
@@ -750,6 +752,42 @@ class ItineraryController extends Controller
                 return $thumbnailDataUri;
             }
             $originalDataUri = $this->resolveStorageImageDataUri($path);
+            if ($originalDataUri) {
+                return $originalDataUri;
+            }
+        }
+
+        return null;
+    }
+
+    private function resolveHotelRoomCoverDataUri(?string $coverPath): ?string
+    {
+        $rawPath = trim(str_replace('\\', '/', (string) $coverPath), '/');
+        if ($rawPath === '') {
+            return null;
+        }
+
+        if (Str::startsWith($rawPath, ['http://', 'https://'])) {
+            return null;
+        }
+
+        if (Str::startsWith($rawPath, 'storage/')) {
+            $rawPath = Str::after($rawPath, 'storage/');
+        }
+
+        $candidates = [$rawPath];
+        if (! Str::contains($rawPath, '/')) {
+            $candidates[] = 'hotels/rooms/' . $rawPath;
+        }
+
+        foreach (array_values(array_unique($candidates)) as $candidate) {
+            $thumbnailPath = ImageThumbnailGenerator::thumbnailPathFor($candidate);
+            $thumbnailDataUri = $this->resolveStorageImageDataUri($thumbnailPath);
+            if ($thumbnailDataUri) {
+                return $thumbnailDataUri;
+            }
+
+            $originalDataUri = $this->resolveStorageImageDataUri($candidate);
             if ($originalDataUri) {
                 return $originalDataUri;
             }
@@ -1729,9 +1767,5 @@ SVG;
     }
 
 }
-
-
-
-
 
 

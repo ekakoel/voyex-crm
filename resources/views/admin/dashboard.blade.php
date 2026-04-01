@@ -155,7 +155,7 @@
     @endif
 
     <!-- Main KPI Grid -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+    <div class="dashboard-kpi-grid">
         <!-- Monthly Revenue -->
         @if($canBookings)
         <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-md border border-gray-200 dark:border-gray-700 transition-all duration-300 hover:shadow-lg hover:-translate-y-1">

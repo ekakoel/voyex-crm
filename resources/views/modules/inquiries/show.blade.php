@@ -449,7 +449,7 @@
 
                                             <span class="inline-flex rounded-full bg-gray-100 px-2 py-0.5 text-gray-600 dark:bg-gray-900/40 dark:text-gray-300">{{ $channelLabels[$item->channel] ?? '-' }}</span>
 
-                                            <span>{{ $item->contact_at?->format('Y-m-d H:i') ?? '-' }}</span>
+                                            <span><x-local-time :value="$item->contact_at" /></span>
 
                                             <span>by {{ $item->creator->name ?? '-' }}</span>
 
@@ -480,6 +480,8 @@
     </div>
 
 @endsection
+
+
 
 
 

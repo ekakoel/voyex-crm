@@ -23,7 +23,7 @@
                                 <div class="rounded-lg mb-6 border border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-700 dark:bg-gray-900/40">
                                     <div class="flex items-center justify-between gap-3">
                                         <span class="font-semibold">IDR Rate</span>
-                                        <span class="text-gray-500 dark:text-gray-400">{{ $history->changed_at?->format('Y-m-d H:i') ?? '-' }}</span>
+                                        <span class="text-gray-500 dark:text-gray-400"><x-local-time :value="$history->changed_at" /></span>
                                     </div>
                                     <div class="mt-1 flex items-center justify-between gap-3">
                                         <span class="text-gray-500 dark:text-gray-400">From</span>
@@ -47,6 +47,8 @@
         </div>
     </div>
 @endsection
+
+
 
 
 

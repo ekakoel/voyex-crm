@@ -199,6 +199,60 @@ Kebijakan ini wajib untuk setiap update code (penambahan, perubahan, pengurangan
 
 # CHANGELOG (LATEST)
 
+Date: 2026-04-01
+Completed in this cycle:
+
+- Implemented multi-role quotation approval gate (hard requirement):
+  - quotation can be `approved` only after all three are fulfilled:
+    1) Manager approval,
+    2) Director approval,
+    3) at least one Reservation approval from non-creator user.
+- Added new persistence layer for per-user approval log:
+  - migration `2026_04_01_100000_create_quotation_approvals_table.php`,
+  - model `App\Models\QuotationApproval`,
+  - relation `Quotation::approvals()`.
+- Updated `QuotationController@approve` flow:
+  - approval now records per role/user and no longer directly forces status approved by single actor.
+  - status auto-syncs to `pending` until all required roles are complete.
+  - once complete, status becomes `approved`, `approved_by` follows Director approver, and invoice generation trigger remains intact.
+- Updated `reject` and `setPending` behavior:
+  - clear approval logs to ensure re-approval starts from clean state.
+- Updated Quotation Validation UI (`edit` and `show`):
+  - added approval checklist cards (Manager/Director/Reservation non-creator),
+  - added `Waiting for` helper text,
+  - added approval log list (role, approver name, timestamp),
+  - enabled approve action for Manager/Director/Reservation (with reject limited to Manager/Director).
+- Added Reservation access to quotation approval permission map:
+  - `module.quotations.access`,
+  - `quotations.approve`.
+- Added dedicated UAT guide:
+  - new doc `QUOTATION_APPROVAL_UAT_MATRIX.md` with positive/negative scenario matrix and execution order.
+- Refined approval flow sequencing and access:
+  - fixed approval route middleware so Reservation users with quotation module access can hit approve endpoint (no longer blocked by strict `quotations.approve` middleware mismatch).
+  - enforced sequential approval gate in backend:
+    - Reservation (non-creator) must approve first,
+    - then Manager can approve,
+    - then Director can approve.
+  - UI approval button visibility now follows the same sequence guard on edit/show pages.
+- Updated validation UX for reject flow:
+  - removed generic `Add note` section from normal validation path,
+  - reject action now opens modal and requires reason note (mandatory on backend and frontend).
+- Implemented device-local timezone rendering (phase-1 rollout):
+  - added reusable Blade component `resources/views/components/local-time.blade.php` to render UTC timestamps as local-device time in browser.
+  - added global frontend localizer in `layouts/master.blade.php` for all nodes with `data-local-time`.
+  - migrated datetime rendering in:
+    - quotation module pages (`index`, `edit`, `show`),
+    - quotation comments + audit partials,
+    - activity timeline component,
+    - currency rate history edit page,
+    - inquiry communication timeline on inquiry detail,
+    - invoice detail `Paid At`,
+    - itinerary inquiry preview (`created_at`) with ISO payload + client-side local formatting.
+  - kept database source-of-truth timestamps in UTC; conversion happens at display layer only.
+- QA note:
+  - passed `php artisan test tests/Feature/Modules/QuotationsGlobalDiscountRoleTest.php tests/Feature/Modules/QuotationsSmokeTest.php` (11 passed),
+  - passed `php -l` syntax checks for modified files.
+
 Date: 2026-03-30
 Completed in this cycle:
 
@@ -254,6 +308,61 @@ Completed in this cycle:
   - removed card wrapper and `Items` title above the item list so the PDF item section is table-only.
   - removed `Discount Type` and `Discount` columns from item rows in PDF output.
   - updated empty-state colspan and column width proportions to match the simplified 4-column table.
+- Quotation Global Discount role guard hardening:
+  - on Create/Edit form, fields `Global Discount Type`, `Global Discount Value`, and `Global Discount Amount` are now rendered only for roles `Director` and `Manager`.
+  - backend store/update now enforces the same rule:
+    - non-Director/Manager cannot inject or modify global discount via request payload.
+    - on update by non-Director/Manager, existing global discount values are preserved.
+- Added focused feature test matrix for Quotation Global Discount role behavior:
+  - file: `tests/Feature/Modules/QuotationsGlobalDiscountRoleTest.php`.
+  - covered scenarios: Manager/Director field visibility, Marketing field hidden, Manager can update global discount, Marketing cannot override existing global discount.
+  - test result: `php artisan test tests/Feature/Modules/QuotationsGlobalDiscountRoleTest.php` passed (4 tests).
+- Added Global Discount shortcut in Quotation Validation panel (Edit page):
+  - new route `PATCH quotations/{quotation}/global-discount` (`quotations.global-discount`).
+  - Manager/Director can update global discount directly from validation sidebar without full pricing form edit.
+  - backend guard enforces role and blocks update on `final` / `approved` quotation (approved must be set pending first).
+  - final amount is recalculated immediately from current subtotal and submitted global discount.
+- Updated Quotation edit access policy:
+  - `QuotationPolicy::update` now allows `Manager` and `Director` (as well as `Super Admin`) to edit quotation even if they are not the creator.
+  - creator-only edit rule remains for other roles (for example Marketing can only edit their own quotation).
+  - updated deny message in `QuotationController` to match new access rule.
+- Quotation post-submit UX adjustment:
+  - after successful create and update, user is now redirected to quotation detail page (`quotations.show`) instead of index.
+  - smoke/role tests updated to assert new redirect behavior.
+- Quotation form simplification for global discount:
+  - removed `Global Discount Type` and `Global Discount Value` inputs from main Create/Edit form (`_form`) to avoid duplicate entry points.
+  - global discount entry point is now centralized in Validation sidebar (Edit page) for Manager/Director.
+  - hardened `QuotationController@update` so when main form submits without discount fields, existing global discount is preserved (not reset).
+  - added back read-only `Global Discount Amount (Auto)` in main form summary so users can clearly see why `Final Amount` differs from `Sub Total`.
+  - main form now carries hidden `discount_type`/`discount_value` for consistent frontend total preview while edit authority remains enforced by backend role guard.
+  - fixed cross-role inconsistency on main-form `Global Discount Amount (Auto)`:
+    - JS now reads discount source only from main-form hidden fields (`#main-global-discount-type`, `#main-global-discount-value`) scoped to the main quotation form.
+    - removed ambiguous global selector usage that could accidentally read sidebar validation fields for Manager/Director.
+    - fixed fixed-discount preview conversion (IDR source -> active display currency) so Reservation/Manager/Director see the same amount for the same quotation data.
+  - strengthened DB-driven initial values on Create/Edit summary:
+    - main form `Item Discount (Auto)` and `Global Discount Amount (Auto)` now initialize from persisted quotation data (when editing), not hardcoded zero.
+  - namespaced sidebar validation fields to avoid form collision:
+    - changed to `global_discount_type` and `global_discount_value` on validation sidebar form + controller endpoint mapping.
+    - prevents `old()`/request cross-contamination between main quotation form and sidebar validation form.
+  - stabilized Create/Edit quotation form rendering after latest adjustments:
+    - added server-rendered fallback item table header in `_form` so header labels remain visible even if JS regroup step fails.
+    - hardened `updateOverallDiscountBadge()` to skip hidden global-discount field and avoid unintended badge mutation side effects.
+    - impact: item header visibility and summary auto-calc behavior are more resilient for all roles.
+  - fixed numeric parser issue on quotation form auto-calculation:
+    - improved `parsePercent()` handling for DB decimal format (e.g. `10.00`) so it no longer gets misread as `1000`.
+    - added global discount percent clamp (0..100) on frontend preview to prevent invalid over-discount display.
+    - impact: `Global Discount Amount` and `Final Amount` auto-preview now stays consistent with stored discount values.
+- Documentation/process governance update:
+  - added mandatory 4-step execution protocol to `PROJECT_GUIDELINES.md` as fixed development standard:
+    1) full code/context understanding before change,
+    2) mature solution design (performance + UI/UX + safety),
+    3) clean implementation without regression,
+    4) end-to-end verification after implementation.
+- Expanded role-matrix test coverage for new validation-panel endpoint:
+  - Manager/Director can update global discount via `quotations.global-discount`.
+  - Marketing cannot update global discount via that endpoint.
+  - added access tests: Manager/Director can open edit page for quotation created by another user, while non-owner Marketing is redirected.
+  - latest test result: `php artisan test tests/Feature/Modules/QuotationsGlobalDiscountRoleTest.php` passed (8 tests).
 - QA note: passed `php -l app/Http/Controllers/Sales/QuotationController.php` and `php artisan view:cache`.
 - Adjusted itinerary detail right-side map card layout to `h-fit lg:self-start` so card height follows map content and removes empty stretched space below the map.
 - Performed responsive hardening for Itinerary views (`create`, `edit`, `_form`, `show`, `index`) to prevent mobile/tablet horizontal clipping.

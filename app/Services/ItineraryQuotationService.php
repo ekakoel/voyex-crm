@@ -17,9 +17,9 @@ class ItineraryQuotationService
     public function buildItems(Itinerary $itinerary): array
     {
         $itinerary->loadMissing([
-            'touristAttractions:id,name,publish_rate_per_pax',
-            'itineraryActivities.activity:id,name,adult_publish_rate,child_publish_rate',
-            'itineraryFoodBeverages.foodBeverage:id,name,publish_rate',
+            'touristAttractions:id,name,contract_rate_per_pax,markup_type,markup,publish_rate_per_pax',
+            'itineraryActivities.activity:id,name,adult_contract_rate,child_contract_rate,adult_markup_type,adult_markup,child_markup_type,child_markup,adult_publish_rate,child_publish_rate',
+            'itineraryFoodBeverages.foodBeverage:id,name,contract_rate,markup_type,markup,publish_rate',
             'itineraryTransportUnits.transportUnit:id,name,contract_rate,markup_type,markup,publish_rate',
             'dayPoints.endHotelRoom:id,hotels_id,rooms,view',
             'dayPoints.endHotelRoom.prices:id,rooms_id,start_date,end_date,contract_rate,markup_type,markup,publish_rate',
@@ -76,27 +76,43 @@ class ItineraryQuotationService
 
         foreach ($itinerary->touristAttractions as $attraction) {
             $day = (int) ($attraction->pivot->day_number ?? 0);
+            $contractRate = (float) ($attraction->contract_rate_per_pax ?? 0);
+            $markupType = ($attraction->markup_type ?? 'fixed') === 'percent' ? 'percent' : 'fixed';
+            $markup = (float) ($attraction->markup ?? 0);
             $price = (float) ($attraction->publish_rate_per_pax ?? 0);
+            if ($contractRate <= 0 && $price > 0) {
+                $contractRate = $price;
+            }
+            if ($price <= 0) {
+                $price = $markupType === 'percent'
+                    ? ($contractRate + ($contractRate * ($markup / 100)))
+                    : ($contractRate + $markup);
+            }
+            $item = $this->makeItem(
+                $this->dayPrefix($day) . 'Attraction: ' . $attraction->name,
+                1,
+                $price,
+                0,
+                TouristAttraction::class,
+                (int) $attraction->id,
+                $day,
+                [
+                    'day_number' => $day,
+                    'start_time' => $this->normalizeTime($attraction->pivot->start_time ?? null),
+                    'end_time' => $this->normalizeTime($attraction->pivot->end_time ?? null),
+                    'travel_minutes_to_next' => $this->normalizeInt($attraction->pivot->travel_minutes_to_next ?? null),
+                    'visit_order' => $this->normalizeInt($attraction->pivot->visit_order ?? null),
+                ],
+                'attraction'
+            );
+            $item['contract_rate'] = max(0, $contractRate);
+            $item['markup_type'] = $markupType;
+            $item['markup'] = max(0, $markup);
+            $item['unit_price'] = max(0, $price);
             $dayRows[] = [
                 'day' => $day,
                 'type_order' => 1,
-                'item' => $this->makeItem(
-                    $this->dayPrefix($day) . 'Attraction: ' . $attraction->name,
-                    1,
-                    $price,
-                    0,
-                    TouristAttraction::class,
-                    (int) $attraction->id,
-                    $day,
-                    [
-                        'day_number' => $day,
-                        'start_time' => $this->normalizeTime($attraction->pivot->start_time ?? null),
-                        'end_time' => $this->normalizeTime($attraction->pivot->end_time ?? null),
-                        'travel_minutes_to_next' => $this->normalizeInt($attraction->pivot->travel_minutes_to_next ?? null),
-                        'visit_order' => $this->normalizeInt($attraction->pivot->visit_order ?? null),
-                    ],
-                    'attraction'
-                ),
+                'item' => $item,
             ];
         }
 
@@ -123,44 +139,78 @@ class ItineraryQuotationService
             ];
 
             if ($adultQty > 0) {
+                $adultContract = (float) ($activity->adult_contract_rate ?? 0);
+                $adultMarkupType = ($activity->adult_markup_type ?? 'fixed') === 'percent' ? 'percent' : 'fixed';
+                $adultMarkup = (float) ($activity->adult_markup ?? 0);
+                $adultPublish = (float) ($activity->adult_publish_rate ?? 0);
+                if ($adultContract <= 0 && $adultPublish > 0) {
+                    $adultContract = $adultPublish;
+                }
+                if ($adultPublish <= 0) {
+                    $adultPublish = $adultMarkupType === 'percent'
+                        ? ($adultContract + ($adultContract * ($adultMarkup / 100)))
+                        : ($adultContract + $adultMarkup);
+                }
+                $adultItem = $this->makeItem(
+                    $this->dayPrefix($day) . 'Activity: ' . $activity->name . ' (Adult)',
+                    $adultQty,
+                    $adultPublish,
+                    0,
+                    Activity::class,
+                    (int) $activity->id,
+                    $day,
+                    array_merge($activityMeta, [
+                        'pax' => $adultQty,
+                        'pax_type' => 'adult',
+                    ]),
+                    'activity'
+                );
+                $adultItem['contract_rate'] = max(0, $adultContract);
+                $adultItem['markup_type'] = $adultMarkupType;
+                $adultItem['markup'] = max(0, $adultMarkup);
+                $adultItem['unit_price'] = max(0, $adultPublish);
                 $dayRows[] = [
                     'day' => $day,
                     'type_order' => 2,
-                    'item' => $this->makeItem(
-                        $this->dayPrefix($day) . 'Activity: ' . $activity->name . ' (Adult)',
-                        $adultQty,
-                        (float) ($activity->adult_publish_rate ?? 0),
-                        0,
-                        Activity::class,
-                        (int) $activity->id,
-                        $day,
-                        array_merge($activityMeta, [
-                            'pax' => $adultQty,
-                            'pax_type' => 'adult',
-                        ]),
-                        'activity'
-                    ),
+                    'item' => $adultItem,
                 ];
             }
 
             if ($childQty > 0) {
+                $childContract = (float) ($activity->child_contract_rate ?? $activity->adult_contract_rate ?? 0);
+                $childMarkupType = ($activity->child_markup_type ?? 'fixed') === 'percent' ? 'percent' : 'fixed';
+                $childMarkup = (float) ($activity->child_markup ?? 0);
+                $childPublish = (float) ($activity->child_publish_rate ?? $activity->adult_publish_rate ?? 0);
+                if ($childContract <= 0 && $childPublish > 0) {
+                    $childContract = $childPublish;
+                }
+                if ($childPublish <= 0) {
+                    $childPublish = $childMarkupType === 'percent'
+                        ? ($childContract + ($childContract * ($childMarkup / 100)))
+                        : ($childContract + $childMarkup);
+                }
+                $childItem = $this->makeItem(
+                    $this->dayPrefix($day) . 'Activity: ' . $activity->name . ' (Child)',
+                    $childQty,
+                    $childPublish,
+                    0,
+                    Activity::class,
+                    (int) $activity->id,
+                    $day,
+                    array_merge($activityMeta, [
+                        'pax' => $childQty,
+                        'pax_type' => 'child',
+                    ]),
+                    'activity'
+                );
+                $childItem['contract_rate'] = max(0, $childContract);
+                $childItem['markup_type'] = $childMarkupType;
+                $childItem['markup'] = max(0, $childMarkup);
+                $childItem['unit_price'] = max(0, $childPublish);
                 $dayRows[] = [
                     'day' => $day,
                     'type_order' => 2,
-                    'item' => $this->makeItem(
-                        $this->dayPrefix($day) . 'Activity: ' . $activity->name . ' (Child)',
-                        $childQty,
-                        (float) ($activity->child_publish_rate ?? $activity->adult_publish_rate ?? 0),
-                        0,
-                        Activity::class,
-                        (int) $activity->id,
-                        $day,
-                        array_merge($activityMeta, [
-                            'pax' => $childQty,
-                            'pax_type' => 'child',
-                        ]),
-                        'activity'
-                    ),
+                    'item' => $childItem,
                 ];
             }
         }
@@ -172,28 +222,44 @@ class ItineraryQuotationService
             }
             $day = (int) ($foodItem->day_number ?? 0);
             $qty = max(1, (int) ($foodItem->pax ?? 1));
+            $contractRate = (float) ($food->contract_rate ?? 0);
+            $markupType = ($food->markup_type ?? 'fixed') === 'percent' ? 'percent' : 'fixed';
+            $markup = (float) ($food->markup ?? 0);
             $price = (float) ($food->publish_rate ?? 0);
+            if ($contractRate <= 0 && $price > 0) {
+                $contractRate = $price;
+            }
+            if ($price <= 0) {
+                $price = $markupType === 'percent'
+                    ? ($contractRate + ($contractRate * ($markup / 100)))
+                    : ($contractRate + $markup);
+            }
+            $item = $this->makeItem(
+                $this->dayPrefix($day) . 'F&B: ' . $food->name,
+                $qty,
+                $price,
+                0,
+                FoodBeverage::class,
+                (int) $food->id,
+                $day,
+                [
+                    'day_number' => $day,
+                    'pax' => $qty,
+                    'start_time' => $this->normalizeTime($foodItem->start_time ?? null),
+                    'end_time' => $this->normalizeTime($foodItem->end_time ?? null),
+                    'travel_minutes_to_next' => $this->normalizeInt($foodItem->travel_minutes_to_next ?? null),
+                    'visit_order' => $this->normalizeInt($foodItem->visit_order ?? null),
+                ],
+                'fnb'
+            );
+            $item['contract_rate'] = max(0, $contractRate);
+            $item['markup_type'] = $markupType;
+            $item['markup'] = max(0, $markup);
+            $item['unit_price'] = max(0, $price);
             $dayRows[] = [
                 'day' => $day,
                 'type_order' => 3,
-                'item' => $this->makeItem(
-                    $this->dayPrefix($day) . 'F&B: ' . $food->name,
-                    $qty,
-                    $price,
-                    0,
-                    FoodBeverage::class,
-                    (int) $food->id,
-                    $day,
-                    [
-                        'day_number' => $day,
-                        'pax' => $qty,
-                        'start_time' => $this->normalizeTime($foodItem->start_time ?? null),
-                        'end_time' => $this->normalizeTime($foodItem->end_time ?? null),
-                        'travel_minutes_to_next' => $this->normalizeInt($foodItem->travel_minutes_to_next ?? null),
-                        'visit_order' => $this->normalizeInt($foodItem->visit_order ?? null),
-                    ],
-                    'fnb'
-                ),
+                'item' => $item,
             ];
         }
 

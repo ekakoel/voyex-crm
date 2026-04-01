@@ -7,6 +7,7 @@ use App\Models\ActivityLog;
 use App\Models\Concerns\HasAudit;
 use App\Models\Inquiry;
 use App\Models\QuotationComment;
+use App\Models\QuotationApproval;
 use App\Models\QuotationItem;
 use App\Models\User;
 use App\Traits\LogsActivity;
@@ -83,6 +84,11 @@ class Quotation extends Model
     public function comments()
     {
         return $this->hasMany(QuotationComment::class)->latest();
+    }
+
+    public function approvals()
+    {
+        return $this->hasMany(QuotationApproval::class)->latest('approved_at');
     }
 
     public function approvedBy()

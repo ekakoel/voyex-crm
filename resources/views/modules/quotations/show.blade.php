@@ -8,21 +8,73 @@
             <a href="{{ route('quotations.edit', $quotation) }}" class="btn-secondary">Edit</a>
         @endif
     @endcan
-    <a href="{{ route('quotations.pdf', $quotation) }}" target="_blank" rel="noopener" class="btn-outline">PDF</a>
+    @if (($quotation->status ?? '') === 'approved')
+        <a href="{{ route('quotations.pdf', $quotation) }}" target="_blank" rel="noopener" class="btn-outline">PDF</a>
+    @endif
     <a href="{{ route('quotations.index') }}" class="btn-ghost">Back</a>
 @endsection
+
+@push('scripts')
+    <script>
+        (function() {
+            const openModal = (id) => {
+                const modal = document.getElementById(id);
+                if (!modal) return;
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+            };
+
+            const closeModal = (id) => {
+                const modal = document.getElementById(id);
+                if (!modal) return;
+                modal.classList.remove('flex');
+                modal.classList.add('hidden');
+            };
+
+            document.querySelectorAll('[data-open-reject-modal]').forEach((btn) => {
+                btn.addEventListener('click', () => openModal(btn.getAttribute('data-open-reject-modal')));
+            });
+
+            document.querySelectorAll('[data-close-reject-modal]').forEach((btn) => {
+                btn.addEventListener('click', () => closeModal(btn.getAttribute('data-close-reject-modal')));
+            });
+
+            document.querySelectorAll('[id$="-reject-modal"]').forEach((modal) => {
+                modal.addEventListener('click', (event) => {
+                    if (event.target === modal) closeModal(modal.id);
+                });
+            });
+
+            @if ($errors->has('approval_note'))
+                openModal('show-reject-modal');
+            @endif
+        })();
+    </script>
+@endpush
 
 @section('content')
     @php
         $subTotal = (float) ($quotation->sub_total ?? 0);
         $discountType = $quotation->discount_type ?? null;
         $discountValue = (float) ($quotation->discount_value ?? 0);
-        $discountAmount = 0;
+        $globalDiscountAmount = 0;
+        $itemDiscountAmount = (float) $quotation->items->sum(function ($item) {
+            $qty = (int) ($item->qty ?? 0);
+            $unitPrice = (float) ($item->unit_price ?? 0);
+            $itemDiscountType = ($item->discount_type ?? 'fixed') === 'percent' ? 'percent' : 'fixed';
+            $itemDiscountValue = (float) ($item->discount ?? 0);
+
+            if ($itemDiscountType === 'percent') {
+                return ($qty * $unitPrice) * ($itemDiscountValue / 100);
+            }
+
+            return $itemDiscountValue;
+        });
 
         if ($discountType === 'percent') {
-            $discountAmount = $subTotal * ($discountValue / 100);
+            $globalDiscountAmount = $subTotal * ($discountValue / 100);
         } elseif ($discountType === 'fixed') {
-            $discountAmount = $discountValue;
+            $globalDiscountAmount = $discountValue;
         }
     @endphp
 
@@ -77,20 +129,20 @@
                             <p class="mt-1 text-base font-semibold text-gray-900 dark:text-gray-100"><x-money :amount="$subTotal" currency="IDR" /></p>
                         </div>
                         <div class="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/30">
-                            <p class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Discount Type</p>
+                            <p class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Item Discount</p>
+                            <p class="mt-1 text-base font-semibold text-gray-900 dark:text-gray-100"><x-money :amount="$itemDiscountAmount" currency="IDR" /></p>
+                        </div>
+                        <div class="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/30">
+                            <p class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Global Discount</p>
                             <p class="mt-1 text-sm font-semibold text-gray-900 dark:text-gray-100">
                                 @if ($discountType === 'percent')
                                     Percent ({{ number_format($discountValue, 2, ',', '.') }}%)
                                 @elseif ($discountType === 'fixed')
-                                    Fixed
+                                    <x-money :amount="$discountValue" currency="IDR" />
                                 @else
                                     -
                                 @endif
                             </p>
-                        </div>
-                        <div class="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/30">
-                            <p class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Discount Amount</p>
-                            <p class="mt-1 text-base font-semibold text-gray-900 dark:text-gray-100"><x-money :amount="$discountAmount" currency="IDR" /></p>
                         </div>
                         <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-700 dark:bg-emerald-900/20">
                             <p class="text-xs uppercase tracking-wide text-emerald-700 dark:text-emerald-300">Final Amount</p>
@@ -201,8 +253,31 @@
                             <div class="flex justify-between gap-3"><dt class="text-gray-500 dark:text-gray-400">Inquiry Status</dt><dd class="font-medium text-right">{{ $quotation->itinerary?->inquiry?->status ?? '-' }}</dd></div>
                             <div class="flex justify-between gap-3"><dt class="text-gray-500 dark:text-gray-400">Itinerary</dt><dd class="font-medium text-right">#{{ $quotation->itinerary?->id ?? '-' }} - {{ $quotation->itinerary?->title ?? '-' }}</dd></div>
                             <div class="flex justify-between gap-3"><dt class="text-gray-500 dark:text-gray-400">Created By</dt><dd class="font-medium text-right">{{ $quotation->itinerary?->creator?->name ?? '-' }}</dd></div>
-                            <div class="flex justify-between gap-3"><dt class="text-gray-500 dark:text-gray-400">Created At</dt><dd class="font-medium text-right">{{ $quotation->itinerary?->created_at?->format('Y-m-d H:i') ?? '-' }}</dd></div>
+                            <div class="flex justify-between gap-3"><dt class="text-gray-500 dark:text-gray-400">Created At</dt><dd class="font-medium text-right"><x-local-time :value="$quotation->itinerary?->created_at" /></dd></div>
                         </dl>
+                    </div>
+                @endif
+
+                @php
+                    $canAccessItineraryModule = auth()->user()?->can('module.itineraries.access');
+                @endphp
+                @if ($quotation->itinerary && $canAccessItineraryModule)
+                    <div class="app-card p-6 space-y-3">
+                        <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">Quick Actions</h3>
+                        <a
+                            href="{{ route('itineraries.show', $quotation->itinerary) }}"
+                            class="btn-secondary w-full justify-center"
+                        >
+                            View Itinerary Detail
+                        </a>
+                        <a
+                            href="{{ route('itineraries.pdf', ['itinerary' => $quotation->itinerary->id, 'mode' => 'stream']) }}"
+                            target="_blank"
+                            rel="noopener"
+                            class="btn-outline w-full justify-center"
+                        >
+                            View Itinerary PDF
+                        </a>
                     </div>
                 @endif
 
@@ -223,10 +298,56 @@
                             </div>
                             <div class="flex justify-between gap-3">
                                 <dt class="text-gray-500 dark:text-gray-400">Approved at</dt>
-                                <dd class="font-medium text-right">{{ $quotation->approved_at?->format('Y-m-d H:i') ?? '-' }}</dd>
+                                <dd class="font-medium text-right"><x-local-time :value="$quotation->approved_at" /></dd>
                             </div>
                         @endif
                     </dl>
+
+                    <div class="grid grid-cols-1 gap-2">
+                        <div class="flex items-center justify-between rounded-md border px-3 py-2 text-xs {{ ($approvalProgress['reservation_other_approved'] ?? false) ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300' : 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-300' }}">
+                            <span class="inline-flex items-center gap-2">
+                                <span class="inline-flex rounded-full border border-current px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide">Step 1</span>
+                                <span>Reservation Approval (Non-Creator)</span>
+                            </span>
+                            <span>{{ ($approvalProgress['reservation_count'] ?? 0) >= 1 ? 'Done' : 'Pending' }}</span>
+                        </div>
+                        <div class="flex items-center justify-between rounded-md border px-3 py-2 text-xs {{ ($approvalProgress['manager_approved'] ?? false) ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300' : 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-300' }}">
+                            <span class="inline-flex items-center gap-2">
+                                <span class="inline-flex rounded-full border border-current px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide">Step 2</span>
+                                <span>Manager Approval</span>
+                            </span>
+                            <span>{{ ($approvalProgress['manager_approved'] ?? false) ? 'Done' : 'Pending' }}</span>
+                        </div>
+                        <div class="flex items-center justify-between rounded-md border px-3 py-2 text-xs {{ ($approvalProgress['director_approved'] ?? false) ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300' : 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-300' }}">
+                            <span class="inline-flex items-center gap-2">
+                                <span class="inline-flex rounded-full border border-current px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide">Step 3</span>
+                                <span>Director Approval</span>
+                            </span>
+                            <span>{{ ($approvalProgress['director_approved'] ?? false) ? 'Done' : 'Pending' }}</span>
+                        </div>
+                    </div>
+
+                    @if (!empty($approvalProgress['missing_labels']))
+                        <p class="text-xs text-amber-700 dark:text-amber-300">
+                            Waiting for: {{ implode(', ', $approvalProgress['missing_labels']) }}.
+                        </p>
+                    @endif
+
+                    @if ($quotation->approvals->isNotEmpty())
+                        <div class="rounded-lg border border-gray-200 p-3 dark:border-gray-700">
+                            <div class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Approval Log</div>
+                            <ul class="mt-2 space-y-1 text-xs text-gray-700 dark:text-gray-200">
+                                @foreach ($quotation->approvals as $approval)
+                                    <li>
+                                        {{ ucfirst((string) $approval->approval_role) }} - {{ $approval->user?->name ?? '-' }}
+                                        @if ($approval->approved_at)
+                                            (<x-local-time :value="$approval->approved_at" />)
+                                        @endif
+                                    </li>
+                                @endforeach
+                            </ul>
+                        </div>
+                    @endif
 
                     @if (! empty($quotation->approval_note))
                         <div class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-300">
@@ -235,31 +356,87 @@
                         </div>
                     @endif
 
-                    @if (auth()->user()?->hasAnyRole(['Director']) && ($quotation->status ?? '') !== 'final')
-                        <form method="POST" action="{{ route('quotations.approve', $quotation) }}" class="space-y-3">
-                            @csrf
-                            <details class="rounded-lg border border-gray-200 p-3 dark:border-gray-700">
-                                <summary class="cursor-pointer text-xs font-semibold text-gray-700 dark:text-gray-200">
-                                    <i class="fa-solid fa-comment-dots mr-2"></i>Add note
-                                </summary>
-                                <div class="mt-2">
-                                    <label class="block text-xs text-gray-500 dark:text-gray-400">Validation Note</label>
-                                    <textarea name="approval_note" rows="3" class="mt-1 w-full app-input" placeholder="Catatan terkait status yang akan dilakukan">{{ old('approval_note', $quotation->approval_note ?? '') }}</textarea>
-                                    @error('approval_note')
-                                        <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
-                                    @enderror
-                                </div>
-                            </details>
-
+                    @if (auth()->user()?->hasAnyRole(['Director', 'Manager', 'Reservation']) && ($quotation->status ?? '') !== 'final')
+                        <div class="space-y-3">
+                            @php
+                                $authUser = auth()->user();
+                                $isCreator = $quotation->isCreator($authUser);
+                                $alreadyApprovedByUser = $authUser
+                                    ? $quotation->approvals->contains(fn ($a) => (int) ($a->user_id ?? 0) === (int) $authUser->id)
+                                    : false;
+                                $canApproveByRole = false;
+                                if (!$isCreator && !$alreadyApprovedByUser && $authUser) {
+                                    if ($authUser->hasRole('Reservation')) {
+                                        $canApproveByRole = true;
+                                    } elseif ($authUser->hasRole('Manager')) {
+                                        $canApproveByRole = (bool) ($approvalProgress['reservation_other_approved'] ?? false);
+                                    } elseif ($authUser->hasRole('Director')) {
+                                        $canApproveByRole = (bool) ($approvalProgress['reservation_other_approved'] ?? false)
+                                            && (bool) ($approvalProgress['manager_approved'] ?? false);
+                                    }
+                                }
+                            @endphp
                             <div class="flex flex-wrap items-center gap-2">
                                 @if (($quotation->status ?? '') !== 'approved')
-                                    <button type="submit" formaction="{{ route('quotations.approve', $quotation) }}" class="btn-primary-sm">Approve</button>
-                                    <button type="submit" formaction="{{ route('quotations.reject', $quotation) }}" class="btn-danger-sm">Reject</button>
+                                    @if ($canApproveByRole)
+                                        <form method="POST" action="{{ route('quotations.approve', $quotation) }}">
+                                            @csrf
+                                            <button type="submit" class="btn-primary-sm">Approve</button>
+                                        </form>
+                                    @endif
+                                    @if (auth()->user()?->hasAnyRole(['Director', 'Manager']))
+                                        <button type="button" class="btn-danger-sm" data-open-reject-modal="show-reject-modal">Reject</button>
+                                    @endif
                                 @else
-                                    <button type="submit" formaction="{{ route('quotations.set-pending', $quotation) }}" class="btn-warning-sm">Set Pending</button>
+                                    @if (auth()->user()?->hasRole('Director'))
+                                        <form method="POST" action="{{ route('quotations.set-pending', $quotation) }}">
+                                            @csrf
+                                            <button type="submit" class="btn-warning-sm">Set Pending</button>
+                                        </form>
+                                    @endif
                                 @endif
                             </div>
-                        </form>
+                            @if (! $canApproveByRole && ($quotation->status ?? '') !== 'approved')
+                                <p class="text-xs text-amber-700 dark:text-amber-300">
+                                    @if ($alreadyApprovedByUser)
+                                        Anda sudah melakukan approval pada quotation ini.
+                                    @else
+                                        Approval belum dapat dilakukan. Urutan wajib: Reservation (non-creator) -> Manager -> Director.
+                                    @endif
+                                </p>
+                            @endif
+                        </div>
+                    @endif
+
+                    @if (auth()->user()?->hasAnyRole(['Director', 'Manager']) && ($quotation->status ?? '') !== 'approved' && ($quotation->status ?? '') !== 'final')
+                        <div id="show-reject-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 p-4">
+                            <div class="w-full max-w-lg rounded-xl border border-gray-200 bg-white p-5 shadow-xl dark:border-gray-700 dark:bg-gray-900">
+                                <div class="flex items-center justify-between gap-3">
+                                    <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">Reject Quotation</h3>
+                                    <button type="button" class="btn-ghost px-2 py-1 text-xs" data-close-reject-modal="show-reject-modal">Close</button>
+                                </div>
+                                <form method="POST" action="{{ route('quotations.reject', $quotation) }}" class="mt-3 space-y-3">
+                                    @csrf
+                                    <div>
+                                        <label class="block text-xs text-gray-500 dark:text-gray-400">Reason Note</label>
+                                        <textarea
+                                            name="approval_note"
+                                            rows="4"
+                                            class="mt-1 w-full app-input"
+                                            placeholder="Tuliskan alasan reject quotation"
+                                            required
+                                        >{{ old('approval_note') }}</textarea>
+                                        @error('approval_note')
+                                            <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
+                                        @enderror
+                                    </div>
+                                    <div class="flex items-center justify-end gap-2">
+                                        <button type="button" class="btn-secondary-sm" data-close-reject-modal="show-reject-modal">Cancel</button>
+                                        <button type="submit" class="btn-danger-sm">Confirm Reject</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
                     @endif
                 </div>
 
@@ -268,3 +445,4 @@
         </div>
     </div>
 @endsection
+

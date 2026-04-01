@@ -25,7 +25,7 @@ class QuotationsSmokeTest extends ModuleSmokeTestCase
         $this->get(route('quotations.index'))->assertOk();
         $this->get(route('quotations.create'))->assertOk();
 
-        $this->post(route('quotations.store'), [
+        $response = $this->post(route('quotations.store'), [
             'itinerary_id' => $itinerary->id,
             'status' => 'draft',
             'validity_date' => now()->addDays(7)->format('Y-m-d'),
@@ -37,9 +37,10 @@ class QuotationsSmokeTest extends ModuleSmokeTestCase
                     'discount' => 0,
                 ],
             ],
-        ])->assertRedirect(route('quotations.index'));
+        ]);
 
         $quotation = Quotation::query()->where('itinerary_id', $itinerary->id)->latest()->firstOrFail();
+        $response->assertRedirect(route('quotations.show', $quotation));
         $this->get(route('quotations.edit', $quotation))->assertOk();
     }
 }

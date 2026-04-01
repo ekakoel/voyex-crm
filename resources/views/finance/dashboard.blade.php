@@ -23,7 +23,7 @@
         @if($canInvoices)
         <section class="xl:col-span-8 space-y-3">
             <div class="sa-card p-5">
-                <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <div class="dashboard-kpi-grid">
                     @foreach($kpiCards as $card)
                         <div class="sa-kpi">
                             <div class="flex items-center justify-between">

@@ -13,9 +13,9 @@
 
         {{-- Main KPI row --}}
         @if($canBookings || $canInquiries)
-            <div class="row">
+            <div class="dashboard-kpi-grid">
                 @if($canBookings)
-                    <div class="col-md-4">
+                    <div>
                         <div class="card">
                             <div class="card-body">
                                 <h6>Monthly Revenue</h6>
@@ -26,7 +26,7 @@
                 @endif
 
                 @if($canBookings && $canInquiries)
-                    <div class="col-md-4">
+                    <div>
                         <div class="card">
                             <div class="card-body">
                                 <h6>Conversion Rate</h6>
@@ -37,7 +37,7 @@
                 @endif
 
                 @if($canInquiries)
-                    <div class="col-md-4">
+                    <div>
                         <div class="card">
                             <div class="card-body">
                                 <h6>Pending Follow-up</h6>

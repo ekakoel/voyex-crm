@@ -228,7 +228,11 @@ Route::middleware('auth')->group(function () {
         ]);
     Route::post('quotations/{quotation}/approve', [SalesQuotationController::class, 'approve'])
         ->name('quotations.approve')
-        ->middleware(['module:quotations', 'permission:quotations.approve']);
+        ->middleware([
+            'module:quotations',
+            'permission:module.quotations.access',
+            'module.permission:quotations',
+        ]);
     Route::post('quotations/{quotation}/reject', [SalesQuotationController::class, 'reject'])
         ->name('quotations.reject')
         ->middleware(['module:quotations', 'permission:quotations.reject']);
@@ -239,8 +243,22 @@ Route::middleware('auth')->group(function () {
             'permission:module.quotations.access',
             'module.permission:quotations',
         ]);
+    Route::patch('quotations/{quotation}/global-discount', [SalesQuotationController::class, 'updateGlobalDiscount'])
+        ->name('quotations.global-discount')
+        ->middleware([
+            'module:quotations',
+            'permission:module.quotations.access',
+            'module.permission:quotations',
+        ]);
     Route::post('quotations/{quotation}/comments', [SalesQuotationController::class, 'storeComment'])
         ->name('quotations.comments.store')
+        ->middleware([
+            'module:quotations',
+            'permission:module.quotations.access',
+            'module.permission:quotations',
+        ]);
+    Route::get('quotations/approval-notifications/poll', [SalesQuotationController::class, 'approvalNotifications'])
+        ->name('quotations.approval-notifications.poll')
         ->middleware([
             'module:quotations',
             'permission:module.quotations.access',

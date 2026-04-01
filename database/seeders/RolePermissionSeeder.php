@@ -80,6 +80,8 @@ class RolePermissionSeeder extends Seeder
             ],
             'Reservation' => [
                 'dashboard.reservation.view',
+                'module.quotations.access',
+                'quotations.approve',
                 'module.bookings.access',
                 'module.vendor_management.access',
                 'module.destinations.access',

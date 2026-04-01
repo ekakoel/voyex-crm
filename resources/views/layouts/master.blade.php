@@ -188,6 +188,41 @@
             </div>
 
             <div class="ml-auto flex items-center gap-3 sm:gap-4 md:gap-6 min-w-0">
+                @php
+                    $approvalNotif = is_array($quotationApprovalNotification ?? null) ? $quotationApprovalNotification : ['visible' => false, 'count' => 0, 'role' => null];
+                    $notifCount = (int) ($approvalNotif['count'] ?? 0);
+                    $notifRole = (string) ($approvalNotif['role'] ?? '');
+                    $notifTitle = $notifRole !== ''
+                        ? ('Quotation approvals pending for ' . ucfirst($notifRole))
+                        : 'Quotation approvals pending';
+                    $notifClass = match ($notifRole) {
+                        'director' => 'border-violet-300 bg-violet-50 text-violet-700 hover:bg-violet-100 dark:border-violet-700 dark:bg-violet-900/20 dark:text-violet-300 dark:hover:bg-violet-900/30',
+                        'manager' => 'border-sky-300 bg-sky-50 text-sky-700 hover:bg-sky-100 dark:border-sky-700 dark:bg-sky-900/20 dark:text-sky-300 dark:hover:bg-sky-900/30',
+                        default => 'border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-300 dark:hover:bg-amber-900/30',
+                    };
+                @endphp
+
+                @if (($approvalNotif['visible'] ?? false))
+                    <a
+                        href="{{ route('quotations.index', ['status' => 'pending', 'needs_my_approval' => 1]) }}"
+                        class="relative inline-flex h-9 w-9 items-center justify-center rounded-lg border {{ $notifClass }} {{ $notifCount > 0 ? '' : 'hidden' }}"
+                        title="{{ $notifTitle }}"
+                        aria-label="{{ $notifTitle }}"
+                        data-quotation-approval-bell="1"
+                    >
+                        <i class="fa-solid fa-bell"></i>
+                        <span class="absolute -right-1.5 -top-1.5 inline-flex min-w-[18px] items-center justify-center rounded-full bg-rose-600 px-1.5 py-0.5 text-[10px] font-bold leading-none text-white" data-quotation-approval-count="1">
+                            {{ $notifCount > 99 ? '99+' : $notifCount }}
+                        </span>
+                    </a>
+                    <span
+                        class="hidden"
+                        data-quotation-approval-notifier="1"
+                        data-endpoint="{{ route('quotations.approval-notifications.poll') }}"
+                        data-role="{{ $notifRole }}"
+                        data-user-id="{{ auth()->id() }}"
+                    ></span>
+                @endif
 
                 <!-- Currency Switch -->
                 <div class="hidden sm:flex items-center gap-2">
@@ -657,6 +692,8 @@
         initLocationAutofill(document);
         enhanceAddButtons(document);
         enhanceRemoveButtons(document);
+        localizeTimes(document);
+        initQuotationApprovalNotifier();
 
         const observer = new MutationObserver((mutations) => {
             mutations.forEach((mutation) => {
@@ -665,6 +702,7 @@
                         initLocationAutofill(node);
                         enhanceAddButtons(node);
                         enhanceRemoveButtons(node);
+                        localizeTimes(node);
                     }
                 });
             });
@@ -738,9 +776,263 @@
             node.dataset.removeStyled = '1';
         });
     }
+
+    function localizeTimes(root = document) {
+        const nodes = root.querySelectorAll('[data-local-time="1"]');
+        if (!nodes.length) {
+            return;
+        }
+
+        const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        nodes.forEach((node) => {
+            const iso = node.getAttribute('datetime');
+            if (!iso) return;
+
+            const parsed = new Date(iso);
+            if (Number.isNaN(parsed.getTime())) return;
+
+            const showTimezone = node.hasAttribute('data-local-timezone');
+            const formatter = new Intl.DateTimeFormat(undefined, {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: false,
+                timeZone: timezone,
+                timeZoneName: showTimezone ? 'short' : undefined,
+            });
+
+            node.textContent = formatter.format(parsed);
+            node.setAttribute('title', `${iso} UTC`);
+        });
+    }
+
+    function initQuotationApprovalNotifier() {
+        const configNode = document.querySelector('[data-quotation-approval-notifier="1"]');
+        if (!configNode || configNode.dataset.bound === '1') {
+            return;
+        }
+        configNode.dataset.bound = '1';
+
+        const endpoint = configNode.getAttribute('data-endpoint');
+        const role = configNode.getAttribute('data-role') || 'unknown';
+        const userId = configNode.getAttribute('data-user-id') || '0';
+        const bellNode = document.querySelector('[data-quotation-approval-bell="1"]');
+        const countNode = bellNode ? bellNode.querySelector('[data-quotation-approval-count="1"]') : null;
+        const listUrl = `{{ route('quotations.index', ['status' => 'pending', 'needs_my_approval' => 1]) }}`;
+        const storageKey = `quotation_approval_latest_${userId}_${role}`;
+
+        if (!endpoint || !bellNode || !countNode) {
+            return;
+        }
+
+        let bootstrapped = false;
+        const baseTitle = document.title;
+        const titlePrefixPattern = /^\(\d+\)\s+/;
+        const faviconLinks = Array.from(document.querySelectorAll('link[rel~="icon"], link[rel="shortcut icon"], link[rel="apple-touch-icon"]'));
+        const faviconBaseMap = new Map();
+        faviconLinks.forEach((link) => {
+            const href = link.getAttribute('href') || '';
+            faviconBaseMap.set(link, href);
+        });
+
+        const setTabTitleCount = (count) => {
+            const safeCount = Number.isFinite(Number(count)) ? Math.max(0, Number(count)) : 0;
+            const cleanBaseTitle = String(baseTitle || document.title || '').replace(titlePrefixPattern, '');
+            if (safeCount > 0) {
+                document.title = `(${safeCount}) ${cleanBaseTitle}`;
+                return;
+            }
+            document.title = cleanBaseTitle;
+        };
+
+        const buildFaviconBadgeDataUrl = (sourceHref, count) => new Promise((resolve) => {
+            const safeCount = Number.isFinite(Number(count)) ? Math.max(0, Number(count)) : 0;
+            if (safeCount <= 0 || !sourceHref) {
+                resolve(sourceHref || '');
+                return;
+            }
+
+            const image = new Image();
+            image.crossOrigin = 'anonymous';
+            image.onload = () => {
+                try {
+                    const size = 64;
+                    const canvas = document.createElement('canvas');
+                    canvas.width = size;
+                    canvas.height = size;
+                    const ctx = canvas.getContext('2d');
+                    if (!ctx) {
+                        resolve(sourceHref);
+                        return;
+                    }
+
+                    ctx.drawImage(image, 0, 0, size, size);
+                    ctx.fillStyle = '#dc2626';
+                    ctx.beginPath();
+                    ctx.arc(49, 15, 14, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    ctx.fillStyle = '#ffffff';
+                    ctx.font = 'bold 16px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    const label = safeCount > 99 ? '99+' : String(safeCount);
+                    ctx.fillText(label, 49, 15);
+
+                    resolve(canvas.toDataURL('image/png'));
+                } catch (_) {
+                    resolve(sourceHref);
+                }
+            };
+            image.onerror = () => resolve(sourceHref);
+            image.src = sourceHref;
+        });
+
+        const setFaviconCount = async (count) => {
+            const safeCount = Number.isFinite(Number(count)) ? Math.max(0, Number(count)) : 0;
+            for (const link of faviconLinks) {
+                const baseHref = faviconBaseMap.get(link) || '';
+                if (safeCount <= 0) {
+                    link.setAttribute('href', baseHref);
+                    continue;
+                }
+                const dataUrl = await buildFaviconBadgeDataUrl(baseHref, safeCount);
+                link.setAttribute('href', dataUrl || baseHref);
+            }
+        };
+
+        const setBellCount = (count) => {
+            const safeCount = Number.isFinite(Number(count)) ? Math.max(0, Number(count)) : 0;
+            setTabTitleCount(safeCount);
+            setFaviconCount(safeCount);
+            if (safeCount > 0) {
+                bellNode.classList.remove('hidden');
+                countNode.textContent = safeCount > 99 ? '99+' : String(safeCount);
+            } else {
+                bellNode.classList.add('hidden');
+                countNode.textContent = '0';
+            }
+        };
+
+        const showPopupNotification = (quotationNumber = '') => {
+            const playNotificationTone = () => {
+                try {
+                    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                    if (!AudioCtx) {
+                        return;
+                    }
+                    const context = new AudioCtx();
+                    const oscillator = context.createOscillator();
+                    const gainNode = context.createGain();
+
+                    oscillator.type = 'sine';
+                    oscillator.frequency.setValueAtTime(880, context.currentTime);
+                    gainNode.gain.setValueAtTime(0.0001, context.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.12, context.currentTime + 0.02);
+                    gainNode.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + 0.35);
+
+                    oscillator.connect(gainNode);
+                    gainNode.connect(context.destination);
+                    oscillator.start();
+                    oscillator.stop(context.currentTime + 0.36);
+                } catch (_) {
+                    // Ignore audio runtime error.
+                }
+            };
+
+            if (!('Notification' in window)) {
+                playNotificationTone();
+                return;
+            }
+
+            const title = 'New quotation needs approval';
+            const body = quotationNumber
+                ? `Quotation ${quotationNumber} requires your approval.`
+                : 'A new quotation requires your approval.';
+
+            const trigger = () => {
+                try {
+                    const notification = new Notification(title, {
+                        body,
+                        icon: '/favicon.ico',
+                    });
+                    notification.onclick = () => {
+                        window.focus();
+                        window.location.href = listUrl;
+                    };
+                } catch (_) {
+                    // Ignore notification API runtime error.
+                }
+            };
+
+            if (Notification.permission === 'granted') {
+                playNotificationTone();
+                trigger();
+                return;
+            }
+
+            if (Notification.permission === 'default') {
+                Notification.requestPermission().then((permission) => {
+                    if (permission === 'granted') {
+                        playNotificationTone();
+                        trigger();
+                    }
+                }).catch(() => {});
+            }
+        };
+
+        const poll = async () => {
+            try {
+                const response = await fetch(endpoint, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    credentials: 'same-origin',
+                });
+                if (!response.ok) {
+                    return;
+                }
+                const payload = await response.json();
+                if (!payload || payload.enabled !== true) {
+                    setBellCount(0);
+                    return;
+                }
+
+                const count = Number(payload.count || 0);
+                setBellCount(count);
+
+                const latestId = payload.latest && payload.latest.id ? String(payload.latest.id) : '';
+                const latestNumber = payload.latest && payload.latest.quotation_number
+                    ? String(payload.latest.quotation_number)
+                    : '';
+                const previousLatestId = sessionStorage.getItem(storageKey) || '';
+
+                if (!bootstrapped) {
+                    if (latestId) {
+                        sessionStorage.setItem(storageKey, latestId);
+                    }
+                    bootstrapped = true;
+                    return;
+                }
+
+                if (latestId && latestId !== previousLatestId) {
+                    sessionStorage.setItem(storageKey, latestId);
+                    showPopupNotification(latestNumber);
+                }
+            } catch (_) {
+                // Ignore polling network error.
+            }
+        };
+
+        poll();
+        window.setInterval(poll, 20000);
+    }
 </script>
 @stack('scripts')
 
 </body>
 </html>
-

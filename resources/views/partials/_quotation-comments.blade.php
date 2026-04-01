@@ -1,15 +1,18 @@
 @php
     $user = auth()->user();
-    $canComment = $user
-        && $user->hasAnyRole(['Director', 'Manager', 'Marketing'])
-        && (int) ($quotation->created_by ?? 0) !== (int) $user->id
-        && ! $quotation->isFinal();
-    $latestComment = $quotation->comments->first();
+    $canComment = $user && ! $quotation->isFinal();
+    $isCreator = $user && (int) ($quotation->created_by ?? 0) === (int) $user->id;
+    $rootComments = $quotation->comments
+        ->whereNull('parent_id')
+        ->sortByDesc(fn ($comment) => optional($comment->created_at)->getTimestamp() ?? 0)
+        ->values();
+    $latestComment = $rootComments->first();
     $hasNewComment = $latestComment
         && $user
         && (int) ($latestComment->user_id ?? 0) !== (int) $user->id
         && optional($latestComment->created_at)->gt(now()->subDay());
     $editingId = (int) request('edit_comment_id', 0);
+    $replyingToId = (int) request('reply_to_comment_id', 0);
 @endphp
 
 <div class="module-card p-6 space-y-4">
@@ -25,7 +28,7 @@
     @endif
 
     <div class="space-y-3">
-        @forelse ($quotation->comments as $index => $comment)
+        @forelse ($rootComments as $index => $comment)
             <div class="rounded-lg mb-6 border border-gray-200 p-3 text-xs text-gray-700 dark:border-gray-700 dark:text-gray-200 {{ $index === 0 ? 'bg-indigo-50/60 dark:bg-indigo-900/20' : '' }}">
                 <div class="flex items-center justify-between gap-2">
                     <div class="font-semibold text-gray-800 dark:text-gray-100">
@@ -35,7 +38,7 @@
                         @if ($index === 0)
                             <span class="rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-indigo-700 dark:bg-indigo-800/60 dark:text-indigo-200">Newest</span>
                         @endif
-                        <span>{{ $comment->created_at?->format('Y-m-d H:i') ?? '-' }}</span>
+                        <span><x-local-time :value="$comment->created_at" /></span>
                     </div>
                 </div>
 
@@ -48,7 +51,7 @@
                             <p class="text-xs text-rose-600">{{ $message }}</p>
                         @enderror
                         <div class="flex items-center gap-2">
-                            <button type="submit"  class="btn-primary-sm">Save</button>
+                            <button type="submit" class="btn-primary-sm">Save</button>
                             <a href="{{ url()->current() }}" class="rounded-lg border border-gray-300 px-3 py-1.5 text-[11px] font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700">Cancel</a>
                         </div>
                     </form>
@@ -67,11 +70,62 @@
                         <form method="POST" action="{{ route('quotations.comments.destroy', [$quotation, $comment]) }}" class="inline">
                             @csrf
                             @method('DELETE')
-                            <button type="submit" onclick="return confirm('Delete this comment?')"   class="btn-danger-sm">
+                            <button type="submit" onclick="return confirm('Delete this comment?')" class="btn-danger-sm">
                                 Delete
                             </button>
                         </form>
                     </div>
+                @endif
+
+                @if ($isCreator && ! $quotation->isFinal() && (int) ($comment->user_id ?? 0) !== (int) $user->id)
+                    <div class="mt-2">
+                        <a href="{{ url()->current() . '?reply_to_comment_id=' . $comment->id }}" class="text-[11px] font-medium text-emerald-700 hover:text-emerald-800 dark:text-emerald-300">
+                            Reply
+                        </a>
+                    </div>
+                @endif
+
+                @php
+                    $replies = $quotation->comments
+                        ->where('parent_id', $comment->id)
+                        ->sortBy(fn ($reply) => optional($reply->created_at)->getTimestamp() ?? 0)
+                        ->values();
+                @endphp
+                @if ($replies->isNotEmpty())
+                    <div class="mt-3 space-y-2 border-l-2 border-emerald-200 pl-3 dark:border-emerald-800">
+                        @foreach ($replies as $reply)
+                            <div class="rounded-lg border border-emerald-200/80 bg-emerald-50/50 p-2 text-xs dark:border-emerald-800 dark:bg-emerald-900/10">
+                                <div class="flex items-center justify-between gap-2">
+                                    <div class="font-semibold text-gray-800 dark:text-gray-100">{{ $reply->user?->name ?? 'Unknown' }}</div>
+                                    <span class="text-[11px] text-gray-500 dark:text-gray-400"><x-local-time :value="$reply->created_at" /></span>
+                                </div>
+                                <div class="mt-1 text-gray-600 dark:text-gray-300">{!! nl2br(e(trim(strip_tags((string) ($reply->body ?? ''))))) !!}</div>
+                            </div>
+                        @endforeach
+                    </div>
+                @endif
+
+                @if ($isCreator && ! $quotation->isFinal() && $replyingToId === (int) $comment->id)
+                    <form method="POST" action="{{ route('quotations.comments.store', $quotation) }}" class="mt-3 space-y-2 rounded-lg border border-emerald-200 bg-emerald-50/40 p-3 dark:border-emerald-800 dark:bg-emerald-900/10">
+                        @csrf
+                        <input type="hidden" name="parent_id" value="{{ $comment->id }}">
+                        <textarea
+                            name="comment_body"
+                            rows="3"
+                            class="w-full app-input"
+                            placeholder="Tulis reply untuk comment ini..."
+                        >{{ old('comment_body') }}</textarea>
+                        @error('comment_body')
+                            <p class="text-xs text-rose-600">{{ $message }}</p>
+                        @enderror
+                        @error('parent_id')
+                            <p class="text-xs text-rose-600">{{ $message }}</p>
+                        @enderror
+                        <div class="flex items-center gap-2">
+                            <button type="submit" class="btn-primary-sm">Send Reply</button>
+                            <a href="{{ url()->current() }}" class="rounded-lg border border-gray-300 px-3 py-1.5 text-[11px] font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700">Cancel</a>
+                        </div>
+                    </form>
                 @endif
             </div>
         @empty
@@ -95,12 +149,10 @@
                 @error('comment_body')
                     <p class="text-xs text-rose-600">{{ $message }}</p>
                 @enderror
-                <button type="submit"  class="btn-primary-sm">
+                <button type="submit" class="btn-primary-sm">
                     Add Comment
                 </button>
             </form>
         </details>
     @endif
 </div>
-
-

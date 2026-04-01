@@ -16,10 +16,9 @@
         <div class="text-sm text-gray-600 dark:text-gray-300">
             @php
                 $label = $actionLabels[$activity->action] ?? ucfirst(str_replace('_', ' ', (string) $activity->action));
-                $timestamp = $activity->created_at?->format('Y-m-d H:i') ?? '-';
                 $userName = $activity->user?->name ?? '-';
             @endphp
-            - {{ $label }} ({{ $timestamp }}) by {{ $userName }}
+            - {{ $label }} (<x-local-time :value="$activity->created_at" />) by {{ $userName }}
         </div>
     @empty
         <div class="text-sm text-gray-500 dark:text-gray-400">No activity yet.</div>

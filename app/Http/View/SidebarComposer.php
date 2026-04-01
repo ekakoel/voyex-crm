@@ -4,7 +4,9 @@ namespace App\Http\View;
 
 use App\Models\CompanySetting;
 use App\Models\Currency;
+use App\Models\Quotation;
 use App\Services\ModuleService;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\View\View;
 use Illuminate\Support\Facades\Auth;
@@ -33,6 +35,7 @@ class SidebarComposer
                 ->get(['id', 'code', 'name', 'symbol', 'rate_to_idr', 'decimal_places']);
         }
         $view->with('currencyOptions', $currencyOptions);
+        $view->with('quotationApprovalNotification', $this->buildQuotationApprovalNotification($user));
     }
 
     /**
@@ -379,6 +382,95 @@ class SidebarComposer
         }
 
         return $normalized;
+    }
+
+    /**
+     * @param mixed $user
+     * @return array{visible: bool, role: string|null, count: int}
+     */
+    private function buildQuotationApprovalNotification($user): array
+    {
+        $empty = [
+            'visible' => false,
+            'role' => null,
+            'count' => 0,
+        ];
+
+        if (! $user || ! Schema::hasTable('quotations') || ! Schema::hasTable('quotation_approvals')) {
+            return $empty;
+        }
+
+        if (! $user->can('module.quotations.access')) {
+            return $empty;
+        }
+
+        $role = null;
+        if ($user->hasRole('Director')) {
+            $role = 'director';
+        } elseif ($user->hasRole('Manager')) {
+            $role = 'manager';
+        } elseif ($user->hasRole('Reservation')) {
+            $role = 'reservation';
+        }
+
+        if (! $role) {
+            return $empty;
+        }
+
+        $baseQuery = Quotation::query()->where('status', 'pending');
+        if (Schema::hasColumn('quotations', 'created_by')) {
+            $baseQuery->where(function (Builder $query) use ($user): void {
+                $query->whereNull('created_by')
+                    ->orWhere('created_by', '!=', (int) $user->id);
+            });
+        }
+
+        $hasReservationOtherApproval = function (Builder $query): void {
+            $query->where('approval_role', 'reservation')
+                ->where(function (Builder $inner): void {
+                    $inner->whereNull('quotations.created_by')
+                        ->orWhereColumn('quotation_approvals.user_id', '<>', 'quotations.created_by');
+                });
+        };
+
+        $count = 0;
+        if ($role === 'reservation') {
+            $count = (clone $baseQuery)
+                ->whereDoesntHave('approvals', $hasReservationOtherApproval)
+                ->whereDoesntHave('approvals', function (Builder $query) use ($user): void {
+                    $query->where('user_id', (int) $user->id);
+                })
+                ->count();
+        } elseif ($role === 'manager') {
+            $count = (clone $baseQuery)
+                ->whereHas('approvals', $hasReservationOtherApproval)
+                ->whereDoesntHave('approvals', function (Builder $query): void {
+                    $query->where('approval_role', 'manager');
+                })
+                ->whereDoesntHave('approvals', function (Builder $query) use ($user): void {
+                    $query->where('user_id', (int) $user->id);
+                })
+                ->count();
+        } elseif ($role === 'director') {
+            $count = (clone $baseQuery)
+                ->whereHas('approvals', $hasReservationOtherApproval)
+                ->whereHas('approvals', function (Builder $query): void {
+                    $query->where('approval_role', 'manager');
+                })
+                ->whereDoesntHave('approvals', function (Builder $query): void {
+                    $query->where('approval_role', 'director');
+                })
+                ->whereDoesntHave('approvals', function (Builder $query) use ($user): void {
+                    $query->where('user_id', (int) $user->id);
+                })
+                ->count();
+        }
+
+        return [
+            'visible' => true,
+            'role' => $role,
+            'count' => max(0, (int) $count),
+        ];
     }
 
 }
