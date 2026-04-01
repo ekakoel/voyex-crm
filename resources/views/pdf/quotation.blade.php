@@ -51,17 +51,14 @@
         </div>
     @endif
 
-    <div class="card">
-        <strong>Items</strong>
-        <table>
+    <table>
             <thead>
             <tr>
-                <th style="width: 40%">Description</th>
+                <th style="width: 45%">Description</th>
                 <th style="width: 10%">Qty</th>
                 <th style="width: 15%">Unit Price</th>
-                <th style="width: 10%">Discount Type</th>
                 <th style="width: 15%">Discount</th>
-                <th style="width: 10%">Total</th>
+                <th style="width: 15%">Total</th>
             </tr>
             </thead>
             <tbody>
@@ -75,7 +72,6 @@
                     <td>{{ $item->description }}{{ $paxSuffix }}</td>
                     <td class="right">{{ $item->qty }}</td>
                     <td class="right"><x-money :amount="$item->unit_price" currency="IDR" /></td>
-                    <td>{{ ($item->discount_type ?? 'fixed') === 'percent' ? 'Percent' : 'Fixed' }}</td>
                     <td class="right">
                         @if (($item->discount_type ?? 'fixed') === 'percent')
                             {{ number_format($item->discount ?? 0, 0, ',', '.') }}%
@@ -87,11 +83,11 @@
                 </tr>
             @empty
                 <tr>
-                    <td colspan="6" class="muted">No items available.</td>
+                    <td colspan="5" class="muted">No items available.</td>
                 </tr>
             @endforelse
             </tbody>
-        </table>
+    </table>
 
         @php
             $subTotalValue = $quotation->sub_total;
@@ -101,6 +97,14 @@
             $hasTotals = $subTotalValue !== null || $discountType || $discountValue !== null || $finalAmountValue !== null;
         @endphp
         @if ($hasTotals)
+            @php
+                $globalDiscountAmount = 0;
+                if ($discountType === 'percent') {
+                    $globalDiscountAmount = (float) $subTotalValue * ((float) $discountValue / 100);
+                } elseif ($discountType === 'fixed') {
+                    $globalDiscountAmount = (float) $discountValue;
+                }
+            @endphp
             <table style="margin-top: 12px;">
                 <tbody>
                 @if ($subTotalValue !== null)
@@ -109,21 +113,19 @@
                         <td class="right" style="width: 30%"><x-money :amount="$subTotalValue" currency="IDR" /></td>
                     </tr>
                 @endif
-                @if ($discountType)
-                    <tr>
-                        <td class="right">
-                            <strong>Discount</strong>
-                            @if ($discountType === 'percent')
-                                ({{ $discountValue }}%)
-                            @else
-                                (<x-money :amount="$discountValue" currency="IDR" />)
-                            @endif
-                        </td>
-                        <td class="right">
-                            <x-money :amount="($discountType === 'percent' ? ($subTotalValue * ($discountValue / 100)) : $discountValue)" currency="IDR" />
-                        </td>
-                    </tr>
-                @endif
+                <tr>
+                    <td class="right">
+                        <strong>Global Discount</strong>
+                        @if ($discountType === 'percent')
+                            ({{ $discountValue }}%)
+                        @elseif ($discountType === 'fixed')
+                            (<x-money :amount="$discountValue" currency="IDR" />)
+                        @endif
+                    </td>
+                    <td class="right">
+                        <x-money :amount="$globalDiscountAmount" currency="IDR" />
+                    </td>
+                </tr>
                 @if ($finalAmountValue !== null)
                     <tr>
                         <td class="right total">Final Amount</td>
@@ -133,6 +135,5 @@
                 </tbody>
             </table>
         @endif
-    </div>
 </body>
 </html>

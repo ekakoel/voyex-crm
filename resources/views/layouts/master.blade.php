@@ -168,7 +168,24 @@
                 </svg>
             </button>
 
-            <div class="hidden md:block"></div>
+            <div class="hidden md:flex items-center gap-2 min-w-0 overflow-x-auto">
+                <span class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 whitespace-nowrap">Rates</span>
+                @forelse (($currencyOptions ?? collect())->filter(fn ($c) => strtoupper((string) ($c->code ?? '')) !== 'IDR') as $currencyRate)
+                    @php
+                        $rateValue = (float) ($currencyRate->rate_to_idr ?? 1);
+                        $rateLabel = number_format($rateValue, 0, ',', '.');
+                    @endphp
+                    <span class="inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[11px] font-medium whitespace-nowrap {{ ($currentCurrency ?? 'IDR') === $currencyRate->code ? 'border-indigo-300 bg-indigo-50 text-indigo-700 dark:border-indigo-700 dark:bg-indigo-900/20 dark:text-indigo-300' : 'border-gray-200 bg-white text-gray-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300' }}">
+                        <span class="font-semibold">{{ strtoupper((string) $currencyRate->code) }}</span>
+                        <span>=</span>
+                        <span>{{ $rateLabel }} IDR</span>
+                    </span>
+                @empty
+                    <span class="inline-flex items-center rounded-full border border-gray-200 bg-white px-2 py-1 text-[11px] text-gray-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300">
+                        No non-IDR rates
+                    </span>
+                @endforelse
+            </div>
 
             <div class="ml-auto flex items-center gap-3 sm:gap-4 md:gap-6 min-w-0">
 
@@ -726,6 +743,4 @@
 
 </body>
 </html>
-
-
 

@@ -20,9 +20,11 @@ class ItineraryQuotationService
             'touristAttractions:id,name,publish_rate_per_pax',
             'itineraryActivities.activity:id,name,adult_publish_rate,child_publish_rate',
             'itineraryFoodBeverages.foodBeverage:id,name,publish_rate',
-            'itineraryTransportUnits.transportUnit:id,name,publish_rate',
+            'itineraryTransportUnits.transportUnit:id,name,contract_rate,markup_type,markup,publish_rate',
             'dayPoints.endHotelRoom:id,hotels_id,rooms,view',
+            'dayPoints.endHotelRoom.prices:id,rooms_id,start_date,end_date,contract_rate,markup_type,markup,publish_rate',
             'dayPoints.endHotel:id,name',
+            'dayPoints.endHotel.prices:id,hotels_id,rooms_id,start_date,end_date,contract_rate,markup_type,markup,publish_rate',
         ]);
 
         $dayRows = [];
@@ -34,22 +36,41 @@ class ItineraryQuotationService
             }
             $day = (int) ($transportItem->day_number ?? 0);
             $label = 'Transport: ' . $unit->name;
+            $contractRate = (float) ($unit->contract_rate ?? 0);
+            $publishRate = (float) ($unit->publish_rate ?? 0);
+            if ($contractRate <= 0 && $publishRate > 0) {
+                $contractRate = $publishRate;
+            }
+            if ($publishRate <= 0) {
+                $publishRate = $contractRate;
+            }
+            $markupType = ($unit->markup_type ?? 'fixed') === 'percent' ? 'percent' : 'fixed';
+            $markup = (float) ($unit->markup ?? 0);
+            if ($markup <= 0) {
+                $markup = max(0, $publishRate - $contractRate);
+                $markupType = 'fixed';
+            }
+            $item = $this->makeItem(
+                $this->dayPrefix($day) . $label,
+                1,
+                $publishRate,
+                0,
+                TransportUnit::class,
+                (int) $unit->id,
+                $day,
+                [
+                    'day_number' => $day,
+                ],
+                'transport_day'
+            );
+            $item['contract_rate'] = max(0, $contractRate);
+            $item['markup_type'] = $markupType;
+            $item['markup'] = max(0, $markup);
+            $item['unit_price'] = max(0, $publishRate);
             $dayRows[] = [
                 'day' => $day,
                 'type_order' => 0,
-                'item' => $this->makeItem(
-                    $this->dayPrefix($day) . $label,
-                    1,
-                    (float) ($unit->publish_rate ?? 0),
-                    0,
-                    TransportUnit::class,
-                    (int) $unit->id,
-                    $day,
-                    [
-                        'day_number' => $day,
-                    ],
-                    'transport_day'
-                ),
+                'item' => $item,
             ];
         }
 
@@ -193,26 +214,115 @@ class ItineraryQuotationService
             if ($room->view) {
                 $label .= ' (' . $room->view . ')';
             }
+
+            $today = now()->toDateString();
+            $hotelPrice = $room->prices
+                ->first(function ($price) use ($today): bool {
+                    $start = $price->start_date ? (string) $price->start_date : null;
+                    $end = $price->end_date ? (string) $price->end_date : null;
+
+                    if ($start && $end) {
+                        return $start <= $today && $today <= $end;
+                    }
+                    if ($start && ! $end) {
+                        return $start <= $today;
+                    }
+                    if (! $start && $end) {
+                        return $today <= $end;
+                    }
+
+                    return false;
+                });
+
+            if (! $hotelPrice) {
+                $hotelPrice = $room->prices
+                    ->sortByDesc(function ($price) {
+                        return $price->end_date
+                            ?? $price->start_date
+                            ?? $price->id;
+                    })
+                    ->first();
+            }
+
+            if (! $hotelPrice && $dayPoint->endHotel) {
+                $hotelPrices = $dayPoint->endHotel->prices ?? collect();
+                $hotelPrice = $hotelPrices
+                    ->first(function ($price) use ($today, $room): bool {
+                        $priceRoomId = (int) ($price->rooms_id ?? 0);
+                        if ($priceRoomId > 0 && $priceRoomId !== (int) $room->id) {
+                            return false;
+                        }
+                        $start = $price->start_date ? (string) $price->start_date : null;
+                        $end = $price->end_date ? (string) $price->end_date : null;
+
+                        if ($start && $end) {
+                            return $start <= $today && $today <= $end;
+                        }
+                        if ($start && ! $end) {
+                            return $start <= $today;
+                        }
+                        if (! $start && $end) {
+                            return $today <= $end;
+                        }
+
+                        return false;
+                    });
+
+                if (! $hotelPrice) {
+                    $hotelPrice = $hotelPrices
+                        ->filter(function ($price) use ($room): bool {
+                            $priceRoomId = (int) ($price->rooms_id ?? 0);
+                            return $priceRoomId === 0 || $priceRoomId === (int) $room->id;
+                        })
+                        ->sortByDesc(function ($price) {
+                            return $price->end_date
+                                ?? $price->start_date
+                                ?? $price->id;
+                        })
+                        ->first();
+                }
+            }
+
+            $contractRate = (float) ($hotelPrice?->contract_rate ?? 0);
+            $markupType = ($hotelPrice?->markup_type ?? 'fixed') === 'percent' ? 'percent' : 'fixed';
+            $markup = (float) ($hotelPrice?->markup ?? 0);
+            $publishRate = (float) ($hotelPrice?->publish_rate ?? 0);
+            if ($contractRate <= 0 && $publishRate > 0) {
+                $contractRate = $publishRate;
+            }
+            if ($publishRate <= 0) {
+                $publishRate = $markupType === 'percent'
+                    ? ($contractRate + ($contractRate * ($markup / 100)))
+                    : ($contractRate + $markup);
+            }
+
             $qty = 1;
+            $item = $this->makeItem(
+                $this->dayPrefix($day) . $label,
+                $qty,
+                $publishRate,
+                0,
+                HotelRoom::class,
+                (int) $room->id,
+                $day,
+                [
+                    'day_number' => $day,
+                    'end_hotel_id' => $this->normalizeInt($dayPoint->end_hotel_id ?? null),
+                    'end_hotel_room_id' => (int) $room->id,
+                    'end_point_type' => (string) ($dayPoint->end_point_type ?? 'hotel'),
+                    'hotel_price_id' => $hotelPrice?->id ? (int) $hotelPrice->id : null,
+                ],
+                'hotel_day_end'
+            );
+            $item['contract_rate'] = max(0, $contractRate);
+            $item['markup_type'] = $markupType;
+            $item['markup'] = max(0, $markup);
+            $item['unit_price'] = max(0, $publishRate);
+
             $dayRows[] = [
                 'day' => $day,
                 'type_order' => 4,
-                'item' => $this->makeItem(
-                    $this->dayPrefix($day) . $label,
-                    $qty,
-                    0,
-                    0,
-                    HotelRoom::class,
-                    (int) $room->id,
-                    $day,
-                    [
-                        'day_number' => $day,
-                        'end_hotel_id' => $this->normalizeInt($dayPoint->end_hotel_id ?? null),
-                        'end_hotel_room_id' => (int) $room->id,
-                        'end_point_type' => (string) ($dayPoint->end_point_type ?? 'hotel'),
-                    ],
-                    'hotel_day_end'
-                ),
+                'item' => $item,
             ];
         }
 

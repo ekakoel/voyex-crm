@@ -18,7 +18,6 @@
                         @include('modules.quotations._form', [
                             'quotation' => $quotation,
                             'buttonLabel' => 'Update Quotation',
-                            'showStatus' => false,
                         ])
                     </form>
                 </div>
@@ -59,7 +58,16 @@
                             </div>
                             <div class="border-t border-gray-200 pt-2 dark:border-gray-700">
                                 <dt class="text-gray-500 dark:text-gray-400">Notes</dt>
-                                <dd class="mt-1 text-gray-700 dark:text-gray-200">{{ $quotation->itinerary?->inquiry?->notes ?? '-' }}</dd>
+                                @php
+                                    $inquiryNotesHtml = \App\Support\SafeRichText::sanitize((string) ($quotation->itinerary?->inquiry?->notes ?? ''));
+                                @endphp
+                                <dd class="mt-1 text-gray-700 dark:text-gray-200">
+                                    @if ($inquiryNotesHtml !== '')
+                                        <div class="prose prose-sm max-w-none dark:prose-invert">{!! $inquiryNotesHtml !!}</div>
+                                    @else
+                                        -
+                                    @endif
+                                </dd>
                             </div>
                         </dl>
                     </div>

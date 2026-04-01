@@ -2,18 +2,116 @@
     $buttonLabel = $buttonLabel ?? 'Save';
     $itineraries = $itineraries ?? collect();
     $prefillItineraryId = $prefillItineraryId ?? null;
-    $showStatus = $showStatus ?? true;
 @endphp
 
 @php
-    $items = old('items', isset($quotation) ? $quotation->items->map(function ($item) {
+    $transportServiceableType = \App\Models\TransportUnit::class;
+    $hotelRoomServiceableType = \App\Models\HotelRoom::class;
+    $transportRateLookup = collect();
+    $hotelPriceLookup = collect();
+
+    if (isset($quotation) && $quotation->relationLoaded('items')) {
+        $transportIds = $quotation->items
+            ->where('serviceable_type', $transportServiceableType)
+            ->pluck('serviceable_id')
+            ->filter()
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values();
+
+        if ($transportIds->isNotEmpty()) {
+            $transportRateLookup = \App\Models\TransportUnit::query()
+                ->whereIn('id', $transportIds->all())
+                ->get(['id', 'contract_rate', 'publish_rate', 'markup_type', 'markup'])
+                ->keyBy('id');
+        }
+
+        $hotelRoomIds = $quotation->items
+            ->where('serviceable_type', $hotelRoomServiceableType)
+            ->pluck('serviceable_id')
+            ->filter()
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values();
+
+        if ($hotelRoomIds->isNotEmpty()) {
+            $hotelPriceLookup = \App\Models\HotelPrice::query()
+                ->whereIn('rooms_id', $hotelRoomIds->all())
+                ->orderByDesc('end_date')
+                ->orderByDesc('start_date')
+                ->orderByDesc('id')
+                ->get(['id', 'rooms_id', 'contract_rate', 'markup_type', 'markup', 'publish_rate'])
+                ->groupBy('rooms_id')
+                ->map(fn ($rows) => $rows->first());
+        }
+    }
+@endphp
+
+@php
+    $allItems = old('items', isset($quotation) ? $quotation->items->map(function ($item) use ($transportRateLookup, $hotelPriceLookup) {
+        $contractRate = (float) ($item->contract_rate ?? 0);
+        $markupType = ($item->markup_type ?? 'fixed') === 'percent' ? 'percent' : 'fixed';
+        $markup = (float) ($item->markup ?? 0);
+        $unitPrice = (float) ($item->unit_price ?? 0);
+
+        if ($contractRate <= 0 && ($item->serviceable_type ?? null) === \App\Models\TransportUnit::class) {
+            $source = $transportRateLookup->get((int) ($item->serviceable_id ?? 0));
+            if ($source) {
+                $sourceContract = (float) ($source->contract_rate ?? 0);
+                $sourcePublish = (float) ($source->publish_rate ?? 0);
+                $contractRate = $sourceContract > 0 ? $sourceContract : ($sourcePublish > 0 ? $sourcePublish : $contractRate);
+
+                if ($markup <= 0) {
+                    $markup = max(0, $sourcePublish - $contractRate);
+                    $markupType = 'fixed';
+                } else {
+                    $markupType = ($source->markup_type ?? $markupType) === 'percent' ? 'percent' : 'fixed';
+                }
+
+                if ($unitPrice <= 0) {
+                    $unitPrice = $sourcePublish > 0
+                        ? $sourcePublish
+                        : ($markupType === 'percent'
+                            ? ($contractRate + ($contractRate * ($markup / 100)))
+                            : ($contractRate + $markup));
+                }
+            }
+        }
+
+        if ($contractRate <= 0 && ($item->serviceable_type ?? null) === \App\Models\HotelRoom::class) {
+            $source = $hotelPriceLookup->get((int) ($item->serviceable_id ?? 0));
+            if ($source) {
+                $sourceContract = (float) ($source->contract_rate ?? 0);
+                $sourceMarkupType = ($source->markup_type ?? 'fixed') === 'percent' ? 'percent' : 'fixed';
+                $sourceMarkup = (float) ($source->markup ?? 0);
+                $sourcePublish = (float) ($source->publish_rate ?? 0);
+
+                $contractRate = $sourceContract > 0 ? $sourceContract : ($sourcePublish > 0 ? $sourcePublish : $contractRate);
+                if ($markup <= 0) {
+                    $markup = $sourceMarkup;
+                    $markupType = $sourceMarkupType;
+                }
+                if ($unitPrice <= 0) {
+                    $unitPrice = $sourcePublish > 0
+                        ? $sourcePublish
+                        : ($markupType === 'percent'
+                            ? ($contractRate + ($contractRate * ($markup / 100)))
+                            : ($contractRate + $markup));
+                }
+            }
+        }
+
+        if ($contractRate <= 0 && $unitPrice > 0) {
+            $contractRate = $unitPrice;
+        }
+
         return [
             'description' => $item->description,
             'qty' => $item->qty,
-            'contract_rate' => $item->contract_rate,
-            'markup_type' => $item->markup_type ?? 'fixed',
-            'markup' => $item->markup,
-            'unit_price' => $item->unit_price,
+            'contract_rate' => $contractRate,
+            'markup_type' => $markupType,
+            'markup' => $markup,
+            'unit_price' => $unitPrice,
             'discount_type' => $item->discount_type ?? 'fixed',
             'discount' => $item->discount,
             'serviceable_type' => $item->serviceable_type,
@@ -23,14 +121,22 @@
             'itinerary_item_type' => $item->itinerary_item_type,
         ];
     })->toArray() : []);
-    $items = array_values($items);
+    $allItems = array_values($allItems);
+    $manualItems = collect($allItems)
+        ->filter(fn ($row) => ($row['itinerary_item_type'] ?? '') === 'manual')
+        ->values()
+        ->all();
+    $items = collect($allItems)
+        ->reject(fn ($row) => ($row['itinerary_item_type'] ?? '') === 'manual')
+        ->values()
+        ->all();
     $minRows = 0;
     $hasItems = collect($items)
         ->filter(fn ($row) => trim((string) ($row['description'] ?? '')) !== '')
         ->isNotEmpty();
 @endphp
 
-<div class="space-y-5 module-form">
+<div class="space-y-5 module-form quotation-form-no-labels">
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Itinerary</label>
@@ -85,22 +191,6 @@
     </div>
 
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        @if ($showStatus)
-            <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Status</label>
-                <select name="status" class="mt-1 app-input" required>
-                @foreach (\App\Models\Quotation::STATUS_OPTIONS as $status)
-                        <option value="{{ $status }}" @selected(old('status', $quotation->status ?? 'draft') === $status)>{{ ucfirst($status) }}</option>
-                    @endforeach
-                </select>
-                @error('status')
-                    <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
-                @enderror
-            </div>
-        @elseif (isset($quotation))
-            <input type="hidden" name="status" value="{{ old('status', $quotation->status ?? 'draft') }}">
-        @endif
-
         <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Validity Date</label>
             <input
@@ -146,9 +236,9 @@
                         $serviceableMetaValue = json_encode($serviceableMetaValue);
                     }
                 @endphp
-                <div class="grid grid-cols-1 gap-2 py-2 sm:grid-cols-9 quotation-item-row">
+                <div class="grid grid-cols-1 gap-2 py-2 sm:grid-cols-9 quotation-item-row" data-row-mode="itinerary">
                     <div class="sm:col-span-2">
-                        <label class="quotation-item-label block text-xs text-gray-500">Description</label>
+                        <label class="block text-xs text-gray-500 sm:hidden">Description</label>
                         <div
                             data-role="description-text"
                             class="quotation-item-control flex min-h-[42px] items-center rounded-lg border border-gray-200 bg-gray-50 px-3 text-sm text-gray-800 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
@@ -164,13 +254,13 @@
                         </span>
                     </div>
                     <div>
-                        <label class="quotation-item-label block text-xs text-gray-500">Qty</label>
+                        <label class="block text-xs text-gray-500 sm:hidden">Qty</label>
                         <input data-field="qty" name="items[{{ $i }}][qty]" type="number" min="1" value="{{ $row['qty'] ?? 1 }}" class="quotation-item-control dark:border-gray-600 app-input" required>
                     </div>
                     <div>
                         <x-money-input
                             label="Contract Rate"
-                            label-class="quotation-item-label block text-xs text-gray-500"
+                            label-class="block text-xs text-gray-500 sm:hidden"
                             wrapper-class="quotation-item-money-field"
                             name="items[{{ $i }}][contract_rate]"
                             :value="$row['contract_rate'] ?? 0"
@@ -182,7 +272,7 @@
                         />
                     </div>
                     <div>
-                        <label class="quotation-item-label block text-xs text-gray-500">Markup Type</label>
+                        <label class="block text-xs text-gray-500 sm:hidden">Markup Type</label>
                         <select data-field="markup_type" name="items[{{ $i }}][markup_type]" class="quotation-item-control dark:border-gray-600 app-input">
                             <option value="fixed" @selected(($row['markup_type'] ?? 'fixed') === 'fixed')>Fixed</option>
                             <option value="percent" @selected(($row['markup_type'] ?? '') === 'percent')>Percent</option>
@@ -191,7 +281,7 @@
                     <div>
                         <x-money-input
                             label="Markup"
-                            label-class="quotation-item-label block text-xs text-gray-500"
+                            label-class="block text-xs text-gray-500 sm:hidden"
                             wrapper-class="quotation-item-money-field"
                             name="items[{{ $i }}][markup]"
                             :value="$row['markup'] ?? 0"
@@ -202,22 +292,7 @@
                         />
                     </div>
                     <div>
-                        <x-money-input
-                            label="Unit Price"
-                            label-class="quotation-item-label block text-xs text-gray-500"
-                            wrapper-class="quotation-item-money-field"
-                            name="items[{{ $i }}][unit_price]"
-                            :value="$row['unit_price'] ?? 0"
-                            data-field="unit_price"
-                            input-class="quotation-item-control"
-                            step="0.01"
-                            required
-                            readonly
-                            compact
-                        />
-                    </div>
-                    <div>
-                        <label class="quotation-item-label block text-xs text-gray-500">Discount Type</label>
+                        <label class="block text-xs text-gray-500 sm:hidden">Discount Type</label>
                         <select data-field="discount_type" name="items[{{ $i }}][discount_type]" class="quotation-item-control dark:border-gray-600 app-input">
                             <option value="fixed" @selected(($row['discount_type'] ?? 'fixed') === 'fixed')>Fixed</option>
                             <option value="percent" @selected(($row['discount_type'] ?? '') === 'percent')>Percent</option>
@@ -226,13 +301,28 @@
                     <div>
                         <x-money-input
                             label="Discount"
-                            label-class="quotation-item-label block text-xs text-gray-500"
+                            label-class="block text-xs text-gray-500 sm:hidden"
                             wrapper-class="quotation-item-money-field"
                             name="items[{{ $i }}][discount]"
                             :value="$row['discount'] ?? 0"
                             data-field="discount"
                             input-class="quotation-item-control"
                             step="0.01"
+                            compact
+                        />
+                    </div>
+                    <div>
+                        <x-money-input
+                            label="Unit Price"
+                            label-class="block text-xs text-gray-500 sm:hidden"
+                            wrapper-class="quotation-item-money-field"
+                            name="items[{{ $i }}][unit_price]"
+                            :value="$row['unit_price'] ?? 0"
+                            data-field="unit_price"
+                            input-class="quotation-item-control"
+                            step="0.01"
+                            required
+                            readonly
                             compact
                         />
                     </div>
@@ -245,9 +335,9 @@
             @endfor
         </div>
         <template id="quotation-item-row-template">
-            <div class="grid grid-cols-1 gap-2 py-2 sm:grid-cols-9 quotation-item-row">
+            <div class="grid grid-cols-1 gap-2 py-2 sm:grid-cols-9 quotation-item-row" data-row-mode="itinerary">
                 <div class="sm:col-span-2">
-                    <label class="quotation-item-label block text-xs text-gray-500">Description</label>
+                    <label class="block text-xs text-gray-500 sm:hidden">Description</label>
                     <div
                         data-role="description-text"
                         class="quotation-item-control flex min-h-[42px] items-center rounded-lg border border-gray-200 bg-gray-50 px-3 text-sm text-gray-800 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
@@ -256,13 +346,13 @@
                     <span data-field="pax_type_badge" class="hidden mt-1 items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide"></span>
                 </div>
                 <div>
-                    <label class="quotation-item-label block text-xs text-gray-500">Qty</label>
+                    <label class="block text-xs text-gray-500 sm:hidden">Qty</label>
                     <input data-field="qty" type="number" min="1" class="quotation-item-control dark:border-gray-600 app-input" required>
                 </div>
                 <div>
                     <x-money-input
                         label="Contract Rate"
-                        label-class="quotation-item-label block text-xs text-gray-500"
+                        label-class="block text-xs text-gray-500 sm:hidden"
                         wrapper-class="quotation-item-money-field"
                         data-field="contract_rate"
                         input-class="quotation-item-control"
@@ -272,7 +362,7 @@
                     />
                 </div>
                 <div>
-                    <label class="quotation-item-label block text-xs text-gray-500">Markup Type</label>
+                    <label class="block text-xs text-gray-500 sm:hidden">Markup Type</label>
                     <select data-field="markup_type" class="quotation-item-control dark:border-gray-600 app-input">
                         <option value="fixed">Fixed</option>
                         <option value="percent">Percent</option>
@@ -281,7 +371,7 @@
                 <div>
                     <x-money-input
                         label="Markup"
-                        label-class="quotation-item-label block text-xs text-gray-500"
+                        label-class="block text-xs text-gray-500 sm:hidden"
                         wrapper-class="quotation-item-money-field"
                         data-field="markup"
                         input-class="quotation-item-control"
@@ -290,20 +380,7 @@
                     />
                 </div>
                 <div>
-                    <x-money-input
-                        label="Unit Price"
-                        label-class="quotation-item-label block text-xs text-gray-500"
-                        wrapper-class="quotation-item-money-field"
-                        data-field="unit_price"
-                        input-class="quotation-item-control"
-                        step="0.01"
-                        required
-                        readonly
-                        compact
-                    />
-                </div>
-                <div>
-                    <label class="quotation-item-label block text-xs text-gray-500">Discount Type</label>
+                    <label class="block text-xs text-gray-500 sm:hidden">Discount Type</label>
                     <select data-field="discount_type" class="quotation-item-control dark:border-gray-600 app-input">
                         <option value="fixed">Fixed</option>
                         <option value="percent">Percent</option>
@@ -312,11 +389,24 @@
                 <div>
                     <x-money-input
                         label="Discount"
-                        label-class="quotation-item-label block text-xs text-gray-500"
+                        label-class="block text-xs text-gray-500 sm:hidden"
                         wrapper-class="quotation-item-money-field"
                         data-field="discount"
                         input-class="quotation-item-control"
                         step="0.01"
+                        compact
+                    />
+                </div>
+                <div>
+                    <x-money-input
+                        label="Unit Price"
+                        label-class="block text-xs text-gray-500 sm:hidden"
+                        wrapper-class="quotation-item-money-field"
+                        data-field="unit_price"
+                        input-class="quotation-item-control"
+                        step="0.01"
+                        required
+                        readonly
                         compact
                     />
                 </div>
@@ -329,9 +419,146 @@
         </template>
     </div>
 
+    <div id="quotation-manual-items-section" class="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+            <p class="text-sm font-semibold text-gray-800 dark:text-gray-100">Additional Items</p>
+            <button
+                type="button"
+                id="quotation-add-item-btn"
+                class="btn-outline-sm"
+            >
+                Add Item
+            </button>
+        </div>
+
+        <div id="quotation-manual-items" class="mt-3 divide-y divide-gray-200 dark:divide-gray-700">
+            @for ($j = 0; $j < count($manualItems); $j++)
+                @php
+                    $row = $manualItems[$j] ?? ['description' => '', 'qty' => 1, 'contract_rate' => 0, 'markup_type' => 'fixed', 'markup' => 0, 'discount_type' => 'fixed', 'discount' => 0, 'unit_price' => 0];
+                    $idx = count($items) + $j;
+                    $manualQty = max(1, (int) ($row['qty'] ?? 1));
+                    $manualTotal = (float) ($row['unit_price'] ?? 0);
+                    $manualRate = $manualQty > 0 ? ($manualTotal / $manualQty) : $manualTotal;
+                @endphp
+                <div class="grid grid-cols-1 gap-2 py-2 sm:grid-cols-12 quotation-manual-row" data-row-mode="manual">
+                    <div class="sm:col-span-5">
+                        <label class="block text-xs text-gray-500 sm:hidden">Description</label>
+                        <input data-field="description" name="items[{{ $idx }}][description]" value="{{ $row['description'] ?? '' }}" class="quotation-item-control dark:border-gray-600 app-input" required>
+                    </div>
+                    <div class="sm:col-span-2">
+                        <label class="block text-xs text-gray-500 sm:hidden">Qty</label>
+                        <input data-field="qty" name="items[{{ $idx }}][qty]" type="number" min="1" value="{{ $manualQty }}" class="quotation-item-control dark:border-gray-600 app-input" required>
+                    </div>
+                    <div class="sm:col-span-2">
+                        <x-money-input
+                            label="Rate"
+                            label-class="block text-xs text-gray-500 sm:hidden"
+                            wrapper-class="quotation-item-money-field w-full"
+                            :value="$manualRate"
+                            data-field="rate"
+                            input-class="quotation-item-control"
+                            step="0.01"
+                            compact
+                        />
+                    </div>
+                    <div class="sm:col-span-2">
+                        <x-money-input
+                            label="Total Rate"
+                            label-class="block text-xs text-gray-500 sm:hidden"
+                            wrapper-class="quotation-item-money-field w-full"
+                            name="items[{{ $idx }}][unit_price]"
+                            :value="$manualTotal"
+                            data-field="unit_price"
+                            input-class="quotation-item-control"
+                            step="0.01"
+                            required
+                            readonly
+                            compact
+                        />
+                    </div>
+                    <div class="sm:col-span-1 flex items-end">
+                        <button
+                            type="button"
+                            data-remove-manual-item="1"
+                            class="btn-danger-sm inline-flex h-[42px] min-h-[42px] w-full items-center justify-center"
+                        >
+                            Remove
+                        </button>
+                    </div>
+                    <input type="hidden" data-field="contract_rate" value="">
+                    <input type="hidden" data-field="markup_type" value="fixed">
+                    <input type="hidden" data-field="markup" value="0">
+                    <input type="hidden" data-field="discount_type" value="fixed">
+                    <input type="hidden" data-field="discount" value="0">
+                    <input type="hidden" data-field="serviceable_type" name="items[{{ $idx }}][serviceable_type]" value="{{ $row['serviceable_type'] ?? '' }}" class="app-input">
+                    <input type="hidden" data-field="serviceable_id" name="items[{{ $idx }}][serviceable_id]" value="{{ $row['serviceable_id'] ?? '' }}" class="app-input">
+                    <input type="hidden" data-field="day_number" name="items[{{ $idx }}][day_number]" value="{{ $row['day_number'] ?? '' }}" class="app-input">
+                    <input type="hidden" data-field="serviceable_meta" name="items[{{ $idx }}][serviceable_meta]" value="{{ is_array($row['serviceable_meta'] ?? null) ? json_encode($row['serviceable_meta']) : ($row['serviceable_meta'] ?? '') }}" class="app-input">
+                    <input type="hidden" data-field="itinerary_item_type" name="items[{{ $idx }}][itinerary_item_type]" value="manual" class="app-input">
+                </div>
+            @endfor
+        </div>
+
+        <template id="quotation-manual-row-template">
+            <div class="grid grid-cols-1 gap-2 py-2 sm:grid-cols-12 quotation-manual-row" data-row-mode="manual">
+                <div class="sm:col-span-5">
+                    <label class="block text-xs text-gray-500 sm:hidden">Description</label>
+                    <input data-field="description" class="quotation-item-control dark:border-gray-600 app-input" required>
+                </div>
+                <div class="sm:col-span-2">
+                    <label class="block text-xs text-gray-500 sm:hidden">Qty</label>
+                    <input data-field="qty" type="number" min="1" class="quotation-item-control dark:border-gray-600 app-input" required>
+                </div>
+                <div class="sm:col-span-2">
+                    <x-money-input
+                        label="Rate"
+                        label-class="block text-xs text-gray-500 sm:hidden"
+                        wrapper-class="quotation-item-money-field w-full"
+                        data-field="rate"
+                        input-class="quotation-item-control"
+                        step="0.01"
+                        compact
+                    />
+                </div>
+                <div class="sm:col-span-2">
+                    <x-money-input
+                        label="Total Rate"
+                        label-class="block text-xs text-gray-500 sm:hidden"
+                        wrapper-class="quotation-item-money-field w-full"
+                        data-field="unit_price"
+                        input-class="quotation-item-control"
+                        step="0.01"
+                        required
+                        readonly
+                        compact
+                    />
+                </div>
+                <div class="sm:col-span-1 flex items-end">
+                    <button
+                        type="button"
+                        data-remove-manual-item="1"
+                        class="btn-danger-sm inline-flex h-[42px] min-h-[42px] w-full items-center justify-center"
+                    >
+                        Remove
+                    </button>
+                </div>
+                <input type="hidden" data-field="contract_rate" value="">
+                <input type="hidden" data-field="markup_type" value="fixed">
+                <input type="hidden" data-field="markup" value="0">
+                <input type="hidden" data-field="discount_type" value="fixed">
+                <input type="hidden" data-field="discount" value="0">
+                <input type="hidden" data-field="serviceable_type" class="app-input">
+                <input type="hidden" data-field="serviceable_id" class="app-input">
+                <input type="hidden" data-field="day_number" class="app-input">
+                <input type="hidden" data-field="serviceable_meta" class="app-input">
+                <input type="hidden" data-field="itinerary_item_type" value="manual" class="app-input">
+            </div>
+        </template>
+    </div>
+
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Discount Type</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Global Discount Type</label>
             <select name="discount_type" class="mt-1 app-input">
                 <option value="">-</option>
                 <option value="percent" @selected(old('discount_type', $quotation->discount_type ?? '') === 'percent')>Percent</option>
@@ -343,7 +570,7 @@
         </div>
         <div>
             <x-money-input
-                label="Discount Value"
+                label="Global Discount Value"
                 name="discount_value"
                 :value="old('discount_value', $quotation->discount_value ?? 0)"
                 step="0.01"
@@ -354,7 +581,7 @@
         </div>
         <div>
             <x-money-input
-                label="Discount Amount (Auto)"
+                label="Global Discount Amount (Auto)"
                 id="quotation-discount-amount"
                 step="0.01"
                 value="0"
@@ -407,18 +634,43 @@
 </div>
 
 @once
+    @push('styles')
+        <style>
+            .quotation-form-no-labels #quotation-items-section label {
+                display: block !important;
+            }
+
+            @media (min-width: 640px) {
+                .quotation-form-no-labels #quotation-items-section label {
+                    display: none !important;
+                }
+            }
+
+            .quotation-form-no-labels #quotation-manual-items-section .app-input,
+            .quotation-form-no-labels #quotation-manual-items-section .quotation-item-money-field {
+                min-width: 0 !important;
+                width: 100% !important;
+            }
+        </style>
+    @endpush
+@endonce
+
+@once
     @push('scripts')
         <script>
             (function() {
                 const itemsContainer = document.getElementById('quotation-items');
                 const itemsTemplate = document.getElementById('quotation-item-row-template');
-                if (!itemsContainer || !itemsTemplate) return;
+                const manualItemsContainer = document.getElementById('quotation-manual-items');
+                const manualItemsTemplate = document.getElementById('quotation-manual-row-template');
+                if (!itemsContainer || !itemsTemplate || !manualItemsContainer || !manualItemsTemplate) return;
 
                 const itinerarySelect = document.getElementById('itinerary-select');
                 const generateBtn = document.getElementById('itinerary-generate-btn');
                 const statusEl = document.getElementById('itinerary-generate-status');
                 const summaryEl = document.getElementById('itinerary-items-summary');
                 const itemsSection = document.getElementById('quotation-items-section');
+                const addItemBtn = document.getElementById('quotation-add-item-btn');
                 const itemDiscountTotalInput = document.getElementById('quotation-item-discount-total');
                 const subTotalInput = document.getElementById('quotation-sub-total');
                 const discountAmountInput = document.getElementById('quotation-discount-amount');
@@ -433,7 +685,18 @@
                 const formEl = itemsContainer.closest('form');
 
                 const parseInteger = (value) => {
-                    const digits = String(value ?? '').replace(/[^\d]/g, '');
+                    const raw = String(value ?? '').trim();
+                    if (raw === '') return 0;
+
+                    // Raw decimal from backend, e.g. "1500000.00"
+                    if (/^\d+([.,]\d{1,2})?$/.test(raw) && !raw.includes(' ')) {
+                        const numeric = Number(raw.replace(',', '.'));
+                        if (Number.isFinite(numeric)) {
+                            return Math.round(numeric);
+                        }
+                    }
+
+                    const digits = raw.replace(/[^\d]/g, '');
                     if (digits === '') return 0;
                     const num = Number.parseInt(digits, 10);
                     return Number.isFinite(num) ? num : 0;
@@ -471,7 +734,13 @@
 
                 const setMoneyInputDisplay = (input, value) => {
                     if (!input) return;
-                    input.value = formatMoneyDisplay(value);
+                    const safeValue = Math.max(0, Math.round(Number(value) || 0));
+                    // If still number input, grouped format (1.500.000) becomes invalid and value gets cleared.
+                    if (String(input.type || '').toLowerCase() === 'number') {
+                        input.value = String(safeValue);
+                        return;
+                    }
+                    input.value = formatMoneyDisplay(safeValue);
                 };
 
                 const setBadge = (input, text) => {
@@ -505,9 +774,10 @@
 
                 const convertDiscountValue = (row, fromType, toType) => {
                     if (!row || fromType === toType) return;
-                    const qty = parseInteger(row.querySelector('[data-field="qty"]')?.value);
-                    const unitPrice = parseInteger(row.querySelector('[data-field="unit_price"]')?.value);
-                    const total = Math.max(0, qty * unitPrice);
+                    const isManualRow = (row?.dataset?.rowMode || '') === 'manual';
+                    const total = isManualRow
+                        ? Math.max(0, parseInteger(row.querySelector('[data-field="unit_price"]')?.value))
+                        : Math.max(0, computeRowBaseAmount(row));
                     const discountInput = row.querySelector('[data-field="discount"]');
                     if (!discountInput) return;
                     let value = fromType === 'percent'
@@ -549,52 +819,84 @@
                     }
                 };
 
-                const computeRowUnitPrice = (row) => {
+                const computeRowBaseAmount = (row) => {
                     const contractRate = parseInteger(row.querySelector('[data-field="contract_rate"]')?.value);
+                    const qty = Math.max(1, parseInteger(row.querySelector('[data-field="qty"]')?.value) || 1);
                     const markupType = (row.querySelector('[data-field="markup_type"]')?.value || 'fixed');
                     let markup = markupType === 'percent'
                         ? parsePercent(row.querySelector('[data-field="markup"]')?.value)
                         : parseInteger(row.querySelector('[data-field="markup"]')?.value);
+
                     if (markupType === 'percent' && markup > 100) {
                         markup = 100;
                         const markupInput = row.querySelector('[data-field="markup"]');
                         if (markupInput) markupInput.value = '100';
                     }
 
-                    const unitPrice = markupType === 'percent'
+                    const baseUnitPrice = markupType === 'percent'
                         ? contractRate + (contractRate * (markup / 100))
                         : contractRate + markup;
+
+                    return Math.max(0, baseUnitPrice * qty);
+                };
+
+                const computeRowDiscountAmount = (row, baseAmount) => {
+                    const discountInput = row.querySelector('[data-field="discount"]');
+                    const discountType = (row.querySelector('[data-field="discount_type"]')?.value || 'fixed');
+                    let discount = discountType === 'percent'
+                        ? parsePercent(discountInput?.value)
+                        : parseInteger(discountInput?.value);
+                    if (discountType === 'percent' && discount > 100) {
+                        discount = 100;
+                        if (discountInput) discountInput.value = '100';
+                    }
+
+                    return discountType === 'percent'
+                        ? (baseAmount * (discount / 100))
+                        : discount;
+                };
+
+                const computeRowUnitPrice = (row) => {
+                    const isManualRow = (row?.dataset?.rowMode || '') === 'manual';
+                    if (isManualRow) {
+                        const qty = Math.max(1, parseInteger(row.querySelector('[data-field="qty"]')?.value) || 1);
+                        const rate = parseInteger(row.querySelector('[data-field="rate"]')?.value);
+                        const totalRate = Math.max(0, qty * rate);
+                        const unitPriceInput = row.querySelector('[data-field="unit_price"]');
+                        if (unitPriceInput) {
+                            setMoneyInputDisplay(unitPriceInput, totalRate);
+                        }
+                        return totalRate;
+                    }
+
+                    const baseAmount = computeRowBaseAmount(row);
+                    const discountAmount = computeRowDiscountAmount(row, baseAmount);
+                    const unitPrice = Math.max(0, baseAmount - discountAmount);
 
                     const unitPriceInput = row.querySelector('[data-field="unit_price"]');
                     if (unitPriceInput) {
                         setMoneyInputDisplay(unitPriceInput, unitPrice);
                     }
 
-                    return Math.max(0, unitPrice);
+                    return unitPrice;
                 };
 
                 const recalcTotals = () => {
                     let subTotal = 0;
                     let itemDiscountTotal = 0;
-                    itemsContainer.querySelectorAll('.quotation-item-row').forEach((row) => {
+                    getAllRows().forEach((row) => {
+                        const isManualRow = (row?.dataset?.rowMode || '') === 'manual';
                         updateRowDiscountBadge(row);
                         updateRowMarkupBadge(row);
-                        const qty = parseInteger(row.querySelector('[data-field="qty"]')?.value);
                         const unitPrice = computeRowUnitPrice(row);
-                        const discountInput = row.querySelector('[data-field="discount"]');
-                        const discountType = (row.querySelector('[data-field="discount_type"]')?.value || 'fixed');
-                        let discount = discountType === 'percent'
-                            ? parsePercent(discountInput?.value)
-                            : parseInteger(discountInput?.value);
-                        if (discountType === 'percent' && discount > 100) {
-                            discount = 100;
-                            if (discountInput) discountInput.value = '100';
-                        }
-                        const rowDiscount = discountType === 'percent'
-                            ? ((qty * unitPrice) * (discount / 100))
-                            : discount;
+                        const baseAmount = isManualRow
+                            ? unitPrice
+                            : computeRowBaseAmount(row);
+                        const rowDiscount = computeRowDiscountAmount(row, baseAmount);
                         itemDiscountTotal += rowDiscount;
-                        const rowTotal = Math.max(0, (qty * unitPrice) - rowDiscount);
+                        const rowTotal = isManualRow
+                            ? Math.max(0, unitPrice - rowDiscount)
+                            : Math.max(0, unitPrice);
                         subTotal += rowTotal;
 
                     });
@@ -620,6 +922,13 @@
                     updateOverallDiscountBadge();
                 };
 
+                const getAllRows = () => {
+                    return [
+                        ...Array.from(itemsContainer.querySelectorAll('.quotation-item-row')),
+                        ...Array.from(manualItemsContainer.querySelectorAll('.quotation-manual-row')),
+                    ];
+                };
+
                 const hasFilledItems = () => {
                     return Array.from(itemsContainer.querySelectorAll('[data-field="description"]'))
                         .some((input) => String(input.value || '').trim() !== '');
@@ -631,7 +940,7 @@
                 };
 
                 const reindexItems = () => {
-                    const rows = itemsContainer.querySelectorAll('.quotation-item-row');
+                    const rows = getAllRows();
                     rows.forEach((row, index) => {
                         row.querySelectorAll('[data-field]').forEach((input) => {
                             const field = input.dataset.field;
@@ -680,6 +989,22 @@
                         heading.className = 'mb-2 text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300';
                         heading.textContent = dayLabel(key);
                         card.appendChild(heading);
+
+                        const tableHeader = document.createElement('div');
+                        tableHeader.className = 'hidden sm:grid sm:grid-cols-9 sm:gap-2 sticky top-0 z-10 mb-2 rounded-md border border-slate-800 px-2 py-2 text-[11px] font-semibold uppercase tracking-wide text-white';
+                        tableHeader.style.setProperty('--tw-bg-opacity', '1');
+                        tableHeader.style.backgroundColor = 'rgb(15 23 42 / var(--tw-bg-opacity, 1))';
+                        tableHeader.innerHTML = `
+                            <div class="sm:col-span-2">Description</div>
+                            <div>Qty</div>
+                            <div>Contract Rate</div>
+                            <div>Markup Type</div>
+                            <div>Markup</div>
+                            <div>Discount Type</div>
+                            <div>Discount</div>
+                            <div>Unit Price</div>
+                        `;
+                        card.appendChild(tableHeader);
 
                         const body = document.createElement('div');
                         body.className = 'divide-y divide-gray-200 dark:divide-gray-700';
@@ -731,6 +1056,15 @@
 
                 const buildRow = (index, row) => {
                     const node = itemsTemplate.content.firstElementChild.cloneNode(true);
+                    const normalizedRow = { ...(row || {}) };
+                    const rawContract = Number(normalizedRow.contract_rate ?? 0);
+                    const rawUnit = Number(normalizedRow.unit_price ?? 0);
+                    const rawMarkup = Number(normalizedRow.markup ?? 0);
+                    if ((!Number.isFinite(rawContract) || rawContract <= 0) && Number.isFinite(rawUnit) && rawUnit > 0) {
+                        normalizedRow.contract_rate = rawUnit;
+                        normalizedRow.markup_type = 'fixed';
+                        normalizedRow.markup = Number.isFinite(rawMarkup) && rawMarkup > 0 ? rawMarkup : 0;
+                    }
                     const setValue = (input, value, fallback) => {
                         const v = value !== undefined && value !== null ? value : fallback;
                         input.value = v;
@@ -744,27 +1078,27 @@
                             return;
                         }
                         if (field === 'contract_rate' || field === 'markup' || field === 'unit_price' || field === 'discount') {
-                            const val = Number(row?.[field]);
+                            const val = Number(normalizedRow?.[field]);
                             const idrValue = Number.isFinite(val) ? val : 0;
                             const displayValue = idrToDisplay(idrValue);
-                            setValue(input, formatMoneyDisplay(displayValue), formatMoneyDisplay(0));
+                            setValue(input, String(Math.max(0, Math.round(displayValue))), '0');
                             return;
                         }
                         if (field === 'markup_type') {
-                            setValue(input, row?.markup_type ?? 'fixed', 'fixed');
+                            setValue(input, normalizedRow?.markup_type ?? 'fixed', 'fixed');
                             return;
                         }
                         if (field === 'discount_type') {
-                            setValue(input, row?.discount_type ?? 'fixed', 'fixed');
+                            setValue(input, normalizedRow?.discount_type ?? 'fixed', 'fixed');
                             return;
                         }
                         if (field === 'day_number') {
-                            const day = Number(row?.day_number);
+                            const day = Number(normalizedRow?.day_number);
                             setValue(input, Number.isFinite(day) && day > 0 ? day : '', '');
                             return;
                         }
                         if (field === 'serviceable_meta') {
-                            const meta = row?.serviceable_meta ?? '';
+                            const meta = normalizedRow?.serviceable_meta ?? '';
                             if (meta && typeof meta === 'object') {
                                 setValue(input, JSON.stringify(meta), '');
                             } else {
@@ -773,17 +1107,17 @@
                             return;
                         }
                         if (field === 'itinerary_item_type') {
-                            setValue(input, row?.itinerary_item_type ?? '', '');
+                            setValue(input, normalizedRow?.itinerary_item_type ?? '', '');
                             return;
                         }
-                        setValue(input, row?.[field] ?? '', '');
+                        setValue(input, normalizedRow?.[field] ?? '', '');
                     });
                     const descriptionInput = node.querySelector('[data-field="description"]');
                     const descriptionText = node.querySelector('[data-role="description-text"]');
                     if (descriptionText) {
                         descriptionText.textContent = descriptionForDisplay(descriptionInput?.value);
                     }
-                    applyPaxTypeBadge(node, row);
+                    applyPaxTypeBadge(node, normalizedRow);
                     const markupType = node.querySelector('[data-field="markup_type"]')?.value || 'fixed';
                     const discountType = node.querySelector('[data-field="discount_type"]')?.value || 'fixed';
                     if (markupType === 'percent') {
@@ -814,7 +1148,20 @@
                 };
 
                 const convertExistingRowsFromIdrToDisplay = () => {
-                    itemsContainer.querySelectorAll('.quotation-item-row').forEach((row) => {
+                    getAllRows().forEach((row) => {
+                        const isManualRow = (row?.dataset?.rowMode || '') === 'manual';
+                        if (isManualRow) {
+                            const qty = Math.max(1, parseInteger(row.querySelector('[data-field="qty"]')?.value) || 1);
+                            const unitPriceInput = row.querySelector('[data-field="unit_price"]');
+                            const totalDisplay = idrToDisplay(parseInteger(unitPriceInput?.value));
+                            const rateInput = row.querySelector('[data-field="rate"]');
+                            if (rateInput) {
+                                setMoneyInputDisplay(rateInput, Math.round(totalDisplay / qty));
+                            }
+                            setMoneyInputDisplay(unitPriceInput, totalDisplay);
+                            return;
+                        }
+
                         const contractInput = row.querySelector('[data-field="contract_rate"]');
                         const markupInput = row.querySelector('[data-field="markup"]');
                         const unitPriceInput = row.querySelector('[data-field="unit_price"]');
@@ -906,6 +1253,42 @@
                     updateGenerateButtonState();
                 }
 
+                const addManualItem = () => {
+                    const node = manualItemsTemplate.content.firstElementChild.cloneNode(true);
+                    node.querySelectorAll('[data-field]').forEach((input) => {
+                        const field = input.dataset.field;
+                        if (field === 'description') {
+                            input.value = '';
+                            return;
+                        }
+                        if (field === 'qty') {
+                            input.value = '1';
+                            return;
+                        }
+                        if (field === 'rate') {
+                            input.value = '0';
+                            return;
+                        }
+                        if (field === 'markup_type' || field === 'discount_type') {
+                            input.value = 'fixed';
+                            return;
+                        }
+                        if (field === 'itinerary_item_type') {
+                            input.value = 'manual';
+                            return;
+                        }
+                        input.value = '';
+                    });
+                    manualItemsContainer.appendChild(node);
+                    reindexItems();
+                    const firstInput = node.querySelector('[data-field="description"]');
+                    if (firstInput) firstInput.focus();
+                    setStatus('Item manual berhasil ditambahkan.');
+                    recalcTotals();
+                };
+
+                addItemBtn?.addEventListener('click', addManualItem);
+
                 const convertFieldDisplayToIdr = (inputEl) => {
                     if (!inputEl) return;
                     const displayValue = parseInteger(inputEl.value);
@@ -914,12 +1297,27 @@
                 };
 
                 formEl?.addEventListener('submit', () => {
-                    itemsContainer.querySelectorAll('.quotation-item-row').forEach((row) => {
+                    getAllRows().forEach((row) => {
+                        const isManualRow = (row?.dataset?.rowMode || '') === 'manual';
                         const markupType = row.querySelector('[data-field="markup_type"]')?.value || 'fixed';
                         const discountType = row.querySelector('[data-field="discount_type"]')?.value || 'fixed';
+                        const qty = Math.max(1, parseInteger(row.querySelector('[data-field="qty"]')?.value) || 1);
 
                         convertFieldDisplayToIdr(row.querySelector('[data-field="contract_rate"]'));
-                        convertFieldDisplayToIdr(row.querySelector('[data-field="unit_price"]'));
+                        const unitPriceInput = row.querySelector('[data-field="unit_price"]');
+                        if (unitPriceInput) {
+                            if (isManualRow) {
+                                row.querySelector('[data-field="contract_rate"]').value = '';
+                                row.querySelector('[data-field="markup"]').value = '0';
+                                row.querySelector('[data-field="discount"]').value = '0';
+                                convertFieldDisplayToIdr(unitPriceInput);
+                            } else {
+                                const baseAmountDisplay = Math.max(0, computeRowBaseAmount(row));
+                                const baseUnitDisplay = Math.round(baseAmountDisplay / qty);
+                                const baseUnitIdr = Math.max(0, Math.round(displayToIdr(baseUnitDisplay)));
+                                unitPriceInput.value = String(baseUnitIdr);
+                            }
+                        }
                         if (markupType !== 'percent') {
                             convertFieldDisplayToIdr(row.querySelector('[data-field="markup"]'));
                         }
@@ -937,39 +1335,55 @@
                     convertFieldDisplayToIdr(finalAmountInput);
                 });
 
-                itemsContainer.addEventListener('change', (event) => {
-                    if (event.target.matches('[data-field="markup_type"]')) {
-                        const row = event.target.closest('.quotation-item-row');
-                        const fromType = event.target.dataset.prevType || 'fixed';
-                        const toType = event.target.value || 'fixed';
-                        convertMarkupValue(row, fromType, toType);
-                        event.target.dataset.prevType = toType;
-                        recalcTotals();
-                        return;
-                    }
-                    if (event.target.matches('[data-field="discount_type"]')) {
-                        const row = event.target.closest('.quotation-item-row');
-                        const fromType = event.target.dataset.prevType || 'fixed';
-                        const toType = event.target.value || 'fixed';
-                        convertDiscountValue(row, fromType, toType);
-                        event.target.dataset.prevType = toType;
-                        recalcTotals();
-                        return;
-                    }
-                });
-                itemsContainer.addEventListener('input', (event) => {
-                    if (event.target.matches('[data-field="qty"], [data-field="contract_rate"], [data-field="markup"], [data-field="discount"]')) {
-                        recalcTotals();
-                    }
+                const bindRowEvents = (container, rowSelector) => {
+                    container?.addEventListener('change', (event) => {
+                        if (event.target.matches('[data-field="markup_type"]')) {
+                            const row = event.target.closest(rowSelector);
+                            const fromType = event.target.dataset.prevType || 'fixed';
+                            const toType = event.target.value || 'fixed';
+                            convertMarkupValue(row, fromType, toType);
+                            event.target.dataset.prevType = toType;
+                            recalcTotals();
+                            return;
+                        }
+                        if (event.target.matches('[data-field="discount_type"]')) {
+                            const row = event.target.closest(rowSelector);
+                            const fromType = event.target.dataset.prevType || 'fixed';
+                            const toType = event.target.value || 'fixed';
+                            convertDiscountValue(row, fromType, toType);
+                            event.target.dataset.prevType = toType;
+                            recalcTotals();
+                            return;
+                        }
+                    });
+                    container?.addEventListener('input', (event) => {
+                        if (event.target.matches('[data-field="qty"], [data-field="rate"], [data-field="contract_rate"], [data-field="markup"], [data-field="discount"], [data-field="unit_price"]')) {
+                            recalcTotals();
+                        }
+                    });
+                };
+
+                bindRowEvents(itemsContainer, '.quotation-item-row');
+                bindRowEvents(manualItemsContainer, '.quotation-manual-row');
+                manualItemsContainer?.addEventListener('click', (event) => {
+                    const removeBtn = event.target.closest('[data-remove-manual-item="1"]');
+                    if (!removeBtn) return;
+                    const row = removeBtn.closest('.quotation-manual-row');
+                    if (!row) return;
+                    row.remove();
+                    reindexItems();
+                    recalcTotals();
                 });
                 discountTypeSelect?.addEventListener('change', recalcTotals);
                 discountValueInput?.addEventListener('input', recalcTotals);
 
-                itemsContainer.querySelectorAll('[data-field="markup_type"]').forEach((el) => {
-                    el.dataset.prevType = el.value || 'fixed';
-                });
-                itemsContainer.querySelectorAll('[data-field="discount_type"]').forEach((el) => {
-                    el.dataset.prevType = el.value || 'fixed';
+                getAllRows().forEach((row) => {
+                    row.querySelectorAll('[data-field="markup_type"]').forEach((el) => {
+                        el.dataset.prevType = el.value || 'fixed';
+                    });
+                    row.querySelectorAll('[data-field="discount_type"]').forEach((el) => {
+                        el.dataset.prevType = el.value || 'fixed';
+                    });
                 });
                 convertExistingRowsFromIdrToDisplay();
                 if ((discountTypeSelect?.value || '') !== 'percent') {

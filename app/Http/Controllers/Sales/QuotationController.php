@@ -95,7 +95,6 @@ class QuotationController extends Controller
                 'exists:itineraries,id',
                 Rule::unique('quotations', 'itinerary_id'),
             ],
-            'status' => ['required', Rule::in(Quotation::STATUS_OPTIONS)],
             'validity_date' => ['required', 'date'],
             'discount_type' => ['nullable', Rule::in(['percent', 'fixed'])],
             'discount_value' => ['nullable', 'numeric', 'min:0'],
@@ -145,7 +144,7 @@ class QuotationController extends Controller
                 'quotation_number' => $validated['quotation_number'],
                 'inquiry_id' => $inquiryId,
                 'itinerary_id' => $validated['itinerary_id'],
-                'status' => $validated['status'],
+                'status' => 'pending',
                 'validity_date' => $validated['validity_date'],
                 'sub_total' => $totals['sub_total'],
                 'discount_type' => $validated['discount_type'] ?? null,
@@ -258,7 +257,6 @@ class QuotationController extends Controller
                 'exists:itineraries,id',
                 Rule::unique('quotations', 'itinerary_id')->ignore($quotation->id),
             ],
-            'status' => ['required', Rule::in(Quotation::STATUS_OPTIONS)],
             'validity_date' => ['required', 'date'],
             'discount_type' => ['nullable', Rule::in(['percent', 'fixed'])],
             'discount_value' => ['nullable', 'numeric', 'min:0'],
@@ -305,7 +303,6 @@ class QuotationController extends Controller
             $quotation->update([
                 'inquiry_id' => $inquiryId,
                 'itinerary_id' => $validated['itinerary_id'],
-                'status' => $validated['status'],
                 'validity_date' => $validated['validity_date'],
                 'sub_total' => $totals['sub_total'],
                 'discount_type' => $validated['discount_type'] ?? null,
@@ -670,6 +667,7 @@ class QuotationController extends Controller
             'activity',
             'fnb',
             'hotel_day_end',
+            'manual',
         ];
     }
 
@@ -702,12 +700,22 @@ class QuotationController extends Controller
             $contractRate = (float) ($item['contract_rate'] ?? 0);
             $markupType = ($item['markup_type'] ?? 'fixed') === 'percent' ? 'percent' : 'fixed';
             $markup = (float) ($item['markup'] ?? 0);
+            $providedUnitPrice = max(0, (float) ($item['unit_price'] ?? 0));
+            $itemType = (string) ($item['itinerary_item_type'] ?? '');
+            $isManualItem = $itemType === 'manual';
+            $hasContractRateInput = array_key_exists('contract_rate', $item)
+                && $item['contract_rate'] !== null
+                && $item['contract_rate'] !== '';
+
             $unitPriceFromMarkup = $markupType === 'percent'
                 ? ($contractRate + ($contractRate * ($markup / 100)))
                 : ($contractRate + $markup);
-            $unitPrice = array_key_exists('contract_rate', $item)
+            $unitPrice = $hasContractRateInput && ! $isManualItem
                 ? max(0, $unitPriceFromMarkup)
-                : max(0, (float) ($item['unit_price'] ?? 0));
+                : $providedUnitPrice;
+            if ($unitPrice <= 0 && $providedUnitPrice > 0) {
+                $unitPrice = $providedUnitPrice;
+            }
             $discount = (float) ($item['discount'] ?? 0);
             $itemDiscountType = ($item['discount_type'] ?? 'fixed') === 'percent' ? 'percent' : 'fixed';
             $discountAmount = $itemDiscountType === 'percent'

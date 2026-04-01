@@ -246,6 +246,14 @@ Completed in this cycle:
 - Fixed critical quotation total-calculation bug in `QuotationController::computeTotals()`:
   - per-item discount type variable no longer overrides quotation-level discount type,
   - ensures `discount_amount` and `final_amount` are computed from the correct header discount setting.
+- Fixed quotation edit/store behavior for `Additional Items` (manual rows):
+  - added `manual` into allowed `itinerary_item_type` list so manual rows pass validation and persist correctly.
+  - fixed `computeTotals()` unit-price source selection so manual rows use submitted `unit_price` instead of being forced from empty `contract_rate`.
+  - impact: editing quotation with manual additional items now updates persisted data and totals correctly.
+- Refined Quotation PDF item table layout:
+  - removed card wrapper and `Items` title above the item list so the PDF item section is table-only.
+  - removed `Discount Type` and `Discount` columns from item rows in PDF output.
+  - updated empty-state colspan and column width proportions to match the simplified 4-column table.
 - QA note: passed `php -l app/Http/Controllers/Sales/QuotationController.php` and `php artisan view:cache`.
 - Adjusted itinerary detail right-side map card layout to `h-fit lg:self-start` so card height follows map content and removes empty stretched space below the map.
 - Performed responsive hardening for Itinerary views (`create`, `edit`, `_form`, `show`, `index`) to prevent mobile/tablet horizontal clipping.
