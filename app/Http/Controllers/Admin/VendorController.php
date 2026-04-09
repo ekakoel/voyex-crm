@@ -57,7 +57,7 @@ class VendorController extends Controller
         $prefilled = $request->only([
             'google_maps_url', 'location', 'city', 'province', 'country', 'address', 'latitude', 'longitude', 'timezone',
         ]);
-        $locationResolver->enrichFromGoogleMapsUrl($prefilled);
+        $locationResolver->enrichFromGoogleMapsUrl($prefilled, true);
         $request->merge($prefilled);
 
         $validated = $request->validate([
@@ -79,7 +79,7 @@ class VendorController extends Controller
             'is_active' => ['nullable', 'boolean'],
         ]);
         $validated['is_active'] = $request->boolean('is_active');
-        $locationResolver->enrichFromGoogleMapsUrl($validated);
+        $locationResolver->enrichFromGoogleMapsUrl($validated, true);
         $this->applyDestinationContext($validated);
         $locationResolver->resolveDestinationId($validated, true);
         if (empty($validated['location'])) {
@@ -109,7 +109,7 @@ class VendorController extends Controller
         $prefilled = $request->only([
             'google_maps_url', 'location', 'city', 'province', 'country', 'address', 'latitude', 'longitude', 'timezone',
         ]);
-        $locationResolver->enrichFromGoogleMapsUrl($prefilled);
+        $locationResolver->enrichFromGoogleMapsUrl($prefilled, true);
         $request->merge($prefilled);
 
         $validated = $request->validate([
@@ -131,7 +131,7 @@ class VendorController extends Controller
             'is_active' => ['nullable', 'boolean'],
         ]);
         $validated['is_active'] = $request->boolean('is_active');
-        $locationResolver->enrichFromGoogleMapsUrl($validated);
+        $locationResolver->enrichFromGoogleMapsUrl($validated, true);
         $this->applyDestinationContext($validated);
         $locationResolver->resolveDestinationId($validated, true);
         if (empty($validated['location'])) {

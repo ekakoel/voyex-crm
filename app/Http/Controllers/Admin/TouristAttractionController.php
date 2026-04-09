@@ -210,7 +210,7 @@ class TouristAttractionController extends Controller
         $validated['contract_rate_per_pax'] = round($validated['contract_rate_per_pax'], 0);
         $validated['markup'] = round($validated['markup'], 0);
 
-        app(LocationResolver::class)->enrichFromGoogleMapsUrl($validated);
+        app(LocationResolver::class)->enrichFromGoogleMapsUrl($validated, true);
         $this->applyDestinationContext($validated);
         app(LocationResolver::class)->resolveDestinationId($validated, true);
         if (empty($validated['location'])) {
@@ -305,6 +305,4 @@ class TouristAttractionController extends Controller
             || $request->header('X-Tourist-Attractions-Ajax') === '1';
     }
 }
-
-
 

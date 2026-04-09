@@ -9,6 +9,7 @@ use App\Models\HotelPrice;
 use App\Models\HotelRoom;
 use App\Models\RoomView;
 use App\Support\ImageThumbnailGenerator;
+use App\Support\LocationResolver;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
@@ -259,8 +260,6 @@ class HotelController extends Controller
             ->with('success', $message);
     }
 
-
-
     public function updatePrices(Request $request, Hotel $hotel)
     {
         $roomIds = $hotel->rooms()->pluck('id')->all();
@@ -287,8 +286,6 @@ class HotelController extends Controller
         return redirect()->route('hotels.index')
             ->with('success', $message);
     }
-
-
 
     public function destroy(Hotel $hotel)
     {
@@ -368,14 +365,33 @@ class HotelController extends Controller
 
     private function validateHotel(Request $request, ?Hotel $hotel): array
     {
-        $payload = $request->all();
-        $payload['region'] = trim((string) ($payload['region'] ?? ''));
-        if ($payload['region'] === '') {
-            $payload['region'] = trim((string) ($payload['province'] ?? ''));
-        }
-        $request->replace($payload);
+        $locationResolver = app(LocationResolver::class);
 
-        return $request->validate([
+        $prefilled = [
+            'google_maps_url' => (string) $request->input('map', ''),
+            'city' => $request->input('city'),
+            'province' => $request->input('province'),
+            'country' => $request->input('country'),
+            'address' => $request->input('address'),
+            'latitude' => $request->input('latitude'),
+            'longitude' => $request->input('longitude'),
+            'destination_id' => $request->input('destination_id'),
+        ];
+        $locationResolver->enrichFromGoogleMapsUrl($prefilled, true);
+        $this->applyDestinationContext($prefilled);
+
+        $request->merge([
+            'map' => $prefilled['google_maps_url'] ?? $request->input('map'),
+            'city' => $prefilled['city'] ?? $request->input('city'),
+            'province' => $prefilled['province'] ?? $request->input('province'),
+            'country' => $prefilled['country'] ?? $request->input('country'),
+            'address' => $prefilled['address'] ?? $request->input('address'),
+            'latitude' => $prefilled['latitude'] ?? $request->input('latitude'),
+            'longitude' => $prefilled['longitude'] ?? $request->input('longitude'),
+            'destination_id' => $prefilled['destination_id'] ?? $request->input('destination_id'),
+        ]);
+
+        $validated = $request->validate([
             'destination_id' => ['nullable', 'integer', 'exists:destinations,id'],
             'name' => ['required', 'string', 'max:255'],
             'city' => ['nullable', 'string', 'max:100'],
@@ -415,6 +431,59 @@ class HotelController extends Controller
             'cancellation_policy_traditional' => ['nullable', 'string'],
             'cancellation_policy_simplified' => ['nullable', 'string'],
         ]);
+
+        $resolved = [
+            'google_maps_url' => (string) ($validated['map'] ?? ''),
+            'city' => $validated['city'] ?? null,
+            'province' => $validated['province'] ?? null,
+            'country' => $validated['country'] ?? null,
+            'address' => $validated['address'] ?? null,
+            'latitude' => $validated['latitude'] ?? null,
+            'longitude' => $validated['longitude'] ?? null,
+            'destination_id' => $validated['destination_id'] ?? null,
+        ];
+        $locationResolver->enrichFromGoogleMapsUrl($resolved, true);
+        $this->applyDestinationContext($resolved);
+        $locationResolver->resolveDestinationId($resolved, true);
+
+        $validated['map'] = $resolved['google_maps_url'] ?? ($validated['map'] ?? null);
+        $validated['city'] = $resolved['city'] ?? null;
+        $validated['province'] = $resolved['province'] ?? null;
+        $validated['country'] = $resolved['country'] ?? null;
+        $validated['address'] = $resolved['address'] ?? null;
+        $validated['latitude'] = $resolved['latitude'] ?? null;
+        $validated['longitude'] = $resolved['longitude'] ?? null;
+        $validated['destination_id'] = $resolved['destination_id'] ?? null;
+
+        $validated['region'] = trim((string) ($validated['region'] ?? ''));
+        if ($validated['region'] === '') {
+            $validated['region'] = trim((string) ($validated['province'] ?? ''));
+        }
+
+        return $validated;
+    }
+
+    private function applyDestinationContext(array &$validated): void
+    {
+        $destinationId = (int) ($validated['destination_id'] ?? 0);
+        if ($destinationId <= 0) {
+            return;
+        }
+
+        $destination = Destination::query()->find($destinationId);
+        if (! $destination) {
+            return;
+        }
+
+        if (empty($validated['city']) && ! empty($destination->city)) {
+            $validated['city'] = (string) $destination->city;
+        }
+        if (empty($validated['province']) && ! empty($destination->province)) {
+            $validated['province'] = (string) $destination->province;
+        }
+        if (empty($validated['country']) && ! empty($destination->country)) {
+            $validated['country'] = (string) $destination->country;
+        }
     }
 
     private function generateHotelCode(): string
@@ -615,8 +684,6 @@ class HotelController extends Controller
         }
     }
 
-
-
     private function normalizePrices(array $rows, array $allowedRoomIds = []): array
     {
         $payload = [];
@@ -682,7 +749,6 @@ class HotelController extends Controller
 
         return $base + $value;
     }
-
 
 }
 

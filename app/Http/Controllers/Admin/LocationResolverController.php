@@ -28,7 +28,7 @@ class LocationResolverController extends Controller
             'destination_id' => null,
         ];
 
-        $resolver->enrichFromGoogleMapsUrl($payload);
+        $resolver->enrichFromGoogleMapsUrl($payload, true);
 
         $province = trim((string) ($payload['province'] ?? ''));
         if ($province !== '') {
@@ -45,3 +45,4 @@ class LocationResolverController extends Controller
         ]);
     }
 }
+

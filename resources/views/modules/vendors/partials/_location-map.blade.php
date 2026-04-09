@@ -44,9 +44,10 @@
                         return;
                     }
 
-                    const container = mapElement.closest('.module-page--vendors') || document;
+                    const container = mapElement.closest('[data-location-autofill]') || document;
                     const latitudeInput = container.querySelector('[data-location-field="latitude"]');
                     const longitudeInput = container.querySelector('[data-location-field="longitude"]');
+                    const googleMapsUrlInput = container.querySelector('[data-location-field="google_maps_url"]');
                     const hintNode = mapElement.parentElement?.querySelector('[data-vendor-map-hint]') || null;
                     if (!latitudeInput || !longitudeInput) {
                         return;
@@ -92,6 +93,7 @@
                         const parsed = Number.parseFloat(String(value));
                         return Number.isFinite(parsed) ? parsed : null;
                     };
+                    const formatCoordinate = (value) => Number(value).toFixed(7);
 
                     const isCoordinateValid = (latitude, longitude) => latitude >= -90 && latitude <= 90 && longitude >= -180 && longitude <= 180;
 
@@ -103,6 +105,43 @@
                         map.setView(defaultCenter, 5);
                     };
 
+                    const syncGoogleMapsUrlFromCoordinates = (latitude, longitude) => {
+                        if (!googleMapsUrlInput || !isCoordinateValid(latitude, longitude)) {
+                            return;
+                        }
+
+                        const nextUrl = `https://maps.google.com/?q=${formatCoordinate(latitude)},${formatCoordinate(longitude)}`;
+                        if (String(googleMapsUrlInput.value || '').trim() === nextUrl) {
+                            return;
+                        }
+
+                        googleMapsUrlInput.value = nextUrl;
+                        googleMapsUrlInput.dispatchEvent(new Event('input', { bubbles: true }));
+                        googleMapsUrlInput.dispatchEvent(new Event('change', { bubbles: true }));
+                    };
+
+                    const updateCoordinateInputs = (latitude, longitude) => {
+                        latitudeInput.value = formatCoordinate(latitude);
+                        longitudeInput.value = formatCoordinate(longitude);
+                        latitudeInput.dispatchEvent(new Event('input', { bubbles: true }));
+                        longitudeInput.dispatchEvent(new Event('input', { bubbles: true }));
+                    };
+
+                    const bindMarkerDragEnd = () => {
+                        if (!marker || marker.__vendorMapDragBound) {
+                            return;
+                        }
+
+                        marker.on('dragend', () => {
+                            const latLng = marker.getLatLng();
+                            updateCoordinateInputs(latLng.lat, latLng.lng);
+                            syncGoogleMapsUrlFromCoordinates(latLng.lat, latLng.lng);
+                            setHint('Marker dipindahkan. Koordinat berhasil diperbarui.', 'success');
+                        });
+
+                        marker.__vendorMapDragBound = true;
+                    };
+
                     const syncMapMarker = () => {
                         const rawLatitude = String(latitudeInput.value || '').trim();
                         const rawLongitude = String(longitudeInput.value || '').trim();
@@ -111,6 +150,7 @@
 
                         if (rawLatitude === '' && rawLongitude === '') {
                             clearMarker();
+                            setHint('Koordinat belum diisi. Map tetap tampil tanpa pin.');
                             return;
                         }
 
@@ -126,12 +166,20 @@
 
                         const latLng = [latitude, longitude];
                         if (!marker) {
-                            marker = L.marker(latLng, { icon: vendorIcon }).addTo(map);
+                            marker = L.marker(latLng, {
+                                icon: vendorIcon,
+                                draggable: true,
+                            }).addTo(map);
+                            bindMarkerDragEnd();
                         } else {
                             marker.setLatLng(latLng);
+                            if (marker.dragging) {
+                                marker.dragging.enable();
+                            }
                         }
 
                         map.setView(latLng, 15);
+                        syncGoogleMapsUrlFromCoordinates(latitude, longitude);
                         setHint('Lokasi vendor berhasil ditampilkan pada map.', 'success');
                     };
 
@@ -145,10 +193,8 @@
                     bindCoordinateEvents(longitudeInput);
 
                     map.on('click', (event) => {
-                        latitudeInput.value = event.latlng.lat.toFixed(7);
-                        longitudeInput.value = event.latlng.lng.toFixed(7);
-                        latitudeInput.dispatchEvent(new Event('input', { bubbles: true }));
-                        longitudeInput.dispatchEvent(new Event('input', { bubbles: true }));
+                        updateCoordinateInputs(event.latlng.lat, event.latlng.lng);
+                        syncGoogleMapsUrlFromCoordinates(event.latlng.lat, event.latlng.lng);
                     });
 
                     mapElement.dataset.vendorMapBound = '1';
@@ -163,3 +209,4 @@
         </script>
     @endpush
 @endonce
+

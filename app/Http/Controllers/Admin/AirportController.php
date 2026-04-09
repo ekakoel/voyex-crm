@@ -175,7 +175,7 @@ class AirportController extends Controller
 
         $validated['code'] = strtoupper(trim($validated['code']));
         $validated['is_active'] = $request->boolean('is_active');
-        app(LocationResolver::class)->enrichFromGoogleMapsUrl($validated);
+        app(LocationResolver::class)->enrichFromGoogleMapsUrl($validated, true);
         $this->applyDestinationContext($validated);
         app(LocationResolver::class)->resolveDestinationId($validated, true);
 
@@ -218,3 +218,4 @@ class AirportController extends Controller
         }
     }
 }
+

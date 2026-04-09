@@ -126,7 +126,14 @@
                             return;
                         }
 
-                        googleMapsUrlInput.value = `https://maps.google.com/?q=${formatCoordinate(latitude)},${formatCoordinate(longitude)}`;
+                        const nextUrl = `https://maps.google.com/?q=${formatCoordinate(latitude)},${formatCoordinate(longitude)}`;
+                        if (String(googleMapsUrlInput.value || '').trim() === nextUrl) {
+                            return;
+                        }
+
+                        googleMapsUrlInput.value = nextUrl;
+                        googleMapsUrlInput.dispatchEvent(new Event('input', { bubbles: true }));
+                        googleMapsUrlInput.dispatchEvent(new Event('change', { bubbles: true }));
                     };
 
                     const updateCoordinateInputs = (latitude, longitude) => {
@@ -227,3 +234,4 @@
         </script>
     @endpush
 @endonce
+

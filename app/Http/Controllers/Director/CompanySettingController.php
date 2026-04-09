@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Director;
 use App\Http\Controllers\Controller;
 use App\Models\CompanySetting;
 use App\Models\Destination;
+use App\Support\LocationResolver;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
@@ -32,6 +33,15 @@ class CompanySettingController extends Controller
             'tagline' => 'Smart Travel CRM Platform',
         ]);
 
+        $locationResolver = app(LocationResolver::class);
+        $prefilled = $request->only([
+            'google_maps_url', 'city', 'province', 'country', 'address', 'latitude', 'longitude', 'timezone', 'destination_id',
+        ]);
+        $locationResolver->enrichFromGoogleMapsUrl($prefilled, true);
+        $this->applyDestinationContext($prefilled);
+
+        $request->merge($prefilled);
+
         $validated = $request->validate([
             'company_name' => ['required', 'string', 'max:120'],
             'tagline' => ['nullable', 'string', 'max:180'],
@@ -54,6 +64,10 @@ class CompanySettingController extends Controller
             'logo' => ['nullable', 'image', 'mimes:png,webp,jpg,jpeg'],
         ]);
 
+        $locationResolver->enrichFromGoogleMapsUrl($validated, true);
+        $this->applyDestinationContext($validated);
+        $locationResolver->resolveDestinationId($validated, true);
+
         if ($request->hasFile('favicon')) {
             if ($settings->favicon_path) {
                 Storage::disk('public')->delete($settings->favicon_path);
@@ -72,4 +86,31 @@ class CompanySettingController extends Controller
 
         return redirect()->route('company-settings.edit')->with('success', 'Company settings updated successfully.');
     }
+
+    private function applyDestinationContext(array &$validated): void
+    {
+        $destinationId = (int) ($validated['destination_id'] ?? 0);
+        if ($destinationId <= 0) {
+            return;
+        }
+
+        $destination = Destination::query()->find($destinationId);
+        if (! $destination) {
+            return;
+        }
+
+        if (empty($validated['city']) && ! empty($destination->city)) {
+            $validated['city'] = (string) $destination->city;
+        }
+        if (empty($validated['province']) && ! empty($destination->province)) {
+            $validated['province'] = (string) $destination->province;
+        }
+        if (empty($validated['country']) && ! empty($destination->country)) {
+            $validated['country'] = (string) $destination->country;
+        }
+        if (empty($validated['timezone']) && ! empty($destination->timezone)) {
+            $validated['timezone'] = (string) $destination->timezone;
+        }
+    }
 }
+

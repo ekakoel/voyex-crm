@@ -8,7 +8,7 @@ use Illuminate\Support\Str;
 
 class LocationResolver
 {
-    public function enrichFromGoogleMapsUrl(array &$payload): void
+    public function enrichFromGoogleMapsUrl(array &$payload, bool $overwriteResolvedFields = false): void
     {
         $url = trim((string) ($payload['google_maps_url'] ?? ''));
         if ($url === '') {
@@ -26,11 +26,11 @@ class LocationResolver
 
         $details = $this->reverseGeocode($latitude, $longitude);
 
-        $this->fillIfEmpty($payload, 'city', $details['city'] ?? null);
-        $this->fillIfEmpty($payload, 'province', $details['province'] ?? null);
-        $this->fillIfEmpty($payload, 'country', $details['country'] ?? null);
-        $this->fillIfEmpty($payload, 'address', $details['address'] ?? null);
-        $this->fillIfEmpty($payload, 'location', $details['location'] ?? null);
+        $this->fillResolvedField($payload, 'city', $details['city'] ?? null, $overwriteResolvedFields);
+        $this->fillResolvedField($payload, 'province', $details['province'] ?? null, $overwriteResolvedFields);
+        $this->fillResolvedField($payload, 'country', $details['country'] ?? null, $overwriteResolvedFields);
+        $this->fillResolvedField($payload, 'address', $details['address'] ?? null, $overwriteResolvedFields);
+        $this->fillResolvedField($payload, 'location', $details['location'] ?? null, $overwriteResolvedFields);
 
         if (empty($payload['timezone'])) {
             $timezone = $this->resolveTimezone($latitude, $longitude);
@@ -203,17 +203,22 @@ class LocationResolver
         }
     }
 
-    private function fillIfEmpty(array &$payload, string $key, mixed $value): void
+    private function fillResolvedField(array &$payload, string $key, mixed $value, bool $overwrite): void
     {
         if (! array_key_exists($key, $payload)) {
             return;
         }
 
-        if (! empty($payload[$key])) {
+        if ($value === null) {
             return;
         }
 
-        if ($value === null) {
+        if ($overwrite) {
+            $payload[$key] = $value;
+            return;
+        }
+
+        if (! empty($payload[$key])) {
             return;
         }
 
@@ -229,3 +234,4 @@ class LocationResolver
         return $code;
     }
 }
+
