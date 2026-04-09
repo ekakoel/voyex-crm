@@ -14,6 +14,7 @@ class CompanySettingController extends Controller
     {
         $settings = CompanySetting::query()->firstOrCreate([], [
             'company_name' => 'VOYEX CRM',
+            'tagline' => 'Smart Travel CRM Platform',
         ]);
 
         $destinations = Destination::query()
@@ -28,10 +29,12 @@ class CompanySettingController extends Controller
     {
         $settings = CompanySetting::query()->firstOrCreate([], [
             'company_name' => 'VOYEX CRM',
+            'tagline' => 'Smart Travel CRM Platform',
         ]);
 
         $validated = $request->validate([
             'company_name' => ['required', 'string', 'max:120'],
+            'tagline' => ['nullable', 'string', 'max:180'],
             'legal_name' => ['nullable', 'string', 'max:180'],
             'contact_email' => ['nullable', 'email', 'max:120'],
             'contact_phone' => ['nullable', 'string', 'max:40'],

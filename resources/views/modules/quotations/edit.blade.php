@@ -93,7 +93,14 @@
                     </div>
                 @endif
 
-                @include('partials._audit-info', ['record' => $quotation, 'title' => 'Audit Info'])
+                <div class="module-card p-6 space-y-4">
+                    <div>
+                        <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">Activity Timeline</h3>
+                        <p class="text-xs text-gray-600 dark:text-gray-300">Detailed create/update audit log for this quotation.</p>
+                    </div>
+                    <x-activity-timeline :activities="$activities" />
+                    <div>{{ $activities->links() }}</div>
+                </div>
                 @include('partials._quotation-comments', ['quotation' => $quotation])
 
                 <div class="module-card p-6 space-y-4">

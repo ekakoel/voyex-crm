@@ -3,8 +3,10 @@
 namespace App\Models;
 
 use App\Models\Concerns\HasAudit;
+use App\Models\ActivityLog;
 use App\Models\User;
 use App\Models\Destination;
+use App\Traits\LogsActivity;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Schema;
@@ -13,17 +15,19 @@ class Itinerary extends Model
 {
     use SoftDeletes;
     use HasAudit;
+    use LogsActivity;
+
+    public const STATUS_PENDING = 'pending';
+    public const STATUS_PROCESSED = 'processed';
+    public const STATUS_FINAL = 'final';
 
     public const STATUS_OPTIONS = [
-        'draft',
-        'processed',
-        'pending',
-        'approved',
-        'rejected',
-        'final',
+        self::STATUS_PENDING,
+        self::STATUS_PROCESSED,
+        self::STATUS_FINAL,
     ];
 
-    public const FINAL_STATUS = 'final';
+    public const FINAL_STATUS = self::STATUS_FINAL;
 
     protected $fillable = [
         'inquiry_id',
@@ -47,6 +51,31 @@ class Itinerary extends Model
     public function isFinal(): bool
     {
         return $this->status === self::FINAL_STATUS;
+    }
+
+    public function syncLifecycleStatus(): void
+    {
+        $this->loadMissing('quotation:id,itinerary_id,status');
+
+        // Final is immutable once reached.
+        if ($this->isFinal()) {
+            return;
+        }
+
+        $nextStatus = self::STATUS_PENDING;
+        if ($this->quotation) {
+            $nextStatus = (string) ($this->quotation->status ?? '') === 'approved'
+                ? self::STATUS_FINAL
+                : self::STATUS_PROCESSED;
+        }
+
+        if ((string) ($this->status ?? '') === $nextStatus) {
+            return;
+        }
+
+        $this->update([
+            'status' => $nextStatus,
+        ]);
     }
 
     public function touristAttractions()
@@ -104,6 +133,11 @@ class Itinerary extends Model
         return $this->hasOne(Quotation::class);
     }
 
+    public function activities()
+    {
+        return $this->morphMany(ActivityLog::class, 'subject');
+    }
+
     public function hotels()
     {
         if (Schema::hasTable('hotel_itinerary')) {
@@ -127,7 +161,6 @@ class Itinerary extends Model
         return $this->belongsTo(Transport::class, 'departure_transport_id');
     }
 }
-
 
 
 

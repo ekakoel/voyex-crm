@@ -48,7 +48,10 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>Login | Travel CRM</title>
+    @php($appTitle = trim((string) ($companyName ?? config('app.name', 'VOYEX CRM'))))
+    @php($loginTagline = trim((string) ($companyTagline ?? 'Smart Travel CRM Platform')))
+    @php($loginFooterSuffix = trim((string) ($companyFooterNote ?? '')) ?: 'All rights reserved.')
+    <title>Login | {{ $appTitle }}</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- Bootstrap 5 -->
     <link
@@ -76,8 +79,8 @@
         {{-- RIGHT SIDE --}}
         <div class="auth-right">
             <div class="auth-card">
-                <h2>VOYEX CRM</h2>
-                <p class="mb-3"><i>Smart Travel CRM Platform</i></p>
+                <h2>{{ $appTitle }}</h2>
+                <p class="mb-3"><i>{{ $loginTagline }}</i></p>
                 <h3>Sign in</h3>
                 <form method="POST" action="{{ route('login') }}">
                     @csrf
@@ -110,7 +113,7 @@
                     </button>
                 </form>
 
-                <p class="footer-text">VOYEX CRM © 2026. All rights reserved.</p>
+                <p class="footer-text">{{ $appTitle }} &copy; {{ now()->year }}. {{ $loginFooterSuffix }}</p>
                 {{-- <p class="footer-text">
                     Don't have an account?
                     <a href="{{ route('register') }}">Sign up</a>

@@ -2,10 +2,13 @@
 
 namespace App\Models;
 
+use App\Traits\LogsActivity;
 use Illuminate\Database\Eloquent\Model;
 
 class ItineraryDayPoint extends Model
 {
+    use LogsActivity;
+
     protected $fillable = [
         'itinerary_id',
         'day_number',
@@ -25,6 +28,7 @@ class ItineraryDayPoint extends Model
         'end_airport_id',
         'end_hotel_id',
         'end_hotel_room_id',
+        'end_hotel_booking_mode',
     ];
 
     protected $casts = [

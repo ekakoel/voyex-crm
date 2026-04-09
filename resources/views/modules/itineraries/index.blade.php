@@ -5,7 +5,7 @@
     <a href="{{ route('itineraries.create') }}" class="btn-primary">Create Itinerary</a>
 @endsection
 @section('content')
-    <div class="space-y-6 module-page module-page--itineraries">
+    <div class="space-y-6 module-page module-page--itineraries" data-service-filter-page data-page-spinner="off">
         <x-index-stats :cards="$statsCards ?? []" />
         <div class="grid min-w-0 grid-cols-1 gap-6 xl:grid-cols-12">
             <aside class="min-w-0 space-y-4 xl:col-span-3">
@@ -14,28 +14,27 @@
                         <h2 class="text-base font-semibold text-gray-800 dark:text-gray-100">Filters</h2>
                         <p class="text-sm text-gray-500 dark:text-gray-400">Refine your list quickly.</p>
                     </div>
-                    <form method="GET" class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                        <input name="title" value="{{ request('title') }}" placeholder="Title" class="app-input sm:col-span-2">
-                        <select name="destination_id" class="app-input sm:col-span-2">
+                    <form method="GET" action="{{ route('itineraries.index') }}" class="grid grid-cols-1 gap-3 sm:grid-cols-2" data-service-filter-form data-disable-submit-lock="1" data-page-spinner="off">
+                        <input name="title" value="{{ request('title') }}" placeholder="Title" class="app-input sm:col-span-2" data-service-filter-input>
+                        <select name="destination_id" class="app-input sm:col-span-2" data-service-filter-input>
                             <option value="">All destinations</option>
                             @foreach ($destinations as $destination)
                                 <option value="{{ $destination->id }}" @selected((string) request('destination_id') === (string) $destination->id)>{{ $destination->name }}</option>
                             @endforeach
                         </select>
-                        <input name="duration" type="number" min="1" value="{{ request('duration') }}" placeholder="Duration (days)" class="app-input">
-                        <select name="per_page" class="app-input">
+                        <input name="duration" type="number" min="1" value="{{ request('duration') }}" placeholder="Duration (days)" class="app-input" data-service-filter-input>
+                        <select name="per_page" class="app-input" data-service-filter-input>
                             @foreach ([10,25,50,100] as $size)
                                 <option value="{{ $size }}" @selected((string) request('per_page', 10) === (string) $size)>{{ $size }}/page</option>
                             @endforeach
                         </select>
                         <div class="flex items-center gap-2 sm:col-span-2 filter-actions">
-                            <button class="btn-primary">Filter</button>
-                            <a href="{{ route('itineraries.index') }}" class="btn-ghost">Reset</a>
+                            <a href="{{ route('itineraries.index') }}" class="btn-ghost" data-service-filter-reset>Reset</a>
                         </div>
                     </form>
                 </div>
             </aside>
-            <div class="min-w-0 space-y-4 xl:col-span-9">
+            <div class="min-w-0 space-y-4 xl:col-span-9" data-service-filter-results>
         @if (session('success'))
             <div class="mb-6 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300">{{ session('success') }}</div>
         @endif
@@ -80,6 +79,14 @@
                             <td class="px-4 py-3 text-right text-sm actions-compact">
     <div class="flex items-center justify-end gap-2">
         <a href="{{ route('itineraries.show', $itinerary) }}" class="btn-outline-sm" title="View" aria-label="View"><i class="fa-solid fa-eye"></i><span class="sr-only">View</span></a>
+                                @if (! $itinerary->trashed())
+                                    <form action="{{ route('itineraries.duplicate', $itinerary) }}" method="POST" class="inline" onsubmit="if (!confirm('Duplicate this itinerary?')) { return false; } const button = this.querySelector('button[type=submit]'); if (button) { button.disabled = true; button.classList.add('opacity-60', 'cursor-not-allowed'); } return true;">
+                                        @csrf
+                                        <button type="submit" class="btn-ghost-sm" title="Duplicate" aria-label="Duplicate">
+                                            <i class="fa-solid fa-copy"></i><span class="sr-only">Duplicate</span>
+                                        </button>
+                                    </form>
+                                @endif
                                 @can('update', $itinerary)
                                     @if (!($itinerary->quotation && ($itinerary->quotation->status ?? '') === 'approved') && ! $itinerary->isFinal())
                                         <a href="{{ route('itineraries.edit', $itinerary) }}"  class="btn-secondary-sm" title="Edit" aria-label="Edit"><i class="fa-solid fa-pen"></i><span class="sr-only">Edit</span></a>
@@ -107,9 +114,17 @@
                     </p>
                     <p class="text-xs text-gray-500 dark:text-gray-400">{{ $itinerary->duration_days }} day(s)</p>
                     <p class="text-xs text-gray-500 dark:text-gray-400">{{ $itinerary->destination?->name ?? $itinerary->destination ?? '-' }}</p>
-                    <p class="text-xs text-gray-500 dark:text-gray-400">Status: {{ ucfirst($itinerary->status ?? 'draft') }}</p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">Status: {{ ucfirst($itinerary->status ?? 'pending') }}</p>
                     <div class="mt-3 flex flex-wrap gap-2">
                         <a href="{{ route('itineraries.show', $itinerary) }}" class="btn-outline-sm" title="View" aria-label="View"><i class="fa-solid fa-eye"></i><span class="sr-only">View</span></a>
+                        @if (! $itinerary->trashed())
+                            <form action="{{ route('itineraries.duplicate', $itinerary) }}" method="POST" class="inline" onsubmit="if (!confirm('Duplicate this itinerary?')) { return false; } const button = this.querySelector('button[type=submit]'); if (button) { button.disabled = true; button.classList.add('opacity-60', 'cursor-not-allowed'); } return true;">
+                                @csrf
+                                <button type="submit" class="btn-ghost-sm" title="Duplicate" aria-label="Duplicate">
+                                    <i class="fa-solid fa-copy"></i><span class="sr-only">Duplicate</span>
+                                </button>
+                            </form>
+                        @endif
                         @can('update', $itinerary)
                             @if (!($itinerary->quotation && ($itinerary->quotation->status ?? '') === 'approved') && ! $itinerary->isFinal())
                                 <a href="{{ route('itineraries.edit', $itinerary) }}"  class="btn-secondary-sm" title="Edit" aria-label="Edit"><i class="fa-solid fa-pen"></i><span class="sr-only">Edit</span></a>

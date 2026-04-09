@@ -1,8 +1,8 @@
 # Voyex CRM - Project Knowledge Base
 
-Version: 1.0  
-Date: 2026-03-30  
-Status: Consolidated source of truth (derived from all project `.md` docs currently in repository)
+Version: 2.1  
+Date: 2026-04-09  
+Status: Consolidated source of truth (post markdown audit, deduplication, and docs structure migration)
 
 ---
 
@@ -169,51 +169,65 @@ Operational domain relationships:
   - `Deactivate` / `Activate`
   - Active/Inactive status visible in index
 
+### 7.5 AJAX Index Filter Standard (Project Standard)
+Untuk semua halaman index module yang memakai panel filter di sisi kiri, standar default adalah AJAX auto-filter (tanpa tombol `Filter`).
+
+Struktur minimal yang wajib dipakai:
+- Root page: `data-service-filter-page`
+- Form filter: `data-service-filter-form`
+- Input filter yang memicu auto refresh: `data-service-filter-input`
+- Reset link: `data-service-filter-reset`
+- Container hasil (table/cards/pagination): `data-service-filter-results`
+
+Perilaku standar:
+- Input text: auto request dengan debounce (tanpa submit manual)
+- Select / change input: auto request langsung
+- Pagination link: di-handle AJAX juga
+- URL query tetap ter-update (`pushState/replaceState`) agar bisa di-refresh/share/back-forward
+- Tombol `Reset` tetap tersedia
+
+Catatan implementasi:
+- Response tetap berupa HTML halaman index yang sama; frontend akan mengambil ulang node `data-service-filter-results`.
+- Gunakan `withQueryString()` pada paginator.
+- Opsi `per_page` tetap wajib tersedia (umum: `10/25/50/100`).
+
 ---
 
 ## 8. Itinerary Create/Edit: Critical Technical Notes
 
-The itinerary form is a complex dynamic DOM-driven editor (`resources/views/modules/itineraries/_form.blade.php` + controller normalization).  
-It uses:
-- Blade prefill/grouping
-- JavaScript runtime recalculation/reindexing
-- Backend normalization/sync
+Itinerary create/edit adalah area berisiko tinggi karena menggabungkan:
+- Blade prefill state,
+- JavaScript reindex/recalc dinamis,
+- backend normalization sebelum sync relasi.
 
-Important behavior:
-- Payload names for schedule items are built/rebuilt by JS (`reindex()` pattern)
-- Day-level state (start/end points, transport, include/exclude, main experience) is managed separately
-- Map preview reflects DOM state, not authoritative backend state
-- Create/update may auto-transition related inquiry `draft -> processed` (if allowed by status rule)
+Ringkasan aturan:
+- payload schedule final dibangun ulang via `reindex()` sebelum submit,
+- day-level point/transport/include-exclude disimpan pada layer payload terpisah,
+- inquiry terkait dapat auto-transisi `draft -> processed` sesuai rule status.
 
-Known risk area from docs:
-- Transport unit submit validation has been noted as potential table/model mismatch and should be verified before related refactors.
+Referensi detail implementasi:
+- `docs/technical/ITINERARY_CREATE_EDIT_FLOW.md`
 
 ### 8.1 Itinerary Detail Map (Show Page) Reference
 
-Map pada halaman detail itinerary memiliki arsitektur khusus dan sudah didokumentasikan terpisah di:
-- `ITINERARY_DETAIL_MAP_ARCHITECTURE.md`
+Map show-page itinerary dipisah dari map preview create/edit.
+Aturan utama:
+- marker dari point tersimpan per day,
+- polyline route jalan berbasis OSRM (tanpa fallback garis lurus),
+- render guard wajib dipertahankan untuk hindari race condition.
 
-Ringkasan aturan penting:
-- Marker diambil dari kombinasi start point, item schedule (attraction/activity/F&B), dan end point per day.
-- Polyline harus mengikuti route jalan (OSRM), tanpa fallback garis lurus.
-- Render harus memakai guard concurrency/stabilitas (render token + abort fetch + busy guard).
-- Mode renderer yang dipakai untuk stabilitas adalah SVG (`preferCanvas: false`, `renderer: L.svg()`).
-- Tombol `All Days` dan `Day N` wajib memfilter marker + route sesuai day yang dipilih.
+Referensi detail:
+- `docs/technical/ITINERARY_DETAIL_MAP_ARCHITECTURE.md`
 
 ### 8.2 Quotation Create/Edit: Critical Notes
 
-Area quotation create/edit (`resources/views/modules/quotations/create.blade.php`, `edit.blade.php`, `_form.blade.php`, `QuotationController`) memiliki aturan penting berikut:
-- Form item bersifat generated + editable:
-  - item dapat diisi otomatis dari itinerary melalui endpoint `quotations/itinerary-items/{itinerary}`.
-  - setelah generate, user tetap boleh menyesuaikan qty/harga/discount.
-- Perhitungan final amount wajib memakai dua lapis discount yang benar:
-  - discount per-item (row level),
-  - discount quotation (header level).
-- Bug historis yang sudah diperbaiki:
-  - variabel discount type per-item sempat menimpa discount type quotation di `computeTotals()`.
-  - dampaknya final amount bisa salah.
-  - implementasi saat ini sudah memisahkan variabel item-level vs quotation-level agar kalkulasi konsisten.
-- Halaman edit quotation wajib dijaga markup Blade-nya tetap bersih karena sidebar validation/comment/inquiry detail cukup padat dan sensitif terhadap struktur HTML yang rusak.
+Area quotation create/edit tetap kritis pada:
+- generated item dari itinerary + editable override user,
+- kalkulasi discount dua lapis (row level + header level),
+- approval workflow berbasis role.
+
+Referensi verifikasi approval:
+- `docs/technical/QUOTATION_APPROVAL_UAT_MATRIX.md`
 
 ---
 
@@ -243,7 +257,7 @@ Broadly implemented:
 - Standardized index UI rollout across many views
 
 Partially implemented:
-- Audit trail depth
+- Audit trail depth (activity logging now implemented for core models, needs advanced dashboard)
 - Revenue/analytics depth
 - Hotels feature depth (ongoing expansion)
 - Payment tracking depth
@@ -269,20 +283,71 @@ After each change, minimum QA expectation:
 
 ---
 
-## 12. Source Documents Used for Consolidation
+## 12. Documentation Map (Current)
 
+Core references:
 - `README.md`
 - `PROJECT_GUIDELINES.md`
-- `QUICK_SUMMARY.md`
-- `VOYEX_CRM_AI_GUIDELINE.md`
 - `VOYEX_CRM_SYSTEM_ROADMAP.md`
-- `LAYOUT_GUIDE.md`
-- `CHEAT_SHEET.md`
-- `ITINERARY_CREATE_EDIT_FLOW.md`
-- `ITINERARY_DETAIL_MAP_ARCHITECTURE.md`
-- `ANALYSIS_REPORT.md`
-- `SIDEBAR_COLLAPSE_FIX.md`
-- `modul.md`
+- `docs/core/LAYOUT_GUIDE.md`
+- `VOYEX_CRM_AI_GUIDELINE.md`
+- `docs/README.md`
+
+Technical references:
+- `docs/technical/ITINERARY_CREATE_EDIT_FLOW.md`
+- `docs/technical/ITINERARY_DETAIL_MAP_ARCHITECTURE.md`
+- `docs/technical/QUOTATION_APPROVAL_UAT_MATRIX.md`
+- `docs/technical/TECHNICAL_FIX_NOTES.md`
+
+Archive/pointer docs:
+- `docs/archive/PROJECT_AUDIT_ARCHIVE.md`
+- `docs/changelog/ROADMAP_CHANGELOG_ARCHIVE.md`
+- `ANALYSIS_REPORT.md` (archived pointer)
+- `QUICK_SUMMARY.md` (archived pointer)
+- `ACTIVITY_LOG_FIX.md` (merged pointer)
+- `SIDEBAR_COLLAPSE_FIX.md` (merged pointer)
+- `modul.md` (module pointer)
+
+---
+
+## 12a. Audit Trail & Activity Logging System
+
+### Models with Activity Logging
+Models using `LogsActivity` trait now automatically record all create/update/delete operations:
+- `Itinerary`
+- `Activity`
+- `TouristAttraction`
+- `FoodBeverage`
+
+### How It Works
+1. **Trait Implementation:** `App\Traits\LogsActivity`
+   - Auto-hooks into Eloquent created/updated/deleted events
+   - Writes to `activity_logs` table with full change tracking
+   
+2. **Data Structure:**
+   - `user_id`: who made the change
+   - `module`: model class name
+   - `action`: 'created'|'updated'|'deleted'|'reminder_added'|etc
+   - `subject_id`: record ID
+   - `subject_type`: MorphMap alias (Itinerary, Activity, TouristAttraction, FoodBeverage)
+   - `properties`: json array with change details (field names, before/after values)
+
+3. **UI Display:**
+   - Component: `<x-activity-timeline :activities="$activities" />`
+   - Shows in Itinerary detail page with full change history
+   - Renders change details: "Field: oldValue → newValue"
+
+### Related Code Files
+- `app/Traits/LogsActivity.php` - auto-logging trait
+- `app/Services/ActivityAuditLogger.php` - detailed audit service
+- `app/Models/ActivityLog.php` - activity log model
+- `resources/views/components/activity-timeline.blade.php` - timeline UI
+
+### Status (as of 2026-04-06)
+- **DONE:** Auto activity logging for Itinerary, Activity, TouristAttraction, FoodBeverage
+- **DONE:** Activity Timeline UI display
+- **PARTIAL:** Activity Audit Logger service (exists but not fully utilized in all update flows)
+- **TODO:** Advanced audit dashboard with filtering
 
 ---
 
@@ -292,9 +357,10 @@ When project conventions or roadmap status changes, update this file first, then
 If a conflict exists between docs, follow this priority:
 
 1. `PROJECT_GUIDELINES.md`
-2. `VOYEX_CRM_SYSTEM_ROADMAP.md`
-3. `LAYOUT_GUIDE.md`
-4. Other supporting docs
+2. `PROJECT_KNOWLEDGE_BASE.md`
+3. `VOYEX_CRM_SYSTEM_ROADMAP.md`
+4. `docs/core/LAYOUT_GUIDE.md`
+5. Other supporting docs
 
 Mandatory documentation discipline:
 1. Setiap perubahan code wajib dicatat di `VOYEX_CRM_SYSTEM_ROADMAP.md` pada bagian `CHANGELOG (LATEST)`.

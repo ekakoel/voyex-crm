@@ -189,7 +189,6 @@ class SidebarComposer
                         'route' => 'tourist-attractions.index',
                         'icon'  => 'landmark',
                         'module' => 'tourist_attractions',
-                        'roles' => ['Administrator', 'Super Admin', 'Editor'],
                     ],
                 ],
             ],

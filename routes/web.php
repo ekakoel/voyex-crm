@@ -321,6 +321,13 @@ Route::middleware('auth')->group(function () {
                 'permission:module.itineraries.access',
                 'module.permission:itineraries',
             ]);
+        Route::post('itineraries/{itinerary}/duplicate', [AdminItineraryController::class, 'duplicate'])
+            ->name('itineraries.duplicate')
+            ->middleware([
+                'module:itineraries',
+                'permission:module.itineraries.access',
+                'module.permission:itineraries',
+            ]);
         Route::get('itineraries/{itinerary}/pdf', [AdminItineraryController::class, 'generatePdf'])
             ->name('itineraries.pdf')
             ->middleware([

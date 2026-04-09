@@ -17,7 +17,7 @@
                     </form>
                 </div>
             </div>
-            <aside class="module-grid-side">
+            <aside class="module-grid-side space-y-4">
 
                 <div id="inquiry-detail-card"
                     class="mb-4 rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
@@ -85,6 +85,15 @@
                     </dl>
 
                 </div>
+                <div class="app-card p-4 space-y-3">
+                    <div>
+                        <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">Activity Timeline</h3>
+                        <p class="text-xs text-gray-600 dark:text-gray-300">Detailed create/update audit log for this itinerary.</p>
+                    </div>
+                    <x-activity-timeline :activities="$activityLogs" />
+                    <div>{{ $activityLogs->links() }}</div>
+                </div>
+
                 <div
                     class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800 xl:sticky xl:top-0">
                     <p class="text-xs font-semibold uppercase tracking-wide text-gray-700 dark:text-gray-200">Itinerary
@@ -98,11 +107,6 @@
                         class="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-gray-600 dark:text-gray-300"></div>
                     <div id="itinerary-map" class="mt-2 w-full rounded-lg border border-gray-300 dark:border-gray-600"
                         style="height: 360px;"></div>
-                </div>
-
-                <div class="mt-4">
-                    @include('partials._audit-info', ['record' => $itinerary, 'title' => 'Audit Info'])
-
                 </div>
 
             </aside>

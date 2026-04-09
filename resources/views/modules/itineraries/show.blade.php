@@ -53,6 +53,9 @@
                             }
                             $roomName = (string) ($stayPoint?->endHotelRoom?->rooms ?? '');
                             $roomType = (string) ($stayPoint?->endHotelRoom?->view ?? '');
+                            $bookingModeLabel = ((string) ($stayPoint?->end_hotel_booking_mode ?? 'arranged')) === 'self'
+                                ? 'Self-booked hotel'
+                                : 'Hotel arranged by us';
                         @endphp
                         <div class="rounded-lg mb-6 border border-gray-200 px-3 py-2 text-sm dark:border-gray-700">
                             <p class="font-semibold text-gray-800 dark:text-gray-100">{{ $hotel->name }}</p>
@@ -70,6 +73,9 @@
                             @endif
                             <p class="mt-1 text-xs font-medium text-indigo-600 dark:text-indigo-300">
                                 Day {{ $hotel->pivot->day_number ?? 1 }} | {{ $hotel->pivot->night_count ?? 1 }} night(s)
+                            </p>
+                            <p class="mt-1 text-xs text-gray-600 dark:text-gray-300">
+                                Booking mode: {{ $bookingModeLabel }}
                             </p>
                         </div>
                     @endforeach
@@ -185,10 +191,10 @@
                                     'visit_order' => $attraction->pivot->visit_order ?? 999999,
                                 ]);
                             }
-                            $activities = collect();
+                            $activityItemsForDay = collect();
                             foreach (($activityDayGroups[$day] ?? collect()) as $activityItem) {
                                 $activity = $activityItem->activity;
-                                $activities->push([
+                                $activityItemsForDay->push([
                                     'type' => 'activity',
                                     'experience_id' => (int) ($activityItem->activity_id ?? 0),
                                     'name' => $activity->name ?? '-',
@@ -213,8 +219,12 @@
                                     'type' => 'fnb',
                                     'experience_id' => (int) ($foodBeverageItem->food_beverage_id ?? 0),
                                     'name' => $foodBeverage->name ?? '-',
+                                    'vendor_name' => $foodBeverage->vendor->name ?? '-',
+                                    'region' => trim((string) (($foodBeverage->vendor->city ?? '-') . (!empty($foodBeverage->vendor->province) ? ', ' . $foodBeverage->vendor->province : ''))),
                                     'location' => $foodBeverage->vendor->location ?? null,
                                     'description' => $foodBeverage->notes ?? $foodBeverage->menu_highlights ?? null,
+                                    'menu_highlights' => $foodBeverage->menu_highlights ?? null,
+                                    'meal_type' => $foodBeverageItem->meal_type ?? ($foodBeverage->meal_period ?? null),
                                     'meal_period' => $foodBeverage->meal_period ?? null,
                                     'service_type' => $foodBeverage->service_type ?? null,
                                     'publish_rate' => $foodBeverage->publish_rate ?? null,
@@ -226,7 +236,7 @@
                                     'visit_order' => $foodBeverageItem->visit_order ?? 999999,
                                 ]);
                             }
-                            $dayItems = $attractions->merge($activities)->merge($foodBeverages)->sortBy('visit_order')->values();
+                            $dayItems = $attractions->merge($activityItemsForDay)->merge($foodBeverages)->sortBy('visit_order')->values();
                             $dayTransport = $transportUnitByDay[$day] ?? null;
                             $dayPoint = $dayPointByDay[$day] ?? null;
                             $previousDayPoint = $dayPointByDay[$day - 1] ?? null;
@@ -361,19 +371,37 @@
                                         </div>
                                             <span class="mt-3 h-px w-5 shrink-0 bg-gray-300 dark:bg-gray-600"></span>
                                         <div class="ml-2 flex-1 rounded-lg border px-2 py-1 {{ $isMainExperience ? 'border-amber-400 bg-amber-50/70 dark:border-amber-500 dark:bg-amber-900/10' : 'border-gray-200 dark:border-gray-700' }}">
-                                            <span class="font-medium">{{ $item['name'] }}</span>
-                                            <span class="ml-1 text-[11px] uppercase tracking-wide {{ $item['type'] === 'activity' ? 'text-emerald-600 dark:text-emerald-400' : ($item['type'] === 'fnb' ? 'text-amber-600 dark:text-amber-400' : 'text-indigo-600 dark:text-indigo-400') }}">{{ $item['type'] === 'fnb' ? 'F&B' : $item['type'] }}</span>
-                                            @if ($isMainExperience)
-                                                <span class="ml-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700 dark:bg-amber-500/20 dark:text-amber-300">Main Experience</span>
+                                            @if ($item['type'] === 'fnb')
+                                                <p class="font-medium text-gray-800 dark:text-gray-100">
+                                                    {{ $item['vendor_name'] ?: '-' }} - {{ $item['name'] ?: '-' }} - {{ $item['service_type'] ?: 'F&B' }}
+                                                    <span class="text-xs font-semibold text-amber-600 dark:text-amber-400">| {{ $item['meal_type'] ?: ($item['meal_period'] ?: '-') }}</span>
+                                                </p>
+                                                @if ($isMainExperience)
+                                                    <span class="mt-1 inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700 dark:bg-amber-500/20 dark:text-amber-300">Main Experience</span>
+                                                @endif
+                                                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                                    {{ $item['region'] ?: '-' }}
+                                                    |
+                                                    {{ $item['start_time'] ? substr((string) $item['start_time'], 0, 5) : '--:--' }}
+                                                    -
+                                                    {{ $item['end_time'] ? substr((string) $item['end_time'], 0, 5) : '--:--' }}
+                                                </p>
+                                                <x-rich-text :content="$item['menu_highlights'] ?? null" class="mt-1 text-xs text-gray-600 dark:text-gray-300" />
+                                            @else
+                                                <span class="font-medium">{{ $item['name'] }}</span>
+                                                <span class="ml-1 text-[11px] uppercase tracking-wide {{ $item['type'] === 'activity' ? 'text-emerald-600 dark:text-emerald-400' : 'text-indigo-600 dark:text-indigo-400' }}">{{ $item['type'] }}</span>
+                                                @if ($isMainExperience)
+                                                    <span class="ml-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700 dark:bg-amber-500/20 dark:text-amber-300">Main Experience</span>
+                                                @endif
+                                                <div class="text-xs text-gray-500 dark:text-gray-400">
+                                                    {{ $item['location'] ?? '-' }}
+                                                    |
+                                                    {{ $item['start_time'] ? substr((string) $item['start_time'], 0, 5) : '--:--' }}
+                                                    -
+                                                    {{ $item['end_time'] ? substr((string) $item['end_time'], 0, 5) : '--:--' }}
+                                                </div>
+                                                <x-rich-text :content="$item['description'] ?? null" class="mt-1 text-xs text-gray-600 dark:text-gray-300" />
                                             @endif
-                                            <div class="text-xs text-gray-500 dark:text-gray-400">
-                                                {{ $item['location'] ?? '-' }}
-                                                |
-                                                {{ $item['start_time'] ? substr((string) $item['start_time'], 0, 5) : '--:--' }}
-                                                -
-                                                {{ $item['end_time'] ? substr((string) $item['end_time'], 0, 5) : '--:--' }}
-                                            </div>
-                                            <x-rich-text :content="$item['description'] ?? null" class="mt-1 text-xs text-gray-600 dark:text-gray-300" />
                                             @if ($item['type'] === 'activity')
                                                 @php
                                                     $itemIncludeText = \App\Support\SafeRichText::plainText($item['includes'] ?? null);
@@ -392,11 +420,6 @@
                                                         <span class="font-semibold">Benefits:</span>
                                                         {{ \App\Support\SafeRichText::plainText($item['benefits'] ?? null) ?: '-' }}
                                                     </p>
-                                                </div>
-                                            @endif
-                                            @if ($item['type'] === 'fnb')
-                                                <div class="mt-1 space-y-0.5 text-[11px] text-gray-600 dark:text-gray-300">
-                                                    <p><span class="font-semibold">Meal:</span> {{ $item['meal_period'] ?: '-' }}</p>
                                                 </div>
                                             @endif
                                         </div>
@@ -448,16 +471,26 @@
                     @endfor
                 </div>
             </div>
-            <div class="app-card min-w-0 h-fit p-4 lg:col-span-5 lg:self-start">
-                <h2 class="text-sm font-semibold uppercase tracking-wide text-gray-700 dark:text-gray-200">Itinerary Map</h2>
-                <div id="itinerary-show-map" class="mt-3 h-[520px] md:h-[640px] w-full rounded-lg border border-gray-300 dark:border-gray-700"></div>
-                <div class="mt-3">
-                    <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Display By Day</p>
-                    <div id="itinerary-day-controls" class="mt-2 flex flex-wrap gap-2">
-                        <button type="button" data-day="" class="itinerary-day-filter-btn btn-primary-sm">All Days</button>
-                        @for ($day = 1; $day <= $itinerary->duration_days; $day++)
-                            <button type="button" data-day="{{ $day }}" class="itinerary-day-filter-btn btn-outline-sm">Day {{ $day }}</button>
-                        @endfor
+            <div class="space-y-4 lg:col-span-5">
+                <div class="app-card p-4 space-y-3">
+                    <div>
+                        <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">Activity Timeline</h3>
+                        <p class="text-xs text-gray-600 dark:text-gray-300">Detailed create/update audit log for this itinerary.</p>
+                    </div>
+                    <x-activity-timeline :activities="$activities" />
+                    <div>{{ $activities->links() }}</div>
+                </div>
+                <div class="app-card min-w-0 h-fit p-4 lg:self-start xl:sticky xl:top-6">
+                    <h2 class="text-sm font-semibold uppercase tracking-wide text-gray-700 dark:text-gray-200">Itinerary Map</h2>
+                    <div id="itinerary-show-map" class="mt-3 h-[520px] md:h-[640px] w-full rounded-lg border border-gray-300 dark:border-gray-700"></div>
+                    <div class="mt-3">
+                        <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Display By Day</p>
+                        <div id="itinerary-day-controls" class="mt-2 flex flex-wrap gap-2">
+                            <button type="button" data-day="" class="itinerary-day-filter-btn btn-primary-sm">All Days</button>
+                            @for ($day = 1; $day <= $itinerary->duration_days; $day++)
+                                <button type="button" data-day="{{ $day }}" class="itinerary-day-filter-btn btn-outline-sm">Day {{ $day }}</button>
+                            @endfor
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1045,4 +1078,3 @@
         })();
     </script>
 @endpush
-

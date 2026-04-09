@@ -3,12 +3,14 @@
 namespace App\Models;
 
 use App\Models\Concerns\HasAudit;
+use App\Traits\LogsActivity;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Activity extends Model
 {
     use HasAudit;
+    use LogsActivity;
     use SoftDeletes;
     protected $fillable = [
         'vendor_id',

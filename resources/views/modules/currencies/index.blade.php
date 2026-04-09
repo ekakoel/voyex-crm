@@ -5,7 +5,7 @@
     <a href="{{ route('currencies.create') }}" class="btn-primary">Add Currency</a>
 @endsection
 @section('content')
-    <div class="space-y-6 module-page module-page--currencies">
+    <div class="space-y-6 module-page module-page--currencies" data-service-filter-page data-page-spinner="off">
         <x-index-stats :cards="$statsCards ?? []" />
         <div class="grid grid-cols-1 gap-6 xl:grid-cols-12">
             <aside class="space-y-4 xl:col-span-3">
@@ -14,21 +14,20 @@
                         <h2 class="text-base font-semibold text-gray-800 dark:text-gray-100">Filters</h2>
                         <p class="text-sm text-gray-500 dark:text-gray-400">Refine your list quickly.</p>
                     </div>
-                    <form method="GET" class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <input name="q" value="{{ request('q') }}" placeholder="Search code/name" class="app-input sm:col-span-2">
-            <select name="per_page" class="app-input">
+                    <form method="GET" action="{{ route('currencies.index') }}" class="grid grid-cols-1 gap-3 sm:grid-cols-2" data-service-filter-form data-disable-submit-lock="1" data-page-spinner="off">
+            <input name="q" value="{{ request('q') }}" placeholder="Search code/name" class="app-input sm:col-span-2" data-service-filter-input>
+            <select name="per_page" class="app-input" data-service-filter-input>
                 @foreach ([10,25,50,100] as $size)
                     <option value="{{ $size }}" @selected((string) request('per_page', 10) === (string) $size)>{{ $size }}/page</option>
                 @endforeach
             </select>
             <div class="flex items-center gap-2 sm:col-span-2 filter-actions">
-                <button  class="btn-primary">Filter</button>
-                <a href="{{ route('currencies.index') }}"  class="btn-ghost">Reset</a>
+                <a href="{{ route('currencies.index') }}" class="btn-ghost" data-service-filter-reset>Reset</a>
             </div>
         </form>
                 </div>
             </aside>
-            <div class="space-y-4 xl:col-span-9">
+            <div class="space-y-4 xl:col-span-9" data-service-filter-results>
                 @if (session('success'))
             <div class="rounded-lg mb-6 border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300">{{ session('success') }}</div>
         @endif
@@ -183,6 +182,7 @@
         </div>
 </div>
 @endsection
+
 
 
 

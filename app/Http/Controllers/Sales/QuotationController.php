@@ -13,6 +13,7 @@ use App\Models\QuotationComment;
 use App\Models\QuotationItem;
 use App\Models\TouristAttraction;
 use App\Models\TransportUnit;
+use App\Services\ActivityAuditLogger;
 use App\Services\ItineraryQuotationService;
 use App\Services\InvoiceService;
 use Illuminate\Http\Request;
@@ -27,7 +28,8 @@ class QuotationController extends Controller
 {
     public function __construct(
         private readonly InvoiceService $invoiceService,
-        private readonly ItineraryQuotationService $itineraryQuotationService
+        private readonly ItineraryQuotationService $itineraryQuotationService,
+        private readonly ActivityAuditLogger $activityAuditLogger
     )
     {
     }
@@ -201,21 +203,30 @@ class QuotationController extends Controller
         try {
             $totals = $this->computeTotals($validated['items'], $validated['discount_type'] ?? null, (float) ($validated['discount_value'] ?? 0));
 
-            $quotation = Quotation::query()->create([
-                'quotation_number' => $validated['quotation_number'],
-                'inquiry_id' => $inquiryId,
-                'itinerary_id' => $validated['itinerary_id'],
-                'status' => 'pending',
-                'validity_date' => $validated['validity_date'],
-                'sub_total' => $totals['sub_total'],
-                'discount_type' => $validated['discount_type'] ?? null,
-                'discount_value' => (float) ($validated['discount_value'] ?? 0),
-                'final_amount' => $totals['final_amount'],
-            ]);
+            $quotation = Quotation::withoutActivityLogging(function () use ($validated, $inquiryId, $totals) {
+                return Quotation::query()->create([
+                    'quotation_number' => $validated['quotation_number'],
+                    'inquiry_id' => $inquiryId,
+                    'itinerary_id' => $validated['itinerary_id'],
+                    'status' => 'pending',
+                    'validity_date' => $validated['validity_date'],
+                    'sub_total' => $totals['sub_total'],
+                    'discount_type' => $validated['discount_type'] ?? null,
+                    'discount_value' => (float) ($validated['discount_value'] ?? 0),
+                    'final_amount' => $totals['final_amount'],
+                ]);
+            });
 
             foreach ($totals['items'] as $item) {
                 $quotation->items()->create($item);
             }
+            $quotation->loadMissing('itinerary:id,status');
+            if ($quotation->itinerary) {
+                $quotation->itinerary->syncLifecycleStatus();
+            }
+
+            $quotation->load('items');
+            $this->activityAuditLogger->logCreated($quotation, $this->buildQuotationAuditSnapshot($quotation), 'Quotation');
 
             DB::commit();
         } catch (\Throwable $e) {
@@ -239,6 +250,7 @@ class QuotationController extends Controller
             'itinerary.creator',
             'itinerary.inquiry.customer',
             'items',
+            'activities.user',
             'comments.user',
             'booking',
             'approvedBy',
@@ -249,7 +261,12 @@ class QuotationController extends Controller
         ]);
         $approvalProgress = $this->buildApprovalProgress($quotation);
 
-        return view('modules.quotations.show', compact('quotation', 'approvalProgress'));
+        $activities = $quotation->activities()
+            ->with('user:id,name')
+            ->latest()
+            ->paginate(5, ['*'], 'activity_page');
+
+        return view('modules.quotations.show', compact('quotation', 'approvalProgress', 'activities'));
     }
 
 
@@ -285,8 +302,12 @@ class QuotationController extends Controller
             ->get(['id', 'title', 'inquiry_id', 'destination', 'duration_days', 'duration_nights', 'is_active', 'status']);
 
         $approvalProgress = $this->buildApprovalProgress($quotation);
+        $activities = $quotation->activities()
+            ->with('user:id,name')
+            ->latest()
+            ->paginate(5, ['*'], 'activity_page');
 
-        return view('modules.quotations.edit', compact('quotation', 'itineraries', 'approvalProgress'));
+        return view('modules.quotations.edit', compact('quotation', 'itineraries', 'approvalProgress', 'activities'));
     }
 
     /**
@@ -377,21 +398,36 @@ class QuotationController extends Controller
         DB::beginTransaction();
         try {
             $totals = $this->computeTotals($validated['items'], $validated['discount_type'] ?? null, (float) ($validated['discount_value'] ?? 0));
+            $previousItineraryId = (int) ($quotation->itinerary_id ?? 0);
 
-            $quotation->update([
-                'inquiry_id' => $inquiryId,
-                'itinerary_id' => $validated['itinerary_id'],
-                'validity_date' => $validated['validity_date'],
-                'sub_total' => $totals['sub_total'],
-                'discount_type' => $validated['discount_type'] ?? null,
-                'discount_value' => (float) ($validated['discount_value'] ?? 0),
-                'final_amount' => $totals['final_amount'],
-            ]);
+            $quotation->loadMissing('items');
+            $beforeAudit = $this->buildQuotationAuditSnapshot($quotation);
+
+            Quotation::withoutActivityLogging(function () use ($quotation, $inquiryId, $validated, $totals): void {
+                $quotation->update([
+                    'inquiry_id' => $inquiryId,
+                    'itinerary_id' => $validated['itinerary_id'],
+                    'validity_date' => $validated['validity_date'],
+                    'sub_total' => $totals['sub_total'],
+                    'discount_type' => $validated['discount_type'] ?? null,
+                    'discount_value' => (float) ($validated['discount_value'] ?? 0),
+                    'final_amount' => $totals['final_amount'],
+                ]);
+            });
 
             $quotation->items()->delete();
             foreach ($totals['items'] as $item) {
                 $quotation->items()->create($item);
             }
+            $currentItineraryId = (int) ($quotation->itinerary_id ?? 0);
+            foreach (array_values(array_unique(array_filter([$previousItineraryId, $currentItineraryId]))) as $itineraryId) {
+                $linkedItinerary = Itinerary::query()->find($itineraryId);
+                if ($linkedItinerary) {
+                    $linkedItinerary->syncLifecycleStatus();
+                }
+            }
+            $quotation->load('items');
+            $this->activityAuditLogger->logUpdated($quotation, $beforeAudit, $this->buildQuotationAuditSnapshot($quotation), 'Quotation');
 
             DB::commit();
         } catch (\Throwable $e) {
@@ -528,6 +564,10 @@ class QuotationController extends Controller
             return $this->denyQuotationMutation($quotation);
         }
         $quotation->delete();
+        $quotation->loadMissing('itinerary:id,status');
+        if ($quotation->itinerary) {
+            $quotation->itinerary->syncLifecycleStatus();
+        }
 
         return redirect()
             ->route('quotations.index')
@@ -553,6 +593,10 @@ class QuotationController extends Controller
 
         if ($quotation->trashed()) {
             $quotation->restore();
+            $quotation->loadMissing('itinerary:id,status');
+            if ($quotation->itinerary) {
+                $quotation->itinerary->syncLifecycleStatus();
+            }
 
             return redirect()
                 ->route('quotations.index')
@@ -560,6 +604,10 @@ class QuotationController extends Controller
         }
 
         $quotation->delete();
+        $quotation->loadMissing('itinerary:id,status');
+        if ($quotation->itinerary) {
+            $quotation->itinerary->syncLifecycleStatus();
+        }
 
         return redirect()
             ->route('quotations.index')
@@ -752,6 +800,10 @@ class QuotationController extends Controller
             'approval_note_by' => $user->id,
             'approval_note_at' => now(),
         ]);
+        $quotation->loadMissing('itinerary:id,status');
+        if ($quotation->itinerary) {
+            $quotation->itinerary->syncLifecycleStatus();
+        }
 
         return redirect()
             ->route('quotations.show', $quotation)
@@ -789,6 +841,10 @@ class QuotationController extends Controller
 
         $quotation->approvals()->delete();
         $quotation->update($payload);
+        $quotation->loadMissing('itinerary:id,status');
+        if ($quotation->itinerary) {
+            $quotation->itinerary->syncLifecycleStatus();
+        }
 
         return redirect()
             ->route('quotations.show', $quotation)
@@ -1329,8 +1385,53 @@ class QuotationController extends Controller
                 'approved_at' => null,
             ]);
         }
+        $quotation->loadMissing('itinerary:id,status');
+        if ($quotation->itinerary) {
+            $quotation->itinerary->syncLifecycleStatus();
+        }
 
         return $progress;
+    }
+
+    private function buildQuotationAuditSnapshot(Quotation $quotation): array
+    {
+        $items = $quotation->items
+            ->map(function (QuotationItem $item): array {
+                $meta = is_array($item->serviceable_meta ?? null) ? $item->serviceable_meta : [];
+                ksort($meta);
+
+                return [
+                    'description' => (string) ($item->description ?? ''),
+                    'qty' => (int) ($item->qty ?? 0),
+                    'contract_rate' => (float) ($item->contract_rate ?? 0),
+                    'markup_type' => (string) ($item->markup_type ?? 'fixed'),
+                    'markup' => (float) ($item->markup ?? 0),
+                    'unit_price' => (float) ($item->unit_price ?? 0),
+                    'discount_type' => (string) ($item->discount_type ?? 'fixed'),
+                    'discount' => (float) ($item->discount ?? 0),
+                    'day_number' => (int) ($item->day_number ?? 0),
+                    'itinerary_item_type' => (string) ($item->itinerary_item_type ?? ''),
+                    'serviceable_type' => (string) ($item->serviceable_type ?? ''),
+                    'serviceable_id' => (int) ($item->serviceable_id ?? 0),
+                    'serviceable_meta' => $meta,
+                    'total' => (float) ($item->total ?? 0),
+                ];
+            })
+            ->values()
+            ->toArray();
+
+        return [
+            'quotation_number' => (string) ($quotation->quotation_number ?? ''),
+            'inquiry_id' => (int) ($quotation->inquiry_id ?? 0),
+            'itinerary_id' => (int) ($quotation->itinerary_id ?? 0),
+            'status' => (string) ($quotation->status ?? ''),
+            'validity_date' => optional($quotation->validity_date)->format('Y-m-d'),
+            'sub_total' => (float) ($quotation->sub_total ?? 0),
+            'discount_type' => (string) ($quotation->discount_type ?? ''),
+            'discount_value' => (float) ($quotation->discount_value ?? 0),
+            'final_amount' => (float) ($quotation->final_amount ?? 0),
+            'items' => $items,
+        ];
     }
 }
 

@@ -1,21 +1,6 @@
-**Modul**
-1. Administrator Dashboard
-2. Manager Dashboard
-3. Marketing Dashboard
-4. Finance Dashboard
-5. Reservation Dashboard
-6. Director Dashboard
-7. Editor Dashboard
-8. Module Management
-9. Customer Management
-10. Inquiries
-11. Quotations
-12. Bookings
-13. Sales Target
-14. User Manager
-15. Role Manager
-16. Vendor Management
+﻿# Module List (Consolidated)
 
+Daftar modul kini dipusatkan di `PROJECT_KNOWLEDGE_BASE.md` bagian:
+- `4. Modules and Functional Scope`
 
-
-17. Hotels
+`modul.md` dipertahankan sebagai pointer agar tidak ada broken reference lama.

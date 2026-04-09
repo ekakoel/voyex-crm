@@ -123,9 +123,9 @@ class DashboardController extends Controller
             ->get(['id', 'booking_number', 'status', 'travel_date']);
 
         $activityLogs = collect();
-        if (Schema::hasTable('activity_log')) {
-            $activityLogs = DB::table('activity_log')
-                ->select(['id', 'log_name', 'description', 'subject_type', 'event', 'causer_id', 'created_at'])
+        if (Schema::hasTable('activity_logs')) {
+            $activityLogs = DB::table('activity_logs')
+                ->select(['id', 'module', 'action', 'subject_type', 'user_id', 'created_at'])
                 ->orderByDesc('created_at')
                 ->limit(12)
                 ->get();
@@ -561,4 +561,5 @@ class DashboardController extends Controller
         return $groups;
     }
 }
+
 

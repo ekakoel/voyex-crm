@@ -8,6 +8,7 @@ class CompanySetting extends Model
 {
     protected $fillable = [
         'company_name',
+        'tagline',
         'legal_name',
         'contact_email',
         'contact_phone',

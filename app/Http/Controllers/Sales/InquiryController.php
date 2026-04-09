@@ -8,12 +8,18 @@ use App\Models\Inquiry;
 use App\Models\InquiryCommunication;
 use App\Models\InquiryFollowUp;
 use App\Models\User;
+use App\Services\ActivityAuditLogger;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Spatie\Permission\Models\Role;
 
 class InquiryController extends Controller
 {
+    public function __construct(
+        private readonly ActivityAuditLogger $activityAuditLogger
+    ) {
+    }
+
     private const SOURCE_OPTIONS = [
         'phone',
         'email',
@@ -179,10 +185,13 @@ class InquiryController extends Controller
             ? (int) ($validated['assigned_to'] ?? auth()->id())
             : auth()->id();
 
-        $inquiry = Inquiry::query()->create($validated);
+        $inquiry = Inquiry::withoutActivityLogging(function () use ($validated) {
+            return Inquiry::query()->create($validated);
+        });
+        $this->activityAuditLogger->logCreated($inquiry, $this->buildInquiryAuditSnapshot($inquiry), 'Inquiry');
 
         return redirect()
-            ->route('inquiries.index')
+            ->route('inquiries.show', $inquiry)
             ->with('success', 'Inquiry created successfully.');
     }
 
@@ -199,7 +208,7 @@ class InquiryController extends Controller
         $activities = $inquiry->activities()
             ->with('user:id,name')
             ->latest()
-            ->paginate(20);
+            ->paginate(5, ['*'], 'activity_page');
         $communications = $inquiry->communications()->with('creator')->orderByDesc('contact_at')->get();
         $channelLabels = self::CHANNEL_LABELS;
         $sourceLabels = self::SOURCE_LABELS;
@@ -232,10 +241,14 @@ class InquiryController extends Controller
         $customers = Customer::query()->orderBy('name')->get();
         $assignees = User::role(['Reservation'])->orderBy('name')->get();
         $canAssignToReservation = auth()->user()?->hasRole(['Manager', 'Director']) ?? false;
+        $activities = $inquiry->activities()
+            ->with('user:id,name')
+            ->latest()
+            ->paginate(5, ['*'], 'activity_page');
 
         $sourceLabels = self::SOURCE_LABELS;
 
-        return view('modules.inquiries.edit', compact('inquiry', 'customers', 'assignees', 'sourceLabels', 'canAssignToReservation'));
+        return view('modules.inquiries.edit', compact('inquiry', 'customers', 'assignees', 'sourceLabels', 'canAssignToReservation', 'activities'));
     }
 
     /**
@@ -285,11 +298,16 @@ class InquiryController extends Controller
             unset($validated['assigned_to']);
         }
 
-        $inquiry->update($validated);
+        $beforeAudit = $this->buildInquiryAuditSnapshot($inquiry);
+        Inquiry::withoutActivityLogging(function () use ($inquiry, $validated): void {
+            $inquiry->update($validated);
+        });
+        $inquiry->refresh();
+        $this->activityAuditLogger->logUpdated($inquiry, $beforeAudit, $this->buildInquiryAuditSnapshot($inquiry), 'Inquiry');
         $this->syncFollowUpStatus($inquiry);
 
         return redirect()
-            ->route('inquiries.index')
+            ->route('inquiries.show', $inquiry)
             ->with('success', 'Inquiry updated successfully.');
     }
 
@@ -499,6 +517,21 @@ class InquiryController extends Controller
         return redirect()
             ->route('inquiries.show', $inquiry)
             ->with('error', 'Hanya creator yang dapat mengubah atau menghapus inquiry ini.');
+    }
+
+    private function buildInquiryAuditSnapshot(Inquiry $inquiry): array
+    {
+        return [
+            'inquiry_number' => (string) ($inquiry->inquiry_number ?? ''),
+            'customer_id' => (int) ($inquiry->customer_id ?? 0),
+            'source' => (string) ($inquiry->source ?? ''),
+            'status' => (string) ($inquiry->status ?? ''),
+            'priority' => (string) ($inquiry->priority ?? ''),
+            'deadline' => optional($inquiry->deadline)->format('Y-m-d'),
+            'assigned_to' => (int) ($inquiry->assigned_to ?? 0),
+            'reminder_enabled' => (bool) ($inquiry->reminder_enabled ?? false),
+            'notes' => trim((string) ($inquiry->notes ?? '')),
+        ];
     }
 }
 

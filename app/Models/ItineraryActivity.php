@@ -2,10 +2,13 @@
 
 namespace App\Models;
 
+use App\Traits\LogsActivity;
 use Illuminate\Database\Eloquent\Model;
 
 class ItineraryActivity extends Model
 {
+    use LogsActivity;
+
     protected $fillable = [
         'itinerary_id',
         'activity_id',

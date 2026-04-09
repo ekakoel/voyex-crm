@@ -7,7 +7,7 @@
     </a>
 @endsection
 @section('content')
-    <div class="space-y-6 module-page module-page--inquiries">
+    <div class="space-y-6 module-page module-page--inquiries" data-service-filter-page data-page-spinner="off">
         <x-index-stats :cards="$statsCards ?? []" />
         <div class="module-grid-3-9">
             <aside class="module-grid-side space-y-4">
@@ -16,44 +16,43 @@
                         <h2 class="text-base font-semibold text-gray-800 dark:text-gray-100">Filters</h2>
                         <p class="text-sm text-gray-500 dark:text-gray-400">Refine your list quickly.</p>
                     </div>
-                    <form method="GET" class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <form method="GET" action="{{ route('inquiries.index') }}" class="grid grid-cols-1 gap-3 sm:grid-cols-2" data-service-filter-form data-disable-submit-lock="1" data-page-spinner="off">
                         <input name="q" value="{{ request('q') }}" placeholder="Search number / customer"
-                            class="app-input sm:col-span-2">
-                        <select name="status" class="app-input">
+                            class="app-input sm:col-span-2" data-service-filter-input>
+                        <select name="status" class="app-input" data-service-filter-input>
                             <option value="">Status</option>
                             @foreach (\App\Models\Inquiry::STATUS_OPTIONS as $status)
                                 <option value="{{ $status }}" @selected(request('status') === $status)>{{ ucfirst($status) }}
                                 </option>
                             @endforeach
                         </select>
-                        <select name="priority" class="app-input">
+                        <select name="priority" class="app-input" data-service-filter-input>
                             <option value="">Priority</option>
                             @foreach (['low', 'normal', 'high'] as $priority)
                                 <option value="{{ $priority }}" @selected(request('priority') === $priority)>{{ $priority }}
                                 </option>
                             @endforeach
                         </select>
-                        <select name="assigned_to" class="app-input">
+                        <select name="assigned_to" class="app-input" data-service-filter-input>
                             <option value="">Assigned</option>
                             @foreach ($assignees as $user)
                                 <option value="{{ $user->id }}" @selected((string) request('assigned_to') === (string) $user->id)>{{ $user->name }}
                                 </option>
                             @endforeach
                         </select>
-                        <select name="per_page" class="app-input">
+                        <select name="per_page" class="app-input" data-service-filter-input>
                             @foreach ([10, 25, 50, 100] as $size)
                                 <option value="{{ $size }}" @selected((string) request('per_page', 10) === (string) $size)>{{ $size }}/page
                                 </option>
                             @endforeach
                         </select>
                         <div class="flex items-center gap-2 sm:col-span-2 filter-actions">
-                            <button class="btn-primary">Filter</button>
-                            <a href="{{ route('inquiries.index') }}" class="btn-ghost">Reset</a>
+                            <a href="{{ route('inquiries.index') }}" class="btn-ghost" data-service-filter-reset>Reset</a>
                         </div>
                     </form>
                 </div>
             </aside>
-            <div class="module-grid-main space-y-4">
+            <div class="module-grid-main space-y-4" data-service-filter-results>
                 @if (session('success'))
                     <div
                         class="rounded-lg mb-6 border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300">

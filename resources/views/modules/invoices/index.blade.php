@@ -2,7 +2,7 @@
 @section('page_title', 'Invoices')
 @section('page_subtitle', 'Manage invoice data.')
 @section('content')
-    <div class="space-y-6 module-page module-page--invoices">
+    <div class="space-y-6 module-page module-page--invoices" data-service-filter-page data-page-spinner="off">
         <x-index-stats :cards="$statsCards ?? []" />
         <div class="grid grid-cols-1 gap-6 xl:grid-cols-12">
             <aside class="space-y-4 xl:col-span-3">
@@ -11,29 +11,28 @@
                         <h2 class="text-base font-semibold text-gray-800 dark:text-gray-100">Filters</h2>
                         <p class="text-sm text-gray-500 dark:text-gray-400">Refine your list quickly.</p>
                     </div>
-                    <form method="GET" class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <input name="q" value="{{ request('q') }}" placeholder="Search invoice / booking / customer" class="app-input sm:col-span-2">
-            <select name="status" class="app-input">
+                    <form method="GET" action="{{ route('invoices.index') }}" class="grid grid-cols-1 gap-3 sm:grid-cols-2" data-service-filter-form data-disable-submit-lock="1" data-page-spinner="off">
+            <input name="q" value="{{ request('q') }}" placeholder="Search invoice / booking / customer" class="app-input sm:col-span-2" data-service-filter-input>
+            <select name="status" class="app-input" data-service-filter-input>
                 <option value="">Status</option>
                 @foreach (\App\Models\Invoice::STATUS_OPTIONS as $status)
                     <option value="{{ $status }}" @selected(request('status') === $status)>{{ ucfirst($status) }}</option>
                 @endforeach
             </select>
-            <input name="invoice_from" type="date" value="{{ request('invoice_from') }}" class="app-input">
-            <input name="invoice_to" type="date" value="{{ request('invoice_to') }}" class="app-input">
-            <select name="per_page" class="app-input">
+            <input name="invoice_from" type="date" value="{{ request('invoice_from') }}" class="app-input" data-service-filter-input>
+            <input name="invoice_to" type="date" value="{{ request('invoice_to') }}" class="app-input" data-service-filter-input>
+            <select name="per_page" class="app-input" data-service-filter-input>
                 @foreach ([10,25,50,100] as $size)
                     <option value="{{ $size }}" @selected((string) request('per_page', 10) === (string) $size)>{{ $size }}/page</option>
                 @endforeach
             </select>
             <div class="flex items-center gap-2 sm:col-span-2 filter-actions">
-                <button class="btn-primary">Filter</button>
-                <a href="{{ route('invoices.index') }}" class="btn-ghost">Reset</a>
+                <a href="{{ route('invoices.index') }}" class="btn-ghost" data-service-filter-reset>Reset</a>
             </div>
         </form>
                 </div>
             </aside>
-            <div class="space-y-4 xl:col-span-9">
+            <div class="space-y-4 xl:col-span-9" data-service-filter-results>
         <div class="hidden md:block app-card overflow-hidden">
             <div class="overflow-x-auto">
             <table class="app-table w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">
@@ -107,6 +106,7 @@
         </div>
 </div>
 @endsection
+
 
 
 

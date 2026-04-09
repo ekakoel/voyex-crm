@@ -3,12 +3,13 @@
 namespace App\Models;
 
 use App\Models\Concerns\HasAudit;
+use App\Traits\LogsActivity;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class FoodBeverage extends Model
 {
-    use HasAudit, SoftDeletes;
+    use HasAudit, LogsActivity, SoftDeletes;
     protected $fillable = [
         'vendor_id',
         'name',

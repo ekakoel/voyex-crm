@@ -159,8 +159,8 @@
                     <div class="mt-2 space-y-2 max-h-72 overflow-y-auto">
                         @forelse($activityLogs as $log)
                             <div class="rounded-xl bg-slate-50 px-3 py-2 text-xs dark:bg-slate-900">
-                                <p class="font-medium text-slate-700 dark:text-slate-200">{{ $log->event ?: ($log->log_name ?: '-') }}</p>
-                                <p class="text-slate-500 dark:text-slate-400">{{ $log->description ?: '-' }}</p>
+                                <p class="font-medium text-slate-700 dark:text-slate-200">{{ ($log->module ?? '-') . ' / ' . ($log->action ?? '-') }}</p>
+                                <p class="text-slate-500 dark:text-slate-400">{{ ($log->subject_type ?? '-') . ' | User #' . ($log->user_id ?? '-') }}</p>
                             </div>
                         @empty
                             <p class="text-sm text-slate-500 dark:text-slate-400">No activity log.</p>
@@ -243,4 +243,6 @@
 @push('scripts')
 {{-- Scripts are not changed --}}
 @endpush
+
+
 

@@ -3,12 +3,13 @@
 namespace App\Models;
 
 use App\Models\Concerns\HasAudit;
+use App\Traits\LogsActivity;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class TouristAttraction extends Model
 {
-    use HasAudit, SoftDeletes;
+    use HasAudit, LogsActivity, SoftDeletes;
     protected $fillable = [
         'name',
         'ideal_visit_minutes',

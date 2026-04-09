@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Activity;
 use App\Models\Airport;
+use App\Models\ActivityLog;
 use App\Models\Destination;
 use App\Models\FoodBeverage;
 use App\Models\Hotel;
@@ -13,11 +14,13 @@ use App\Models\Inquiry;
 use App\Models\Itinerary;
 use App\Models\TouristAttraction;
 use App\Models\TransportUnit;
+use App\Services\ActivityAuditLogger;
 use App\Models\Vendor;
 use App\Support\ImageThumbnailGenerator;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Schema;
@@ -28,6 +31,11 @@ use Illuminate\Validation\ValidationException;
 
 class ItineraryController extends Controller
 {
+    public function __construct(
+        private readonly ActivityAuditLogger $activityAuditLogger
+    ) {
+    }
+
     public function index()
     {
         $query = Itinerary::query()
@@ -72,10 +80,8 @@ class ItineraryController extends Controller
         $perPage = $perPage > 0 && $perPage <= 100 ? $perPage : 10;
 
         $itineraries = $query
-            ->leftJoin('inquiries', 'itineraries.inquiry_id', '=', 'inquiries.id')
-            ->select('itineraries.*')
-            ->orderByRaw('inquiries.deadline IS NULL, inquiries.deadline ASC')
-            ->orderBy('itineraries.title')
+            ->orderByDesc('itineraries.created_at')
+            ->orderByDesc('itineraries.id')
             ->paginate($perPage)
             ->withQueryString();
         $destinations = Destination::query()
@@ -190,6 +196,8 @@ class ItineraryController extends Controller
             'daily_end_point_room_ids.*' => ['nullable', 'integer'],
             'daily_end_point_room_counts' => ['nullable', 'array'],
             'daily_end_point_room_counts.*' => ['nullable', 'integer', 'min:1'],
+            'daily_end_hotel_booking_modes' => ['nullable', 'array'],
+            'daily_end_hotel_booking_modes.*' => ['nullable', 'string', 'in:arranged,self'],
             'daily_main_experience_types' => ['nullable', 'array'],
             'daily_main_experience_types.*' => ['nullable', 'string', 'in:attraction,activity,fnb'],
             'daily_main_experience_items' => ['nullable', 'array'],
@@ -232,7 +240,7 @@ class ItineraryController extends Controller
         // Business rule: new itinerary must always start as active.
         $validated['is_active'] = true;
         $validated['created_by'] = auth()->id();
-        $validated['status'] = 'draft';
+        $validated['status'] = Itinerary::STATUS_PENDING;
         $validated['destination_id'] = $this->resolveDestinationId($validated['destination'] ?? null);
         $items = $validated['itinerary_items'];
         $activityItems = $validated['itinerary_activity_items'] ?? [];
@@ -255,6 +263,7 @@ class ItineraryController extends Controller
             $validated['daily_end_point_items'] ?? [],
             $validated['daily_end_point_room_ids'] ?? [],
             $validated['daily_end_point_room_counts'] ?? [],
+            $validated['daily_end_hotel_booking_modes'] ?? [],
             $validated['daily_main_experience_types'] ?? [],
             $validated['daily_main_experience_items'] ?? [],
             $items,
@@ -277,6 +286,7 @@ class ItineraryController extends Controller
         unset($validated['daily_end_point_items']);
         unset($validated['daily_end_point_room_ids']);
         unset($validated['daily_end_point_room_counts']);
+        unset($validated['daily_end_hotel_booking_modes']);
         unset($validated['daily_main_experience_types']);
         unset($validated['daily_main_experience_items']);
         unset($validated['hotel_stays']);
@@ -288,17 +298,228 @@ class ItineraryController extends Controller
         $this->validateActivityItems($activityItems, (int) $validated['duration_days']);
         $this->validateFoodBeverageItems($foodBeverageItems, (int) $validated['duration_days']);
 
-        $itinerary = Itinerary::query()->create($validated);
+        $itinerary = Itinerary::withoutActivityLogging(function () use ($validated): Itinerary {
+            return Itinerary::query()->create($validated);
+        });
         $itinerary->touristAttractions()->sync($this->buildSyncPayload($items));
         $this->syncItineraryActivities($itinerary, $activityItems);
         $this->syncItineraryFoodBeverages($itinerary, $foodBeverageItems);
         $this->syncDayPoints($itinerary, $dayPoints);
         $this->syncHotelStays($itinerary, $hotelStays);
         $this->syncDailyTransportUnits($itinerary, $transportUnitsByDay);
+        $this->activityAuditLogger->logCreated($itinerary, $this->buildItineraryAuditSnapshot($itinerary), 'Itinerary');
 
         $this->syncInquiryProcessedStatus($itinerary->inquiry_id);
 
         return redirect()->route('itineraries.show', $itinerary)->with('success', 'Itinerary created successfully.');
+    }
+
+    public function duplicate(Itinerary $itinerary)
+    {
+        $userId = (int) auth()->id();
+        if ($userId <= 0) {
+            return redirect()
+                ->route('itineraries.index')
+                ->with('error', 'Unauthenticated request.');
+        }
+
+        $duplicateLockSeconds = 8;
+        $duplicateLockKey = sprintf('itinerary-duplicate:%d:%d', $userId, (int) $itinerary->id);
+        if (! Cache::add($duplicateLockKey, now()->toIso8601String(), $duplicateLockSeconds)) {
+            return redirect()
+                ->back()
+                ->with('error', 'Duplicate request is still being processed. Please wait a few seconds and try again.');
+        }
+
+        $itinerary->load([
+            'touristAttractions',
+            'itineraryActivities',
+            'itineraryFoodBeverages',
+            'itineraryTransportUnits',
+            'dayPoints',
+            'hotels',
+        ]);
+
+        try {
+            $duplicated = DB::transaction(function () use ($itinerary): Itinerary {
+                $newItinerary = Itinerary::withoutActivityLogging(function () use ($itinerary): Itinerary {
+                    return Itinerary::query()->create([
+                        'inquiry_id' => $itinerary->inquiry_id,
+                        'created_by' => auth()->id(),
+                        'title' => $this->buildDuplicatedTitle((string) $itinerary->title),
+                        'destination' => $itinerary->destination,
+                        'destination_id' => $itinerary->destination_id,
+                        'arrival_transport_id' => $itinerary->arrival_transport_id,
+                        'departure_transport_id' => $itinerary->departure_transport_id,
+                        'duration_days' => $itinerary->duration_days,
+                        'duration_nights' => $itinerary->duration_nights,
+                        'description' => $itinerary->description,
+                        'is_active' => true,
+                        'status' => Itinerary::STATUS_PENDING,
+                    ]);
+                });
+
+                $attractionSync = $itinerary->touristAttractions
+                    ->mapWithKeys(fn ($attraction) => [
+                        (int) $attraction->id => [
+                            'day_number' => (int) ($attraction->pivot->day_number ?? 1),
+                            'start_time' => $attraction->pivot->start_time,
+                            'end_time' => $attraction->pivot->end_time,
+                            'travel_minutes_to_next' => $attraction->pivot->travel_minutes_to_next !== null
+                                ? (int) $attraction->pivot->travel_minutes_to_next
+                                : null,
+                            'visit_order' => (int) ($attraction->pivot->visit_order ?? 1),
+                        ],
+                    ])
+                    ->all();
+
+                if ($attractionSync !== []) {
+                    $newItinerary->touristAttractions()->sync($attractionSync);
+                }
+
+                $activityRows = $itinerary->itineraryActivities
+                ->map(fn ($item) => [
+                    'itinerary_id' => $newItinerary->id,
+                    'activity_id' => (int) $item->activity_id,
+                    'day_number' => (int) $item->day_number,
+                    'pax' => $item->pax !== null ? (int) $item->pax : null,
+                    'pax_adult' => $item->pax_adult !== null ? (int) $item->pax_adult : null,
+                    'pax_child' => $item->pax_child !== null ? (int) $item->pax_child : null,
+                    'start_time' => $item->start_time,
+                    'end_time' => $item->end_time,
+                    'travel_minutes_to_next' => $item->travel_minutes_to_next !== null ? (int) $item->travel_minutes_to_next : null,
+                    'visit_order' => (int) ($item->visit_order ?? 1),
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ])
+                ->values()
+                ->all();
+
+                if ($activityRows !== []) {
+                    $newItinerary->itineraryActivities()->insert($activityRows);
+                }
+
+                $foodRows = $itinerary->itineraryFoodBeverages
+                ->map(fn ($item) => [
+                    'itinerary_id' => $newItinerary->id,
+                    'food_beverage_id' => (int) $item->food_beverage_id,
+                    'day_number' => (int) $item->day_number,
+                    'pax' => $item->pax !== null ? (int) $item->pax : null,
+                    'start_time' => $item->start_time,
+                    'end_time' => $item->end_time,
+                    'meal_type' => $item->meal_type,
+                    'travel_minutes_to_next' => $item->travel_minutes_to_next !== null ? (int) $item->travel_minutes_to_next : null,
+                    'visit_order' => (int) ($item->visit_order ?? 1),
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ])
+                ->values()
+                ->all();
+
+                if ($foodRows !== []) {
+                    $newItinerary->itineraryFoodBeverages()->insert($foodRows);
+                }
+
+                $dayPointRows = $itinerary->dayPoints
+                ->map(fn ($point) => [
+                    'itinerary_id' => $newItinerary->id,
+                    'day_number' => (int) $point->day_number,
+                    'day_start_time' => $point->day_start_time,
+                    'day_start_travel_minutes' => (int) ($point->day_start_travel_minutes ?? 0),
+                    'day_include' => $point->day_include,
+                    'day_exclude' => $point->day_exclude,
+                    'main_experience_type' => $point->main_experience_type,
+                    'main_tourist_attraction_id' => $point->main_tourist_attraction_id,
+                    'main_activity_id' => $point->main_activity_id,
+                    'main_food_beverage_id' => $point->main_food_beverage_id,
+                    'start_point_type' => $point->start_point_type,
+                    'start_airport_id' => $point->start_airport_id,
+                    'start_hotel_id' => $point->start_hotel_id,
+                    'start_hotel_room_id' => $point->start_hotel_room_id,
+                    'end_point_type' => $point->end_point_type,
+                    'end_airport_id' => $point->end_airport_id,
+                    'end_hotel_id' => $point->end_hotel_id,
+                    'end_hotel_room_id' => $point->end_hotel_room_id,
+                    'end_hotel_booking_mode' => $point->end_hotel_booking_mode,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ])
+                ->values()
+                ->all();
+
+                if ($dayPointRows !== []) {
+                    $newItinerary->dayPoints()->insert($dayPointRows);
+                }
+
+                $transportRows = $itinerary->itineraryTransportUnits
+                ->map(fn ($item) => [
+                    'itinerary_id' => $newItinerary->id,
+                    'transport_unit_id' => (int) $item->transport_unit_id,
+                    'day_number' => (int) $item->day_number,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ])
+                ->values()
+                ->all();
+
+                if ($transportRows !== []) {
+                    $newItinerary->itineraryTransportUnits()->insert($transportRows);
+                }
+
+                if (Schema::hasTable('hotel_itinerary')) {
+                    $hotelRows = $itinerary->hotels
+                        ->map(fn ($hotel) => [
+                            'itinerary_id' => $newItinerary->id,
+                            'hotel_id' => (int) $hotel->id,
+                            'day_number' => (int) ($hotel->pivot->day_number ?? 1),
+                            'night_count' => (int) ($hotel->pivot->night_count ?? 1),
+                            'room_count' => (int) ($hotel->pivot->room_count ?? 1),
+                            'created_at' => now(),
+                            'updated_at' => now(),
+                        ])
+                        ->values()
+                        ->all();
+
+                    if ($hotelRows !== []) {
+                        DB::table('hotel_itinerary')->insert($hotelRows);
+                    }
+                }
+
+                return $newItinerary;
+            });
+
+            ActivityLog::query()->create([
+                'user_id' => auth()->id(),
+                'module' => 'Itinerary',
+                'action' => 'duplicated_from',
+                'subject_id' => $duplicated->id,
+                'subject_type' => $duplicated->getMorphClass(),
+                'properties' => [
+                    'changes' => [
+                        [
+                            'field' => 'source_itinerary',
+                            'label' => 'Source Itinerary',
+                            'from' => null,
+                            'to' => sprintf(
+                                '#%d - %s',
+                                (int) $itinerary->id,
+                                (string) ($itinerary->title ?? '-')
+                            ),
+                        ],
+                    ],
+                    'source_itinerary_id' => (int) $itinerary->id,
+                    'source_itinerary_title' => (string) ($itinerary->title ?? ''),
+                ],
+            ]);
+            $this->syncInquiryProcessedStatus($duplicated->inquiry_id);
+
+            return redirect()
+                ->route('itineraries.edit', $duplicated)
+                ->with('success', 'Itinerary duplicated successfully. Silakan sesuaikan data lalu simpan.');
+        } catch (\Throwable $e) {
+            Cache::forget($duplicateLockKey);
+            throw $e;
+        }
     }
 
     public function edit(Itinerary $itinerary)
@@ -394,7 +615,12 @@ class ItineraryController extends Controller
                 'notes',
                 'created_at',
             ]);
-        return view('modules.itineraries.edit', compact('itinerary', 'touristAttractions', 'activities', 'foodBeverages', 'hotels', 'airports', 'transportUnits', 'destinations', 'inquiries'));
+        $activityLogs = $itinerary->activities()
+            ->with('user:id,name')
+            ->latest()
+            ->paginate(5, ['*'], 'activity_page');
+
+        return view('modules.itineraries.edit', compact('itinerary', 'touristAttractions', 'activities', 'foodBeverages', 'hotels', 'airports', 'transportUnits', 'destinations', 'inquiries', 'activityLogs'));
     }
 
     public function destinationSuggestions(Request $request)
@@ -440,7 +666,12 @@ class ItineraryController extends Controller
         $foodBeverageDayGroups = $itinerary->itineraryFoodBeverages->groupBy(fn ($item) => (int) $item->day_number);
         $transportUnitByDay = $itinerary->itineraryTransportUnits->keyBy(fn ($item) => (int) $item->day_number);
 
-        return view('modules.itineraries.show', compact('itinerary', 'dayGroups', 'activityDayGroups', 'foodBeverageDayGroups', 'transportUnitByDay'));
+        $activities = $itinerary->activities()
+            ->with('user:id,name')
+            ->latest()
+            ->paginate(5, ['*'], 'activity_page');
+
+        return view('modules.itineraries.show', compact('itinerary', 'dayGroups', 'activityDayGroups', 'foodBeverageDayGroups', 'transportUnitByDay', 'activities'));
     }
 
     public function generatePdf(Request $request, Itinerary $itinerary)
@@ -907,6 +1138,8 @@ SVG;
             'daily_end_point_room_ids.*' => ['nullable', 'integer'],
             'daily_end_point_room_counts' => ['nullable', 'array'],
             'daily_end_point_room_counts.*' => ['nullable', 'integer', 'min:1'],
+            'daily_end_hotel_booking_modes' => ['nullable', 'array'],
+            'daily_end_hotel_booking_modes.*' => ['nullable', 'string', 'in:arranged,self'],
             'daily_main_experience_types' => ['nullable', 'array'],
             'daily_main_experience_types.*' => ['nullable', 'string', 'in:attraction,activity,fnb'],
             'daily_main_experience_items' => ['nullable', 'array'],
@@ -946,7 +1179,8 @@ SVG;
             'daily_transport_units.*.transport_unit_id' => ['nullable', 'integer', 'exists:transports,id'],
         ]);
 
-        $validated['is_active'] = $request->boolean('is_active');
+        // Business rule: itinerary must remain active on create/update.
+        $validated['is_active'] = true;
         $validated['destination_id'] = $this->resolveDestinationId($validated['destination'] ?? null);
         $items = $validated['itinerary_items'];
         $activityItems = $validated['itinerary_activity_items'] ?? [];
@@ -969,6 +1203,7 @@ SVG;
             $validated['daily_end_point_items'] ?? [],
             $validated['daily_end_point_room_ids'] ?? [],
             $validated['daily_end_point_room_counts'] ?? [],
+            $validated['daily_end_hotel_booking_modes'] ?? [],
             $validated['daily_main_experience_types'] ?? [],
             $validated['daily_main_experience_items'] ?? [],
             $items,
@@ -991,6 +1226,7 @@ SVG;
         unset($validated['daily_end_point_items']);
         unset($validated['daily_end_point_room_ids']);
         unset($validated['daily_end_point_room_counts']);
+        unset($validated['daily_end_hotel_booking_modes']);
         unset($validated['daily_main_experience_types']);
         unset($validated['daily_main_experience_items']);
         unset($validated['hotel_stays']);
@@ -1002,13 +1238,19 @@ SVG;
         $this->validateActivityItems($activityItems, (int) $validated['duration_days']);
         $this->validateFoodBeverageItems($foodBeverageItems, (int) $validated['duration_days']);
 
-        $itinerary->update($validated);
+        $beforeAudit = $this->buildItineraryAuditSnapshot($itinerary);
+
+        Itinerary::withoutActivityLogging(function () use ($itinerary, $validated): void {
+            $itinerary->update($validated);
+        });
         $itinerary->touristAttractions()->sync($this->buildSyncPayload($items));
         $this->syncItineraryActivities($itinerary, $activityItems);
         $this->syncItineraryFoodBeverages($itinerary, $foodBeverageItems);
         $this->syncDayPoints($itinerary, $dayPoints);
         $this->syncHotelStays($itinerary, $hotelStays);
         $this->syncDailyTransportUnits($itinerary, $transportUnitsByDay);
+        $itinerary->refresh();
+        $this->activityAuditLogger->logUpdated($itinerary, $beforeAudit, $this->buildItineraryAuditSnapshot($itinerary), 'Itinerary');
 
         $this->syncInquiryProcessedStatus($itinerary->inquiry_id);
 
@@ -1373,6 +1615,7 @@ SVG;
                 'pax' => max(1, (int) ($item['pax'] ?? 1)),
                 'start_time' => $startTime,
                 'end_time' => $manualEndTime ?: ($startTime ? $this->calculateTimeFromDuration($startTime, $durationMinutes) : null),
+                'meal_type' => $this->resolveMealTypeFromStartTime($startTime),
                 'travel_minutes_to_next' => $travelMinutes,
                 'visit_order' => $visitOrder,
                 'created_at' => now(),
@@ -1397,6 +1640,7 @@ SVG;
         array $endItems,
         array $endRoomIds,
         array $endRoomCounts,
+        array $endHotelBookingModes,
         array $mainExperienceTypes,
         array $mainExperienceItems,
         array $attractionItems,
@@ -1452,6 +1696,10 @@ SVG;
             $endItemId = (int) ($endItems[$day] ?? 0);
             $startRoomId = (int) ($startRoomIds[$day] ?? 0);
             $endRoomId = (int) ($endRoomIds[$day] ?? 0);
+            $endHotelBookingMode = (string) ($endHotelBookingModes[$day] ?? 'arranged');
+            if (! in_array($endHotelBookingMode, ['arranged', 'self'], true)) {
+                $endHotelBookingMode = 'arranged';
+            }
             $startRoomQty = max(1, (int) ($startRoomCounts[$day] ?? 1));
             $endRoomQty = max(1, (int) ($endRoomCounts[$day] ?? 1));
             $dayStartTimeRaw = trim((string) ($dayStartTimes[$day] ?? ''));
@@ -1504,6 +1752,8 @@ SVG;
                         "daily_end_point_room_ids.{$day}" => "Selected end room on day {$day} does not belong to selected hotel.",
                     ]);
                 }
+            } else {
+                $endHotelBookingMode = null;
             }
             if ($mainExperienceType !== '' && $mainExperienceItemId <= 0) {
                 throw ValidationException::withMessages([
@@ -1537,6 +1787,7 @@ SVG;
                 'end_airport_id' => $endType === 'airport' ? $endItemId : null,
                 'end_hotel_id' => $endType === 'hotel' ? $endItemId : null,
                 'end_hotel_room_id' => $endType === 'hotel' ? $endRoomId : null,
+                'end_hotel_booking_mode' => $endType === 'hotel' ? $endHotelBookingMode : null,
             ];
         }
 
@@ -1610,6 +1861,7 @@ SVG;
                 'end_airport_id' => $row['end_airport_id'],
                 'end_hotel_id' => $row['end_hotel_id'] ?? null,
                 'end_hotel_room_id' => $row['end_hotel_room_id'] ?? null,
+                'end_hotel_booking_mode' => $row['end_hotel_booking_mode'] ?? null,
                 'created_at' => now(),
                 'updated_at' => now(),
             ];
@@ -1696,10 +1948,161 @@ SVG;
         $itinerary->itineraryTransportUnits()->insert($payload);
     }
 
+    private function buildItineraryAuditSnapshot(Itinerary $itinerary): array
+    {
+        $itinerary->load([
+            'touristAttractions:id,name',
+            'itineraryActivities:id,itinerary_id,activity_id,pax,pax_adult,pax_child,day_number,start_time,end_time,travel_minutes_to_next,visit_order',
+            'itineraryActivities.activity:id,name',
+            'itineraryFoodBeverages:id,itinerary_id,food_beverage_id,pax,day_number,start_time,end_time,travel_minutes_to_next,visit_order,meal_type',
+            'itineraryFoodBeverages.foodBeverage:id,name',
+            'itineraryTransportUnits:id,itinerary_id,transport_unit_id,day_number',
+            'itineraryTransportUnits.transportUnit:id,name',
+            'dayPoints:id,itinerary_id,day_number,day_start_time,day_start_travel_minutes,day_include,day_exclude,start_point_type,start_airport_id,start_hotel_id,start_hotel_room_id,end_point_type,end_airport_id,end_hotel_id,end_hotel_room_id,end_hotel_booking_mode',
+        ]);
+
+        return [
+            'inquiry_id' => (int) ($itinerary->inquiry_id ?? 0),
+            'title' => (string) ($itinerary->title ?? ''),
+            'destination' => (string) ($itinerary->destination ?? ''),
+            'arrival_transport_id' => (int) ($itinerary->arrival_transport_id ?? 0),
+            'departure_transport_id' => (int) ($itinerary->departure_transport_id ?? 0),
+            'duration_days' => (int) ($itinerary->duration_days ?? 0),
+            'duration_nights' => (int) ($itinerary->duration_nights ?? 0),
+            'description' => trim((string) ($itinerary->description ?? '')),
+            'is_active' => (bool) ($itinerary->is_active ?? false),
+            'status' => (string) ($itinerary->status ?? ''),
+            'attractions' => $itinerary->touristAttractions
+                ->map(fn ($row) => [
+                    'id' => (int) $row->id,
+                    'name' => (string) ($row->name ?? ''),
+                    'day_number' => (int) ($row->pivot->day_number ?? 0),
+                    'start_time' => $row->pivot->start_time ? substr((string) $row->pivot->start_time, 0, 5) : null,
+                    'end_time' => $row->pivot->end_time ? substr((string) $row->pivot->end_time, 0, 5) : null,
+                    'travel_minutes_to_next' => (int) ($row->pivot->travel_minutes_to_next ?? 0),
+                    'visit_order' => (int) ($row->pivot->visit_order ?? 0),
+                ])
+                ->sort(function (array $left, array $right): int {
+                    $dayComparison = ($left['day_number'] ?? 0) <=> ($right['day_number'] ?? 0);
+                    if ($dayComparison !== 0) {
+                        return $dayComparison;
+                    }
+                    return ($left['visit_order'] ?? 0) <=> ($right['visit_order'] ?? 0);
+                })
+                ->values()
+                ->toArray(),
+            'activities' => $itinerary->itineraryActivities
+                ->map(fn ($row) => [
+                    'activity_id' => (int) ($row->activity_id ?? 0),
+                    'activity_name' => (string) ($row->activity?->name ?? ''),
+                    'pax' => (int) ($row->pax ?? 0),
+                    'pax_adult' => (int) ($row->pax_adult ?? 0),
+                    'pax_child' => (int) ($row->pax_child ?? 0),
+                    'day_number' => (int) ($row->day_number ?? 0),
+                    'start_time' => $row->start_time ? substr((string) $row->start_time, 0, 5) : null,
+                    'end_time' => $row->end_time ? substr((string) $row->end_time, 0, 5) : null,
+                    'travel_minutes_to_next' => (int) ($row->travel_minutes_to_next ?? 0),
+                    'visit_order' => (int) ($row->visit_order ?? 0),
+                ])
+                ->sort(function (array $left, array $right): int {
+                    $dayComparison = ($left['day_number'] ?? 0) <=> ($right['day_number'] ?? 0);
+                    if ($dayComparison !== 0) {
+                        return $dayComparison;
+                    }
+                    $visitComparison = ($left['visit_order'] ?? 0) <=> ($right['visit_order'] ?? 0);
+                    if ($visitComparison !== 0) {
+                        return $visitComparison;
+                    }
+                    return ($left['activity_id'] ?? 0) <=> ($right['activity_id'] ?? 0);
+                })
+                ->values()
+                ->toArray(),
+            'food_beverages' => $itinerary->itineraryFoodBeverages
+                ->map(fn ($row) => [
+                    'food_beverage_id' => (int) ($row->food_beverage_id ?? 0),
+                    'food_beverage_name' => (string) ($row->foodBeverage?->name ?? ''),
+                    'pax' => (int) ($row->pax ?? 0),
+                    'day_number' => (int) ($row->day_number ?? 0),
+                    'start_time' => $row->start_time ? substr((string) $row->start_time, 0, 5) : null,
+                    'end_time' => $row->end_time ? substr((string) $row->end_time, 0, 5) : null,
+                    'travel_minutes_to_next' => (int) ($row->travel_minutes_to_next ?? 0),
+                    'visit_order' => (int) ($row->visit_order ?? 0),
+                    'meal_type' => (string) ($row->meal_type ?? ''),
+                ])
+                ->sort(function (array $left, array $right): int {
+                    $dayComparison = ($left['day_number'] ?? 0) <=> ($right['day_number'] ?? 0);
+                    if ($dayComparison !== 0) {
+                        return $dayComparison;
+                    }
+                    $visitComparison = ($left['visit_order'] ?? 0) <=> ($right['visit_order'] ?? 0);
+                    if ($visitComparison !== 0) {
+                        return $visitComparison;
+                    }
+                    return ($left['food_beverage_id'] ?? 0) <=> ($right['food_beverage_id'] ?? 0);
+                })
+                ->values()
+                ->toArray(),
+            'day_points' => $itinerary->dayPoints
+                ->map(fn ($row) => [
+                    'day_number' => (int) ($row->day_number ?? 0),
+                    'day_start_time' => $row->day_start_time ? substr((string) $row->day_start_time, 0, 5) : null,
+                    'day_start_travel_minutes' => (int) ($row->day_start_travel_minutes ?? 0),
+                    'day_include' => (string) ($row->day_include ?? ''),
+                    'day_exclude' => (string) ($row->day_exclude ?? ''),
+                    'start_point_type' => (string) ($row->start_point_type ?? ''),
+                    'start_airport_id' => (int) ($row->start_airport_id ?? 0),
+                    'start_hotel_id' => (int) ($row->start_hotel_id ?? 0),
+                    'start_hotel_room_id' => (int) ($row->start_hotel_room_id ?? 0),
+                    'end_point_type' => (string) ($row->end_point_type ?? ''),
+                    'end_airport_id' => (int) ($row->end_airport_id ?? 0),
+                    'end_hotel_id' => (int) ($row->end_hotel_id ?? 0),
+                    'end_hotel_room_id' => (int) ($row->end_hotel_room_id ?? 0),
+                    'end_hotel_booking_mode' => (string) ($row->end_hotel_booking_mode ?? ''),
+                ])
+                ->sortBy('day_number')
+                ->values()
+                ->toArray(),
+            'transport_units' => $itinerary->itineraryTransportUnits
+                ->map(fn ($row) => [
+                    'day_number' => (int) ($row->day_number ?? 0),
+                    'transport_unit_id' => (int) ($row->transport_unit_id ?? 0),
+                    'transport_unit_name' => (string) ($row->transportUnit?->name ?? ''),
+                ])
+                ->sortBy('day_number')
+                ->values()
+                ->toArray(),
+        ];
+    }
+
     private function calculateTimeFromDuration(string $startTime, int $durationMinutes): string
     {
         $start = Carbon::createFromFormat('H:i', $startTime);
         return $start->addMinutes(max(1, $durationMinutes))->format('H:i');
+    }
+
+    private function resolveMealTypeFromStartTime(?string $startTime): ?string
+    {
+        $raw = trim((string) $startTime);
+        if ($raw === '') {
+            return null;
+        }
+
+        try {
+            $time = Carbon::createFromFormat('H:i', substr($raw, 0, 5));
+        } catch (\Throwable $e) {
+            return null;
+        }
+
+        $hour = (int) $time->format('H');
+
+        if ($hour < 11) {
+            return 'Breakfast';
+        }
+        if ($hour < 16) {
+            return 'Lunch';
+        }
+
+        return 'Dinner';
     }
 
     /**
@@ -1766,6 +2169,21 @@ SVG;
             ->value('id');
     }
 
+    private function buildDuplicatedTitle(string $title): string
+    {
+        $baseTitle = trim($title) !== '' ? trim($title) : 'Untitled Itinerary';
+        $candidate = $baseTitle . ' (Copy)';
+
+        if (! Itinerary::query()->where('title', $candidate)->exists()) {
+            return $candidate;
+        }
+
+        $counter = 2;
+        while (Itinerary::query()->where('title', "{$candidate} {$counter}")->exists()) {
+            $counter++;
+        }
+
+        return "{$candidate} {$counter}";
+    }
+
 }
-
-

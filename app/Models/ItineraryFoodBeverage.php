@@ -2,10 +2,13 @@
 
 namespace App\Models;
 
+use App\Traits\LogsActivity;
 use Illuminate\Database\Eloquent\Model;
 
 class ItineraryFoodBeverage extends Model
 {
+    use LogsActivity;
+
     protected $fillable = [
         'itinerary_id',
         'food_beverage_id',
@@ -13,6 +16,7 @@ class ItineraryFoodBeverage extends Model
         'pax',
         'start_time',
         'end_time',
+        'meal_type',
         'travel_minutes_to_next',
         'visit_order',
     ];

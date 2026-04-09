@@ -8,7 +8,7 @@
     </a>
 @endsection
 @section('content')
-    <div class="space-y-6 module-page module-page--customers">
+    <div class="space-y-6 module-page module-page--customers" data-service-filter-page data-page-spinner="off">
         <x-index-stats :cards="$statsCards ?? []" />
         <div class="module-grid-3-9">
             <aside class="module-grid-side space-y-4">
@@ -17,10 +17,10 @@
                         <h2 class="text-base font-semibold text-gray-800 dark:text-gray-100">Filters</h2>
                         <p class="text-sm text-gray-500 dark:text-gray-400">Refine your customer list quickly.</p>
                     </div>
-                    <form method="GET" class="grid grid-cols-1 gap-3">
+                    <form method="GET" action="{{ route('customers.index') }}" class="grid grid-cols-1 gap-3" data-service-filter-form data-disable-submit-lock="1" data-page-spinner="off">
                         <input name="q" value="{{ request('q') }}"
-                            placeholder="Search name / code / email / phone / company / country" class="app-input">
-                        <select name="customer_type" class="app-input">
+                            placeholder="Search name / code / email / phone / company / country" class="app-input" data-service-filter-input>
+                        <select name="customer_type" class="app-input" data-service-filter-input>
                             <option value="">Type</option>
                             @foreach (['individual' => 'Individual', 'company' => 'Company'] as $value => $label)
                                 <option value="{{ $value }}" @selected(request('customer_type') === $value)>{{ $label }}
@@ -29,27 +29,26 @@
                         </select>
                         <x-forms.searchable-select name="country" :options="$countries" :value="request('country')"
                             list-id="country-filter-options" placeholder="Country" />
-                        <select name="created_by" class="app-input">
+                        <select name="created_by" class="app-input" data-service-filter-input>
                             <option value="">Creator</option>
                             @foreach ($creators as $creator)
                                 <option value="{{ $creator->id }}" @selected((string) request('created_by') === (string) $creator->id)>{{ $creator->name }}
                                 </option>
                             @endforeach
                         </select>
-                        <select name="per_page" class="app-input">
+                        <select name="per_page" class="app-input" data-service-filter-input>
                             @foreach ([10, 25, 50, 100] as $size)
                                 <option value="{{ $size }}" @selected((string) request('per_page', 10) === (string) $size)>{{ $size }}/page
                                 </option>
                             @endforeach
                         </select>
                         <div class="flex items-center gap-2 filter-actions">
-                            <button class="btn-primary">Filter</button>
-                            <a href="{{ route('customers.index') }}" class="btn-ghost">Reset</a>
+                            <a href="{{ route('customers.index') }}" class="btn-ghost" data-service-filter-reset>Reset</a>
                         </div>
                     </form>
                 </div>
             </aside>
-            <div class="module-grid-main space-y-4">
+            <div class="module-grid-main space-y-4" data-service-filter-results>
                 @if (session('success'))
                     <div
                         class="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300">

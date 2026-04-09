@@ -27,6 +27,11 @@
                         @error('company_name') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
                     </div>
                     <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Tagline</label>
+                        <input name="tagline" value="{{ old('tagline', $settings->tagline) }}" class="mt-1 dark:border-gray-600 app-input" placeholder="Smart Travel CRM Platform">
+                        @error('tagline') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                    </div>
+                    <div class="md:col-span-2">
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Legal Name</label>
                         <input name="legal_name" value="{{ old('legal_name', $settings->legal_name) }}" class="mt-1 dark:border-gray-600 app-input">
                     </div>
@@ -79,6 +84,7 @@
                 <div>
                     <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Footer Note</label>
                     <textarea name="footer_note" rows="3" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">{{ old('footer_note', $settings->footer_note) }}</textarea>
+                    <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">Dipakai sebagai catatan footer pada halaman Login.</p>
                 </div>
 
                 <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -121,8 +127,6 @@
         </div>
     </div>
 @endsection
-
-
 
 
 

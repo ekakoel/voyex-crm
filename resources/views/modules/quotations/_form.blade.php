@@ -53,6 +53,8 @@
         $markupType = ($item->markup_type ?? 'fixed') === 'percent' ? 'percent' : 'fixed';
         $markup = (float) ($item->markup ?? 0);
         $unitPrice = (float) ($item->unit_price ?? 0);
+        $serviceableMeta = is_array($item->serviceable_meta ?? null) ? $item->serviceable_meta : [];
+        $isSelfBookedHotel = ($serviceableMeta['end_hotel_booking_mode'] ?? null) === 'self';
         $hasStoredMarkupType = in_array(($item->markup_type ?? null), ['fixed', 'percent'], true);
         $hasStoredMarkup = $item->markup !== null && $item->markup !== '';
 
@@ -80,7 +82,7 @@
             }
         }
 
-        if ($contractRate <= 0 && ($item->serviceable_type ?? null) === \App\Models\HotelRoom::class) {
+        if (! $isSelfBookedHotel && $contractRate <= 0 && ($item->serviceable_type ?? null) === \App\Models\HotelRoom::class) {
             $source = $hotelPriceLookup->get((int) ($item->serviceable_id ?? 0));
             if ($source) {
                 $sourceContract = (float) ($source->contract_rate ?? 0);
@@ -121,7 +123,7 @@
             'serviceable_type' => $item->serviceable_type,
             'serviceable_id' => $item->serviceable_id,
             'day_number' => $item->day_number,
-            'serviceable_meta' => $item->serviceable_meta,
+            'serviceable_meta' => $serviceableMeta,
             'itinerary_item_type' => $item->itinerary_item_type,
         ];
     })->toArray() : []);

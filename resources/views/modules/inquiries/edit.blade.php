@@ -23,14 +23,17 @@
                 </div>
             </div>
             <aside class="module-grid-side">
-                @include('partials._audit-info', ['record' => $inquiry])
+                <div class="app-card p-4 space-y-3">
+                    <div>
+                        <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">Activity Timeline</h3>
+                        <p class="text-xs text-gray-600 dark:text-gray-300">Detailed create/update audit log for this inquiry.</p>
+                    </div>
+                    <x-activity-timeline :activities="$activities" />
+                    <div>{{ $activities->links() }}</div>
+                </div>
             </aside>
         </div>
     </div>
 @endsection
-
-
-
-
 
 

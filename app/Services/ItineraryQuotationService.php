@@ -28,6 +28,7 @@ class ItineraryQuotationService
         ]);
 
         $dayRows = [];
+        $sequence = 0;
 
         foreach ($itinerary->itineraryTransportUnits as $transportItem) {
             $unit = $transportItem->transportUnit;
@@ -69,7 +70,10 @@ class ItineraryQuotationService
             $item['unit_price'] = max(0, $publishRate);
             $dayRows[] = [
                 'day' => $day,
-                'type_order' => 0,
+                'bucket_order' => 0,
+                'visit_order' => null,
+                'start_minutes' => null,
+                'sequence' => $sequence++,
                 'item' => $item,
             ];
         }
@@ -111,7 +115,10 @@ class ItineraryQuotationService
             $item['unit_price'] = max(0, $price);
             $dayRows[] = [
                 'day' => $day,
-                'type_order' => 1,
+                'bucket_order' => 1,
+                'visit_order' => $this->normalizeInt($attraction->pivot->visit_order ?? null),
+                'start_minutes' => $this->timeToMinutes($attraction->pivot->start_time ?? null),
+                'sequence' => $sequence++,
                 'item' => $item,
             ];
         }
@@ -171,7 +178,10 @@ class ItineraryQuotationService
                 $adultItem['unit_price'] = max(0, $adultPublish);
                 $dayRows[] = [
                     'day' => $day,
-                    'type_order' => 2,
+                    'bucket_order' => 1,
+                    'visit_order' => $this->normalizeInt($activityItem->visit_order ?? null),
+                    'start_minutes' => $this->timeToMinutes($activityItem->start_time ?? null),
+                    'sequence' => $sequence++,
                     'item' => $adultItem,
                 ];
             }
@@ -209,7 +219,10 @@ class ItineraryQuotationService
                 $childItem['unit_price'] = max(0, $childPublish);
                 $dayRows[] = [
                     'day' => $day,
-                    'type_order' => 2,
+                    'bucket_order' => 1,
+                    'visit_order' => $this->normalizeInt($activityItem->visit_order ?? null),
+                    'start_minutes' => $this->timeToMinutes($activityItem->start_time ?? null),
+                    'sequence' => $sequence++,
                     'item' => $childItem,
                 ];
             }
@@ -258,7 +271,10 @@ class ItineraryQuotationService
             $item['unit_price'] = max(0, $price);
             $dayRows[] = [
                 'day' => $day,
-                'type_order' => 3,
+                'bucket_order' => 1,
+                'visit_order' => $this->normalizeInt($foodItem->visit_order ?? null),
+                'start_minutes' => $this->timeToMinutes($foodItem->start_time ?? null),
+                'sequence' => $sequence++,
                 'item' => $item,
             ];
         }
@@ -279,6 +295,11 @@ class ItineraryQuotationService
             }
             if ($room->view) {
                 $label .= ' (' . $room->view . ')';
+            }
+            $endHotelBookingMode = (string) ($dayPoint->end_hotel_booking_mode ?? 'arranged');
+            $isSelfBookedHotel = $endHotelBookingMode === 'self';
+            if ($isSelfBookedHotel) {
+                $label .= ' (Self Booked)';
             }
 
             $today = now()->toDateString();
@@ -361,6 +382,12 @@ class ItineraryQuotationService
                     ? ($contractRate + ($contractRate * ($markup / 100)))
                     : ($contractRate + $markup);
             }
+            if ($isSelfBookedHotel) {
+                $contractRate = 0;
+                $markupType = 'fixed';
+                $markup = 0;
+                $publishRate = 0;
+            }
 
             $qty = 1;
             $item = $this->makeItem(
@@ -376,6 +403,7 @@ class ItineraryQuotationService
                     'end_hotel_id' => $this->normalizeInt($dayPoint->end_hotel_id ?? null),
                     'end_hotel_room_id' => (int) $room->id,
                     'end_point_type' => (string) ($dayPoint->end_point_type ?? 'hotel'),
+                    'end_hotel_booking_mode' => $endHotelBookingMode,
                     'hotel_price_id' => $hotelPrice?->id ? (int) $hotelPrice->id : null,
                 ],
                 'hotel_day_end'
@@ -387,7 +415,10 @@ class ItineraryQuotationService
 
             $dayRows[] = [
                 'day' => $day,
-                'type_order' => 4,
+                'bucket_order' => 2,
+                'visit_order' => null,
+                'start_minutes' => null,
+                'sequence' => $sequence++,
                 'item' => $item,
             ];
         }
@@ -396,7 +427,38 @@ class ItineraryQuotationService
             if ($a['day'] !== $b['day']) {
                 return $a['day'] <=> $b['day'];
             }
-            return $a['type_order'] <=> $b['type_order'];
+            if ($a['bucket_order'] !== $b['bucket_order']) {
+                return $a['bucket_order'] <=> $b['bucket_order'];
+            }
+
+            if ((int) $a['bucket_order'] === 1) {
+                $aVisit = $a['visit_order'];
+                $bVisit = $b['visit_order'];
+
+                if ($aVisit !== null && $bVisit !== null && $aVisit !== $bVisit) {
+                    return $aVisit <=> $bVisit;
+                }
+                if ($aVisit !== null && $bVisit === null) {
+                    return -1;
+                }
+                if ($aVisit === null && $bVisit !== null) {
+                    return 1;
+                }
+
+                $aStart = $a['start_minutes'];
+                $bStart = $b['start_minutes'];
+                if ($aStart !== null && $bStart !== null && $aStart !== $bStart) {
+                    return $aStart <=> $bStart;
+                }
+                if ($aStart !== null && $bStart === null) {
+                    return -1;
+                }
+                if ($aStart === null && $bStart !== null) {
+                    return 1;
+                }
+            }
+
+            return $a['sequence'] <=> $b['sequence'];
         });
 
         $items = array_values(array_map(fn (array $row) => $row['item'], $dayRows));
@@ -467,6 +529,20 @@ class ItineraryQuotationService
             return null;
         }
         return (int) $value;
+    }
+
+    private function timeToMinutes($value): ?int
+    {
+        $time = $this->normalizeTime($value);
+        if (! $time || strlen($time) < 5) {
+            return null;
+        }
+        [$hours, $minutes] = explode(':', substr($time, 0, 5));
+        if (! is_numeric($hours) || ! is_numeric($minutes)) {
+            return null;
+        }
+
+        return ((int) $hours * 60) + (int) $minutes;
     }
 }
 

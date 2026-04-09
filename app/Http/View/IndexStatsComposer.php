@@ -52,7 +52,23 @@ class IndexStatsComposer
         $table = method_exists($model, 'getTable') ? $model->getTable() : null;
         $cards = [];
 
-        if ($this->hasStatusOptions($modelClass)) {
+        if ($module === 'inquiries' && $table && Schema::hasColumn($table, 'priority')) {
+            $priorityOptions = ['low', 'normal', 'high'];
+            $counts = $modelClass::query()
+                ->select('priority', \DB::raw('COUNT(*) as total'))
+                ->groupBy('priority')
+                ->pluck('total', 'priority');
+
+            foreach ($priorityOptions as $priority) {
+                $cards[] = [
+                    'key' => 'priority_' . $priority,
+                    'label' => Str::headline((string) $priority),
+                    'value' => (int) ($counts[$priority] ?? 0),
+                    'caption' => 'Priority',
+                    'tone' => $this->toneForPriority((string) $priority),
+                ];
+            }
+        } elseif ($this->hasStatusOptions($modelClass)) {
             $statusOptions = $modelClass::STATUS_OPTIONS;
             $counts = $modelClass::query()
                 ->select('status', \DB::raw('COUNT(*) as total'))
@@ -149,6 +165,16 @@ class IndexStatsComposer
             'approved' => 'bg-emerald-50 text-emerald-700 border-emerald-100',
             'rejected' => 'bg-slate-100 text-slate-700 border-slate-200',
             'final' => 'bg-violet-50 text-violet-700 border-violet-100',
+            default => 'bg-slate-50 text-slate-700 border-slate-100',
+        };
+    }
+
+    private function toneForPriority(string $priority): string
+    {
+        return match (strtolower($priority)) {
+            'low' => 'bg-emerald-50 text-emerald-700 border-emerald-100',
+            'normal' => 'bg-sky-50 text-sky-700 border-sky-100',
+            'high' => 'bg-rose-50 text-rose-700 border-rose-100',
             default => 'bg-slate-50 text-slate-700 border-slate-100',
         };
     }

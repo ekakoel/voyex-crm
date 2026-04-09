@@ -111,6 +111,7 @@
         ->values();
     $dailyEndPointTypes = old('daily_end_point_types');
     $dailyEndPointItems = old('daily_end_point_items');
+    $dailyEndHotelBookingModes = old('daily_end_hotel_booking_modes');
     $dailyStartPointRoomIds = old('daily_start_point_room_ids');
     $dailyEndPointRoomIds = old('daily_end_point_room_ids');
     $dailyStartPointRoomCounts = old('daily_start_point_room_counts');
@@ -130,6 +131,7 @@
                         ? $dayPoint->end_airport_id ?? ''
                         : $dayPoint->end_hotel_id ?? '');
                 $dailyEndPointRoomIds[$day] = (string) ($dayPoint->end_hotel_room_id ?? '');
+                $dailyEndHotelBookingModes[$day] = (string) ($dayPoint->end_hotel_booking_mode ?? 'arranged');
             }
         } elseif (isset($itinerary)) {
             foreach ($itinerary->hotels as $hotel) {
@@ -141,9 +143,13 @@
                     $dailyEndPointItems[$day] = (string) $hotel->id;
                     $dailyEndPointRoomCounts[$day] = $roomCount;
                     $dailyEndPointRoomIds[$day] = '';
+                    $dailyEndHotelBookingModes[$day] = 'arranged';
                 }
             }
         }
+    }
+    if (!is_array($dailyEndHotelBookingModes)) {
+        $dailyEndHotelBookingModes = [];
     }
     if (!is_array($dailyStartPointRoomIds)) {
         $dailyStartPointRoomIds = [];
@@ -467,6 +473,10 @@
                         $endType = $normalizePointType($dailyEndPointTypes[$day] ?? '', 'hotel');
                         $endItem = (string) ($dailyEndPointItems[$day] ?? '');
                         $endRoomId = (string) ($dailyEndPointRoomIds[$day] ?? '');
+                        $endHotelBookingMode = (string) ($dailyEndHotelBookingModes[$day] ?? 'arranged');
+                        if (!in_array($endHotelBookingMode, ['arranged', 'self'], true)) {
+                            $endHotelBookingMode = 'arranged';
+                        }
                         $dayStartTravelMinutes = old(
                             "day_start_travel_minutes.$day",
                             isset($existingDayPoint)
@@ -498,8 +508,8 @@
                             </p>
                         </div>
                     </div>
-                    <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
-                        <div class="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:flex-nowrap">
+                    <div class="mb-3 flex flex-wrap items-center justify-between gap-2 xl:flex-nowrap">
+                        <div class="flex flex-wrap items-center gap-2 sm:flex-nowrap">
                             <label class="whitespace-nowrap text-xs text-gray-500">Start Tour</label>
                             <input type="time" value="{{ $dayStart }}"
                                 name="day_start_times[{{ $day }}]"
@@ -509,16 +519,10 @@
                                 class="day-end-time text-gray-700 dark:border-gray-600 app-input w-full sm:w-36"
                                 readonly>
                         </div>
-                        <div class="flex w-full flex-wrap items-center gap-2 sm:w-auto">
+                        <div class="ml-auto flex flex-wrap items-center gap-2">
                             <button type="button"
-                                 class="add-attraction rounded-lg border px-3 py-1 text-xs font-medium text-white-700">Add
-                                Attraction</button>
-                            <button type="button"
-                                 class="add-activity rounded-lg border px-3 py-1 text-xs font-medium text-white-700">Add
-                                Activity</button>
-                            <button type="button"
-                                 class="add-fnb rounded-lg border px-3 py-1 text-xs font-medium text-white-700">Add
-                                F&B</button>
+                                 class="add-item rounded-lg border px-3 py-1 text-xs font-medium text-white-700">Add
+                                Item</button>
                         </div>
                     </div>
                     <div class="mb-3 grid grid-cols-1 gap-3 md:grid-cols-2">
@@ -548,8 +552,9 @@
                         class="mb-3 rounded-lg border border-slate-200 bg-slate-50/60 p-3 day-start-point-card dark:border-slate-600 dark:bg-slate-900/25">
                         <div class="space-y-2">
                             <label
-                                class="day-start-point-label mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300">
-                                Day {{ $day }} Start Point
+                                class="day-start-point-label mb-1 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300">
+                                <span class="mr-2 day-start-point-seq inline-flex h-7 w-7 items-center justify-center rounded-full bg-slate-700 text-xs font-semibold text-white">-</span>
+                                <span>Day {{ $day }} Start Point</span>
                             </label>
                             <div class="mb-3 flex flex-col gap-2 md:flex-row">
                                 <div class="md:w-1/3">
@@ -574,7 +579,7 @@
                                                 data-province="{{ $hotel->province ?? '' }}"
                                                 data-destination="{{ $destinationNameById[$hotel->destination_id] ?? '' }}"
                                                 data-latitude="{{ $hotel->latitude ?? '' }}"
-                                                data-longitude="{{ $hotel->longitude ?? '' }}"
+                                                data-longitude=sho"{{ $hotel->longitude ?? '' }}"
                                                 @selected($startType === 'hotel' && $startItem === (string) $hotel->id)>
                                                 {{ !empty($hotel->city) ? $hotel->city : '-' }} - {{ $hotel->name }}
                                             </option>
@@ -643,53 +648,69 @@
                                     $mainExperienceItem !== '' &&
                                     $mainExperienceItem === $rowItemId;
                             @endphp
-                            <div class="schedule-row grid grid-cols-1 gap-3 rounded-lg border border-slate-200 bg-slate-50/70 p-3 dark:border-slate-600 dark:bg-slate-900/30 lg:grid-cols-12"
+                            <div class="schedule-row rounded-lg border border-slate-200 bg-slate-50/70 p-2.5 dark:border-slate-600 dark:bg-slate-900/30"
                                 data-item-type="{{ $r['item_type'] }}">
-                                <div class="flex items-center gap-2 lg:col-span-2">
+                                <div class="mb-2 flex flex-wrap items-start justify-between gap-2">
                                     <button type="button"
-                                         class="drag-handle inline-flex h-8 w-8 items-center justify-center rounded-lg border border-gray-300 text-base leading-none text-gray-600 dark:border-gray-600 dark:text-gray-300"
+                                         class="drag-handle inline-flex h-7 w-7 items-center justify-center rounded-lg border border-gray-300 text-base leading-none text-gray-600 dark:border-gray-600 dark:text-gray-300"
                                         title="Drag to reorder" aria-label="Drag to reorder">::</button>
-                                    <span
-                                        class="item-seq-badge inline-flex h-8 w-8 items-center justify-center rounded-full bg-slate-700 text-xs font-semibold text-white">-</span>
+                                    <div class="grid w-full grid-cols-1 gap-2 sm:w-auto sm:grid-cols-[120px_120px_auto_auto] sm:items-center">
+                                        <p class="item-time-text text-xs font-medium text-gray-700 dark:text-gray-200 sm:col-span-2">
+                                            Start Time: <span class="item-start-text">{{ !empty($r['start_time']) ? $r['start_time'] : '--:-- --' }}</span>
+                                            <span class="mx-1">|</span>
+                                            End Time: <span class="item-end-text">{{ !empty($r['end_time']) ? $r['end_time'] : '--:-- --' }}</span>
+                                        </p>
+                                        <input type="hidden" value="{{ $r['start_time'] ?? '' }}"
+                                            class="item-start app-input">
+                                        <input type="hidden" value="{{ $r['end_time'] ?? '' }}"
+                                            class="item-end app-input">
+                                        <label
+                                            class="inline-flex items-center gap-1.5 text-xs font-medium text-amber-700 dark:text-amber-300">
+                                            <input type="checkbox"
+                                                class="item-main-experience rounded border-amber-400 text-amber-600 focus:ring-amber-500"
+                                                @checked($isRowMainExperience)>
+                                            <span>Highlight</span>
+                                        </label>
+                                        <button type="button"
+                                             class="remove-row inline-flex h-7 w-7 items-center justify-center rounded-md border border-rose-300 text-sm font-semibold leading-none text-rose-700"
+                                            title="Remove item" aria-label="Remove item">&times;</button>
+                                    </div>
                                 </div>
-                                <div class="lg:col-span-2">
-                                    <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">Item
-                                        Type</label>
-                                    <select
-                                        class="item-type dark:border-gray-600 app-input">
-                                        <option value="attraction" @selected($r['item_type'] === 'attraction')>Attraction</option>
-                                        <option value="activity" @selected($r['item_type'] === 'activity')>Activity</option>
-                                        <option value="fnb" @selected($r['item_type'] === 'fnb')>F&B</option>
-                                    </select>
-                                </div>
-                                <div class="lg:col-span-2">
-                                    <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">Region
-                                        (City)</label>
-                                    <select class="item-region dark:border-gray-600 app-input">
-                                        <option value="">All Regions</option>
-                                        @foreach ($itemRegions as $region)
-                                            <option value="{{ $region }}">{{ $region }}</option>
-                                        @endforeach
-                                    </select>
-                                </div>
-                                <div class="min-w-0 lg:col-span-6">
-                                    <label
-                                        class="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">Attraction
-                                        / Activity / F&B</label>
-                                    <select
-                                        class="item-attraction {{ $r['item_type'] !== 'attraction' ? 'hidden' : '' }} dark:border-gray-600 app-input">
-                                        <option value="">Select attraction</option>
-                                        @foreach ($touristAttractionsSorted as $a)
-                                            <option value="{{ $a->id }}"
-                                                data-duration="{{ $a->ideal_visit_minutes ?? 120 }}"
-                                                data-city="{{ $a->city ?? '' }}"
-                                                data-province="{{ $a->province ?? '' }}"
-                                                data-latitude="{{ $a->latitude }}"
-                                                data-longitude="{{ $a->longitude }}" @selected((string) ($r['tourist_attraction_id'] ?? '') === (string) $a->id)>
-                                                {{ $a->name }}</option>
-                                        @endforeach
-                                    </select>
-                                    <div class="flex flex-col gap-2 sm:flex-row">
+                                <div class="grid grid-cols-1 gap-2 lg:grid-cols-12 lg:items-center">
+                                    <div class="lg:col-span-1">
+                                        <span
+                                            class="item-seq-badge inline-flex h-7 w-7 items-center justify-center rounded-full bg-slate-700 text-xs font-semibold text-white">-</span>
+                                    </div>
+                                    <div class="lg:col-span-2">
+                                        <select
+                                            class="item-type dark:border-gray-600 app-input">
+                                            <option value="attraction" @selected($r['item_type'] === 'attraction')>Attraction</option>
+                                            <option value="activity" @selected($r['item_type'] === 'activity')>Activity</option>
+                                            <option value="fnb" @selected($r['item_type'] === 'fnb')>F&B</option>
+                                        </select>
+                                    </div>
+                                    <div class="lg:col-span-3">
+                                        <select class="item-region dark:border-gray-600 app-input">
+                                            <option value="">All Regions</option>
+                                            @foreach ($itemRegions as $region)
+                                                <option value="{{ $region }}">{{ $region }}</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                    <div class="min-w-0 lg:col-span-6">
+                                        <select
+                                            class="item-attraction {{ $r['item_type'] !== 'attraction' ? 'hidden' : '' }} dark:border-gray-600 app-input">
+                                            <option value="">Select attraction</option>
+                                            @foreach ($touristAttractionsSorted as $a)
+                                                <option value="{{ $a->id }}"
+                                                    data-duration="{{ $a->ideal_visit_minutes ?? 120 }}"
+                                                    data-city="{{ $a->city ?? '' }}"
+                                                    data-province="{{ $a->province ?? '' }}"
+                                                    data-latitude="{{ $a->latitude }}"
+                                                    data-longitude="{{ $a->longitude }}" @selected((string) ($r['tourist_attraction_id'] ?? '') === (string) $a->id)>
+                                                    {{ $a->name }}</option>
+                                            @endforeach
+                                        </select>
                                         <select
                                             class="item-activity {{ $r['item_type'] !== 'activity' ? 'hidden' : '' }} dark:border-gray-600 app-input">
                                             <option value="">Select activity</option>
@@ -719,38 +740,6 @@
                                         <input type="hidden" value="{{ $r['pax'] ?? 1 }}" class="item-pax app-input">
                                     </div>
                                 </div>
-                                <div class="lg:col-span-3">
-                                    <label
-                                        class="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">Start
-                                        Time</label>
-                                    <input type="time" value="{{ $r['start_time'] ?? '' }}"
-                                        class="item-start text-gray-700 dark:border-gray-600 app-input"
-                                        readonly>
-                                </div>
-                                <div class="lg:col-span-3">
-                                    <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">End
-                                        Time</label>
-                                    <input type="time" value="{{ $r['end_time'] ?? '' }}"
-                                        class="item-end text-gray-700 dark:border-gray-600 app-input"
-                                        readonly>
-                                </div>
-                                <div class="lg:col-span-2">
-                                    <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">Main
-                                        Experience</label>
-                                    <label
-                                        class="inline-flex items-center gap-2 text-xs text-amber-700 dark:text-amber-300">
-                                        <input type="checkbox"
-                                            class="item-main-experience rounded border-amber-400 text-amber-600 focus:ring-amber-500"
-                                            @checked($isRowMainExperience)>
-                                        Highlight
-                                    </label>
-                                </div>
-                                <div class="lg:col-span-2">
-                                    <label
-                                        class="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">Action</label>
-                                    <button type="button"
-                                         class="remove-row w-full rounded-lg border border-rose-300 px-3 py-2 text-xs font-medium text-rose-700">Remove</button>
-                                </div>
 
                                 <input type="hidden" class="item-travel app-input"
                                     value="{{ $r['travel_minutes_to_next'] }}">
@@ -758,50 +747,68 @@
                                 <input type="hidden" class="item-order app-input" value="{{ $r['visit_order'] ?? '' }}">
                             </div>
                         @empty
-                            <div class="schedule-row grid grid-cols-1 gap-3 rounded-lg border border-blue-200 bg-blue-50/60 p-3 dark:border-blue-700/60 dark:bg-blue-900/25 lg:grid-cols-12"
+                            <div class="schedule-row rounded-lg border border-blue-200 bg-blue-50/60 p-2.5 dark:border-blue-700/60 dark:bg-blue-900/25"
                                 data-item-type="attraction">
-                                <div class="flex items-center gap-2 lg:col-span-2"><button type="button"
-                                         class="drag-handle inline-flex h-8 w-8 items-center justify-center rounded-lg border border-gray-300 text-base leading-none text-gray-600 dark:border-gray-600 dark:text-gray-300"
-                                        title="Drag to reorder" aria-label="Drag to reorder">::</button><span
-                                        class="item-seq-badge inline-flex h-8 w-8 items-center justify-center rounded-full bg-slate-700 text-xs font-semibold text-white">-</span>
+                                <div class="mb-2 flex flex-wrap items-start justify-between gap-2">
+                                    <button type="button"
+                                         class="drag-handle inline-flex h-7 w-7 items-center justify-center rounded-lg border border-gray-300 text-base leading-none text-gray-600 dark:border-gray-600 dark:text-gray-300"
+                                        title="Drag to reorder" aria-label="Drag to reorder">::</button>
+                                    <div class="grid w-full grid-cols-1 gap-2 sm:w-auto sm:grid-cols-[120px_120px_auto_auto] sm:items-center">
+                                        <p class="item-time-text text-xs font-medium text-gray-700 dark:text-gray-200 sm:col-span-2">
+                                            Start Time: <span class="item-start-text">--:-- --</span>
+                                            <span class="mx-1">|</span>
+                                            End Time: <span class="item-end-text">--:-- --</span>
+                                        </p>
+                                        <input type="hidden"
+                                            class="item-start app-input">
+                                        <input type="hidden"
+                                            class="item-end app-input">
+                                        <label
+                                            class="inline-flex items-center gap-1.5 text-xs font-medium text-amber-700 dark:text-amber-300">
+                                            <input type="checkbox"
+                                                class="item-main-experience rounded border-amber-400 text-amber-600 focus:ring-amber-500">
+                                            <span>Highlight</span>
+                                        </label>
+                                        <button type="button"
+                                             class="remove-row inline-flex h-7 w-7 items-center justify-center rounded-md border border-rose-300 text-sm font-semibold leading-none text-rose-700"
+                                            title="Remove item" aria-label="Remove item">&times;</button>
+                                    </div>
                                 </div>
-                                <div class="lg:col-span-2">
-                                    <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">Item
-                                        Type</label>
-                                    <select
-                                        class="item-type dark:border-gray-600 app-input">
-                                        <option value="attraction">Attraction</option>
-                                        <option value="activity">Activity</option>
-                                        <option value="fnb">F&B</option>
-                                    </select>
-                                </div>
-                                <div class="lg:col-span-2">
-                                    <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">Region
-                                        (City)</label>
-                                    <select class="item-region dark:border-gray-600 app-input">
-                                        <option value="">All Regions</option>
-                                        @foreach ($itemRegions as $region)
-                                            <option value="{{ $region }}">{{ $region }}</option>
-                                        @endforeach
-                                    </select>
-                                </div>
-                                <div class="min-w-0 lg:col-span-6">
-                                    <label
-                                        class="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">Attraction
-                                        / Activity / F&B</label>
-                                    <select
-                                        class="item-attraction dark:border-gray-600 app-input">
-                                        <option value="">Select attraction</option>
-                                        @foreach ($touristAttractionsSorted as $a)
-                                            <option value="{{ $a->id }}"
-                                                data-duration="{{ $a->ideal_visit_minutes ?? 120 }}"
-                                                data-city="{{ $a->city ?? '' }}"
-                                                data-province="{{ $a->province ?? '' }}"
-                                                data-latitude="{{ $a->latitude }}"
-                                                data-longitude="{{ $a->longitude }}">{{ $a->name }}</option>
-                                        @endforeach
-                                    </select>
-                                    <div class="flex flex-col gap-2 sm:flex-row"><select
+                                <div class="grid grid-cols-1 gap-2 lg:grid-cols-12 lg:items-center">
+                                    <div class="lg:col-span-1">
+                                        <span
+                                            class="item-seq-badge inline-flex h-7 w-7 items-center justify-center rounded-full bg-slate-700 text-xs font-semibold text-white">-</span>
+                                    </div>
+                                    <div class="lg:col-span-2">
+                                        <select
+                                            class="item-type dark:border-gray-600 app-input">
+                                            <option value="attraction">Attraction</option>
+                                            <option value="activity">Activity</option>
+                                            <option value="fnb">F&B</option>
+                                        </select>
+                                    </div>
+                                    <div class="lg:col-span-3">
+                                        <select class="item-region dark:border-gray-600 app-input">
+                                            <option value="">All Regions</option>
+                                            @foreach ($itemRegions as $region)
+                                                <option value="{{ $region }}">{{ $region }}</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                    <div class="min-w-0 lg:col-span-6">
+                                        <select
+                                            class="item-attraction dark:border-gray-600 app-input">
+                                            <option value="">Select attraction</option>
+                                            @foreach ($touristAttractionsSorted as $a)
+                                                <option value="{{ $a->id }}"
+                                                    data-duration="{{ $a->ideal_visit_minutes ?? 120 }}"
+                                                    data-city="{{ $a->city ?? '' }}"
+                                                    data-province="{{ $a->province ?? '' }}"
+                                                    data-latitude="{{ $a->latitude }}"
+                                                    data-longitude="{{ $a->longitude }}">{{ $a->name }}</option>
+                                            @endforeach
+                                        </select>
+                                        <select
                                             class="item-activity hidden dark:border-gray-600 app-input">
                                             <option value="">Select activity</option>
                                             @foreach ($activitiesSorted as $a)
@@ -813,7 +820,8 @@
                                                     data-longitude="{{ $a->vendor?->longitude ?? '' }}">
                                                     {{ $a->name }} - {{ !empty($a->vendor?->name) ? $a->vendor->name : '-' }}</option>
                                             @endforeach
-                                        </select><select
+                                        </select>
+                                        <select
                                             class="item-fnb hidden dark:border-gray-600 app-input">
                                             <option value="">Select F&B</option>
                                             @foreach ($foodBeveragesSorted as $f)
@@ -825,39 +833,9 @@
                                                     data-longitude="{{ $f->vendor?->longitude ?? '' }}">
                                                     {{ $f->name }} - {{ !empty($f->vendor?->name) ? $f->vendor->name : '-' }}</option>
                                             @endforeach
-                                        </select><input type="hidden" value="1" class="item-pax app-input">
+                                        </select>
+                                        <input type="hidden" value="1" class="item-pax app-input">
                                     </div>
-                                </div>
-                                <div class="lg:col-span-3">
-                                    <label
-                                        class="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">Start
-                                        Time</label>
-                                    <input type="time"
-                                        class="item-start text-gray-700 dark:border-gray-600 app-input"
-                                        readonly>
-                                </div>
-                                <div class="lg:col-span-3">
-                                    <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">End
-                                        Time</label>
-                                    <input type="time"
-                                        class="item-end text-gray-700 dark:border-gray-600 app-input"
-                                        readonly>
-                                </div>
-                                <div class="lg:col-span-2">
-                                    <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">Main
-                                        Experience</label>
-                                    <label
-                                        class="inline-flex items-center gap-2 text-xs text-amber-700 dark:text-amber-300">
-                                        <input type="checkbox"
-                                            class="item-main-experience rounded border-amber-400 text-amber-600 focus:ring-amber-500">
-                                        Highlight
-                                    </label>
-                                </div>
-                                <div class="lg:col-span-2">
-                                    <label
-                                        class="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">Action</label>
-                                    <button type="button"
-                                         class="remove-row w-full rounded-lg border border-rose-300 px-3 py-2 text-xs font-medium text-rose-700">Remove</button>
                                 </div>
 
                                 <input type="hidden" class="item-travel app-input" value="">
@@ -872,15 +850,16 @@
                         <div class="space-y-2">
                             <div class="mb-1 flex items-start justify-between gap-3">
                                 <label
-                                    class="day-end-point-label block text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300">
-                                    Day {{ $day }} End Point
+                                    class="day-end-point-label flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300">
+                                    <span class="mr-2 day-end-point-seq inline-flex h-7 w-7 items-center justify-center rounded-full bg-slate-700 text-xs font-semibold text-white">-</span>
+                                    <span>Day {{ $day }} End Point</span>
                                 </label>
                                 <p class="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-300">
                                     End Time: <span class="day-end-time-endpoint-text text-gray-800 dark:text-gray-100">-</span>
                                 </p>
                             </div>
                             <div class="flex flex-col gap-2 md:flex-row">
-                                <div class="md:w-1/3">
+                                <div class="md:w-1/4">
                                     <select name="daily_end_point_types[{{ $day }}]"
                                         class="day-end-point-type dark:border-gray-600 app-input" required>
                                         <option value="hotel" @selected($endType === 'hotel')>Hotel</option>
@@ -889,7 +868,7 @@
                                         @endif
                                     </select>
                                 </div>
-                                <div class="md:w-1/3">
+                                <div class="md:w-1/4">
                                     <select name="daily_end_point_items[{{ $day }}]"
                                         class="day-end-point-item day-end-point-select dark:border-gray-600 app-input">
                                         <option value="">Select end point item</option>
@@ -919,7 +898,7 @@
                                         @endforeach
                                     </select>
                                 </div>
-                                <div class="day-end-room-wrap {{ $endType === 'hotel' ? '' : 'hidden' }} md:w-1/3">
+                                <div class="day-end-room-wrap {{ $endType === 'hotel' ? '' : 'hidden' }} md:w-1/4">
                                     <select name="daily_end_point_room_ids[{{ $day }}]"
                                         class="day-end-room-select dark:border-gray-600 app-input"
                                         {{ $endType === 'hotel' ? '' : 'disabled' }}>
@@ -934,6 +913,14 @@
                                                 </option>
                                             @endforeach
                                         @endforeach
+                                    </select>
+                                </div>
+                                <div class="day-end-booking-wrap {{ $endType === 'hotel' ? '' : 'hidden' }} md:w-1/4">
+                                    <select name="daily_end_hotel_booking_modes[{{ $day }}]"
+                                        class="day-end-booking-mode dark:border-gray-600 app-input"
+                                        {{ $endType === 'hotel' ? '' : 'disabled' }}>
+                                        <option value="arranged" @selected($endHotelBookingMode === 'arranged')>Hotel arranged by us</option>
+                                        <option value="self" @selected($endHotelBookingMode === 'self')>Self-booked hotel</option>
                                     </select>
                                 </div>
                             </div>
@@ -976,6 +963,9 @@
             <p class="text-xs text-rose-600">{{ $message }}</p>
         @enderror
         @error('daily_main_experience_items.*')
+            <p class="text-xs text-rose-600">{{ $message }}</p>
+        @enderror
+        @error('daily_end_hotel_booking_modes.*')
             <p class="text-xs text-rose-600">{{ $message }}</p>
         @enderror
         @error('day_includes.*')
@@ -1306,6 +1296,31 @@
                             b.value = '';
                             f.value = '';
                         }
+                    }
+                };
+                const markRegionManualState = (row, isManual) => {
+                    if (!row) return;
+                    row.dataset.regionManual = isManual ? '1' : '0';
+                };
+                const getSelectedItemCity = (row) => {
+                    const select = activeSelect(row);
+                    if (!select) return '';
+                    const option = select.selectedOptions?.[0];
+                    return String(option?.dataset?.city || '').trim();
+                };
+                const syncRegionFromSelectedItem = (row, force = false) => {
+                    if (!row) return;
+                    const regionSelect = row.querySelector('.item-region');
+                    if (!regionSelect) return;
+                    const city = getSelectedItemCity(row);
+                    if (!city) return;
+                    const hasOption = [...regionSelect.options].some((opt) => String(opt.value) === city);
+                    if (!hasOption) return;
+                    const isManual = row.dataset.regionManual === '1';
+                    const currentRegion = String(regionSelect.value || '').trim();
+                    if (!force && isManual && currentRegion !== '') return;
+                    if (currentRegion !== city) {
+                        regionSelect.value = city;
                     }
                 };
                 let itineraryDataLayer = null;
@@ -1835,6 +1850,15 @@
                     }
                     return (option.textContent || '').trim() || 'Not set';
                 };
+                const syncRowTimeText = (row) => {
+                    if (!row) return;
+                    const startInput = row.querySelector('.item-start');
+                    const endInput = row.querySelector('.item-end');
+                    const startText = row.querySelector('.item-start-text');
+                    const endText = row.querySelector('.item-end-text');
+                    if (startText) startText.textContent = (startInput?.value || '').trim() || '--:-- --';
+                    if (endText) endText.textContent = (endInput?.value || '').trim() || '--:-- --';
+                };
                 const recalcDay = async (sec) => {
                     const rows = [...sec.querySelectorAll('.schedule-row')];
                     const chosen = rows.filter(selected);
@@ -1876,6 +1900,7 @@
                             r.querySelector('.item-start').value = '';
                             r.querySelector('.item-end').value = '';
                             r.querySelector('.item-order').value = '';
+                            syncRowTimeText(r);
                             if (seq) seq.textContent = '-';
                         }
                     });
@@ -1884,6 +1909,22 @@
                         const seq = r.querySelector('.item-seq-badge');
                         if (seq) seq.textContent = String(i + 1);
                     });
+                    const dayRoutePoints = collectDayRoutePoints(day);
+                    const startRouteIndex = dayRoutePoints.findIndex((point) => point.role === 'start');
+                    const endRouteIndex = dayRoutePoints.findIndex((point) => point.role === 'end');
+                    const itemDisplayBase = startRouteIndex >= 0 ? 2 : 1;
+                    chosen.forEach((r, i) => {
+                        const seq = r.querySelector('.item-seq-badge');
+                        if (seq) seq.textContent = String(itemDisplayBase + i);
+                    });
+                    const startPointSeq = sec.querySelector('.day-start-point-seq');
+                    const endPointSeq = sec.querySelector('.day-end-point-seq');
+                    if (startPointSeq) {
+                        startPointSeq.textContent = startRouteIndex >= 0 ? String(startRouteIndex + 1) : '-';
+                    }
+                    if (endPointSeq) {
+                        endPointSeq.textContent = endRouteIndex >= 0 ? String(endRouteIndex + 1) : '-';
+                    }
                     if (!chosen.length || start === null) {
                         if (dayEndTimeInput) dayEndTimeInput.value = '';
                         if (dayEndTimeEndpointText) dayEndTimeEndpointText.textContent = '-';
@@ -1895,6 +1936,7 @@
                         const dur = Math.max(1, parseInt(opt?.dataset?.duration || '120', 10));
                         r.querySelector('.item-start').value = fromMin(cur);
                         r.querySelector('.item-end').value = fromMin(cur + dur);
+                        syncRowTimeText(r);
                         const travel = Math.max(0, parseInt(r.querySelector('.item-travel').value || '0',
                             10));
                         cur += dur + travel;
@@ -1970,9 +2012,9 @@
                         section.querySelector('.day-title-label') && (section.querySelector('.day-title-label')
                             .textContent = `Day ${day}`);
                         section.querySelector('.day-start-point-label') && (section.querySelector(
-                            '.day-start-point-label').textContent = `Day ${day} Start Point`);
+                            '.day-start-point-label').innerHTML = `<span class="mr-2 day-start-point-seq inline-flex h-7 w-7 items-center justify-center rounded-full bg-slate-700 text-xs font-semibold text-white">-</span><span>Day ${day} Start Point</span>`);
                         section.querySelector('.day-end-point-label') && (section.querySelector(
-                            '.day-end-point-label').textContent = `Day ${day} End Point`);
+                            '.day-end-point-label').innerHTML = `<span class="mr-2 day-end-point-seq inline-flex h-7 w-7 items-center justify-center rounded-full bg-slate-700 text-xs font-semibold text-white">-</span><span>Day ${day} End Point</span>`);
                         section.querySelector('.day-include-label') && (section.querySelector(
                             '.day-include-label').textContent = `Day ${day} Includes`);
                         section.querySelector('.day-exclude-label') && (section.querySelector(
@@ -1985,6 +2027,7 @@
                         const endType = section.querySelector('.day-end-point-type');
                         const endItem = section.querySelector('.day-end-point-item');
                         const endRoomSelect = section.querySelector('.day-end-room-select');
+                        const endBookingSelect = section.querySelector('.day-end-booking-mode');
                         const endRoom = section.querySelector('.day-end-room-count');
                         const transportUnit = section.querySelector('.day-transport-unit');
                         const transportDay = section.querySelector('.day-transport-day');
@@ -2002,6 +2045,7 @@
                         if (endType) endType.name = `daily_end_point_types[${day}]`;
                         if (endItem) endItem.name = `daily_end_point_items[${day}]`;
                         if (endRoomSelect) endRoomSelect.name = `daily_end_point_room_ids[${day}]`;
+                        if (endBookingSelect) endBookingSelect.name = `daily_end_hotel_booking_modes[${day}]`;
                         if (endRoom) endRoom.name = `daily_end_point_room_counts[${day}]`;
                         if (transportUnit) transportUnit.name =
                             `daily_transport_units[${day}][transport_unit_id]`;
@@ -2176,6 +2220,8 @@
                         const endItem = section.querySelector('.day-end-point-item');
                         const endRoomWrap = section.querySelector('.day-end-room-wrap');
                         const endRoomSelect = section.querySelector('.day-end-room-select');
+                        const endBookingWrap = section.querySelector('.day-end-booking-wrap');
+                        const endBookingSelect = section.querySelector('.day-end-booking-mode');
                         const endRoomInput = section.querySelector('.day-end-room-count');
 
                             const applyFilter = (typeSelect, itemSelect) => {
@@ -2283,6 +2329,7 @@
 
                         const endHotel = isHotelPointType(endType?.value || '');
                         if (endRoomWrap) endRoomWrap.classList.toggle('hidden', !endHotel);
+                        if (endBookingWrap) endBookingWrap.classList.toggle('hidden', !endHotel);
                         if (endRoomSelect) {
                             const selectedHotelId = String(endItem?.value || '');
                             Array.from(endRoomSelect.options).forEach((option, idx) => {
@@ -2308,6 +2355,15 @@
                         if (endRoomInput) {
                             endRoomInput.disabled = !endHotel;
                             if (!endHotel) endRoomInput.value = '1';
+                        }
+                        if (endBookingSelect) {
+                            endBookingSelect.disabled = !endHotel;
+                            endBookingSelect.required = endHotel;
+                            if (!endHotel) {
+                                endBookingSelect.value = 'arranged';
+                            } else if (!['arranged', 'self'].includes(String(endBookingSelect.value || ''))) {
+                                endBookingSelect.value = 'arranged';
+                            }
                         }
                     });
                     refreshRequiredAsterisks();
@@ -2490,13 +2546,34 @@
                     updateScheduleRowTheme(r);
                     r.querySelector('.item-type')?.addEventListener('change', (e) => {
                         toggleType(r, e.target.value, true);
+                        markRegionManualState(r, false);
+                        syncRegionFromSelectedItem(r, true);
                         updateScheduleRowTheme(r);
                         recalc();
                     });
-                    r.querySelector('.item-region')?.addEventListener('change', recalcNoConnectorRebuild);
-                    r.querySelector('.item-attraction')?.addEventListener('change', recalc);
-                    r.querySelector('.item-activity')?.addEventListener('change', recalc);
-                    r.querySelector('.item-fnb')?.addEventListener('change', recalc);
+                    r.querySelector('.item-region')?.addEventListener('change', (event) => {
+                        const value = String(event.target.value || '').trim();
+                        markRegionManualState(r, value !== '');
+                        const attractionSelect = r.querySelector('.item-attraction');
+                        const activitySelect = r.querySelector('.item-activity');
+                        const fnbSelect = r.querySelector('.item-fnb');
+                        if (attractionSelect) attractionSelect.value = '';
+                        if (activitySelect) activitySelect.value = '';
+                        if (fnbSelect) fnbSelect.value = '';
+                        recalcNoConnectorRebuild();
+                    });
+                    r.querySelector('.item-attraction')?.addEventListener('change', () => {
+                        syncRegionFromSelectedItem(r);
+                        recalc();
+                    });
+                    r.querySelector('.item-activity')?.addEventListener('change', () => {
+                        syncRegionFromSelectedItem(r);
+                        recalc();
+                    });
+                    r.querySelector('.item-fnb')?.addEventListener('change', () => {
+                        syncRegionFromSelectedItem(r);
+                        recalc();
+                    });
                     r.querySelector('.item-main-experience')?.addEventListener('change', () => {
                         const section = r.closest('.day-section');
                         syncMainExperienceSelection(section, r);
@@ -2508,13 +2585,21 @@
                         recalc();
                     });
                     toggleType(r, rowType(r), false);
+                    if (String(r.querySelector('.item-region')?.value || '').trim() === '') {
+                        markRegionManualState(r, false);
+                        syncRegionFromSelectedItem(r);
+                    } else {
+                        markRegionManualState(r, true);
+                    }
                     updateScheduleRowTheme(r);
+                    syncRowTimeText(r);
                 };
                 const cloneRow = (sec, type) => {
                     const src = sec.querySelector('.schedule-row');
                     if (!src) return;
                     const r = src.cloneNode(true);
                     r.querySelector('.item-region').value = '';
+                    markRegionManualState(r, false);
                     r.querySelector('.item-attraction').value = '';
                     r.querySelector('.item-activity').value = '';
                     r.querySelector('.item-fnb').value = '';
@@ -2532,6 +2617,12 @@
                     toggleType(r, type, false);
                     recalc();
                 };
+                const getNextItemType = (section) => {
+                    const rows = [...(section?.querySelectorAll('.schedule-row') || [])];
+                    const lastSelected = [...rows].reverse().find((row) => selected(row));
+                    const currentType = rowType(lastSelected || rows[rows.length - 1]);
+                    return ['attraction', 'activity', 'fnb'].includes(currentType) ? currentType : 'attraction';
+                };
                 const syncDurationNights = () => {
                     if (!durationNightsInput) return;
                     const days = Math.max(1, parseInt(durationInput.value || '1', 10));
@@ -2542,10 +2633,7 @@
                 };
                 daySections.querySelectorAll('.day-section').forEach((sec) => {
                     sec.querySelectorAll('.schedule-row').forEach(bindRow);
-                    sec.querySelector('.add-attraction')?.addEventListener('click', () => cloneRow(sec,
-                        'attraction'));
-                    sec.querySelector('.add-activity')?.addEventListener('click', () => cloneRow(sec, 'activity'));
-                    sec.querySelector('.add-fnb')?.addEventListener('click', () => cloneRow(sec, 'fnb'));
+                    sec.querySelector('.add-item')?.addEventListener('click', () => cloneRow(sec, getNextItemType(sec)));
                     sec.querySelector('.day-start-point-type')?.addEventListener('change', () => {
                         updateDayPointTheme(sec);
                         syncPointItemVisibility();
@@ -2647,14 +2735,22 @@
                                 dayEndRoomSelect.value = '';
                                 dayEndRoomSelect.disabled = false;
                             }
+                            const dayEndBookingSelect = c.querySelector('.day-end-booking-mode');
+                            if (dayEndBookingSelect) {
+                                dayEndBookingSelect.name = `daily_end_hotel_booking_modes[${i}]`;
+                                dayEndBookingSelect.value = 'arranged';
+                                dayEndBookingSelect.disabled = false;
+                            }
                             const dayEndRoomInput = c.querySelector('.day-end-room-count');
                             const dayEndRoomWrap = c.querySelector('.day-end-room-wrap');
+                            const dayEndBookingWrap = c.querySelector('.day-end-booking-wrap');
                             if (dayEndRoomInput) {
                                 dayEndRoomInput.name = `daily_end_point_room_counts[${i}]`;
                                 dayEndRoomInput.value = '1';
                                 dayEndRoomInput.disabled = false;
                             }
                             dayEndRoomWrap?.classList.remove('hidden');
+                            dayEndBookingWrap?.classList.remove('hidden');
                             const dayStartTravelInput = c.querySelector('.day-start-travel');
                             if (dayStartTravelInput) {
                                 dayStartTravelInput.name = `day_start_travel_minutes[${i}]`;
@@ -2718,11 +2814,7 @@
                             if (dayItems) delete dayItems.dataset.sortableInit;
                             daySections.appendChild(c);
                             c.querySelectorAll('.schedule-row').forEach(bindRow);
-                            c.querySelector('.add-attraction')?.addEventListener('click', () => cloneRow(c,
-                                'attraction'));
-                            c.querySelector('.add-activity')?.addEventListener('click', () => cloneRow(c,
-                                'activity'));
-                            c.querySelector('.add-fnb')?.addEventListener('click', () => cloneRow(c, 'fnb'));
+                            c.querySelector('.add-item')?.addEventListener('click', () => cloneRow(c, getNextItemType(c)));
                             c.querySelector('.day-start-point-type')?.addEventListener('change', () => {
                                 syncPointItemVisibility();
                                 recalcNoConnectorRebuild();
