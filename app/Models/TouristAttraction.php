@@ -6,6 +6,7 @@ use App\Models\Concerns\HasAudit;
 use App\Traits\LogsActivity;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class TouristAttraction extends Model
@@ -103,11 +104,22 @@ class TouristAttraction extends Model
             return $normalized;
         }
 
-        if (! Str::contains($normalized, '/')) {
-            return 'tourist-attractions/' . $normalized;
+        if (Str::contains($normalized, '/')) {
+            return $normalized;
         }
 
-        return $normalized;
+        // Legacy compatibility: filename-only may exist in root or tourist-attractions/.
+        $storage = Storage::disk('public');
+        $prefixed = 'tourist-attractions/' . $normalized;
+        if ($storage->exists($prefixed)) {
+            return $prefixed;
+        }
+        if ($storage->exists($normalized)) {
+            return $normalized;
+        }
+
+        // Default canonical path for new data.
+        return $prefixed;
     }
 
     public function itineraries()
@@ -120,7 +132,6 @@ class TouristAttraction extends Model
         return $this->belongsTo(Destination::class);
     }
 }
-
 
 
 

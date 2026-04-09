@@ -139,9 +139,17 @@ class TouristAttractionController extends Controller
             'image' => ['required', 'string'],
         ]);
 
-        $image = (string) $validated['image'];
+        $imageRaw = (string) $validated['image'];
         $gallery = $this->normalizeGalleryImages($touristAttraction->gallery_images ?? []);
-        if (! in_array($image, $gallery, true)) {
+        $rawNormalized = trim(str_replace('\\', '/', $imageRaw), '/');
+        $imageCandidates = array_values(array_unique(array_filter([
+            $this->normalizeGalleryPath($imageRaw),
+            $rawNormalized,
+            $rawNormalized !== '' ? (self::GALLERY_DIRECTORY . '/' . ltrim($rawNormalized, '/')) : '',
+        ], fn ($value) => is_string($value) && trim($value) !== '')));
+        $image = collect($imageCandidates)->first(fn ($candidate) => in_array($candidate, $gallery, true));
+
+        if (! is_string($image) || $image === '') {
             return response()->json([
                 'message' => 'Image not found in gallery.',
             ], 404);
@@ -283,8 +291,19 @@ class TouristAttractionController extends Controller
         foreach ($paths as $path) {
             if (is_string($path) && $path !== '') {
                 $normalizedPath = $this->normalizeGalleryPath($path);
-                Storage::disk('public')->delete($normalizedPath);
-                Storage::disk('public')->delete(ImageThumbnailGenerator::thumbnailPathFor($normalizedPath));
+                $baseNormalized = trim(str_replace('\\', '/', $path), '/');
+                $candidates = array_values(array_unique(array_filter([
+                    $normalizedPath,
+                    $baseNormalized,
+                    $baseNormalized !== '' && ! str_contains($baseNormalized, '/')
+                        ? self::GALLERY_DIRECTORY . '/' . ltrim($baseNormalized, '/')
+                        : '',
+                ], fn ($value) => is_string($value) && trim($value) !== '')));
+
+                foreach ($candidates as $candidate) {
+                    Storage::disk('public')->delete($candidate);
+                    Storage::disk('public')->delete(ImageThumbnailGenerator::thumbnailPathFor($candidate));
+                }
             }
         }
     }
@@ -304,12 +323,22 @@ class TouristAttractionController extends Controller
             return $normalized;
         }
 
-        // Legacy safety: if only filename is stored, force Tourist Attraction directory.
-        if (! str_contains($normalized, '/')) {
-            return self::GALLERY_DIRECTORY . '/' . $normalized;
+        if (str_contains($normalized, '/')) {
+            return $normalized;
         }
 
-        return $normalized;
+        // Legacy compatibility: filename-only can be at root OR in tourist-attractions/.
+        $storage = Storage::disk('public');
+        $prefixed = self::GALLERY_DIRECTORY . '/' . $normalized;
+        if ($storage->exists($prefixed)) {
+            return $prefixed;
+        }
+        if ($storage->exists($normalized)) {
+            return $normalized;
+        }
+
+        // Default for new canonical path when file check cannot determine.
+        return $prefixed;
     }
 
     private function applyDestinationContext(array &$validated): void
