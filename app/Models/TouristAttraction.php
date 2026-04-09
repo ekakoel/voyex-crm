@@ -6,6 +6,7 @@ use App\Models\Concerns\HasAudit;
 use App\Traits\LogsActivity;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Str;
 
 class TouristAttraction extends Model
 {
@@ -41,8 +42,73 @@ class TouristAttraction extends Model
         'publish_rate_per_pax' => 'decimal:0',
         'latitude' => 'float',
         'longitude' => 'float',
-        'gallery_images' => 'array',
     ];
+
+    public function getGalleryImagesAttribute($value): array
+    {
+        $images = is_array($value) ? $value : (is_string($value) ? json_decode($value, true) : []);
+        if (! is_array($images)) {
+            return [];
+        }
+
+        $normalized = [];
+        foreach ($images as $path) {
+            if (! is_string($path) || trim($path) === '') {
+                continue;
+            }
+
+            $normalizedPath = $this->normalizeGalleryPath($path);
+            if ($normalizedPath !== '') {
+                $normalized[] = $normalizedPath;
+            }
+        }
+
+        return array_values(array_unique($normalized));
+    }
+
+    public function setGalleryImagesAttribute($value): void
+    {
+        $images = is_array($value) ? $value : (is_string($value) ? json_decode($value, true) : []);
+        if (! is_array($images)) {
+            $images = [];
+        }
+
+        $normalized = [];
+        foreach ($images as $path) {
+            if (! is_string($path) || trim($path) === '') {
+                continue;
+            }
+
+            $normalizedPath = $this->normalizeGalleryPath($path);
+            if ($normalizedPath !== '') {
+                $normalized[] = $normalizedPath;
+            }
+        }
+
+        $this->attributes['gallery_images'] = json_encode(array_values(array_unique($normalized)));
+    }
+
+    private function normalizeGalleryPath(string $path): string
+    {
+        $normalized = trim(str_replace('\\', '/', $path), '/');
+        if ($normalized === '') {
+            return '';
+        }
+
+        if (Str::startsWith($normalized, 'storage/')) {
+            $normalized = Str::after($normalized, 'storage/');
+        }
+
+        if (Str::startsWith($normalized, 'tourist-attractions/')) {
+            return $normalized;
+        }
+
+        if (! Str::contains($normalized, '/')) {
+            return 'tourist-attractions/' . $normalized;
+        }
+
+        return $normalized;
+    }
 
     public function itineraries()
     {
@@ -54,7 +120,6 @@ class TouristAttraction extends Model
         return $this->belongsTo(Destination::class);
     }
 }
-
 
 
 

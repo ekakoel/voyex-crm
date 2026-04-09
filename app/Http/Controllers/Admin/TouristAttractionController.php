@@ -14,6 +14,8 @@ use Illuminate\Validation\ValidationException;
 
 class TouristAttractionController extends Controller
 {
+    private const GALLERY_DIRECTORY = 'tourist-attractions';
+
     public function index(Request $request)
     {
         $perPage = (int) $request->input('per_page', 10);
@@ -64,7 +66,7 @@ class TouristAttractionController extends Controller
     {
         $validated = $this->validatePayload($request, null);
 
-        $validated['gallery_images'] = $this->storeGalleryImages($request->file('gallery_images', []), 'tourist-attractions');
+        $validated['gallery_images'] = $this->storeGalleryImages($request->file('gallery_images', []), self::GALLERY_DIRECTORY);
 
         TouristAttraction::query()->create($validated);
 
@@ -94,7 +96,7 @@ class TouristAttractionController extends Controller
             $this->deleteGalleryImages($removedGallery);
         }
 
-        $newGallery = $this->storeGalleryImages($request->file('gallery_images', []), 'tourist-attractions');
+        $newGallery = $this->storeGalleryImages($request->file('gallery_images', []), self::GALLERY_DIRECTORY);
         $validated['gallery_images'] = array_values(array_merge($remainingGallery, $newGallery));
         unset($validated['removed_gallery_images']);
 
@@ -238,13 +240,16 @@ class TouristAttractionController extends Controller
     private function storeGalleryImages(array $files, string $directory): array
     {
         $stored = [];
+        $targetDirectory = trim($directory) !== '' ? trim($directory) : self::GALLERY_DIRECTORY;
         foreach ($files as $file) {
             if (! $file) {
                 continue;
             }
-            $originalPath = $file->store($directory, 'public');
+            $originalPath = $file->store($targetDirectory, 'public');
             $processedPath = ImageThumbnailGenerator::processAndGenerate('public', $originalPath, 3, 2, 360, 240) ?? $originalPath;
-            $stored[] = $processedPath;
+            // Ensure thumbnail always exists for every uploaded image.
+            ImageThumbnailGenerator::generate('public', $processedPath, 360, 240);
+            $stored[] = $this->normalizeGalleryPath($processedPath);
         }
         return $stored;
     }
@@ -259,17 +264,52 @@ class TouristAttractionController extends Controller
             return [];
         }
 
-        return array_values(array_filter($images, fn ($path) => is_string($path) && trim($path) !== ''));
+        $normalized = [];
+        foreach ($images as $path) {
+            if (! is_string($path) || trim($path) === '') {
+                continue;
+            }
+            $normalizedPath = $this->normalizeGalleryPath($path);
+            if ($normalizedPath !== '') {
+                $normalized[] = $normalizedPath;
+            }
+        }
+
+        return array_values(array_unique($normalized));
     }
 
     private function deleteGalleryImages(array $paths): void
     {
         foreach ($paths as $path) {
             if (is_string($path) && $path !== '') {
-                Storage::disk('public')->delete($path);
-                Storage::disk('public')->delete(ImageThumbnailGenerator::thumbnailPathFor($path));
+                $normalizedPath = $this->normalizeGalleryPath($path);
+                Storage::disk('public')->delete($normalizedPath);
+                Storage::disk('public')->delete(ImageThumbnailGenerator::thumbnailPathFor($normalizedPath));
             }
         }
+    }
+
+    private function normalizeGalleryPath(string $path): string
+    {
+        $normalized = trim(str_replace('\\', '/', $path), '/');
+        if ($normalized === '') {
+            return '';
+        }
+
+        if (str_starts_with($normalized, 'storage/')) {
+            $normalized = ltrim(substr($normalized, 8), '/');
+        }
+
+        if (str_starts_with($normalized, self::GALLERY_DIRECTORY . '/')) {
+            return $normalized;
+        }
+
+        // Legacy safety: if only filename is stored, force Tourist Attraction directory.
+        if (! str_contains($normalized, '/')) {
+            return self::GALLERY_DIRECTORY . '/' . $normalized;
+        }
+
+        return $normalized;
     }
 
     private function applyDestinationContext(array &$validated): void
