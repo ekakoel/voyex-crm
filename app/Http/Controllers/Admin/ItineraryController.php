@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Http\Controllers\Concerns\HandlesActivityTimelineAjax;
 use App\Http\Controllers\Controller;
 use App\Models\Activity;
 use App\Models\Airport;
@@ -31,6 +32,8 @@ use Illuminate\Validation\ValidationException;
 
 class ItineraryController extends Controller
 {
+    use HandlesActivityTimelineAjax;
+
     public function __construct(
         private readonly ActivityAuditLogger $activityAuditLogger
     ) {
@@ -181,6 +184,8 @@ class ItineraryController extends Controller
             'daily_start_point_room_ids.*' => ['nullable', 'integer'],
             'daily_start_point_room_counts' => ['nullable', 'array'],
             'daily_start_point_room_counts.*' => ['nullable', 'integer', 'min:1'],
+            'daily_start_hotel_booking_modes' => ['nullable', 'array'],
+            'daily_start_hotel_booking_modes.*' => ['nullable', 'string', 'in:arranged,self'],
             'day_start_times' => ['nullable', 'array'],
             'day_start_times.*' => ['nullable', 'date_format:H:i'],
             'day_start_travel_minutes' => ['nullable', 'array'],
@@ -255,6 +260,7 @@ class ItineraryController extends Controller
             $validated['daily_start_point_items'] ?? [],
             $validated['daily_start_point_room_ids'] ?? [],
             $validated['daily_start_point_room_counts'] ?? [],
+            $validated['daily_start_hotel_booking_modes'] ?? [],
             $validated['day_start_times'] ?? [],
             $validated['day_start_travel_minutes'] ?? [],
             $validated['day_includes'] ?? [],
@@ -278,6 +284,7 @@ class ItineraryController extends Controller
         unset($validated['daily_start_point_items']);
         unset($validated['daily_start_point_room_ids']);
         unset($validated['daily_start_point_room_counts']);
+        unset($validated['daily_start_hotel_booking_modes']);
         unset($validated['day_start_times']);
         unset($validated['day_start_travel_minutes']);
         unset($validated['day_includes']);
@@ -436,6 +443,7 @@ class ItineraryController extends Controller
                     'start_airport_id' => $point->start_airport_id,
                     'start_hotel_id' => $point->start_hotel_id,
                     'start_hotel_room_id' => $point->start_hotel_room_id,
+                    'start_hotel_booking_mode' => $point->start_hotel_booking_mode,
                     'end_point_type' => $point->end_point_type,
                     'end_airport_id' => $point->end_airport_id,
                     'end_hotel_id' => $point->end_hotel_id,
@@ -522,7 +530,7 @@ class ItineraryController extends Controller
         }
     }
 
-    public function edit(Itinerary $itinerary)
+    public function edit(Request $request, Itinerary $itinerary)
     {
         $itinerary->loadMissing(['quotation:id,itinerary_id,status']);
         if (! $this->canManageItinerary($itinerary, 'update')) {
@@ -618,7 +626,12 @@ class ItineraryController extends Controller
         $activityLogs = $itinerary->activities()
             ->with('user:id,name')
             ->latest()
-            ->paginate(5, ['*'], 'activity_page');
+            ->paginate(5, ['*'], 'activity_page')
+            ->withQueryString();
+
+        if ($this->wantsActivityTimelineFragment($request)) {
+            return $this->activityTimelineFragmentResponse($activityLogs);
+        }
 
         return view('modules.itineraries.edit', compact('itinerary', 'touristAttractions', 'activities', 'foodBeverages', 'hotels', 'airports', 'transportUnits', 'destinations', 'inquiries', 'activityLogs'));
     }
@@ -638,7 +651,7 @@ class ItineraryController extends Controller
         ]);
     }
 
-    public function show(Itinerary $itinerary)
+    public function show(Request $request, Itinerary $itinerary)
     {
         $itinerary->load([
             'touristAttractions:id,name,location,latitude,longitude,description',
@@ -669,7 +682,12 @@ class ItineraryController extends Controller
         $activities = $itinerary->activities()
             ->with('user:id,name')
             ->latest()
-            ->paginate(5, ['*'], 'activity_page');
+            ->paginate(5, ['*'], 'activity_page')
+            ->withQueryString();
+
+        if ($this->wantsActivityTimelineFragment($request)) {
+            return $this->activityTimelineFragmentResponse($activities);
+        }
 
         return view('modules.itineraries.show', compact('itinerary', 'dayGroups', 'activityDayGroups', 'foodBeverageDayGroups', 'transportUnitByDay', 'activities'));
     }
@@ -1123,6 +1141,8 @@ SVG;
             'daily_start_point_room_ids.*' => ['nullable', 'integer'],
             'daily_start_point_room_counts' => ['nullable', 'array'],
             'daily_start_point_room_counts.*' => ['nullable', 'integer', 'min:1'],
+            'daily_start_hotel_booking_modes' => ['nullable', 'array'],
+            'daily_start_hotel_booking_modes.*' => ['nullable', 'string', 'in:arranged,self'],
             'day_start_times' => ['nullable', 'array'],
             'day_start_times.*' => ['nullable', 'date_format:H:i'],
             'day_start_travel_minutes' => ['nullable', 'array'],
@@ -1195,6 +1215,7 @@ SVG;
             $validated['daily_start_point_items'] ?? [],
             $validated['daily_start_point_room_ids'] ?? [],
             $validated['daily_start_point_room_counts'] ?? [],
+            $validated['daily_start_hotel_booking_modes'] ?? [],
             $validated['day_start_times'] ?? [],
             $validated['day_start_travel_minutes'] ?? [],
             $validated['day_includes'] ?? [],
@@ -1218,6 +1239,7 @@ SVG;
         unset($validated['daily_start_point_items']);
         unset($validated['daily_start_point_room_ids']);
         unset($validated['daily_start_point_room_counts']);
+        unset($validated['daily_start_hotel_booking_modes']);
         unset($validated['day_start_times']);
         unset($validated['day_start_travel_minutes']);
         unset($validated['day_includes']);
@@ -1632,6 +1654,7 @@ SVG;
         array $startItems,
         array $startRoomIds,
         array $startRoomCounts,
+        array $startHotelBookingModes,
         array $dayStartTimes,
         array $dayStartTravelMinutes,
         array $dayIncludes,
@@ -1696,6 +1719,10 @@ SVG;
             $endItemId = (int) ($endItems[$day] ?? 0);
             $startRoomId = (int) ($startRoomIds[$day] ?? 0);
             $endRoomId = (int) ($endRoomIds[$day] ?? 0);
+            $startHotelBookingMode = (string) ($startHotelBookingModes[$day] ?? 'arranged');
+            if (! in_array($startHotelBookingMode, ['arranged', 'self'], true)) {
+                $startHotelBookingMode = 'arranged';
+            }
             $endHotelBookingMode = (string) ($endHotelBookingModes[$day] ?? 'arranged');
             if (! in_array($endHotelBookingMode, ['arranged', 'self'], true)) {
                 $endHotelBookingMode = 'arranged';
@@ -1734,6 +1761,8 @@ SVG;
                         "daily_start_point_room_ids.{$day}" => "Selected start room on day {$day} does not belong to selected hotel.",
                     ]);
                 }
+            } else {
+                $startHotelBookingMode = null;
             }
             if (in_array($endType, ['hotel', 'airport'], true) && $endItemId <= 0) {
                 throw ValidationException::withMessages([
@@ -1769,6 +1798,34 @@ SVG;
                 }
             }
 
+            $resolvedStartAirportId = null;
+            $resolvedStartHotelId = null;
+            $resolvedStartHotelRoomId = null;
+            $resolvedStartHotelBookingMode = null;
+
+            if ($startType === 'airport') {
+                $resolvedStartAirportId = $startItemId > 0 ? $startItemId : null;
+            } elseif ($startType === 'hotel') {
+                $resolvedStartHotelId = $startItemId > 0 ? $startItemId : null;
+                $resolvedStartHotelRoomId = $startRoomId > 0 ? $startRoomId : null;
+                $resolvedStartHotelBookingMode = $startHotelBookingMode;
+            } elseif ($startType === 'previous_day_end') {
+                $previousDayRow = $rows[$day - 2] ?? null;
+                if (is_array($previousDayRow)) {
+                    $previousEndType = (string) ($previousDayRow['end_point_type'] ?? '');
+                    if ($previousEndType === 'airport') {
+                        $resolvedStartAirportId = (int) ($previousDayRow['end_airport_id'] ?? 0) ?: null;
+                    } elseif ($previousEndType === 'hotel') {
+                        $resolvedStartHotelId = (int) ($previousDayRow['end_hotel_id'] ?? 0) ?: null;
+                        $resolvedStartHotelRoomId = (int) ($previousDayRow['end_hotel_room_id'] ?? 0) ?: null;
+                        $resolvedStartHotelBookingMode = (string) ($previousDayRow['end_hotel_booking_mode'] ?? 'arranged');
+                        if (! in_array($resolvedStartHotelBookingMode, ['arranged', 'self'], true)) {
+                            $resolvedStartHotelBookingMode = 'arranged';
+                        }
+                    }
+                }
+            }
+
             $rows[] = [
                 'day_number' => $day,
                 'day_start_time' => $dayStartTime,
@@ -1780,9 +1837,10 @@ SVG;
                 'main_activity_id' => $mainExperienceType === 'activity' ? $mainExperienceItemId : null,
                 'main_food_beverage_id' => $mainExperienceType === 'fnb' ? $mainExperienceItemId : null,
                 'start_point_type' => $startType,
-                'start_airport_id' => $startType === 'airport' ? $startItemId : null,
-                'start_hotel_id' => $startType === 'hotel' ? $startItemId : null,
-                'start_hotel_room_id' => $startType === 'hotel' ? $startRoomId : null,
+                'start_airport_id' => $resolvedStartAirportId,
+                'start_hotel_id' => $resolvedStartHotelId,
+                'start_hotel_room_id' => $resolvedStartHotelRoomId,
+                'start_hotel_booking_mode' => $resolvedStartHotelBookingMode,
                 'end_point_type' => $endType,
                 'end_airport_id' => $endType === 'airport' ? $endItemId : null,
                 'end_hotel_id' => $endType === 'hotel' ? $endItemId : null,
@@ -1857,6 +1915,7 @@ SVG;
                 'start_airport_id' => $row['start_airport_id'],
                 'start_hotel_id' => $row['start_hotel_id'] ?? null,
                 'start_hotel_room_id' => $row['start_hotel_room_id'] ?? null,
+                'start_hotel_booking_mode' => $row['start_hotel_booking_mode'] ?? null,
                 'end_point_type' => $row['end_point_type'],
                 'end_airport_id' => $row['end_airport_id'],
                 'end_hotel_id' => $row['end_hotel_id'] ?? null,
@@ -1958,7 +2017,7 @@ SVG;
             'itineraryFoodBeverages.foodBeverage:id,name',
             'itineraryTransportUnits:id,itinerary_id,transport_unit_id,day_number',
             'itineraryTransportUnits.transportUnit:id,name',
-            'dayPoints:id,itinerary_id,day_number,day_start_time,day_start_travel_minutes,day_include,day_exclude,start_point_type,start_airport_id,start_hotel_id,start_hotel_room_id,end_point_type,end_airport_id,end_hotel_id,end_hotel_room_id,end_hotel_booking_mode',
+            'dayPoints:id,itinerary_id,day_number,day_start_time,day_start_travel_minutes,day_include,day_exclude,start_point_type,start_airport_id,start_hotel_id,start_hotel_room_id,start_hotel_booking_mode,end_point_type,end_airport_id,end_hotel_id,end_hotel_room_id,end_hotel_booking_mode',
         ]);
 
         return [
@@ -2053,6 +2112,7 @@ SVG;
                     'start_airport_id' => (int) ($row->start_airport_id ?? 0),
                     'start_hotel_id' => (int) ($row->start_hotel_id ?? 0),
                     'start_hotel_room_id' => (int) ($row->start_hotel_room_id ?? 0),
+                    'start_hotel_booking_mode' => (string) ($row->start_hotel_booking_mode ?? ''),
                     'end_point_type' => (string) ($row->end_point_type ?? ''),
                     'end_airport_id' => (int) ($row->end_airport_id ?? 0),
                     'end_hotel_id' => (int) ($row->end_hotel_id ?? 0),

@@ -6,8 +6,20 @@ Use this file for detailed historical records.
 
 ---
 
-Date: 2026-04-06
-Completed in this cycle:
+## Entry Index
+
+1. 2026-04-06
+2. 2026-04-01
+3. 2026-03-30
+4. 2026-03-23
+5. 2026-03-13
+6. 2026-03-17 (Entry 1)
+7. 2026-03-16
+8. 2026-03-17 (Entry 2)
+
+## Entries
+
+## 2026-04-06
 
 - Fixed Activity Log (Audit Trail) on Activity, TouristAttraction, FoodBeverage, and Itinerary models:
   - Root cause: models were using `HasAudit` trait (for `created_by`/`updated_by` only) instead of `LogsActivity` trait (for activity ledger logging).
@@ -85,8 +97,9 @@ Completed in this cycle:
   - passed `php -l app/Http/Controllers/Director/CompanySettingController.php`,
   - passed `php artisan view:cache` after itinerary form layout update.
 
-Date: 2026-04-01
-Completed in this cycle:
+---
+
+## 2026-04-01
 
 - Implemented multi-role quotation approval gate (hard requirement):
   - quotation can be `approved` only after all three are fulfilled:
@@ -139,8 +152,9 @@ Completed in this cycle:
   - passed `php artisan test tests/Feature/Modules/QuotationsGlobalDiscountRoleTest.php tests/Feature/Modules/QuotationsSmokeTest.php` (11 passed),
   - passed `php -l` syntax checks for modified files.
 
-Date: 2026-03-30
-Completed in this cycle:
+---
+
+## 2026-03-30
 
 - Standardized Create/Edit/Detail grid display across modules to follow Itinerary baseline UX:
   - mobile/tablet: stacked layout,
@@ -285,8 +299,9 @@ Completed in this cycle:
 - Added dedicated technical documentation: `ITINERARY_DETAIL_MAP_ARCHITECTURE.md`.
 - Synced references in `PROJECT_KNOWLEDGE_BASE.md` and `ITINERARY_CREATE_EDIT_FLOW.md`.
 
-Date: 2026-03-23
-Completed in this cycle:
+---
+
+## 2026-03-23
 
 - Started Hotels module implementation (admin controller, routes, sidebar, permissions, and base CRUD views).
 - Added Hotels form sections for rooms, images, extra beds, seasonal prices, packages, and promos.
@@ -299,10 +314,9 @@ Completed in this cycle:
 - Vendors form adjusted so Address uses standard `input` control (auto fill from Google Maps URL) for consistency with the map template.
 - Added reusable partial `components/map-standard-section.blade.php` and refactored map-enabled forms to consume a single template include.
 
+---
 
-
-Date: 2026-03-13
-Completed in this cycle:
+## 2026-03-13
 
 - Added per-role dashboards (Administrator, Manager, Marketing, Reservation, Finance, Director, Editor) with Super Admin style.
 - Standardized module permissions to Access + CRUD and added UI enhancements (template role, counters, CRUD badge).
@@ -326,8 +340,9 @@ Completed in this cycle:
 - Tweaked Customers index spacing to align table card with filter column.
 - Added `btn-outline` variant and applied it for neutral import/export actions.
 
-Date: 2026-03-17
-Completed in this cycle:
+---
+
+## 2026-03-17 (Entry 1)
 
 - Enabled soft deletes for core modules (Vendors, Activities, F&B, Accommodations, Airports, Transports, Destinations, Tourist Attractions, Inquiries, Itineraries, Quotations, Customers).
 - Replaced Delete actions with Deactivate/Activate toggle buttons (Deactivate uses grey `btn-muted-sm`).
@@ -391,8 +406,9 @@ Completed in this cycle:
 - Itinerary detail: fixed day control buttons (class hook + btn style toggle) for proper filtering and theme alignment.
 - Itineraries index: added title/destination/duration filters and standardized per-page controls.
 
-Date: 2026-03-16
-Completed in this cycle:
+---
+
+## 2026-03-16
 
 - Itineraries index: destination filter now uses `destination_id` from Destinations module (strict match).
 - Itineraries index: added safe fallback if `destination_id` column is not yet migrated (avoid SQL error).
@@ -433,8 +449,9 @@ Completed in this cycle:
 - Inquiry: Manager/Director can create and assign inquiry to Reservation users.
 - Inquiry policy: update allowed for creator or assigned_to user.
 
-Date: 2026-03-17
-Completed in this cycle:
+---
+
+## 2026-03-17 (Entry 2)
 
 - Services index: added `app-card-grid--services` to use 4-column grid on desktop while keeping global app-card-grid defaults.
 - Services index: removed filter sidebar for a cleaner module overview layout.
@@ -477,11 +494,5 @@ Completed in this cycle:
 
 END OF ROADMAP
 
-
-
-
-
-
-
-
-
+Note:
+- Historical entries preserve original wording and file paths at the time they were logged.

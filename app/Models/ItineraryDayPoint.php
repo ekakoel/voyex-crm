@@ -24,6 +24,7 @@ class ItineraryDayPoint extends Model
         'start_airport_id',
         'start_hotel_id',
         'start_hotel_room_id',
+        'start_hotel_booking_mode',
         'end_point_type',
         'end_airport_id',
         'end_hotel_id',
@@ -86,6 +87,5 @@ class ItineraryDayPoint extends Model
         return $this->belongsTo(FoodBeverage::class, 'main_food_beverage_id');
     }
 }
-
 
 

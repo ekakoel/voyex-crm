@@ -61,6 +61,7 @@
                     const container = mapElement.closest('[data-location-autofill]') || document;
                     const latitudeInput = container.querySelector('[data-location-field="latitude"]');
                     const longitudeInput = container.querySelector('[data-location-field="longitude"]');
+                    const googleMapsUrlInput = container.querySelector('[data-location-field="google_maps_url"]');
                     const hintNode = mapElement.parentElement?.querySelector('[data-hotel-map-hint]') || null;
                     const interactive = mapElement.dataset.hotelMapInteractive === '1' && latitudeInput && longitudeInput;
 
@@ -100,6 +101,7 @@
                         const parsed = Number.parseFloat(String(value));
                         return Number.isFinite(parsed) ? parsed : null;
                     };
+                    const formatCoordinate = (value) => Number(value).toFixed(7);
 
                     const isCoordinateValid = (latitude, longitude) => latitude >= -90 && latitude <= 90 && longitude >= -180 && longitude <= 180;
 
@@ -118,6 +120,40 @@
                     const readLongitude = () => interactive
                         ? String(longitudeInput.value || '').trim()
                         : String(mapElement.dataset.hotelMapLng || '').trim();
+
+                    const syncGoogleMapsUrlFromCoordinates = (latitude, longitude) => {
+                        if (!interactive || !googleMapsUrlInput || !isCoordinateValid(latitude, longitude)) {
+                            return;
+                        }
+
+                        googleMapsUrlInput.value = `https://maps.google.com/?q=${formatCoordinate(latitude)},${formatCoordinate(longitude)}`;
+                    };
+
+                    const updateCoordinateInputs = (latitude, longitude) => {
+                        if (!interactive) {
+                            return;
+                        }
+
+                        latitudeInput.value = formatCoordinate(latitude);
+                        longitudeInput.value = formatCoordinate(longitude);
+                        latitudeInput.dispatchEvent(new Event('input', { bubbles: true }));
+                        longitudeInput.dispatchEvent(new Event('input', { bubbles: true }));
+                    };
+
+                    const bindMarkerDragEnd = () => {
+                        if (!interactive || !marker || marker.__hotelMapDragBound) {
+                            return;
+                        }
+
+                        marker.on('dragend', () => {
+                            const latLng = marker.getLatLng();
+                            updateCoordinateInputs(latLng.lat, latLng.lng);
+                            syncGoogleMapsUrlFromCoordinates(latLng.lat, latLng.lng);
+                            setHint('Marker dipindahkan. Koordinat berhasil diperbarui.', 'success');
+                        });
+
+                        marker.__hotelMapDragBound = true;
+                    };
 
                     const syncMapMarker = () => {
                         const rawLatitude = readLatitude();
@@ -143,12 +179,24 @@
 
                         const latLng = [latitude, longitude];
                         if (!marker) {
-                            marker = L.marker(latLng, { icon: hotelIcon }).addTo(map);
+                            marker = L.marker(latLng, {
+                                icon: hotelIcon,
+                                draggable: interactive,
+                            }).addTo(map);
+                            bindMarkerDragEnd();
                         } else {
                             marker.setLatLng(latLng);
+                            if (marker.dragging) {
+                                if (interactive) {
+                                    marker.dragging.enable();
+                                } else {
+                                    marker.dragging.disable();
+                                }
+                            }
                         }
 
                         map.setView(latLng, 15);
+                        syncGoogleMapsUrlFromCoordinates(latitude, longitude);
                         setHint('Lokasi hotel berhasil ditampilkan pada map.', 'success');
                     };
 
@@ -162,10 +210,8 @@
                         bindCoordinateEvents(longitudeInput);
 
                         map.on('click', (event) => {
-                            latitudeInput.value = event.latlng.lat.toFixed(7);
-                            longitudeInput.value = event.latlng.lng.toFixed(7);
-                            latitudeInput.dispatchEvent(new Event('input', { bubbles: true }));
-                            longitudeInput.dispatchEvent(new Event('input', { bubbles: true }));
+                            updateCoordinateInputs(event.latlng.lat, event.latlng.lng);
+                            syncGoogleMapsUrlFromCoordinates(event.latlng.lat, event.latlng.lng);
                         });
                     }
 
@@ -181,4 +227,3 @@
         </script>
     @endpush
 @endonce
-

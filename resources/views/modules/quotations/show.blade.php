@@ -302,26 +302,16 @@
                     </dl>
 
                     <div class="grid grid-cols-1 gap-2">
-                        <div class="flex items-center justify-between rounded-md border px-3 py-2 text-xs {{ ($approvalProgress['reservation_other_approved'] ?? false) ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300' : 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-300' }}">
+                        <div class="flex items-center justify-between rounded-md border px-3 py-2 text-xs {{ ($approvalProgress['is_ready'] ?? false) ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300' : 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-300' }}">
                             <span class="inline-flex items-center gap-2">
-                                <span class="inline-flex rounded-full border border-current px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide">Step 1</span>
-                                <span>Reservation Approval (Non-Creator)</span>
+                                <span class="inline-flex rounded-full border border-current px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide">Rule</span>
+                                <span>Minimum 2 non-creator approvals</span>
                             </span>
-                            <span>{{ ($approvalProgress['reservation_count'] ?? 0) >= 1 ? 'Done' : 'Pending' }}</span>
+                            <span>{{ (int) ($approvalProgress['non_creator_approval_count'] ?? 0) }}/{{ (int) ($approvalProgress['required_non_creator_approvals'] ?? 2) }}</span>
                         </div>
-                        <div class="flex items-center justify-between rounded-md border px-3 py-2 text-xs {{ ($approvalProgress['manager_approved'] ?? false) ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300' : 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-300' }}">
-                            <span class="inline-flex items-center gap-2">
-                                <span class="inline-flex rounded-full border border-current px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide">Step 2</span>
-                                <span>Manager Approval</span>
-                            </span>
-                            <span>{{ ($approvalProgress['manager_approved'] ?? false) ? 'Done' : 'Pending' }}</span>
-                        </div>
-                        <div class="flex items-center justify-between rounded-md border px-3 py-2 text-xs {{ ($approvalProgress['director_approved'] ?? false) ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300' : 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-300' }}">
-                            <span class="inline-flex items-center gap-2">
-                                <span class="inline-flex rounded-full border border-current px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide">Step 3</span>
-                                <span>Director Approval</span>
-                            </span>
-                            <span>{{ ($approvalProgress['director_approved'] ?? false) ? 'Done' : 'Pending' }}</span>
+                        <div class="flex items-center justify-between rounded-md border px-3 py-2 text-xs {{ ((int) ($approvalProgress['remaining_non_creator_approvals'] ?? 0) === 0) ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300' : 'border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-700 dark:bg-sky-900/20 dark:text-sky-300' }}">
+                            <span>Remaining approvals</span>
+                            <span>{{ (int) ($approvalProgress['remaining_non_creator_approvals'] ?? 0) }}</span>
                         </div>
                     </div>
 
@@ -362,16 +352,12 @@
                                 $alreadyApprovedByUser = $authUser
                                     ? $quotation->approvals->contains(fn ($a) => (int) ($a->user_id ?? 0) === (int) $authUser->id)
                                     : false;
+                                $requiredApprovals = (int) ($approvalProgress['required_non_creator_approvals'] ?? 2);
+                                $nonCreatorApprovalCount = (int) ($approvalProgress['non_creator_approval_count'] ?? 0);
                                 $canApproveByRole = false;
                                 if (!$isCreator && !$alreadyApprovedByUser && $authUser) {
-                                    if ($authUser->hasRole('Reservation')) {
-                                        $canApproveByRole = true;
-                                    } elseif ($authUser->hasRole('Manager')) {
-                                        $canApproveByRole = (bool) ($approvalProgress['reservation_other_approved'] ?? false);
-                                    } elseif ($authUser->hasRole('Director')) {
-                                        $canApproveByRole = (bool) ($approvalProgress['reservation_other_approved'] ?? false)
-                                            && (bool) ($approvalProgress['manager_approved'] ?? false);
-                                    }
+                                    $canApproveByRole = $authUser->hasAnyRole(['Director', 'Manager', 'Reservation'])
+                                        && $nonCreatorApprovalCount < $requiredApprovals;
                                 }
                             @endphp
                             <div class="flex flex-wrap items-center gap-2">
@@ -399,7 +385,7 @@
                                     @if ($alreadyApprovedByUser)
                                         Anda sudah melakukan approval pada quotation ini.
                                     @else
-                                        Approval belum dapat dilakukan. Urutan wajib: Reservation (non-creator) -> Manager -> Director.
+                                        Approval tidak tersedia karena kuorum sudah terpenuhi atau Anda bukan approver yang valid.
                                     @endif
                                 </p>
                             @endif
@@ -446,7 +432,6 @@
                         <p class="text-xs text-gray-600 dark:text-gray-300">Detailed create/update audit log for this quotation.</p>
                     </div>
                     <x-activity-timeline :activities="$activities" />
-                    <div>{{ $activities->links() }}</div>
                 </div>
 
             </aside>

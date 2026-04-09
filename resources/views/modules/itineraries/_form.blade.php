@@ -111,6 +111,7 @@
         ->values();
     $dailyEndPointTypes = old('daily_end_point_types');
     $dailyEndPointItems = old('daily_end_point_items');
+    $dailyStartHotelBookingModes = old('daily_start_hotel_booking_modes');
     $dailyEndHotelBookingModes = old('daily_end_hotel_booking_modes');
     $dailyStartPointRoomIds = old('daily_start_point_room_ids');
     $dailyEndPointRoomIds = old('daily_end_point_room_ids');
@@ -150,6 +151,9 @@
     }
     if (!is_array($dailyEndHotelBookingModes)) {
         $dailyEndHotelBookingModes = [];
+    }
+    if (!is_array($dailyStartHotelBookingModes)) {
+        $dailyStartHotelBookingModes = [];
     }
     if (!is_array($dailyStartPointRoomIds)) {
         $dailyStartPointRoomIds = [];
@@ -199,6 +203,7 @@
                         ? $dayPoint->start_airport_id ?? ''
                         : $dayPoint->start_hotel_id ?? '');
                 $dailyStartPointRoomIds[$day] = (string) ($dayPoint->start_hotel_room_id ?? '');
+                $dailyStartHotelBookingModes[$day] = (string) ($dayPoint->start_hotel_booking_mode ?? 'arranged');
             }
         }
         for ($day = 1; $day <= $durationDays; $day++) {
@@ -470,6 +475,10 @@
                         );
                         $startItem = (string) ($dailyStartPointItems[$day] ?? '');
                         $startRoomId = (string) ($dailyStartPointRoomIds[$day] ?? '');
+                        $startHotelBookingMode = (string) ($dailyStartHotelBookingModes[$day] ?? 'arranged');
+                        if (!in_array($startHotelBookingMode, ['arranged', 'self'], true)) {
+                            $startHotelBookingMode = 'arranged';
+                        }
                         $endType = $normalizePointType($dailyEndPointTypes[$day] ?? '', 'hotel');
                         $endItem = (string) ($dailyEndPointItems[$day] ?? '');
                         $endRoomId = (string) ($dailyEndPointRoomIds[$day] ?? '');
@@ -557,7 +566,7 @@
                                 <span>Day {{ $day }} Start Point</span>
                             </label>
                             <div class="mb-3 flex flex-col gap-2 md:flex-row">
-                                <div class="md:w-1/3">
+                                <div class="md:w-1/4">
                                     <select name="daily_start_point_types[{{ $day }}]"
                                         class="day-start-point-type dark:border-gray-600 app-input" required>
                                         @if ($day !== 1)
@@ -568,7 +577,7 @@
                                         <option value="airport" @selected($startType === 'airport')>Airport</option>
                                     </select>
                                 </div>
-                                <div class="md:w-1/3">
+                                <div class="md:w-1/4">
                                     <select name="daily_start_point_items[{{ $day }}]"
                                         class="day-start-point-item dark:border-gray-600 app-input">
                                         <option value="">Select start point item</option>
@@ -598,7 +607,7 @@
                                         @endforeach
                                     </select>
                                 </div>
-                                <div class="day-start-room-wrap {{ $startType === 'hotel' ? '' : 'hidden' }} md:w-1/3">
+                                <div class="day-start-room-wrap {{ $startType === 'hotel' ? '' : 'hidden' }} md:w-1/4">
                                     <select name="daily_start_point_room_ids[{{ $day }}]"
                                         class="day-start-room-select dark:border-gray-600 app-input"
                                         {{ $startType === 'hotel' ? '' : 'disabled' }}>
@@ -613,6 +622,14 @@
                                                 </option>
                                             @endforeach
                                         @endforeach
+                                    </select>
+                                </div>
+                                <div class="day-start-booking-wrap {{ $startType === 'hotel' ? '' : 'hidden' }} md:w-1/4">
+                                    <select name="daily_start_hotel_booking_modes[{{ $day }}]"
+                                        class="day-start-booking-mode dark:border-gray-600 app-input"
+                                        {{ $startType === 'hotel' ? '' : 'disabled' }}>
+                                        <option value="arranged" @selected($startHotelBookingMode === 'arranged')>Hotel arranged by us</option>
+                                        <option value="self" @selected($startHotelBookingMode === 'self')>Self-booked hotel</option>
                                     </select>
                                 </div>
                             </div>
@@ -963,6 +980,9 @@
             <p class="text-xs text-rose-600">{{ $message }}</p>
         @enderror
         @error('daily_main_experience_items.*')
+            <p class="text-xs text-rose-600">{{ $message }}</p>
+        @enderror
+        @error('daily_start_hotel_booking_modes.*')
             <p class="text-xs text-rose-600">{{ $message }}</p>
         @enderror
         @error('daily_end_hotel_booking_modes.*')
@@ -2023,6 +2043,7 @@
                         const startType = section.querySelector('.day-start-point-type');
                         const startItem = section.querySelector('.day-start-point-item');
                         const startRoomSelect = section.querySelector('.day-start-room-select');
+                        const startBookingSelect = section.querySelector('.day-start-booking-mode');
                         const startRoom = section.querySelector('.day-start-room-count');
                         const endType = section.querySelector('.day-end-point-type');
                         const endItem = section.querySelector('.day-end-point-item');
@@ -2041,6 +2062,8 @@
                         if (startType) startType.name = `daily_start_point_types[${day}]`;
                         if (startItem) startItem.name = `daily_start_point_items[${day}]`;
                         if (startRoomSelect) startRoomSelect.name = `daily_start_point_room_ids[${day}]`;
+                        if (startBookingSelect) startBookingSelect.name =
+                            `daily_start_hotel_booking_modes[${day}]`;
                         if (startRoom) startRoom.name = `daily_start_point_room_counts[${day}]`;
                         if (endType) endType.name = `daily_end_point_types[${day}]`;
                         if (endItem) endItem.name = `daily_end_point_items[${day}]`;
@@ -2215,6 +2238,8 @@
                         const startItem = section.querySelector('.day-start-point-item');
                         const startRoomWrap = section.querySelector('.day-start-room-wrap');
                         const startRoomSelect = section.querySelector('.day-start-room-select');
+                        const startBookingWrap = section.querySelector('.day-start-booking-wrap');
+                        const startBookingSelect = section.querySelector('.day-start-booking-mode');
                         const startRoomInput = section.querySelector('.day-start-room-count');
                         const endType = section.querySelector('.day-end-point-type');
                         const endItem = section.querySelector('.day-end-point-item');
@@ -2300,6 +2325,7 @@
 
                         const startHotel = isHotelPointType(startType?.value || '');
                         if (startRoomWrap) startRoomWrap.classList.toggle('hidden', !startHotel);
+                        if (startBookingWrap) startBookingWrap.classList.toggle('hidden', !startHotel);
                         if (startRoomSelect) {
                             const selectedHotelId = String(startItem?.value || '');
                             Array.from(startRoomSelect.options).forEach((option, idx) => {
@@ -2325,6 +2351,15 @@
                         if (startRoomInput) {
                             startRoomInput.disabled = !startHotel;
                             if (!startHotel) startRoomInput.value = '1';
+                        }
+                        if (startBookingSelect) {
+                            startBookingSelect.disabled = !startHotel;
+                            startBookingSelect.required = startHotel;
+                            if (!startHotel) {
+                                startBookingSelect.value = 'arranged';
+                            } else if (!['arranged', 'self'].includes(String(startBookingSelect.value || ''))) {
+                                startBookingSelect.value = 'arranged';
+                            }
                         }
 
                         const endHotel = isHotelPointType(endType?.value || '');
@@ -2644,6 +2679,8 @@
                     sec.querySelector('.day-start-point-item')?.addEventListener('change', syncPointItemVisibility);
                     sec.querySelector('.day-start-room-select')?.addEventListener('change',
                         recalcNoConnectorRebuild);
+                    sec.querySelector('.day-start-booking-mode')?.addEventListener('change',
+                        recalcNoConnectorRebuild);
                     sec.querySelector('.day-start-room-count')?.addEventListener('input', recalcNoConnectorRebuild);
                     sec.querySelector('.day-end-point-type')?.addEventListener('change', () => {
                         updateDayPointTheme(sec);
@@ -2713,12 +2750,20 @@
                             }
                             const dayStartRoomInput = c.querySelector('.day-start-room-count');
                             const dayStartRoomWrap = c.querySelector('.day-start-room-wrap');
+                            const dayStartBookingSelect = c.querySelector('.day-start-booking-mode');
+                            const dayStartBookingWrap = c.querySelector('.day-start-booking-wrap');
                             if (dayStartRoomInput) {
                                 dayStartRoomInput.name = `daily_start_point_room_counts[${i}]`;
                                 dayStartRoomInput.value = '1';
                                 dayStartRoomInput.disabled = true;
                             }
+                            if (dayStartBookingSelect) {
+                                dayStartBookingSelect.name = `daily_start_hotel_booking_modes[${i}]`;
+                                dayStartBookingSelect.value = 'arranged';
+                                dayStartBookingSelect.disabled = true;
+                            }
                             dayStartRoomWrap?.classList.add('hidden');
+                            dayStartBookingWrap?.classList.add('hidden');
                             const dayEndPointType = c.querySelector('.day-end-point-type');
                             if (dayEndPointType) {
                                 dayEndPointType.name = `daily_end_point_types[${i}]`;
@@ -2824,6 +2869,8 @@
                             c.querySelector('.day-start-point-item')?.addEventListener('change',
                                 syncPointItemVisibility);
                             c.querySelector('.day-start-room-select')?.addEventListener('change',
+                                recalcNoConnectorRebuild);
+                            c.querySelector('.day-start-booking-mode')?.addEventListener('change',
                                 recalcNoConnectorRebuild);
                             c.querySelector('.day-start-room-count')?.addEventListener('input',
                                 recalcNoConnectorRebuild);

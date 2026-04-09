@@ -135,7 +135,6 @@
                         <p class="text-sm text-gray-600 dark:text-gray-300">Tracking all changes for this inquiry.</p>
                     </div>
                     <x-activity-timeline :activities="$activities" />
-                    <div>{{ $activities->links() }}</div>
                 </div>
             </div>
 

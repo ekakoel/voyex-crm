@@ -54,11 +54,10 @@
     <table>
             <thead>
             <tr>
-                <th style="width: 45%">Description</th>
+                <th style="width: 50%">Description</th>
                 <th style="width: 10%">Qty</th>
-                <th style="width: 15%">Unit Price</th>
-                <th style="width: 15%">Discount</th>
-                <th style="width: 15%">Total</th>
+                <th style="width: 20%">Unit Price</th>
+                <th style="width: 20%">Total</th>
             </tr>
             </thead>
             <tbody>
@@ -67,23 +66,23 @@
                     $meta = is_array($item->serviceable_meta ?? null) ? $item->serviceable_meta : [];
                     $paxType = strtolower((string) ($meta['pax_type'] ?? ''));
                     $paxSuffix = $paxType === 'adult' ? ' [Adult Publish Rate]' : ($paxType === 'child' ? ' [Child Publish Rate]' : '');
+                    $qty = max(0, (int) ($item->qty ?? 0));
+                    $lineTotal = (float) ($item->total ?? 0);
+                    $itemDiscount = (float) ($item->discount ?? 0);
+                    $displayUnitPrice = (float) ($item->unit_price ?? 0);
+                    if ($itemDiscount > 0) {
+                        $displayUnitPrice = $qty > 0 ? ($lineTotal / $qty) : $lineTotal;
+                    }
                 @endphp
                 <tr>
                     <td>{{ $item->description }}{{ $paxSuffix }}</td>
-                    <td class="right">{{ $item->qty }}</td>
-                    <td class="right"><x-money :amount="$item->unit_price" currency="IDR" /></td>
-                    <td class="right">
-                        @if (($item->discount_type ?? 'fixed') === 'percent')
-                            {{ number_format($item->discount ?? 0, 0, ',', '.') }}%
-                        @else
-                            <x-money :amount="$item->discount ?? 0" currency="IDR" />
-                        @endif
-                    </td>
-                    <td class="right"><x-money :amount="$item->total ?? 0" currency="IDR" /></td>
+                    <td class="right">{{ $qty }}</td>
+                    <td class="right"><x-money :amount="$displayUnitPrice" currency="IDR" /></td>
+                    <td class="right"><x-money :amount="$lineTotal" currency="IDR" /></td>
                 </tr>
             @empty
                 <tr>
-                    <td colspan="5" class="muted">No items available.</td>
+                    <td colspan="4" class="muted">No items available.</td>
                 </tr>
             @endforelse
             </tbody>

@@ -130,7 +130,7 @@ class LocationResolver
             }
 
             $address = (array) ($response->json('address') ?? []);
-            $city = trim((string) ($address['city'] ?? $address['town'] ?? $address['village'] ?? $address['county'] ?? ''));
+            $city = $this->resolveCityRegion($address);
             $province = trim((string) ($address['state'] ?? $address['region'] ?? $address['state_district'] ?? ''));
             $country = trim((string) ($address['country'] ?? ''));
             $road = trim((string) ($address['road'] ?? ''));
@@ -152,6 +152,34 @@ class LocationResolver
         } catch (\Throwable $e) {
             return [];
         }
+    }
+
+    private function resolveCityRegion(array $address): string
+    {
+        $city = $this->firstAddressValue($address, ['city', 'town', 'municipality']);
+        if ($city !== '') {
+            return $city;
+        }
+
+        // Fallback ke wilayah tingkat kabupaten/regency jika nama kota tidak tersedia.
+        $region = $this->firstAddressValue($address, ['county', 'city_district', 'district']);
+        if ($region !== '') {
+            return $region;
+        }
+
+        return $this->firstAddressValue($address, ['village', 'suburb', 'neighbourhood']);
+    }
+
+    private function firstAddressValue(array $address, array $keys): string
+    {
+        foreach ($keys as $key) {
+            $value = trim((string) ($address[$key] ?? ''));
+            if ($value !== '') {
+                return $value;
+            }
+        }
+
+        return '';
     }
 
     public function resolveTimezone(float $latitude, float $longitude): ?string

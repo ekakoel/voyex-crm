@@ -45,14 +45,6 @@ class DashboardController extends Controller
             ->join('inquiries', 'quotations.inquiry_id', '=', 'inquiries.id')
             ->whereIn('inquiries.assigned_to', $teamIds);
 
-        $hasReservationOtherApproval = function (Builder $query): void {
-            $query->where('approval_role', 'reservation')
-                ->where(function (Builder $inner): void {
-                    $inner->whereNull('quotations.created_by')
-                        ->orWhereColumn('quotation_approvals.user_id', '<>', 'quotations.created_by');
-                });
-        };
-
         $excludeCreatorScope = function (Builder $query) use ($user): void {
             if (! Schema::hasColumn('quotations', 'created_by')) {
                 return;
@@ -106,25 +98,29 @@ class DashboardController extends Controller
             ? (clone $teamQuotationQuery)->where('status', 'pending')
             : Quotation::query()->whereRaw('1 = 0');
 
+        $nonCreatorApprovalCountSql = Schema::hasColumn('quotations', 'created_by')
+            ? '(SELECT COUNT(*) FROM quotation_approvals qa'
+                .' WHERE qa.quotation_id = quotations.id'
+                .' AND (quotations.created_by IS NULL OR qa.user_id <> quotations.created_by))'
+            : '(SELECT COUNT(*) FROM quotation_approvals qa WHERE qa.quotation_id = quotations.id)';
+
         $needsReservationApprovalCount = $canQuotations
             ? (clone $teamPendingQuotations)
-                ->whereDoesntHave('approvals', $hasReservationOtherApproval)
+                ->whereRaw("{$nonCreatorApprovalCountSql} = 0")
                 ->count()
             : 0;
 
         $needsManagerApprovalCount = $canQuotations
             ? (clone $teamPendingQuotations)
-                ->whereHas('approvals', $hasReservationOtherApproval)
-                ->whereDoesntHave('approvals', fn (Builder $q) => $q->where('approval_role', 'manager'))
                 ->where($excludeCreatorScope)
+                ->whereDoesntHave('approvals', fn (Builder $q) => $q->where('user_id', (int) ($user?->id ?? 0)))
+                ->whereRaw("{$nonCreatorApprovalCountSql} < 2")
                 ->count()
             : 0;
 
         $needsDirectorApprovalCount = $canQuotations
             ? (clone $teamPendingQuotations)
-                ->whereHas('approvals', $hasReservationOtherApproval)
-                ->whereHas('approvals', fn (Builder $q) => $q->where('approval_role', 'manager'))
-                ->whereDoesntHave('approvals', fn (Builder $q) => $q->where('approval_role', 'director'))
+                ->whereRaw("{$nonCreatorApprovalCountSql} = 1")
                 ->count()
             : 0;
 
@@ -219,9 +215,9 @@ class DashboardController extends Controller
 
         $managerApprovalQueue = $canQuotations
             ? (clone $teamPendingQuotations)
-                ->whereHas('approvals', $hasReservationOtherApproval)
-                ->whereDoesntHave('approvals', fn (Builder $q) => $q->where('approval_role', 'manager'))
                 ->where($excludeCreatorScope)
+                ->whereDoesntHave('approvals', fn (Builder $q) => $q->where('user_id', (int) ($user?->id ?? 0)))
+                ->whereRaw("{$nonCreatorApprovalCountSql} < 2")
                 ->with('inquiry.customer:id,name')
                 ->orderByRaw('validity_date IS NULL, validity_date ASC')
                 ->latest('id')

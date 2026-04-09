@@ -77,7 +77,7 @@
 
     <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">City</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">City/Region</label>
             <input name="{{ $cityName }}" data-location-field="city" value="{{ $cityValue }}" class="mt-1 app-input">
         </div>
         <div>

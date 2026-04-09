@@ -22,7 +22,7 @@
 <div class="sa-wrap rounded-3xl border border-slate-200/80 bg-slate-100/70 p-3 dark:border-slate-700 dark:bg-slate-900/60">
     @if(($needsManagerApprovalCount ?? 0) > 0)
         <div class="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-300">
-            {{ number_format((int) $needsManagerApprovalCount) }} quotation(s) are waiting for your manager approval.
+            {{ number_format((int) $needsManagerApprovalCount) }} quotation(s) are waiting for your approval.
         </div>
     @endif
 
@@ -41,19 +41,19 @@
                         </div>
                         <div class="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3 text-xs">
                             <div class="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900">
-                                <p class="text-slate-500 dark:text-slate-400">Step 1: Reservation</p>
+                                <p class="text-slate-500 dark:text-slate-400">Step 1: First Approval</p>
                                 <p class="mt-1 text-lg font-semibold text-slate-800 dark:text-slate-100">{{ number_format((int) ($needsReservationApprovalCount ?? 0)) }}</p>
-                                <p class="text-slate-500 dark:text-slate-400">Need reservation review</p>
+                                <p class="text-slate-500 dark:text-slate-400">No non-creator approval yet</p>
                             </div>
                             <div class="rounded-xl border border-amber-200 bg-amber-50 p-3 dark:border-amber-700 dark:bg-amber-900/20">
-                                <p class="text-amber-700 dark:text-amber-300">Step 2: Manager</p>
+                                <p class="text-amber-700 dark:text-amber-300">My Approval Queue</p>
                                 <p class="mt-1 text-lg font-semibold text-amber-800 dark:text-amber-200">{{ number_format((int) ($needsManagerApprovalCount ?? 0)) }}</p>
                                 <p class="text-amber-700 dark:text-amber-300">Need your approval</p>
                             </div>
                             <div class="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900">
-                                <p class="text-slate-500 dark:text-slate-400">Step 3: Director</p>
+                                <p class="text-slate-500 dark:text-slate-400">Step 2: Final Approval</p>
                                 <p class="mt-1 text-lg font-semibold text-slate-800 dark:text-slate-100">{{ number_format((int) ($needsDirectorApprovalCount ?? 0)) }}</p>
-                                <p class="text-slate-500 dark:text-slate-400">Ready for director</p>
+                                <p class="text-slate-500 dark:text-slate-400">Already has 1 non-creator approval</p>
                             </div>
                         </div>
                     </div>
@@ -216,3 +216,4 @@
     })();
 </script>
 @endpush
+

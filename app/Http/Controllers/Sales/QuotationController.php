@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Sales;
 
 use PDF;
+use App\Http\Controllers\Concerns\HandlesActivityTimelineAjax;
 use App\Models\Activity;
 use App\Models\FoodBeverage;
 use App\Models\HotelRoom;
@@ -16,16 +17,22 @@ use App\Models\TransportUnit;
 use App\Services\ActivityAuditLogger;
 use App\Services\ItineraryQuotationService;
 use App\Services\InvoiceService;
+use App\Support\ImageThumbnailGenerator;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Str;
+use Illuminate\Support\Facades\File;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 
 class QuotationController extends Controller
 {
+    use HandlesActivityTimelineAjax;
+
     public function __construct(
         private readonly InvoiceService $invoiceService,
         private readonly ItineraryQuotationService $itineraryQuotationService,
@@ -242,7 +249,7 @@ class QuotationController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(string $id)
+    public function show(Request $request, string $id)
     {
         $quotation = Quotation::query()->findOrFail($id);
         $quotation->load([
@@ -264,7 +271,12 @@ class QuotationController extends Controller
         $activities = $quotation->activities()
             ->with('user:id,name')
             ->latest()
-            ->paginate(5, ['*'], 'activity_page');
+            ->paginate(5, ['*'], 'activity_page')
+            ->withQueryString();
+
+        if ($this->wantsActivityTimelineFragment($request)) {
+            return $this->activityTimelineFragmentResponse($activities);
+        }
 
         return view('modules.quotations.show', compact('quotation', 'approvalProgress', 'activities'));
     }
@@ -273,7 +285,7 @@ class QuotationController extends Controller
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit(string $id)
+    public function edit(Request $request, string $id)
     {
         $quotation = Quotation::query()->findOrFail($id);
         if ($quotation->isFinal()) {
@@ -305,7 +317,12 @@ class QuotationController extends Controller
         $activities = $quotation->activities()
             ->with('user:id,name')
             ->latest()
-            ->paginate(5, ['*'], 'activity_page');
+            ->paginate(5, ['*'], 'activity_page')
+            ->withQueryString();
+
+        if ($this->wantsActivityTimelineFragment($request)) {
+            return $this->activityTimelineFragmentResponse($activities);
+        }
 
         return view('modules.quotations.edit', compact('quotation', 'itineraries', 'approvalProgress', 'activities'));
     }
@@ -623,8 +640,18 @@ class QuotationController extends Controller
         }
 
         $quotation->load(['inquiry.customer', 'items', 'itinerary']);
-        $pdf = PDF::loadView('pdf.quotation', compact('quotation'));
-        return $pdf->stream('quotation.pdf');
+        if ($quotation->itinerary) {
+            $itineraryPdfPayload = $this->buildItineraryPdfPayload($quotation->itinerary);
+            $pdf = PDF::loadView('pdf.quotation_with_itinerary', array_merge(
+                ['quotation' => $quotation],
+                $itineraryPdfPayload
+            ))->setPaper('a4', 'portrait');
+
+            return $pdf->stream('quotation-' . Str::slug((string) ($quotation->quotation_number ?: 'document')) . '.pdf');
+        }
+
+        $pdf = PDF::loadView('pdf.quotation', compact('quotation'))->setPaper('a4', 'portrait');
+        return $pdf->stream('quotation-' . Str::slug((string) ($quotation->quotation_number ?: 'document')) . '.pdf');
     }
 
     public function exportCsv()
@@ -671,6 +698,419 @@ class QuotationController extends Controller
         ]);
     }
 
+    private function buildItineraryPdfPayload(Itinerary $itinerary): array
+    {
+        $itinerary->load([
+            'touristAttractions:id,name,location,latitude,longitude,description,gallery_images',
+            'itineraryActivities.activity:id,vendor_id,name,activity_type,duration_minutes,adult_publish_rate,child_publish_rate,notes,includes,excludes,gallery_images',
+            'itineraryActivities.activity.vendor:id,name,location,city,province,latitude,longitude',
+            'itineraryFoodBeverages.foodBeverage:id,vendor_id,name,service_type,duration_minutes,publish_rate,meal_period,notes,menu_highlights,gallery_images',
+            'itineraryFoodBeverages.foodBeverage.vendor:id,name,location,city,province,latitude,longitude',
+            'itineraryTransportUnits.transportUnit:id,name,brand_model,seat_capacity,luggage_capacity,air_conditioned,with_driver,images',
+            'itineraryTransportUnits.transportUnit.transport:id,name,transport_type',
+            'dayPoints',
+            'dayPoints.startAirport:id,name,location,city,province',
+            'dayPoints.startHotel:id,name,address,city,province',
+            'dayPoints.startHotelRoom:id,hotels_id,rooms,view,cover',
+            'dayPoints.endAirport:id,name,location,city,province',
+            'dayPoints.endHotel:id,name,address,city,province',
+            'dayPoints.endHotelRoom:id,hotels_id,rooms,view,cover',
+            'inquiry:id,inquiry_number,customer_id,status,priority,source,deadline,notes',
+            'inquiry.customer:id,name,code',
+        ]);
+
+        $scheduleByDay = [];
+        $dayPointByDay = $itinerary->dayPoints->keyBy(fn ($point) => (int) $point->day_number);
+        $transportUnitByDay = $itinerary->itineraryTransportUnits->keyBy(fn ($item) => (int) $item->day_number);
+        $toMinutes = static function (?string $time): ?int {
+            $value = substr((string) $time, 0, 5);
+            if (! preg_match('/^\d{2}:\d{2}$/', $value)) {
+                return null;
+            }
+
+            return ((int) substr($value, 0, 2) * 60) + (int) substr($value, 3, 2);
+        };
+        $fromMinutes = static function (?int $minutes): ?string {
+            if (! is_int($minutes)) {
+                return null;
+            }
+            $normalized = max(0, $minutes);
+            $hours = (int) floor($normalized / 60);
+            $mins = $normalized % 60;
+
+            return str_pad((string) $hours, 2, '0', STR_PAD_LEFT) . ':' . str_pad((string) $mins, 2, '0', STR_PAD_LEFT);
+        };
+        $resolvePoint = function ($dayPoint, string $scope, array $previousEnd = ['name' => 'Not set', 'location' => '-', 'type' => 'Unknown', 'thumbnail_data_uri' => null]): array {
+            if (! $dayPoint) {
+                return $scope === 'start'
+                    ? array_merge($previousEnd, ['label' => $previousEnd['label'] ?? ($previousEnd['name'] ?? 'Not set')])
+                    : ['name' => 'Not set', 'location' => '-', 'type' => 'Unknown', 'label' => 'Not set', 'thumbnail_data_uri' => null];
+            }
+            if ($scope === 'start') {
+                $type = (string) ($dayPoint->start_point_type ?? '');
+                if ($type === 'previous_day_end') {
+                    return $previousEnd;
+                }
+                if ($type === 'airport') {
+                    return [
+                        'name' => (string) ($dayPoint->startAirport?->name ?? 'Not set'),
+                        'location' => (string) ($dayPoint->startAirport?->location ?? '-'),
+                        'type' => 'Airport',
+                        'label' => (string) ($dayPoint->startAirport?->name ?? 'Not set'),
+                        'thumbnail_data_uri' => null,
+                    ];
+                }
+                if ($type === 'hotel') {
+                    $hotelName = (string) ($dayPoint->startHotel?->name ?? 'Not set');
+                    $roomName = (string) ($dayPoint->startHotelRoom?->rooms ?? '');
+                    $label = $roomName !== ''
+                        ? ($hotelName . ' - ' . $roomName)
+                        : $hotelName;
+
+                    return [
+                        'name' => $label,
+                        'location' => (string) ($dayPoint->startHotel?->address ?? '-'),
+                        'type' => 'Hotel',
+                        'label' => $label,
+                        'thumbnail_data_uri' => $this->resolveHotelRoomCoverDataUri($dayPoint->startHotelRoom?->cover),
+                    ];
+                }
+
+                return ['name' => 'Not set', 'location' => '-', 'type' => 'Unknown', 'label' => 'Not set', 'thumbnail_data_uri' => null];
+            }
+
+            $type = (string) ($dayPoint->end_point_type ?? '');
+            if ($type === 'airport') {
+                return [
+                    'name' => (string) ($dayPoint->endAirport?->name ?? 'Not set'),
+                    'location' => (string) ($dayPoint->endAirport?->location ?? '-'),
+                    'type' => 'Airport',
+                    'label' => (string) ($dayPoint->endAirport?->name ?? 'Not set'),
+                    'thumbnail_data_uri' => null,
+                ];
+            }
+            if ($type === 'hotel') {
+                $hotelName = (string) ($dayPoint->endHotel?->name ?? 'Not set');
+                $roomName = (string) ($dayPoint->endHotelRoom?->rooms ?? '');
+                $label = $roomName !== ''
+                    ? ($hotelName . ' - ' . $roomName)
+                    : $hotelName;
+
+                return [
+                    'name' => $label,
+                    'location' => (string) ($dayPoint->endHotel?->address ?? '-'),
+                    'type' => 'Hotel',
+                    'label' => $label,
+                    'thumbnail_data_uri' => $this->resolveHotelRoomCoverDataUri($dayPoint->endHotelRoom?->cover),
+                ];
+            }
+
+            return ['name' => 'Not set', 'location' => '-', 'type' => 'Unknown', 'label' => 'Not set', 'thumbnail_data_uri' => null];
+        };
+        $previousEndPoint = ['name' => 'Not set', 'location' => '-', 'type' => 'Unknown', 'label' => 'Not set', 'thumbnail_data_uri' => null];
+        for ($day = 1; $day <= (int) $itinerary->duration_days; $day++) {
+            $dayPoint = $dayPointByDay[$day] ?? null;
+            $mainExperienceType = (string) ($dayPoint?->main_experience_type ?? '');
+            if (! in_array($mainExperienceType, ['attraction', 'activity', 'fnb'], true)) {
+                $mainExperienceType = '';
+            }
+            $mainExperienceId = $mainExperienceType === 'attraction'
+                ? (int) ($dayPoint?->main_tourist_attraction_id ?? 0)
+                : ($mainExperienceType === 'activity'
+                    ? (int) ($dayPoint?->main_activity_id ?? 0)
+                    : ($mainExperienceType === 'fnb'
+                        ? (int) ($dayPoint?->main_food_beverage_id ?? 0)
+                        : 0));
+
+            $attractions = $itinerary->touristAttractions
+                ->filter(fn ($attraction) => (int) ($attraction->pivot->day_number ?? 0) === $day)
+                ->map(function ($attraction) {
+                    return [
+                        'type' => 'Attraction',
+                        'source_type' => 'attraction',
+                        'source_id' => (int) $attraction->id,
+                        'name' => (string) $attraction->name,
+                        'location' => (string) ($attraction->location ?? '-'),
+                        'description' => (string) ($attraction->description ?? '-'),
+                        'thumbnail_data_uri' => $this->resolveGalleryImageDataUri($attraction->gallery_images ?? []),
+                        'pax' => null,
+                        'start_time' => $attraction->pivot->start_time ? substr((string) $attraction->pivot->start_time, 0, 5) : '--:--',
+                        'end_time' => $attraction->pivot->end_time ? substr((string) $attraction->pivot->end_time, 0, 5) : '--:--',
+                        'travel_minutes_to_next' => $attraction->pivot->travel_minutes_to_next,
+                        'visit_order' => (int) ($attraction->pivot->visit_order ?? 999999),
+                    ];
+                });
+
+            $activities = $itinerary->itineraryActivities
+                ->filter(fn ($item) => (int) ($item->day_number ?? 0) === $day)
+                ->map(function ($item) {
+                    return [
+                        'type' => 'Activity',
+                        'source_type' => 'activity',
+                        'source_id' => (int) ($item->activity_id ?? 0),
+                        'name' => (string) ($item->activity->name ?? '-'),
+                        'location' => (string) ($item->activity->vendor->location ?? '-'),
+                        'description' => (string) ($item->activity->notes ?? '-'),
+                        'includes' => (string) ($item->activity->includes ?? ''),
+                        'excludes' => (string) ($item->activity->excludes ?? ''),
+                        'thumbnail_data_uri' => $this->resolveGalleryImageDataUri($item->activity->gallery_images ?? []),
+                        'pax' => (int) ($item->pax ?? 0),
+                        'pax_adult' => (int) ($item->pax_adult ?? $item->pax ?? 0),
+                        'pax_child' => (int) ($item->pax_child ?? 0),
+                        'start_time' => $item->start_time ? substr((string) $item->start_time, 0, 5) : '--:--',
+                        'end_time' => $item->end_time ? substr((string) $item->end_time, 0, 5) : '--:--',
+                        'travel_minutes_to_next' => $item->travel_minutes_to_next,
+                        'visit_order' => (int) ($item->visit_order ?? 999999),
+                    ];
+                });
+
+            $foodBeverages = $itinerary->itineraryFoodBeverages
+                ->filter(fn ($item) => (int) ($item->day_number ?? 0) === $day)
+                ->map(function ($item) {
+                    return [
+                        'type' => 'F&B',
+                        'source_type' => 'fnb',
+                        'source_id' => (int) ($item->food_beverage_id ?? 0),
+                        'name' => (string) ($item->foodBeverage->name ?? '-'),
+                        'vendor_name' => (string) ($item->foodBeverage->vendor->name ?? '-'),
+                        'menu_highlights' => (string) ($item->foodBeverage->menu_highlights ?? ''),
+                        'location' => (string) ($item->foodBeverage->vendor->location ?? '-'),
+                        'description' => (string) ($item->foodBeverage->notes ?? $item->foodBeverage->menu_highlights ?? '-'),
+                        'thumbnail_data_uri' => $this->resolveGalleryImageDataUri($item->foodBeverage->gallery_images ?? []),
+                        'publish_rate' => (float) ($item->foodBeverage->publish_rate ?? 0),
+                        'currency' => 'IDR',
+                        'pax' => (int) ($item->pax ?? 0),
+                        'start_time' => $item->start_time ? substr((string) $item->start_time, 0, 5) : '--:--',
+                        'end_time' => $item->end_time ? substr((string) $item->end_time, 0, 5) : '--:--',
+                        'travel_minutes_to_next' => $item->travel_minutes_to_next,
+                        'visit_order' => (int) ($item->visit_order ?? 999999),
+                    ];
+                });
+
+            $items = $attractions->merge($activities)->merge($foodBeverages)
+                ->sortBy('visit_order')
+                ->values()
+                ->map(function (array $item) use ($mainExperienceType, $mainExperienceId) {
+                    $item['is_main_experience'] = $mainExperienceType !== ''
+                        && $mainExperienceId > 0
+                        && (string) ($item['source_type'] ?? '') === $mainExperienceType
+                        && (int) ($item['source_id'] ?? 0) === $mainExperienceId;
+
+                    return $item;
+                });
+            $startPoint = $resolvePoint($dayPoint, 'start', $previousEndPoint);
+            $endPoint = $resolvePoint($dayPoint, 'end', ['name' => 'Not set', 'location' => '-', 'type' => 'Unknown']);
+            $startTime = $dayPoint && ! empty($dayPoint->day_start_time)
+                ? substr((string) $dayPoint->day_start_time, 0, 5)
+                : ($items->pluck('start_time')->filter(fn ($time) => $time !== '--:--')->first() ?? '--:--');
+            $startTravelMinutes = $dayPoint && $dayPoint->day_start_travel_minutes !== null
+                ? max(0, (int) $dayPoint->day_start_travel_minutes)
+                : null;
+            $lastItem = $items->last();
+            $lastEndBaseMinutes = $lastItem ? $toMinutes($lastItem['end_time'] ?? null) : null;
+            $lastTravelToEnd = $lastItem ? max(0, (int) ($lastItem['travel_minutes_to_next'] ?? 0)) : 0;
+            $endTime = $lastEndBaseMinutes !== null
+                ? ($fromMinutes($lastEndBaseMinutes + $lastTravelToEnd) ?? '--:--')
+                : '--:--';
+            $dayTransportItem = $transportUnitByDay[$day] ?? null;
+            $dayTransportUnit = $dayTransportItem?->transportUnit;
+            $transportMaster = $dayTransportUnit?->transport;
+            $transportUnitImage = $dayTransportUnit
+                ? $this->resolveGalleryImageDataUri($dayTransportUnit->images ?? [])
+                : null;
+            $dayTransport = [
+                'assigned' => (bool) $dayTransportUnit,
+                'unit_name' => (string) ($dayTransportUnit?->name ?? '-'),
+                'brand_model' => (string) ($dayTransportUnit?->brand_model ?? '-'),
+                'seat_capacity' => $dayTransportUnit?->seat_capacity !== null ? (int) $dayTransportUnit->seat_capacity : null,
+                'luggage_capacity' => $dayTransportUnit?->luggage_capacity !== null ? (int) $dayTransportUnit->luggage_capacity : null,
+                'currency' => 'IDR',
+                'with_driver' => (bool) ($dayTransportUnit?->with_driver ?? false),
+                'air_conditioned' => (bool) ($dayTransportUnit?->air_conditioned ?? false),
+                'transport_name' => (string) ($transportMaster?->name ?? '-'),
+                'transport_type' => (string) ($transportMaster?->transport_type ?? '-'),
+                'provider_name' => '-',
+                'location' => '-',
+                'city' => '-',
+                'province' => '-',
+                'thumbnail_data_uri' => $transportUnitImage,
+            ];
+            $timelineItems = collect([
+                [
+                    'type' => 'Start Point',
+                    'name' => $startPoint['name'],
+                    'location' => $startPoint['location'],
+                    'description' => '-',
+                    'thumbnail_data_uri' => $startPoint['thumbnail_data_uri'] ?? null,
+                    'pax' => null,
+                    'start_time' => $startTime,
+                    'end_time' => null,
+                    'travel_minutes_to_next' => $startTravelMinutes,
+                    'visit_order' => 0,
+                    'point_role' => 'start',
+                    'point_type_label' => $startPoint['type'] ?? 'Unknown',
+                    'is_main_experience' => false,
+                ],
+            ])->merge($items)->push([
+                'type' => 'End Point',
+                'name' => $endPoint['name'],
+                'location' => $endPoint['location'],
+                'description' => '-',
+                'thumbnail_data_uri' => $endPoint['thumbnail_data_uri'] ?? null,
+                'pax' => null,
+                'start_time' => null,
+                'end_time' => $endTime,
+                'travel_minutes_to_next' => null,
+                'visit_order' => 9999999,
+                'point_role' => 'end',
+                'point_type_label' => $endPoint['type'] ?? 'Unknown',
+                'is_main_experience' => false,
+            ])->values();
+
+            $scheduleByDay[] = [
+                'day' => $day,
+                'start_time' => $startTime,
+                'end_time' => $endTime,
+                'start_travel_minutes' => $startTravelMinutes,
+                'start_point_type_label' => $startPoint['label'] ?? ($startPoint['type'] ?? 'Unknown'),
+                'end_point_type_label' => $endPoint['label'] ?? ($endPoint['type'] ?? 'Unknown'),
+                'day_include' => (string) ($dayPoint?->day_include ?? ''),
+                'day_exclude' => (string) ($dayPoint?->day_exclude ?? ''),
+                'transport_unit' => $dayTransport,
+                'items' => $timelineItems,
+            ];
+            $previousEndPoint = $endPoint;
+        }
+
+        return [
+            'itinerary' => $itinerary,
+            'scheduleByDay' => $scheduleByDay,
+            'companyName' => (string) config('app.name', 'Voyex CRM'),
+            'companyTagline' => (string) env('COMPANY_TAGLINE', 'Travel Itinerary & Experience Planner'),
+            'companyLogoDataUri' => $this->resolveCompanyLogoDataUri(),
+        ];
+    }
+
+    private function resolveGalleryImageDataUri($galleryImages): ?string
+    {
+        $images = is_array($galleryImages) ? $galleryImages : [];
+        foreach ($images as $path) {
+            if (! is_string($path) || trim($path) === '') {
+                continue;
+            }
+            $thumbnailPath = ImageThumbnailGenerator::thumbnailPathFor($path);
+            $thumbnailDataUri = $this->resolveStorageImageDataUri($thumbnailPath);
+            if ($thumbnailDataUri) {
+                return $thumbnailDataUri;
+            }
+            $originalDataUri = $this->resolveStorageImageDataUri($path);
+            if ($originalDataUri) {
+                return $originalDataUri;
+            }
+        }
+
+        return null;
+    }
+
+    private function resolveHotelRoomCoverDataUri(?string $coverPath): ?string
+    {
+        $rawPath = trim(str_replace('\\', '/', (string) $coverPath), '/');
+        if ($rawPath === '') {
+            return null;
+        }
+
+        if (Str::startsWith($rawPath, ['http://', 'https://'])) {
+            return null;
+        }
+
+        if (Str::startsWith($rawPath, 'storage/')) {
+            $rawPath = Str::after($rawPath, 'storage/');
+        }
+
+        $candidates = [$rawPath];
+        if (! Str::contains($rawPath, '/')) {
+            $candidates[] = 'hotels/rooms/' . $rawPath;
+        }
+
+        foreach (array_values(array_unique($candidates)) as $candidate) {
+            $thumbnailPath = ImageThumbnailGenerator::thumbnailPathFor($candidate);
+            $thumbnailDataUri = $this->resolveStorageImageDataUri($thumbnailPath);
+            if ($thumbnailDataUri) {
+                return $thumbnailDataUri;
+            }
+
+            $originalDataUri = $this->resolveStorageImageDataUri($candidate);
+            if ($originalDataUri) {
+                return $originalDataUri;
+            }
+        }
+
+        return null;
+    }
+
+    private function resolveStorageImageDataUri(string $path): ?string
+    {
+        $storage = Storage::disk('public');
+        if (! $storage->exists($path)) {
+            return null;
+        }
+        $binary = $storage->get($path);
+        if ($binary === '') {
+            return null;
+        }
+
+        $extension = strtolower((string) pathinfo($path, PATHINFO_EXTENSION));
+        $mime = match ($extension) {
+            'jpg', 'jpeg' => 'image/jpeg',
+            'png' => 'image/png',
+            'webp' => 'image/webp',
+            'gif' => 'image/gif',
+            default => 'application/octet-stream',
+        };
+
+        return 'data:' . $mime . ';base64,' . base64_encode($binary);
+    }
+
+    private function resolveCompanyLogoDataUri(): string
+    {
+        $candidates = [
+            public_path('images/company-logo.png'),
+            public_path('images/logo.png'),
+            public_path('logo.png'),
+        ];
+
+        foreach ($candidates as $path) {
+            if (! File::exists($path)) {
+                continue;
+            }
+            $binary = File::get($path);
+            $extension = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+            $mime = match ($extension) {
+                'svg' => 'image/svg+xml',
+                'jpg', 'jpeg' => 'image/jpeg',
+                'gif' => 'image/gif',
+                'webp' => 'image/webp',
+                default => 'image/png',
+            };
+
+            return 'data:' . $mime . ';base64,' . base64_encode($binary);
+        }
+
+        $name = (string) config('app.name', 'VOYEX');
+        $initials = strtoupper(substr(preg_replace('/[^A-Za-z0-9]/', '', $name), 0, 3) ?: 'VYX');
+        $svg = <<<SVG
+<svg xmlns="http://www.w3.org/2000/svg" width="360" height="90" viewBox="0 0 360 90">
+  <rect width="360" height="90" rx="14" fill="#0f172a"/>
+  <circle cx="48" cy="45" r="24" fill="#1d4ed8"/>
+  <text x="48" y="51" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" font-weight="700" fill="#ffffff">{$initials}</text>
+  <text x="86" y="40" font-family="Arial, sans-serif" font-size="20" font-weight="700" fill="#ffffff">{$name}</text>
+  <text x="86" y="60" font-family="Arial, sans-serif" font-size="11" fill="#cbd5e1">Professional Itinerary</text>
+</svg>
+SVG;
+
+        return 'data:image/svg+xml;base64,' . base64_encode($svg);
+    }
+
     private function generateQuotationNumber(): string
     {
         do {
@@ -706,25 +1146,6 @@ class QuotationController extends Controller
             return redirect()
                 ->route('quotations.show', $quotation)
                 ->with('error', 'Anda sudah melakukan approval untuk quotation ini.');
-        }
-
-        $progressBefore = $this->buildApprovalProgress($quotation);
-        if ($approvalRole === 'manager' && ! $progressBefore['reservation_other_approved']) {
-            return redirect()
-                ->route('quotations.show', $quotation)
-                ->with('error', 'Manager dapat approve setelah minimal 1 Reservation (bukan creator) melakukan approval.');
-        }
-        if ($approvalRole === 'director') {
-            if (! $progressBefore['reservation_other_approved']) {
-                return redirect()
-                    ->route('quotations.show', $quotation)
-                    ->with('error', 'Director dapat approve setelah minimal 1 Reservation (bukan creator) melakukan approval.');
-            }
-            if (! $progressBefore['manager_approved']) {
-                return redirect()
-                    ->route('quotations.show', $quotation)
-                    ->with('error', 'Director dapat approve setelah Manager melakukan approval.');
-            }
         }
 
         $validated = $request->validate([
@@ -1168,43 +1589,22 @@ class QuotationController extends Controller
             });
         }
 
-        $hasReservationOtherApproval = function (Builder $inner): void {
-            $inner->where('approval_role', 'reservation')
-                ->where(function (Builder $scope): void {
-                    $scope->whereNull('quotations.created_by')
-                        ->orWhereColumn('quotation_approvals.user_id', '<>', 'quotations.created_by');
-                });
-        };
-
         $query->whereDoesntHave('approvals', function (Builder $inner) use ($user): void {
             $inner->where('user_id', (int) $user->id);
         });
-
-        if ($approvalRole === 'reservation') {
-            $query->whereDoesntHave('approvals', $hasReservationOtherApproval);
+        if (Schema::hasColumn('quotations', 'created_by')) {
+            $query->whereRaw(
+                '(SELECT COUNT(*) FROM quotation_approvals qa'
+                .' WHERE qa.quotation_id = quotations.id'
+                .' AND (quotations.created_by IS NULL OR qa.user_id <> quotations.created_by)) < 2'
+            );
             return;
         }
 
-        if ($approvalRole === 'manager') {
-            $query->whereHas('approvals', $hasReservationOtherApproval)
-                ->whereDoesntHave('approvals', function (Builder $inner): void {
-                    $inner->where('approval_role', 'manager');
-                });
-            return;
-        }
-
-        if ($approvalRole === 'director') {
-            $query->whereHas('approvals', $hasReservationOtherApproval)
-                ->whereHas('approvals', function (Builder $inner): void {
-                    $inner->where('approval_role', 'manager');
-                })
-                ->whereDoesntHave('approvals', function (Builder $inner): void {
-                    $inner->where('approval_role', 'director');
-                });
-            return;
-        }
-
-        $query->whereRaw('1 = 0');
+        $query->whereRaw(
+            '(SELECT COUNT(*) FROM quotation_approvals qa'
+            .' WHERE qa.quotation_id = quotations.id) < 2'
+        );
     }
 
     private function needsMyApprovalForQuotation(Quotation $quotation, $user, ?string $approvalRole): bool
@@ -1230,19 +1630,17 @@ class QuotationController extends Controller
         if ($alreadyApprovedByUser) {
             return false;
         }
+        $nonCreatorApprovalCount = $approvals
+            ->filter(function ($approval) use ($quotation): bool {
+                if (! Schema::hasColumn('quotations', 'created_by')) {
+                    return true;
+                }
 
-        $reservationOtherApproved = $approvals
-            ->filter(fn ($approval) => (string) ($approval->approval_role ?? '') === 'reservation')
-            ->contains(fn ($approval) => (int) ($approval->user_id ?? 0) !== (int) ($quotation->created_by ?? 0));
-        $managerApproved = $approvals->contains(fn ($approval) => (string) ($approval->approval_role ?? '') === 'manager');
-        $directorApproved = $approvals->contains(fn ($approval) => (string) ($approval->approval_role ?? '') === 'director');
+                return (int) ($approval->user_id ?? 0) !== (int) ($quotation->created_by ?? 0);
+            })
+            ->count();
 
-        return match ($approvalRole) {
-            'reservation' => ! $reservationOtherApproved,
-            'manager' => $reservationOtherApproved && ! $managerApproved,
-            'director' => $reservationOtherApproved && $managerApproved && ! $directorApproved,
-            default => false,
-        };
+        return $nonCreatorApprovalCount < 2;
     }
 
     /**
@@ -1302,12 +1700,16 @@ class QuotationController extends Controller
 
     /**
      * @return array{
+     *   required_non_creator_approvals: int,
+     *   non_creator_approval_count: int,
+     *   remaining_non_creator_approvals: int,
      *   manager_approved: bool,
      *   director_approved: bool,
      *   reservation_other_approved: bool,
      *   reservation_count: int,
      *   is_ready: bool,
      *   missing_labels: array<int, string>,
+     *   latest_non_creator_approver_id: int|null,
      *   director_approver_id: int|null
      * }
      */
@@ -1320,7 +1722,16 @@ class QuotationController extends Controller
         $managerApproved = $approvals->contains(fn ($a) => (string) $a->approval_role === 'manager');
         $directorApprovals = $approvals
             ->filter(fn ($a) => (string) $a->approval_role === 'director')
-            ->sortByDesc(fn ($a) => optional($a->approved_at)->getTimestamp() ?? 0)
+            ->sort(function ($left, $right): int {
+                $leftTimestamp = optional($left->approved_at)->getTimestamp() ?? 0;
+                $rightTimestamp = optional($right->approved_at)->getTimestamp() ?? 0;
+                $timestampComparison = $rightTimestamp <=> $leftTimestamp;
+                if ($timestampComparison !== 0) {
+                    return $timestampComparison;
+                }
+
+                return ((int) ($right->id ?? 0)) <=> ((int) ($left->id ?? 0));
+            })
             ->values();
         $directorApproved = $directorApprovals->isNotEmpty();
         $directorApproverId = $directorApproved ? (int) ($directorApprovals->first()->user_id ?? 0) : null;
@@ -1332,36 +1743,66 @@ class QuotationController extends Controller
         $reservationCount = $reservationApprovals->count();
         $reservationOtherApproved = $reservationCount >= 1;
 
+        $nonCreatorApprovals = $approvals
+            ->filter(function ($a) use ($quotation): bool {
+                if (! Schema::hasColumn('quotations', 'created_by')) {
+                    return true;
+                }
+
+                return (int) ($a->user_id ?? 0) !== (int) ($quotation->created_by ?? 0);
+            })
+            ->sort(function ($left, $right): int {
+                $leftTimestamp = optional($left->approved_at)->getTimestamp() ?? 0;
+                $rightTimestamp = optional($right->approved_at)->getTimestamp() ?? 0;
+                $timestampComparison = $rightTimestamp <=> $leftTimestamp;
+                if ($timestampComparison !== 0) {
+                    return $timestampComparison;
+                }
+
+                return ((int) ($right->id ?? 0)) <=> ((int) ($left->id ?? 0));
+            })
+            ->values();
+        $requiredNonCreatorApprovals = 2;
+        $nonCreatorApprovalCount = $nonCreatorApprovals->count();
+        $remainingNonCreatorApprovals = max(0, $requiredNonCreatorApprovals - $nonCreatorApprovalCount);
+        $latestNonCreatorApproverId = $nonCreatorApprovals->isNotEmpty()
+            ? (int) ($nonCreatorApprovals->first()->user_id ?? 0)
+            : null;
+
         $missing = [];
-        if (! $managerApproved) {
-            $missing[] = 'Manager approval';
-        }
-        if (! $directorApproved) {
-            $missing[] = 'Director approval';
-        }
-        if (! $reservationOtherApproved) {
-            $missing[] = '1 Reservation (non-creator) approval';
+        if ($remainingNonCreatorApprovals > 0) {
+            $missing[] = $remainingNonCreatorApprovals === 1
+                ? '1 more non-creator approval'
+                : $remainingNonCreatorApprovals . ' more non-creator approvals';
         }
 
         return [
+            'required_non_creator_approvals' => $requiredNonCreatorApprovals,
+            'non_creator_approval_count' => $nonCreatorApprovalCount,
+            'remaining_non_creator_approvals' => $remainingNonCreatorApprovals,
             'manager_approved' => $managerApproved,
             'director_approved' => $directorApproved,
             'reservation_other_approved' => $reservationOtherApproved,
             'reservation_count' => $reservationCount,
             'is_ready' => empty($missing),
             'missing_labels' => $missing,
+            'latest_non_creator_approver_id' => $latestNonCreatorApproverId ?: null,
             'director_approver_id' => $directorApproverId ?: null,
         ];
     }
 
     /**
      * @return array{
+     *   required_non_creator_approvals: int,
+     *   non_creator_approval_count: int,
+     *   remaining_non_creator_approvals: int,
      *   manager_approved: bool,
      *   director_approved: bool,
      *   reservation_other_approved: bool,
      *   reservation_count: int,
      *   is_ready: bool,
      *   missing_labels: array<int, string>,
+     *   latest_non_creator_approver_id: int|null,
      *   director_approver_id: int|null
      * }
      */
@@ -1375,7 +1816,7 @@ class QuotationController extends Controller
         if ($progress['is_ready']) {
             $quotation->update([
                 'status' => 'approved',
-                'approved_by' => $progress['director_approver_id'],
+                'approved_by' => $progress['latest_non_creator_approver_id'],
                 'approved_at' => now(),
             ]);
         } else {
@@ -1433,6 +1874,7 @@ class QuotationController extends Controller
             'items' => $items,
         ];
     }
+
 }
 
 

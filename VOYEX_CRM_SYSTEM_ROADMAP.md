@@ -1,7 +1,7 @@
 ﻿# VOYEX CRM -- SYSTEM ROADMAP
 
-Version: 1.2  
-Last Updated: 2026-03-30
+Version: 1.3  
+Last Updated: 2026-04-09
 
 Legend:  
 - DONE = Implemented  
@@ -223,10 +223,20 @@ Completed in this cycle:
   - moved canonical technical docs to `docs/technical/*` and layout guide to `docs/core/LAYOUT_GUIDE.md`,
   - moved archive references to `docs/archive/*` and historical roadmap entries to `docs/changelog/ROADMAP_CHANGELOG_ARCHIVE.md`,
   - retained legacy root filenames as compatibility pointers.
+- Performed phase-4 changelog archive normalization:
+  - standardized archive entries into heading-based sections with a clear entry index,
+  - preserved original historical content while improving scan/read speed,
+  - added archive note clarifying historical path wording may reflect pre-migration locations.
+- Activity Timeline pagination enhancement (no full page reload):
+  - implemented AJAX pagination handler in `resources/views/components/activity-timeline.blade.php`,
+  - timeline pagination links are now rendered inside the component and intercepted via fetch + partial panel replacement,
+  - optimized to fragment mode: Inquiry/Itinerary/Quotation show+edit now return timeline panel HTML only when header `X-Activity-Timeline-Ajax: 1` is present (`X-Activity-Timeline-Fragment: 1` response),
+  - applied across Inquiry/Itinerary/Quotation show+edit pages by removing external timeline paginator rendering.
 - QA note:
   - verified all root `.md` files are still present and readable,
   - verified canonical docs in `docs/` are readable and pointer docs resolve correctly,
-  - no code/runtime behavior change (documentation-only update).
+  - `php -l` passed for updated controllers (`ItineraryController`, `InquiryController`, `QuotationController`),
+  - `php artisan view:cache` passed after activity timeline pagination update.
 
 Historical detailed entries moved to:
 - docs/changelog/ROADMAP_CHANGELOG_ARCHIVE.md

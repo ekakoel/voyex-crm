@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Sales;
 
+use App\Http\Controllers\Concerns\HandlesActivityTimelineAjax;
 use App\Http\Controllers\Controller;
 use App\Models\Customer;
 use App\Models\Inquiry;
@@ -15,6 +16,8 @@ use Spatie\Permission\Models\Role;
 
 class InquiryController extends Controller
 {
+    use HandlesActivityTimelineAjax;
+
     public function __construct(
         private readonly ActivityAuditLogger $activityAuditLogger
     ) {
@@ -198,7 +201,7 @@ class InquiryController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(Inquiry $inquiry)
+    public function show(Request $request, Inquiry $inquiry)
     {
         $inquiry->load(['customer', 'assignedUser', 'quotation:id,inquiry_id,status']);
         $followUps = $inquiry->followUps()
@@ -208,7 +211,8 @@ class InquiryController extends Controller
         $activities = $inquiry->activities()
             ->with('user:id,name')
             ->latest()
-            ->paginate(5, ['*'], 'activity_page');
+            ->paginate(5, ['*'], 'activity_page')
+            ->withQueryString();
         $communications = $inquiry->communications()->with('creator')->orderByDesc('contact_at')->get();
         $channelLabels = self::CHANNEL_LABELS;
         $sourceLabels = self::SOURCE_LABELS;
@@ -216,13 +220,17 @@ class InquiryController extends Controller
         $canManageFollowUp = $this->canManageFollowUp($inquiry);
         $canMarkFollowUpDone = $this->canMarkFollowUpDone($inquiry);
 
+        if ($this->wantsActivityTimelineFragment($request)) {
+            return $this->activityTimelineFragmentResponse($activities);
+        }
+
         return view('modules.inquiries.show', compact('inquiry', 'followUps', 'activities', 'communications', 'channelLabels', 'sourceLabels', 'canManageInquiry', 'canManageFollowUp', 'canMarkFollowUpDone'));
     }
 
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit(Inquiry $inquiry)
+    public function edit(Request $request, Inquiry $inquiry)
     {
         $inquiry->loadMissing(['quotation:id,inquiry_id,status']);
         if (! $this->canManageInquiry($inquiry, 'update')) {
@@ -244,9 +252,14 @@ class InquiryController extends Controller
         $activities = $inquiry->activities()
             ->with('user:id,name')
             ->latest()
-            ->paginate(5, ['*'], 'activity_page');
+            ->paginate(5, ['*'], 'activity_page')
+            ->withQueryString();
 
         $sourceLabels = self::SOURCE_LABELS;
+
+        if ($this->wantsActivityTimelineFragment($request)) {
+            return $this->activityTimelineFragmentResponse($activities);
+        }
 
         return view('modules.inquiries.edit', compact('inquiry', 'customers', 'assignees', 'sourceLabels', 'canAssignToReservation', 'activities'));
     }
@@ -533,6 +546,7 @@ class InquiryController extends Controller
             'notes' => trim((string) ($inquiry->notes ?? '')),
         ];
     }
+
 }
 
 

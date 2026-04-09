@@ -45,7 +45,7 @@
                 class="mt-1 dark:border-gray-600 app-input">
         </div>
         <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">City (Optional)</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">City/Region (Optional)</label>
             <input name="city" data-location-field="city" value="{{ old('city', $destination->city ?? '') }}"
                 class="mt-1 dark:border-gray-600 app-input">
         </div>

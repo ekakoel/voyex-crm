@@ -5,6 +5,7 @@ namespace Tests\Feature\Modules;
 use App\Http\Middleware\EnsureModuleEnabled;
 use App\Http\Middleware\EnsureModulePermission;
 use App\Http\Middleware\PermissionOrSuperAdmin;
+use App\Http\Middleware\VerifyCsrfToken;
 use App\Models\Itinerary;
 use App\Models\Quotation;
 use App\Models\User;
@@ -20,6 +21,7 @@ class QuotationsGlobalDiscountRoleTest extends ModuleSmokeTestCase
             EnsureModuleEnabled::class,
             EnsureModulePermission::class,
             PermissionOrSuperAdmin::class,
+            VerifyCsrfToken::class,
         ]);
     }
 
@@ -193,14 +195,13 @@ class QuotationsGlobalDiscountRoleTest extends ModuleSmokeTestCase
             ->assertRedirect(route('quotations.show', $quotation));
     }
 
-    public function test_quotation_requires_manager_director_and_non_creator_reservation_approval(): void
+    public function test_quotation_becomes_approved_after_two_non_creator_approvals(): void
     {
         $creator = $this->createUserWithRole('Marketing');
         $itinerary = $this->createItineraryFor($creator);
         $quotation = $this->createQuotationFor($creator, $itinerary, null, 0);
 
         $manager = $this->createUserWithRole('Manager');
-        $director = $this->createUserWithRole('Director');
         $reservation = $this->createUserWithRole('Reservation');
 
         $this->actingAs($reservation)
@@ -213,19 +214,12 @@ class QuotationsGlobalDiscountRoleTest extends ModuleSmokeTestCase
             ->post(route('quotations.approve', $quotation))
             ->assertRedirect(route('quotations.show', $quotation));
         $quotation->refresh();
-        $this->assertSame('pending', $quotation->status);
-
-        $this->actingAs($director)
-            ->post(route('quotations.approve', $quotation))
-            ->assertRedirect(route('quotations.show', $quotation));
-        $quotation->refresh();
-
         $this->assertSame('approved', $quotation->status);
-        $this->assertSame($director->id, (int) $quotation->approved_by);
+        $this->assertSame($manager->id, (int) $quotation->approved_by);
         $this->assertNotNull($quotation->approved_at);
     }
 
-    public function test_reservation_approval_must_be_from_non_creator_user(): void
+    public function test_creator_cannot_approve_and_two_other_users_can_finalize_approval(): void
     {
         $creator = $this->createUserWithRole('Reservation');
         $itinerary = $this->createItineraryFor($creator);
@@ -237,29 +231,6 @@ class QuotationsGlobalDiscountRoleTest extends ModuleSmokeTestCase
         $this->actingAs($creator)
             ->post(route('quotations.approve', $quotation))
             ->assertRedirect(route('quotations.show', $quotation));
-
-        $this->actingAs($manager)
-            ->post(route('quotations.approve', $quotation))
-            ->assertRedirect(route('quotations.show', $quotation));
-        $quotation->refresh();
-        $this->assertSame('pending', $quotation->status);
-
-        $this->actingAs($director)
-            ->post(route('quotations.approve', $quotation))
-            ->assertRedirect(route('quotations.show', $quotation));
-        $quotation->refresh();
-        $this->assertSame('pending', $quotation->status);
-
-        $quotation->refresh();
-        $this->assertSame('pending', $quotation->status);
-
-        $otherReservation = $this->createUserWithRole('Reservation');
-        $this->actingAs($otherReservation)
-            ->post(route('quotations.approve', $quotation))
-            ->assertRedirect(route('quotations.show', $quotation));
-
-        $quotation->refresh();
-        $this->assertSame('pending', $quotation->status);
 
         $this->actingAs($manager)
             ->post(route('quotations.approve', $quotation))
@@ -308,7 +279,7 @@ class QuotationsGlobalDiscountRoleTest extends ModuleSmokeTestCase
             'destination' => 'Bandung',
             'duration_days' => 2,
             'duration_nights' => 1,
-            'status' => 'draft',
+            'status' => 'pending',
             'is_active' => true,
         ]);
     }

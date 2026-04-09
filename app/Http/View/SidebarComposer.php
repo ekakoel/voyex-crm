@@ -424,46 +424,23 @@ class SidebarComposer
             });
         }
 
-        $hasReservationOtherApproval = function (Builder $query): void {
-            $query->where('approval_role', 'reservation')
-                ->where(function (Builder $inner): void {
-                    $inner->whereNull('quotations.created_by')
-                        ->orWhereColumn('quotation_approvals.user_id', '<>', 'quotations.created_by');
-                });
-        };
-
-        $count = 0;
-        if ($role === 'reservation') {
-            $count = (clone $baseQuery)
-                ->whereDoesntHave('approvals', $hasReservationOtherApproval)
-                ->whereDoesntHave('approvals', function (Builder $query) use ($user): void {
-                    $query->where('user_id', (int) $user->id);
-                })
-                ->count();
-        } elseif ($role === 'manager') {
-            $count = (clone $baseQuery)
-                ->whereHas('approvals', $hasReservationOtherApproval)
-                ->whereDoesntHave('approvals', function (Builder $query): void {
-                    $query->where('approval_role', 'manager');
-                })
-                ->whereDoesntHave('approvals', function (Builder $query) use ($user): void {
-                    $query->where('user_id', (int) $user->id);
-                })
-                ->count();
-        } elseif ($role === 'director') {
-            $count = (clone $baseQuery)
-                ->whereHas('approvals', $hasReservationOtherApproval)
-                ->whereHas('approvals', function (Builder $query): void {
-                    $query->where('approval_role', 'manager');
-                })
-                ->whereDoesntHave('approvals', function (Builder $query): void {
-                    $query->where('approval_role', 'director');
-                })
-                ->whereDoesntHave('approvals', function (Builder $query) use ($user): void {
-                    $query->where('user_id', (int) $user->id);
-                })
-                ->count();
-        }
+        $count = (clone $baseQuery)
+            ->whereDoesntHave('approvals', function (Builder $query) use ($user): void {
+                $query->where('user_id', (int) $user->id);
+            })
+            ->when(
+                Schema::hasColumn('quotations', 'created_by'),
+                fn (Builder $query) => $query->whereRaw(
+                    '(SELECT COUNT(*) FROM quotation_approvals qa'
+                    .' WHERE qa.quotation_id = quotations.id'
+                    .' AND (quotations.created_by IS NULL OR qa.user_id <> quotations.created_by)) < 2'
+                ),
+                fn (Builder $query) => $query->whereRaw(
+                    '(SELECT COUNT(*) FROM quotation_approvals qa'
+                    .' WHERE qa.quotation_id = quotations.id) < 2'
+                )
+            )
+            ->count();
 
         return [
             'visible' => true,

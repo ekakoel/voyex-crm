@@ -269,6 +269,19 @@
                             $dayStartTravelMinutes = $dayPoint && $dayPoint->day_start_travel_minutes !== null
                                 ? max(0, (int) $dayPoint->day_start_travel_minutes)
                                 : null;
+                            $startBookingMode = (string) ($dayPoint?->start_hotel_booking_mode ?? '');
+                            if ($startPointTypeRaw === 'previous_day_end' && $startPointType === 'hotel') {
+                                $startBookingMode = (string) ($previousDayPoint?->end_hotel_booking_mode ?? $startBookingMode);
+                            }
+                            if (!in_array($startBookingMode, ['arranged', 'self'], true)) {
+                                $startBookingMode = 'arranged';
+                            }
+                            $startBookingModeLabel = $startBookingMode === 'self'
+                                ? 'Self-booked hotel'
+                                : 'Hotel arranged by us';
+                            $endBookingModeLabel = ((string) ($dayPoint?->end_hotel_booking_mode ?? 'arranged')) === 'self'
+                                ? 'Self-booked hotel'
+                                : 'Hotel arranged by us';
                             $mainExperienceType = (string) ($dayPoint?->main_experience_type ?? '');
                             if (!in_array($mainExperienceType, ['attraction', 'activity', 'fnb'], true)) {
                                 $mainExperienceType = '';
@@ -341,6 +354,11 @@
                                             {{ $startPointLocation ?: '-' }}
                                             | Start Tour: {{ $dayStartTime ?? '--:--' }}
                                         </div>
+                                        @if ($startPointType === 'hotel')
+                                            <p class="text-xs text-gray-500 dark:text-gray-400">
+                                                Booking mode: {{ $startBookingModeLabel }}
+                                            </p>
+                                        @endif
                                     </div>
                                 </li>
                                 @forelse ($dayItems as $index => $item)
@@ -441,6 +459,11 @@
                                             {{ $endPointLocation ?: '-' }}
                                             | End Tour: {{ $dayEndTime ?? '--:--' }}
                                         </div>
+                                        @if ($endPointType === 'hotel')
+                                            <p class="text-xs text-gray-500 dark:text-gray-400">
+                                                Booking mode: {{ $endBookingModeLabel }}
+                                            </p>
+                                        @endif
                                         @if ($dayItems->isEmpty())
                                             <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">No schedule item.</p>
                                         @endif
@@ -478,7 +501,6 @@
                         <p class="text-xs text-gray-600 dark:text-gray-300">Detailed create/update audit log for this itinerary.</p>
                     </div>
                     <x-activity-timeline :activities="$activities" />
-                    <div>{{ $activities->links() }}</div>
                 </div>
                 <div class="app-card min-w-0 h-fit p-4 lg:self-start xl:sticky xl:top-6">
                     <h2 class="text-sm font-semibold uppercase tracking-wide text-gray-700 dark:text-gray-200">Itinerary Map</h2>
