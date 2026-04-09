@@ -2,6 +2,7 @@
     $buttonLabel = $buttonLabel ?? 'Save';
     $itineraries = $itineraries ?? collect();
     $prefillItineraryId = $prefillItineraryId ?? null;
+    $isEditQuotation = isset($quotation) && $quotation instanceof \App\Models\Quotation;
 @endphp
 
 @php
@@ -206,9 +207,18 @@
                 >
                     Generate
                 </button>
+                @if ($isEditQuotation)
+                    <button
+                        type="button"
+                        id="itinerary-update-contract-rate-btn"
+                        class="btn-outline-sm min-h-[42px] w-full sm:w-auto"
+                    >
+                        Update Contract Rate
+                    </button>
+                @endif
             </div>
             <p id="itinerary-generate-status" class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                Klik generate untuk mengisi item dari itinerary.
+                Klik generate untuk mengisi item dari itinerary.@if ($isEditQuotation) Gunakan "Update Contract Rate" untuk sinkronisasi rate terbaru tanpa mengganti susunan item.@endif
             </p>
             @error('itinerary_id')
                 <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
@@ -686,6 +696,7 @@
 
                 const itinerarySelect = document.getElementById('itinerary-select');
                 const generateBtn = document.getElementById('itinerary-generate-btn');
+                const updateContractRateBtn = document.getElementById('itinerary-update-contract-rate-btn');
                 const statusEl = document.getElementById('itinerary-generate-status');
                 const summaryEl = document.getElementById('itinerary-items-summary');
                 const itemsSection = document.getElementById('quotation-items-section');
@@ -700,6 +711,7 @@
 
                 const endpoint = itinerarySelect ? (itinerarySelect.dataset.endpoint || '') : '';
                 const canUseItinerary = Boolean(itinerarySelect && generateBtn);
+                const canUpdateContractRate = Boolean(canUseItinerary && updateContractRateBtn);
                 const currencyCode = String(window.appCurrency || 'IDR').toUpperCase();
                 const rateToIdr = Number(window.appCurrencyRateToIdr || 1);
 
@@ -1073,6 +1085,60 @@
                     }
                 };
 
+                const buildItemKey = (payload, includeDay = true) => {
+                    const meta = parseMetaValue(payload?.serviceable_meta ?? null) || {};
+                    const paxType = String(meta?.pax_type || '').trim().toLowerCase();
+                    const itineraryItemType = String(payload?.itinerary_item_type || '').trim().toLowerCase();
+                    const serviceableType = String(payload?.serviceable_type || '').trim().toLowerCase();
+                    const serviceableId = Number(payload?.serviceable_id || 0);
+                    const dayNumberRaw = Number(payload?.day_number || 0);
+                    const dayNumber = Number.isFinite(dayNumberRaw) && dayNumberRaw > 0 ? dayNumberRaw : '';
+                    const keyParts = [
+                        serviceableType,
+                        serviceableId > 0 ? String(serviceableId) : '',
+                        includeDay ? String(dayNumber) : '',
+                        paxType,
+                        itineraryItemType,
+                    ];
+
+                    return keyParts.join('|');
+                };
+
+                const buildRowItemKey = (row, includeDay = true) => {
+                    if (!row) return '';
+                    const payload = {
+                        serviceable_type: row.querySelector('[data-field="serviceable_type"]')?.value || '',
+                        serviceable_id: row.querySelector('[data-field="serviceable_id"]')?.value || '',
+                        day_number: row.querySelector('[data-field="day_number"]')?.value || '',
+                        itinerary_item_type: row.querySelector('[data-field="itinerary_item_type"]')?.value || '',
+                        serviceable_meta: row.querySelector('[data-field="serviceable_meta"]')?.value || '',
+                    };
+
+                    return buildItemKey(payload, includeDay);
+                };
+
+                const buildRateLookupQueue = (items, includeDay = true) => {
+                    const queue = new Map();
+                    (Array.isArray(items) ? items : []).forEach((item) => {
+                        const key = buildItemKey(item, includeDay);
+                        if (!key) return;
+                        if (!queue.has(key)) {
+                            queue.set(key, []);
+                        }
+                        queue.get(key).push(item);
+                    });
+
+                    return queue;
+                };
+
+                const shiftRateFromQueue = (queue, key) => {
+                    if (!queue || !key || !queue.has(key)) return null;
+                    const list = queue.get(key) || [];
+                    if (list.length === 0) return null;
+
+                    return list.shift() || null;
+                };
+
                 const applyPaxTypeBadge = (rowEl, sourceRow = null) => {
                     if (!rowEl) return;
                     const badgeEl = rowEl.querySelector('[data-field="pax_type_badge"]');
@@ -1236,9 +1302,12 @@
 
                 const updateGenerateButtonState = () => {
                     if (!canUseItinerary) return;
-                    generateBtn.disabled = itinerarySelect.value === '';
-                    generateBtn.classList.toggle('opacity-60', generateBtn.disabled);
-                    generateBtn.classList.toggle('cursor-not-allowed', generateBtn.disabled);
+                    const shouldDisable = itinerarySelect.value === '';
+                    [generateBtn, updateContractRateBtn].filter(Boolean).forEach((buttonEl) => {
+                        buttonEl.disabled = shouldDisable;
+                        buttonEl.classList.toggle('opacity-60', shouldDisable);
+                        buttonEl.classList.toggle('cursor-not-allowed', shouldDisable);
+                    });
                 };
 
                 const setStatus = (message) => {
@@ -1290,8 +1359,90 @@
                     }
                 };
 
+                const updateContractRatesOnly = async () => {
+                    if (!canUpdateContractRate || !itinerarySelect) return;
+                    const itineraryId = itinerarySelect.value;
+                    if (!itineraryId) {
+                        setStatus('Pilih itinerary terlebih dahulu.');
+                        return;
+                    }
+
+                    const itineraryRows = Array.from(itemsContainer.querySelectorAll('.quotation-item-row'));
+                    if (itineraryRows.length === 0) {
+                        setStatus('Belum ada item itinerary yang bisa diperbarui.');
+                        return;
+                    }
+
+                    updateContractRateBtn.disabled = true;
+                    updateContractRateBtn.classList.add('opacity-60', 'cursor-not-allowed');
+                    setStatus('Memperbarui contract rate dari itinerary terbaru...');
+                    updateSummary('');
+
+                    try {
+                        const response = await fetch(`${endpoint}/${itineraryId}`, {
+                            headers: {
+                                'X-Requested-With': 'XMLHttpRequest',
+                                Accept: 'application/json',
+                            },
+                        });
+                        if (!response.ok) {
+                            setStatus('Gagal mengambil contract rate terbaru.');
+                            return;
+                        }
+
+                        const payload = await response.json();
+                        const latestItems = Array.isArray(payload?.items) ? payload.items : [];
+                        const exactQueue = buildRateLookupQueue(latestItems, true);
+                        const fallbackQueue = buildRateLookupQueue(latestItems, false);
+
+                        let updatedCount = 0;
+                        let unchangedCount = 0;
+                        let missingCount = 0;
+
+                        itineraryRows.forEach((row) => {
+                            const contractRateInput = row.querySelector('[data-field="contract_rate"]');
+                            if (!contractRateInput) {
+                                missingCount += 1;
+                                return;
+                            }
+
+                            const exactKey = buildRowItemKey(row, true);
+                            const fallbackKey = buildRowItemKey(row, false);
+                            const matchedItem = shiftRateFromQueue(exactQueue, exactKey)
+                                || shiftRateFromQueue(fallbackQueue, fallbackKey);
+
+                            if (!matchedItem) {
+                                missingCount += 1;
+                                return;
+                            }
+
+                            const latestContractRateIdr = Math.max(0, Math.round(Number(matchedItem?.contract_rate || 0)));
+                            const latestContractRateDisplay = Math.max(0, Math.round(idrToDisplay(latestContractRateIdr)));
+                            const currentContractRateDisplay = parseInteger(contractRateInput.value);
+
+                            if (currentContractRateDisplay !== latestContractRateDisplay) {
+                                setMoneyInputDisplay(contractRateInput, latestContractRateDisplay);
+                                updatedCount += 1;
+                            } else {
+                                unchangedCount += 1;
+                            }
+                        });
+
+                        recalcTotals();
+                        setStatus(`Contract rate diperbarui: ${updatedCount} item.`);
+                        if (missingCount > 0 || unchangedCount > 0) {
+                            updateSummary(`Tidak berubah: ${unchangedCount} item | Tidak ditemukan: ${missingCount} item.`);
+                        }
+                    } catch (_) {
+                        setStatus('Gagal mengambil contract rate terbaru.');
+                    } finally {
+                        updateGenerateButtonState();
+                    }
+                };
+
                 if (canUseItinerary) {
                     generateBtn.addEventListener('click', fetchItems);
+                    updateContractRateBtn?.addEventListener('click', updateContractRatesOnly);
                     itinerarySelect.addEventListener('change', () => {
                         updateGenerateButtonState();
                         if (itinerarySelect.value === '') {

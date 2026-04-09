@@ -33,21 +33,11 @@
     </div>
 
     @php
-        $inquiryNumber = $quotation->inquiry?->inquiry_number;
-        $customerName = $quotation->inquiry?->customer?->name;
         $itineraryTitle = $quotation->itinerary?->title;
     @endphp
-    @if ($inquiryNumber || $customerName || $itineraryTitle)
+    @if ($itineraryTitle)
         <div class="card">
-            @if ($inquiryNumber)
-                <div><strong>Inquiry:</strong> {{ $inquiryNumber }}</div>
-            @endif
-            @if ($itineraryTitle)
-                <div><strong>Itinerary:</strong> {{ $itineraryTitle }}</div>
-            @endif
-            @if ($customerName)
-                <div><strong>Customer:</strong> {{ $customerName }}</div>
-            @endif
+            <div><strong>Itinerary:</strong> {{ $itineraryTitle }}</div>
         </div>
     @endif
 
