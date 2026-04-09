@@ -99,7 +99,7 @@ class DestinationController extends Controller
         $prefilled = $request->only([
             'google_maps_url', 'location', 'city', 'province', 'country', 'address', 'latitude', 'longitude', 'timezone',
         ]);
-        app(LocationResolver::class)->enrichFromGoogleMapsUrl($prefilled, true);
+        app(LocationResolver::class)->enrichFromGoogleMapsUrl($prefilled);
         $request->merge($prefilled);
 
         $validated = $request->validate([
@@ -140,4 +140,5 @@ class DestinationController extends Controller
         return $normalized !== '' ? $normalized : \Illuminate\Support\Str::slug($name . '-' . uniqid());
     }
 }
+
 

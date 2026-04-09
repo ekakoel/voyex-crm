@@ -377,7 +377,7 @@ class HotelController extends Controller
             'longitude' => $request->input('longitude'),
             'destination_id' => $request->input('destination_id'),
         ];
-        $locationResolver->enrichFromGoogleMapsUrl($prefilled, true);
+        $locationResolver->enrichFromGoogleMapsUrl($prefilled);
         $this->applyDestinationContext($prefilled);
 
         $request->merge([
@@ -442,7 +442,7 @@ class HotelController extends Controller
             'longitude' => $validated['longitude'] ?? null,
             'destination_id' => $validated['destination_id'] ?? null,
         ];
-        $locationResolver->enrichFromGoogleMapsUrl($resolved, true);
+        $locationResolver->enrichFromGoogleMapsUrl($resolved);
         $this->applyDestinationContext($resolved);
         $locationResolver->resolveDestinationId($resolved, true);
 
@@ -751,4 +751,5 @@ class HotelController extends Controller
     }
 
 }
+
 

@@ -37,7 +37,7 @@ class CompanySettingController extends Controller
         $prefilled = $request->only([
             'google_maps_url', 'city', 'province', 'country', 'address', 'latitude', 'longitude', 'timezone', 'destination_id',
         ]);
-        $locationResolver->enrichFromGoogleMapsUrl($prefilled, true);
+        $locationResolver->enrichFromGoogleMapsUrl($prefilled);
         $this->applyDestinationContext($prefilled);
 
         $request->merge($prefilled);
@@ -64,7 +64,7 @@ class CompanySettingController extends Controller
             'logo' => ['nullable', 'image', 'mimes:png,webp,jpg,jpeg'],
         ]);
 
-        $locationResolver->enrichFromGoogleMapsUrl($validated, true);
+        $locationResolver->enrichFromGoogleMapsUrl($validated);
         $this->applyDestinationContext($validated);
         $locationResolver->resolveDestinationId($validated, true);
 
@@ -113,4 +113,5 @@ class CompanySettingController extends Controller
         }
     }
 }
+
 
