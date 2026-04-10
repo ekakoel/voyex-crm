@@ -982,9 +982,12 @@ class QuotationController extends Controller
             $lastItem = $items->last();
             $lastEndBaseMinutes = $lastItem ? $toMinutes($lastItem['end_time'] ?? null) : null;
             $lastTravelToEnd = $lastItem ? max(0, (int) ($lastItem['travel_minutes_to_next'] ?? 0)) : 0;
+            $startBaseMinutes = $toMinutes($startTime !== '--:--' ? $startTime : null);
             $endTime = $lastEndBaseMinutes !== null
                 ? ($fromMinutes($lastEndBaseMinutes + $lastTravelToEnd) ?? '--:--')
-                : '--:--';
+                : ($startBaseMinutes !== null
+                    ? ($fromMinutes($startBaseMinutes + max(0, (int) ($startTravelMinutes ?? 0))) ?? '--:--')
+                    : '--:--');
             $dayTransportItem = $transportUnitByDay[$day] ?? null;
             $dayTransportUnit = $dayTransportItem?->transportUnit;
             $transportMaster = $dayTransportUnit?->transport;
@@ -1047,8 +1050,6 @@ class QuotationController extends Controller
                 'start_travel_minutes' => $startTravelMinutes,
                 'start_point_type_label' => $startPoint['label'] ?? ($startPoint['type'] ?? 'Unknown'),
                 'end_point_type_label' => $endPoint['label'] ?? ($endPoint['type'] ?? 'Unknown'),
-                'day_include' => (string) ($dayPoint?->day_include ?? ''),
-                'day_exclude' => (string) ($dayPoint?->day_exclude ?? ''),
                 'transport_unit' => $dayTransport,
                 'items' => $timelineItems,
             ];

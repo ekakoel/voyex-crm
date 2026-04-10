@@ -40,6 +40,8 @@ class Itinerary extends Model
         'duration_days',
         'duration_nights',
         'description',
+        'itinerary_include',
+        'itinerary_exclude',
         'is_active',
         'status',
     ];
@@ -162,7 +164,6 @@ class Itinerary extends Model
         return $this->belongsTo(Transport::class, 'departure_transport_id');
     }
 }
-
 
 
 

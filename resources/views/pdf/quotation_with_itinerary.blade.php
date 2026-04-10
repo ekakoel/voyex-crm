@@ -40,11 +40,11 @@
         .transport-detail strong { color: #111827; }
         .day-panel { page-break-before: always; }
         .day-panel.first { page-break-before: auto; }
-        .day-inc-exc { margin-top: 6px; width: 100%; border-collapse: collapse; }
-        .day-inc-exc td { border: 1px solid #e5e7eb; padding: 6px; vertical-align: top; }
-        .day-inc-exc .inc { background: #ecfdf5; border-color: #a7f3d0; }
-        .day-inc-exc .exc { background: #fff1f2; border-color: #fecdd3; }
-        .day-inc-exc .title { display: block; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 3px; color: #374151; }
+        .itinerary-inc-exc { margin-top: 6px; width: 100%; border-collapse: collapse; }
+        .itinerary-inc-exc td { border: 1px solid #e5e7eb; padding: 6px; vertical-align: top; }
+        .itinerary-inc-exc .inc { background: #ecfdf5; border-color: #a7f3d0; }
+        .itinerary-inc-exc .exc { background: #fff1f2; border-color: #fecdd3; }
+        .itinerary-inc-exc .title { display: block; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 3px; color: #374151; }
 
         .quotation-page-break { page-break-before: always; }
         .q-header { display: flex; justify-content: space-between; margin-bottom: 16px; }
@@ -177,10 +177,6 @@
                 </tbody>
             </table>
             @php
-                $dayIncludeText = \App\Support\SafeRichText::plainText($day['day_include'] ?? null);
-                $dayExcludeText = \App\Support\SafeRichText::plainText($day['day_exclude'] ?? null);
-                $dayIncludeHtml = \App\Support\SafeRichText::sanitize($day['day_include'] ?? '');
-                $dayExcludeHtml = \App\Support\SafeRichText::sanitize($day['day_exclude'] ?? '');
                 $dayTransport = $day['transport_unit'] ?? null;
             @endphp
             <div class="transport-box">
@@ -210,26 +206,36 @@
                     </tr>
                 </table>
             </div>
-            @if (filled($dayIncludeText) || filled($dayExcludeText))
-                <table class="day-inc-exc">
-                    <tr>
-                        @if (filled($dayIncludeText))
-                            <td class="inc">
-                                <span class="title">Day {{ $day['day'] }} Include</span>
-                                <div class="richtext">{!! $dayIncludeHtml !!}</div>
-                            </td>
-                        @endif
-                        @if (filled($dayExcludeText))
-                            <td class="exc">
-                                <span class="title">Day {{ $day['day'] }} Exclude</span>
-                                <div class="richtext">{!! $dayExcludeHtml !!}</div>
-                            </td>
-                        @endif
-                    </tr>
-                </table>
-            @endif
         </div>
     @endforeach
+
+    @php
+        $itineraryIncludeText = \App\Support\SafeRichText::plainText($itinerary->itinerary_include ?? null);
+        $itineraryExcludeText = \App\Support\SafeRichText::plainText($itinerary->itinerary_exclude ?? null);
+        $itineraryIncludeHtml = \App\Support\SafeRichText::sanitize((string) ($itinerary->itinerary_include ?? ''));
+        $itineraryExcludeHtml = \App\Support\SafeRichText::sanitize((string) ($itinerary->itinerary_exclude ?? ''));
+    @endphp
+    @if (filled($itineraryIncludeText) || filled($itineraryExcludeText))
+        <div class="panel">
+            <div class="panel-title">Itinerary Include & Exclude</div>
+            <table class="itinerary-inc-exc">
+                <tr>
+                    @if (filled($itineraryIncludeText))
+                        <td class="inc">
+                            <span class="title">Itinerary Include</span>
+                            <div class="richtext">{!! $itineraryIncludeHtml !!}</div>
+                        </td>
+                    @endif
+                    @if (filled($itineraryExcludeText))
+                        <td class="exc">
+                            <span class="title">Itinerary Exclude</span>
+                            <div class="richtext">{!! $itineraryExcludeHtml !!}</div>
+                        </td>
+                    @endif
+                </tr>
+            </table>
+        </div>
+    @endif
 
     <div class="quotation-page-break"></div>
 
@@ -269,9 +275,6 @@
         <tbody>
         @forelse ($quotation->items as $item)
             @php
-                $meta = is_array($item->serviceable_meta ?? null) ? $item->serviceable_meta : [];
-                $paxType = strtolower((string) ($meta['pax_type'] ?? ''));
-                $paxSuffix = $paxType === 'adult' ? ' [Adult Publish Rate]' : ($paxType === 'child' ? ' [Child Publish Rate]' : '');
                 $qty = max(0, (int) ($item->qty ?? 0));
                 $lineTotal = (float) ($item->total ?? 0);
                 $itemDiscount = (float) ($item->discount ?? 0);
@@ -281,7 +284,11 @@
                 }
             @endphp
             <tr>
-                <td>{{ $item->description }}{{ $paxSuffix }}</td>
+                @php
+                    $normalizedDescription = str_ireplace(['(Adult)', '(Child)'], '', (string) ($item->description ?? ''));
+                    $normalizedDescription = trim(preg_replace('/\s+/', ' ', $normalizedDescription) ?? '');
+                @endphp
+                <td>{{ $normalizedDescription }}</td>
                 <td class="right">{{ $qty }}</td>
                 <td class="right"><x-money :amount="$displayUnitPrice" currency="IDR" /></td>
                 <td class="right"><x-money :amount="$lineTotal" currency="IDR" /></td>

@@ -12,9 +12,14 @@
         ? trim((string) $value)
         : $default;
     $selectedInquiryId = old('inquiry_id', $itinerary->inquiry_id ?? $prefillInquiryId);
+    $durationDays = max(1, min(7, (int) old('duration_days', $itinerary->duration_days ?? 1)));
     $durationNights = max(
         0,
-        (int) old('duration_nights', $itinerary->duration_nights ?? max(0, ($itinerary->duration_days ?? 1) - 1)),
+        min(
+            6,
+            $durationDays,
+            (int) old('duration_nights', $itinerary->duration_nights ?? max(0, ($itinerary->duration_days ?? 1) - 1)),
+        ),
     );
 
     $rawAttractions = old('itinerary_items');
@@ -69,7 +74,6 @@
         }
     }
 
-    $durationDays = max(1, (int) old('duration_days', $itinerary->duration_days ?? 1));
     $touristAttractionsSorted = collect($touristAttractions ?? [])
         ->sortBy(function ($item) {
             $city = strtolower(trim((string) ($item->city ?? '')));
@@ -242,32 +246,8 @@
             }
         }
     }
-    $dayIncludes = old('day_includes');
-    $dayExcludes = old('day_excludes');
-    if (!is_array($dayIncludes)) {
-        $dayIncludes = [];
-        if (isset($itinerary) && $itinerary->dayPoints->isNotEmpty()) {
-            foreach ($itinerary->dayPoints as $dayPoint) {
-                $day = (int) ($dayPoint->day_number ?? 0);
-                if ($day <= 0) {
-                    continue;
-                }
-                $dayIncludes[$day] = (string) ($dayPoint->day_include ?? '');
-            }
-        }
-    }
-    if (!is_array($dayExcludes)) {
-        $dayExcludes = [];
-        if (isset($itinerary) && $itinerary->dayPoints->isNotEmpty()) {
-            foreach ($itinerary->dayPoints as $dayPoint) {
-                $day = (int) ($dayPoint->day_number ?? 0);
-                if ($day <= 0) {
-                    continue;
-                }
-                $dayExcludes[$day] = (string) ($dayPoint->day_exclude ?? '');
-            }
-        }
-    }
+    $itineraryInclude = old('itinerary_include', (string) ($itinerary->itinerary_include ?? ''));
+    $itineraryExclude = old('itinerary_exclude', (string) ($itinerary->itinerary_exclude ?? ''));
 
     $rows = collect();
     foreach ($rawAttractions as $i => $item) {
@@ -396,14 +376,14 @@
         </div>
         <div class="md:col-span-3">
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Duration (Days)</label>
-            <input id="duration-days" name="duration_days" type="number" min="1"
-                value="{{ old('duration_days', $itinerary->duration_days ?? 1) }}"
+            <input id="duration-days" name="duration_days" type="number" min="1" max="7"
+                value="{{ $durationDays }}"
                 class="mt-1 dark:border-gray-600 app-input"
                 required>
         </div>
         <div class="md:col-span-3">
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Duration (Nights)</label>
-            <input id="duration-nights" name="duration_nights" type="number" min="0"
+            <input id="duration-nights" name="duration_nights" type="number" min="0" max="6"
                 value="{{ $durationNights }}"
                 class="mt-1 dark:border-gray-600 app-input"
                 required>
@@ -443,7 +423,7 @@
     @enderror
 
     <div class="space-y-2">
-        <p class="text-sm font-medium text-gray-700 dark:text-gray-200">Schedule Items (Attraction + Activity)</p>
+        <p class="text-sm font-medium text-gray-700 dark:text-gray-200">Schedule Items (Optional)</p>
         <div id="day-sections" class="space-y-3">
             @for ($day = 1; $day <= $durationDays; $day++)
                 @php
@@ -491,18 +471,6 @@
                             isset($existingDayPoint)
                                 ? (string) ($existingDayPoint->day_start_travel_minutes ?? '')
                                 : '',
-                        );
-                        $dayInclude = old(
-                            "day_includes.$day",
-                            isset($existingDayPoint)
-                                ? (string) ($existingDayPoint->day_include ?? ($dayIncludes[$day] ?? ''))
-                                : (string) ($dayIncludes[$day] ?? ''),
-                        );
-                        $dayExclude = old(
-                            "day_excludes.$day",
-                            isset($existingDayPoint)
-                                ? (string) ($existingDayPoint->day_exclude ?? ($dayExcludes[$day] ?? ''))
-                                : (string) ($dayExcludes[$day] ?? ''),
                         );
                         $mainExperienceType = (string) ($dailyMainExperienceTypes[$day] ?? '');
                         $mainExperienceItem = (string) ($dailyMainExperienceItems[$day] ?? '');
@@ -646,7 +614,9 @@
                                 name="day_start_travel_minutes[{{ $day }}]"
                                 value="{{ $dayStartTravelMinutes }}"
                                 class="day-start-travel dark:border-gray-600 app-input"
-                                placeholder="Travel to next item (minutes)">
+                                placeholder="Travel to next item (minutes)"
+                                data-next-placeholder="Travel to next item (minutes)"
+                                data-endpoint-placeholder="Travel to End Point (minutes)">
                         </div>
                     </div>
 
@@ -764,8 +734,8 @@
                                 <input type="hidden" class="item-order app-input" value="{{ $r['visit_order'] ?? '' }}">
                             </div>
                         @empty
-                            <div class="schedule-row rounded-lg border border-blue-200 bg-blue-50/60 p-2.5 dark:border-blue-700/60 dark:bg-blue-900/25"
-                                data-item-type="attraction">
+                            <div class="schedule-row schedule-row-template hidden rounded-lg border border-blue-200 bg-blue-50/60 p-2.5 dark:border-blue-700/60 dark:bg-blue-900/25"
+                                data-item-type="attraction" data-row-template="1">
                                 <div class="mb-2 flex flex-wrap items-start justify-between gap-2">
                                     <button type="button"
                                          class="drag-handle inline-flex h-7 w-7 items-center justify-center rounded-lg border border-gray-300 text-base leading-none text-gray-600 dark:border-gray-600 dark:text-gray-300"
@@ -947,28 +917,28 @@
                                 class="day-main-experience-item app-input" value="{{ $mainExperienceItem }}">
                         </div>
                     </div>
-                    <div class="mb-3 grid grid-cols-1 gap-3 md:grid-cols-2">
-                        <div>
-                            <label
-                                class="day-include-label mb-1 block text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
-                                Day {{ $day }} Includes
-                            </label>
-                            <textarea name="day_includes[{{ $day }}]"
-                                class="day-include w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
-                                rows="4" placeholder="Tuliskan yang termasuk di hari ini...">{{ $dayInclude }}</textarea>
-                        </div>
-                        <div>
-                            <label
-                                class="day-exclude-label mb-1 block text-xs font-semibold uppercase tracking-wide text-rose-700 dark:text-rose-300">
-                                Day {{ $day }} Excludes
-                            </label>
-                            <textarea name="day_excludes[{{ $day }}]"
-                                class="day-exclude w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
-                                rows="4" placeholder="Tuliskan yang tidak termasuk di hari ini...">{{ $dayExclude }}</textarea>
-                        </div>
-                    </div>
                 </div>
             @endfor
+        </div>
+        <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+            <div>
+                <label
+                    class="mb-1 block text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
+                    Itinerary Include
+                </label>
+                <textarea name="itinerary_include"
+                    class="w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
+                    rows="4" placeholder="Tuliskan yang termasuk untuk seluruh itinerary...">{{ $itineraryInclude }}</textarea>
+            </div>
+            <div>
+                <label
+                    class="mb-1 block text-xs font-semibold uppercase tracking-wide text-rose-700 dark:text-rose-300">
+                    Itinerary Exclude
+                </label>
+                <textarea name="itinerary_exclude"
+                    class="w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
+                    rows="4" placeholder="Tuliskan yang tidak termasuk untuk seluruh itinerary...">{{ $itineraryExclude }}</textarea>
+            </div>
         </div>
         @error('itinerary_items')
             <p class="text-xs text-rose-600">{{ $message }}</p>
@@ -988,10 +958,10 @@
         @error('daily_end_hotel_booking_modes.*')
             <p class="text-xs text-rose-600">{{ $message }}</p>
         @enderror
-        @error('day_includes.*')
+        @error('itinerary_include')
             <p class="text-xs text-rose-600">{{ $message }}</p>
         @enderror
-        @error('day_excludes.*')
+        @error('itinerary_exclude')
             <p class="text-xs text-rose-600">{{ $message }}</p>
         @enderror
     </div>
@@ -1195,6 +1165,23 @@
                 const daySections = document.getElementById('day-sections');
                 const durationInput = document.getElementById('duration-days');
                 const durationNightsInput = document.getElementById('duration-nights');
+                const MIN_DURATION_DAYS = 1;
+                const MAX_DURATION_DAYS = 7;
+                const MIN_DURATION_NIGHTS = 0;
+                const MAX_DURATION_NIGHTS = 6;
+                const clampDurationDays = (value) => {
+                    const parsed = parseInt(String(value ?? ''), 10);
+                    if (!Number.isFinite(parsed)) return MIN_DURATION_DAYS;
+                    return Math.max(MIN_DURATION_DAYS, Math.min(MAX_DURATION_DAYS, parsed));
+                };
+                const clampDurationNights = (value, daysValue) => {
+                    const parsed = parseInt(String(value ?? ''), 10);
+                    const days = clampDurationDays(daysValue);
+                    if (!Number.isFinite(parsed)) {
+                        return MIN_DURATION_NIGHTS;
+                    }
+                    return Math.max(MIN_DURATION_NIGHTS, Math.min(MAX_DURATION_NIGHTS, days, parsed));
+                };
                 const hotelStaysHidden = document.getElementById('hotel-stays-hidden');
                 const mapEl = document.getElementById('itinerary-map');
                 const mapDayTabsEl = document.getElementById('itinerary-map-day-tabs');
@@ -1621,7 +1608,7 @@
                 };
                 const refreshMapDayOptions = () => {
                     if (!mapDayTabsEl) return;
-                    const totalDays = Math.max(1, parseInt(durationInput.value || '1', 10));
+                    const totalDays = clampDurationDays(durationInput.value || MIN_DURATION_DAYS);
                     if (mapSelectedDay !== null && (mapSelectedDay < 1 || mapSelectedDay > totalDays)) {
                         mapSelectedDay = null;
                     }
@@ -1680,7 +1667,7 @@
                         map.invalidateSize(false);
                         refreshMapDayOptions();
                         clearItineraryMapLayers();
-                        const totalDays = Math.max(1, parseInt(durationInput.value || '1', 10));
+                        const totalDays = clampDurationDays(durationInput.value || MIN_DURATION_DAYS);
                         const dayFilter = mapSelectedDay !== null && mapSelectedDay >= 1 && mapSelectedDay <= totalDays ?
                             mapSelectedDay : null;
                         const dayList = dayFilter ? [dayFilter] : Array.from({ length: totalDays }, (_, idx) => idx + 1);
@@ -1828,7 +1815,11 @@
                     const container = sec.querySelector('.day-items');
                     if (!container) return;
                     container.querySelectorAll('.travel-connector').forEach((el) => el.remove());
-                    const rows = [...container.querySelectorAll('.schedule-row')];
+                    const rows = [...container.querySelectorAll('.schedule-row')]
+                        .filter((row) =>
+                            !row.classList.contains('schedule-row-template') &&
+                            !row.classList.contains('hidden')
+                        );
                     rows.forEach((row, index) => {
                         const hiddenTravel = row.querySelector('.item-travel');
                         if (!hiddenTravel) return;
@@ -1856,6 +1847,21 @@
                         row.insertAdjacentElement('afterend', connector);
                     });
                 };
+                const syncDayStartTravelPlaceholder = (section, activeRows = null) => {
+                    if (!section) return;
+                    const input = section.querySelector('.day-start-travel');
+                    if (!input) return;
+                    const nextLabel = String(input.dataset.nextPlaceholder || 'Travel to next item (minutes)');
+                    const endPointLabel = String(input.dataset.endpointPlaceholder || 'Travel to End Point (minutes)');
+                    const rows = Array.isArray(activeRows)
+                        ? activeRows
+                        : [...section.querySelectorAll('.schedule-row')]
+                            .filter((row) =>
+                                !row.classList.contains('schedule-row-template') &&
+                                !row.classList.contains('hidden')
+                            );
+                    input.placeholder = rows.length > 0 ? nextLabel : endPointLabel;
+                };
                 const getPointLabelFromTypeAndItem = (typeSelect, itemSelect, previousDayEndLabel = 'Not set') => {
                     const type = normalizePointType(typeSelect?.value || '');
                     if (type === 'previous_day_end') {
@@ -1879,9 +1885,57 @@
                     if (startText) startText.textContent = (startInput?.value || '').trim() || '--:-- --';
                     if (endText) endText.textContent = (endInput?.value || '').trim() || '--:-- --';
                 };
+                const resetRowAsTemplate = (row) => {
+                    if (!row) return;
+                    row.dataset.itemType = 'attraction';
+                    row.dataset.rowTemplate = '1';
+                    row.classList.add('hidden', 'schedule-row-template');
+                    row.classList.remove(
+                        'ring-2',
+                        'ring-amber-300',
+                        'border-amber-400',
+                        'bg-amber-50/40',
+                        'dark:border-amber-500/60',
+                        'dark:bg-amber-900/10'
+                    );
+                    const typeSelect = row.querySelector('.item-type');
+                    const regionSelect = row.querySelector('.item-region');
+                    const attractionSelect = row.querySelector('.item-attraction');
+                    const activitySelect = row.querySelector('.item-activity');
+                    const fnbSelect = row.querySelector('.item-fnb');
+                    const paxInput = row.querySelector('.item-pax');
+                    const startInput = row.querySelector('.item-start');
+                    const endInput = row.querySelector('.item-end');
+                    const travelInput = row.querySelector('.item-travel');
+                    const orderInput = row.querySelector('.item-order');
+                    const mainCheckbox = row.querySelector('.item-main-experience');
+                    const seqBadge = row.querySelector('.item-seq-badge');
+
+                    if (typeSelect) typeSelect.value = 'attraction';
+                    if (regionSelect) regionSelect.value = '';
+                    if (attractionSelect) attractionSelect.value = '';
+                    if (activitySelect) activitySelect.value = '';
+                    if (fnbSelect) fnbSelect.value = '';
+                    if (paxInput) paxInput.value = '1';
+                    if (startInput) startInput.value = '';
+                    if (endInput) endInput.value = '';
+                    if (travelInput) travelInput.value = '';
+                    if (orderInput) orderInput.value = '';
+                    if (mainCheckbox) mainCheckbox.checked = false;
+                    if (seqBadge) seqBadge.textContent = '-';
+                    markRegionManualState(row, false);
+                    toggleType(row, 'attraction', false);
+                    updateScheduleRowTheme(row);
+                    syncRowTimeText(row);
+                };
                 const recalcDay = async (sec) => {
                     const rows = [...sec.querySelectorAll('.schedule-row')];
+                    const activeRows = rows.filter((row) =>
+                        !row.classList.contains('schedule-row-template') &&
+                        !row.classList.contains('hidden')
+                    );
                     const chosen = rows.filter(selected);
+                    syncDayStartTravelPlaceholder(sec, activeRows);
                     syncMainExperienceSelection(sec);
                     const start = toMin(sec.querySelector('.day-start-time')?.value || '');
                     const startTravelRaw = sec.querySelector('.day-start-travel')?.value || '';
@@ -1945,9 +1999,15 @@
                     if (endPointSeq) {
                         endPointSeq.textContent = endRouteIndex >= 0 ? String(endRouteIndex + 1) : '-';
                     }
-                    if (!chosen.length || start === null) {
+                    if (start === null) {
                         if (dayEndTimeInput) dayEndTimeInput.value = '';
                         if (dayEndTimeEndpointText) dayEndTimeEndpointText.textContent = '-';
+                        return;
+                    }
+                    if (!chosen.length) {
+                        const onlyPointEndTime = fromMin(start + (Number.isFinite(startTravelMinutes) ? startTravelMinutes : 0));
+                        if (dayEndTimeInput) dayEndTimeInput.value = onlyPointEndTime || '';
+                        if (dayEndTimeEndpointText) dayEndTimeEndpointText.textContent = onlyPointEndTime || '-';
                         return;
                     }
                     cur = start + (Number.isFinite(startTravelMinutes) ? startTravelMinutes : 0);
@@ -2035,11 +2095,6 @@
                             '.day-start-point-label').innerHTML = `<span class="mr-2 day-start-point-seq inline-flex h-7 w-7 items-center justify-center rounded-full bg-slate-700 text-xs font-semibold text-white">-</span><span>Day ${day} Start Point</span>`);
                         section.querySelector('.day-end-point-label') && (section.querySelector(
                             '.day-end-point-label').innerHTML = `<span class="mr-2 day-end-point-seq inline-flex h-7 w-7 items-center justify-center rounded-full bg-slate-700 text-xs font-semibold text-white">-</span><span>Day ${day} End Point</span>`);
-                        section.querySelector('.day-include-label') && (section.querySelector(
-                            '.day-include-label').textContent = `Day ${day} Includes`);
-                        section.querySelector('.day-exclude-label') && (section.querySelector(
-                            '.day-exclude-label').textContent = `Day ${day} Excludes`);
-
                         const startType = section.querySelector('.day-start-point-type');
                         const startItem = section.querySelector('.day-start-point-item');
                         const startRoomSelect = section.querySelector('.day-start-room-select');
@@ -2054,8 +2109,6 @@
                         const transportDay = section.querySelector('.day-transport-day');
                         const dayStartTimeInput = section.querySelector('.day-start-time');
                         const startTravelInput = section.querySelector('.day-start-travel');
-                        const dayIncludeInput = section.querySelector('.day-include');
-                        const dayExcludeInput = section.querySelector('.day-exclude');
                         const mainExperienceTypeInput = section.querySelector('.day-main-experience-type');
                         const mainExperienceItemInput = section.querySelector('.day-main-experience-item');
 
@@ -2078,8 +2131,6 @@
                         }
                         if (dayStartTimeInput) dayStartTimeInput.name = `day_start_times[${day}]`;
                         if (startTravelInput) startTravelInput.name = `day_start_travel_minutes[${day}]`;
-                        if (dayIncludeInput) dayIncludeInput.name = `day_includes[${day}]`;
-                        if (dayExcludeInput) dayExcludeInput.name = `day_excludes[${day}]`;
                         if (mainExperienceTypeInput) mainExperienceTypeInput.name =
                             `daily_main_experience_types[${day}]`;
                         if (mainExperienceItemInput) mainExperienceItemInput.name =
@@ -2502,7 +2553,7 @@
                 };
                 const syncHotelStaysHidden = () => {
                     if (!hotelStaysHidden) return;
-                    const totalDays = Math.max(1, parseInt(durationInput.value || '1', 10));
+                    const totalDays = clampDurationDays(durationInput.value || MIN_DURATION_DAYS);
                     const stays = buildHotelStaysPayload(totalDays);
                     let html = '';
                     stays.forEach((stay, index) => {
@@ -2569,7 +2620,7 @@
                         animation: 200,
                         forceFallback: true,
                         fallbackTolerance: 3,
-                        draggable: '.schedule-row',
+                        draggable: '.schedule-row:not(.schedule-row-template)',
                         handle: '.drag-handle',
                         ghostClass: 'schedule-row-ghost',
                         chosenClass: 'schedule-row-chosen',
@@ -2615,8 +2666,15 @@
                         recalcNoConnectorRebuild();
                     });
                     r.querySelector('.remove-row')?.addEventListener('click', () => {
-                        if (daySections.querySelectorAll('.schedule-row').length <= 1) return;
-                        r.remove();
+                        const section = r.closest('.day-section');
+                        if (!section) return;
+                        const activeRows = [...section.querySelectorAll('.schedule-row')]
+                            .filter((row) => !row.classList.contains('schedule-row-template'));
+                        if (activeRows.length <= 1) {
+                            resetRowAsTemplate(r);
+                        } else {
+                            r.remove();
+                        }
                         recalc();
                     });
                     toggleType(r, rowType(r), false);
@@ -2633,6 +2691,8 @@
                     const src = sec.querySelector('.schedule-row');
                     if (!src) return;
                     const r = src.cloneNode(true);
+                    r.classList.remove('hidden', 'schedule-row-template');
+                    delete r.dataset.rowTemplate;
                     r.querySelector('.item-region').value = '';
                     markRegionManualState(r, false);
                     r.querySelector('.item-attraction').value = '';
@@ -2660,11 +2720,10 @@
                 };
                 const syncDurationNights = () => {
                     if (!durationNightsInput) return;
-                    const days = Math.max(1, parseInt(durationInput.value || '1', 10));
-                    const nights = Math.max(0, parseInt(durationNightsInput.value || '0', 10));
-                    if (nights > days) {
-                        durationNightsInput.value = String(days);
-                    }
+                    const days = clampDurationDays(durationInput.value || MIN_DURATION_DAYS);
+                    durationInput.value = String(days);
+                    const nights = clampDurationNights(durationNightsInput.value || MIN_DURATION_NIGHTS, days);
+                    durationNightsInput.value = String(nights);
                 };
                 daySections.querySelectorAll('.day-section').forEach((sec) => {
                     sec.querySelectorAll('.schedule-row').forEach(bindRow);
@@ -2702,7 +2761,7 @@
                     updateDayPointTheme(sec);
                 });
                 durationInput.addEventListener('change', () => {
-                    let d = Math.max(1, parseInt(durationInput.value || '1', 10));
+                    let d = clampDurationDays(durationInput.value || MIN_DURATION_DAYS);
                     durationInput.value = String(d);
                     syncDurationNights();
                     let secs = [...daySections.querySelectorAll('.day-section')];
@@ -2801,16 +2860,6 @@
                                 dayStartTravelInput.name = `day_start_travel_minutes[${i}]`;
                                 dayStartTravelInput.value = '';
                             }
-                            const dayIncludeInput = c.querySelector('.day-include');
-                            if (dayIncludeInput) {
-                                dayIncludeInput.name = `day_includes[${i}]`;
-                                dayIncludeInput.value = '';
-                            }
-                            const dayExcludeInput = c.querySelector('.day-exclude');
-                            if (dayExcludeInput) {
-                                dayExcludeInput.name = `day_excludes[${i}]`;
-                                dayExcludeInput.value = '';
-                            }
                             const dayMainExperienceType = c.querySelector('.day-main-experience-type');
                             if (dayMainExperienceType) {
                                 dayMainExperienceType.name = `daily_main_experience_types[${i}]`;
@@ -2838,22 +2887,8 @@
                             rows.slice(1).forEach((r) => r.remove());
                             const r = c.querySelector('.schedule-row');
                             if (r) {
-                                r.dataset.itemType = 'attraction';
-                                r.querySelector('.item-type').value = 'attraction';
-                                r.querySelector('.item-region').value = '';
-                                r.querySelector('.item-attraction').value = '';
-                                r.querySelector('.item-activity').value = '';
-                                r.querySelector('.item-fnb').value = '';
-                                r.querySelector('.item-pax').value = '1';
-                                r.querySelector('.item-start').value = '';
-                                r.querySelector('.item-end').value = '';
-                                r.querySelector('.item-travel').value = '';
                                 r.querySelector('.item-day').value = String(i);
-                                r.querySelector('.item-order').value = '';
-                                const mainCheckbox = r.querySelector('.item-main-experience');
-                                if (mainCheckbox) mainCheckbox.checked = false;
-                                const seq = r.querySelector('.item-seq-badge');
-                                if (seq) seq.textContent = '-';
+                                resetRowAsTemplate(r);
                             }
                             const dayItems = c.querySelector('.day-items');
                             if (dayItems) delete dayItems.dataset.sortableInit;
@@ -2901,19 +2936,16 @@
                     });
                     recalc();
                 });
+                durationInput.addEventListener('input', syncDurationNights);
                 durationNightsInput?.addEventListener('change', syncDurationNights);
+                durationNightsInput?.addEventListener('input', syncDurationNights);
+                syncDurationNights();
                 refreshRequiredAsterisks();
                 form?.addEventListener('submit', async (e) => {
                     e.preventDefault();
                     await recalcAll();
                     reindex();
                     syncHotelStaysHidden();
-                    const hasA = [...daySections.querySelectorAll('.schedule-row')].some((r) => rowType(r) ===
-                        'attraction' && selected(r));
-                    if (!hasA) {
-                        alert('Minimal 1 attraction wajib diisi.');
-                        return;
-                    }
                     clearEndPointValidationState();
                     const invalidEndPointDays = [];
                     [...daySections.querySelectorAll('.day-section')]

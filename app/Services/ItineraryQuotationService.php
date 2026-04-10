@@ -159,7 +159,7 @@ class ItineraryQuotationService
                         : ($adultContract + $adultMarkup);
                 }
                 $adultItem = $this->makeItem(
-                    $this->dayPrefix($day) . 'Activity: ' . $activity->name . ' (Adult)',
+                    $this->dayPrefix($day) . 'Activity: ' . $activity->name,
                     $adultQty,
                     $adultPublish,
                     0,
@@ -200,7 +200,7 @@ class ItineraryQuotationService
                         : ($childContract + $childMarkup);
                 }
                 $childItem = $this->makeItem(
-                    $this->dayPrefix($day) . 'Activity: ' . $activity->name . ' (Child)',
+                    $this->dayPrefix($day) . 'Activity: ' . $activity->name,
                     $childQty,
                     $childPublish,
                     0,

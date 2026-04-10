@@ -303,7 +303,12 @@
                             }
                             $lastEndBaseMinutes = $lastItem ? $toMinutes($lastItem['end_time'] ?? null) : null;
                             $lastTravelToEnd = $lastItem ? max(0, (int) ($lastItem['travel_minutes_to_next'] ?? 0)) : 0;
-                            $dayEndTime = $lastEndBaseMinutes !== null ? $fromMinutes($lastEndBaseMinutes + $lastTravelToEnd) : null;
+                            $startBaseMinutes = $toMinutes($dayStartTime ?? null);
+                            $dayEndTime = $lastEndBaseMinutes !== null
+                                ? $fromMinutes($lastEndBaseMinutes + $lastTravelToEnd)
+                                : ($startBaseMinutes !== null
+                                    ? $fromMinutes($startBaseMinutes + max(0, (int) ($dayStartTravelMinutes ?? 0)))
+                                    : null);
                         @endphp
                         <div>
                             <div class="app-day-header">
@@ -470,28 +475,28 @@
                                     </div>
                                 </li>
                             </ul>
-                            @php
-                                $dayIncludeText = \App\Support\SafeRichText::plainText($dayPoint?->day_include);
-                                $dayExcludeText = \App\Support\SafeRichText::plainText($dayPoint?->day_exclude);
-                            @endphp
-                            @if (filled($dayIncludeText) || filled($dayExcludeText))
-                                <div class="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2">
-                                    @if (filled($dayIncludeText))
-                                        <div class="rounded-lg mb-6 border border-emerald-200 bg-emerald-50/60 px-2 py-1 dark:border-emerald-800 dark:bg-emerald-900/20">
-                                            <p class="text-[11px] font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">Day Include</p>
-                                            <x-rich-text :content="$dayPoint?->day_include" class="mt-0.5 text-xs text-emerald-900 dark:text-emerald-100" />
-                                        </div>
-                                    @endif
-                                    @if (filled($dayExcludeText))
-                                        <div class="rounded-lg mb-6 border border-rose-200 bg-rose-50/60 px-2 py-1 dark:border-rose-800 dark:bg-rose-900/20">
-                                            <p class="text-[11px] font-semibold uppercase tracking-wide text-rose-700 dark:text-rose-300">Day Exclude</p>
-                                            <x-rich-text :content="$dayPoint?->day_exclude" class="mt-0.5 text-xs text-rose-900 dark:text-rose-100" />
-                                        </div>
-                                    @endif
+                        </div>
+                    @endfor
+                    @php
+                        $itineraryIncludeText = \App\Support\SafeRichText::plainText($itinerary->itinerary_include);
+                        $itineraryExcludeText = \App\Support\SafeRichText::plainText($itinerary->itinerary_exclude);
+                    @endphp
+                    @if (filled($itineraryIncludeText) || filled($itineraryExcludeText))
+                        <div class="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2">
+                            @if (filled($itineraryIncludeText))
+                                <div class="rounded-lg mb-6 border border-emerald-200 bg-emerald-50/60 px-2 py-1 dark:border-emerald-800 dark:bg-emerald-900/20">
+                                    <p class="text-[11px] font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">Itinerary Include</p>
+                                    <x-rich-text :content="$itinerary->itinerary_include" class="mt-0.5 text-xs text-emerald-900 dark:text-emerald-100" />
+                                </div>
+                            @endif
+                            @if (filled($itineraryExcludeText))
+                                <div class="rounded-lg mb-6 border border-rose-200 bg-rose-50/60 px-2 py-1 dark:border-rose-800 dark:bg-rose-900/20">
+                                    <p class="text-[11px] font-semibold uppercase tracking-wide text-rose-700 dark:text-rose-300">Itinerary Exclude</p>
+                                    <x-rich-text :content="$itinerary->itinerary_exclude" class="mt-0.5 text-xs text-rose-900 dark:text-rose-100" />
                                 </div>
                             @endif
                         </div>
-                    @endfor
+                    @endif
                 </div>
             </div>
             <div class="space-y-4 lg:col-span-5">

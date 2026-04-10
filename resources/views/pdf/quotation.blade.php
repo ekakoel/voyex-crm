@@ -53,9 +53,6 @@
             <tbody>
             @forelse ($quotation->items as $item)
                 @php
-                    $meta = is_array($item->serviceable_meta ?? null) ? $item->serviceable_meta : [];
-                    $paxType = strtolower((string) ($meta['pax_type'] ?? ''));
-                    $paxSuffix = $paxType === 'adult' ? ' [Adult Publish Rate]' : ($paxType === 'child' ? ' [Child Publish Rate]' : '');
                     $qty = max(0, (int) ($item->qty ?? 0));
                     $lineTotal = (float) ($item->total ?? 0);
                     $itemDiscount = (float) ($item->discount ?? 0);
@@ -65,7 +62,11 @@
                     }
                 @endphp
                 <tr>
-                    <td>{{ $item->description }}{{ $paxSuffix }}</td>
+                    @php
+                        $normalizedDescription = str_ireplace(['(Adult)', '(Child)'], '', (string) ($item->description ?? ''));
+                        $normalizedDescription = trim(preg_replace('/\s+/', ' ', $normalizedDescription) ?? '');
+                    @endphp
+                    <td>{{ $normalizedDescription }}</td>
                     <td class="right">{{ $qty }}</td>
                     <td class="right"><x-money :amount="$displayUnitPrice" currency="IDR" /></td>
                     <td class="right"><x-money :amount="$lineTotal" currency="IDR" /></td>

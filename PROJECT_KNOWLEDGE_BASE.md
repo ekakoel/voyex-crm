@@ -211,6 +211,9 @@ Ringkasan aturan:
 - payload schedule final dibangun ulang via `reindex()` sebelum submit,
 - day-level point/transport/include-exclude disimpan pada layer payload terpisah,
 - inquiry terkait dapat auto-transisi `draft -> processed` sesuai rule status.
+- duration guard itinerary dibatasi ketat:
+  - `duration_days`: minimum 1, maksimum 7,
+  - `duration_nights`: minimum 0, maksimum 6 (dan tetap <= `duration_days`).
 
 Referensi detail implementasi:
 - `docs/technical/ITINERARY_CREATE_EDIT_FLOW.md`

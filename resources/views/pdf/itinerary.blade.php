@@ -49,11 +49,11 @@
         .type-fnb { background: #fffbeb; color: #b45309; border-color: #fcd34d; }
         .type-point { background: #f1f5f9; color: #334155; border-color: #cbd5e1; }
         .right { text-align: right; }
-        .day-inc-exc { margin-top: 6px; width: 100%; border-collapse: collapse; }
-        .day-inc-exc td { border: 1px solid #e5e7eb; padding: 6px; vertical-align: top; }
-        .day-inc-exc .inc { background: #ecfdf5; border-color: #a7f3d0; }
-        .day-inc-exc .exc { background: #fff1f2; border-color: #fecdd3; }
-        .day-inc-exc .title { display: block; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 3px; color: #374151; }
+        .itinerary-inc-exc { margin-top: 6px; width: 100%; border-collapse: collapse; }
+        .itinerary-inc-exc td { border: 1px solid #e5e7eb; padding: 6px; vertical-align: top; }
+        .itinerary-inc-exc .inc { background: #ecfdf5; border-color: #a7f3d0; }
+        .itinerary-inc-exc .exc { background: #fff1f2; border-color: #fecdd3; }
+        .itinerary-inc-exc .title { display: block; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 3px; color: #374151; }
         .transport-box { margin-top: 8px; border: 1px solid #e5e7eb; border-radius: 8px; padding: 8px; background: #f8fafc; }
         .transport-title { font-size: 10px; text-transform: uppercase; letter-spacing: .06em; color: #334155; font-weight: 700; margin-bottom: 6px; }
         table.transport-table { width: 100%; border-collapse: collapse; }
@@ -186,10 +186,6 @@
                 </tbody>
             </table>
             @php
-                $dayIncludeText = \App\Support\SafeRichText::plainText($day['day_include'] ?? null);
-                $dayExcludeText = \App\Support\SafeRichText::plainText($day['day_exclude'] ?? null);
-                $dayIncludeHtml = \App\Support\SafeRichText::sanitize($day['day_include'] ?? '');
-                $dayExcludeHtml = \App\Support\SafeRichText::sanitize($day['day_exclude'] ?? '');
                 $dayTransport = $day['transport_unit'] ?? null;
             @endphp
             <div class="transport-box">
@@ -219,26 +215,36 @@
                     </tr>
                 </table>
             </div>
-            @if (filled($dayIncludeText) || filled($dayExcludeText))
-                <table class="day-inc-exc">
-                    <tr>
-                        @if (filled($dayIncludeText))
-                            <td class="inc">
-                                <span class="title">Day {{ $day['day'] }} Include</span>
-                                <div class="richtext">{!! $dayIncludeHtml !!}</div>
-                            </td>
-                        @endif
-                        @if (filled($dayExcludeText))
-                            <td class="exc">
-                                <span class="title">Day {{ $day['day'] }} Exclude</span>
-                                <div class="richtext">{!! $dayExcludeHtml !!}</div>
-                            </td>
-                        @endif
-                    </tr>
-                </table>
-            @endif
         </div>
     @endforeach
+
+    @php
+        $itineraryIncludeText = \App\Support\SafeRichText::plainText($itinerary->itinerary_include ?? null);
+        $itineraryExcludeText = \App\Support\SafeRichText::plainText($itinerary->itinerary_exclude ?? null);
+        $itineraryIncludeHtml = \App\Support\SafeRichText::sanitize((string) ($itinerary->itinerary_include ?? ''));
+        $itineraryExcludeHtml = \App\Support\SafeRichText::sanitize((string) ($itinerary->itinerary_exclude ?? ''));
+    @endphp
+    @if (filled($itineraryIncludeText) || filled($itineraryExcludeText))
+        <div class="panel">
+            <div class="panel-title">Itinerary Include & Exclude</div>
+            <table class="itinerary-inc-exc">
+                <tr>
+                    @if (filled($itineraryIncludeText))
+                        <td class="inc">
+                            <span class="title">Itinerary Include</span>
+                            <div class="richtext">{!! $itineraryIncludeHtml !!}</div>
+                        </td>
+                    @endif
+                    @if (filled($itineraryExcludeText))
+                        <td class="exc">
+                            <span class="title">Itinerary Exclude</span>
+                            <div class="richtext">{!! $itineraryExcludeHtml !!}</div>
+                        </td>
+                    @endif
+                </tr>
+            </table>
+        </div>
+    @endif
 
 </body>
 </html>

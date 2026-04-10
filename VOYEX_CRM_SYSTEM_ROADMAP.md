@@ -225,6 +225,10 @@ Completed in this cycle:
   - quotation export now supports scope-aware behavior (`published` and `my`) to match visible list context.
 - Sidebar navigation update:
   - added `My Quotations` entry under Reservations for direct access to creator-owned quotation management.
+- Itinerary duration guard hardening:
+  - create/edit itinerary now enforces duration limits: `duration_days` min 1 max 7, `duration_nights` min 0 max 6.
+  - itinerary form inputs now include corresponding HTML min/max constraints.
+  - client-side duration sync now clamps values to rule limits to prevent out-of-range day generation.
 - Cross-module consistency guard:
   - itinerary lifecycle sync now treats quotation status `final` as final-equivalent to avoid status downgrade.
 - QA note:

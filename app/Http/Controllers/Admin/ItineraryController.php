@@ -174,9 +174,11 @@ class ItineraryController extends Controller
             'arrival_transport_id' => ['nullable', 'integer', 'exists:transports,id'],
             'departure_transport_id' => ['nullable', 'integer', 'exists:transports,id'],
             'inquiry_id' => ['nullable', 'integer', 'exists:inquiries,id'],
-            'duration_days' => ['required', 'integer', 'min:1'],
-            'duration_nights' => ['required', 'integer', 'min:0', 'lte:duration_days'],
+            'duration_days' => ['required', 'integer', 'min:1', 'max:7'],
+            'duration_nights' => ['required', 'integer', 'min:0', 'max:6', 'lte:duration_days'],
             'description' => ['nullable', 'string'],
+            'itinerary_include' => ['nullable', 'string'],
+            'itinerary_exclude' => ['nullable', 'string'],
             'daily_start_point_types' => ['nullable', 'array'],
             'daily_start_point_types.*' => ['nullable', 'string', 'in:previous_day_end,hotel,airport'],
             'daily_start_point_items' => ['nullable', 'array'],
@@ -190,10 +192,6 @@ class ItineraryController extends Controller
             'day_start_times.*' => ['nullable', 'date_format:H:i'],
             'day_start_travel_minutes' => ['nullable', 'array'],
             'day_start_travel_minutes.*' => ['nullable', 'integer', 'min:0'],
-            'day_includes' => ['nullable', 'array'],
-            'day_includes.*' => ['nullable', 'string'],
-            'day_excludes' => ['nullable', 'array'],
-            'day_excludes.*' => ['nullable', 'string'],
             'daily_end_point_types' => ['nullable', 'array'],
             'daily_end_point_types.*' => ['nullable', 'string', 'in:hotel,airport'],
             'daily_end_point_items' => ['nullable', 'array'],
@@ -212,7 +210,7 @@ class ItineraryController extends Controller
             'hotel_stays.*.day_number' => ['required', 'integer', 'min:1'],
             'hotel_stays.*.night_count' => ['required', 'integer', 'min:1'],
             'hotel_stays.*.room_count' => ['required', 'integer', 'min:1'],
-            'itinerary_items' => ['required', 'array', 'min:1'],
+            'itinerary_items' => ['nullable', 'array'],
             'itinerary_items.*.tourist_attraction_id' => ['required', 'integer', 'distinct', 'exists:tourist_attractions,id'],
             'itinerary_items.*.day_number' => ['required', 'integer', 'min:1'],
             'itinerary_items.*.start_time' => ['nullable', 'date_format:H:i'],
@@ -247,7 +245,7 @@ class ItineraryController extends Controller
         $validated['created_by'] = auth()->id();
         $validated['status'] = Itinerary::STATUS_PENDING;
         $validated['destination_id'] = $this->resolveDestinationId($validated['destination'] ?? null);
-        $items = $validated['itinerary_items'];
+        $items = $validated['itinerary_items'] ?? [];
         $activityItems = $validated['itinerary_activity_items'] ?? [];
         $foodBeverageItems = $validated['itinerary_food_beverage_items'] ?? [];
         $hotelStays = $this->normalizeHotelStays(
@@ -263,8 +261,6 @@ class ItineraryController extends Controller
             $validated['daily_start_hotel_booking_modes'] ?? [],
             $validated['day_start_times'] ?? [],
             $validated['day_start_travel_minutes'] ?? [],
-            $validated['day_includes'] ?? [],
-            $validated['day_excludes'] ?? [],
             $validated['daily_end_point_types'] ?? [],
             $validated['daily_end_point_items'] ?? [],
             $validated['daily_end_point_room_ids'] ?? [],
@@ -287,8 +283,6 @@ class ItineraryController extends Controller
         unset($validated['daily_start_hotel_booking_modes']);
         unset($validated['day_start_times']);
         unset($validated['day_start_travel_minutes']);
-        unset($validated['day_includes']);
-        unset($validated['day_excludes']);
         unset($validated['daily_end_point_types']);
         unset($validated['daily_end_point_items']);
         unset($validated['daily_end_point_room_ids']);
@@ -361,6 +355,8 @@ class ItineraryController extends Controller
                         'duration_days' => $itinerary->duration_days,
                         'duration_nights' => $itinerary->duration_nights,
                         'description' => $itinerary->description,
+                        'itinerary_include' => $itinerary->itinerary_include,
+                        'itinerary_exclude' => $itinerary->itinerary_exclude,
                         'is_active' => true,
                         'status' => Itinerary::STATUS_PENDING,
                     ]);
@@ -897,9 +893,12 @@ class ItineraryController extends Controller
             $lastItem = $items->last();
             $lastEndBaseMinutes = $lastItem ? $toMinutes($lastItem['end_time'] ?? null) : null;
             $lastTravelToEnd = $lastItem ? max(0, (int) ($lastItem['travel_minutes_to_next'] ?? 0)) : 0;
+            $startBaseMinutes = $toMinutes($startTime !== '--:--' ? $startTime : null);
             $endTime = $lastEndBaseMinutes !== null
                 ? ($fromMinutes($lastEndBaseMinutes + $lastTravelToEnd) ?? '--:--')
-                : '--:--';
+                : ($startBaseMinutes !== null
+                    ? ($fromMinutes($startBaseMinutes + max(0, (int) ($startTravelMinutes ?? 0))) ?? '--:--')
+                    : '--:--');
             $dayTransportItem = $transportUnitByDay[$day] ?? null;
             $dayTransportUnit = $dayTransportItem?->transportUnit;
             $transportMaster = $dayTransportUnit?->transport;
@@ -963,8 +962,6 @@ class ItineraryController extends Controller
                 'start_travel_minutes' => $startTravelMinutes,
                 'start_point_type_label' => $startPoint['label'] ?? ($startPoint['type'] ?? 'Unknown'),
                 'end_point_type_label' => $endPoint['label'] ?? ($endPoint['type'] ?? 'Unknown'),
-                'day_include' => (string) ($dayPoint->day_include ?? ''),
-                'day_exclude' => (string) ($dayPoint->day_exclude ?? ''),
                 'transport_unit' => $dayTransport,
                 'items' => $timelineItems,
             ];
@@ -1130,9 +1127,11 @@ SVG;
             'arrival_transport_id' => ['nullable', 'integer', 'exists:transports,id'],
             'departure_transport_id' => ['nullable', 'integer', 'exists:transports,id'],
             'inquiry_id' => ['nullable', 'integer', 'exists:inquiries,id'],
-            'duration_days' => ['required', 'integer', 'min:1'],
-            'duration_nights' => ['required', 'integer', 'min:0', 'lte:duration_days'],
+            'duration_days' => ['required', 'integer', 'min:1', 'max:7'],
+            'duration_nights' => ['required', 'integer', 'min:0', 'max:6', 'lte:duration_days'],
             'description' => ['nullable', 'string'],
+            'itinerary_include' => ['nullable', 'string'],
+            'itinerary_exclude' => ['nullable', 'string'],
             'is_active' => ['nullable', 'boolean'],
             'daily_start_point_types' => ['nullable', 'array'],
             'daily_start_point_types.*' => ['nullable', 'string', 'in:previous_day_end,hotel,airport'],
@@ -1147,10 +1146,6 @@ SVG;
             'day_start_times.*' => ['nullable', 'date_format:H:i'],
             'day_start_travel_minutes' => ['nullable', 'array'],
             'day_start_travel_minutes.*' => ['nullable', 'integer', 'min:0'],
-            'day_includes' => ['nullable', 'array'],
-            'day_includes.*' => ['nullable', 'string'],
-            'day_excludes' => ['nullable', 'array'],
-            'day_excludes.*' => ['nullable', 'string'],
             'daily_end_point_types' => ['nullable', 'array'],
             'daily_end_point_types.*' => ['nullable', 'string', 'in:hotel,airport'],
             'daily_end_point_items' => ['nullable', 'array'],
@@ -1169,7 +1164,7 @@ SVG;
             'hotel_stays.*.day_number' => ['required', 'integer', 'min:1'],
             'hotel_stays.*.night_count' => ['required', 'integer', 'min:1'],
             'hotel_stays.*.room_count' => ['required', 'integer', 'min:1'],
-            'itinerary_items' => ['required', 'array', 'min:1'],
+            'itinerary_items' => ['nullable', 'array'],
             'itinerary_items.*.tourist_attraction_id' => ['required', 'integer', 'distinct', 'exists:tourist_attractions,id'],
             'itinerary_items.*.day_number' => ['required', 'integer', 'min:1'],
             'itinerary_items.*.start_time' => ['nullable', 'date_format:H:i'],
@@ -1202,7 +1197,7 @@ SVG;
         // Business rule: itinerary must remain active on create/update.
         $validated['is_active'] = true;
         $validated['destination_id'] = $this->resolveDestinationId($validated['destination'] ?? null);
-        $items = $validated['itinerary_items'];
+        $items = $validated['itinerary_items'] ?? [];
         $activityItems = $validated['itinerary_activity_items'] ?? [];
         $foodBeverageItems = $validated['itinerary_food_beverage_items'] ?? [];
         $hotelStays = $this->normalizeHotelStays(
@@ -1218,8 +1213,6 @@ SVG;
             $validated['daily_start_hotel_booking_modes'] ?? [],
             $validated['day_start_times'] ?? [],
             $validated['day_start_travel_minutes'] ?? [],
-            $validated['day_includes'] ?? [],
-            $validated['day_excludes'] ?? [],
             $validated['daily_end_point_types'] ?? [],
             $validated['daily_end_point_items'] ?? [],
             $validated['daily_end_point_room_ids'] ?? [],
@@ -1242,8 +1235,6 @@ SVG;
         unset($validated['daily_start_hotel_booking_modes']);
         unset($validated['day_start_times']);
         unset($validated['day_start_travel_minutes']);
-        unset($validated['day_includes']);
-        unset($validated['day_excludes']);
         unset($validated['daily_end_point_types']);
         unset($validated['daily_end_point_items']);
         unset($validated['daily_end_point_room_ids']);
@@ -1657,8 +1648,6 @@ SVG;
         array $startHotelBookingModes,
         array $dayStartTimes,
         array $dayStartTravelMinutes,
-        array $dayIncludes,
-        array $dayExcludes,
         array $endTypes,
         array $endItems,
         array $endRoomIds,
@@ -1734,10 +1723,6 @@ SVG;
             $dayStartTravel = isset($dayStartTravelMinutes[$day]) && $dayStartTravelMinutes[$day] !== ''
                 ? max(0, (int) $dayStartTravelMinutes[$day])
                 : 0;
-            $dayIncludeRaw = trim((string) ($dayIncludes[$day] ?? ''));
-            $dayExcludeRaw = trim((string) ($dayExcludes[$day] ?? ''));
-            $dayInclude = $dayIncludeRaw !== '' ? $dayIncludeRaw : null;
-            $dayExclude = $dayExcludeRaw !== '' ? $dayExcludeRaw : null;
             $mainExperienceType = (string) ($mainExperienceTypes[$day] ?? '');
             if (! in_array($mainExperienceType, ['attraction', 'activity', 'fnb'], true)) {
                 $mainExperienceType = '';
@@ -1830,8 +1815,6 @@ SVG;
                 'day_number' => $day,
                 'day_start_time' => $dayStartTime,
                 'day_start_travel_minutes' => $dayStartTravel,
-                'day_include' => $dayInclude,
-                'day_exclude' => $dayExclude,
                 'main_experience_type' => $mainExperienceType !== '' ? $mainExperienceType : null,
                 'main_tourist_attraction_id' => $mainExperienceType === 'attraction' ? $mainExperienceItemId : null,
                 'main_activity_id' => $mainExperienceType === 'activity' ? $mainExperienceItemId : null,
@@ -2029,6 +2012,8 @@ SVG;
             'duration_days' => (int) ($itinerary->duration_days ?? 0),
             'duration_nights' => (int) ($itinerary->duration_nights ?? 0),
             'description' => trim((string) ($itinerary->description ?? '')),
+            'itinerary_include' => trim((string) ($itinerary->itinerary_include ?? '')),
+            'itinerary_exclude' => trim((string) ($itinerary->itinerary_exclude ?? '')),
             'is_active' => (bool) ($itinerary->is_active ?? false),
             'status' => (string) ($itinerary->status ?? ''),
             'attractions' => $itinerary->touristAttractions
