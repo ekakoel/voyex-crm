@@ -19,6 +19,15 @@
                 data-csrf-token="{{ csrf_token() }}">
                 @if (!empty($touristAttraction?->gallery_images))
                     @foreach ($touristAttraction->gallery_images as $image)
+                        @php
+                            $thumbPath = \App\Support\ImageThumbnailGenerator::thumbnailPathFor($image);
+                            $hasThumb = \Illuminate\Support\Facades\Storage::disk('public')->exists($thumbPath);
+                            $hasOriginal = \Illuminate\Support\Facades\Storage::disk('public')->exists($image);
+                            $primarySrc = $hasThumb
+                                ? asset('storage/' . $thumbPath)
+                                : ($hasOriginal ? asset('storage/' . $image) : null);
+                            $fallbackSrc = $hasOriginal ? asset('storage/' . $image) : null;
+                        @endphp
                         <div class="tourist-gallery-item tourist-gallery-existing-item relative overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700" data-image-path="{{ $image }}">
                             <button
                                 type="button"
@@ -35,12 +44,15 @@
                                     </svg>
                                     <span>Select image to preview</span>
                                 </div>
-                                <img
-                                    src="{{ asset('storage/' . \App\Support\ImageThumbnailGenerator::thumbnailPathFor($image)) }}"
-                                    onload="this.classList.add('image-loaded');var p=this.closest('.image-preview');if(p){p.classList.add('has-image');}"
-                                    onerror="if(this.dataset.fallbackApplied){var p=this.closest('.image-preview');if(p){p.classList.remove('has-image');}this.remove();}else{this.dataset.fallbackApplied='1';this.src='{{ asset('storage/' . $image) }}';}"
-                                    alt="Tourist attraction gallery"
-                                    class="h-full w-full object-cover">
+                                @if ($primarySrc)
+                                    <img
+                                        src="{{ $primarySrc }}"
+                                        data-fallback-src="{{ $fallbackSrc ?? '' }}"
+                                        onload="this.classList.add('image-loaded');var p=this.closest('.image-preview');if(p){p.classList.add('has-image');}"
+                                        onerror="var fallback=this.dataset.fallbackSrc||'';if(this.dataset.fallbackApplied||fallback===''){var p=this.closest('.image-preview');if(p){p.classList.remove('has-image');}this.remove();}else{this.dataset.fallbackApplied='1';this.src=fallback;}"
+                                        alt="Tourist attraction gallery"
+                                        class="h-full w-full object-cover">
+                                @endif
                             </div>
                         </div>
                     @endforeach
@@ -343,5 +355,4 @@
         </script>
     @endpush
 @endonce
-
 

@@ -206,8 +206,14 @@ Completed in this cycle:
   - removed `Delete Account` panel include from `resources/views/profile/edit.blade.php`.
   - profile update and password update panels remain unchanged.
   - `profile.destroy` route/controller were intentionally left intact to avoid auth-flow regression.
+- Tourist Attraction gallery image durability hardening:
+  - improved `ImageThumbnailGenerator::processAndGenerate()` fail-safe so original upload is retained when processed-file write is not persisted.
+  - hardened `TouristAttractionController::storeGalleryImages()` to persist only gallery paths that actually exist on `public` disk (prevent DB path drift to missing files).
+  - update flow now auto-cleans stale tourist-attraction gallery references whose files are already missing on disk.
+  - updated tourist-attraction edit gallery preview rendering to check storage existence before emitting image URL, reducing broken-image 404 loops in UI.
 - QA note:
   - verified profile page still renders Update Profile + Update Password forms.
+  - `php -l` passed for `app/Support/ImageThumbnailGenerator.php` and `app/Http/Controllers/Admin/TouristAttractionController.php`.
   - `php artisan view:cache` passed after Blade update.
 
 Date: 2026-04-09

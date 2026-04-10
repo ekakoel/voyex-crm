@@ -179,7 +179,13 @@ class ImageThumbnailGenerator
         $name = (string) pathinfo($originalPath, PATHINFO_FILENAME);
         $processedPath = ($directory !== '' ? $directory.'/' : '').$name.'.jpg';
 
-        $storage->put($processedPath, $croppedBinary);
+        $written = $storage->put($processedPath, $croppedBinary);
+        if (! $written || ! $storage->exists($processedPath)) {
+            // Fail-safe: keep and use original file when processed write is not persisted.
+            self::generate($disk, $originalPath, $thumbWidth, $thumbHeight);
+            return $originalPath;
+        }
+
         if ($processedPath !== $originalPath && $storage->exists($originalPath)) {
             $storage->delete($originalPath);
         }

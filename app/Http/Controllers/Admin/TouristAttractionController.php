@@ -87,6 +87,8 @@ class TouristAttractionController extends Controller
     {
         $validated = $this->validatePayload($request, $touristAttraction);
         $existingGallery = $this->normalizeGalleryImages($touristAttraction->gallery_images ?? []);
+        $storage = Storage::disk('public');
+        $existingGallery = array_values(array_filter($existingGallery, fn ($path) => $storage->exists($path)));
         $requestedRemoved = $request->input('removed_gallery_images', []);
         $requestedRemoved = is_array($requestedRemoved) ? $requestedRemoved : [];
         $removedGallery = array_values(array_intersect($existingGallery, $requestedRemoved));
@@ -249,15 +251,34 @@ class TouristAttractionController extends Controller
     {
         $stored = [];
         $targetDirectory = trim($directory) !== '' ? trim($directory) : self::GALLERY_DIRECTORY;
+        $storage = Storage::disk('public');
         foreach ($files as $file) {
             if (! $file) {
                 continue;
             }
+
             $originalPath = $file->store($targetDirectory, 'public');
+            if (! is_string($originalPath) || trim($originalPath) === '') {
+                continue;
+            }
+
             $processedPath = ImageThumbnailGenerator::processAndGenerate('public', $originalPath, 3, 2, 360, 240) ?? $originalPath;
+            $selectedPath = is_string($processedPath) && trim($processedPath) !== '' ? $processedPath : $originalPath;
+
+            $normalizedSelectedPath = $this->normalizeGalleryPath($selectedPath);
+            if (! $storage->exists($normalizedSelectedPath)) {
+                $normalizedOriginalPath = $this->normalizeGalleryPath($originalPath);
+                if ($storage->exists($normalizedOriginalPath)) {
+                    $normalizedSelectedPath = $normalizedOriginalPath;
+                } else {
+                    // Prevent DB drift: do not persist gallery path when file is missing on disk.
+                    continue;
+                }
+            }
+
             // Ensure thumbnail always exists for every uploaded image.
-            ImageThumbnailGenerator::generate('public', $processedPath, 360, 240);
-            $stored[] = $this->normalizeGalleryPath($processedPath);
+            ImageThumbnailGenerator::generate('public', $normalizedSelectedPath, 360, 240);
+            $stored[] = $normalizedSelectedPath;
         }
         return $stored;
     }
