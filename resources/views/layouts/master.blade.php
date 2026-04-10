@@ -240,9 +240,7 @@
                                     <option value="IDR" selected>IDR</option>
                                 @endforelse
                             </select>
-                            <span class="nav-currency-select-icon text-xs text-gray-500 dark:text-gray-300" aria-hidden="true">
-                                <i class="fa-solid fa-chevron-down"></i>
-                            </span>
+                            
                         </div>
                     </form>
                     @can('module.currencies.access')
