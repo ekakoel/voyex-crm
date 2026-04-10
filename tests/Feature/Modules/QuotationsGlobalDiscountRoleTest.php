@@ -167,7 +167,7 @@ class QuotationsGlobalDiscountRoleTest extends ModuleSmokeTestCase
         $this->assertSame('7000.00', (string) $quotation->discount_value);
     }
 
-    public function test_manager_and_director_can_access_edit_quotation_created_by_other_user(): void
+    public function test_manager_and_director_cannot_access_edit_quotation_created_by_other_user(): void
     {
         $owner = $this->createUserWithRole('Marketing');
         $ownerItinerary = $this->createItineraryFor($owner);
@@ -178,8 +178,28 @@ class QuotationsGlobalDiscountRoleTest extends ModuleSmokeTestCase
             $this->actingAs($editor);
 
             $this->get(route('quotations.edit', $quotation))
-                ->assertOk();
+                ->assertRedirect(route('quotations.show', $quotation));
         }
+    }
+
+    public function test_manager_cannot_update_global_discount_for_quotation_created_by_other_user(): void
+    {
+        $owner = $this->createUserWithRole('Marketing');
+        $ownerItinerary = $this->createItineraryFor($owner);
+        $quotation = $this->createQuotationFor($owner, $ownerItinerary, 'fixed', 5000);
+
+        $manager = $this->createUserWithRole('Manager');
+        $this->actingAs($manager)
+            ->patch(route('quotations.global-discount', $quotation), [
+                'global_discount_type' => 'percent',
+                'global_discount_value' => 10,
+            ])
+            ->assertRedirect(route('quotations.show', $quotation))
+            ->assertSessionHas('error');
+
+        $quotation->refresh();
+        $this->assertSame('fixed', $quotation->discount_type);
+        $this->assertSame('5000.00', (string) $quotation->discount_value);
     }
 
     public function test_marketing_cannot_access_edit_quotation_created_by_other_user(): void
@@ -243,6 +263,140 @@ class QuotationsGlobalDiscountRoleTest extends ModuleSmokeTestCase
             ->assertRedirect(route('quotations.show', $quotation));
         $quotation->refresh();
         $this->assertSame('approved', $quotation->status);
+    }
+
+    public function test_creator_can_set_approved_quotation_to_final(): void
+    {
+        $creator = $this->createUserWithRole('Marketing');
+        $itinerary = $this->createItineraryFor($creator);
+        $quotation = $this->createQuotationFor($creator, $itinerary, null, 0);
+        $quotation->update([
+            'status' => 'approved',
+            'approved_by' => $creator->id,
+            'approved_at' => now(),
+            'validity_date' => now()->addDays(3)->toDateString(),
+        ]);
+
+        $this->actingAs($creator)
+            ->post(route('quotations.set-final', $quotation))
+            ->assertRedirect(route('quotations.show', $quotation));
+
+        $quotation->refresh();
+        $this->assertSame('final', $quotation->status);
+    }
+
+    public function test_non_creator_cannot_set_approved_quotation_to_final(): void
+    {
+        $creator = $this->createUserWithRole('Marketing');
+        $itinerary = $this->createItineraryFor($creator);
+        $quotation = $this->createQuotationFor($creator, $itinerary, null, 0);
+        $quotation->update([
+            'status' => 'approved',
+            'approved_by' => $creator->id,
+            'approved_at' => now(),
+            'validity_date' => now()->addDays(3)->toDateString(),
+        ]);
+
+        $manager = $this->createUserWithRole('Manager');
+        $this->actingAs($manager)
+            ->post(route('quotations.set-final', $quotation))
+            ->assertRedirect(route('quotations.show', $quotation))
+            ->assertSessionHas('error');
+
+        $quotation->refresh();
+        $this->assertSame('approved', $quotation->status);
+    }
+
+    public function test_expired_approved_quotation_auto_finalizes_on_show(): void
+    {
+        $creator = $this->createUserWithRole('Marketing');
+        $itinerary = $this->createItineraryFor($creator);
+        $quotation = $this->createQuotationFor($creator, $itinerary, null, 0);
+        $quotation->update([
+            'status' => 'approved',
+            'approved_by' => $creator->id,
+            'approved_at' => now()->subDay(),
+            'validity_date' => now()->subDay()->toDateString(),
+        ]);
+
+        $this->actingAs($creator)
+            ->get(route('quotations.show', $quotation))
+            ->assertOk();
+
+        $quotation->refresh();
+        $this->assertSame('final', $quotation->status);
+    }
+
+    public function test_expired_non_approved_quotation_does_not_auto_change_status(): void
+    {
+        $creator = $this->createUserWithRole('Marketing');
+        $itinerary = $this->createItineraryFor($creator);
+        $quotation = $this->createQuotationFor($creator, $itinerary, null, 0);
+        $quotation->update([
+            'status' => 'pending',
+            'validity_date' => now()->subDay()->toDateString(),
+        ]);
+
+        $this->actingAs($creator)
+            ->get(route('quotations.show', $quotation))
+            ->assertOk();
+
+        $quotation->refresh();
+        $this->assertSame('pending', $quotation->status);
+    }
+
+    public function test_creator_can_update_approved_quotation_and_status_resets_to_pending(): void
+    {
+        $creator = $this->createUserWithRole('Marketing');
+        $itinerary = $this->createItineraryFor($creator);
+        $quotation = $this->createQuotationFor($creator, $itinerary, null, 0);
+        $quotation->update([
+            'status' => 'approved',
+            'approved_by' => $creator->id,
+            'approved_at' => now(),
+            'validity_date' => now()->addDays(2)->toDateString(),
+        ]);
+
+        $this->actingAs($creator)
+            ->put(route('quotations.update', $quotation), [
+                'itinerary_id' => $itinerary->id,
+                'validity_date' => now()->addDays(5)->format('Y-m-d'),
+                'items' => [
+                    [
+                        'description' => 'Creator revised approved quotation',
+                        'qty' => 2,
+                        'unit_price' => 110000,
+                        'discount_type' => 'fixed',
+                        'discount' => 0,
+                        'itinerary_item_type' => 'manual',
+                    ],
+                ],
+            ])
+            ->assertRedirect(route('quotations.show', $quotation));
+
+        $quotation->refresh();
+        $this->assertSame('pending', $quotation->status);
+        $this->assertNull($quotation->approved_by);
+        $this->assertNull($quotation->approved_at);
+        $this->assertSame('Creator revised approved quotation', (string) $quotation->items()->first()->description);
+    }
+
+    public function test_edit_quotation_still_shows_linked_itinerary_when_itinerary_is_final(): void
+    {
+        $creator = $this->createUserWithRole('Marketing');
+        $itinerary = $this->createItineraryFor($creator);
+        $quotation = $this->createQuotationFor($creator, $itinerary, null, 0);
+
+        $itinerary->update([
+            'status' => Itinerary::FINAL_STATUS,
+            'is_active' => false,
+        ]);
+
+        $this->actingAs($creator)
+            ->get(route('quotations.edit', $quotation))
+            ->assertOk()
+            ->assertSeeText($itinerary->title)
+            ->assertDontSeeText('Belum ada itinerary aktif yang siap dipakai untuk quotation.');
     }
 
     private function createUserWithRole(string $roleName): User

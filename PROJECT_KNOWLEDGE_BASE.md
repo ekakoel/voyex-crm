@@ -1,7 +1,7 @@
 # Voyex CRM - Project Knowledge Base
 
-Version: 2.1  
-Date: 2026-04-09  
+Version: 2.2  
+Date: 2026-04-10  
 Status: Consolidated source of truth (post markdown audit, deduplication, and docs structure migration)
 
 ---
@@ -64,6 +64,12 @@ Applies to: Inquiries, Itineraries, Quotations, Bookings, Invoices
 Rule:
 - If status is `final`, record is view-only (no edit/delete/mutation actions).
 
+Additional quotation rule:
+- Quotation can move to `final` only from `approved` status.
+- Transition to `final` happens when creator explicitly sets it, or when `validity_date` has passed.
+- Expired quotations with non-`approved` status must keep their existing status.
+- Quotation with status `approved` can still be edited by its creator; after data update the status is reset to `pending` for re-approval.
+
 ---
 
 ## 4. Modules and Functional Scope
@@ -119,7 +125,8 @@ Access controls in use:
 
 Key policy/business guard examples:
 - Inquiry update: creator or assigned user
-- Itinerary/Quotation/Booking edit-delete: creator policy with Super Admin override (per guideline direction)
+- Itinerary/Booking edit-delete: creator policy with Super Admin override (per guideline direction)
+- Quotation data mutation (edit/delete/global discount): creator-only before status `final`
 - Discount/promo approval path: Manager/Director
 - Follow-up mark done: creator inquiry or assigned user
 
@@ -225,6 +232,12 @@ Area quotation create/edit tetap kritis pada:
 - generated item dari itinerary + editable override user,
 - kalkulasi discount dua lapis (row level + header level),
 - approval workflow berbasis role.
+
+Tambahan workflow status quotation:
+- action manual `Set Final` hanya untuk creator quotation dan hanya saat status `approved`.
+- auto-finalization untuk quotation `approved` berjalan saat `validity_date` sudah lewat.
+- creator dapat mengubah data quotation berstatus `approved`; setiap perubahan akan reset status menjadi `pending`.
+- behavior ini diselaraskan dengan lifecycle itinerary agar status akhir tetap konsisten lintas modul.
 
 Referensi verifikasi approval:
 - `docs/technical/QUOTATION_APPROVAL_UAT_MATRIX.md`

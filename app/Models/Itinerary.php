@@ -64,7 +64,8 @@ class Itinerary extends Model
 
         $nextStatus = self::STATUS_PENDING;
         if ($this->quotation) {
-            $nextStatus = (string) ($this->quotation->status ?? '') === 'approved'
+            $quotationStatus = (string) ($this->quotation->status ?? '');
+            $nextStatus = in_array($quotationStatus, ['approved', Quotation::FINAL_STATUS], true)
                 ? self::STATUS_FINAL
                 : self::STATUS_PROCESSED;
         }
@@ -161,7 +162,6 @@ class Itinerary extends Model
         return $this->belongsTo(Transport::class, 'departure_transport_id');
     }
 }
-
 
 
 

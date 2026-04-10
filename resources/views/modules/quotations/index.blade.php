@@ -93,13 +93,13 @@
                                 <a href="{{ route('quotations.show', $quotation) }}" class="btn-ghost-sm" title="View"
                                     aria-label="View"><i class="fa-solid fa-eye"></i><span class="sr-only">View</span></a>
                                 @can('update', $quotation)
-                                    @if (!in_array($quotation->status ?? '', ['approved', 'final'], true))
+                                    @if (($quotation->status ?? '') !== 'final')
                                         <a href="{{ route('quotations.edit', $quotation) }}" class="btn-secondary-sm"
                                             title="Edit" aria-label="Edit"><i class="fa-solid fa-pen"></i><span
                                                 class="sr-only">Edit</span></a>
                                     @endif
                                 @endcan
-                                @if (($quotation->status ?? '') === 'approved')
+                                @if (in_array(($quotation->status ?? ''), ['approved', 'final'], true))
                                     <a href="{{ route('quotations.pdf', $quotation) }}" target="_blank" rel="noopener"
                                         class="btn-outline-sm">PDF</a>
                                 @endif
@@ -186,14 +186,14 @@
                                                     title="View" aria-label="View"><i class="fa-solid fa-eye"></i><span
                                                         class="sr-only">View</span></a>
                                                 @can('update', $quotation)
-                                                    @if (!in_array($quotation->status ?? '', ['approved', 'final'], true))
+                                                    @if (($quotation->status ?? '') !== 'final')
                                                         <a href="{{ route('quotations.edit', $quotation) }}"
                                                             class="btn-secondary-sm" title="Edit" aria-label="Edit"><i
                                                                 class="fa-solid fa-pen"></i><span
                                                                 class="sr-only">Edit</span></a>
                                                     @endif
                                                 @endcan
-                                                @if (($quotation->status ?? '') === 'approved')
+                                                @if (in_array(($quotation->status ?? ''), ['approved', 'final'], true))
                                                     <a href="{{ route('quotations.pdf', $quotation) }}" target="_blank"
                                                         rel="noopener" class="btn-outline-sm">PDF</a>
                                                 @endif

@@ -228,7 +228,15 @@
                                             <button type="button" class="btn-danger-sm" data-open-reject-modal="edit-reject-modal">Reject</button>
                                         @endif
                                     @else
-                                        @if (auth()->user()->hasRole('Director'))
+                                        @if (($quotation->status ?? '') === 'approved' && $quotation->isCreator(auth()->user()))
+                                            <form method="POST" action="{{ route('quotations.set-final', $quotation) }}">
+                                                @csrf
+                                                <button type="submit" class="btn-primary-sm">
+                                                    Set Final
+                                                </button>
+                                            </form>
+                                        @endif
+                                        @if (($quotation->status ?? '') === 'approved' && auth()->user()->hasRole('Director'))
                                             <form method="POST" action="{{ route('quotations.set-pending', $quotation) }}">
                                                 @csrf
                                                 <button type="submit" class="btn-warning-sm">

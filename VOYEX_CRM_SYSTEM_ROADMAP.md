@@ -202,6 +202,33 @@ Kebijakan ini wajib untuk setiap update code (penambahan, perubahan, pengurangan
 Date: 2026-04-10
 Completed in this cycle:
 
+- Quotation final status lifecycle enhancement:
+  - added manual `Set Final` action (`quotations.set-final`) restricted to quotation creator.
+  - `Set Final` only allowed when current quotation status is `approved`.
+  - added auto-finalization for `approved` quotations when `validity_date` is before current date.
+  - non-`approved` statuses are intentionally left unchanged when expired.
+- Quotation UI behavior alignment:
+  - quotation show/edit validation panel now shows creator `Set Final` action in approved state.
+  - quotation PDF action now available for both `approved` and `final` statuses.
+- Quotation ownership hardening:
+  - quotation data mutation access (`edit`, `update`, `deactivate/activate`, `global discount`) is now restricted to quotation creator only.
+  - manager/director can no longer edit quotation data created by other users.
+- Approved quotation edit behavior adjustment:
+  - quotation with `approved` status can still be edited by its creator (blocked only when status is `final`).
+  - after creator updates an `approved` quotation, status is auto-reset to `pending` and approval metadata is cleared for re-approval flow.
+- Quotation edit itinerary selector fix:
+  - linked itinerary now remains visible in edit form selector even when itinerary status is `final` or `is_active = false`.
+  - prevents false empty-state message ("Belum ada itinerary aktif yang siap dipakai untuk quotation.") on linked quotations.
+- Cross-module consistency guard:
+  - itinerary lifecycle sync now treats quotation status `final` as final-equivalent to avoid status downgrade.
+- QA note:
+  - `php -l` passed for `app/Http/Controllers/Sales/QuotationController.php`, `app/Models/Itinerary.php`, `routes/web.php`.
+  - `php artisan test tests/Feature/Modules/QuotationsGlobalDiscountRoleTest.php` passed (17 tests).
+  - `php artisan view:cache` passed after Blade updates.
+
+Date: 2026-04-10
+Completed in this cycle:
+
 - Profile page safety UI adjustment:
   - removed `Delete Account` panel include from `resources/views/profile/edit.blade.php`.
   - profile update and password update panels remain unchanged.

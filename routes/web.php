@@ -243,6 +243,13 @@ Route::middleware('auth')->group(function () {
             'permission:module.quotations.access',
             'module.permission:quotations',
         ]);
+    Route::post('quotations/{quotation}/set-final', [SalesQuotationController::class, 'setFinal'])
+        ->name('quotations.set-final')
+        ->middleware([
+            'module:quotations',
+            'permission:module.quotations.access',
+            'module.permission:quotations',
+        ]);
     Route::patch('quotations/{quotation}/global-discount', [SalesQuotationController::class, 'updateGlobalDiscount'])
         ->name('quotations.global-discount')
         ->middleware([

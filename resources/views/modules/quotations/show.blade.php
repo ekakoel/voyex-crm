@@ -4,11 +4,11 @@
 @section('page_subtitle', 'Review quotation details, pricing breakdown, and approval workflow.')
 @section('page_actions')
     @can('update', $quotation)
-        @if (! in_array(($quotation->status ?? ''), ['approved', 'final'], true))
+        @if (($quotation->status ?? '') !== 'final')
             <a href="{{ route('quotations.edit', $quotation) }}" class="btn-secondary">Edit</a>
         @endif
     @endcan
-    @if (($quotation->status ?? '') === 'approved')
+    @if (in_array(($quotation->status ?? ''), ['approved', 'final'], true))
         <a href="{{ route('quotations.pdf', $quotation) }}" target="_blank" rel="noopener" class="btn-outline">PDF</a>
     @endif
     <a href="{{ route('quotations.index') }}" class="btn-ghost">Back</a>
@@ -289,7 +289,7 @@
                             <dt class="text-gray-500 dark:text-gray-400">Status</dt>
                             <dd class="font-medium text-right">{{ $quotation->status ?? '-' }}</dd>
                         </div>
-                        @if (($quotation->status ?? '') === 'approved')
+                        @if (in_array(($quotation->status ?? ''), ['approved', 'final'], true))
                             <div class="flex justify-between gap-3">
                                 <dt class="text-gray-500 dark:text-gray-400">Approved by</dt>
                                 <dd class="font-medium text-right">{{ $quotation->approvedBy?->name ?? '-' }}</dd>
@@ -344,7 +344,7 @@
                         </div>
                     @endif
 
-                    @if (auth()->user()?->hasAnyRole(['Director', 'Manager', 'Reservation']) && ($quotation->status ?? '') !== 'final')
+                    @if (auth()->check() && ($quotation->status ?? '') !== 'final' && (auth()->user()?->hasAnyRole(['Director', 'Manager', 'Reservation']) || $quotation->isCreator(auth()->user())))
                         <div class="space-y-3">
                             @php
                                 $authUser = auth()->user();
@@ -372,6 +372,12 @@
                                         <button type="button" class="btn-danger-sm" data-open-reject-modal="show-reject-modal">Reject</button>
                                     @endif
                                 @else
+                                    @if ($quotation->isCreator(auth()->user()))
+                                        <form method="POST" action="{{ route('quotations.set-final', $quotation) }}">
+                                            @csrf
+                                            <button type="submit" class="btn-primary-sm">Set Final</button>
+                                        </form>
+                                    @endif
                                     @if (auth()->user()?->hasRole('Director'))
                                         <form method="POST" action="{{ route('quotations.set-pending', $quotation) }}">
                                             @csrf
