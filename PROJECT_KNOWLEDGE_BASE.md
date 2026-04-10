@@ -237,6 +237,9 @@ Tambahan workflow status quotation:
 - action manual `Set Final` hanya untuk creator quotation dan hanya saat status `approved`.
 - auto-finalization untuk quotation `approved` berjalan saat `validity_date` sudah lewat.
 - creator dapat mengubah data quotation berstatus `approved`; setiap perubahan akan reset status menjadi `pending`.
+- listing quotation dipisah per konteks:
+  - `Quotations` page menampilkan hasil publish (`approved`/`final`) untuk monitoring outcome.
+  - `My Quotations` page menampilkan seluruh quotation yang pernah dibuat user login untuk kebutuhan pengelolaan data.
 - behavior ini diselaraskan dengan lifecycle itinerary agar status akhir tetap konsisten lintas modul.
 
 Referensi verifikasi approval:

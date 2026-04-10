@@ -725,11 +725,15 @@
         display: grid;
         gap: 1rem;
         grid-template-columns: minmax(0, 1fr);
+        margin-bottom: 90px;
     }
 
     .module-grid-main,
     .module-grid-side {
         min-width: 0;
+        display: grid;
+        gap: 18px !important;
+        align-content: start;
     }
 
     @media (min-width: 768px) {

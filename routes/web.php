@@ -190,6 +190,13 @@ Route::middleware('auth')->group(function () {
             'module.permission:inquiries',
         ]);
 
+    Route::get('quotations/my', [SalesQuotationController::class, 'myQuotations'])
+        ->name('quotations.my')
+        ->middleware([
+            'module:quotations',
+            'permission:module.quotations.access',
+            'module.permission:quotations',
+        ]);
     Route::resource('quotations', SalesQuotationController::class)
         ->middleware([
             'module:quotations',

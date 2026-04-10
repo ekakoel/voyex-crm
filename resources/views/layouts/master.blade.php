@@ -282,6 +282,13 @@
                         <a href="{{ route('profile.edit') }}"  class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">
                             Profile
                         </a>
+                        @can('module.quotations.access')
+                            @if (Route::has('quotations.my'))
+                                <a href="{{ route('quotations.my') }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">
+                                    My Quotations
+                                </a>
+                            @endif
+                        @endcan
 
                         <form method="POST" action="{{ route('logout') }}">
                             @csrf

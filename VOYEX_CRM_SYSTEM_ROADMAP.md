@@ -219,11 +219,17 @@ Completed in this cycle:
 - Quotation edit itinerary selector fix:
   - linked itinerary now remains visible in edit form selector even when itinerary status is `final` or `is_active = false`.
   - prevents false empty-state message ("Belum ada itinerary aktif yang siap dipakai untuk quotation.") on linked quotations.
+- Quotation listing scope split:
+  - `quotations.index` now focuses on published outcomes only (`approved` and `final`).
+  - added dedicated `quotations.my` page so each user can manage all quotations they created across statuses.
+  - quotation export now supports scope-aware behavior (`published` and `my`) to match visible list context.
+- Sidebar navigation update:
+  - added `My Quotations` entry under Reservations for direct access to creator-owned quotation management.
 - Cross-module consistency guard:
   - itinerary lifecycle sync now treats quotation status `final` as final-equivalent to avoid status downgrade.
 - QA note:
   - `php -l` passed for `app/Http/Controllers/Sales/QuotationController.php`, `app/Models/Itinerary.php`, `routes/web.php`.
-  - `php artisan test tests/Feature/Modules/QuotationsGlobalDiscountRoleTest.php` passed (17 tests).
+  - `php artisan test tests/Feature/Modules/QuotationsGlobalDiscountRoleTest.php` passed (19 tests).
   - `php artisan view:cache` passed after Blade updates.
 
 Date: 2026-04-10

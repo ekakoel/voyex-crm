@@ -92,8 +92,8 @@
         @endif
 
         <div class="module-grid-8-4">
-            <div class="module-grid-main space-y-4">
-                <div class="app-card p-6 space-y-4">
+            <div class="module-grid-main">
+                <div class="app-card p-6">
                     <div class="flex flex-wrap items-start justify-between gap-3">
                         <div>
                             <p class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Quotation Number</p>
@@ -151,7 +151,7 @@
                     </div>
                 </div>
 
-                <div class="app-card p-6 space-y-4">
+                <div class="app-card p-6">
                     <div class="flex items-center justify-between gap-3">
                         <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">Items</h3>
                         <span class="text-xs text-gray-500 dark:text-gray-400">{{ $quotation->items->count() }} item</span>
@@ -243,9 +243,9 @@
                 </div>
             </div>
 
-            <aside class="module-grid-side space-y-4">
+            <aside class="module-grid-side">
                 @if ($quotation->itinerary?->inquiry)
-                    <div class="app-card p-6 space-y-4">
+                    <div class="app-card p-6">
                         <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">Inquiry & Itinerary</h3>
                         <dl class="space-y-2 text-xs text-gray-700 dark:text-gray-200">
                             <div class="flex justify-between gap-3"><dt class="text-gray-500 dark:text-gray-400">Inquiry No</dt><dd class="font-medium text-right">{{ $quotation->itinerary?->inquiry?->inquiry_number ?? '-' }}</dd></div>

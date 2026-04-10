@@ -47,23 +47,22 @@ class QuotationController extends Controller
     public function index()
     {
         $this->autoFinalizeExpiredApprovedQuotations();
+        $showNeedsMyApproval = request()->boolean('needs_my_approval');
 
         $query = Quotation::query()->withTrashed()->with(['inquiry.customer', 'creator', 'approvals:id,quotation_id,user_id,approval_role']);
-
-        $query->when(request('q'), function ($q) {
-            $term = request('q');
-            $q->where('quotation_number', 'like', "%{$term}%")
-                ->orWhereHas('inquiry', function ($inq) use ($term) {
-                    $inq->where('inquiry_number', 'like', "%{$term}%")
-                        ->orWhereHas('customer', function ($c) use ($term) {
-                            $c->where('name', 'like', "%{$term}%");
-                        });
-                });
-        });
-
-        $query->when(request('status'), fn ($q) => $q->where('status', request('status')));
-        if (request()->boolean('needs_my_approval')) {
+        $this->applyQuotationKeywordFilter($query, (string) request('q'));
+        if ($showNeedsMyApproval) {
             $this->applyNeedsMyApprovalFilter($query, auth()->user());
+            $statusFilterOptions = ['pending'];
+            $statsCards = $this->buildQuotationStatsCards(null, ['pending']);
+        } else {
+            $query->whereIn('status', ['approved', Quotation::FINAL_STATUS]);
+            $status = strtolower(trim((string) request('status')));
+            if (in_array($status, ['approved', Quotation::FINAL_STATUS], true)) {
+                $query->where('status', $status);
+            }
+            $statusFilterOptions = ['approved', Quotation::FINAL_STATUS];
+            $statsCards = $this->buildQuotationStatsCards(null, ['approved', Quotation::FINAL_STATUS]);
         }
         $perPage = (int) request('per_page', 10);
         $perPage = $perPage > 0 && $perPage <= 100 ? $perPage : 10;
@@ -71,13 +70,59 @@ class QuotationController extends Controller
         $quotations = $query->latest()->paginate($perPage)->withQueryString();
         $authUser = auth()->user();
         $approvalRole = $this->resolveApprovalRoleForUser($authUser);
-        $quotations->getCollection()->transform(function (Quotation $quotation) use ($authUser, $approvalRole) {
-            $quotation->setAttribute('needs_my_approval_badge', $this->needsMyApprovalForQuotation($quotation, $authUser, $approvalRole));
+        $quotations->getCollection()->transform(function (Quotation $quotation) use ($authUser, $approvalRole, $showNeedsMyApproval) {
+            $quotation->setAttribute('needs_my_approval_badge', $showNeedsMyApproval
+                ? $this->needsMyApprovalForQuotation($quotation, $authUser, $approvalRole)
+                : false);
             return $quotation;
         });
-        $statsCards = $this->buildQuotationStatsCards();
 
-        return view('modules.quotations.index', compact('quotations', 'statsCards'));
+        return view('modules.quotations.index', [
+            'quotations' => $quotations,
+            'statsCards' => $statsCards,
+            'isMyQuotationPage' => false,
+            'listRouteName' => 'quotations.index',
+            'exportScope' => 'published',
+            'statusFilterOptions' => $statusFilterOptions,
+            'showNeedsMyApproval' => $showNeedsMyApproval,
+        ]);
+    }
+
+    public function myQuotations()
+    {
+        $this->autoFinalizeExpiredApprovedQuotations();
+
+        $query = Quotation::query()->withTrashed()->with(['inquiry.customer', 'creator', 'approvals:id,quotation_id,user_id,approval_role']);
+        if (Schema::hasColumn('quotations', 'created_by')) {
+            $query->where('created_by', (int) auth()->id());
+        } else {
+            $query->whereRaw('1 = 0');
+        }
+        $this->applyQuotationKeywordFilter($query, (string) request('q'));
+        $status = strtolower(trim((string) request('status')));
+        if ($status !== '' && in_array($status, Quotation::STATUS_OPTIONS, true)) {
+            $query->where('status', $status);
+        }
+
+        $perPage = (int) request('per_page', 10);
+        $perPage = $perPage > 0 && $perPage <= 100 ? $perPage : 10;
+
+        $quotations = $query->latest()->paginate($perPage)->withQueryString();
+        $quotations->getCollection()->transform(function (Quotation $quotation) {
+            $quotation->setAttribute('needs_my_approval_badge', false);
+            return $quotation;
+        });
+        $statsCards = $this->buildQuotationStatsCards((int) auth()->id(), null);
+
+        return view('modules.quotations.index', [
+            'quotations' => $quotations,
+            'statsCards' => $statsCards,
+            'isMyQuotationPage' => true,
+            'listRouteName' => 'quotations.my',
+            'exportScope' => 'my',
+            'statusFilterOptions' => Quotation::STATUS_OPTIONS,
+            'showNeedsMyApproval' => false,
+        ]);
     }
 
     public function approvalNotifications(Request $request)
@@ -672,20 +717,32 @@ class QuotationController extends Controller
     {
         $this->autoFinalizeExpiredApprovedQuotations();
 
-        $query = Quotation::query()->with(['inquiry.customer']);
+        $query = Quotation::query()->withTrashed()->with(['inquiry.customer']);
+        $scope = strtolower(trim((string) request('scope')));
+        if ($scope === 'published') {
+            $query->whereIn('status', ['approved', Quotation::FINAL_STATUS]);
+        } elseif ($scope === 'my') {
+            if (Schema::hasColumn('quotations', 'created_by')) {
+                $query->where('created_by', (int) auth()->id());
+            } else {
+                $query->whereRaw('1 = 0');
+            }
+        }
 
-        $query->when(request('q'), function ($q) {
-            $term = request('q');
-            $q->where('quotation_number', 'like', "%{$term}%")
-                ->orWhereHas('inquiry', function ($inq) use ($term) {
-                    $inq->where('inquiry_number', 'like', "%{$term}%")
-                        ->orWhereHas('customer', function ($c) use ($term) {
-                            $c->where('name', 'like', "%{$term}%");
-                        });
-                });
-        });
+        $this->applyQuotationKeywordFilter($query, (string) request('q'));
 
-        $query->when(request('status'), fn ($q) => $q->where('status', request('status')));
+        $status = strtolower(trim((string) request('status')));
+        if ($scope === 'published') {
+            if (in_array($status, ['approved', Quotation::FINAL_STATUS], true)) {
+                $query->where('status', $status);
+            }
+        } elseif ($scope === 'my') {
+            if ($status !== '' && in_array($status, Quotation::STATUS_OPTIONS, true)) {
+                $query->where('status', $status);
+            }
+        } else {
+            $query->when(request('status'), fn ($q) => $q->where('status', request('status')));
+        }
         $quotations = $query->latest()->get();
 
         return response()->streamDownload(function () use ($quotations) {
@@ -1800,10 +1857,18 @@ SVG;
     /**
      * @return array<int, array<string, mixed>>
      */
-    private function buildQuotationStatsCards(): array
+    private function buildQuotationStatsCards(?int $creatorId = null, ?array $statusScope = null): array
     {
-        $counts = Quotation::query()
-            ->withTrashed()
+        $query = Quotation::query()
+            ->withTrashed();
+        if ($creatorId && Schema::hasColumn('quotations', 'created_by')) {
+            $query->where('created_by', $creatorId);
+        }
+        if (is_array($statusScope) && ! empty($statusScope)) {
+            $query->whereIn('status', $statusScope);
+        }
+
+        $counts = $query
             ->select('status', DB::raw('COUNT(*) as total'))
             ->groupBy('status')
             ->pluck('total', 'status');
@@ -1837,6 +1902,24 @@ SVG;
         }
 
         return $cards;
+    }
+
+    private function applyQuotationKeywordFilter(Builder $query, string $term): void
+    {
+        $term = trim($term);
+        if ($term === '') {
+            return;
+        }
+
+        $query->where(function (Builder $builder) use ($term): void {
+            $builder->where('quotation_number', 'like', "%{$term}%")
+                ->orWhereHas('inquiry', function ($inquiryQuery) use ($term) {
+                    $inquiryQuery->where('inquiry_number', 'like', "%{$term}%")
+                        ->orWhereHas('customer', function ($customerQuery) use ($term) {
+                            $customerQuery->where('name', 'like', "%{$term}%");
+                        });
+                });
+        });
     }
 
     private function toneForQuotationStatus(string $status): string

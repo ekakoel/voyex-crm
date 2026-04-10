@@ -1,14 +1,26 @@
 @extends('layouts.master')
-@section('page_title', 'Quotations')
-@section('page_subtitle', 'Manage quotation data.')
+@php
+    $isMyQuotationPage = (bool) ($isMyQuotationPage ?? false);
+    $listRouteName = (string) ($listRouteName ?? 'quotations.index');
+    $exportScope = (string) ($exportScope ?? ($isMyQuotationPage ? 'my' : 'published'));
+    $statusFilterOptions = collect($statusFilterOptions ?? \App\Models\Quotation::STATUS_OPTIONS)->values();
+    $showNeedsMyApproval = (bool) ($showNeedsMyApproval ?? false);
+@endphp
+@section('page_title', $isMyQuotationPage ? 'My Quotations' : 'Quotations')
+@section('page_subtitle', $isMyQuotationPage ? 'Manage all quotations you have created.' : 'Approved and final quotations list.')
 @section('page_actions')
-    <a href="{{ route('quotations.export', request()->only(['q', 'status', 'per_page', 'needs_my_approval'])) }}"
+    <a href="{{ route('quotations.export', array_merge(request()->only(['q', 'status', 'per_page', 'needs_my_approval']), ['scope' => $exportScope])) }}"
         class="btn-secondary">Export CSV</a>
+    @if ($isMyQuotationPage)
+        <a href="{{ route('quotations.index') }}" class="btn-outline">Approved/Final List</a>
+    @else
+        <a href="{{ route('quotations.my') }}" class="btn-outline">My Quotations</a>
+    @endif
     <a href="{{ route('quotations.create') }}" class="btn-primary">Add Quotation</a>
 @endsection
 @section('content')
     <div class="space-y-6 module-page module-page--quotations" data-service-filter-page data-page-spinner="off">
-        @if (request()->boolean('needs_my_approval'))
+        @if ($showNeedsMyApproval && request()->boolean('needs_my_approval'))
             <div class="flex items-center">
                 <span
                     class="inline-flex items-center gap-2 rounded-full border border-sky-300 bg-sky-50 px-3 py-1 text-xs font-semibold text-sky-700 dark:border-sky-700 dark:bg-sky-900/20 dark:text-sky-300">
@@ -25,14 +37,14 @@
                         <h2 class="text-base font-semibold text-gray-800 dark:text-gray-100">Filters</h2>
                         <p class="text-sm text-gray-500 dark:text-gray-400">Refine your list quickly.</p>
                     </div>
-                    <form method="GET" action="{{ route('quotations.index') }}"
+                    <form method="GET" action="{{ route($listRouteName) }}"
                         class="grid grid-cols-1 gap-3 sm:grid-cols-2" data-service-filter-form data-disable-submit-lock="1"
                         data-page-spinner="off">
                         <input name="q" value="{{ request('q') }}" placeholder="Search number / customer"
                             class="sm:col-span-2 app-input" data-service-filter-input>
                         <select name="status" class="app-input" data-service-filter-input>
                             <option value="">Status</option>
-                            @foreach (\App\Models\Quotation::STATUS_OPTIONS as $status)
+                            @foreach ($statusFilterOptions as $status)
                                 <option value="{{ $status }}" @selected(request('status') === $status)>{{ ucfirst($status) }}
                                 </option>
                             @endforeach
@@ -44,7 +56,7 @@
                             @endforeach
                         </select>
                         <div class="flex items-center gap-2 sm:col-span-2 filter-actions">
-                            <a href="{{ route('quotations.index') }}" class="btn-ghost" data-service-filter-reset>Reset</a>
+                            <a href="{{ route($listRouteName) }}" class="btn-ghost" data-service-filter-reset>Reset</a>
                         </div>
                     </form>
                 </div>
@@ -56,7 +68,7 @@
                         {{ session('success') }}
                     </div>
                 @endif
-                @if (request()->boolean('needs_my_approval'))
+                @if ($showNeedsMyApproval && request()->boolean('needs_my_approval'))
                     <div
                         class="rounded-lg mb-6 border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-700 dark:border-sky-700 dark:bg-sky-900/20 dark:text-sky-300">
                         Showing: Quotations requiring your approval.
@@ -69,7 +81,7 @@
                                 <div>
                                     <p class="text-sm font-semibold text-gray-800 dark:text-gray-100">
                                         {{ $quotation->quotation_number }}</p>
-                                    @if ((bool) ($quotation->needs_my_approval_badge ?? false))
+                                    @if ($showNeedsMyApproval && (bool) ($quotation->needs_my_approval_badge ?? false))
                                         <span
                                             class="mt-1 inline-flex items-center rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-300">
                                             Need Approval
@@ -161,7 +173,7 @@
                                         <td class="px-4 py-3 text-sm text-gray-800 dark:text-gray-100">
                                             <div class="flex flex-col items-start">
                                                 <span>{{ $quotation->quotation_number }}</span>
-                                                @if ((bool) ($quotation->needs_my_approval_badge ?? false))
+                                                @if ($showNeedsMyApproval && (bool) ($quotation->needs_my_approval_badge ?? false))
                                                     <span
                                                         class="mt-1 inline-flex items-center rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-300">
                                                         Need Approval

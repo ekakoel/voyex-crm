@@ -215,6 +215,75 @@ class QuotationsGlobalDiscountRoleTest extends ModuleSmokeTestCase
             ->assertRedirect(route('quotations.show', $quotation));
     }
 
+    public function test_index_only_shows_approved_and_final_quotations(): void
+    {
+        $user = $this->createUserWithRole('Marketing');
+        $this->actingAs($user);
+
+        $approvedItinerary = $this->createItineraryFor($user);
+        $approvedQuotation = $this->createQuotationFor($user, $approvedItinerary, null, 0);
+        $approvedQuotation->update([
+            'status' => 'approved',
+            'approved_by' => $user->id,
+            'approved_at' => now(),
+        ]);
+
+        $finalItinerary = $this->createItineraryFor($user);
+        $finalQuotation = $this->createQuotationFor($user, $finalItinerary, null, 0);
+        $finalQuotation->update([
+            'status' => 'final',
+            'approved_by' => $user->id,
+            'approved_at' => now(),
+        ]);
+
+        $pendingItinerary = $this->createItineraryFor($user);
+        $pendingQuotation = $this->createQuotationFor($user, $pendingItinerary, null, 0);
+        $pendingQuotation->update([
+            'status' => 'pending',
+        ]);
+
+        $this->get(route('quotations.index'))
+            ->assertOk()
+            ->assertSeeText($approvedQuotation->quotation_number)
+            ->assertSeeText($finalQuotation->quotation_number)
+            ->assertDontSeeText($pendingQuotation->quotation_number);
+    }
+
+    public function test_my_quotations_page_shows_all_statuses_created_by_authenticated_user_only(): void
+    {
+        $owner = $this->createUserWithRole('Marketing');
+        $otherUser = $this->createUserWithRole('Marketing');
+
+        $ownerPendingItinerary = $this->createItineraryFor($owner);
+        $ownerPendingQuotation = $this->createQuotationFor($owner, $ownerPendingItinerary, null, 0);
+        $ownerPendingQuotation->update([
+            'status' => 'pending',
+        ]);
+
+        $ownerApprovedItinerary = $this->createItineraryFor($owner);
+        $ownerApprovedQuotation = $this->createQuotationFor($owner, $ownerApprovedItinerary, null, 0);
+        $ownerApprovedQuotation->update([
+            'status' => 'approved',
+            'approved_by' => $otherUser->id,
+            'approved_at' => now(),
+        ]);
+
+        $otherItinerary = $this->createItineraryFor($otherUser);
+        $otherQuotation = $this->createQuotationFor($otherUser, $otherItinerary, null, 0);
+        $otherQuotation->update([
+            'status' => 'final',
+            'approved_by' => $otherUser->id,
+            'approved_at' => now(),
+        ]);
+
+        $this->actingAs($owner)
+            ->get(route('quotations.my'))
+            ->assertOk()
+            ->assertSeeText($ownerPendingQuotation->quotation_number)
+            ->assertSeeText($ownerApprovedQuotation->quotation_number)
+            ->assertDontSeeText($otherQuotation->quotation_number);
+    }
+
     public function test_quotation_becomes_approved_after_two_non_creator_approvals(): void
     {
         $creator = $this->createUserWithRole('Marketing');
