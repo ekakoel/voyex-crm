@@ -232,7 +232,7 @@
                             <select
                                 name="currency"
                                 onchange="this.form.submit()"
-                                class="h-9 font-semibold uppercase tracking-wide text-gray-700 transition hover:border-indigo-300 dark:border-gray-700 dark:hover:border-indigo-600 app-input"
+                                class="nav-currency-select h-9 font-semibold uppercase tracking-wide text-gray-700 transition hover:border-indigo-300 dark:border-gray-700 dark:hover:border-indigo-600 app-input"
                             >
                                 @forelse (($currencyOptions ?? collect()) as $currencyOption)
                                     <option value="{{ $currencyOption->code }}" @selected(($currentCurrency ?? 'IDR') === $currencyOption->code)>{{ $currencyOption->code }}</option>
@@ -240,6 +240,9 @@
                                     <option value="IDR" selected>IDR</option>
                                 @endforelse
                             </select>
+                            <span class="nav-currency-select-icon text-xs text-gray-500 dark:text-gray-300" aria-hidden="true">
+                                <i class="fa-solid fa-chevron-down"></i>
+                            </span>
                         </div>
                     </form>
                     @can('module.currencies.access')

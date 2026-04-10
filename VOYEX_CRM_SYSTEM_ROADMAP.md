@@ -211,6 +211,9 @@ Completed in this cycle:
   - hardened `TouristAttractionController::storeGalleryImages()` to persist only gallery paths that actually exist on `public` disk (prevent DB path drift to missing files).
   - update flow now auto-cleans stale tourist-attraction gallery references whose files are already missing on disk.
   - updated tourist-attraction edit gallery preview rendering to check storage existence before emitting image URL, reducing broken-image 404 loops in UI.
+- Top navigation currency selector alignment update:
+  - added dedicated class `nav-currency-select` to center selected currency text in the top-nav switch.
+  - switched to custom caret icon overlay to keep visual centering stable across browsers.
 - QA note:
   - verified profile page still renders Update Profile + Update Password forms.
   - `php -l` passed for `app/Support/ImageThumbnailGenerator.php` and `app/Http/Controllers/Admin/TouristAttractionController.php`.

@@ -862,6 +862,34 @@
         color: #f3f4f6;
     }
 
+    .nav-currency-select {
+        width: 92px;
+        padding-left: 1.75rem;
+        padding-right: 1.75rem;
+        text-align: center;
+        text-align-last: center;
+        appearance: none;
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        background-image: none;
+    }
+
+    .nav-currency-select option {
+        text-align: center;
+    }
+
+    .nav-currency-select::-ms-expand {
+        display: none;
+    }
+
+    .nav-currency-select-icon {
+        position: absolute;
+        right: 0.65rem;
+        top: 50%;
+        transform: translateY(-50%);
+        pointer-events: none;
+    }
+
     .input-with-right-affix {
         position: relative;
         margin-top: 0;
