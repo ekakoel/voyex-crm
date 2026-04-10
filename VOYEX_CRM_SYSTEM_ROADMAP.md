@@ -1,7 +1,7 @@
 ﻿# VOYEX CRM -- SYSTEM ROADMAP
 
 Version: 1.3  
-Last Updated: 2026-04-09
+Last Updated: 2026-04-10
 
 Legend:  
 - DONE = Implemented  
@@ -198,6 +198,17 @@ Kebijakan ini wajib untuk setiap update code (penambahan, perubahan, pengurangan
 ----------------------------------------------------------------------------------------------------
 
 # CHANGELOG (LATEST)
+
+Date: 2026-04-10
+Completed in this cycle:
+
+- Profile page safety UI adjustment:
+  - removed `Delete Account` panel include from `resources/views/profile/edit.blade.php`.
+  - profile update and password update panels remain unchanged.
+  - `profile.destroy` route/controller were intentionally left intact to avoid auth-flow regression.
+- QA note:
+  - verified profile page still renders Update Profile + Update Password forms.
+  - `php artisan view:cache` passed after Blade update.
 
 Date: 2026-04-09
 Completed in this cycle:
