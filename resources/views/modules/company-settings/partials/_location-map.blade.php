@@ -1,5 +1,5 @@
 <div class="space-y-2">
-    <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">Location on Map (open map)</h3>
+    <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ __('ui.modules.company_settings.location_on_map') }}</h3>
     <div class="h-[320px] overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700" data-company-map></div>
     <p class="text-xs text-gray-500 dark:text-gray-400" data-company-map-hint></p>
 </div>
@@ -12,6 +12,9 @@
         <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
         <script>
             function initCompanyLocationMap(root = document) {
+                const mapHintMarkerMoved = @json(__('ui.modules.company_settings.map_hint_marker_moved'));
+                const mapHintInvalid = @json(__('ui.modules.company_settings.map_hint_invalid'));
+                const mapHintSuccess = @json(__('ui.modules.company_settings.map_hint_success'));
                 const scope = root instanceof Element || root instanceof Document ? root : document;
                 const mapElements = scope.matches?.('[data-company-map]')
                     ? [scope]
@@ -99,7 +102,7 @@
                             const latLng = marker.getLatLng();
                             updateCoordinateInputs(latLng.lat, latLng.lng);
                             syncGoogleMapsUrlFromCoordinates(latLng.lat, latLng.lng);
-                            setHint('Marker dipindahkan. Koordinat berhasil diperbarui.', 'success');
+                            setHint(mapHintMarkerMoved, 'success');
                         });
 
                         marker.__companyMapDragBound = true;
@@ -115,7 +118,7 @@
                                 marker = null;
                             }
                             map.setView(defaultCenter, 5);
-                            setHint('Koordinat belum valid. Isi dari Map URL atau klik pada map.', 'error');
+                            setHint(mapHintInvalid, 'error');
                             return;
                         }
 
@@ -131,7 +134,7 @@
                         }
                         map.setView(latLng, 15);
                         syncGoogleMapsUrlFromCoordinates(latitude, longitude);
-                        setHint('Lokasi berhasil ditampilkan pada map.', 'success');
+                        setHint(mapHintSuccess, 'success');
                     };
 
                     ['input', 'change', 'blur'].forEach((eventName) => {

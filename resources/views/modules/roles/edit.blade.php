@@ -1,10 +1,10 @@
 @extends('layouts.master')
 
-@section('page_title', 'Edit Role')
-@section('page_subtitle', 'Perbarui role dan konfigurasi akses permission.')
+@section('page_title', __('ui.modules.roles.edit_page_title'))
+@section('page_subtitle', __('ui.modules.roles.edit_page_subtitle'))
 @section('page_actions')
     <a href="{{ route('roles.index') }}" class="btn-secondary">
-        Back to Roles
+        {{ __('ui.modules.roles.back_to_roles') }}
     </a>
 @endsection
 
@@ -18,7 +18,7 @@
                         @method('PUT')
                         @include('modules.roles._form', [
                             'role' => $role,
-                            'buttonLabel' => 'Update Role',
+                            'buttonLabel' => __('ui.modules.roles.update_role'),
                             'selectedPermissions' => old('permissions', $selectedPermissions),
                             'selectedTemplateRoleId' => null,
                             'selectedTemplateRoleName' => null,
@@ -29,18 +29,18 @@
 
             <aside class="module-grid-side">
                 <div class="app-card p-6 space-y-3">
-                    <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Role Info</p>
+                    <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ __('ui.modules.roles.role_info') }}</p>
                     <dl class="app-dl">
                         <div>
-                            <dt>Current Role</dt>
+                            <dt>{{ __('ui.modules.roles.current_role') }}</dt>
                             <dd>{{ $role->name }}</dd>
                         </div>
                         <div>
-                            <dt>Guard</dt>
+                            <dt>{{ __('ui.modules.roles.guard') }}</dt>
                             <dd>{{ $role->guard_name ?? 'web' }}</dd>
                         </div>
                         <div>
-                            <dt>Total Permission</dt>
+                            <dt>{{ __('ui.modules.roles.total_permission') }}</dt>
                             <dd>{{ count(old('permissions', $selectedPermissions ?? [])) }}</dd>
                         </div>
                     </dl>
@@ -49,7 +49,5 @@
         </div>
     </div>
 @endsection
-
-
 
 

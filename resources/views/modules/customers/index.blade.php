@@ -1,10 +1,10 @@
 @extends('layouts.master')
-@section('page_title', 'Customers')
-@section('page_subtitle', 'Manage customer data.')
+@section('page_title', __('ui.modules.customers.page_title'))
+@section('page_subtitle', __('ui.modules.customers.page_subtitle'))
 @section('page_actions')
     <a href="{{ route('customers.import') }}" class="btn-outline">Import CSV</a>
     <a href="{{ route('customers.create') }}" class="btn-primary">
-        Add Customer
+        {{ __('ui.modules.customers.add_customer') }}
     </a>
 @endsection
 @section('content')
@@ -14,14 +14,14 @@
             <aside class="module-grid-side space-y-4">
                 <div class="app-card p-5 space-y-4">
                     <div>
-                        <h2 class="text-base font-semibold text-gray-800 dark:text-gray-100">Filters</h2>
-                        <p class="text-sm text-gray-500 dark:text-gray-400">Refine your customer list quickly.</p>
+                        <h2 class="text-base font-semibold text-gray-800 dark:text-gray-100">{{ __('ui.common.filters') }}</h2>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">{{ __('ui.index.refine_list_quickly') }}</p>
                     </div>
                     <form method="GET" action="{{ route('customers.index') }}" class="grid grid-cols-1 gap-3" data-service-filter-form data-disable-submit-lock="1" data-page-spinner="off">
                         <input name="q" value="{{ request('q') }}"
-                            placeholder="Search name / code / email / phone / company / country" class="app-input" data-service-filter-input>
+                            placeholder="{{ __('ui.modules.customers.search') }}" class="app-input" data-service-filter-input>
                         <select name="customer_type" class="app-input" data-service-filter-input>
-                            <option value="">Type</option>
+                            <option value="">{{ __('ui.modules.customers.type') }}</option>
                             @foreach (['individual' => 'Individual', 'company' => 'Company'] as $value => $label)
                                 <option value="{{ $value }}" @selected(request('customer_type') === $value)>{{ $label }}
                                 </option>
@@ -30,7 +30,7 @@
                         <x-forms.searchable-select name="country" :options="$countries" :value="request('country')"
                             list-id="country-filter-options" placeholder="Country" />
                         <select name="created_by" class="app-input" data-service-filter-input>
-                            <option value="">Creator</option>
+                            <option value="">{{ __('ui.modules.customers.creator') }}</option>
                             @foreach ($creators as $creator)
                                 <option value="{{ $creator->id }}" @selected((string) request('created_by') === (string) $creator->id)>{{ $creator->name }}
                                 </option>
@@ -38,12 +38,12 @@
                         </select>
                         <select name="per_page" class="app-input" data-service-filter-input>
                             @foreach ([10, 25, 50, 100] as $size)
-                                <option value="{{ $size }}" @selected((string) request('per_page', 10) === (string) $size)>{{ $size }}/page
+                                <option value="{{ $size }}" @selected((string) request('per_page', 10) === (string) $size)>{{ __('ui.index.per_page_option', ['size' => $size]) }}
                                 </option>
                             @endforeach
                         </select>
                         <div class="flex items-center gap-2 filter-actions">
-                            <a href="{{ route('customers.index') }}" class="btn-ghost" data-service-filter-reset>Reset</a>
+                            <a href="{{ route('customers.index') }}" class="btn-ghost" data-service-filter-reset>{{ __('ui.common.reset') }}</a>
                         </div>
                     </form>
                 </div>
@@ -77,19 +77,19 @@
                                         Name</th>
                                     <th
                                         class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">
-                                        Email/Phone</th>
+                                        {{ __('ui.modules.customers.email_phone') }}</th>
                                     <th
                                         class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">
                                         Country</th>
                                     <th
                                         class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">
-                                        Company</th>
+                                        {{ __('ui.modules.customers.company') }}</th>
                                     <th
                                         class="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">
-                                        Status</th>
+                                        {{ __('ui.common.status') }}</th>
                                     <th
                                         class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300 actions-compact">
-                                        Actions</th>
+                                        {{ __('ui.common.actions') }}</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
@@ -114,11 +114,11 @@
                                         </td>
                                         <td class="px-4 py-3 text-right text-sm actions-compact">
                                             <div class="flex items-center justify-end gap-2">
-                                                <a href="{{ route('customers.edit', $customer) }}" class="btn-secondary-sm" title="Edit" aria-label="Edit"><i class="fa-solid fa-pen"></i><span class="sr-only">Edit</span></a>
+                                                <a href="{{ route('customers.edit', $customer) }}" class="btn-secondary-sm" title="{{ __('ui.common.edit') }}" aria-label="{{ __('ui.common.edit') }}"><i class="fa-solid fa-pen"></i><span class="sr-only">{{ __('ui.common.edit') }}</span></a>
                                                 <form action="{{ route('customers.toggle-status', $customer->id) }}" method="POST" class="inline">
                                                     @csrf
                                                     @method('PATCH')
-                                                    <button type="submit" onclick="return confirm('{{ $isActive ? 'Deactivate this customer?' : 'Activate this customer?' }}')" class="{{ $isActive ? 'btn-muted-sm' : 'btn-primary-sm' }}">{{ $isActive ? 'Deactivate' : 'Activate' }}</button>
+                                                    <button type="submit" onclick="return confirm('{{ $isActive ? __('ui.modules.customers.confirm_deactivate') : __('ui.modules.customers.confirm_activate') }}')" class="{{ $isActive ? 'btn-muted-sm' : 'btn-primary-sm' }}">{{ $isActive ? __('ui.common.deactivate') : __('ui.common.activate') }}</button>
                                                 </form>
                                             </div>
                                         </td>
@@ -127,7 +127,7 @@
                                     <tr>
                                         <td colspan="8"
                                             class="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">No
-                                            customers available.</td>
+                                            {{ __('ui.index.no_data_available', ['entity' => __('ui.entities.customers')]) }}</td>
                                     </tr>
                                 @endforelse
                             </tbody>
@@ -148,27 +148,27 @@
                                     class="text-xs font-medium rounded-full bg-gray-100 px-2 py-0.5 text-gray-700 dark:bg-gray-900/40 dark:text-gray-300">{{ $customer->customer_type }}</span>
                             </div>
                             <div class="mt-3 grid grid-cols-2 gap-2 text-xs text-gray-600 dark:text-gray-300">
-                                <div>Phone</div>
+                                <div>{{ __('ui.modules.customers.phone') }}</div>
                                 <div>{{ $customer->phone ?? '-' }}</div>
-                                <div>Country</div>
+                                <div>{{ __('ui.modules.customers.country') }}</div>
                                 <div>{{ $customer->country ?? '-' }}</div>
-                                <div>Company</div>
+                                <div>{{ __('ui.modules.customers.company') }}</div>
                                 <div>{{ $customer->company_name ?? '-' }}</div>
-                                <div>Status</div>
+                                <div>{{ __('ui.common.status') }}</div>
                                 <div><x-status-badge :status="$customer->trashed() ? 'inactive' : 'active'" size="xs" /></div>
                             </div>
                             <div class="mt-3 flex flex-wrap gap-2">
-                                <a href="{{ route('customers.edit', $customer) }}" class="btn-secondary-sm" title="Edit" aria-label="Edit"><i class="fa-solid fa-pen"></i><span class="sr-only">Edit</span></a>
+                                <a href="{{ route('customers.edit', $customer) }}" class="btn-secondary-sm" title="{{ __('ui.common.edit') }}" aria-label="{{ __('ui.common.edit') }}"><i class="fa-solid fa-pen"></i><span class="sr-only">{{ __('ui.common.edit') }}</span></a>
                                 <form action="{{ route('customers.toggle-status', $customer->id) }}" method="POST" class="inline">
                                     @csrf
                                     @method('PATCH')
-                                    <button type="submit" onclick="return confirm('{{ $customer->trashed() ? 'Activate this customer?' : 'Deactivate this customer?' }}')" class="{{ $customer->trashed() ? 'btn-primary-sm' : 'btn-muted-sm' }}">{{ $customer->trashed() ? 'Activate' : 'Deactivate' }}</button>
+                                    <button type="submit" onclick="return confirm('{{ $customer->trashed() ? __('ui.modules.customers.confirm_activate') : __('ui.modules.customers.confirm_deactivate') }}')" class="{{ $customer->trashed() ? 'btn-primary-sm' : 'btn-muted-sm' }}">{{ $customer->trashed() ? __('ui.common.activate') : __('ui.common.deactivate') }}</button>
                                 </form>
                             </div>
                         </div>
                     @empty
                         <div class="app-card p-6 text-center text-sm text-gray-500 dark:text-gray-400">
-                            No customers available.
+                            {{ __('ui.index.no_data_available', ['entity' => __('ui.entities.customers')]) }}
                         </div>
                     @endforelse
                 </div>

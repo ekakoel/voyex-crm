@@ -1,9 +1,9 @@
 @extends('layouts.master')
 
-@section('page_title', 'Edit Employee')
-@section('page_subtitle', 'Update user profile, access role, and account status.')
+@section('page_title', __('ui.modules.users.edit_page_title'))
+@section('page_subtitle', __('ui.modules.users.edit_page_subtitle'))
 @section('page_actions')
-    <a href="{{ route('users.index') }}" class="btn-ghost">Back</a>
+    <a href="{{ route('users.index') }}" class="btn-ghost">{{ __('ui.common.back') }}</a>
 @endsection
 
 @section('content')
@@ -16,14 +16,14 @@
                         @method('PUT')
                         @include('modules.users._form', [
                             'user' => $user,
-                            'buttonLabel' => 'Update Employee',
+                            'buttonLabel' => __('ui.modules.users.update_employee'),
                             'selectedRoles' => old('roles', $selectedRoles),
                         ])
                     </form>
                 </div>
             </div>
             <aside class="module-grid-side">
-                @include('partials._audit-info', ['record' => $user, 'title' => 'Audit Info'])
+                @include('partials._audit-info', ['record' => $user, 'title' => __('ui.common.audit_info')])
             </aside>
         </div>
     </div>

@@ -25,6 +25,8 @@
                 data-csrf-token="{{ csrf_token() }}">
                 @if (!empty($transport?->images))
                     @foreach ($transport->images as $image)
+                        @php($thumbUrl = \App\Support\ImageThumbnailGenerator::resolvePublicUrl($image))
+                        @php($fullUrl = \App\Support\ImageThumbnailGenerator::resolveOriginalPublicUrl($image))
                         <div class="transport-gallery-item transport-gallery-existing-item relative overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700" data-image-path="{{ $image }}">
                             <button
                                 type="button"
@@ -41,12 +43,14 @@
                                     </svg>
                                     <span>Select image to preview</span>
                                 </div>
-                                <img
-                                    src="{{ asset('storage/' . \App\Support\ImageThumbnailGenerator::thumbnailPathFor($image)) }}"
-                                    onload="this.classList.add('image-loaded');var p=this.closest('.image-preview');if(p){p.classList.add('has-image');}"
-                                    onerror="if(this.dataset.fallbackApplied){var p=this.closest('.image-preview');if(p){p.classList.remove('has-image');}this.remove();}else{this.dataset.fallbackApplied='1';this.src='{{ asset('storage/' . $image) }}';}"
-                                    alt="Transport unit image"
-                                    class="h-full w-full object-cover">
+                                @if ($thumbUrl)
+                                    <img
+                                        src="{{ $thumbUrl }}"
+                                        onload="this.classList.add('image-loaded');var p=this.closest('.image-preview');if(p){p.classList.add('has-image');}"
+                                        onerror="if(this.dataset.fallbackApplied){var p=this.closest('.image-preview');if(p){p.classList.remove('has-image');}this.remove();}else{this.dataset.fallbackApplied='1';this.src='{{ $fullUrl ?? '' }}';}"
+                                        alt="Transport unit image"
+                                        class="h-full w-full object-cover">
+                                @endif
                             </div>
                         </div>
                     @endforeach
@@ -452,7 +456,7 @@
                     } catch (_) {
                         button.disabled = false;
                         button.classList.remove('opacity-70');
-                        alert('Gagal menghapus image. Silakan coba lagi.');
+                        alert('Failed to delete image. Please try again.');
                     }
                 });
 

@@ -36,7 +36,7 @@
                 this.codeMessage = data.message || '';
             } catch (e) {
                 this.codeStatus = 'used';
-                this.codeMessage = 'Gagal mengecek code.';
+                this.codeMessage = 'Failed to check code.';
             }
         },
         scheduleCheck() {
@@ -51,19 +51,19 @@
         <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">
             Customer Type <span class="text-rose-600">*</span>
         </label>
-        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Pilih tipe customer terlebih dahulu, lalu lengkapi detail data.</p>
+        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Choose the customer type first, then complete the details.</p>
         <div class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
             <label class="cursor-pointer rounded-lg border p-3 transition hover:border-indigo-400"
                    :class="selectedType === 'individual' ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20' : 'border-gray-300 dark:border-gray-600'">
                 <input type="radio" name="customer_type" value="individual" x-model="selectedType" class="sr-only" required>
                 <div class="text-sm font-medium text-gray-800 dark:text-gray-100">Individual</div>
-                <div class="text-xs text-gray-500 dark:text-gray-400">Customer perorangan.</div>
+                <div class="text-xs text-gray-500 dark:text-gray-400">Individual customer.</div>
             </label>
             <label class="cursor-pointer rounded-lg border p-3 transition hover:border-indigo-400"
                    :class="selectedType === 'company' ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20' : 'border-gray-300 dark:border-gray-600'">
                 <input type="radio" name="customer_type" value="company" x-model="selectedType" class="sr-only" required>
                 <div class="text-sm font-medium text-gray-800 dark:text-gray-100">Company</div>
-                <div class="text-xs text-gray-500 dark:text-gray-400">Customer perusahaan/instansi.</div>
+                <div class="text-xs text-gray-500 dark:text-gray-400">Company/institution customer.</div>
             </label>
         </div>
         @error('customer_type')
@@ -92,7 +92,7 @@
     </div>
 
     <div>
-        <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Nama <span class="text-rose-600">*</span></label>
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Name <span class="text-rose-600">*</span></label>
         <input
             name="name"
             type="text"

@@ -14,7 +14,7 @@
 
 <div class="sa-wrap rounded-3xl border border-slate-200/80 bg-slate-100/70 p-3 dark:border-slate-700 dark:bg-slate-900/60">
     @section('page_title', 'Finance Dashboard')
-    @section('page_subtitle', 'Pantau invoice dan arus pembayaran.')
+    @section('page_subtitle', 'Monitor invoices and payment flow.')
     @section('page_actions')
         <span class="text-xs text-slate-500 dark:text-slate-400">Updated: {{ now()->format('d M Y H:i') }}</span>
     @endsection

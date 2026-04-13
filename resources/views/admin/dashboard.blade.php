@@ -27,7 +27,7 @@
                 <div class="flex items-start justify-between">
                     <div>
                         <h2 class="text-xl font-semibold text-gray-800 dark:text-gray-100">Company Governance</h2>
-                        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Kontrol user internal dan status modul operasional perusahaan.</p>
+                        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Control internal users and operational module statuses.</p>
                     </div>
                     <span class="px-3 py-1 rounded-full text-xs font-semibold {{ ($companyProfileReady ?? false) ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300' : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' }}">
                         {{ ($companyProfileReady ?? false) ? 'Company Profile Ready' : 'Company Profile Incomplete' }}
@@ -73,7 +73,7 @@
 
             <div class="xl:col-span-5 bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-md border border-gray-200 dark:border-gray-700">
                 <h2 class="text-xl font-semibold text-gray-800 dark:text-gray-100">Quick Actions</h2>
-                <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Akses cepat untuk aktivitas administrasi perusahaan.</p>
+                <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Quick access for company administration activities.</p>
                 <div class="mt-4 grid grid-cols-1 gap-2 text-sm">
                     @if(auth()->user()->can('company_settings.manage'))
                         <a href="{{ route('company-settings.edit') }}"  class="btn-primary">Company Settings</a>

@@ -8,7 +8,12 @@
         $appTitle = trim((string) ($companySettings->company_name ?? 'VOYEX CRM'));
         $faviconPath = $companySettings->favicon_path ?? null;
         $faviconVersion = !empty($companySettings?->updated_at) ? $companySettings->updated_at->timestamp : null;
-        $faviconUrl = $faviconPath ? asset('storage/' . $faviconPath) . ($faviconVersion ? ('?v=' . $faviconVersion) : '') : null;
+        $faviconUrl = $faviconPath
+            ? \App\Support\ImageThumbnailGenerator::resolveOriginalPublicUrl($faviconPath)
+            : null;
+        if ($faviconUrl && $faviconVersion) {
+            $faviconUrl .= '?v=' . $faviconVersion;
+        }
         $faviconExt = $faviconPath ? strtolower((string) pathinfo($faviconPath, PATHINFO_EXTENSION)) : null;
         $faviconMime = match ($faviconExt) {
             'png' => 'image/png',
@@ -687,9 +692,23 @@
                 resolveTimer = setTimeout(resolveLocation, 400);
             };
 
-            urlInput.addEventListener('input', scheduleResolve);
-            urlInput.addEventListener('change', resolveLocation);
-            urlInput.addEventListener('blur', resolveLocation);
+            const scheduleResolveFromUserInput = (event) => {
+                if (event && event.isTrusted !== true) {
+                    return;
+                }
+                scheduleResolve();
+            };
+
+            const resolveLocationFromUserInput = (event) => {
+                if (event && event.isTrusted !== true) {
+                    return;
+                }
+                resolveLocation();
+            };
+
+            urlInput.addEventListener('input', scheduleResolveFromUserInput);
+            urlInput.addEventListener('change', resolveLocationFromUserInput);
+            urlInput.addEventListener('blur', resolveLocationFromUserInput);
             if (triggerButton) {
                 triggerButton.addEventListener('click', resolveLocation);
             }

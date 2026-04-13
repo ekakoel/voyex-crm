@@ -13,6 +13,7 @@ use App\Models\Hotel;
 use App\Models\HotelRoom;
 use App\Models\Inquiry;
 use App\Models\Itinerary;
+use App\Models\Quotation;
 use App\Models\TouristAttraction;
 use App\Models\TransportUnit;
 use App\Services\ActivityAuditLogger;
@@ -537,10 +538,10 @@ class ItineraryController extends Controller
                 ->route('itineraries.show', $itinerary)
                 ->with('error', 'Itinerary sudah final dan tidak dapat diubah.');
         }
-        if ($itinerary->quotation && ($itinerary->quotation->status ?? '') === 'approved') {
+        if ($this->isItineraryLockedByQuotation($itinerary)) {
             return redirect()
                 ->route('itineraries.show', $itinerary)
-                ->with('error', 'Itinerary cannot be edited because the related quotation is approved.');
+                ->with('error', 'Itinerary cannot be edited because the related quotation is approved/final.');
         }
         $itinerary->load([
             'touristAttractions:id,name,location,latitude,longitude',
@@ -992,12 +993,22 @@ class ItineraryController extends Controller
             if (! is_string($path) || trim($path) === '') {
                 continue;
             }
-            $thumbnailPath = ImageThumbnailGenerator::thumbnailPathFor($path);
+            $normalizedPath = trim(str_replace('\\', '/', $path), '/');
+            $thumbnailPath = ImageThumbnailGenerator::thumbnailPathFor($normalizedPath);
             $thumbnailDataUri = $this->resolveStorageImageDataUri($thumbnailPath);
             if ($thumbnailDataUri) {
                 return $thumbnailDataUri;
             }
-            $originalDataUri = $this->resolveStorageImageDataUri($path);
+
+            if (Storage::disk('public')->exists($normalizedPath)) {
+                ImageThumbnailGenerator::generate('public', $normalizedPath, 360, 240);
+                $thumbnailDataUri = $this->resolveStorageImageDataUri($thumbnailPath);
+                if ($thumbnailDataUri) {
+                    return $thumbnailDataUri;
+                }
+            }
+
+            $originalDataUri = $this->resolveStorageImageDataUri($normalizedPath);
             if ($originalDataUri) {
                 return $originalDataUri;
             }
@@ -1031,6 +1042,14 @@ class ItineraryController extends Controller
             $thumbnailDataUri = $this->resolveStorageImageDataUri($thumbnailPath);
             if ($thumbnailDataUri) {
                 return $thumbnailDataUri;
+            }
+
+            if (Storage::disk('public')->exists($candidate)) {
+                ImageThumbnailGenerator::generate('public', $candidate, 360, 240);
+                $thumbnailDataUri = $this->resolveStorageImageDataUri($thumbnailPath);
+                if ($thumbnailDataUri) {
+                    return $thumbnailDataUri;
+                }
             }
 
             $originalDataUri = $this->resolveStorageImageDataUri($candidate);
@@ -1116,10 +1135,10 @@ SVG;
                 ->route('itineraries.show', $itinerary)
                 ->with('error', 'Itinerary sudah final dan tidak dapat diubah.');
         }
-        if ($itinerary->quotation && ($itinerary->quotation->status ?? '') === 'approved') {
+        if ($this->isItineraryLockedByQuotation($itinerary)) {
             return redirect()
                 ->route('itineraries.show', $itinerary)
-                ->with('error', 'Itinerary cannot be updated because the related quotation is approved.');
+                ->with('error', 'Itinerary cannot be updated because the related quotation is approved/final.');
         }
         $validated = $request->validate([
             'title' => ['required', 'string', 'max:255'],
@@ -1289,8 +1308,8 @@ SVG;
 
         if ($itinerary->quotation) {
             $reasons = ['quotation'];
-            if ($itinerary->quotation->status === 'approved') {
-                $reasons[0] = 'quotation (approved)';
+            if ($this->isItineraryLockedByQuotation($itinerary)) {
+                $reasons[0] = 'quotation (approved/final)';
             }
             if ($itinerary->quotation->booking) {
                 $reasons[] = 'booking';
@@ -1339,8 +1358,8 @@ SVG;
         ]);
         if ($itinerary->quotation) {
             $reasons = ['quotation'];
-            if ($itinerary->quotation->status === 'approved') {
-                $reasons[0] = 'quotation (approved)';
+            if ($this->isItineraryLockedByQuotation($itinerary)) {
+                $reasons[0] = 'quotation (approved/final)';
             }
             if ($itinerary->quotation->booking) {
                 $reasons[] = 'booking';
@@ -1380,6 +1399,12 @@ SVG;
         return redirect()
             ->route('itineraries.show', $itinerary)
             ->with('error', 'Hanya creator yang dapat mengubah atau menghapus itinerary ini.');
+    }
+
+    private function isItineraryLockedByQuotation(Itinerary $itinerary): bool
+    {
+        $status = (string) ($itinerary->quotation->status ?? '');
+        return in_array($status, ['approved', Quotation::FINAL_STATUS], true);
     }
 
     private function syncInquiryProcessedStatus(?int $inquiryId): void

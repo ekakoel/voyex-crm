@@ -202,6 +202,185 @@ Kebijakan ini wajib untuk setiap update code (penambahan, perubahan, pengurangan
 Date: 2026-04-13
 Completed in this cycle:
 
+- Quotation lifecycle alignment (Final/Pending synchronization to Itinerary + Inquiry):
+  - updated quotation-linked status sync so:
+    - `quotation.status = final` forces related `itinerary.status = final` and `inquiry.status = final`,
+    - non-final quotation states (including `pending` and `rejected`) force related `itinerary.status = processed` and `inquiry.status = processed`.
+  - implemented centralized status propagation in:
+    - `app/Http/Controllers/Sales/QuotationController.php` via `syncLinkedLifecycleStatusesForQuotation(...)`.
+  - updated itinerary lifecycle logic in `app/Models/Itinerary.php`:
+    - removed hard immutable-final behavior so itinerary can return from `final` to `processed` when quotation is no longer `final` (required after reject).
+  - enabled reject flow for final quotation by Manager/Director:
+    - `reject` no longer blocked by final status,
+    - reject now unlocks linked inquiry/itinerary by pushing them to `processed`.
+  - tightened lock checks in:
+    - `app/Http/Controllers/Sales/InquiryController.php`
+    - `app/Http/Controllers/Admin/ItineraryController.php`
+    so quotation `approved` or `final` both treated as locked states.
+- QA note:
+  - `php -l app/Models/Itinerary.php` passed.
+  - `php -l app/Http/Controllers/Sales/QuotationController.php` passed.
+  - `php -l app/Http/Controllers/Sales/InquiryController.php` passed.
+  - `php -l app/Http/Controllers/Admin/ItineraryController.php` passed.
+  - `php artisan view:cache` passed.
+
+- Image delivery performance standardization (thumbnail-first + auto-regenerate):
+  - introduced centralized thumbnail resolver API in `app/Support/ImageThumbnailGenerator.php`:
+    - `resolvePublicUrl(...)` for thumbnail-first rendering,
+    - `resolveOriginalPublicUrl(...)` for original fallback,
+    - `normalizeStoredPath(...)` for consistent storage path normalization.
+  - implemented lazy thumbnail regeneration flow:
+    - if thumbnail is missing while image is requested, system generates thumbnail from original and reuses it for subsequent requests.
+  - applied this standard to active image-rendering views (auth/company branding + module forms/show pages touched in this cycle), replacing direct storage asset usage in those paths.
+  - extended PDF image pipelines in:
+    - `app/Http/Controllers/Admin/ItineraryController.php`
+    - `app/Http/Controllers/Sales/QuotationController.php`
+    so missing thumbnails are regenerated before falling back to original image data URI.
+  - added operational backfill command:
+    - `php artisan images:generate-thumbnails`
+    implemented in `app/Console/Commands/GenerateImageThumbnails.php`.
+  - added technical standard document:
+    - `docs/technical/IMAGE_THUMBNAIL_STANDARD.md`
+    and registered it in `docs/README.md`.
+- QA note:
+  - `php -l app/Support/ImageThumbnailGenerator.php` passed.
+  - `php -l app/Console/Commands/GenerateImageThumbnails.php` passed.
+  - `php -l app/Http/View/CompanyBrandComposer.php` passed.
+  - `php artisan view:cache` passed.
+  - command discovery confirmed for `images:generate-thumbnails`.
+  - operational backfill executed successfully:
+    - `php artisan images:generate-thumbnails --disk=public --width=360 --height=240`
+    - result: processed `1333`, generated `392`, skipped `941`.
+
+- English UI standardization phase-5 (create/edit/show completion + standardization policy):
+  - completed translation-key migration for remaining `create/edit/show` pages in modules area, including `company-settings/edit`.
+  - converted company settings form labels, helper texts, auth-theme labels, map section title, map hint messages, and action button text into `ui.*` translation keys.
+  - updated map location partial (`modules/company-settings/partials/_location-map.blade.php`) so runtime map hints also use translation keys.
+  - expanded `lang/en/ui.php` with new shared and module keys required by final cleanup (company settings, itinerary show labels, quotation show statuses, activity/hotel/airport detail labels, etc.).
+  - added formal implementation standard document:
+    - `docs/technical/I18N_TRANSLATION_STANDARD.md`
+    - and registered it in `docs/README.md`.
+  - enforcement baseline check executed:
+    - all files under `resources/views/modules/**/{create,edit,show}.blade.php` now reference `ui.*` keys,
+    - no missing `ui.*` key references detected in those pages.
+- QA note:
+  - `php -l lang/en/ui.php` passed.
+  - `php artisan view:cache` passed after phase-5 translation and standards update.
+
+Date: 2026-04-13
+Completed in this cycle:
+
+- English UI standardization phase-4 (non-index UI text cleanup):
+  - converted remaining Indonesian UI copy to English across form/create/help/error/email/map-hint surfaces.
+  - major areas updated:
+    - quotation form status/validation messages and itinerary item sync hints,
+    - customer/inquiry form validation/help copy,
+    - map interaction hints in vendor/airport/hotel/company settings location widgets,
+    - create/edit helper copy in modules (`airports`, `bookings`, `currencies`, `destinations`, `vendors`, `users`, `transports`, `activities`, `tourist-attractions`, `hotels`, `inquiries`, `roles`),
+    - itinerary include/exclude placeholders and validation alert copy,
+    - role form/create/edit helper text,
+    - super admin/admin/finance/editor dashboard subtitle/help copy,
+    - follow-up reminder email template,
+    - 403 error page subtitle/body/action labels.
+  - additional repository-wide scan pass executed to detect Indonesian literals in `resources/views/**/*.blade.php`, then applied targeted cleanup for detected entries.
+- QA note:
+  - `php -l` passed for all changed PHP/Blade files in this cycle.
+  - `php artisan view:cache` passed after phase-4 copy cleanup.
+
+Date: 2026-04-13
+Completed in this cycle:
+
+- English UI standardization phase-3 (additional module index rollout):
+  - extended translation registry `lang/en/ui.php` for additional shared labels/entities/modules:
+    - new common keys (location/country/destination/rates/permissions/clone/duplicate/active/inactive, etc.),
+    - new entity keys (currencies, destinations, vendors, airports, transport services, tourist attractions, activities, itineraries, invoices, hotels, roles),
+    - new module dictionaries for:
+      - `currencies`, `destinations`, `vendors`, `airports`, `transports`,
+      - `tourist_attractions`, `activities`, `itineraries`, `invoices`, `hotels`, `roles`.
+  - refactored additional index/list pages from hardcoded literals to translation keys:
+    - `resources/views/modules/currencies/index.blade.php`,
+    - `resources/views/modules/destinations/index.blade.php`,
+    - `resources/views/modules/vendors/index.blade.php`,
+    - `resources/views/modules/airports/index.blade.php`,
+    - `resources/views/modules/transports/index.blade.php`,
+    - `resources/views/modules/tourist-attractions/index.blade.php`,
+    - `resources/views/modules/tourist-attractions/partials/_index-results.blade.php`,
+    - `resources/views/modules/activities/index.blade.php`,
+    - `resources/views/modules/activities/partials/_index-results.blade.php`,
+    - `resources/views/modules/itineraries/index.blade.php`,
+    - `resources/views/modules/invoices/index.blade.php`,
+    - `resources/views/modules/hotels/index.blade.php`,
+    - `resources/views/modules/hotels/partials/_index-results.blade.php`,
+    - `resources/views/modules/roles/index.blade.php`,
+    - `resources/views/modules/roles/partials/_index-results.blade.php`.
+- QA note:
+  - `php -l` passed for all updated Blade files and `lang/en/ui.php`.
+  - `php artisan view:cache` passed after phase-3 translation refactor.
+
+Date: 2026-04-13
+Completed in this cycle:
+
+- English UI standardization phase-2 (module index rollout):
+  - extended translation registry in `lang/en/ui.php` for reusable index/common/entities/module labels:
+    - common actions/labels (`reset`, `filters`, `actions`, `status`, `priority`, `deadline`, `assigned`, etc.),
+    - index helpers (`per_page_option`, `no_data_available`, `refine_list_quickly`),
+    - entity labels (`customers`, `inquiries`, `quotations`, `bookings`, `employees`, `itinerary`),
+    - module-specific labels for users, customers, inquiries, quotations, and bookings pages.
+  - refactored module list pages to translation keys (replacing hardcoded UI literals):
+    - `resources/views/modules/users/index.blade.php`,
+    - `resources/views/modules/customers/index.blade.php`,
+    - `resources/views/modules/inquiries/index.blade.php`,
+    - `resources/views/modules/quotations/index.blade.php`,
+    - `resources/views/modules/bookings/index.blade.php`.
+  - completed quotations translation cleanup by replacing remaining hardcoded activate/deactivate confirm text with:
+    - `ui.modules.quotations.confirm_activate`,
+    - `ui.modules.quotations.confirm_deactivate`.
+- QA note:
+  - `php -l` passed for all updated Blade files and `lang/en/ui.php`.
+  - `php artisan view:cache` passed after phase-2 translation refactor.
+
+Date: 2026-04-13
+Completed in this cycle:
+
+- English UI standardization phase-1 (translation-key rollout):
+  - added new translation registry `lang/en/ui.php` as centralized source for custom UI strings:
+    - auth page titles/subtitles/forms/spinner states/messages,
+    - common action labels,
+    - quotation comments labels/placeholders/empty states.
+  - refactored auth views to use translation keys instead of hardcoded literals:
+    - `resources/views/auth/login.blade.php`,
+    - `resources/views/auth/forgot-password.blade.php`,
+    - `resources/views/auth/reset-password.blade.php`.
+  - refactored quotation comments panel to use translation keys and pluralized count via `trans_choice()`:
+    - `resources/views/partials/_quotation-comments.blade.php`.
+  - aligned password-reset feedback messages in controller to translation keys:
+    - `app/Http/Controllers/Auth/PasswordResetLinkController.php`.
+- QA note:
+  - `php -l` passed for updated PHP/Blade files and new language file.
+  - `php artisan view:cache` passed after translation refactor.
+
+Date: 2026-04-13
+Completed in this cycle:
+
+- Auth submit spinner UX for Login and Forgot Password:
+  - added submit-state loading UX on `auth.login` and `auth.forgot-password` forms:
+    - prevents double submit during request lifecycle,
+    - disables submit button while processing,
+    - updates button text (`Signing In...` / `Sending Link...`),
+    - shows inline button spinner.
+  - added full-page auth overlay spinner (`.auth-page-spinner`) shown on form submit until response/redirect.
+  - implemented `pageshow` reset guard so spinner/button state is restored correctly when user navigates back.
+- Styling additions in `public/assets/css/auth.css`:
+  - `.btn-primary.is-loading`, `.auth-btn-spinner`,
+  - `.auth-page-spinner` and its inner ring/text states,
+  - `@keyframes auth-spin`.
+- QA note:
+  - `php -l` passed for updated auth Blade files and auth stylesheet.
+  - `php artisan view:cache` passed.
+
+Date: 2026-04-13
+Completed in this cycle:
+
 - Auth UI simplification (background image removal):
   - removed left-panel illustration images from `auth.login`, `auth.forgot-password`, and `auth.reset-password`.
   - left panel now relies on gradient/theme styling only (no background image element rendered).

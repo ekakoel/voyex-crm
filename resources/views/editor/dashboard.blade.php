@@ -16,7 +16,7 @@
 
 <div class="sa-wrap rounded-3xl border border-slate-200/80 bg-slate-100/70 p-3 dark:border-slate-700 dark:bg-slate-900/60">
     @section('page_title', 'Editor Dashboard')
-    @section('page_subtitle', 'Kelola katalog layanan dan konten master.')
+    @section('page_subtitle', 'Manage service catalogs and master content.')
     @section('page_actions')
         <span class="text-xs text-slate-500 dark:text-slate-400">Updated: {{ now()->format('d M Y H:i') }}</span>
     @endsection
@@ -91,3 +91,4 @@
     })();
 </script>
 @endpush
+

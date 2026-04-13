@@ -15,22 +15,22 @@
                                 #</th>
                             <th
                                 class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">
-                                Hotel</th>
+                                {{ __('ui.modules.hotels.hotel') }}</th>
                             <th
                                 class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">
-                                Location</th>
+                                {{ __('ui.common.location') }}</th>
                             <th
                                 class="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">
-                                Rooms</th>
+                                {{ __('ui.common.rooms') }}</th>
                             <th
                                 class="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">
-                                Rates</th>
+                                {{ __('ui.common.rates') }}</th>
                             <th
                                 class="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">
-                                Status</th>
+                                {{ __('ui.common.status') }}</th>
                             <th
                                 class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300 actions-compact">
-                                Actions</th>
+                                {{ __('ui.common.actions') }}</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
@@ -60,18 +60,18 @@
                                 <td class="px-4 py-3 text-right text-sm actions-compact">
                                     <div class="flex items-center justify-end gap-2">
                                         <a href="{{ route('hotels.show', $hotel) }}" class="btn-outline-sm"
-                                            title="View" aria-label="View"><i class="fa-solid fa-eye"></i><span
-                                                class="sr-only">View</span></a>
+                                            title="{{ __('ui.common.view') }}" aria-label="{{ __('ui.common.view') }}"><i class="fa-solid fa-eye"></i><span
+                                                class="sr-only">{{ __('ui.common.view') }}</span></a>
                                         <a href="{{ route('hotels.edit', $hotel) }}" class="btn-secondary-sm"
-                                            title="Edit" aria-label="Edit"><i class="fa-solid fa-pen"></i><span
-                                                class="sr-only">Edit</span></a>
+                                            title="{{ __('ui.common.edit') }}" aria-label="{{ __('ui.common.edit') }}"><i class="fa-solid fa-pen"></i><span
+                                                class="sr-only">{{ __('ui.common.edit') }}</span></a>
                                         <form action="{{ route('hotels.toggle-status', $hotel->id) }}"
                                             method="POST" class="inline">
                                             @csrf
                                             @method('PATCH')
                                             <button type="submit"
-                                                onclick="return confirm('{{ $isActive ? 'Deactivate this hotel?' : 'Activate this hotel?' }}')"
-                                                class="{{ $isActive ? 'btn-muted-sm' : 'btn-primary-sm' }}">{{ $isActive ? 'Deactivate' : 'Activate' }}</button>
+                                                onclick="return confirm('{{ $isActive ? __('ui.modules.hotels.confirm_deactivate') : __('ui.modules.hotels.confirm_activate') }}')"
+                                                class="{{ $isActive ? 'btn-muted-sm' : 'btn-primary-sm' }}">{{ $isActive ? __('ui.common.deactivate') : __('ui.common.activate') }}</button>
                                         </form>
                                     </div>
                                 </td>
@@ -79,8 +79,7 @@
                         @empty
                             <tr>
                                 <td colspan="7"
-                                    class="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">No hotels
-                                    available.</td>
+                                    class="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">{{ __('ui.index.no_data_available', ['entity' => __('ui.entities.hotels')]) }}</td>
                             </tr>
                         @endforelse
                     </tbody>
@@ -103,35 +102,34 @@
                         <x-status-badge :status="$isActive ? 'active' : 'inactive'" size="xs" />
                     </div>
                     <div class="mt-3 grid grid-cols-2 gap-2 text-xs text-gray-600 dark:text-gray-300">
-                        <div>Location</div>
+                        <div>{{ __('ui.common.location') }}</div>
                         <div>{{ trim(($hotel->city ?? '') . (($hotel->city && $hotel->province) ? ', ' : '') . ($hotel->province ?? '')) ?: '-' }}</div>
-                        <div>Country</div>
+                        <div>{{ __('ui.common.country') }}</div>
                         <div>{{ $hotel->country ?: '-' }}</div>
-                        <div>Destination</div>
+                        <div>{{ __('ui.common.destination') }}</div>
                         <div>{{ $hotel->destination?->province ?: ($hotel->destination?->name ?? '-') }}</div>
-                        <div>Rooms</div>
+                        <div>{{ __('ui.common.rooms') }}</div>
                         <div>{{ $hotel->rooms_count }}</div>
-                        <div>Rates</div>
+                        <div>{{ __('ui.common.rates') }}</div>
                         <div>{{ $hotel->prices_count }}</div>
                     </div>
                     <div class="mt-3 flex flex-wrap gap-2">
                         <a href="{{ route('hotels.show', $hotel) }}" class="btn-outline-sm" title="View"
-                            aria-label="View"><i class="fa-solid fa-eye"></i><span class="sr-only">View</span></a>
+                            aria-label="{{ __('ui.common.view') }}"><i class="fa-solid fa-eye"></i><span class="sr-only">{{ __('ui.common.view') }}</span></a>
                         <a href="{{ route('hotels.edit', $hotel) }}" class="btn-secondary-sm" title="Edit"
-                            aria-label="Edit"><i class="fa-solid fa-pen"></i><span class="sr-only">Edit</span></a>
+                            aria-label="{{ __('ui.common.edit') }}"><i class="fa-solid fa-pen"></i><span class="sr-only">{{ __('ui.common.edit') }}</span></a>
                         <form action="{{ route('hotels.toggle-status', $hotel->id) }}" method="POST"
                             class="inline">
                             @csrf
                             @method('PATCH')
                             <button type="submit"
-                                onclick="return confirm('{{ $isActive ? 'Deactivate this hotel?' : 'Activate this hotel?' }}')"
-                                class="{{ $isActive ? 'btn-muted-sm' : 'btn-primary-sm' }}">{{ $isActive ? 'Deactivate' : 'Activate' }}</button>
+                                onclick="return confirm('{{ $isActive ? __('ui.modules.hotels.confirm_deactivate') : __('ui.modules.hotels.confirm_activate') }}')"
+                                class="{{ $isActive ? 'btn-muted-sm' : 'btn-primary-sm' }}">{{ $isActive ? __('ui.common.deactivate') : __('ui.common.activate') }}</button>
                         </form>
                     </div>
                 </div>
             @empty
-                <div class="app-card p-6 text-center text-sm text-gray-500 dark:text-gray-400">No hotels available.
-                </div>
+                <div class="app-card p-6 text-center text-sm text-gray-500 dark:text-gray-400">{{ __('ui.index.no_data_available', ['entity' => __('ui.entities.hotels')]) }}</div>
             @endforelse
         </div>
         <div>{{ $hotels->links() }}</div>

@@ -14,7 +14,7 @@
         <div class="xl:col-span-9">
             <div class="sa-card p-5">
                 @section('page_title', 'Super Admin Analytics')
-                @section('page_subtitle', 'Data diperbarui saat halaman dibuka atau refresh manual')
+                @section('page_subtitle', 'Data refreshes when the page is opened or manually refreshed.')
                 @section('page_actions')
                     <span class="text-xs text-slate-500 dark:text-slate-400">Last loaded: {{ now()->format('d M Y H:i') }}</span>
                 @endsection
@@ -23,7 +23,7 @@
                     <div class="xl:col-span-5 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
                         <div class="mb-2 flex items-center justify-between">
                             <h2 class="text-sm font-semibold text-slate-900 dark:text-slate-100">Action Center</h2>
-                            <span class="text-[11px] text-slate-500 dark:text-slate-400">Prioritas saat ini</span>
+                            <span class="text-[11px] text-slate-500 dark:text-slate-400">Current priority</span>
                         </div>
                         <div class="space-y-2">
                             @foreach(($actionCenter ?? []) as $item)

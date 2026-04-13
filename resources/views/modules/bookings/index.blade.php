@@ -1,9 +1,9 @@
 @extends('layouts.master')
-@section('page_title', 'Bookings')
-@section('page_subtitle', 'Manage booking data.')
+@section('page_title', __('ui.modules.bookings.page_title'))
+@section('page_subtitle', __('ui.modules.bookings.page_subtitle'))
 @section('page_actions')
     <a href="{{ route('bookings.export', request()->query()) }}" class="btn-secondary">Export CSV</a>
-    <a href="{{ route('bookings.create') }}" class="btn-primary">Add Booking</a>
+    <a href="{{ route('bookings.create') }}" class="btn-primary">{{ __('ui.modules.bookings.add_booking') }}</a>
 @endsection
 @section('content')
     <div class="space-y-6 module-page module-page--bookings" data-service-filter-page data-page-spinner="off">
@@ -12,19 +12,19 @@
             <aside class="module-grid-side space-y-4">
                 <div class="app-card p-5 space-y-4">
                     <div>
-                        <h2 class="text-base font-semibold text-gray-800 dark:text-gray-100">Filters</h2>
-                        <p class="text-sm text-gray-500 dark:text-gray-400">Refine your list quickly.</p>
+                        <h2 class="text-base font-semibold text-gray-800 dark:text-gray-100">{{ __('ui.common.filters') }}</h2>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">{{ __('ui.index.refine_list_quickly') }}</p>
                     </div>
                     <form method="GET" action="{{ route('bookings.index') }}" class="grid grid-cols-1 gap-3 sm:grid-cols-2" data-service-filter-form data-disable-submit-lock="1" data-page-spinner="off">
-            <input name="q" value="{{ request('q') }}" placeholder="Search number / quotation / customer" class="app-input sm:col-span-2" data-service-filter-input>
+            <input name="q" value="{{ request('q') }}" placeholder="{{ __('ui.modules.bookings.search') }}" class="app-input sm:col-span-2" data-service-filter-input>
             <select name="status" class="app-input" data-service-filter-input>
-                <option value="">Status</option>
+                <option value="">{{ __('ui.common.status') }}</option>
                 @foreach (\App\Models\Booking::STATUS_OPTIONS as $status)
                     <option value="{{ $status }}" @selected(request('status') === $status)>{{ ucfirst($status) }}</option>
                 @endforeach
             </select>
             <select name="quotation_id" class="app-input" data-service-filter-input>
-                <option value="">Quotation</option>
+                <option value="">{{ __('ui.modules.bookings.quotation') }}</option>
                 @foreach ($quotations as $quotation)
                     <option value="{{ $quotation->id }}" @selected((string) request('quotation_id') === (string) $quotation->id)>
                         {{ $quotation->quotation_number }} - {{ $quotation->inquiry?->customer?->name ?? '-' }}
@@ -35,11 +35,11 @@
             <input name="travel_to" type="date" value="{{ request('travel_to') }}" class="app-input" data-service-filter-input>
             <select name="per_page" class="app-input" data-service-filter-input>
                 @foreach ([10,25,50,100] as $size)
-                    <option value="{{ $size }}" @selected((string) request('per_page', 10) === (string) $size)>{{ $size }}/page</option>
+                    <option value="{{ $size }}" @selected((string) request('per_page', 10) === (string) $size)>{{ __('ui.index.per_page_option', ['size' => $size]) }}</option>
                 @endforeach
             </select>
             <div class="flex items-center gap-2 sm:col-span-2 filter-actions">
-                <a href="{{ route('bookings.index') }}" class="btn-ghost" data-service-filter-reset>Reset</a>
+                <a href="{{ route('bookings.index') }}" class="btn-ghost" data-service-filter-reset>{{ __('ui.common.reset') }}</a>
             </div>
         </form>
                 </div>
@@ -68,14 +68,14 @@
                         <x-status-badge :status="$booking->status" size="xs" />
                     </div>
                     <div class="mt-3 grid grid-cols-2 gap-2 text-xs text-gray-600 dark:text-gray-300">
-                        <div>Travel Date</div>
+                        <div>{{ __('ui.modules.bookings.travel_date') }}</div>
                         <div>{{ $booking->travel_date?->format('Y-m-d') ?? '-' }}</div>
                     </div>
                     <div class="mt-3 flex flex-wrap gap-2">
-                        <a href="{{ route('bookings.show', $booking) }}"  class="btn-outline-sm" title="Detail" aria-label="Detail"><i class="fa-solid fa-eye"></i><span class="sr-only">Detail</span></a>
+                        <a href="{{ route('bookings.show', $booking) }}"  class="btn-outline-sm" title="{{ __('ui.common.detail') }}" aria-label="{{ __('ui.common.detail') }}"><i class="fa-solid fa-eye"></i><span class="sr-only">{{ __('ui.common.detail') }}</span></a>
                         @can('update', $booking)
                             @if (! $booking->isFinal())
-                            <a href="{{ route('bookings.edit', $booking) }}"  class="btn-secondary-sm" title="Edit" aria-label="Edit"><i class="fa-solid fa-pen"></i><span class="sr-only">Edit</span></a>
+                            <a href="{{ route('bookings.edit', $booking) }}"  class="btn-secondary-sm" title="{{ __('ui.common.edit') }}" aria-label="{{ __('ui.common.edit') }}"><i class="fa-solid fa-pen"></i><span class="sr-only">{{ __('ui.common.edit') }}</span></a>
                             @endif
                         @endcan
                         @can('delete', $booking)
@@ -83,8 +83,8 @@
                                 <form action="{{ route('bookings.destroy', $booking) }}" method="POST" class="inline">
                                     @csrf
                                     @method('DELETE')
-                                    <button type="submit" onclick="return confirm('Are you sure you want to delete this booking?')"   class="btn-danger-sm">
-                                        Delete
+                                    <button type="submit" onclick="return confirm('{{ __('ui.modules.bookings.confirm_delete') }}')"   class="btn-danger-sm">
+                                        {{ __('ui.common.delete') }}
                                     </button>
                                 </form>
                             @endif
@@ -93,7 +93,7 @@
                 </div>
             @empty
                 <div class="app-card p-6 text-center text-sm text-gray-500 dark:text-gray-400">
-                    No bookings available.
+                    {{ __('ui.index.no_data_available', ['entity' => __('ui.entities.bookings')]) }}
                 </div>
             @endforelse
         </div>
@@ -103,11 +103,11 @@
                 <thead>
                     <tr>
                         <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">#</th>
-                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">Booking No</th>
-                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">Quotation</th>
-                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">Travel Date</th>
-                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">Status</th>
-                        <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300 actions-compact">Actions</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ __('ui.modules.bookings.booking_no') }}</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ __('ui.modules.bookings.quotation') }}</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ __('ui.modules.bookings.travel_date') }}</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ __('ui.common.status') }}</th>
+                        <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300 actions-compact">{{ __('ui.common.actions') }}</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
@@ -124,10 +124,10 @@
                             </td>
                             <td class="px-4 py-3 text-right text-sm actions-compact">
     <div class="flex items-center justify-end gap-2">
-        <a href="{{ route('bookings.show', $booking) }}"  class="btn-outline-sm" title="Detail" aria-label="Detail"><i class="fa-solid fa-eye"></i><span class="sr-only">Detail</span></a>
+        <a href="{{ route('bookings.show', $booking) }}"  class="btn-outline-sm" title="{{ __('ui.common.detail') }}" aria-label="{{ __('ui.common.detail') }}"><i class="fa-solid fa-eye"></i><span class="sr-only">{{ __('ui.common.detail') }}</span></a>
                                 @can('update', $booking)
                                     @if (! $booking->isFinal())
-                                        <a href="{{ route('bookings.edit', $booking) }}"  class="btn-secondary-sm" title="Edit" aria-label="Edit"><i class="fa-solid fa-pen"></i><span class="sr-only">Edit</span></a>
+                                        <a href="{{ route('bookings.edit', $booking) }}"  class="btn-secondary-sm" title="{{ __('ui.common.edit') }}" aria-label="{{ __('ui.common.edit') }}"><i class="fa-solid fa-pen"></i><span class="sr-only">{{ __('ui.common.edit') }}</span></a>
                                     @endif
                                 @endcan
                                 @can('delete', $booking)
@@ -135,7 +135,7 @@
                                         <form action="{{ route('bookings.destroy', $booking) }}" method="POST" class="inline">
                                             @csrf
                                             @method('DELETE')
-                                            <button type="submit" onclick="return confirm('Are you sure you want to delete this booking?')"   class="btn-danger-sm">Delete
+                                            <button type="submit" onclick="return confirm('{{ __('ui.modules.bookings.confirm_delete') }}')"   class="btn-danger-sm">{{ __('ui.common.delete') }}
                                             </button>
                                         </form>
                                     @endif
@@ -145,7 +145,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="6" class="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">No bookings available.</td>
+                            <td colspan="6" class="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">{{ __('ui.index.no_data_available', ['entity' => __('ui.entities.bookings')]) }}</td>
                         </tr>
                     @endforelse
                 </tbody>

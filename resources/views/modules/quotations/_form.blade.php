@@ -218,14 +218,14 @@
                 @endif
             </div>
             <p id="itinerary-generate-status" class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                Klik generate untuk mengisi item dari itinerary.@if ($isEditQuotation) Gunakan "Update Contract Rate" untuk sinkronisasi rate terbaru tanpa mengganti susunan item.@endif
+                Click Generate to fill items from itinerary.@if ($isEditQuotation) Use "Update Contract Rate" to sync the latest rates without replacing the item structure.@endif
             </p>
             @error('itinerary_id')
                 <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
             @enderror
             @if ($itineraries->isEmpty())
                 <p class="mt-1 text-xs text-amber-600 dark:text-amber-400">
-                    Belum ada itinerary aktif yang siap dipakai untuk quotation.
+                    No active itinerary is ready to use for this quotation yet.
                 </p>
             @endif
         </div>
@@ -250,7 +250,7 @@
     <div id="quotation-items-section" class="rounded-xl border border-gray-200 p-4 dark:border-gray-700 {{ $hasItems ? '' : 'hidden' }}">
         @if ($errors->has('items') || $errors->has('items.*.description') || $errors->has('items.*.qty') || $errors->has('items.*.unit_price'))
             <div class="mb-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700 dark:border-rose-800 dark:bg-rose-900/20 dark:text-rose-300">
-                Mohon cek kembali item quotation. Pastikan Description, Qty, dan Unit Price sudah terisi benar.
+                Please review quotation items again. Make sure Description, Qty, and Unit Price are filled correctly.
             </div>
         @endif
         <div class="flex flex-wrap items-center justify-between gap-2">
@@ -1322,16 +1322,16 @@
                     if (!canUseItinerary || !itinerarySelect) return;
                     const itineraryId = itinerarySelect.value;
                     if (!itineraryId) {
-                        setStatus('Pilih itinerary terlebih dahulu.');
+                        setStatus('Please select an itinerary first.');
                         return;
                     }
                     if (hasFilledItems()) {
-                        const ok = window.confirm('Item yang ada akan diganti. Lanjutkan?');
+                        const ok = window.confirm('Existing items will be replaced. Continue?');
                         if (!ok) return;
                     }
 
                     generateBtn.disabled = true;
-                    setStatus('Mengambil item dari itinerary...');
+                    setStatus('Fetching items from itinerary...');
                     updateSummary('');
                     try {
                         const response = await fetch(`${endpoint}/${itineraryId}`, {
@@ -1341,19 +1341,19 @@
                             },
                         });
                         if (!response.ok) {
-                            setStatus('Gagal mengambil item dari itinerary.');
+                            setStatus('Failed to fetch items from itinerary.');
                             return;
                         }
                         const payload = await response.json();
                         const items = Array.isArray(payload?.items) ? payload.items : [];
                         renderItems(items);
                         const missingCount = Number(payload?.meta?.missing_price_count || 0);
-                        setStatus(`Item terisi: ${items.length}.`);
+                        setStatus(`Items loaded: ${items.length}.`);
                         if (missingCount > 0) {
-                            updateSummary(`Catatan: ${missingCount} item harga 0, mohon cek ulang.`);
+                            updateSummary(`Note: ${missingCount} items have zero price. Please review.`);
                         }
                     } catch (err) {
-                        setStatus('Gagal mengambil item dari itinerary.');
+                        setStatus('Failed to fetch items from itinerary.');
                     } finally {
                         updateGenerateButtonState();
                     }
@@ -1363,19 +1363,19 @@
                     if (!canUpdateContractRate || !itinerarySelect) return;
                     const itineraryId = itinerarySelect.value;
                     if (!itineraryId) {
-                        setStatus('Pilih itinerary terlebih dahulu.');
+                        setStatus('Please select an itinerary first.');
                         return;
                     }
 
                     const itineraryRows = Array.from(itemsContainer.querySelectorAll('.quotation-item-row'));
                     if (itineraryRows.length === 0) {
-                        setStatus('Belum ada item itinerary yang bisa diperbarui.');
+                        setStatus('No itinerary items are available to update yet.');
                         return;
                     }
 
                     updateContractRateBtn.disabled = true;
                     updateContractRateBtn.classList.add('opacity-60', 'cursor-not-allowed');
-                    setStatus('Memperbarui contract rate dari itinerary terbaru...');
+                    setStatus('Updating contract rates from the latest itinerary...');
                     updateSummary('');
 
                     try {
@@ -1386,7 +1386,7 @@
                             },
                         });
                         if (!response.ok) {
-                            setStatus('Gagal mengambil contract rate terbaru.');
+                            setStatus('Failed to fetch latest contract rates.');
                             return;
                         }
 
@@ -1429,12 +1429,12 @@
                         });
 
                         recalcTotals();
-                        setStatus(`Contract rate diperbarui: ${updatedCount} item.`);
+                        setStatus(`Contract rates updated: ${updatedCount} items.`);
                         if (missingCount > 0 || unchangedCount > 0) {
-                            updateSummary(`Tidak berubah: ${unchangedCount} item | Tidak ditemukan: ${missingCount} item.`);
+                            updateSummary(`Unchanged: ${unchangedCount} items | Not found: ${missingCount} items.`);
                         }
                     } catch (_) {
-                        setStatus('Gagal mengambil contract rate terbaru.');
+                        setStatus('Failed to fetch latest contract rates.');
                     } finally {
                         updateGenerateButtonState();
                     }
@@ -1482,7 +1482,7 @@
                     reindexItems();
                     const firstInput = node.querySelector('[data-field="description"]');
                     if (firstInput) firstInput.focus();
-                    setStatus('Item manual berhasil ditambahkan.');
+                    setStatus('Manual item added successfully.');
                     recalcTotals();
                 };
 

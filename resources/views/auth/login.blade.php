@@ -6,7 +6,7 @@
     @php($appTitle = trim((string) ($companyName ?? config('app.name', 'VOYEX CRM'))))
     @php($loginTagline = trim((string) ($companyTagline ?? 'Smart Travel CRM Platform')))
     @php($loginFooterSuffix = trim((string) ($companyFooterNote ?? '')) ?: 'All rights reserved.')
-    <title>Login | {{ $appTitle }}</title>
+    <title>{{ __('ui.auth.titles.login_page') }} | {{ $appTitle }}</title>
     @if (!empty($companyFaviconUrl))
         <link rel="icon" type="{{ $companyFaviconMime ?? 'image/x-icon' }}" href="{{ $companyFaviconUrl }}">
         <link rel="shortcut icon" type="{{ $companyFaviconMime ?? 'image/x-icon' }}" href="{{ $companyFaviconUrl }}">
@@ -40,22 +40,22 @@
                 <strong>{{ $appTitle }}</strong>
             </div>
         </div>
-        <h2>Welcome Back</h2>
+        <h2>{{ __('ui.auth.branding.welcome_back') }}</h2>
         <p class="auth-brand-tagline">{{ $loginTagline }}</p>
         <p class="auth-brand-message">
-            Sign in to continue managing your travel CRM workflow in one secure place.
+            {{ __('ui.auth.branding.login_message') }}
         </p>
         <ul class="auth-context-list">
-            <li>Monitor inquiry, quotation, booking, and invoice flow in one dashboard.</li>
-            <li>Role-based access keeps each team focused on the right tasks.</li>
-            <li>Activity and status tracking help reduce manual follow-up errors.</li>
+            <li>{{ __('ui.auth.branding.login_point_1') }}</li>
+            <li>{{ __('ui.auth.branding.login_point_2') }}</li>
+            <li>{{ __('ui.auth.branding.login_point_3') }}</li>
         </ul>
     </div>
 
     <div class="auth-right">
         <div class="auth-card">
-            <h3>Sign In</h3>
-            <p class="auth-subtitle">Use your registered account credentials.</p>
+            <h3>{{ __('ui.auth.forms.sign_in') }}</h3>
+            <p class="auth-subtitle">{{ __('ui.auth.subtitles.sign_in') }}</p>
 
             @if (session('status'))
                 <div class="auth-alert auth-alert-success">{{ session('status') }}</div>
@@ -65,7 +65,7 @@
                 <div class="auth-alert auth-alert-error">{{ $errors->first() }}</div>
             @endif
 
-            <form method="POST" action="{{ route('login') }}">
+            <form method="POST" action="{{ route('login') }}" data-auth-submit-form>
                 @csrf
 
                 <div class="form-group">
@@ -73,7 +73,7 @@
                         type="email"
                         name="email"
                         value="{{ old('email') }}"
-                        placeholder="Email Address"
+                        placeholder="{{ __('ui.auth.forms.email_address') }}"
                         required
                         autofocus
                         autocomplete="username"
@@ -85,7 +85,7 @@
                         type="password"
                         name="password"
                         id="password"
-                        placeholder="Password"
+                        placeholder="{{ __('ui.auth.forms.password') }}"
                         required
                         autocomplete="current-password"
                     >
@@ -95,21 +95,30 @@
                 <div class="form-group remember">
                     <label class="remember">
                         <input type="checkbox" name="remember">
-                        <span>Remember me</span>
+                        <span>{{ __('ui.auth.forms.remember_me') }}</span>
                     </label>
                 </div>
 
                 @if (Route::has('password.request'))
                     <div class="form-group" style="text-align:right;">
-                        <a href="{{ route('password.request') }}" class="auth-inline-link">Forgot Password?</a>
+                        <a href="{{ route('password.request') }}" class="auth-inline-link">{{ __('ui.auth.forms.forgot_password') }}</a>
                     </div>
                 @endif
 
-                <button type="submit" class="btn-primary">Sign In</button>
+                <button type="submit" class="btn-primary" data-auth-submit-btn data-loading-text="{{ __('ui.auth.forms.signing_in') }}">
+                    <span class="auth-btn-spinner" aria-hidden="true"></span>
+                    <span data-auth-btn-label>{{ __('ui.auth.forms.sign_in') }}</span>
+                </button>
             </form>
 
             <p class="footer-text">{{ $appTitle }} &copy; {{ now()->year }}. {{ $loginFooterSuffix }}</p>
         </div>
+    </div>
+</div>
+<div class="auth-page-spinner" data-auth-page-spinner aria-hidden="true">
+    <div class="auth-page-spinner__inner">
+        <div class="auth-page-spinner__ring" aria-hidden="true"></div>
+        <div class="auth-page-spinner__text">{{ __('ui.auth.spinner.processing') }}</div>
     </div>
 </div>
 
@@ -125,6 +134,51 @@
             this.classList.toggle('fa-eye-slash');
         });
     }
+
+    (() => {
+        const form = document.querySelector('[data-auth-submit-form]');
+        const spinner = document.querySelector('[data-auth-page-spinner]');
+        if (!form) {
+            return;
+        }
+
+        let submitting = false;
+
+        form.addEventListener('submit', (event) => {
+            if (submitting) {
+                event.preventDefault();
+                return;
+            }
+            submitting = true;
+
+            const button = form.querySelector('[data-auth-submit-btn]');
+            if (button) {
+                button.disabled = true;
+                button.classList.add('is-loading');
+
+                const label = button.querySelector('[data-auth-btn-label]');
+                if (label && !label.dataset.originalText) {
+                    label.dataset.originalText = label.textContent || '';
+                }
+                if (label) {
+                    label.textContent = button.getAttribute('data-loading-text') || @json(__('ui.auth.forms.loading'));
+                }
+            }
+
+            if (spinner) {
+                spinner.classList.add('is-visible');
+                spinner.setAttribute('aria-hidden', 'false');
+            }
+        });
+
+        window.addEventListener('pageshow', () => {
+            submitting = false;
+            if (spinner) {
+                spinner.classList.remove('is-visible');
+                spinner.setAttribute('aria-hidden', 'true');
+            }
+        });
+    })();
 </script>
 </body>
 </html>

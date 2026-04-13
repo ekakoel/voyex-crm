@@ -1,42 +1,45 @@
 @extends('layouts.master')
 
+@section('page_title', __('ui.modules.destinations.page_title'))
+@section('page_subtitle', __('ui.modules.destinations.show_page_subtitle'))
+
 @section('content')
     <div class="space-y-6 module-page module-page--destinations">
-        @section('page_actions')<a href="{{ route('destinations.edit', $destination) }}"  class="btn-primary">Edit</a>
-                <a href="{{ route('destinations.index') }}"  class="btn-ghost">Back</a>@endsection
+        @section('page_actions')<a href="{{ route('destinations.edit', $destination) }}"  class="btn-primary">{{ __('ui.common.edit') }}</a>
+                <a href="{{ route('destinations.index') }}"  class="btn-ghost">{{ __('ui.common.back') }}</a>@endsection
 
         @php
             $serviceCards = [
                 [
                     'key' => 'vendors',
-                    'label' => 'Vendors',
+                    'label' => __('ui.modules.vendors.page_title'),
                     'value' => (int) ($destination->vendors_count ?? 0),
-                    'caption' => 'Total',
+                    'caption' => __('ui.common.total'),
                     'tone' => 'bg-emerald-50 text-emerald-700 border-emerald-100',
                 ],
                 [
-                    'caption' => 'Total',
+                    'caption' => __('ui.common.total'),
                     'tone' => 'bg-sky-50 text-sky-700 border-sky-100',
                 ],
                 [
                     'key' => 'attractions',
-                    'label' => 'Attractions',
+                    'label' => __('ui.modules.destinations.attractions'),
                     'value' => (int) ($destination->tourist_attractions_count ?? 0),
-                    'caption' => 'Total',
+                    'caption' => __('ui.common.total'),
                     'tone' => 'bg-amber-50 text-amber-700 border-amber-100',
                 ],
                 [
                     'key' => 'hotels',
-                    'label' => 'Hotels',
+                    'label' => __('ui.modules.hotels.page_title'),
                     'value' => (int) ($destination->hotels_count ?? 0),
-                    'caption' => 'Total',
+                    'caption' => __('ui.common.total'),
                     'tone' => 'bg-cyan-50 text-cyan-700 border-cyan-100',
                 ],
                 [
                     'key' => 'airports',
-                    'label' => 'Airports',
+                    'label' => __('ui.modules.airports.page_title'),
                     'value' => (int) ($destination->airports_count ?? 0),
-                    'caption' => 'Total',
+                    'caption' => __('ui.common.total'),
                     'tone' => 'bg-indigo-50 text-indigo-700 border-indigo-100',
                 ],
             ];
@@ -49,13 +52,13 @@
             <div class="module-grid-main">
                 <div class="app-card p-4 mb-6">
                     <div class="grid grid-cols-1 gap-3 text-sm md:grid-cols-2">
-                        <div><span class="text-gray-500 dark:text-gray-400">Location:</span> <span class="text-gray-800 dark:text-gray-100">{{ $destination->location ?: '-' }}</span></div>
-                        <div><span class="text-gray-500 dark:text-gray-400">City/Province:</span> <span class="text-gray-800 dark:text-gray-100">{{ trim(($destination->city ?? '') . (($destination->city && $destination->province) ? ', ' : '') . ($destination->province ?? '')) ?: '-' }}</span></div>
-                        <div><span class="text-gray-500 dark:text-gray-400">Country:</span> <span class="text-gray-800 dark:text-gray-100">{{ $destination->country ?: '-' }}</span></div>
-                        <div><span class="text-gray-500 dark:text-gray-400">Timezone:</span> <span class="text-gray-800 dark:text-gray-100">{{ $destination->timezone ?: '-' }}</span></div>
-                        <div><span class="text-gray-500 dark:text-gray-400">Latitude:</span> <span class="text-gray-800 dark:text-gray-100">{{ $destination->latitude ?? '-' }}</span></div>
-                        <div><span class="text-gray-500 dark:text-gray-400">Longitude:</span> <span class="text-gray-800 dark:text-gray-100">{{ $destination->longitude ?? '-' }}</span></div>
-                        <div class="md:col-span-2"><span class="text-gray-500 dark:text-gray-400">Description:</span> <span class="text-gray-800 dark:text-gray-100">{{ $destination->description ?: '-' }}</span></div>
+                        <div><span class="text-gray-500 dark:text-gray-400">{{ __('ui.common.location') }}:</span> <span class="text-gray-800 dark:text-gray-100">{{ $destination->location ?: '-' }}</span></div>
+                        <div><span class="text-gray-500 dark:text-gray-400">{{ __('ui.modules.destinations.city_province') }}:</span> <span class="text-gray-800 dark:text-gray-100">{{ trim(($destination->city ?? '') . (($destination->city && $destination->province) ? ', ' : '') . ($destination->province ?? '')) ?: '-' }}</span></div>
+                        <div><span class="text-gray-500 dark:text-gray-400">{{ __('ui.common.country') }}:</span> <span class="text-gray-800 dark:text-gray-100">{{ $destination->country ?: '-' }}</span></div>
+                        <div><span class="text-gray-500 dark:text-gray-400">{{ __('ui.modules.destinations.timezone') }}:</span> <span class="text-gray-800 dark:text-gray-100">{{ $destination->timezone ?: '-' }}</span></div>
+                        <div><span class="text-gray-500 dark:text-gray-400">{{ __('ui.modules.destinations.latitude') }}:</span> <span class="text-gray-800 dark:text-gray-100">{{ $destination->latitude ?? '-' }}</span></div>
+                        <div><span class="text-gray-500 dark:text-gray-400">{{ __('ui.modules.destinations.longitude') }}:</span> <span class="text-gray-800 dark:text-gray-100">{{ $destination->longitude ?? '-' }}</span></div>
+                        <div class="md:col-span-2"><span class="text-gray-500 dark:text-gray-400">{{ __('ui.common.description') }}:</span> <span class="text-gray-800 dark:text-gray-100">{{ $destination->description ?: '-' }}</span></div>
                     </div>
                 </div>
             </div>

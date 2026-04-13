@@ -1,9 +1,9 @@
 @extends('layouts.master')
-@section('page_title', 'Roles')
-@section('page_subtitle', 'Manage role and permission access.')
+@section('page_title', __('ui.modules.roles.page_title'))
+@section('page_subtitle', __('ui.modules.roles.page_subtitle'))
 @section('page_actions')
     <a href="{{ route('roles.create') }}" class="btn-primary">
-        Add Role
+        {{ __('ui.modules.roles.add_role') }}
     </a>
 @endsection
 @section('content')
@@ -14,8 +14,8 @@
             <aside class="module-grid-side space-y-4">
                 <div class="app-card p-5 space-y-4">
                     <div>
-                        <h2 class="text-base font-semibold text-gray-800 dark:text-gray-100">Filters</h2>
-                        <p class="text-sm text-gray-500 dark:text-gray-400">Cari role berdasarkan nama atau permission.</p>
+                        <h2 class="text-base font-semibold text-gray-800 dark:text-gray-100">{{ __('ui.common.filters') }}</h2>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">{{ __('ui.modules.roles.filters_caption') }}</p>
                     </div>
 
                     <form
@@ -31,16 +31,16 @@
                             name="search"
                             value="{{ request('search', $search ?? '') }}"
                             class="app-input sm:col-span-2"
-                            placeholder="Search role or permission"
+                            placeholder="{{ __('ui.modules.roles.search') }}"
                             data-roles-filter-input
                         >
                         <select name="per_page" class="app-input" data-roles-filter-input>
                             @foreach ([10,25,50,100] as $size)
-                                <option value="{{ $size }}" @selected((string) request('per_page', 10) === (string) $size)>{{ $size }}/page</option>
+                                <option value="{{ $size }}" @selected((string) request('per_page', 10) === (string) $size)>{{ __('ui.index.per_page_option', ['size' => $size]) }}</option>
                             @endforeach
                         </select>
                         <div class="flex items-center gap-2 sm:col-span-2 filter-actions">
-                            <a href="{{ route('roles.index') }}" class="btn-ghost" data-roles-filter-reset>Reset</a>
+                            <a href="{{ route('roles.index') }}" class="btn-ghost" data-roles-filter-reset>{{ __('ui.common.reset') }}</a>
                         </div>
                     </form>
                 </div>

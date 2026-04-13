@@ -1,9 +1,9 @@
 @extends('layouts.master')
 
-@section('page_title', 'Create Currency')
-@section('page_subtitle', 'Add a new currency and conversion baseline.')
+@section('page_title', __('ui.modules.currencies.create_page_title'))
+@section('page_subtitle', __('ui.modules.currencies.create_page_subtitle'))
 @section('page_actions')
-    <a href="{{ route('currencies.index') }}" class="btn-ghost">Back</a>
+    <a href="{{ route('currencies.index') }}" class="btn-ghost">{{ __('ui.common.back') }}</a>
 @endsection
 
 @section('content')
@@ -13,14 +13,14 @@
                 <div class="module-form-wrap">
                     <form method="POST" action="{{ route('currencies.store') }}">
                         @csrf
-                        @include('modules.currencies._form', ['buttonLabel' => 'Create Currency'])
+                        @include('modules.currencies._form', ['buttonLabel' => __('ui.modules.currencies.create_currency')])
                     </form>
                 </div>
             </div>
             <aside class="module-grid-side">
                 <div class="module-card p-5 text-sm text-slate-600 dark:text-slate-300">
-                    <p class="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Info</p>
-                    <p class="mt-2">Isi nama, code, symbol, dan rate ke IDR. Pastikan rate valid sebelum menyimpan.</p>
+                    <p class="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{{ __('ui.common.info') }}</p>
+                    <p class="mt-2">{{ __('ui.modules.currencies.info_text') }}</p>
                 </div>
             </aside>
         </div>

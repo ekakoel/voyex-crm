@@ -62,10 +62,10 @@
                                 }
                                 $coverIsExternal = \Illuminate\Support\Str::startsWith($coverStoredPath, ['http://', 'https://']);
                                 $coverThumb = $coverStoredPath !== '' && ! $coverIsExternal
-                                    ? asset('storage/' . \App\Support\ImageThumbnailGenerator::thumbnailPathFor($coverStoredPath))
+                                    ? \App\Support\ImageThumbnailGenerator::resolvePublicUrl($coverStoredPath)
                                     : $coverStoredPath;
                                 $coverFull = $coverStoredPath !== '' && ! $coverIsExternal
-                                    ? asset('storage/' . $coverStoredPath)
+                                    ? \App\Support\ImageThumbnailGenerator::resolveOriginalPublicUrl($coverStoredPath)
                                     : $coverStoredPath;
                             @endphp
                             <label class="block text-xs text-gray-500">Cover (Upload Image)</label>

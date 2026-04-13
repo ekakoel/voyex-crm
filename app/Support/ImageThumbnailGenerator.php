@@ -2,10 +2,103 @@
 
 namespace App\Support;
 
+use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Storage;
 
 class ImageThumbnailGenerator
 {
+    public static function normalizeStoredPath(?string $path, array $directories = [], string $disk = 'public'): ?string
+    {
+        $value = trim((string) $path);
+        if ($value === '') {
+            return null;
+        }
+
+        if (Str::startsWith($value, ['http://', 'https://'])) {
+            return $value;
+        }
+
+        $normalized = ltrim(str_replace('\\', '/', $value), '/');
+        if (Str::startsWith($normalized, 'storage/')) {
+            $normalized = Str::after($normalized, 'storage/');
+        }
+
+        if ($normalized === '') {
+            return null;
+        }
+
+        if (! Str::contains($normalized, '/')) {
+            foreach ($directories as $directory) {
+                $candidate = trim((string) $directory, '/');
+                if ($candidate === '') {
+                    continue;
+                }
+
+                $candidatePath = $candidate . '/' . $normalized;
+                if (Storage::disk($disk)->exists($candidatePath)) {
+                    return $candidatePath;
+                }
+            }
+        }
+
+        return $normalized;
+    }
+
+    public static function resolveOriginalPublicUrl(?string $path, array $directories = [], string $disk = 'public'): ?string
+    {
+        $normalized = self::normalizeStoredPath($path, $directories, $disk);
+        if ($normalized === null) {
+            return null;
+        }
+
+        if (Str::startsWith($normalized, ['http://', 'https://'])) {
+            return $normalized;
+        }
+
+        $storage = Storage::disk($disk);
+        if (! $storage->exists($normalized)) {
+            return null;
+        }
+
+        return $storage->url($normalized);
+    }
+
+    public static function resolvePublicUrl(
+        ?string $path,
+        array $directories = [],
+        string $disk = 'public',
+        int $targetWidth = 360,
+        int $targetHeight = 240,
+        bool $preferThumbnail = true
+    ): ?string {
+        $normalized = self::normalizeStoredPath($path, $directories, $disk);
+        if ($normalized === null) {
+            return null;
+        }
+
+        if (Str::startsWith($normalized, ['http://', 'https://'])) {
+            return $normalized;
+        }
+
+        $storage = Storage::disk($disk);
+        if (! $storage->exists($normalized)) {
+            return null;
+        }
+
+        if ($preferThumbnail) {
+            $thumbnailPath = self::thumbnailPathFor($normalized);
+            if (! $storage->exists($thumbnailPath)) {
+                self::generate($disk, $normalized, $targetWidth, $targetHeight);
+            }
+
+            if ($storage->exists($thumbnailPath)) {
+                return $storage->url($thumbnailPath);
+            }
+        }
+
+        return $storage->url($normalized);
+    }
+
     public static function thumbnailPathFor(string $originalPath): string
     {
         $directory = trim((string) pathinfo($originalPath, PATHINFO_DIRNAME), '.');

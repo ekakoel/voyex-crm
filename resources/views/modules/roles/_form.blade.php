@@ -42,7 +42,7 @@
                     </option>
                 @endforeach
             </select>
-            <p class="text-xs text-gray-500 dark:text-gray-400">Pilih role template untuk auto-select permission, lalu sesuaikan jika perlu.</p>
+            <p class="text-xs text-gray-500 dark:text-gray-400">Select a template role to auto-select permissions, then adjust as needed.</p>
             @error('template_role_id')
                 <p class="text-xs text-rose-600">{{ $message }}</p>
             @enderror
@@ -58,7 +58,7 @@
                 placeholder="example: reports.view"
                 class="app-input"
             >
-            <p class="text-xs text-gray-500 dark:text-gray-400">Use this only for permission di luar module yang sudah tersedia.</p>
+            <p class="text-xs text-gray-500 dark:text-gray-400">Use this only for permissions outside the available modules.</p>
             @error('custom_permission')
                 <p class="text-xs text-rose-600">{{ $message }}</p>
             @enderror
@@ -94,7 +94,7 @@
                     <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
                         <div class="flex items-center gap-2">
                             <p class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ $moduleName }}</p>
-                            <span class="module-crud-badge hidden rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">CRUD lengkap</span>
+                            <span class="module-crud-badge hidden rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">Full CRUD</span>
                         </div>
                         <div class="flex items-center gap-2">
                             <button type="button"  class="btn-secondary-sm" data-module-toggle="all">All</button>

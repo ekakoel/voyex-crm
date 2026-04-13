@@ -6,7 +6,7 @@
     @php($appTitle = trim((string) ($companyName ?? config('app.name', 'VOYEX CRM'))))
     @php($loginTagline = trim((string) ($companyTagline ?? 'Smart Travel CRM Platform')))
     @php($loginFooterSuffix = trim((string) ($companyFooterNote ?? '')) ?: 'All rights reserved.')
-    <title>Set New Password | {{ $appTitle }}</title>
+    <title>{{ __('ui.auth.titles.set_new_password_page') }} | {{ $appTitle }}</title>
     @if (!empty($companyFaviconUrl))
         <link rel="icon" type="{{ $companyFaviconMime ?? 'image/x-icon' }}" href="{{ $companyFaviconUrl }}">
         <link rel="shortcut icon" type="{{ $companyFaviconMime ?? 'image/x-icon' }}" href="{{ $companyFaviconUrl }}">
@@ -40,17 +40,17 @@
                 <strong>{{ $appTitle }}</strong>
             </div>
         </div>
-        <h2>Create New Password</h2>
+        <h2>{{ __('ui.auth.branding.create_new_password') }}</h2>
         <p class="auth-brand-tagline">{{ $loginTagline }}</p>
         <p class="auth-brand-message">
-            Use a strong password to keep your account secure and easy to recover in the future.
+            {{ __('ui.auth.branding.new_password_message') }}
         </p>
     </div>
 
     <div class="auth-right">
         <div class="auth-card">
-            <h3>Set New Password</h3>
-            <p class="auth-subtitle">Please confirm your email and enter your new password.</p>
+            <h3>{{ __('ui.auth.titles.set_new_password_page') }}</h3>
+            <p class="auth-subtitle">{{ __('ui.auth.subtitles.set_new_password') }}</p>
 
             @if ($errors->any())
                 <div class="auth-alert auth-alert-error">{{ $errors->first() }}</div>
@@ -66,7 +66,7 @@
                         type="email"
                         name="email"
                         value="{{ old('email', $request->email) }}"
-                        placeholder="Email Address"
+                        placeholder="{{ __('ui.auth.forms.email_address') }}"
                         required
                         autocomplete="username"
                     >
@@ -80,7 +80,7 @@
                         id="password"
                         type="password"
                         name="password"
-                        placeholder="New Password"
+                        placeholder="{{ __('ui.auth.forms.new_password') }}"
                         required
                         autocomplete="new-password"
                     >
@@ -95,7 +95,7 @@
                         id="password_confirmation"
                         type="password"
                         name="password_confirmation"
-                        placeholder="Confirm New Password"
+                        placeholder="{{ __('ui.auth.forms.confirm_new_password') }}"
                         required
                         autocomplete="new-password"
                     >
@@ -105,11 +105,11 @@
                     @enderror
                 </div>
 
-                <button type="submit" class="btn-primary">Update Password</button>
+                <button type="submit" class="btn-primary">{{ __('ui.auth.forms.update_password') }}</button>
             </form>
 
             <p style="margin-top:14px;text-align:right;">
-                <a href="{{ route('login') }}" class="auth-inline-link">Back to Sign In</a>
+                <a href="{{ route('login') }}" class="auth-inline-link">{{ __('ui.auth.forms.back_to_sign_in') }}</a>
             </p>
 
             <p class="footer-text">{{ $appTitle }} &copy; {{ now()->year }}. {{ $loginFooterSuffix }}</p>

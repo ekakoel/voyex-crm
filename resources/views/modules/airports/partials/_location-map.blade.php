@@ -160,7 +160,7 @@
                             const latLng = marker.getLatLng();
                             updateCoordinateInputs(latLng.lat, latLng.lng);
                             syncGoogleMapsUrlFromCoordinates(latLng.lat, latLng.lng);
-                            setHint('Marker dipindahkan. Koordinat berhasil diperbarui.', 'success');
+                            setHint('Marker moved. Coordinates updated successfully.', 'success');
                         });
 
                         marker.__airportMapDragBound = true;
@@ -174,7 +174,7 @@
 
                         if (rawLatitude === '' && rawLongitude === '') {
                             clearMarker();
-                            setHint('Koordinat belum diisi. Map tetap tampil tanpa pin.');
+                            setHint('Coordinates are empty. The map is shown without a pin.');
                             return;
                         }
 
@@ -184,7 +184,7 @@
                                 marker = null;
                             }
                             map.setView(defaultCenter, 5);
-                            setHint('Koordinat tidak valid. Pastikan latitude dan longitude benar.', 'error');
+                            setHint('Invalid coordinates. Please ensure latitude and longitude are correct.', 'error');
                             return;
                         }
 
@@ -208,7 +208,7 @@
 
                         map.setView(latLng, 15);
                         syncGoogleMapsUrlFromCoordinates(latitude, longitude);
-                        setHint('Lokasi airport berhasil ditampilkan pada map.', 'success');
+                        setHint('Airport location displayed successfully on the map.', 'success');
                     };
 
                     if (interactive) {

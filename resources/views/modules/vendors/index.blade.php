@@ -1,8 +1,8 @@
 @extends('layouts.master')
-@section('page_title', 'Vendors')
-@section('page_subtitle', 'Manage vendor data.')
+@section('page_title', __('ui.modules.vendors.page_title'))
+@section('page_subtitle', __('ui.modules.vendors.page_subtitle'))
 @section('page_actions')
-    <a href="{{ route('vendors.create') }}" class="btn-primary">Add Vendor</a>
+    <a href="{{ route('vendors.create') }}" class="btn-primary">{{ __('ui.modules.vendors.add_vendor') }}</a>
 @endsection
 @section('content')
     <div class="space-y-6 module-page module-page--vendors" data-service-filter-page data-page-spinner="off">
@@ -11,18 +11,18 @@
             <aside class="module-grid-side space-y-4">
                 <div class="app-card p-5 space-y-4">
                     <div>
-                        <h2 class="text-base font-semibold text-gray-800 dark:text-gray-100">Filters</h2>
-                        <p class="text-sm text-gray-500 dark:text-gray-400">Refine your list quickly.</p>
+                        <h2 class="text-base font-semibold text-gray-800 dark:text-gray-100">{{ __('ui.common.filters') }}</h2>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">{{ __('ui.index.refine_list_quickly') }}</p>
                     </div>
                     <form method="GET" action="{{ route('vendors.index') }}" class="grid grid-cols-1 gap-3 sm:grid-cols-2" data-service-filter-form data-disable-submit-lock="1" data-page-spinner="off">
-                        <input name="q" value="{{ request('q') }}" placeholder="Search name/location/contact" class="app-input sm:col-span-2" data-service-filter-input>
+                        <input name="q" value="{{ request('q') }}" placeholder="{{ __('ui.modules.vendors.search') }}" class="app-input sm:col-span-2" data-service-filter-input>
                         <select name="per_page" class="app-input" data-service-filter-input>
                             @foreach ([10, 25, 50, 100] as $size)
-                                <option value="{{ $size }}" @selected((int) request('per_page', 10) === $size)>{{ $size }}/page</option>
+                                <option value="{{ $size }}" @selected((int) request('per_page', 10) === $size)>{{ __('ui.index.per_page_option', ['size' => $size]) }}</option>
                             @endforeach
                         </select>
                         <div class="flex items-center gap-2 sm:col-span-2 filter-actions">
-                            <a href="{{ route('vendors.index') }}" class="btn-ghost" data-service-filter-reset>Reset</a>
+                            <a href="{{ route('vendors.index') }}" class="btn-ghost" data-service-filter-reset>{{ __('ui.common.reset') }}</a>
                         </div>
                     </form>
                 </div>
@@ -41,11 +41,11 @@
                             <thead>
                                 <tr>
                                     <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">#</th>
-                                    <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">Vendor</th>
-                                    <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">Location</th>
-                                    <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">Services</th>
-                                    <th class="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">Status</th>
-                                    <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300 actions-compact">Actions</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ __('ui.modules.vendors.vendor') }}</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ __('ui.common.location') }}</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ __('ui.modules.vendors.services') }}</th>
+                                    <th class="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ __('ui.common.status') }}</th>
+                                    <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300 actions-compact">{{ __('ui.common.actions') }}</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
@@ -67,18 +67,18 @@
                                         </td>
                                         <td class="px-4 py-3 text-right text-sm actions-compact">
                                             <div class="flex items-center justify-end gap-2">
-                                                <a href="{{ route('vendors.edit', $vendor) }}" class="btn-secondary-sm" title="Edit" aria-label="Edit"><i class="fa-solid fa-pen"></i><span class="sr-only">Edit</span></a>
+                                                <a href="{{ route('vendors.edit', $vendor) }}" class="btn-secondary-sm" title="{{ __('ui.common.edit') }}" aria-label="{{ __('ui.common.edit') }}"><i class="fa-solid fa-pen"></i><span class="sr-only">{{ __('ui.common.edit') }}</span></a>
                                                 <form action="{{ route('vendors.toggle-status', $vendor) }}" method="POST" class="inline">
                                                     @csrf
                                                     @method('PATCH')
-                                                    <button type="submit" onclick="return confirm('{{ $vendor->is_active ? 'Deactivate this vendor?' : 'Activate this vendor?' }}')" class="{{ $vendor->is_active ? 'btn-muted-sm' : 'btn-primary-sm' }}">{{ $vendor->is_active ? 'Deactivate' : 'Activate' }}</button>
+                                                    <button type="submit" onclick="return confirm('{{ $vendor->is_active ? __('ui.modules.vendors.confirm_deactivate') : __('ui.modules.vendors.confirm_activate') }}')" class="{{ $vendor->is_active ? 'btn-muted-sm' : 'btn-primary-sm' }}">{{ $vendor->is_active ? __('ui.common.deactivate') : __('ui.common.activate') }}</button>
                                                 </form>
                                             </div>
                                         </td>
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="6" class="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">No vendors available.</td>
+                                        <td colspan="6" class="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">{{ __('ui.index.no_data_available', ['entity' => __('ui.entities.vendors')]) }}</td>
                                     </tr>
                                 @endforelse
                             </tbody>
@@ -97,30 +97,30 @@
                                 <x-status-badge :status="$vendor->is_active ? 'active' : 'inactive'" size="xs" />
                             </div>
                             <div class="mt-3 grid grid-cols-2 gap-2 text-xs text-gray-600 dark:text-gray-300">
-                                <div>Location</div>
+                                <div>{{ __('ui.common.location') }}</div>
                                 <div>{{ trim(($vendor->city ?? '') . (($vendor->city && $vendor->province) ? ', ' : '') . ($vendor->province ?? '')) ?: '-' }}</div>
-                                <div>Country</div>
+                                <div>{{ __('ui.common.country') }}</div>
                                 <div>{{ $vendor->country ?? '-' }}</div>
-                                <div>Linked</div>
+                                <div>{{ __('ui.modules.vendors.linked') }}</div>
                                 <div>
                                     A: {{ (int) ($vendor->activities_count ?? 0) }} |
                                     F&B: {{ (int) ($vendor->food_beverages_count ?? 0) }} |
                                     TR: {{ (int) ($vendor->transports_count ?? 0) }}
                                 </div>
-                                <div>Contact</div>
+                                <div>{{ __('ui.modules.vendors.contact') }}</div>
                                 <div>{{ $vendor->contact_email ?? '-' }}</div>
                             </div>
                             <div class="mt-3 flex flex-wrap gap-2">
-                                <a href="{{ route('vendors.edit', $vendor) }}" class="btn-secondary-sm" title="Edit" aria-label="Edit"><i class="fa-solid fa-pen"></i><span class="sr-only">Edit</span></a>
+                                <a href="{{ route('vendors.edit', $vendor) }}" class="btn-secondary-sm" title="{{ __('ui.common.edit') }}" aria-label="{{ __('ui.common.edit') }}"><i class="fa-solid fa-pen"></i><span class="sr-only">{{ __('ui.common.edit') }}</span></a>
                                 <form action="{{ route('vendors.toggle-status', $vendor) }}" method="POST" class="inline">
                                     @csrf
                                     @method('PATCH')
-                                    <button type="submit" onclick="return confirm('{{ $vendor->is_active ? 'Deactivate this vendor?' : 'Activate this vendor?' }}')" class="{{ $vendor->is_active ? 'btn-muted-sm' : 'btn-primary-sm' }}">{{ $vendor->is_active ? 'Deactivate' : 'Activate' }}</button>
+                                    <button type="submit" onclick="return confirm('{{ $vendor->is_active ? __('ui.modules.vendors.confirm_deactivate') : __('ui.modules.vendors.confirm_activate') }}')" class="{{ $vendor->is_active ? 'btn-muted-sm' : 'btn-primary-sm' }}">{{ $vendor->is_active ? __('ui.common.deactivate') : __('ui.common.activate') }}</button>
                                 </form>
                             </div>
                         </div>
                     @empty
-                        <div class="app-card p-6 text-center text-sm text-gray-500 dark:text-gray-400">No vendors available.</div>
+                        <div class="app-card p-6 text-center text-sm text-gray-500 dark:text-gray-400">{{ __('ui.index.no_data_available', ['entity' => __('ui.entities.vendors')]) }}</div>
                     @endforelse
                 </div>
 

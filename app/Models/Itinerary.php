@@ -59,15 +59,10 @@ class Itinerary extends Model
     {
         $this->loadMissing('quotation:id,itinerary_id,status');
 
-        // Final is immutable once reached.
-        if ($this->isFinal()) {
-            return;
-        }
-
         $nextStatus = self::STATUS_PENDING;
         if ($this->quotation) {
             $quotationStatus = (string) ($this->quotation->status ?? '');
-            $nextStatus = in_array($quotationStatus, ['approved', Quotation::FINAL_STATUS], true)
+            $nextStatus = $quotationStatus === Quotation::FINAL_STATUS
                 ? self::STATUS_FINAL
                 : self::STATUS_PROCESSED;
         }
@@ -164,6 +159,5 @@ class Itinerary extends Model
         return $this->belongsTo(Transport::class, 'departure_transport_id');
     }
 }
-
 
 

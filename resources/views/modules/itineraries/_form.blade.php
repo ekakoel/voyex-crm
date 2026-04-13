@@ -928,7 +928,7 @@
                 </label>
                 <textarea name="itinerary_include"
                     class="w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
-                    rows="4" placeholder="Tuliskan yang termasuk untuk seluruh itinerary...">{{ $itineraryInclude }}</textarea>
+                    rows="4" placeholder="Write what is included for the entire itinerary...">{{ $itineraryInclude }}</textarea>
             </div>
             <div>
                 <label
@@ -937,7 +937,7 @@
                 </label>
                 <textarea name="itinerary_exclude"
                     class="w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
-                    rows="4" placeholder="Tuliskan yang tidak termasuk untuk seluruh itinerary...">{{ $itineraryExclude }}</textarea>
+                    rows="4" placeholder="Write what is excluded for the entire itinerary...">{{ $itineraryExclude }}</textarea>
             </div>
         </div>
         @error('itinerary_items')
@@ -2968,7 +2968,7 @@
                                 behavior: 'smooth',
                                 block: 'center',
                             });
-                        alert(`End Point wajib diisi untuk Day: ${invalidEndPointDays.join(', ')}.`);
+                        alert(`End Point is required for Day: ${invalidEndPointDays.join(', ')}.`);
                         return;
                     }
                     form.submit();

@@ -7,6 +7,7 @@ use App\Http\Controllers\Concerns\HandlesActivityTimelineAjax;
 use App\Models\Activity;
 use App\Models\FoodBeverage;
 use App\Models\HotelRoom;
+use App\Models\Inquiry;
 use App\Models\Itinerary;
 use App\Models\Quotation;
 use App\Models\QuotationApproval;
@@ -274,10 +275,7 @@ class QuotationController extends Controller
             foreach ($totals['items'] as $item) {
                 $quotation->items()->create($item);
             }
-            $quotation->loadMissing('itinerary:id,status');
-            if ($quotation->itinerary) {
-                $quotation->itinerary->syncLifecycleStatus();
-            }
+            $this->syncLinkedLifecycleStatusesForQuotation($quotation);
 
             $quotation->load('items');
             $this->activityAuditLogger->logCreated($quotation, $this->buildQuotationAuditSnapshot($quotation), 'Quotation');
@@ -489,13 +487,7 @@ class QuotationController extends Controller
                     ]);
                 });
             }
-            $currentItineraryId = (int) ($quotation->itinerary_id ?? 0);
-            foreach (array_values(array_unique(array_filter([$previousItineraryId, $currentItineraryId]))) as $itineraryId) {
-                $linkedItinerary = Itinerary::query()->find($itineraryId);
-                if ($linkedItinerary) {
-                    $linkedItinerary->syncLifecycleStatus();
-                }
-            }
+            $this->syncLinkedLifecycleStatusesForQuotation($quotation, $previousItineraryId);
             $quotation->load('items');
             $this->activityAuditLogger->logUpdated($quotation, $beforeAudit, $this->buildQuotationAuditSnapshot($quotation), 'Quotation');
 
@@ -638,10 +630,7 @@ class QuotationController extends Controller
             return $this->denyQuotationMutation($quotation);
         }
         $quotation->delete();
-        $quotation->loadMissing('itinerary:id,status');
-        if ($quotation->itinerary) {
-            $quotation->itinerary->syncLifecycleStatus();
-        }
+        $this->syncLinkedLifecycleStatusesForQuotation($quotation);
 
         return redirect()
             ->route('quotations.index')
@@ -668,10 +657,7 @@ class QuotationController extends Controller
 
         if ($quotation->trashed()) {
             $quotation->restore();
-            $quotation->loadMissing('itinerary:id,status');
-            if ($quotation->itinerary) {
-                $quotation->itinerary->syncLifecycleStatus();
-            }
+            $this->syncLinkedLifecycleStatusesForQuotation($quotation);
 
             return redirect()
                 ->route('quotations.index')
@@ -679,10 +665,7 @@ class QuotationController extends Controller
         }
 
         $quotation->delete();
-        $quotation->loadMissing('itinerary:id,status');
-        if ($quotation->itinerary) {
-            $quotation->itinerary->syncLifecycleStatus();
-        }
+        $this->syncLinkedLifecycleStatusesForQuotation($quotation);
 
         return redirect()
             ->route('quotations.index')
@@ -1072,12 +1055,22 @@ class QuotationController extends Controller
             if (! is_string($path) || trim($path) === '') {
                 continue;
             }
-            $thumbnailPath = ImageThumbnailGenerator::thumbnailPathFor($path);
+            $normalizedPath = trim(str_replace('\\', '/', $path), '/');
+            $thumbnailPath = ImageThumbnailGenerator::thumbnailPathFor($normalizedPath);
             $thumbnailDataUri = $this->resolveStorageImageDataUri($thumbnailPath);
             if ($thumbnailDataUri) {
                 return $thumbnailDataUri;
             }
-            $originalDataUri = $this->resolveStorageImageDataUri($path);
+
+            if (Storage::disk('public')->exists($normalizedPath)) {
+                ImageThumbnailGenerator::generate('public', $normalizedPath, 360, 240);
+                $thumbnailDataUri = $this->resolveStorageImageDataUri($thumbnailPath);
+                if ($thumbnailDataUri) {
+                    return $thumbnailDataUri;
+                }
+            }
+
+            $originalDataUri = $this->resolveStorageImageDataUri($normalizedPath);
             if ($originalDataUri) {
                 return $originalDataUri;
             }
@@ -1111,6 +1104,14 @@ class QuotationController extends Controller
             $thumbnailDataUri = $this->resolveStorageImageDataUri($thumbnailPath);
             if ($thumbnailDataUri) {
                 return $thumbnailDataUri;
+            }
+
+            if (Storage::disk('public')->exists($candidate)) {
+                ImageThumbnailGenerator::generate('public', $candidate, 360, 240);
+                $thumbnailDataUri = $this->resolveStorageImageDataUri($thumbnailPath);
+                if ($thumbnailDataUri) {
+                    return $thumbnailDataUri;
+                }
             }
 
             $originalDataUri = $this->resolveStorageImageDataUri($candidate);
@@ -1270,9 +1271,6 @@ SVG;
     public function reject(Request $request, Quotation $quotation)
     {
         $this->autoFinalizeApprovedQuotationIfExpired($quotation);
-        if ($quotation->isFinal()) {
-            return redirect()->back()->with('error', 'Final quotation cannot be modified.');
-        }
         $user = $request->user();
         if (! $user || ! $user->hasAnyRole(['Director', 'Manager'])) {
             return redirect()->back()->with('error', 'Only Director or Manager can reject quotation.');
@@ -1297,10 +1295,7 @@ SVG;
             'approval_note_by' => $user->id,
             'approval_note_at' => now(),
         ]);
-        $quotation->loadMissing('itinerary:id,status');
-        if ($quotation->itinerary) {
-            $quotation->itinerary->syncLifecycleStatus();
-        }
+        $this->syncLinkedLifecycleStatusesForQuotation($quotation);
 
         return redirect()
             ->route('quotations.show', $quotation)
@@ -1339,10 +1334,7 @@ SVG;
 
         $quotation->approvals()->delete();
         $quotation->update($payload);
-        $quotation->loadMissing('itinerary:id,status');
-        if ($quotation->itinerary) {
-            $quotation->itinerary->syncLifecycleStatus();
-        }
+        $this->syncLinkedLifecycleStatusesForQuotation($quotation);
 
         return redirect()
             ->route('quotations.show', $quotation)
@@ -1375,10 +1367,7 @@ SVG;
         $quotation->update([
             'status' => Quotation::FINAL_STATUS,
         ]);
-        $quotation->loadMissing('itinerary:id,status');
-        if ($quotation->itinerary) {
-            $quotation->itinerary->syncLifecycleStatus();
-        }
+        $this->syncLinkedLifecycleStatusesForQuotation($quotation);
 
         return redirect()
             ->route('quotations.show', $quotation)
@@ -1442,10 +1431,7 @@ SVG;
                     'approval_note_by' => null,
                 ]);
             });
-            $quotation->loadMissing('itinerary:id,status');
-            if ($quotation->itinerary) {
-                $quotation->itinerary->syncLifecycleStatus();
-            }
+            $this->syncLinkedLifecycleStatusesForQuotation($quotation);
         }
 
         return redirect()
@@ -1714,22 +1700,11 @@ SVG;
                 ]);
         });
 
-        $itineraryIds = Quotation::query()
+        Quotation::query()
             ->whereIn('id', $expiredApprovedQuotationIds)
-            ->whereNotNull('itinerary_id')
-            ->pluck('itinerary_id')
-            ->unique()
-            ->values();
-
-        if ($itineraryIds->isEmpty()) {
-            return;
-        }
-
-        Itinerary::query()
-            ->whereIn('id', $itineraryIds)
             ->get()
-            ->each(function (Itinerary $itinerary): void {
-                $itinerary->syncLifecycleStatus();
+            ->each(function (Quotation $quotation): void {
+                $this->syncLinkedLifecycleStatusesForQuotation($quotation);
             });
     }
 
@@ -1751,10 +1726,7 @@ SVG;
         });
 
         $quotation->refresh();
-        $quotation->loadMissing('itinerary:id,status');
-        if ($quotation->itinerary) {
-            $quotation->itinerary->syncLifecycleStatus();
-        }
+        $this->syncLinkedLifecycleStatusesForQuotation($quotation);
 
         return true;
     }
@@ -1776,6 +1748,73 @@ SVG;
         }
 
         return null;
+    }
+
+    private function syncLinkedLifecycleStatusesForQuotation(Quotation $quotation, ?int $previousItineraryId = null): void
+    {
+        $itineraryIds = collect([
+            $previousItineraryId ? (int) $previousItineraryId : null,
+            $quotation->itinerary_id ? (int) $quotation->itinerary_id : null,
+        ])->filter(fn ($id) => is_int($id) && $id > 0)
+            ->unique()
+            ->values();
+
+        if ($itineraryIds->isNotEmpty()) {
+            Itinerary::query()
+                ->whereIn('id', $itineraryIds->all())
+                ->get()
+                ->each(function (Itinerary $itinerary): void {
+                    $itinerary->syncLifecycleStatus();
+                });
+        }
+
+        $targetInquiryStatus = ((string) ($quotation->status ?? '') === Quotation::FINAL_STATUS)
+            ? Inquiry::FINAL_STATUS
+            : 'processed';
+
+        $inquiryIds = collect([
+            $quotation->inquiry_id ? (int) $quotation->inquiry_id : null,
+        ]);
+
+        if ($quotation->itinerary_id) {
+            $currentItineraryInquiryId = Itinerary::query()
+                ->whereKey((int) $quotation->itinerary_id)
+                ->value('inquiry_id');
+            if ($currentItineraryInquiryId) {
+                $inquiryIds->push((int) $currentItineraryInquiryId);
+            }
+        }
+
+        if ($previousItineraryId) {
+            $previousItineraryInquiryId = Itinerary::query()
+                ->whereKey((int) $previousItineraryId)
+                ->value('inquiry_id');
+            if ($previousItineraryInquiryId) {
+                $inquiryIds->push((int) $previousItineraryInquiryId);
+            }
+        }
+
+        $inquiryIds = $inquiryIds
+            ->filter(fn ($id) => is_int($id) && $id > 0)
+            ->unique()
+            ->values();
+
+        if ($inquiryIds->isEmpty()) {
+            return;
+        }
+
+        Inquiry::query()
+            ->whereIn('id', $inquiryIds->all())
+            ->get()
+            ->each(function (Inquiry $inquiry) use ($targetInquiryStatus): void {
+                if ((string) ($inquiry->status ?? '') === $targetInquiryStatus) {
+                    return;
+                }
+
+                $inquiry->update([
+                    'status' => $targetInquiryStatus,
+                ]);
+            });
     }
 
     private function applyNeedsMyApprovalFilter(Builder $query, $user): void
@@ -2065,10 +2104,7 @@ SVG;
                 'approved_at' => null,
             ]);
         }
-        $quotation->loadMissing('itinerary:id,status');
-        if ($quotation->itinerary) {
-            $quotation->itinerary->syncLifecycleStatus();
-        }
+        $this->syncLinkedLifecycleStatusesForQuotation($quotation);
 
         return $progress;
     }

@@ -37,7 +37,7 @@
             <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
         @enderror
         <p id="customer-invalid-message" class="mt-1 text-xs text-rose-600 hidden">
-            Customer tidak valid. Pilih dari daftar yang tersedia.
+            Invalid customer. Please select one from the available list.
         </p>
     </div>
 
@@ -191,7 +191,6 @@
         </script>
     @endpush
 @endonce
-
 
 
 

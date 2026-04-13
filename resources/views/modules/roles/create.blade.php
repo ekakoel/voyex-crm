@@ -1,10 +1,10 @@
 @extends('layouts.master')
 
-@section('page_title', 'Create Role')
-@section('page_subtitle', 'Buat role baru dan atur permission dengan cepat.')
+@section('page_title', __('ui.modules.roles.create_page_title'))
+@section('page_subtitle', __('ui.modules.roles.create_page_subtitle'))
 @section('page_actions')
     <a href="{{ route('roles.index') }}" class="btn-secondary">
-        Back to Roles
+        {{ __('ui.modules.roles.back_to_roles') }}
     </a>
 @endsection
 
@@ -16,7 +16,7 @@
                     <form method="POST" action="{{ route('roles.store') }}">
                         @csrf
                         @include('modules.roles._form', [
-                            'buttonLabel' => 'Save Role',
+                            'buttonLabel' => __('ui.modules.roles.save_role'),
                             'selectedPermissions' => old('permissions', []),
                             'selectedTemplateRoleId' => $selectedTemplateRoleId ?? null,
                             'selectedTemplateRoleName' => $selectedTemplateRoleName ?? null,
@@ -27,18 +27,16 @@
 
             <aside class="module-grid-side">
                 <div class="app-card p-6 space-y-3">
-                    <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Quick Guide</p>
+                    <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ __('ui.common.quick_guide') }}</p>
                     <ul class="space-y-2 text-sm text-gray-600 dark:text-gray-300">
-                        <li>Pilih template role untuk mempercepat setup permission.</li>
-                        <li>Gunakan custom permission hanya jika belum ada di modul.</li>
-                        <li>Gunakan tombol `All/None` per modul untuk kontrol cepat.</li>
+                        <li>{{ __('ui.modules.roles.guide_1') }}</li>
+                        <li>{{ __('ui.modules.roles.guide_2') }}</li>
+                        <li>{{ __('ui.modules.roles.guide_3') }}</li>
                     </ul>
                 </div>
             </aside>
         </div>
     </div>
 @endsection
-
-
 
 

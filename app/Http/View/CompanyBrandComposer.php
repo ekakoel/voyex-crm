@@ -3,6 +3,7 @@
 namespace App\Http\View;
 
 use App\Models\CompanySetting;
+use App\Support\ImageThumbnailGenerator;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\View\View;
 
@@ -65,10 +66,17 @@ class CompanyBrandComposer
                     $logoPath = (string) ($settings->logo_path ?? '');
                     $faviconPath = (string) ($settings->favicon_path ?? '');
                     if ($logoPath !== '') {
-                        $companyLogoUrl = asset('storage/' . ltrim($logoPath, '/')) . ($version ? ('?v=' . $version) : '');
+                        $companyLogoUrl = ImageThumbnailGenerator::resolvePublicUrl($logoPath)
+                            ?? ImageThumbnailGenerator::resolveOriginalPublicUrl($logoPath);
+                        if ($companyLogoUrl !== null && $version) {
+                            $companyLogoUrl .= '?v=' . $version;
+                        }
                     }
                     if ($faviconPath !== '') {
-                        $companyFaviconUrl = asset('storage/' . ltrim($faviconPath, '/')) . ($version ? ('?v=' . $version) : '');
+                        $companyFaviconUrl = ImageThumbnailGenerator::resolveOriginalPublicUrl($faviconPath);
+                        if ($companyFaviconUrl !== null && $version) {
+                            $companyFaviconUrl .= '?v=' . $version;
+                        }
                         $companyFaviconMime = $this->resolveFaviconMime($faviconPath);
                     }
 

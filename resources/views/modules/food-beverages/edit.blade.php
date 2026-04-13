@@ -1,5 +1,11 @@
 @extends('layouts.master')
 
+@section('page_title', __('ui.common.edit') . ' ' . __('ui.modules.food_beverages.page_title'))
+@section('page_subtitle', __('ui.modules.food_beverages.edit_page_subtitle'))
+@section('page_actions')
+    <a href="{{ route('food-beverages.index') }}" class="btn-ghost">{{ __('ui.common.back') }}</a>
+@endsection
+
 @section('content')
     <div class="space-y-6 module-page module-page--food-beverages">
         <div class="module-grid-8-4">
@@ -8,7 +14,7 @@
                     <form method="POST" action="{{ route('food-beverages.update', $foodBeverage) }}" enctype="multipart/form-data">
                         @csrf
                         @method('PUT')
-                        @include('modules.food-beverages._form', ['foodBeverage' => $foodBeverage, 'buttonLabel' => 'Update F&B'])
+                        @include('modules.food-beverages._form', ['foodBeverage' => $foodBeverage, 'buttonLabel' => __('ui.modules.food_beverages.update')])
                     </form>
                 </div>
             </div>
@@ -19,5 +25,4 @@
         </div>
     </div>
 @endsection
-
 

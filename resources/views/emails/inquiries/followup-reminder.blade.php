@@ -1,9 +1,9 @@
 @component('mail::message')
 # Reminder Follow-up ({{ $label }})
 
-Halo {{ $userName }},
+Hello {{ $userName }},
 
-Anda memiliki reminder follow-up inquiry yang harus ditindaklanjuti.
+You have an inquiry follow-up reminder that needs action.
 
 @component('mail::panel')
 **Inquiry:** {{ $inquiryNumber }}  
@@ -11,8 +11,8 @@ Anda memiliki reminder follow-up inquiry yang harus ditindaklanjuti.
 **Due Date:** {{ $dueDate }}
 @endcomponent
 
-Silakan segera follow-up sesuai jadwal yang telah ditentukan.
+Please follow up as soon as possible based on the scheduled timeline.
 
-Terima kasih,  
+Thank you,  
 {{ config('app.name') }}
 @endcomponent

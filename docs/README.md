@@ -12,6 +12,8 @@
 - docs/technical/ITINERARY_DETAIL_MAP_ARCHITECTURE.md
 - docs/technical/QUOTATION_APPROVAL_UAT_MATRIX.md
 - docs/technical/TECHNICAL_FIX_NOTES.md
+- docs/technical/I18N_TRANSLATION_STANDARD.md
+- docs/technical/IMAGE_THUMBNAIL_STANDARD.md
 
 ## Archive
 - docs/archive/PROJECT_AUDIT_ARCHIVE.md

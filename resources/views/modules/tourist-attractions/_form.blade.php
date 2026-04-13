@@ -20,13 +20,8 @@
                 @if (!empty($touristAttraction?->gallery_images))
                     @foreach ($touristAttraction->gallery_images as $image)
                         @php
-                            $thumbPath = \App\Support\ImageThumbnailGenerator::thumbnailPathFor($image);
-                            $hasThumb = \Illuminate\Support\Facades\Storage::disk('public')->exists($thumbPath);
-                            $hasOriginal = \Illuminate\Support\Facades\Storage::disk('public')->exists($image);
-                            $primarySrc = $hasThumb
-                                ? asset('storage/' . $thumbPath)
-                                : ($hasOriginal ? asset('storage/' . $image) : null);
-                            $fallbackSrc = $hasOriginal ? asset('storage/' . $image) : null;
+                            $primarySrc = \App\Support\ImageThumbnailGenerator::resolvePublicUrl($image);
+                            $fallbackSrc = \App\Support\ImageThumbnailGenerator::resolveOriginalPublicUrl($image);
                         @endphp
                         <div class="tourist-gallery-item tourist-gallery-existing-item relative overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700" data-image-path="{{ $image }}">
                             <button
@@ -345,7 +340,7 @@
                     } catch (_) {
                         button.disabled = false;
                         button.classList.remove('opacity-70');
-                        alert('Gagal menghapus image. Silakan coba lagi.');
+                        alert('Failed to delete image. Please try again.');
                     }
                 });
 
@@ -355,4 +350,3 @@
         </script>
     @endpush
 @endonce
-

@@ -8,6 +8,7 @@ use App\Models\Customer;
 use App\Models\Inquiry;
 use App\Models\InquiryCommunication;
 use App\Models\InquiryFollowUp;
+use App\Models\Quotation;
 use App\Models\User;
 use App\Services\ActivityAuditLogger;
 use Illuminate\Http\Request;
@@ -241,10 +242,10 @@ class InquiryController extends Controller
                 ->route('inquiries.show', $inquiry)
                 ->with('error', 'Inquiry sudah final dan tidak dapat diubah.');
         }
-        if ($inquiry->quotation && ($inquiry->quotation->status ?? '') === 'approved') {
+        if ($this->isInquiryLockedByQuotation($inquiry)) {
             return redirect()
                 ->route('inquiries.show', $inquiry)
-                ->with('error', 'Inquiry cannot be edited because the related quotation is approved.');
+                ->with('error', 'Inquiry cannot be edited because the related quotation is approved/final.');
         }
         $customers = Customer::query()->orderBy('name')->get();
         $assignees = User::role(['Reservation'])->orderBy('name')->get();
@@ -278,10 +279,10 @@ class InquiryController extends Controller
                 ->route('inquiries.show', $inquiry)
                 ->with('error', 'Inquiry sudah final dan tidak dapat diubah.');
         }
-        if ($inquiry->quotation && ($inquiry->quotation->status ?? '') === 'approved') {
+        if ($this->isInquiryLockedByQuotation($inquiry)) {
             return redirect()
                 ->route('inquiries.show', $inquiry)
-                ->with('error', 'Inquiry cannot be updated because the related quotation is approved.');
+                ->with('error', 'Inquiry cannot be updated because the related quotation is approved/final.');
         }
         $canAssignToReservation = auth()->user()?->hasRole(['Manager', 'Director']) ?? false;
         $reservationRoleId = $canAssignToReservation
@@ -376,10 +377,10 @@ class InquiryController extends Controller
                 ->route('inquiries.show', $inquiry)
                 ->with('error', 'Inquiry sudah final dan tidak dapat diubah.');
         }
-        if ($inquiry->quotation && ($inquiry->quotation->status ?? '') === 'approved') {
+        if ($this->isInquiryLockedByQuotation($inquiry)) {
             return redirect()
                 ->route('inquiries.show', $inquiry)
-                ->with('error', 'Inquiry is locked because the related quotation is approved.');
+                ->with('error', 'Inquiry is locked because the related quotation is approved/final.');
         }
         $validated = $request->validate([
             'due_date' => ['required', 'date'],
@@ -411,10 +412,10 @@ class InquiryController extends Controller
                 ->route('inquiries.show', $followUp->inquiry_id)
                 ->with('error', 'Inquiry sudah final dan tidak dapat diubah.');
         }
-        if ($followUp->inquiry?->quotation && ($followUp->inquiry->quotation->status ?? '') === 'approved') {
+        if ($followUp->inquiry && $this->isInquiryLockedByQuotation($followUp->inquiry)) {
             return redirect()
                 ->route('inquiries.show', $followUp->inquiry_id)
-                ->with('error', 'Inquiry is locked because the related quotation is approved.');
+                ->with('error', 'Inquiry is locked because the related quotation is approved/final.');
         }
         $validated = request()->validate([
             'done_reason' => ['required', 'string', 'max:1000'],
@@ -449,10 +450,10 @@ class InquiryController extends Controller
                 ->route('inquiries.show', $inquiry)
                 ->with('error', 'Inquiry sudah final dan tidak dapat diubah.');
         }
-        if ($inquiry->quotation && ($inquiry->quotation->status ?? '') === 'approved') {
+        if ($this->isInquiryLockedByQuotation($inquiry)) {
             return redirect()
                 ->route('inquiries.show', $inquiry)
-                ->with('error', 'Inquiry is locked because the related quotation is approved.');
+                ->with('error', 'Inquiry is locked because the related quotation is approved/final.');
         }
         $validated = $request->validate([
             'channel' => ['required', Rule::in(self::CHANNEL_OPTIONS)],
@@ -495,6 +496,12 @@ class InquiryController extends Controller
         }
 
         return $user->can($ability, $inquiry);
+    }
+
+    private function isInquiryLockedByQuotation(Inquiry $inquiry): bool
+    {
+        $status = (string) ($inquiry->quotation->status ?? '');
+        return in_array($status, ['approved', Quotation::FINAL_STATUS], true);
     }
 
     private function canManageFollowUp(Inquiry $inquiry): bool
