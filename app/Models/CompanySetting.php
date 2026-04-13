@@ -26,6 +26,12 @@ class CompanySetting extends Model
         'footer_note',
         'favicon_path',
         'logo_path',
+        'auth_primary_color',
+        'auth_primary_hover_color',
+        'auth_background_from_color',
+        'auth_background_to_color',
+        'auth_card_background_color',
+        'auth_card_border_color',
     ];
 
     protected $casts = [

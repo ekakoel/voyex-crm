@@ -60,6 +60,12 @@ class CompanySettingController extends Controller
             'longitude' => ['nullable', 'numeric', 'between:-180,180', 'required_with:latitude'],
             'timezone' => ['nullable', 'string', 'max:64'],
             'footer_note' => ['nullable', 'string'],
+            'auth_primary_color' => ['nullable', 'regex:/^#([0-9a-fA-F]{6})$/'],
+            'auth_primary_hover_color' => ['nullable', 'regex:/^#([0-9a-fA-F]{6})$/'],
+            'auth_background_from_color' => ['nullable', 'regex:/^#([0-9a-fA-F]{6})$/'],
+            'auth_background_to_color' => ['nullable', 'regex:/^#([0-9a-fA-F]{6})$/'],
+            'auth_card_background_color' => ['nullable', 'regex:/^#([0-9a-fA-F]{6})$/'],
+            'auth_card_border_color' => ['nullable', 'regex:/^#([0-9a-fA-F]{6})$/'],
             'favicon' => ['nullable', 'image', 'mimes:png,ico,webp,jpg,jpeg'],
             'logo' => ['nullable', 'image', 'mimes:png,webp,jpg,jpeg'],
         ]);
@@ -80,6 +86,8 @@ class CompanySettingController extends Controller
             }
             $validated['logo_path'] = $request->file('logo')->store('company', 'public');
         }
+
+        $this->normalizeColorInputs($validated);
 
         unset($validated['favicon'], $validated['logo']);
         $settings->update($validated);
@@ -110,6 +118,25 @@ class CompanySettingController extends Controller
         }
         if (empty($validated['timezone']) && ! empty($destination->timezone)) {
             $validated['timezone'] = (string) $destination->timezone;
+        }
+    }
+
+    private function normalizeColorInputs(array &$validated): void
+    {
+        foreach ([
+            'auth_primary_color',
+            'auth_primary_hover_color',
+            'auth_background_from_color',
+            'auth_background_to_color',
+            'auth_card_background_color',
+            'auth_card_border_color',
+        ] as $key) {
+            if (! array_key_exists($key, $validated)) {
+                continue;
+            }
+
+            $value = trim((string) ($validated[$key] ?? ''));
+            $validated[$key] = $value !== '' ? strtolower($value) : null;
         }
     }
 }

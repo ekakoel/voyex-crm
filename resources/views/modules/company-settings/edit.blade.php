@@ -87,6 +87,44 @@
                     <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">Dipakai sebagai catatan footer pada halaman Login.</p>
                 </div>
 
+                <div class="rounded-xl border border-slate-200 p-4 dark:border-slate-700">
+                    <p class="text-sm font-semibold text-slate-700 dark:text-slate-200">Auth Theme (Login / Forgot / Reset)</p>
+                    <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">Atur warna utama halaman autentikasi agar sesuai brand.</p>
+
+                    <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Primary Color</label>
+                            <input type="color" name="auth_primary_color" value="{{ old('auth_primary_color', $settings->auth_primary_color ?? '#2563eb') }}" class="mt-1 h-11 w-full rounded-lg border border-gray-300 bg-white px-2 py-1 dark:border-gray-600 dark:bg-gray-900">
+                            @error('auth_primary_color') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Primary Hover Color</label>
+                            <input type="color" name="auth_primary_hover_color" value="{{ old('auth_primary_hover_color', $settings->auth_primary_hover_color ?? '#1e40af') }}" class="mt-1 h-11 w-full rounded-lg border border-gray-300 bg-white px-2 py-1 dark:border-gray-600 dark:bg-gray-900">
+                            @error('auth_primary_hover_color') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Background From</label>
+                            <input type="color" name="auth_background_from_color" value="{{ old('auth_background_from_color', $settings->auth_background_from_color ?? '#f5f7fb') }}" class="mt-1 h-11 w-full rounded-lg border border-gray-300 bg-white px-2 py-1 dark:border-gray-600 dark:bg-gray-900">
+                            @error('auth_background_from_color') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Background To</label>
+                            <input type="color" name="auth_background_to_color" value="{{ old('auth_background_to_color', $settings->auth_background_to_color ?? '#eaf1ff') }}" class="mt-1 h-11 w-full rounded-lg border border-gray-300 bg-white px-2 py-1 dark:border-gray-600 dark:bg-gray-900">
+                            @error('auth_background_to_color') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Card Background</label>
+                            <input type="color" name="auth_card_background_color" value="{{ old('auth_card_background_color', $settings->auth_card_background_color ?? '#ffffff') }}" class="mt-1 h-11 w-full rounded-lg border border-gray-300 bg-white px-2 py-1 dark:border-gray-600 dark:bg-gray-900">
+                            @error('auth_card_background_color') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Card Border</label>
+                            <input type="color" name="auth_card_border_color" value="{{ old('auth_card_border_color', $settings->auth_card_border_color ?? '#d7d7d7') }}" class="mt-1 h-11 w-full rounded-lg border border-gray-300 bg-white px-2 py-1 dark:border-gray-600 dark:bg-gray-900">
+                            @error('auth_card_border_color') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                        </div>
+                    </div>
+                </div>
+
                 <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                     <div>
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Favicon</label>
@@ -127,7 +165,6 @@
         </div>
     </div>
 @endsection
-
 
 
 

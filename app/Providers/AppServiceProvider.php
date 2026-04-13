@@ -25,6 +25,10 @@ class AppServiceProvider extends ServiceProvider
     {
         View::composer('layouts.master', SidebarComposer::class);
         View::composer('modules.*.index', IndexStatsComposer::class);
-        View::composer('auth.login', CompanyBrandComposer::class);
+        View::composer([
+            'auth.login',
+            'auth.forgot-password',
+            'auth.reset-password',
+        ], CompanyBrandComposer::class);
     }
 }

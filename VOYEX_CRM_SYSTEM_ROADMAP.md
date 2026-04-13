@@ -202,6 +202,30 @@ Kebijakan ini wajib untuk setiap update code (penambahan, perubahan, pengurangan
 Date: 2026-04-13
 Completed in this cycle:
 
+- Auth branding & forgot-password UX modernization:
+  - upgraded `auth.forgot-password` and `auth.reset-password` views to modern split-layout UI aligned with custom auth theme.
+  - refreshed `auth.login` UI structure to use the same branding primitives and auth theme variables for consistency.
+  - all auth branding data now comes from `company_settings` via `CompanyBrandComposer`: company name, tagline, footer note, logo, favicon, and auth theme colors.
+- Database-driven auth theme support:
+  - added migration `2026_04_13_110000_add_auth_theme_fields_to_company_settings_table.php` to store auth-specific colors:
+    - `auth_primary_color`
+    - `auth_primary_hover_color`
+    - `auth_background_from_color`
+    - `auth_background_to_color`
+    - `auth_card_background_color`
+    - `auth_card_border_color`
+  - added validation + normalization in `CompanySettingController` and editable color-picker fields in Company Settings UI.
+  - updated `CompanySetting` model fillable fields to include all new auth theme attributes.
+- Composer wiring update:
+  - `CompanyBrandComposer` is now registered for `auth.login`, `auth.forgot-password`, and `auth.reset-password`.
+- QA note:
+  - `php -l` passed for updated PHP and Blade files.
+  - `php artisan route:list --path=forgot-password -v` confirms route + throttle middleware unchanged and active.
+  - `php artisan view:cache` passed after auth view and styling updates.
+
+Date: 2026-04-13
+Completed in this cycle:
+
 - Password reset UX and security hardening:
   - enabled visible `Forgot Password?` entry point on custom login page (`resources/views/auth/login.blade.php`) so users can start reset flow directly.
   - added throttling middleware (`throttle:6,1`) to `POST forgot-password` and `POST reset-password` endpoints in `routes/auth.php`.
