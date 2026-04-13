@@ -29,7 +29,7 @@
 </head>
 <body>
 <div class="auth-wrapper">
-    <div class="auth-left">
+    <div class="auth-left auth-left--login">
         <div class="auth-brand">
             @if (!empty($companyLogoUrl))
                 <img src="{{ $companyLogoUrl }}" alt="{{ $appTitle }} logo" class="auth-brand-logo">
@@ -45,7 +45,11 @@
         <p class="auth-brand-message">
             Sign in to continue managing your travel CRM workflow in one secure place.
         </p>
-        <img src="{{ asset('assets/images/login.png') }}" class="illustration" alt="CRM Illustration">
+        <ul class="auth-context-list">
+            <li>Monitor inquiry, quotation, booking, and invoice flow in one dashboard.</li>
+            <li>Role-based access keeps each team focused on the right tasks.</li>
+            <li>Activity and status tracking help reduce manual follow-up errors.</li>
+        </ul>
     </div>
 
     <div class="auth-right">
@@ -124,4 +128,3 @@
 </script>
 </body>
 </html>
-

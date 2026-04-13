@@ -45,7 +45,6 @@
         <p class="auth-brand-message">
             Use a strong password to keep your account secure and easy to recover in the future.
         </p>
-        <img src="{{ asset('assets/images/login.png') }}" class="illustration" alt="CRM Illustration">
     </div>
 
     <div class="auth-right">
@@ -136,4 +135,3 @@
 </script>
 </body>
 </html>
-

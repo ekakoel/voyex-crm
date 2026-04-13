@@ -25,7 +25,7 @@
 </head>
 <body>
 <div class="auth-wrapper">
-    <div class="auth-left">
+    <div class="auth-left auth-left--security">
         <div class="auth-brand">
             @if (!empty($companyLogoUrl))
                 <img src="{{ $companyLogoUrl }}" alt="{{ $appTitle }} logo" class="auth-brand-logo">
@@ -41,7 +41,11 @@
         <p class="auth-brand-message">
             Enter your registered email address, and we will send a secure password reset link.
         </p>
-        <img src="{{ asset('assets/images/login.png') }}" class="illustration" alt="CRM Illustration">
+        <ol class="auth-context-list auth-context-list--steps">
+            <li>Input your registered email address.</li>
+            <li>Open the reset link sent to your inbox.</li>
+            <li>Create a new password and sign in again securely.</li>
+        </ol>
     </div>
 
     <div class="auth-right">
@@ -88,4 +92,3 @@
 </div>
 </body>
 </html>
-

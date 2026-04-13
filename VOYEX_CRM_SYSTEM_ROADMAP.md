@@ -202,6 +202,35 @@ Kebijakan ini wajib untuk setiap update code (penambahan, perubahan, pengurangan
 Date: 2026-04-13
 Completed in this cycle:
 
+- Auth UI simplification (background image removal):
+  - removed left-panel illustration images from `auth.login`, `auth.forgot-password`, and `auth.reset-password`.
+  - left panel now relies on gradient/theme styling only (no background image element rendered).
+- QA note:
+  - `php -l` passed for updated auth Blade files.
+  - `php artisan view:cache` passed.
+
+Date: 2026-04-13
+Completed in this cycle:
+
+- Auth left-panel visual refresh for Login and Forgot Password:
+  - redesigned left-side content to show context-relevant information per page:
+    - Login: workflow/value highlights for daily CRM operations.
+    - Forgot Password: clear 3-step recovery flow for better UX guidance.
+  - modernized auth-left background with layered gradients, soft glass cards, and decorative shapes for a cleaner premium look.
+  - improved auth illustration relevance:
+    - login uses workflow-themed illustration treatment.
+    - forgot-password uses dedicated recovery-support image (`public/assets/images/password-reset-support.jfif`).
+  - added new reusable auth-left UI styles in `public/assets/css/auth.css`:
+    - `.auth-context-list`, `.auth-context-list--steps`,
+    - `.auth-left--login`, `.auth-left--security`,
+    - `.auth-illustration--login`, `.auth-illustration--security`.
+- QA note:
+  - `php -l` passed for updated auth Blade files and auth stylesheet.
+  - `php artisan view:cache` passed after UI refresh.
+
+Date: 2026-04-13
+Completed in this cycle:
+
 - Auth branding & forgot-password UX modernization:
   - upgraded `auth.forgot-password` and `auth.reset-password` views to modern split-layout UI aligned with custom auth theme.
   - refreshed `auth.login` UI structure to use the same branding primitives and auth theme variables for consistency.
