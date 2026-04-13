@@ -318,8 +318,8 @@
                                     label += new Intl.NumberFormat(currency === 'USD' ? 'en-US' : 'id-ID', {
                                         style: 'currency',
                                         currency: currency,
-                                        minimumFractionDigits: window.appCurrencyDecimals ?? (currency === 'USD' ? 2 : 0),
-                                        maximumFractionDigits: window.appCurrencyDecimals ?? (currency === 'USD' ? 2 : 0)
+                                        minimumFractionDigits: window.appCurrencyDecimals ?? 0,
+                                        maximumFractionDigits: window.appCurrencyDecimals ?? 0
                                     }).format(value);
                                 }
                                 return label;

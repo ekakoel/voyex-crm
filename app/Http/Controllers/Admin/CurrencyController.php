@@ -128,6 +128,9 @@ class CurrencyController extends Controller
             $decimalPlaces = array_key_exists('decimal_places', $payload) && $payload['decimal_places'] !== null
                 ? (int) $payload['decimal_places']
                 : $currency->decimal_places;
+            if (strtoupper((string) ($currency->code ?? '')) === 'USD') {
+                $decimalPlaces = 0;
+            }
 
             if ($oldRate === $newRate && $decimalPlaces === (int) $currency->decimal_places) {
                 continue;
@@ -179,6 +182,9 @@ class CurrencyController extends Controller
         ]);
 
         $validated['code'] = strtoupper(trim((string) $validated['code']));
+        if ($validated['code'] === 'USD') {
+            $validated['decimal_places'] = 0;
+        }
         $validated['is_active'] = (bool) ($validated['is_active'] ?? false);
         $validated['is_default'] = (bool) ($validated['is_default'] ?? false);
         if ($validated['is_default']) {

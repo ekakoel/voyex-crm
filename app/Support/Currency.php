@@ -85,12 +85,18 @@ class Currency
             return null;
         }
 
+        $normalizedCode = strtoupper((string) $row->code);
+        $decimalPlaces = (int) $row->decimal_places;
+        if ($normalizedCode === 'USD') {
+            $decimalPlaces = 0;
+        }
+
         return [
             'code' => $row->code,
             'name' => $row->name,
             'symbol' => $row->symbol,
             'rate_to_idr' => (float) $row->rate_to_idr,
-            'decimal_places' => (int) $row->decimal_places,
+            'decimal_places' => $decimalPlaces,
         ];
     }
 
@@ -104,10 +110,10 @@ class Currency
         $value = static::convert((float) $amount, $fromCurrency, $target);
         $meta = static::meta($target);
         $symbol = $meta['symbol'] ?? ($target === 'USD' ? '$' : 'Rp');
-        $decimals = $meta['decimal_places'] ?? ($target === 'USD' ? 2 : 0);
+        $decimals = $meta['decimal_places'] ?? 0;
 
         if ($target === 'USD') {
-            return $symbol . ' ' . number_format($value, $decimals, '.', ',');
+            return trim((string) $symbol) . number_format($value, $decimals, '.', ',');
         }
 
         return $symbol . ' ' . number_format($value, $decimals, ',', '.');

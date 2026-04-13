@@ -1,7 +1,7 @@
 ﻿# VOYEX CRM -- SYSTEM ROADMAP
 
 Version: 1.3  
-Last Updated: 2026-04-10
+Last Updated: 2026-04-13
 
 Legend:  
 - DONE = Implemented  
@@ -198,6 +198,19 @@ Kebijakan ini wajib untuk setiap update code (penambahan, perubahan, pengurangan
 ----------------------------------------------------------------------------------------------------
 
 # CHANGELOG (LATEST)
+
+Date: 2026-04-13
+Completed in this cycle:
+
+- Password reset UX and security hardening:
+  - enabled visible `Forgot Password?` entry point on custom login page (`resources/views/auth/login.blade.php`) so users can start reset flow directly.
+  - added throttling middleware (`throttle:6,1`) to `POST forgot-password` and `POST reset-password` endpoints in `routes/auth.php`.
+  - hardened password reset link response in `PasswordResetLinkController` to prevent user-email enumeration by returning a generic success message for registered/unregistered emails.
+  - retained explicit throttling feedback (`Please wait before retrying.`) when request rate limit is hit.
+- QA note:
+  - `php -l` passed for `app/Http/Controllers/Auth/PasswordResetLinkController.php`, `routes/auth.php`, `resources/views/auth/login.blade.php`.
+  - `php artisan route:list --path=forgot-password -v` confirms `ThrottleRequests:6,1` middleware on `password.email`.
+  - `php artisan route:list --path=reset-password -v` confirms `ThrottleRequests:6,1` middleware on `password.store`.
 
 Date: 2026-04-10
 Completed in this cycle:

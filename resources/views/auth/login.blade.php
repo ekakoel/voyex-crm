@@ -108,6 +108,14 @@
                         </label>
                     </div>
 
+                    @if (Route::has('password.request'))
+                        <div class="form-group mb-2 text-end">
+                            <a href="{{ route('password.request') }}" class="text-decoration-none small">
+                                Forgot Password?
+                            </a>
+                        </div>
+                    @endif
+
                     <button type="submit"  class="btn-primary">
                         Sign In
                     </button>
