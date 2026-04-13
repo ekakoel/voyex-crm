@@ -72,7 +72,3 @@
         }
     </style>
 @endpush
-
-@push('scripts')
-    @vite('resources/js/service-map.js')
-@endpush

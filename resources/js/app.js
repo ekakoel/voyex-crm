@@ -1,4 +1,5 @@
 import './bootstrap';
+import './service-map';
 
 import Alpine from 'alpinejs';
 import L from 'leaflet';

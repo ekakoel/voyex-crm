@@ -202,6 +202,18 @@ Kebijakan ini wajib untuk setiap update code (penambahan, perubahan, pengurangan
 Date: 2026-04-13
 Completed in this cycle:
 
+- Services map Vite manifest fix:
+  - resolved runtime error:
+    `Unable to locate file in Vite manifest: resources/js/service-map.js`
+    on `modules/services/map`.
+  - root cause: `resources/js/service-map.js` was referenced as a standalone Vite entry in Blade, but not registered in Vite input manifest.
+  - fix implemented by bundling `service-map.js` through main app bundle:
+    - added import in `resources/js/app.js`
+    - removed standalone `@vite('resources/js/service-map.js')` from `resources/views/modules/services/map.blade.php`.
+- QA note:
+  - `php artisan view:cache` passed.
+  - local `npm run build` could not be fully executed in current environment due host execution policy/sandbox restriction; deployment environment build is required after pull.
+
 - Quotation lifecycle alignment (Final/Pending synchronization to Itinerary + Inquiry):
   - updated quotation-linked status sync so:
     - `quotation.status = final` forces related `itinerary.status = final` and `inquiry.status = final`,
