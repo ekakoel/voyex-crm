@@ -10,6 +10,7 @@
     $selectedDestinationId = (int) old('destination_filter_id', $foodBeverage->vendor->destination_id ?? 0);
     $defaultMarkupType = old('markup_type', $foodBeverage->markup_type ?? ($prefill['markup_type'] ?? 'fixed'));
     $defaultMarkup = old('markup', $foodBeverage->markup ?? ($prefill['markup'] ?? null));
+    $existingGalleryImages = is_array($foodBeverage->gallery_images ?? null) ? $foodBeverage->gallery_images : [];
     if ($defaultMarkup === null) {
         $defaultMarkup = max(0, (float) (($foodBeverage->publish_rate ?? ($prefill['publish_rate'] ?? 0)) - ($foodBeverage->contract_rate ?? ($prefill['contract_rate'] ?? 0))));
     }
@@ -23,38 +24,36 @@
                 class="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3"
                 data-remove-endpoint-template="{{ isset($foodBeverage) ? route('food-beverages.gallery-images.remove', $foodBeverage) : '' }}"
                 data-csrf-token="{{ csrf_token() }}">
-                @if (!empty($foodBeverage?->gallery_images))
-                    @foreach ($foodBeverage->gallery_images as $image)
-                        @php($thumbUrl = \App\Support\ImageThumbnailGenerator::resolvePublicUrl($image))
-                        @php($fullUrl = \App\Support\ImageThumbnailGenerator::resolveOriginalPublicUrl($image))
-                        <div class="food-beverage-gallery-item food-beverage-gallery-existing-item relative overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700" data-image-path="{{ $image }}">
-                            <button
-                                type="button"
-                                class="food-beverage-gallery-remove-btn absolute right-1 top-1 z-10 inline-flex h-6 w-6 items-center justify-center rounded-full bg-rose-600/95 text-xs font-bold text-white shadow hover:bg-rose-700"
-                                title="Remove image"
-                                aria-label="Remove image">
-                                X
-                            </button>
-                            <div class="room-cover-preview image-preview flex w-full items-center justify-center overflow-hidden rounded-lg border-0 bg-gray-50 dark:bg-gray-800/40">
-                                <div class="image-preview-placeholder">
-                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                                        <path d="M4 7h3l2-2h6l2 2h3a1 1 0 0 1 1 1v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a1 1 0 0 1 1-1z"></path>
-                                        <circle cx="12" cy="13" r="4"></circle>
-                                    </svg>
-                                    <span>Select image to preview</span>
-                                </div>
-                                @if ($thumbUrl)
-                                    <img
-                                        src="{{ $thumbUrl }}"
-                                        onload="this.classList.add('image-loaded');var p=this.closest('.image-preview');if(p){p.classList.add('has-image');}"
-                                        onerror="if(this.dataset.fallbackApplied){var p=this.closest('.image-preview');if(p){p.classList.remove('has-image');}this.remove();}else{this.dataset.fallbackApplied='1';this.src='{{ $fullUrl ?? '' }}';}"
-                                        alt="F&B gallery"
-                                        class="h-full w-full object-cover">
-                                @endif
+                @forelse ($existingGalleryImages as $image)
+                    @php($thumbUrl = \App\Support\ImageThumbnailGenerator::resolvePublicUrl($image))
+                    @php($fullUrl = \App\Support\ImageThumbnailGenerator::resolveOriginalPublicUrl($image))
+                    <div class="food-beverage-gallery-item food-beverage-gallery-existing-item relative overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700" data-image-path="{{ $image }}">
+                        <button
+                            type="button"
+                            class="food-beverage-gallery-remove-btn absolute right-1 top-1 z-10 inline-flex h-6 w-6 items-center justify-center rounded-full bg-rose-600/95 text-xs font-bold text-white shadow hover:bg-rose-700"
+                            title="Remove image"
+                            aria-label="Remove image">
+                            X
+                        </button>
+                        <div class="room-cover-preview image-preview flex w-full items-center justify-center overflow-hidden rounded-lg border-0 bg-gray-50 dark:bg-gray-800/40">
+                            <div class="image-preview-placeholder">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <path d="M4 7h3l2-2h6l2 2h3a1 1 0 0 1 1 1v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a1 1 0 0 1 1-1z"></path>
+                                    <circle cx="12" cy="13" r="4"></circle>
+                                </svg>
+                                <span>Select image to preview</span>
                             </div>
+                            @if ($thumbUrl)
+                                <img
+                                    src="{{ $thumbUrl }}"
+                                    onload="this.classList.add('image-loaded');var p=this.closest('.image-preview');if(p){p.classList.add('has-image');}"
+                                    onerror="if(this.dataset.fallbackApplied){var p=this.closest('.image-preview');if(p){p.classList.remove('has-image');}this.remove();}else{this.dataset.fallbackApplied='1';this.src='{{ $fullUrl ?? '' }}';}"
+                                    alt="F&B gallery"
+                                    class="h-full w-full object-cover">
+                            @endif
                         </div>
-                    @endforeach
-                @else
+                    </div>
+                @empty
                     <div class="food-beverage-gallery-empty">
                         <div class="room-cover-preview image-preview flex w-full items-center justify-center overflow-hidden rounded-lg border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800/40">
                             <div class="image-preview-placeholder">
@@ -66,7 +65,7 @@
                             </div>
                         </div>
                     </div>
-                @endif
+                @endforelse
             </div>
             <input id="food-beverage-gallery-input" type="file" name="gallery_images[]" accept="image/*" multiple class="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
             @error('gallery_images') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
