@@ -10,7 +10,7 @@
 
     @can('update', $inquiry)
 
-        @if (!($inquiry->quotation && ($inquiry->quotation->status ?? '') === 'approved') && ! $inquiry->isFinal())
+        @if (!in_array(($inquiry->quotation->status ?? ''), ['approved', \App\Models\Quotation::FINAL_STATUS], true) && ! $inquiry->isFinal())
 
             <a href="{{ route('inquiries.edit', $inquiry) }}"  class="btn-secondary">
 
@@ -26,13 +26,23 @@
 
 @section('content')
 
-    <div class="max-w-6xl space-y-6 module-page module-page--inquiries">
+    <div class="max-w-6xl module-page module-page--inquiries">
 
         @if (session('success'))
 
             <div class="rounded-lg mb-6 border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300">
 
                 {{ session('success') }}
+
+            </div>
+
+        @endif
+
+        @if (session('error'))
+
+            <div class="rounded-lg mb-6 border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-700 dark:bg-rose-900/20 dark:text-rose-300">
+
+                {{ session('error') }}
 
             </div>
 
@@ -54,8 +64,8 @@
 
         <div class="module-grid-8-4">
 
-            <div class="module-grid-side lg:order-2 space-y-6">
-                <div class="app-card p-5 mb-6">
+            <div class="module-grid-side lg:order-2">
+                <div class="app-card p-5">
 
                     <h2 class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ __('ui.modules.inquiries.inquiry_overview') }}</h2>
 
@@ -129,7 +139,47 @@
 
                 </div>
 
-                <div class="app-card p-6 space-y-4">
+                <div class="app-card p-5">
+                    <div>
+                        <h2 class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ __('ui.modules.inquiries.related_records') }}</h2>
+                    </div>
+
+                    <div class="mt-4 space-y-4">
+                        <div>
+                            <h3 class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ __('ui.modules.inquiries.related_itineraries') }}</h3>
+                            <div class="mt-2 space-y-2">
+                                @forelse (($itineraries ?? collect()) as $itinerary)
+                                    <a href="{{ route('itineraries.show', $itinerary) }}" class="block rounded-lg border border-gray-200 px-3 py-2 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-900/30">
+                                        <div class="flex items-center justify-between gap-3">
+                                            <p class="text-sm font-medium text-gray-800 dark:text-gray-100">{{ $itinerary->title ?: '-' }}</p>
+                                            <x-status-badge :status="$itinerary->status" size="xs" />
+                                        </div>
+                                    </a>
+                                @empty
+                                    <p class="text-sm text-gray-500 dark:text-gray-400">{{ __('ui.modules.inquiries.no_related_itineraries') }}</p>
+                                @endforelse
+                            </div>
+                        </div>
+
+                        <div>
+                            <h3 class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ __('ui.modules.inquiries.related_quotations') }}</h3>
+                            <div class="mt-2 space-y-2">
+                                @forelse (($quotations ?? collect()) as $quotation)
+                                    <a href="{{ route('quotations.show', $quotation) }}" class="block rounded-lg border border-gray-200 px-3 py-2 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-900/30">
+                                        <div class="flex items-center justify-between gap-3">
+                                            <p class="text-sm font-medium text-gray-800 dark:text-gray-100">{{ $quotation->quotation_number ?: '-' }}</p>
+                                            <x-status-badge :status="$quotation->status" size="xs" />
+                                        </div>
+                                    </a>
+                                @empty
+                                    <p class="text-sm text-gray-500 dark:text-gray-400">{{ __('ui.modules.inquiries.no_related_quotations') }}</p>
+                                @endforelse
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="app-card p-5">
                     <div>
                         <h2 class="text-lg font-semibold text-gray-800 dark:text-gray-100">{{ __('ui.common.activity_timeline') }}</h2>
                         <p class="text-sm text-gray-600 dark:text-gray-300">{{ __('ui.modules.inquiries.tracking_changes') }}</p>
@@ -140,9 +190,9 @@
 
 
 
-            <div class="module-grid-main lg:order-1 space-y-6">
+            <div class="module-grid-main lg:order-1">
 
-                <div class="app-card p-6 space-y-4 mb-6">
+                <div class="app-card p-5">
 
                     <div class="flex mb-2 items-start justify-between gap-2">
 
@@ -232,6 +282,16 @@
 
                                                 @endif
 
+                                            @endif
+
+                                            @if (($canResetFollowUpReminder ?? false) && ! is_null($followUp->last_reminded_at))
+                                                <div class="mt-2 flex items-center justify-end">
+                                                    <form method="POST" action="{{ route('inquiries.followups.reset-reminder', $followUp) }}" onsubmit="return confirm('{{ __('ui.modules.inquiries.confirm_reset_reminder') }}')">
+                                                        @csrf
+                                                        @method('PATCH')
+                                                        <button type="submit" class="btn-outline-sm">{{ __('ui.modules.inquiries.reset_reminder') }}</button>
+                                                    </form>
+                                                </div>
                                             @endif
 
                                         </td>
@@ -369,7 +429,7 @@
 
 
 
-                <div class="app-card p-6 space-y-4">
+                <div class="app-card p-5">
 
                     <div>
 
@@ -381,7 +441,25 @@
 
 
 
-                    @if ($canManageInquiry && ! $inquiry->isFinal())
+                    <div class="relative mt-3">
+                        @forelse ($communications as $item)
+                            <div class="relative mb-3">
+                                <div class="absolute left-1 top-1.5 h-3 w-3 rounded-full bg-indigo-600"></div>
+                                <div class="rounded-lg border border-gray-200 p-4 text-sm dark:border-gray-700 bg-gray-100">
+                                    <div class="flex flex-wrap items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                                        <span class="inline-flex rounded-full bg-gray-100 px-2 py-0.5 text-gray-600 dark:bg-gray-900/40 dark:text-gray-300">{{ $channelLabels[$item->channel] ?? '-' }}</span>
+                                        <span><x-local-time :value="$item->contact_at" /></span>
+                                        <span>{{ __('ui.modules.inquiries.by_label', ['name' => $item->creator->name ?? '-']) }}</span>
+                                    </div>
+                                    <p class="text-sm text-gray-800 dark:text-gray-100">{{ $item->summary }}</p>
+                                </div>
+                            </div>
+                        @empty
+                            <div class="text-sm text-gray-500 dark:text-gray-400">{{ __('ui.modules.inquiries.no_history_yet') }}</div>
+                        @endforelse
+                    </div>
+
+                    @if ($canManageCommunication ?? false)
 
                         <form method="POST" action="{{ route('inquiries.communications.store', $inquiry) }}" class="space-y-3">
 
@@ -427,48 +505,6 @@
 
                         </form>
                     @endif
-
-
-
-                    <div class="relative">
-
-                        <div class="absolute left-3 top-0 h-full w-px bg-gray-200 dark:bg-gray-700"></div>
-
-                        <div class="space-y-6">
-
-                            @forelse ($communications as $item)
-
-                                <div class="relative pl-8">
-
-                                    <div class="absolute left-0 top-1.5 h-3 w-3 rounded-full bg-indigo-600"></div>
-
-                                    <div class="rounded-lg mb-6 border border-gray-200 p-4 text-sm dark:border-gray-700">
-
-                                        <div class="flex flex-wrap items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-
-                                            <span class="inline-flex rounded-full bg-gray-100 px-2 py-0.5 text-gray-600 dark:bg-gray-900/40 dark:text-gray-300">{{ $channelLabels[$item->channel] ?? '-' }}</span>
-
-                                            <span><x-local-time :value="$item->contact_at" /></span>
-
-                                            <span>{{ __('ui.modules.inquiries.by_label', ['name' => $item->creator->name ?? '-']) }}</span>
-
-                                        </div>
-
-                                        <p class="mt-2 text-sm text-gray-800 dark:text-gray-100">{{ $item->summary }}</p>
-
-                                    </div>
-
-                                </div>
-
-                            @empty
-
-                                <div class="pl-8 text-sm text-gray-500 dark:text-gray-400">{{ __('ui.modules.inquiries.no_history_yet') }}</div>
-
-                            @endforelse
-
-                        </div>
-
-                    </div>
 
                 </div>
 

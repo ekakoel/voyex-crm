@@ -10,6 +10,7 @@
         'duplicated_from' => 'Duplicated From',
         'reminder_added' => 'Reminder added',
         'reminder_done' => 'Reminder done',
+        'reminder_reset' => 'Reminder reset',
         'communication_added' => 'Communication added',
     ];
 @endphp

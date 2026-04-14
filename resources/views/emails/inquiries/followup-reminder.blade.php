@@ -3,15 +3,49 @@
 
 Hello {{ $userName }},
 
-You have an inquiry follow-up reminder that needs action.
+This is your follow-up reminder for an inquiry that needs action.
 
 @component('mail::panel')
 **Inquiry:** {{ $inquiryNumber }}  
 **Customer:** {{ $customerName }}  
-**Due Date:** {{ $dueDate }}
+**Due Date:** {{ $dueDate }}  
+**Inquiry Status:** {{ ucfirst((string) $inquiryStatus) }}  
+**Priority:** {{ ucfirst((string) $priority) }}  
+**Channel:** {{ $channel }}  
+**Reminder Note:** {{ $summary }}
 @endcomponent
 
-Please follow up as soon as possible based on the scheduled timeline.
+@if (!empty($inquiryUrl))
+@component('mail::button', ['url' => $inquiryUrl])
+Open Inquiry
+@endcomponent
+@endif
+
+## Quick Links
+
+@if (!empty($inquiryUrl))
+@component('mail::button', ['url' => $inquiryUrl])
+Open Inquiry
+@endcomponent
+@endif
+
+@if (!empty($itineraryUrl))
+@component('mail::button', ['url' => $itineraryUrl])
+Open Itinerary
+@endcomponent
+@else
+Itinerary: {{ $itineraryTitle ?? '-' }}
+@endif
+
+@if (!empty($quotationUrl))
+@component('mail::button', ['url' => $quotationUrl])
+Open Quotation
+@endcomponent
+@else
+Quotation: {{ $quotationNumber ?? '-' }}
+@endif
+
+Please continue the follow-up according to the reminder schedule.
 
 Thank you,  
 {{ config('app.name') }}

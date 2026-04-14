@@ -18,11 +18,13 @@ class InquiryFollowUp extends Model
         'is_done',
         'done_at',
         'done_reason',
+        'last_reminded_at',
     ];
 
     protected $casts = [
         'due_date' => 'date',
         'done_at' => 'datetime',
+        'last_reminded_at' => 'datetime',
         'is_done' => 'boolean',
     ];
 

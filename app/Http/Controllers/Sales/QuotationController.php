@@ -1768,10 +1768,6 @@ SVG;
                 });
         }
 
-        $targetInquiryStatus = ((string) ($quotation->status ?? '') === Quotation::FINAL_STATUS)
-            ? Inquiry::FINAL_STATUS
-            : 'processed';
-
         $inquiryIds = collect([
             $quotation->inquiry_id ? (int) $quotation->inquiry_id : null,
         ]);
@@ -1806,7 +1802,8 @@ SVG;
         Inquiry::query()
             ->whereIn('id', $inquiryIds->all())
             ->get()
-            ->each(function (Inquiry $inquiry) use ($targetInquiryStatus): void {
+            ->each(function (Inquiry $inquiry): void {
+                $targetInquiryStatus = $this->resolveInquiryStatusFromLinkedQuotations((int) $inquiry->id);
                 if ((string) ($inquiry->status ?? '') === $targetInquiryStatus) {
                     return;
                 }
@@ -1815,6 +1812,26 @@ SVG;
                     'status' => $targetInquiryStatus,
                 ]);
             });
+    }
+
+    private function resolveInquiryStatusFromLinkedQuotations(int $inquiryId): string
+    {
+        if ($inquiryId <= 0) {
+            return 'processed';
+        }
+
+        $hasFinalQuotation = Quotation::query()
+            ->whereNull('deleted_at')
+            ->where('status', Quotation::FINAL_STATUS)
+            ->where(function (Builder $query) use ($inquiryId): void {
+                $query->where('inquiry_id', $inquiryId)
+                    ->orWhereHas('itinerary', function (Builder $itineraryQuery) use ($inquiryId): void {
+                        $itineraryQuery->where('inquiry_id', $inquiryId);
+                    });
+            })
+            ->exists();
+
+        return $hasFinalQuotation ? Inquiry::FINAL_STATUS : 'processed';
     }
 
     private function applyNeedsMyApprovalFilter(Builder $query, $user): void

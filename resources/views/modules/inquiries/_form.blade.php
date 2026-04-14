@@ -12,7 +12,7 @@
         : (string) old('customer_label', '');
 @endphp
 
-<div class="space-y-5 module-form">
+<div class="module-form">
     <div>
         <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Customer</label>
         <input

@@ -209,23 +209,44 @@ class InquiryController extends Controller
             ->with('creator:id,name')
             ->orderByDesc('due_date')
             ->get();
+        $itineraries = $inquiry->itineraries()
+            ->select(['id', 'inquiry_id', 'title', 'status', 'is_active', 'updated_at'])
+            ->orderByDesc('is_active')
+            ->orderByDesc('updated_at')
+            ->get();
+        $quotations = Quotation::query()
+            ->where(function ($query) use ($inquiry): void {
+                $query->where('inquiry_id', $inquiry->id)
+                    ->orWhereHas('itinerary', function ($itineraryQuery) use ($inquiry): void {
+                        $itineraryQuery->where('inquiry_id', $inquiry->id);
+                    });
+            })
+            ->with('itinerary:id,title')
+            ->orderByDesc('updated_at')
+            ->get(['id', 'quotation_number', 'status', 'inquiry_id', 'itinerary_id', 'updated_at']);
         $activities = $inquiry->activities()
             ->with('user:id,name')
             ->latest()
             ->paginate(5, ['*'], 'activity_page')
             ->withQueryString();
-        $communications = $inquiry->communications()->with('creator')->orderByDesc('contact_at')->get();
+        $communications = $inquiry->communications()
+            ->with('creator')
+            ->orderByDesc('contact_at')
+            ->orderByDesc('created_at')
+            ->get();
         $channelLabels = self::CHANNEL_LABELS;
         $sourceLabels = self::SOURCE_LABELS;
         $canManageInquiry = auth()->user()?->can('update', $inquiry) ?? false;
         $canManageFollowUp = $this->canManageFollowUp($inquiry);
         $canMarkFollowUpDone = $this->canMarkFollowUpDone($inquiry);
+        $canResetFollowUpReminder = $this->canResetFollowUpReminder();
+        $canManageCommunication = $canManageInquiry && ! $inquiry->isFinal();
 
         if ($this->wantsActivityTimelineFragment($request)) {
             return $this->activityTimelineFragmentResponse($activities);
         }
 
-        return view('modules.inquiries.show', compact('inquiry', 'followUps', 'activities', 'communications', 'channelLabels', 'sourceLabels', 'canManageInquiry', 'canManageFollowUp', 'canMarkFollowUpDone'));
+        return view('modules.inquiries.show', compact('inquiry', 'followUps', 'itineraries', 'quotations', 'activities', 'communications', 'channelLabels', 'sourceLabels', 'canManageInquiry', 'canManageFollowUp', 'canMarkFollowUpDone', 'canResetFollowUpReminder', 'canManageCommunication'));
     }
 
     /**
@@ -377,11 +398,6 @@ class InquiryController extends Controller
                 ->route('inquiries.show', $inquiry)
                 ->with('error', 'Inquiry sudah final dan tidak dapat diubah.');
         }
-        if ($this->isInquiryLockedByQuotation($inquiry)) {
-            return redirect()
-                ->route('inquiries.show', $inquiry)
-                ->with('error', 'Inquiry is locked because the related quotation is approved/final.');
-        }
         $validated = $request->validate([
             'due_date' => ['required', 'date'],
             'channel' => ['nullable', Rule::in(self::CHANNEL_OPTIONS)],
@@ -411,11 +427,6 @@ class InquiryController extends Controller
             return redirect()
                 ->route('inquiries.show', $followUp->inquiry_id)
                 ->with('error', 'Inquiry sudah final dan tidak dapat diubah.');
-        }
-        if ($followUp->inquiry && $this->isInquiryLockedByQuotation($followUp->inquiry)) {
-            return redirect()
-                ->route('inquiries.show', $followUp->inquiry_id)
-                ->with('error', 'Inquiry is locked because the related quotation is approved/final.');
         }
         $validated = request()->validate([
             'done_reason' => ['required', 'string', 'max:1000'],
@@ -450,11 +461,6 @@ class InquiryController extends Controller
                 ->route('inquiries.show', $inquiry)
                 ->with('error', 'Inquiry sudah final dan tidak dapat diubah.');
         }
-        if ($this->isInquiryLockedByQuotation($inquiry)) {
-            return redirect()
-                ->route('inquiries.show', $inquiry)
-                ->with('error', 'Inquiry is locked because the related quotation is approved/final.');
-        }
         $validated = $request->validate([
             'channel' => ['required', Rule::in(self::CHANNEL_OPTIONS)],
             'summary' => ['required', 'string'],
@@ -472,6 +478,30 @@ class InquiryController extends Controller
         return redirect()
             ->route('inquiries.show', $inquiry)
             ->with('success', 'Communication history added successfully.');
+    }
+
+    public function resetFollowUpReminder(InquiryFollowUp $followUp)
+    {
+        if (! $this->canResetFollowUpReminder()) {
+            return redirect()
+                ->route('inquiries.show', $followUp->inquiry_id)
+                ->with('error', 'You do not have permission to reset this reminder.');
+        }
+
+        $followUp->loadMissing('inquiry');
+        $followUp->forceFill([
+            'last_reminded_at' => null,
+        ])->saveQuietly();
+
+        if ($followUp->inquiry) {
+            $followUp->inquiry->logActivity('reminder_reset', $followUp->inquiry, [
+                'follow_up_id' => $followUp->id,
+            ]);
+        }
+
+        return redirect()
+            ->route('inquiries.show', $followUp->inquiry_id)
+            ->with('success', 'Reminder reset successfully. The follow-up can be sent again.');
     }
 
     private function syncFollowUpStatus(Inquiry $inquiry): void
@@ -530,6 +560,16 @@ class InquiryController extends Controller
         }
 
         return (int) ($inquiry->assigned_to ?? 0) === (int) $user->id;
+    }
+
+    private function canResetFollowUpReminder(): bool
+    {
+        $user = auth()->user();
+        if (! $user) {
+            return false;
+        }
+
+        return $user->hasRole(['Super Admin', 'Administrator', 'Director', 'Manager']);
     }
 
     private function denyInquiryMutation(Inquiry $inquiry)

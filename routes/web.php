@@ -182,6 +182,13 @@ Route::middleware('auth')->group(function () {
             'permission:module.inquiries.access',
             'module.permission:inquiries',
         ]);
+    Route::patch('inquiries/followups/{followUp}/reset-reminder', [SalesInquiryController::class, 'resetFollowUpReminder'])
+        ->name('inquiries.followups.reset-reminder')
+        ->middleware([
+            'module:inquiries',
+            'permission:module.inquiries.access',
+            'module.permission:inquiries',
+        ]);
     Route::post('inquiries/{inquiry}/communications', [SalesInquiryController::class, 'storeCommunication'])
         ->name('inquiries.communications.store')
         ->middleware([

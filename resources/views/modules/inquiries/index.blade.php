@@ -136,7 +136,7 @@
                                                 <a href="{{ route('inquiries.show', $inquiry) }}"
                                                     class="btn-secondary-sm" title="{{ __('ui.common.detail') }}" aria-label="{{ __('ui.common.detail') }}"><i class="fa-solid fa-eye"></i><span class="sr-only">{{ __('ui.common.detail') }}</span></a>
                                                 @can('update', $inquiry)
-                                                    @if (!($inquiry->quotation && ($inquiry->quotation->status ?? '') === 'approved') && !$inquiry->isFinal())
+                                                    @if (!in_array(($inquiry->quotation->status ?? ''), ['approved', \App\Models\Quotation::FINAL_STATUS], true) && !$inquiry->isFinal())
                                                         <a href="{{ route('inquiries.edit', $inquiry) }}"
                                                             class="btn-secondary-sm" title="{{ __('ui.common.edit') }}" aria-label="{{ __('ui.common.edit') }}"><i class="fa-solid fa-pen"></i><span class="sr-only">{{ __('ui.common.edit') }}</span></a>
                                                     @endif
@@ -213,7 +213,7 @@
                             <div class="mt-3 flex flex-wrap gap-2">
                                 <a href="{{ route('inquiries.show', $inquiry) }}" class="btn-outline-sm" title="{{ __('ui.common.detail') }}" aria-label="{{ __('ui.common.detail') }}"><i class="fa-solid fa-eye"></i><span class="sr-only">{{ __('ui.common.detail') }}</span></a>
                                 @can('update', $inquiry)
-                                    @if (!($inquiry->quotation && ($inquiry->quotation->status ?? '') === 'approved') && !$inquiry->isFinal())
+                                    @if (!in_array(($inquiry->quotation->status ?? ''), ['approved', \App\Models\Quotation::FINAL_STATUS], true) && !$inquiry->isFinal())
                                         <a href="{{ route('inquiries.edit', $inquiry) }}" class="btn-secondary-sm" title="{{ __('ui.common.edit') }}" aria-label="{{ __('ui.common.edit') }}"><i class="fa-solid fa-pen"></i><span class="sr-only">{{ __('ui.common.edit') }}</span></a>
                                     @endif
                                 @endcan
