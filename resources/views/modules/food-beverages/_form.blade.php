@@ -116,12 +116,9 @@
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Service Type</label>
             <select name="service_type" class="mt-1 dark:border-gray-600 app-input" required>
                 <option value="">Select service type</option>
-                @foreach ($serviceTypes as $type)
-                    @php
-                        $isLegacyOption = ! in_array($type, $standardServiceTypes, true);
-                    @endphp
-                    <option value="{{ $type }}" @selected($selectedServiceType === $type)>
-                        {{ ucwords(str_replace('_', ' ', $type)) }}{{ $isLegacyOption ? ' (Legacy)' : '' }}
+                @foreach ($serviceTypes as $serviceType)
+                    <option value="{{ $serviceType }}" @selected($selectedServiceType === $serviceType)>
+                        {{ ucwords(str_replace('_', ' ', $serviceType)) }}{{ ! in_array($serviceType, $standardServiceTypes, true) ? ' (Legacy)' : '' }}
                     </option>
                 @endforeach
             </select>
