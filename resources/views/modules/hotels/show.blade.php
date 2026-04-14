@@ -72,9 +72,9 @@
         ])->values();
     @endphp
 
-    <div class="space-y-6 module-page module-page--hotels">
+    <div class="module-page module-page--hotels">
         <div class="module-grid-9-3 hotel-detail-print-grid">
-            <div class="module-grid-main space-y-4">
+            <div class="module-grid-main">
                 <div class="app-card p-5">
                     <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ __('ui.common.gallery') }}</h3>
                     @if ($galleryItems->isNotEmpty())
@@ -296,17 +296,17 @@
                 </div>
             </div>
 
-            <aside class="module-grid-side space-y-4 hotel-detail-print-hide">
-                <div class="app-card p-5 space-y-3">
-                    <p class="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{{ __('ui.common.quick_actions') }}</p>
-                    <a href="{{ route('hotels.edit', $hotel) }}" class="btn-primary w-full justify-center">{{ __('ui.modules.hotels.edit_hotel') }}</a>
+            <aside class="module-grid-side hotel-detail-print-hide">
+                <div class="app-card p-5">
+                    <p class="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{{ __('ui.common.quick_actions') }}</p>
+                    <a href="{{ route('hotels.edit', $hotel) }}" class="mb-3 btn-primary w-full justify-center">{{ __('ui.modules.hotels.edit_hotel') }}</a>
                     <form action="{{ route('hotels.toggle-status', $hotel->id) }}" method="POST" class="w-full">
                         @csrf
                         @method('PATCH')
                         <button
                             type="submit"
                             onclick="return confirm('{{ $isActive ? __('ui.modules.hotels.confirm_deactivate') : __('ui.modules.hotels.confirm_activate') }}')"
-                            class="{{ $isActive ? 'btn-muted-sm' : 'btn-primary-sm' }} w-full justify-center"
+                            class="{{ $isActive ? 'btn-muted' : 'btn-primary' }} w-full justify-center"
                         >
                             {{ $isActive ? __('ui.common.deactivate') : __('ui.common.activate') }}
                         </button>
@@ -316,7 +316,7 @@
 
                 <div class="app-card p-5 text-sm text-slate-600 dark:text-slate-300">
                     <p class="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{{ __('ui.modules.hotels.contact_location') }}</p>
-                    <dl class="mt-3 space-y-2">
+                    <dl class="mt-3">
                         @if (filled($hotel->web))
                             <div class="grid grid-cols-[110px_1fr] gap-2">
                                 <dt class="text-xs text-slate-500 dark:text-slate-400">{{ __('ui.modules.hotels.website') }}</dt>
