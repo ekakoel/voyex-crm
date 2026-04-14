@@ -11,7 +11,6 @@
         <link rel="icon" type="{{ $companyFaviconMime ?? 'image/x-icon' }}" href="{{ $companyFaviconUrl }}">
         <link rel="shortcut icon" type="{{ $companyFaviconMime ?? 'image/x-icon' }}" href="{{ $companyFaviconUrl }}">
     @endif
-    <link rel="stylesheet" href="{{ asset('assets/css/auth.css') }}">
     <style>
         :root {
             --auth-primary: {{ $authPrimaryColor ?? '#2563eb' }};
@@ -22,6 +21,7 @@
             --auth-card-border: {{ $authCardBorderColor ?? '#d7d7d7' }};
         }
     </style>
+    @include('auth.partials.inline-auth-styles')
 </head>
 <body>
 <div class="auth-wrapper">
