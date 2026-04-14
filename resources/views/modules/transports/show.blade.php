@@ -2,47 +2,339 @@
 
 @section('page_title', __('ui.modules.transports.show_page_title'))
 @section('page_subtitle', __('ui.modules.transports.show_page_subtitle'))
+@section('page_actions')
+    <a href="{{ route('transports.edit', $transport) }}" class="btn-primary">{{ __('ui.common.edit') }}</a>
+    <a href="{{ route('transports.index') }}" class="btn-ghost">{{ __('ui.common.back') }}</a>
+    <button type="button" class="btn-outline transport-detail-print-hide" onclick="window.print()">{{ __('ui.common.print') }}</button>
+@endsection
 
 @section('content')
-    <div class="space-y-6 module-page module-page--transports">
-        @section('page_actions')
-            <a href="{{ route('transports.edit', $transport) }}" class="btn-primary">{{ __('ui.common.edit') }}</a>
-            <a href="{{ route('transports.index') }}" class="btn-ghost">{{ __('ui.common.back') }}</a>
-        @endsection
+    @php
+        $isActive = ! $transport->trashed() && (bool) ($transport->is_active ?? false);
+        $transportStatus = $isActive ? 'active' : 'inactive';
+        $images = is_array($transport->images) ? array_values($transport->images) : [];
 
-        <div class="module-grid-8-4">
-            <div class="module-grid-main app-card p-4">
-                <h2 class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ __('ui.modules.transports.transport_unit_detail') }}</h2>
-                <div class="mt-3 grid grid-cols-1 gap-3 text-sm md:grid-cols-2">
-                    <div><span class="text-gray-500 dark:text-gray-400">{{ __('ui.common.code') }}:</span> <span class="text-gray-800 dark:text-gray-100">{{ $transport->code ?: '-' }}</span></div>
-                    <div><span class="text-gray-500 dark:text-gray-400">{{ __('ui.common.name') }}:</span> <span class="text-gray-800 dark:text-gray-100">{{ $transport->name }}</span></div>
-                    <div><span class="text-gray-500 dark:text-gray-400">{{ __('ui.common.type') }}:</span> <span class="text-gray-800 dark:text-gray-100">{{ $transport->transport_type ? ucfirst(str_replace('_', ' ', (string) $transport->transport_type)) : '-' }}</span></div>
-                    <div><span class="text-gray-500 dark:text-gray-400">{{ __('ui.common.vendor') }}:</span> <span class="text-gray-800 dark:text-gray-100">{{ $transport->vendor?->name ?? '-' }}</span></div>
-                    <div><span class="text-gray-500 dark:text-gray-400">{{ __('ui.modules.transports.vehicle') }}:</span> <span class="text-gray-800 dark:text-gray-100">{{ $transport->brand_model ?: '-' }}</span></div>
-                    <div><span class="text-gray-500 dark:text-gray-400">{{ __('ui.common.capacity') }}:</span> <span class="text-gray-800 dark:text-gray-100">{{ __('ui.modules.transports.seats_luggage', ['seats' => (int) ($transport->seat_capacity ?? 0), 'luggage' => $transport->luggage_capacity ?? '-']) }}</span></div>
-                    <div><span class="text-gray-500 dark:text-gray-400">{{ __('ui.modules.transports.contract_rate') }}:</span> <span class="text-gray-800 dark:text-gray-100">@if($transport->contract_rate !== null)<x-money :amount="(float) $transport->contract_rate" currency="IDR" />@else - @endif</span></div>
-                    <div>
-                        <span class="text-gray-500 dark:text-gray-400">{{ __('ui.modules.tourist_attractions.markup') }}:</span>
-                        <span class="text-gray-800 dark:text-gray-100">
-                            @if (($transport->markup_type ?? 'fixed') === 'percent')
-                                {{ rtrim(rtrim(number_format((float) ($transport->markup ?? 0), 2, '.', ''), '0'), '.') }}%
-                            @else
-                                {{ \App\Support\Currency::format((float) ($transport->markup ?? 0), 'IDR') }}
-                            @endif
-                        </span>
+        $galleryItems = collect($images)
+            ->map(function ($path, $index) {
+                $thumbnailUrl = \App\Support\ImageThumbnailGenerator::resolvePublicUrl((string) $path);
+                $fullUrl = \App\Support\ImageThumbnailGenerator::resolveOriginalPublicUrl((string) $path) ?: $thumbnailUrl;
+                if (! filled($thumbnailUrl) && ! filled($fullUrl)) {
+                    return null;
+                }
+
+                return [
+                    'thumbnail_url' => $thumbnailUrl,
+                    'full_url' => $fullUrl,
+                    'label' => __('ui.modules.transports.vehicle') . ' #' . ($index + 1),
+                ];
+            })
+            ->filter()
+            ->values();
+
+        $firstGalleryImage = $galleryItems->first()['full_url'] ?? null;
+
+        $renderRichText = function (?string $value): string {
+            $content = trim((string) $value);
+            if ($content === '') {
+                return '-';
+            }
+
+            $content = strip_tags($content, '<p><br><ul><ol><li><strong><b><em><i><u><blockquote><h1><h2><h3><h4><h5><h6><a><span>');
+            $content = str_ireplace('javascript:', '', $content);
+
+            return $content;
+        };
+    @endphp
+
+    <div class="space-y-5 module-page module-page--transports">
+        <div class="module-grid-9-3 transport-detail-print-grid">
+            <div class="module-grid-main">
+                <div class="app-card p-5">
+                    <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ __('ui.common.gallery') }}</h3>
+                    @if ($galleryItems->isNotEmpty())
+                        <div class="mt-3 space-y-3">
+                            <button
+                                type="button"
+                                class="block w-full overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700"
+                                data-transport-gallery-open="1"
+                            >
+                                <img id="transport-gallery-main-image" src="{{ $firstGalleryImage }}" alt="{{ __('ui.modules.transports.transport_unit_detail') }}" class="h-72 w-full object-cover object-center md:h-[28rem]">
+                            </button>
+                            <div class="grid grid-cols-3 gap-2 md:grid-cols-6">
+                                @foreach ($galleryItems as $index => $item)
+                                    <button
+                                        type="button"
+                                        class="relative overflow-hidden rounded-md border border-gray-200 dark:border-gray-700"
+                                        data-transport-gallery-thumb="{{ $index }}"
+                                        data-transport-gallery-src="{{ $item['full_url'] }}"
+                                        title="{{ $item['label'] }}"
+                                    >
+                                        <img src="{{ $item['thumbnail_url'] ?: $item['full_url'] }}" alt="{{ $item['label'] }}" class="h-16 w-full object-cover">
+                                        <span class="pointer-events-none absolute bottom-1 left-1 right-1 truncate rounded bg-black/70 px-1.5 py-0.5 text-[10px] font-medium text-white">
+                                            {{ $item['label'] }}
+                                        </span>
+                                    </button>
+                                @endforeach
+                            </div>
+                        </div>
+                    @else
+                        <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">{{ __('ui.modules.hotels.no_gallery') }}</p>
+                    @endif
+                </div>
+
+                <div class="app-card p-5">
+                    <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ __('ui.modules.transports.transport_unit_detail') }}</h3>
+                    <div class="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2">
+                        <div>
+                            <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ __('ui.common.code') }}</p>
+                            <p class="mt-1 text-sm text-gray-800 dark:text-gray-100">{{ $transport->code ?: '-' }}</p>
+                        </div>
+                        <div>
+                            <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ __('ui.common.name') }}</p>
+                            <p class="mt-1 text-sm text-gray-800 dark:text-gray-100">{{ $transport->name ?: '-' }}</p>
+                        </div>
+                        <div>
+                            <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ __('ui.common.type') }}</p>
+                            <p class="mt-1 text-sm text-gray-800 dark:text-gray-100">{{ $transport->transport_type ? ucfirst(str_replace('_', ' ', (string) $transport->transport_type)) : '-' }}</p>
+                        </div>
+                        <div>
+                            <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ __('ui.common.vendor') }}</p>
+                            <p class="mt-1 text-sm text-gray-800 dark:text-gray-100">{{ $transport->vendor?->name ?: '-' }}</p>
+                        </div>
+                        <div>
+                            <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ __('ui.modules.transports.vehicle') }}</p>
+                            <p class="mt-1 text-sm text-gray-800 dark:text-gray-100">{{ $transport->brand_model ?: '-' }}</p>
+                        </div>
+                        <div>
+                            <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ __('ui.common.capacity') }}</p>
+                            <p class="mt-1 text-sm text-gray-800 dark:text-gray-100">{{ __('ui.modules.transports.seats_luggage', ['seats' => (int) ($transport->seat_capacity ?? 0), 'luggage' => $transport->luggage_capacity ?? '-']) }}</p>
+                        </div>
+                        <div>
+                            <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ __('ui.modules.transports.transmission') }}</p>
+                            <p class="mt-1 text-sm text-gray-800 dark:text-gray-100">{{ $transport->transmission ? ucfirst((string) $transport->transmission) : '-' }}</p>
+                        </div>
+                        <div>
+                            <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Fuel Type</p>
+                            <p class="mt-1 text-sm text-gray-800 dark:text-gray-100">{{ $transport->fuel_type ? ucfirst(str_replace('_', ' ', (string) $transport->fuel_type)) : '-' }}</p>
+                        </div>
+                        <div>
+                            <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ __('ui.modules.transports.ac_driver') }}</p>
+                            <p class="mt-1 text-sm text-gray-800 dark:text-gray-100">
+                                {{ $transport->air_conditioned ? 'AC' : __('ui.modules.transports.non_ac') }} | {{ $transport->with_driver ? __('ui.modules.transports.with_driver') : __('ui.modules.transports.without_driver') }}
+                            </p>
+                        </div>
+                        <div>
+                            <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ __('ui.common.status') }}</p>
+                            <div class="mt-1"><x-status-badge :status="$transportStatus" size="xs" /></div>
+                        </div>
                     </div>
-                    <div><span class="text-gray-500 dark:text-gray-400">{{ __('ui.modules.tourist_attractions.publish') }} {{ __('ui.common.rate') }}:</span> <span class="text-gray-800 dark:text-gray-100">{{ $transport->publish_rate !== null ? \App\Support\Currency::format((float) $transport->publish_rate, 'IDR') : '-' }}</span></div>
-                    <div><span class="text-gray-500 dark:text-gray-400">{{ __('ui.modules.transports.overtime_rate') }}:</span> <span class="text-gray-800 dark:text-gray-100">{{ $transport->overtime_rate !== null ? \App\Support\Currency::format((float) $transport->overtime_rate, 'IDR') : '-' }}</span></div>
-                    <div><span class="text-gray-500 dark:text-gray-400">{{ __('ui.modules.transports.transmission') }}:</span> <span class="text-gray-800 dark:text-gray-100">{{ $transport->transmission ? ucfirst((string) $transport->transmission) : '-' }}</span></div>
-                    <div><span class="text-gray-500 dark:text-gray-400">{{ __('ui.modules.transports.ac_driver') }}:</span> <span class="text-gray-800 dark:text-gray-100">{{ $transport->air_conditioned ? 'AC' : __('ui.modules.transports.non_ac') }} | {{ $transport->with_driver ? __('ui.modules.transports.with_driver') : __('ui.modules.transports.without_driver') }}</span></div>
-                    <div><span class="text-gray-500 dark:text-gray-400">{{ __('ui.common.status') }}:</span> <span class="{{ $transport->is_active ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400' }}">{{ $transport->is_active ? __('ui.common.active') : __('ui.common.inactive') }}</span></div>
-                    <div><span class="text-gray-500 dark:text-gray-400">{{ __('ui.common.notes') }}:</span> <span class="text-gray-800 dark:text-gray-100">{{ $transport->notes ?: '-' }}</span></div>
+                </div>
+
+                <div class="app-card p-5">
+                    <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ __('ui.common.rates') }}</h3>
+                    <div class="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2">
+                        <div>
+                            <p class="text-xs text-gray-500 dark:text-gray-400">{{ __('ui.modules.transports.contract_rate') }}</p>
+                            <p class="text-sm font-medium text-gray-800 dark:text-gray-100">
+                                @if ($transport->contract_rate !== null)
+                                    <x-money :amount="(float) $transport->contract_rate" currency="IDR" />
+                                @else
+                                    -
+                                @endif
+                            </p>
+                        </div>
+                        <div>
+                            <p class="text-xs text-gray-500 dark:text-gray-400">{{ __('ui.modules.tourist_attractions.markup') }}</p>
+                            <p class="text-sm font-medium text-gray-800 dark:text-gray-100">
+                                @if (($transport->markup_type ?? 'fixed') === 'percent')
+                                    {{ rtrim(rtrim(number_format((float) ($transport->markup ?? 0), 2, '.', ''), '0'), '.') }}%
+                                @else
+                                    <x-money :amount="(float) ($transport->markup ?? 0)" currency="IDR" />
+                                @endif
+                            </p>
+                        </div>
+                        <div>
+                            <p class="text-xs text-gray-500 dark:text-gray-400">{{ __('ui.modules.tourist_attractions.publish') }} {{ __('ui.common.rate') }}</p>
+                            <p class="text-sm font-medium text-gray-800 dark:text-gray-100">
+                                @if ($transport->publish_rate !== null)
+                                    <x-money :amount="(float) $transport->publish_rate" currency="IDR" />
+                                @else
+                                    -
+                                @endif
+                            </p>
+                        </div>
+                        <div>
+                            <p class="text-xs text-gray-500 dark:text-gray-400">{{ __('ui.modules.transports.overtime_rate') }}</p>
+                            <p class="text-sm font-medium text-gray-800 dark:text-gray-100">
+                                @if ($transport->overtime_rate !== null)
+                                    <x-money :amount="(float) $transport->overtime_rate" currency="IDR" />
+                                @else
+                                    -
+                                @endif
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="app-card p-5">
+                    <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ __('ui.modules.activities.description_policy') }}</h3>
+                    <div class="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2">
+                        <div>
+                            <p class="text-xs text-gray-500 dark:text-gray-400">{{ __('ui.common.description') }}</p>
+                            <div class="mt-1 text-sm text-gray-700 dark:text-gray-200 rich-text">{!! $renderRichText($transport->description) !!}</div>
+                        </div>
+                        <div>
+                            <p class="text-xs text-gray-500 dark:text-gray-400">{{ __('ui.common.includes') }}</p>
+                            <div class="mt-1 text-sm text-gray-700 dark:text-gray-200 rich-text">{!! $renderRichText($transport->inclusions) !!}</div>
+                        </div>
+                        <div>
+                            <p class="text-xs text-gray-500 dark:text-gray-400">{{ __('ui.common.excludes') }}</p>
+                            <div class="mt-1 text-sm text-gray-700 dark:text-gray-200 rich-text">{!! $renderRichText($transport->exclusions) !!}</div>
+                        </div>
+                        <div>
+                            <p class="text-xs text-gray-500 dark:text-gray-400">{{ __('ui.common.cancellation_policy') }}</p>
+                            <div class="mt-1 text-sm text-gray-700 dark:text-gray-200 rich-text">{!! $renderRichText($transport->cancellation_policy) !!}</div>
+                        </div>
+                        <div class="md:col-span-2">
+                            <p class="text-xs text-gray-500 dark:text-gray-400">{{ __('ui.common.notes') }}</p>
+                            <div class="mt-1 text-sm text-gray-700 dark:text-gray-200 rich-text">{!! $renderRichText($transport->notes) !!}</div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <aside class="module-grid-side space-y-6">
+            <aside class="module-grid-side transport-detail-print-hide">
+                <div class="app-card p-5">
+                    <p class="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{{ __('ui.common.quick_actions') }}</p>
+                    <a href="{{ route('transports.edit', $transport) }}" class="btn-primary w-full justify-center">{{ __('ui.common.edit') }}</a>
+                    <form action="{{ route('transports.toggle-status', $transport->id) }}" method="POST" class="w-full">
+                        @csrf
+                        @method('PATCH')
+                        <button
+                            type="submit"
+                            onclick="return confirm('{{ $isActive ? __('ui.modules.transports.confirm_deactivate') : __('ui.modules.transports.confirm_activate') }}')"
+                            class="{{ $isActive ? 'btn-muted-sm' : 'btn-primary-sm' }} w-full justify-center"
+                        >
+                            {{ $isActive ? __('ui.common.deactivate') : __('ui.common.activate') }}
+                        </button>
+                    </form>
+                    <button type="button" class="btn-outline w-full justify-center" onclick="window.print()">{{ __('ui.common.print_detail') }}</button>
+                </div>
+
+                @include('modules.activities.partials._vendor-info', ['vendor' => $transport->vendor])
                 @include('partials._audit-info', ['record' => $transport])
             </aside>
         </div>
     </div>
+
+    @if ($galleryItems->isNotEmpty())
+        <div id="transport-gallery-lightbox" class="fixed inset-0 z-[100] hidden bg-black/85 p-4">
+            <div class="mx-auto flex h-full w-full max-w-6xl items-center justify-center">
+                <button type="button" class="absolute right-5 top-5 rounded-md border border-white/30 px-3 py-1 text-xs font-semibold text-white" data-transport-gallery-close="1">{{ __('ui.common.close') }}</button>
+                <button type="button" class="absolute left-4 rounded-md border border-white/30 px-3 py-2 text-xs font-semibold text-white" data-transport-gallery-prev="1">{{ __('ui.modules.hotels.prev') }}</button>
+                <img id="transport-gallery-lightbox-image" src="{{ $firstGalleryImage }}" alt="{{ __('ui.modules.transports.transport_unit_detail') }}" class="max-h-[90vh] max-w-full rounded-lg object-contain">
+                <button type="button" class="absolute right-4 rounded-md border border-white/30 px-3 py-2 text-xs font-semibold text-white" data-transport-gallery-next="1">{{ __('ui.modules.hotels.next') }}</button>
+            </div>
+        </div>
+    @endif
 @endsection
+
+@push('styles')
+    <style>
+        @media print {
+            .transport-detail-print-hide,
+            .app-sidebar,
+            .app-topbar,
+            .app-page-header__actions,
+            .page-spinner {
+                display: none !important;
+            }
+
+            .transport-detail-print-grid {
+                grid-template-columns: minmax(0, 1fr) !important;
+            }
+
+            .app-card {
+                box-shadow: none !important;
+                border-color: #d1d5db !important;
+            }
+        }
+    </style>
+@endpush
+
+@if ($galleryItems->isNotEmpty())
+    @push('scripts')
+        <script>
+            (function () {
+                const mainImage = document.getElementById('transport-gallery-main-image');
+                const lightbox = document.getElementById('transport-gallery-lightbox');
+                const lightboxImage = document.getElementById('transport-gallery-lightbox-image');
+                if (!mainImage || !lightbox || !lightboxImage) return;
+
+                const thumbs = Array.from(document.querySelectorAll('[data-transport-gallery-thumb]'));
+                const sources = thumbs.map((btn) => btn.getAttribute('data-transport-gallery-src')).filter(Boolean);
+                if (!sources.length) return;
+
+                let currentIndex = 0;
+
+                const setImage = (index) => {
+                    if (!sources.length) return;
+                    currentIndex = (index + sources.length) % sources.length;
+                    const src = sources[currentIndex];
+                    mainImage.src = src;
+                    lightboxImage.src = src;
+                };
+
+                thumbs.forEach((btn) => {
+                    btn.addEventListener('click', () => {
+                        const idx = Number(btn.getAttribute('data-transport-gallery-thumb') || '0');
+                        setImage(Number.isFinite(idx) ? idx : 0);
+                    });
+                });
+
+                document.querySelector('[data-transport-gallery-open="1"]')?.addEventListener('click', () => {
+                    lightbox.classList.remove('hidden');
+                });
+
+                lightbox.querySelector('[data-transport-gallery-close="1"]')?.addEventListener('click', () => {
+                    lightbox.classList.add('hidden');
+                });
+
+                lightbox.querySelector('[data-transport-gallery-prev="1"]')?.addEventListener('click', () => {
+                    setImage(currentIndex - 1);
+                });
+
+                lightbox.querySelector('[data-transport-gallery-next="1"]')?.addEventListener('click', () => {
+                    setImage(currentIndex + 1);
+                });
+
+                lightbox.addEventListener('click', (event) => {
+                    if (event.target === lightbox) {
+                        lightbox.classList.add('hidden');
+                    }
+                });
+
+                document.addEventListener('keydown', (event) => {
+                    if (lightbox.classList.contains('hidden')) return;
+
+                    if (event.key === 'Escape') {
+                        event.preventDefault();
+                        lightbox.classList.add('hidden');
+                        return;
+                    }
+
+                    if (event.key === 'ArrowLeft') {
+                        event.preventDefault();
+                        setImage(currentIndex - 1);
+                        return;
+                    }
+
+                    if (event.key === 'ArrowRight') {
+                        event.preventDefault();
+                        setImage(currentIndex + 1);
+                    }
+                });
+            })();
+        </script>
+    @endpush
+@endif

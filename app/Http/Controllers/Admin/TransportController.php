@@ -63,7 +63,7 @@ class TransportController extends Controller
 
     public function show(Transport $transport)
     {
-        $transport->load('vendor:id,name');
+        $transport->load('vendor:id,name,contact_name,contact_phone,contact_email,website,location,address,city,province,country,timezone');
 
         return view('modules.transports.show', compact('transport'));
     }

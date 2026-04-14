@@ -44,7 +44,7 @@
                                 class="block w-full overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700"
                                 data-gallery-open="1"
                             >
-                                <img id="activity-gallery-main-image" src="{{ $firstGalleryImage }}" alt="{{ __('ui.modules.activities.activity_image_alt') }}" class="h-72 w-full bg-gray-100 object-contain dark:bg-gray-900 md:h-[28rem]">
+                                <img id="activity-gallery-main-image" src="{{ $firstGalleryImage }}" alt="{{ __('ui.modules.activities.activity_image_alt') }}" class="h-72 w-full object-cover object-center md:h-[28rem]">
                             </button>
                             <div class="grid grid-cols-3 gap-2 md:grid-cols-6">
                                 @foreach ($galleryItems as $item)

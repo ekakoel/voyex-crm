@@ -14,8 +14,11 @@
         $isActive = ! $hotel->trashed() && (string) $hotel->status === 'active';
         $hotelStatus = $isActive ? 'active' : 'inactive';
 
-        $resolveImageUrl = function (?string $path, array $directories = []): ?string {
+        $resolveThumbnailImageUrl = function (?string $path, array $directories = []): ?string {
             return \App\Support\ImageThumbnailGenerator::resolvePublicUrl($path, $directories);
+        };
+        $resolveOriginalImageUrl = function (?string $path, array $directories = []): ?string {
+            return \App\Support\ImageThumbnailGenerator::resolveOriginalPublicUrl($path, $directories);
         };
 
         $renderRichText = function (?string $value): string {
@@ -33,8 +36,11 @@
 
         $galleryItems = collect([]);
         if (filled($hotel->cover)) {
+            $coverThumbUrl = $resolveThumbnailImageUrl($hotel->cover, ['hotels/cover', 'hotels/covers']);
+            $coverFullUrl = $resolveOriginalImageUrl($hotel->cover, ['hotels/cover', 'hotels/covers']) ?: $coverThumbUrl;
             $galleryItems->push([
-                'url' => $resolveImageUrl($hotel->cover, ['hotels/cover', 'hotels/covers']),
+                'thumbnail_url' => $coverThumbUrl,
+                'full_url' => $coverFullUrl,
                 'label' => __('ui.modules.hotels.hotel_cover'),
             ]);
         }
@@ -44,18 +50,21 @@
                 continue;
             }
 
+            $roomThumbUrl = $resolveThumbnailImageUrl($room->cover, ['hotels/rooms']);
+            $roomFullUrl = $resolveOriginalImageUrl($room->cover, ['hotels/rooms']) ?: $roomThumbUrl;
             $galleryItems->push([
-                'url' => $resolveImageUrl($room->cover, ['hotels/rooms']),
+                'thumbnail_url' => $roomThumbUrl,
+                'full_url' => $roomFullUrl,
                 'label' => (string) (__('ui.modules.hotels.room') . ': ' . ($room->rooms ?: __('ui.modules.hotels.cover'))),
             ]);
         }
 
         $galleryItems = $galleryItems
-            ->filter(fn ($item) => filled($item['url'] ?? null))
-            ->unique('url')
+            ->filter(fn ($item) => filled($item['thumbnail_url'] ?? null) || filled($item['full_url'] ?? null))
+            ->unique('full_url')
             ->values();
 
-        $firstGalleryImage = $galleryItems->first()['url'] ?? null;
+        $firstGalleryImage = $galleryItems->first()['full_url'] ?? null;
 
         $priceRows = collect($hotel->prices ?? [])->sortBy([
             ['end_date', 'desc'],
@@ -75,7 +84,7 @@
                                 class="block w-full overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700"
                                 data-hotel-gallery-open="1"
                             >
-                                <img id="hotel-gallery-main-image" src="{{ $firstGalleryImage }}" alt="{{ __('ui.modules.hotels.hotel_image_alt') }}" class="h-64 w-full object-cover md:h-80">
+                                <img id="hotel-gallery-main-image" src="{{ $firstGalleryImage }}" alt="{{ __('ui.modules.hotels.hotel_image_alt') }}" class="h-72 w-full object-cover object-center md:h-[28rem]">
                             </button>
                             <div class="grid grid-cols-3 gap-2 md:grid-cols-6">
                                 @foreach ($galleryItems as $index => $item)
@@ -83,10 +92,10 @@
                                         type="button"
                                         class="relative overflow-hidden rounded-md border border-gray-200 dark:border-gray-700"
                                         data-hotel-gallery-thumb="{{ $index }}"
-                                        data-hotel-gallery-src="{{ $item['url'] }}"
+                                        data-hotel-gallery-src="{{ $item['full_url'] }}"
                                         title="{{ $item['label'] }}"
                                     >
-                                        <img src="{{ $item['url'] }}" alt="{{ $item['label'] }}" class="h-16 w-full object-cover">
+                                        <img src="{{ $item['thumbnail_url'] ?: $item['full_url'] }}" alt="{{ $item['label'] }}" class="h-16 w-full object-cover">
                                         <span class="pointer-events-none absolute bottom-1 left-1 right-1 truncate rounded bg-black/70 px-1.5 py-0.5 text-[10px] font-medium text-white">
                                             {{ $item['label'] }}
                                         </span>

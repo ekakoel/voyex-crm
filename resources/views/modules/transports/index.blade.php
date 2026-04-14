@@ -39,7 +39,7 @@
                     </form>
                 </div>
             </aside>
-            <div class="module-grid-main space-y-4" data-service-filter-results>
+            <div class="module-grid-main" data-service-filter-results>
         @if (session('success'))
             <div class="rounded-lg mb-6 border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300">{{ session('success') }}</div>
         @endif
