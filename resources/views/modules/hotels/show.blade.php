@@ -5,7 +5,6 @@
 @section('page_actions')
     <a href="{{ route('hotels.index') }}" class="btn-ghost">{{ __('ui.common.back') }}</a>
     <a href="{{ route('hotels.edit', $hotel) }}" class="btn-primary">{{ __('ui.common.edit') }}</a>
-    <button type="button" class="btn-outline hotel-detail-print-hide" onclick="window.print()">{{ __('ui.common.print') }}</button>
 @endsection
 
 @section('content')
@@ -311,7 +310,6 @@
                             {{ $isActive ? __('ui.common.deactivate') : __('ui.common.activate') }}
                         </button>
                     </form>
-                    {{-- <button type="button" class="btn-outline w-full justify-center" onclick="window.print()">Print Detail</button> --}}
                 </div>
 
                 <div class="app-card p-5 text-sm text-slate-600 dark:text-slate-300">
@@ -470,4 +468,3 @@
         </script>
     @endpush
 @endif
-

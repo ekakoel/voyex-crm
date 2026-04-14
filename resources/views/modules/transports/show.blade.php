@@ -5,7 +5,6 @@
 @section('page_actions')
     <a href="{{ route('transports.edit', $transport) }}" class="btn-primary">{{ __('ui.common.edit') }}</a>
     <a href="{{ route('transports.index') }}" class="btn-ghost">{{ __('ui.common.back') }}</a>
-    <button type="button" class="btn-outline transport-detail-print-hide" onclick="window.print()">{{ __('ui.common.print') }}</button>
 @endsection
 
 @section('content')
@@ -218,7 +217,6 @@
                             {{ $isActive ? __('ui.common.deactivate') : __('ui.common.activate') }}
                         </button>
                     </form>
-                    <button type="button" class="btn-outline w-full justify-center" onclick="window.print()">{{ __('ui.common.print_detail') }}</button>
                 </div>
 
                 @include('modules.activities.partials._vendor-info', ['vendor' => $transport->vendor])
