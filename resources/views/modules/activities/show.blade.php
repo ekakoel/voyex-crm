@@ -32,9 +32,9 @@
     @endphp
     @php($isActive = ! $activity->trashed())
     @php($firstGalleryImage = $galleryItems->first()['full_url'] ?? null)
-    <div class="space-y-6 module-page module-page--activities">
+    <div class="module-page module-page--activities">
         <div class="module-grid-8-4 activity-detail-print-grid">
-            <div class="module-grid-main space-y-4">
+            <div class="module-grid-main">
                 <div class="app-card p-5">
                     <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ __('ui.common.gallery') }}</h3>
                     @if ($galleryItems->isNotEmpty())
@@ -167,17 +167,17 @@
 
             </div>
 
-            <aside class="module-grid-side space-y-4 activity-detail-print-hide">
-                <div class="app-card p-5 space-y-3">
-                    <p class="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{{ __('ui.common.quick_actions') }}</p>
-                    <a href="{{ route('activities.edit', $activity) }}" class="btn-primary w-full justify-center">{{ __('ui.modules.activities.edit_activity') }}</a>
+            <aside class="module-grid-side activity-detail-print-hide">
+                <div class="app-card p-5">
+                    <p class="text-xs mb-3 font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{{ __('ui.common.quick_actions') }}</p>
+                    <a href="{{ route('activities.edit', $activity) }}" class="btn-primary mb-3 w-full justify-center">{{ __('ui.modules.activities.edit_activity') }}</a>
                     <form action="{{ route('activities.toggle-status', $activity->id) }}" method="POST" class="w-full">
                         @csrf
                         @method('PATCH')
                         <button
                             type="submit"
                             onclick="return confirm('{{ $isActive ? __('ui.modules.activities.confirm_deactivate') : __('ui.modules.activities.confirm_activate') }}')"
-                            class="{{ $isActive ? 'btn-muted-sm' : 'btn-primary-sm' }} w-full justify-center"
+                            class="{{ $isActive ? 'btn-muted' : 'btn-primary' }} mb-3 w-full justify-center"
                         >
                             {{ $isActive ? __('ui.common.deactivate') : __('ui.common.activate') }}
                         </button>
