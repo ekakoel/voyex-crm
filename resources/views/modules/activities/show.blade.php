@@ -13,14 +13,17 @@
         $gallery = is_array($activity->gallery_images) ? array_values($activity->gallery_images) : [];
         $galleryItems = collect($gallery)
             ->map(function ($path, $index) {
-                $url = \App\Support\ImageThumbnailGenerator::resolvePublicUrl((string) $path);
-                if (! filled($url)) {
+                $thumbnailUrl = \App\Support\ImageThumbnailGenerator::resolvePublicUrl((string) $path);
+                $originalUrl = \App\Support\ImageThumbnailGenerator::resolveOriginalPublicUrl((string) $path);
+                $fullUrl = filled($originalUrl) ? $originalUrl : $thumbnailUrl;
+                if (! filled($thumbnailUrl) && ! filled($fullUrl)) {
                     return null;
                 }
 
                 return [
                     'path' => (string) $path,
-                    'url' => $url,
+                    'thumbnail_url' => $thumbnailUrl,
+                    'full_url' => $fullUrl,
                     'index' => $index,
                 ];
             })
@@ -28,7 +31,7 @@
             ->values();
     @endphp
     @php($isActive = ! $activity->trashed())
-    @php($firstGalleryImage = $galleryItems->first()['url'] ?? null)
+    @php($firstGalleryImage = $galleryItems->first()['full_url'] ?? null)
     <div class="space-y-6 module-page module-page--activities">
         <div class="module-grid-8-4 activity-detail-print-grid">
             <div class="module-grid-main space-y-4">
@@ -41,7 +44,7 @@
                                 class="block w-full overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700"
                                 data-gallery-open="1"
                             >
-                                <img id="activity-gallery-main-image" src="{{ $firstGalleryImage }}" alt="{{ __('ui.modules.activities.activity_image_alt') }}" class="h-64 w-full object-cover md:h-80">
+                                <img id="activity-gallery-main-image" src="{{ $firstGalleryImage }}" alt="{{ __('ui.modules.activities.activity_image_alt') }}" class="h-72 w-full bg-gray-100 object-contain dark:bg-gray-900 md:h-[28rem]">
                             </button>
                             <div class="grid grid-cols-3 gap-2 md:grid-cols-6">
                                 @foreach ($galleryItems as $item)
@@ -49,9 +52,9 @@
                                         type="button"
                                         class="overflow-hidden rounded-md border border-gray-200 dark:border-gray-700"
                                         data-gallery-thumb="{{ $loop->index }}"
-                                        data-gallery-src="{{ $item['url'] }}"
+                                        data-gallery-src="{{ $item['full_url'] }}"
                                     >
-                                        <img src="{{ $item['url'] }}" alt="{{ __('ui.modules.activities.activity_thumbnail_alt', ['number' => $loop->iteration]) }}" class="h-16 w-full object-cover">
+                                        <img src="{{ $item['thumbnail_url'] ?: $item['full_url'] }}" alt="{{ __('ui.modules.activities.activity_thumbnail_alt', ['number' => $loop->iteration]) }}" class="h-16 w-full object-cover">
                                     </button>
                                 @endforeach
                             </div>
