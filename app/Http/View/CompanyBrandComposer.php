@@ -58,9 +58,9 @@ class CompanyBrandComposer
 
                 $settings = CompanySetting::query()->first($columns);
                 if ($settings) {
-                    $companyName = $this->decodeHtmlEntitiesDeep((string) ($settings->company_name ?: $companyName));
-                    $companyTagline = $this->decodeHtmlEntitiesDeep((string) ($settings->tagline ?? '')) ?: $companyTagline;
-                    $companyFooterNote = $this->decodeHtmlEntitiesDeep((string) ($settings->footer_note ?? ''));
+                    $companyName = $this->cleanHtmlEntities((string) ($settings->company_name ?: $companyName));
+                    $companyTagline = $this->cleanHtmlEntities((string) ($settings->tagline ?? '')) ?: $companyTagline;
+                    $companyFooterNote = $this->cleanHtmlEntities((string) ($settings->footer_note ?? ''));
 
                     $version = !empty($settings->updated_at) ? $settings->updated_at->timestamp : null;
                     $logoPath = (string) ($settings->logo_path ?? '');
@@ -106,18 +106,25 @@ class CompanyBrandComposer
         $view->with('authCardBorderColor', $authCardBorderColor);
     }
 
-    private function decodeHtmlEntitiesDeep(string $value): string
+    private function cleanHtmlEntities(string $value): string
     {
-        $decoded = trim($value);
-        for ($i = 0; $i < 3; $i++) {
-            $next = html_entity_decode($decoded, ENT_QUOTES | ENT_HTML5, 'UTF-8');
-            if ($next === $decoded) {
+        $value = trim($value);
+        
+        // First, decode HTML entities once
+        $cleaned = html_entity_decode($value, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        
+        // Remove excessive ampersand encoding (common issue with &amp;amp;...)
+        // Keep doing this while we find excessive encoding
+        while (strpos($cleaned, '&amp;amp;') !== false || strpos($cleaned, '&#38;') !== false) {
+            $prev = $cleaned;
+            $cleaned = html_entity_decode($cleaned, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            // If nothing changed, break to avoid infinite loop
+            if ($cleaned === $prev) {
                 break;
             }
-            $decoded = $next;
         }
-
-        return trim($decoded);
+        
+        return trim($cleaned);
     }
 
     private function safeHexColor(string $value, string $fallback): string

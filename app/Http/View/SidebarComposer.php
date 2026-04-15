@@ -24,7 +24,13 @@ class SidebarComposer
         $menuItems = $this->getMenuItems();
         $user = Auth::user();
         $view->with('menuItems', $this->filterMenuItems($menuItems, $user));
-        $view->with('companySettings', CompanySetting::query()->first());
+        
+        $companySettings = CompanySetting::query()->first();
+        if ($companySettings && $companySettings->company_name) {
+            $companySettings->company_name = $this->cleanHtmlEntities($companySettings->company_name);
+        }
+        $view->with('companySettings', $companySettings);
+        
         $view->with('currentCurrency', \App\Support\Currency::current());
         $currencyOptions = collect();
         if (Schema::hasTable('currencies')) {
@@ -447,6 +453,27 @@ class SidebarComposer
             'role' => $role,
             'count' => max(0, (int) $count),
         ];
+    }
+
+    private function cleanHtmlEntities(string $value): string
+    {
+        $value = trim($value);
+        
+        // First, decode HTML entities once
+        $cleaned = html_entity_decode($value, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        
+        // Remove excessive ampersand encoding (common issue with &amp;amp;...)
+        // Keep doing this while we find excessive encoding
+        while (strpos($cleaned, '&amp;amp;') !== false || strpos($cleaned, '&#38;') !== false) {
+            $prev = $cleaned;
+            $cleaned = html_entity_decode($cleaned, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            // If nothing changed, break to avoid infinite loop
+            if ($cleaned === $prev) {
+                break;
+            }
+        }
+        
+        return trim($cleaned);
     }
 
 }

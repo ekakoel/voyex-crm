@@ -51,10 +51,10 @@
                 <div class="app-card p-5">
                     <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ __('ui.common.gallery') }}</h3>
                     @if ($galleryItems->isNotEmpty())
-                        <div class="mt-3 space-y-3">
+                        <div class="mt-3">
                             <button
                                 type="button"
-                                class="block w-full overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700"
+                                class="mb-3 block w-full overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700"
                                 data-transport-gallery-open="1"
                             >
                                 <img id="transport-gallery-main-image" src="{{ $firstGalleryImage }}" alt="{{ __('ui.modules.transports.transport_unit_detail') }}" class="h-72 w-full object-cover object-center md:h-[28rem]">
@@ -204,15 +204,15 @@
 
             <aside class="module-grid-side transport-detail-print-hide">
                 <div class="app-card p-5">
-                    <p class="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{{ __('ui.common.quick_actions') }}</p>
-                    <a href="{{ route('transports.edit', $transport) }}" class="btn-primary w-full justify-center">{{ __('ui.common.edit') }}</a>
+                    <p class="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{{ __('ui.common.quick_actions') }}</p>
+                    <a href="{{ route('transports.edit', $transport) }}" class="mb-3 btn-primary w-full justify-center">{{ __('ui.common.edit') }}</a>
                     <form action="{{ route('transports.toggle-status', $transport->id) }}" method="POST" class="w-full">
                         @csrf
                         @method('PATCH')
                         <button
                             type="submit"
                             onclick="return confirm('{{ $isActive ? __('ui.modules.transports.confirm_deactivate') : __('ui.modules.transports.confirm_activate') }}')"
-                            class="{{ $isActive ? 'btn-muted-sm' : 'btn-primary-sm' }} w-full justify-center"
+                            class="{{ $isActive ? 'btn-muted' : 'btn-primary' }} mb-3  w-full justify-center"
                         >
                             {{ $isActive ? __('ui.common.deactivate') : __('ui.common.activate') }}
                         </button>
