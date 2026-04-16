@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Models\User;
 
 class QuotationItem extends Model
 {
@@ -21,6 +22,14 @@ class QuotationItem extends Model
         'day_number',
         'serviceable_meta',
         'itinerary_item_type',
+        'is_validation_required',
+        'is_validated',
+        'validated_at',
+        'validated_by',
+        'validation_notes',
+        'last_validated_contract_rate',
+        'last_validated_markup_type',
+        'last_validated_markup',
         'total',
     ];
 
@@ -34,6 +43,12 @@ class QuotationItem extends Model
         'total' => 'decimal:2',
         'day_number' => 'integer',
         'serviceable_meta' => 'array',
+        'is_validation_required' => 'boolean',
+        'is_validated' => 'boolean',
+        'validated_at' => 'datetime',
+        'last_validated_contract_rate' => 'decimal:2',
+        'last_validated_markup_type' => 'string',
+        'last_validated_markup' => 'decimal:2',
     ];
 
     public function quotation()
@@ -45,7 +60,10 @@ class QuotationItem extends Model
     {
         return $this->morphTo();
     }
+
+    public function validator()
+    {
+        return $this->belongsTo(User::class, 'validated_by');
+    }
 }
-
-
 

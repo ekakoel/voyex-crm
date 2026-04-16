@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\Transport;
+use App\Models\Vendor;
 use Illuminate\Database\Seeder;
 
 class TransportSeeder extends Seeder
@@ -414,17 +415,49 @@ class TransportSeeder extends Seeder
             ],
         ];
 
+        $fallbackVendor = Vendor::query()->firstOrCreate(
+            ['name' => 'General Transport Vendor'],
+            ['is_active' => true]
+        );
+
         foreach ($transports as $data) {
-            $units = $data['units'];
-            unset($data['units']);
+            $units = (array) ($data['units'] ?? []);
+            $providerName = trim((string) ($data['provider_name'] ?? ''));
 
-            $transport = Transport::query()->updateOrCreate(
-                ['code' => $data['code']],
-                $data
-            );
+            $vendor = $providerName !== ''
+                ? Vendor::query()->firstOrCreate(['name' => $providerName], ['is_active' => true])
+                : $fallbackVendor;
 
-            $transport->units()->delete();
-            $transport->units()->createMany($units);
+            foreach ($units as $index => $unit) {
+                $code = count($units) > 1
+                    ? sprintf('%s-U%02d', (string) $data['code'], ((int) $index + 1))
+                    : (string) $data['code'];
+
+                Transport::query()->updateOrCreate(
+                    ['code' => $code],
+                    [
+                        'name' => (string) ($unit['name'] ?? $data['name']),
+                        'transport_type' => (string) ($data['transport_type'] ?? 'car'),
+                        'vendor_id' => (int) $vendor->id,
+                        'description' => (string) ($data['description'] ?? ''),
+                        'inclusions' => (string) ($data['inclusions'] ?? ''),
+                        'exclusions' => (string) ($data['exclusions'] ?? ''),
+                        'cancellation_policy' => (string) ($data['cancellation_policy'] ?? ''),
+                        'notes' => $unit['notes'] ?? $data['notes'] ?? null,
+                        'brand_model' => $unit['brand_model'] ?? null,
+                        'seat_capacity' => (int) ($unit['seat_capacity'] ?? 0),
+                        'luggage_capacity' => isset($unit['luggage_capacity']) ? (int) $unit['luggage_capacity'] : null,
+                        'contract_rate' => isset($unit['contract_rate']) ? (float) $unit['contract_rate'] : 0,
+                        'publish_rate' => isset($unit['publish_rate']) ? (float) $unit['publish_rate'] : null,
+                        'overtime_rate' => isset($unit['overtime_rate']) ? (float) $unit['overtime_rate'] : null,
+                        'fuel_type' => $unit['fuel_type'] ?? null,
+                        'transmission' => $unit['transmission'] ?? null,
+                        'air_conditioned' => (bool) ($unit['air_conditioned'] ?? true),
+                        'with_driver' => (bool) ($unit['with_driver'] ?? true),
+                        'is_active' => (bool) ($unit['is_active'] ?? $data['is_active'] ?? true),
+                    ]
+                );
+            }
         }
     }
 }

@@ -18,6 +18,7 @@ use App\Models\TransportUnit;
 use App\Services\ActivityAuditLogger;
 use App\Services\ItineraryQuotationService;
 use App\Services\InvoiceService;
+use App\Services\QuotationValidationService;
 use App\Support\ImageThumbnailGenerator;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
@@ -37,7 +38,8 @@ class QuotationController extends Controller
     public function __construct(
         private readonly InvoiceService $invoiceService,
         private readonly ItineraryQuotationService $itineraryQuotationService,
-        private readonly ActivityAuditLogger $activityAuditLogger
+        private readonly ActivityAuditLogger $activityAuditLogger,
+        private readonly QuotationValidationService $quotationValidationService
     )
     {
     }
@@ -57,13 +59,12 @@ class QuotationController extends Controller
             $statusFilterOptions = ['pending'];
             $statsCards = $this->buildQuotationStatsCards(null, ['pending']);
         } else {
-            $query->whereIn('status', ['approved', Quotation::FINAL_STATUS]);
             $status = strtolower(trim((string) request('status')));
-            if (in_array($status, ['approved', Quotation::FINAL_STATUS], true)) {
+            if ($status !== '' && in_array($status, Quotation::STATUS_OPTIONS, true)) {
                 $query->where('status', $status);
             }
-            $statusFilterOptions = ['approved', Quotation::FINAL_STATUS];
-            $statsCards = $this->buildQuotationStatsCards(null, ['approved', Quotation::FINAL_STATUS]);
+            $statusFilterOptions = Quotation::STATUS_OPTIONS;
+            $statsCards = $this->buildQuotationStatsCards(null, null);
         }
         $perPage = (int) request('per_page', 10);
         $perPage = $perPage > 0 && $perPage <= 100 ? $perPage : 10;
@@ -83,7 +84,7 @@ class QuotationController extends Controller
             'statsCards' => $statsCards,
             'isMyQuotationPage' => false,
             'listRouteName' => 'quotations.index',
-            'exportScope' => 'published',
+            'exportScope' => 'all',
             'statusFilterOptions' => $statusFilterOptions,
             'showNeedsMyApproval' => $showNeedsMyApproval,
         ]);
@@ -181,12 +182,28 @@ class QuotationController extends Controller
                 ->whereNotNull('itinerary_id'))
             ->orderByDesc('id')
             ->get(['id', 'title', 'inquiry_id', 'destination', 'duration_days', 'duration_nights', 'is_active', 'status']);
+        $itineraryInquiryMap = $itineraries->mapWithKeys(function ($itinerary): array {
+            $inquiry = $itinerary->inquiry;
+
+            return [
+                (string) $itinerary->id => [
+                    'inquiry_number' => (string) ($inquiry?->inquiry_number ?? '-'),
+                    'customer_name' => (string) ($inquiry?->customer?->name ?? '-'),
+                    'status' => (string) ($inquiry?->status ?? '-'),
+                    'priority' => (string) ($inquiry?->priority ?? '-'),
+                    'source' => (string) ($inquiry?->source ?? '-'),
+                    'assigned_user_name' => (string) ($inquiry?->assignedUser?->name ?? '-'),
+                    'deadline' => optional($inquiry?->deadline)->format('Y-m-d') ?? '-',
+                    'notes' => trim((string) ($inquiry?->notes ?? '')) !== '' ? (string) ($inquiry?->notes ?? '') : '-',
+                ],
+            ];
+        })->all();
 
         if ($prefillItineraryId && ! $itineraries->firstWhere('id', $prefillItineraryId)) {
             $prefillItineraryId = null;
         }
 
-        return view('modules.quotations.create', compact('itineraries', 'prefillItineraryId'));
+        return view('modules.quotations.create', compact('itineraries', 'prefillItineraryId', 'itineraryInquiryMap'));
     }
 
     /**
@@ -275,6 +292,7 @@ class QuotationController extends Controller
             foreach ($totals['items'] as $item) {
                 $quotation->items()->create($item);
             }
+            $this->quotationValidationService->syncValidationRequirementsAndMasterRates($quotation);
             $this->syncLinkedLifecycleStatusesForQuotation($quotation);
 
             $quotation->load('items');
@@ -312,7 +330,13 @@ class QuotationController extends Controller
             'updater',
             'approvals.user',
         ]);
+        $this->quotationValidationService->syncValidationRequirementsAndMasterRates($quotation);
         $approvalProgress = $this->buildApprovalProgress($quotation);
+        $validationProgress = $this->quotationValidationService->getProgress($quotation);
+        $canValidateQuotation = $this->quotationValidationService->isValidationActor($request->user())
+            && ! in_array((string) ($quotation->status ?? ''), ['approved', Quotation::FINAL_STATUS], true)
+            && (bool) ($validationProgress['requires_validation'] ?? false)
+            && (string) ($validationProgress['status'] ?? QuotationValidationService::STATUS_PENDING) !== QuotationValidationService::STATUS_VALID;
 
         $activities = $quotation->activities()
             ->with('user:id,name')
@@ -324,7 +348,7 @@ class QuotationController extends Controller
             return $this->activityTimelineFragmentResponse($activities);
         }
 
-        return view('modules.quotations.show', compact('quotation', 'approvalProgress', 'activities'));
+        return view('modules.quotations.show', compact('quotation', 'approvalProgress', 'validationProgress', 'canValidateQuotation', 'activities'));
     }
 
 
@@ -344,6 +368,7 @@ class QuotationController extends Controller
             return $this->denyQuotationMutation($quotation);
         }
         $quotation->load(['items', 'itinerary.inquiry.customer', 'itinerary.inquiry.assignedUser', 'itinerary.creator', 'comments.user', 'approvedBy', 'approvalNoteBy', 'approvals.user']);
+        $this->quotationValidationService->syncValidationRequirementsAndMasterRates($quotation);
 
         $itineraries = $this->availableItinerariesQuery((int) ($quotation->itinerary_id ?? 0))
             ->where(function ($query) use ($quotation) {
@@ -356,6 +381,11 @@ class QuotationController extends Controller
             ->get(['id', 'title', 'inquiry_id', 'destination', 'duration_days', 'duration_nights', 'is_active', 'status']);
 
         $approvalProgress = $this->buildApprovalProgress($quotation);
+        $validationProgress = $this->quotationValidationService->getProgress($quotation);
+        $canValidateQuotation = $this->quotationValidationService->isValidationActor($request->user())
+            && ! in_array((string) ($quotation->status ?? ''), ['approved', Quotation::FINAL_STATUS], true)
+            && (bool) ($validationProgress['requires_validation'] ?? false)
+            && (string) ($validationProgress['status'] ?? QuotationValidationService::STATUS_PENDING) !== QuotationValidationService::STATUS_VALID;
         $activities = $quotation->activities()
             ->with('user:id,name')
             ->latest()
@@ -366,7 +396,7 @@ class QuotationController extends Controller
             return $this->activityTimelineFragmentResponse($activities);
         }
 
-        return view('modules.quotations.edit', compact('quotation', 'itineraries', 'approvalProgress', 'activities'));
+        return view('modules.quotations.edit', compact('quotation', 'itineraries', 'approvalProgress', 'validationProgress', 'canValidateQuotation', 'activities'));
     }
 
     /**
@@ -475,6 +505,7 @@ class QuotationController extends Controller
             foreach ($totals['items'] as $item) {
                 $quotation->items()->create($item);
             }
+            $this->quotationValidationService->syncValidationRequirementsAndMasterRates($quotation);
             if ($wasApprovedBeforeUpdate) {
                 $quotation->approvals()->delete();
                 Quotation::withoutActivityLogging(function () use ($quotation): void {
@@ -1201,6 +1232,12 @@ SVG;
         if ($quotation->isFinal()) {
             return redirect()->back()->with('error', 'Final quotation cannot be modified.');
         }
+        $this->quotationValidationService->syncValidationRequirementsAndMasterRates($quotation);
+        if (! $this->quotationValidationService->canBeApproved($quotation)) {
+            return redirect()
+                ->route('quotations.show', $quotation)
+                ->with('error', 'Quotation cannot be approved because validation is not completed.');
+        }
         $user = $request->user();
         if (! $user) {
             return redirect()->back()->with('error', 'Please login first.');
@@ -1614,7 +1651,7 @@ SVG;
 
     private function availableItinerariesQuery(?int $includeItineraryId = null): Builder
     {
-        $query = Itinerary::query()->with(['inquiry.customer']);
+        $query = Itinerary::query()->with(['inquiry.customer', 'inquiry.assignedUser']);
         $hasIncludedItinerary = $includeItineraryId && $includeItineraryId > 0;
 
         if (Schema::hasColumn('itineraries', 'is_active')) {
@@ -2168,6 +2205,3 @@ SVG;
     }
 
 }
-
-
-

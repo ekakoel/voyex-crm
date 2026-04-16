@@ -32,6 +32,7 @@ use App\Http\Controllers\SuperAdmin\DashboardController as SuperAdminDashboardCo
 use App\Http\Controllers\SuperAdmin\AccessMatrixController as SuperAdminAccessMatrixController;
 use App\Http\Controllers\Sales\CustomerImportController as SalesCustomerImportController;
 use App\Http\Controllers\Sales\InquiryController as SalesInquiryController;
+use App\Http\Controllers\Sales\QuotationValidationController as SalesQuotationValidationController;
 use App\Http\Controllers\Sales\QuotationController as SalesQuotationController;
 use Illuminate\Support\Facades\Route;
 
@@ -242,6 +243,55 @@ Route::middleware('auth')->group(function () {
         ]);
     Route::post('quotations/{quotation}/approve', [SalesQuotationController::class, 'approve'])
         ->name('quotations.approve')
+        ->middleware([
+            'module:quotations',
+            'permission:module.quotations.access',
+            'module.permission:quotations',
+        ]);
+    Route::get('quotations/{quotation}/validate', [SalesQuotationValidationController::class, 'show'])
+        ->name('quotations.validate.show')
+        ->middleware([
+            'module:quotations',
+            'permission:module.quotations.access',
+            'module.permission:quotations',
+        ]);
+    Route::patch('quotations/{quotation}/validate/progress', [SalesQuotationValidationController::class, 'saveProgress'])
+        ->name('quotations.validate.save-progress')
+        ->middleware([
+            'module:quotations',
+            'permission:module.quotations.access',
+            'module.permission:quotations',
+        ]);
+    Route::patch('quotations/{quotation}/validate/items/{item}', [SalesQuotationValidationController::class, 'saveItem'])
+        ->name('quotations.validate.save-item')
+        ->middleware([
+            'module:quotations',
+            'permission:module.quotations.access',
+            'module.permission:quotations',
+        ]);
+    Route::get('quotations/{quotation}/validate/items/{item}/detail-json', [SalesQuotationValidationController::class, 'itemDetailJson'])
+        ->name('quotations.validate.item-detail-json')
+        ->middleware([
+            'module:quotations',
+            'permission:module.quotations.access',
+            'module.permission:quotations',
+        ]);
+    Route::patch('quotations/{quotation}/validate/items/{item}/contact', [SalesQuotationValidationController::class, 'updateItemContact'])
+        ->name('quotations.validate.update-item-contact')
+        ->middleware([
+            'module:quotations',
+            'permission:module.quotations.access',
+            'module.permission:quotations',
+        ]);
+    Route::patch('quotations/{quotation}/validate/selected', [SalesQuotationValidationController::class, 'validateSelected'])
+        ->name('quotations.validate.validate-selected')
+        ->middleware([
+            'module:quotations',
+            'permission:module.quotations.access',
+            'module.permission:quotations',
+        ]);
+    Route::post('quotations/{quotation}/validate/finalize', [SalesQuotationValidationController::class, 'finalize'])
+        ->name('quotations.validate.finalize')
         ->middleware([
             'module:quotations',
             'permission:module.quotations.access',

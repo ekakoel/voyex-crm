@@ -19,4 +19,11 @@ class QuotationPolicy
     {
         return $quotation->isCreator($user);
     }
+
+    public function validateQuotation(User $user, Quotation $quotation): bool
+    {
+        return $user->hasAnyRole(['Reservation', 'Manager', 'Director'])
+            && ! $quotation->isFinal()
+            && ! in_array((string) ($quotation->status ?? ''), ['approved'], true);
+    }
 }

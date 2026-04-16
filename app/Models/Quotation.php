@@ -27,6 +27,11 @@ class Quotation extends Model
         'rejected',
         'final',
     ];
+    public const VALIDATION_STATUS_OPTIONS = [
+        'pending',
+        'partial',
+        'valid',
+    ];
 
     public const FINAL_STATUS = 'final';
     protected $fillable = [
@@ -34,6 +39,7 @@ class Quotation extends Model
         'inquiry_id',
         'itinerary_id',
         'status',
+        'validation_status',
         'validity_date',
         'sub_total',
         'discount_type',
@@ -42,6 +48,8 @@ class Quotation extends Model
         'approval_note',
         'approval_note_by',
         'approval_note_at',
+        'validated_at',
+        'validated_by',
         'approved_by',
         'approved_at',
     ];
@@ -53,6 +61,7 @@ class Quotation extends Model
         'final_amount' => 'decimal:2',
         'approved_at' => 'datetime',
         'approval_note_at' => 'datetime',
+        'validated_at' => 'datetime',
     ];
 
 
@@ -101,13 +110,17 @@ class Quotation extends Model
         return $this->belongsTo(User::class, 'approval_note_by');
     }
 
+    public function validatedBy()
+    {
+        return $this->belongsTo(User::class, 'validated_by');
+    }
+
     public function isFinal(): bool
     {
         return $this->status === self::FINAL_STATUS;
     }
 
 }
-
 
 
 

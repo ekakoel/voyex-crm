@@ -24,6 +24,8 @@ class TransportUnit extends Model
         'seat_capacity',
         'luggage_capacity',
         'contract_rate',
+        'markup_type',
+        'markup',
         'publish_rate',
         'overtime_rate',
         'fuel_type',
@@ -39,6 +41,8 @@ class TransportUnit extends Model
         'seat_capacity' => 'integer',
         'luggage_capacity' => 'integer',
         'contract_rate' => 'decimal:2',
+        'markup_type' => 'string',
+        'markup' => 'decimal:2',
         'publish_rate' => 'decimal:2',
         'overtime_rate' => 'decimal:2',
         'air_conditioned' => 'boolean',
@@ -51,7 +55,11 @@ class TransportUnit extends Model
     {
         return $this->hasOne(Transport::class, 'id', 'id');
     }
-}
 
+    public function vendor()
+    {
+        return $this->belongsTo(Vendor::class);
+    }
+}
 
 

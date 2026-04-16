@@ -17,6 +17,7 @@ use App\Models\Quotation;
 use App\Models\TouristAttraction;
 use App\Models\TransportUnit;
 use App\Services\ActivityAuditLogger;
+use App\Services\QuotationItinerarySyncService;
 use App\Models\Vendor;
 use App\Support\ImageThumbnailGenerator;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -36,7 +37,8 @@ class ItineraryController extends Controller
     use HandlesActivityTimelineAjax;
 
     public function __construct(
-        private readonly ActivityAuditLogger $activityAuditLogger
+        private readonly ActivityAuditLogger $activityAuditLogger,
+        private readonly QuotationItinerarySyncService $quotationItinerarySyncService
     ) {
     }
 
@@ -1285,8 +1287,13 @@ SVG;
         $this->activityAuditLogger->logUpdated($itinerary, $beforeAudit, $this->buildItineraryAuditSnapshot($itinerary), 'Itinerary');
 
         $this->syncInquiryProcessedStatus($itinerary->inquiry_id);
+        $quotationSynced = $this->quotationItinerarySyncService->syncLinkedQuotationFromItinerary($itinerary);
 
-        return redirect()->route('itineraries.show', $itinerary)->with('success', 'Itinerary updated successfully.');
+        $successMessage = $quotationSynced
+            ? 'Itinerary updated successfully. Linked quotation has been synced and reset to pending for re-validation/approval.'
+            : 'Itinerary updated successfully.';
+
+        return redirect()->route('itineraries.show', $itinerary)->with('success', $successMessage);
     }
 
     public function destroy(Itinerary $itinerary)

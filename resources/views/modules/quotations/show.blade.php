@@ -3,6 +3,9 @@
 @section('page_title', __('ui.modules.quotations.show_page_title'))
 @section('page_subtitle', __('ui.modules.quotations.show_page_subtitle'))
 @section('page_actions')
+    @if (($canValidateQuotation ?? false) === true)
+        <a href="{{ route('quotations.validate.show', $quotation) }}" class="btn-outline">{{ __('ui.modules.quotations.validate_quotation') }}</a>
+    @endif
     @can('update', $quotation)
         @if (($quotation->status ?? '') !== 'final')
             <a href="{{ route('quotations.edit', $quotation) }}" class="btn-secondary">{{ __('ui.common.edit') }}</a>
@@ -359,10 +362,13 @@
                                     $canApproveByRole = $authUser->hasAnyRole(['Director', 'Manager', 'Reservation'])
                                         && $nonCreatorApprovalCount < $requiredApprovals;
                                 }
+                                $isValidationComplete = (bool) ($validationProgress['is_complete'] ?? false);
+                                $requiresValidation = (bool) ($validationProgress['requires_validation'] ?? false);
+                                $canApproveWithValidation = $canApproveByRole && (! $requiresValidation || $isValidationComplete);
                             @endphp
                             <div class="flex flex-wrap items-center gap-2">
                                 @if (($quotation->status ?? '') !== 'approved')
-                                    @if ($canApproveByRole)
+                                    @if ($canApproveWithValidation)
                                         <form method="POST" action="{{ route('quotations.approve', $quotation) }}">
                                             @csrf
                                             <button type="submit" class="btn-primary-sm">{{ __('ui.common.approve') }}</button>
@@ -393,6 +399,11 @@
                                     @else
                                         {{ __('ui.modules.quotations.approval_not_available') }}
                                     @endif
+                                </p>
+                            @endif
+                            @if ($canApproveByRole && ! $canApproveWithValidation && ($quotation->status ?? '') !== 'approved')
+                                <p class="text-xs text-rose-600 dark:text-rose-300">
+                                    {{ __('ui.modules.quotations.approval_requires_validation') }}
                                 </p>
                             @endif
                         </div>

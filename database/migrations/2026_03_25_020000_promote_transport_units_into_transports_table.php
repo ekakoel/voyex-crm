@@ -237,6 +237,36 @@ return new class extends Migration
             $table->foreign('vendor_id', 'fk_transports_vendor')->references('id')->on('vendors')->restrictOnDelete();
         });
 
+        $legacyReferences = DB::select("
+            SELECT TABLE_NAME, CONSTRAINT_NAME
+            FROM information_schema.KEY_COLUMN_USAGE
+            WHERE TABLE_SCHEMA = DATABASE()
+              AND REFERENCED_TABLE_NAME = 'transports_legacy'
+        ");
+
+        foreach ($legacyReferences as $reference) {
+            $tableName = (string) ($reference->TABLE_NAME ?? '');
+            $constraintName = (string) ($reference->CONSTRAINT_NAME ?? '');
+
+            if ($tableName === '' || $constraintName === '') {
+                continue;
+            }
+
+            DB::statement("ALTER TABLE `{$tableName}` DROP FOREIGN KEY `{$constraintName}`");
+        }
+
+        if (Schema::hasColumn('itineraries', 'arrival_transport_id')) {
+            Schema::table('itineraries', function (Blueprint $table) {
+                $table->foreign('arrival_transport_id')->references('id')->on('transports')->nullOnDelete();
+            });
+        }
+
+        if (Schema::hasColumn('itineraries', 'departure_transport_id')) {
+            Schema::table('itineraries', function (Blueprint $table) {
+                $table->foreign('departure_transport_id')->references('id')->on('transports')->nullOnDelete();
+            });
+        }
+
         if (Schema::hasTable('transports_legacy')) {
             Schema::drop('transports_legacy');
         }

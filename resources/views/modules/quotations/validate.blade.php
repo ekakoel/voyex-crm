@@ -1,0 +1,738 @@
+@extends('layouts.master')
+
+@section('page_title', __('ui.modules.quotations.validate_page_title'))
+@section('page_subtitle', __('ui.modules.quotations.validate_page_subtitle'))
+@section('page_actions')
+    <a href="{{ route('quotations.show', $quotation) }}" class="btn-secondary">{{ __('ui.common.view_detail') }}</a>
+    <a href="{{ route('quotations.index') }}" class="btn-ghost">{{ __('ui.common.back') }}</a>
+@endsection
+
+@push('scripts')
+    <script>
+        (function() {
+            const modal = document.getElementById('validation-item-detail-modal');
+            if (!modal) return;
+
+            const endpointTemplate = modal.getAttribute('data-detail-endpoint-template') || '';
+            const contactUpdateEndpointTemplate = modal.getAttribute('data-contact-update-endpoint-template') || '';
+            const titleEl = modal.querySelector('[data-modal-title]');
+            const contactEl = modal.querySelector('[data-modal-contact]');
+            const currentEl = modal.querySelector('[data-modal-current]');
+            const loadingEl = modal.querySelector('[data-modal-loading]');
+            const errorEl = modal.querySelector('[data-modal-error]');
+            const contactNameInput = modal.querySelector('[data-contact-name]');
+            const contactPhoneInput = modal.querySelector('[data-contact-phone]');
+            const contactEmailInput = modal.querySelector('[data-contact-email]');
+            const contactWebsiteInput = modal.querySelector('[data-contact-website]');
+            const contactAddressDisplay = modal.querySelector('[data-contact-address-display]');
+            const updateContactButton = modal.querySelector('[data-update-contact]');
+            const updateContactSpinner = modal.querySelector('[data-update-contact-spinner]');
+            const updateContactLabel = modal.querySelector('[data-update-contact-label]');
+            const updateContactFeedback = modal.querySelector('[data-update-contact-feedback]');
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+
+            const openModal = () => {
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+            };
+
+            const closeModal = () => {
+                modal.classList.remove('flex');
+                modal.classList.add('hidden');
+            };
+
+            const money = (value) => {
+                const num = Number(value || 0);
+                return `IDR ${num.toLocaleString('en-US', { maximumFractionDigits: 2 })}`;
+            };
+
+            const setLoadingState = (isLoading) => {
+                if (loadingEl) loadingEl.classList.toggle('hidden', !isLoading);
+                if (errorEl) errorEl.classList.add('hidden');
+                if (updateContactFeedback) {
+                    updateContactFeedback.classList.add('hidden');
+                    updateContactFeedback.textContent = '';
+                }
+                if (contactEl) contactEl.classList.toggle('hidden', isLoading);
+                if (currentEl) currentEl.classList.toggle('hidden', isLoading);
+            };
+
+            const renderDetail = (payload) => {
+                const item = payload.item || {};
+                const contact = payload.contact || {};
+
+                if (titleEl) {
+                    titleEl.textContent = `${item.serviceable_type || '-'} - ${item.description || '-'}`;
+                }
+
+                modal.setAttribute('data-current-item-id', String(item.id || ''));
+
+                if (contactEl) {
+                    const providerEl = contactEl.querySelector('[data-contact-provider]');
+                    if (providerEl) {
+                        providerEl.textContent = contact.vendor_provider_name || '-';
+                    }
+                    if (contactAddressDisplay) {
+                        contactAddressDisplay.textContent = contact.contact_address || '-';
+                    }
+                }
+                if (contactNameInput) contactNameInput.value = contact.contact_name && contact.contact_name !== '-' ? contact.contact_name : '';
+                if (contactPhoneInput) contactPhoneInput.value = contact.contact_phone && contact.contact_phone !== '-' ? contact.contact_phone : '';
+                if (contactEmailInput) contactEmailInput.value = contact.contact_email && contact.contact_email !== '-' ? contact.contact_email : '';
+                if (contactWebsiteInput) contactWebsiteInput.value = contact.contact_website && contact.contact_website !== '-' ? contact.contact_website : '';
+
+                if (currentEl) {
+                    currentEl.innerHTML = `
+                        <p class="mb-2 text-[11px] text-gray-500 dark:text-gray-400">This section shows the rate currently used by this quotation item.</p>
+                        <div><span class="font-semibold">{{ __('ui.modules.quotations.active_contract_rate') }}:</span> ${money(item.contract_rate)}</div>
+                        <div class="mt-1"><span class="font-semibold">{{ __('ui.modules.quotations.active_markup_type') }}:</span> ${item.markup_type || 'fixed'}</div>
+                        <div class="mt-1"><span class="font-semibold">{{ __('ui.modules.quotations.active_markup') }}:</span> ${Number(item.markup || 0).toLocaleString('en-US', { maximumFractionDigits: 2 })}</div>
+                        <div class="mt-1"><span class="font-semibold">{{ __('ui.common.updated_by') }}:</span> ${item.validator || '-'}</div>
+                        <div class="mt-1"><span class="font-semibold">{{ __('ui.common.updated_at') }}:</span> ${item.updated_at || '-'}</div>
+                    `;
+                }
+
+            };
+
+            const loadDetail = async (itemId) => {
+                if (!endpointTemplate) return;
+                const endpoint = endpointTemplate.replace('__ITEM__', String(itemId));
+
+                setLoadingState(true);
+                openModal();
+
+                try {
+                    const response = await fetch(endpoint, {
+                        headers: {
+                            'Accept': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}`);
+                    }
+
+                    const payload = await response.json();
+                    setLoadingState(false);
+                    renderDetail(payload);
+                } catch (error) {
+                    setLoadingState(false);
+                    if (errorEl) {
+                        errorEl.classList.remove('hidden');
+                        errorEl.textContent = '{{ __('ui.modules.quotations.load_detail_failed') }}';
+                    }
+                }
+            };
+
+            document.querySelectorAll('[data-open-validation-detail]').forEach((btn) => {
+                btn.addEventListener('click', () => {
+                    const itemId = btn.getAttribute('data-open-validation-detail');
+                    if (!itemId) return;
+                    loadDetail(itemId);
+                });
+            });
+
+            document.querySelectorAll('[data-close-validation-modal]').forEach((btn) => {
+                btn.addEventListener('click', closeModal);
+            });
+
+            modal.addEventListener('click', (event) => {
+                if (event.target === modal) {
+                    closeModal();
+                }
+            });
+
+            const setUpdateContactLoading = (isLoading) => {
+                if (updateContactButton) {
+                    updateContactButton.disabled = isLoading;
+                }
+                if (updateContactSpinner) {
+                    updateContactSpinner.classList.toggle('hidden', !isLoading);
+                }
+                if (updateContactLabel) {
+                    updateContactLabel.textContent = '{{ __('ui.modules.quotations.update_contact') }}';
+                }
+            };
+
+            const setUpdateContactFeedback = (message, type = 'success') => {
+                if (!updateContactFeedback) return;
+                if (!message) {
+                    updateContactFeedback.classList.add('hidden');
+                    updateContactFeedback.textContent = '';
+                    return;
+                }
+                updateContactFeedback.classList.remove('hidden', 'text-emerald-700', 'text-rose-700', 'dark:text-emerald-300', 'dark:text-rose-300');
+                updateContactFeedback.textContent = message;
+                if (type === 'error') {
+                    updateContactFeedback.classList.add('text-rose-700', 'dark:text-rose-300');
+                } else {
+                    updateContactFeedback.classList.add('text-emerald-700', 'dark:text-emerald-300');
+                }
+            };
+
+            const updateContactAjax = async () => {
+                const itemId = modal.getAttribute('data-current-item-id') || '';
+                if (!itemId || !contactUpdateEndpointTemplate) return;
+
+                const endpoint = contactUpdateEndpointTemplate.replace('__ITEM__', String(itemId));
+                const payload = {
+                    contact_name: contactNameInput?.value ?? '',
+                    contact_phone: contactPhoneInput?.value ?? '',
+                    contact_email: contactEmailInput?.value ?? '',
+                    contact_website: contactWebsiteInput?.value ?? '',
+                };
+
+                setUpdateContactFeedback('');
+                setUpdateContactLoading(true);
+                try {
+                    const response = await fetch(endpoint, {
+                        method: 'PATCH',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'X-CSRF-TOKEN': csrfToken,
+                        },
+                        body: JSON.stringify(payload),
+                    });
+                    const result = await response.json();
+                    if (!response.ok) {
+                        const firstError = result?.errors ? Object.values(result.errors)[0]?.[0] : null;
+                        throw new Error(firstError || result?.message || 'Failed to update contact details.');
+                    }
+
+                    const contact = result?.contact || {};
+                    if (contactNameInput) contactNameInput.value = contact.contact_name && contact.contact_name !== '-' ? contact.contact_name : '';
+                    if (contactPhoneInput) contactPhoneInput.value = contact.contact_phone && contact.contact_phone !== '-' ? contact.contact_phone : '';
+                    if (contactEmailInput) contactEmailInput.value = contact.contact_email && contact.contact_email !== '-' ? contact.contact_email : '';
+                    if (contactWebsiteInput) contactWebsiteInput.value = contact.contact_website && contact.contact_website !== '-' ? contact.contact_website : '';
+                    if (contactAddressDisplay) contactAddressDisplay.textContent = contact.contact_address || '-';
+
+                    setUpdateContactFeedback(result?.message || 'Contact details updated.');
+                } catch (error) {
+                    setUpdateContactFeedback(error.message || 'Failed to update contact details.', 'error');
+                } finally {
+                    setUpdateContactLoading(false);
+                }
+            };
+
+            updateContactButton?.addEventListener('click', updateContactAjax);
+
+            const setItemFeedback = (itemId, message, type = 'success') => {
+                const el = document.querySelector(`[data-item-feedback="${itemId}"]`);
+                if (!el) return;
+
+                if (!message) {
+                    el.textContent = '';
+                    el.classList.add('hidden');
+                    return;
+                }
+
+                el.textContent = message;
+                el.classList.remove('hidden', 'text-emerald-700', 'text-rose-700', 'dark:text-emerald-300', 'dark:text-rose-300');
+                if (type === 'error') {
+                    el.classList.add('text-rose-700', 'dark:text-rose-300');
+                } else {
+                    el.classList.add('text-emerald-700', 'dark:text-emerald-300');
+                }
+            };
+
+            const formatDateTime = (isoDate) => {
+                if (!isoDate) return '-';
+                const parsed = new Date(isoDate);
+                if (Number.isNaN(parsed.getTime())) return isoDate;
+                return parsed.toLocaleString('en-US', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                });
+            };
+
+            const parseIntegerFromDisplay = (value) => {
+                const digits = String(value ?? '').replace(/[^\d]/g, '');
+                if (digits === '') return 0;
+                return Number.parseInt(digits, 10) || 0;
+            };
+
+            const formatIntegerDisplay = (value) => {
+                const num = parseIntegerFromDisplay(value);
+                return num.toLocaleString('id-ID');
+            };
+
+            const updateProgressUi = (progress) => {
+                if (!progress || typeof progress !== 'object') return;
+                const totalValidatedEl = document.querySelector('[data-progress-total-validated]');
+                const percentEl = document.querySelector('[data-progress-percent]');
+                const statusEl = document.querySelector('[data-progress-status]');
+
+                if (totalValidatedEl && progress.total_validated !== undefined) {
+                    totalValidatedEl.textContent = String(progress.total_validated);
+                }
+                if (percentEl && progress.validation_percent !== undefined) {
+                    percentEl.textContent = `${Number(progress.validation_percent || 0)}%`;
+                }
+                if (statusEl && progress.status) {
+                    statusEl.textContent = String(progress.status);
+                }
+            };
+
+            const updateItemRowUi = (itemId, item) => {
+                const statusCell = document.querySelector(`[data-item-status="${itemId}"]`);
+                const updatedCell = document.querySelector(`[data-item-updated="${itemId}"]`);
+                const validatedCheckbox = document.querySelector(`input[type="checkbox"][name="items[${itemId}][is_validated]"][value="1"]`);
+
+                if (statusCell) {
+                    if (item.is_validated) {
+                        statusCell.innerHTML = `<span class="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">{{ __('ui.modules.quotations.validated') }}</span>`;
+                    } else {
+                        statusCell.innerHTML = `<span class="inline-flex rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700 dark:border-amber-700 dark:bg-amber-900/30 dark:text-amber-300">{{ __('ui.modules.quotations.pending_validation') }}</span>`;
+                    }
+                }
+
+                if (updatedCell) {
+                    const validatorName = item.validator_name || '-';
+                    const updatedAt = formatDateTime(item.updated_at);
+                    updatedCell.innerHTML = `${validatorName}<br>${updatedAt}`;
+                }
+
+                if (validatedCheckbox) {
+                    validatedCheckbox.checked = Boolean(item.is_validated);
+                }
+            };
+
+            const saveItemAjax = async (button) => {
+                const itemId = button.getAttribute('data-save-item');
+                const url = button.getAttribute('data-save-item-url');
+                if (!itemId || !url) return;
+
+                const contractRateInput = document.querySelector(`[name="items[${itemId}][contract_rate]"]`);
+                const markupTypeInput = document.querySelector(`[name="items[${itemId}][markup_type]"]`);
+                const markupInput = document.querySelector(`[name="items[${itemId}][markup]"]`);
+                const validatedInput = document.querySelector(`input[type="checkbox"][name="items[${itemId}][is_validated]"][value="1"]`);
+                const spinner = document.querySelector(`[data-item-spinner="${itemId}"]`);
+                const label = document.querySelector(`[data-item-save-label="${itemId}"]`);
+                const normalizedContractRate = Math.max(0, parseIntegerFromDisplay(contractRateInput?.value || 0));
+                const normalizedMarkup = Math.max(0, parseIntegerFromDisplay(markupInput?.value || 0));
+                if (contractRateInput) {
+                    contractRateInput.value = formatIntegerDisplay(normalizedContractRate);
+                }
+                if (markupInput) {
+                    markupInput.value = formatIntegerDisplay(normalizedMarkup);
+                }
+
+                const payload = {
+                    _method: 'PATCH',
+                    contract_rate: normalizedContractRate,
+                    markup_type: markupTypeInput?.value ?? 'fixed',
+                    markup: normalizedMarkup,
+                    // Save Item now implies item is validated once data is valid and saved.
+                    is_validated: 1,
+                };
+
+                button.disabled = true;
+                if (spinner) spinner.classList.remove('hidden');
+                if (label) label.classList.add('hidden');
+                setItemFeedback(itemId, '');
+
+                try {
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'X-CSRF-TOKEN': csrfToken,
+                        },
+                        body: JSON.stringify(payload),
+                    });
+
+                    const result = await response.json();
+                    if (!response.ok) {
+                        const firstError = result?.errors ? Object.values(result.errors)[0]?.[0] : null;
+                        throw new Error(firstError || result?.message || 'Failed to save item validation.');
+                    }
+
+                    updateProgressUi(result.progress || {});
+                    updateItemRowUi(itemId, result.item || {});
+                    setItemFeedback(itemId, '');
+                } catch (error) {
+                    setItemFeedback(itemId, error.message || 'Failed to save item validation.', 'error');
+                } finally {
+                    button.disabled = false;
+                    if (spinner) spinner.classList.add('hidden');
+                    if (label) label.classList.remove('hidden');
+                }
+            };
+
+            document.querySelectorAll('[data-save-item]').forEach((btn) => {
+                btn.addEventListener('click', () => saveItemAjax(btn));
+            });
+
+            document.querySelectorAll('[data-markup-input]').forEach((input) => {
+                input.value = formatIntegerDisplay(input.value);
+                input.addEventListener('input', () => {
+                    input.value = formatIntegerDisplay(input.value);
+                });
+                input.addEventListener('blur', () => {
+                    input.value = formatIntegerDisplay(input.value);
+                });
+            });
+
+            document.querySelectorAll('[data-contract-rate-input]').forEach((input) => {
+                input.value = formatIntegerDisplay(input.value);
+                input.addEventListener('input', () => {
+                    input.value = formatIntegerDisplay(input.value);
+                });
+                input.addEventListener('blur', () => {
+                    input.value = formatIntegerDisplay(input.value);
+                });
+            });
+
+            const progressForm = document.querySelector('[data-validation-progress-form]');
+            progressForm?.addEventListener('submit', () => {
+                document.querySelectorAll('[data-contract-rate-input]').forEach((input) => {
+                    input.value = String(Math.max(0, parseIntegerFromDisplay(input.value)));
+                });
+                document.querySelectorAll('[data-markup-input]').forEach((input) => {
+                    input.value = String(Math.max(0, parseIntegerFromDisplay(input.value)));
+                });
+            });
+        })();
+    </script>
+@endpush
+
+@section('content')
+    <div class="space-y-6 module-page module-page--quotations">
+        @if (session('success'))
+            <div class="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300">
+                {{ session('success') }}
+            </div>
+        @endif
+
+        @if (session('error'))
+            <div class="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-700 dark:bg-rose-900/20 dark:text-rose-300">
+                {{ session('error') }}
+            </div>
+        @endif
+
+        @if ($errors->any())
+            <div class="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-700 dark:bg-rose-900/20 dark:text-rose-300">
+                <ul class="list-disc pl-5">
+                    @foreach ($errors->all() as $error)
+                        <li>{{ $error }}</li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
+
+        <div class="app-card p-6 space-y-4">
+            <div class="flex flex-wrap items-start justify-between gap-4">
+                <div>
+                    <p class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ __('ui.modules.quotations.number') }}</p>
+                    <h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100">{{ $quotation->quotation_number }}</h2>
+                </div>
+                <div class="text-right text-sm text-gray-600 dark:text-gray-300">
+                    <div>{{ __('ui.common.status') }}: <span class="font-semibold">{{ $quotation->status }}</span></div>
+                    <div>{{ __('ui.modules.quotations.validation_status') }}: <span class="font-semibold" data-progress-status>{{ $quotation->validation_status ?? 'pending' }}</span></div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
+                <div class="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/30">
+                    <p class="text-xs text-gray-500 dark:text-gray-400">{{ __('ui.modules.quotations.total_items') }}</p>
+                    <p class="mt-1 text-base font-semibold text-gray-900 dark:text-gray-100">{{ (int) ($progress['total_items'] ?? 0) }}</p>
+                </div>
+                <div class="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/30">
+                    <p class="text-xs text-gray-500 dark:text-gray-400">{{ __('ui.modules.quotations.total_required_validation') }}</p>
+                    <p class="mt-1 text-base font-semibold text-gray-900 dark:text-gray-100">{{ (int) ($progress['total_required'] ?? 0) }}</p>
+                </div>
+                <div class="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/30">
+                    <p class="text-xs text-gray-500 dark:text-gray-400">{{ __('ui.modules.quotations.total_validated_items') }}</p>
+                    <p class="mt-1 text-base font-semibold text-gray-900 dark:text-gray-100" data-progress-total-validated>{{ (int) ($progress['total_validated'] ?? 0) }}</p>
+                </div>
+                <div class="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/30">
+                    <p class="text-xs text-gray-500 dark:text-gray-400">{{ __('ui.modules.quotations.validation_progress') }}</p>
+                    <p class="mt-1 text-base font-semibold text-gray-900 dark:text-gray-100" data-progress-percent>{{ (int) ($progress['validation_percent'] ?? 0) }}%</p>
+                </div>
+                <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-700 dark:bg-emerald-900/20">
+                    <p class="text-xs text-emerald-700 dark:text-emerald-300">{{ __('ui.common.customer') }}</p>
+                    <p class="mt-1 text-sm font-semibold text-emerald-800 dark:text-emerald-200">{{ $quotation->inquiry?->customer?->name ?? '-' }}</p>
+                </div>
+            </div>
+        </div>
+
+        <form method="POST" action="{{ route('quotations.validate.save-progress', $quotation) }}" class="app-card p-6 space-y-4" data-validation-progress-form>
+            @csrf
+            @method('PATCH')
+
+            <div class="flex flex-wrap items-center justify-between gap-2">
+                <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ __('ui.modules.quotations.validation_items') }}</h3>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="app-table w-full divide-y divide-gray-200 text-sm dark:divide-gray-700">
+                    <thead>
+                        <tr>
+                            <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ __('ui.modules.quotations.mark_validated') }}</th>
+                            <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ __('ui.common.type') }}</th>
+                            <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ __('ui.modules.quotations.vendor_provider_item') }}</th>
+                            <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ __('ui.common.description') }}</th>
+                            <th class="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ __('ui.common.qty') }}</th>
+                            <th class="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ __('ui.modules.quotations.contract_rate') }}</th>
+                            <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ __('ui.modules.quotations.markup_type') }}</th>
+                            <th class="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ __('ui.modules.quotations.markup') }}</th>
+                            <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">Validated by</th>
+                            <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ __('ui.modules.quotations.validation_status') }}</th>
+                            <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ __('ui.common.actions') }}</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
+                        @php
+                            $resolveDayNumber = function ($item): int {
+                                $dayNumber = (int) ($item->day_number ?? 0);
+                                return $dayNumber > 0 ? $dayNumber : PHP_INT_MAX;
+                            };
+
+                            $sortedValidationItems = collect($validationItems ?? [])
+                                ->sort(function ($a, $b) use ($resolveDayNumber): int {
+                                    $dayCompare = $resolveDayNumber($a) <=> $resolveDayNumber($b);
+                                    if ($dayCompare !== 0) {
+                                        return $dayCompare;
+                                    }
+
+                                    return ((int) ($a->id ?? 0)) <=> ((int) ($b->id ?? 0));
+                                })
+                                ->values();
+
+                            $groupedValidationItems = $sortedValidationItems->groupBy(function ($item) use ($resolveDayNumber): string {
+                                $dayNumber = $resolveDayNumber($item);
+                                return $dayNumber !== PHP_INT_MAX ? ('day-' . $dayNumber) : 'day-without';
+                            });
+                        @endphp
+                        @if ($groupedValidationItems->isNotEmpty())
+                        @foreach ($groupedValidationItems as $dayKey => $dayItems)
+                            @php
+                                $firstDayItem = $dayItems->first();
+                                $groupDayNumber = (int) ($firstDayItem->day_number ?? 0);
+                                $dayText = $groupDayNumber > 0 ? ('Day ' . $groupDayNumber) : 'Without Day';
+                            @endphp
+                            <tr class="bg-gray-50/90 dark:bg-gray-800/70">
+                                <td colspan="11" class="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-700 dark:text-gray-200">
+                                    {{ $dayText }}
+                                </td>
+                            </tr>
+                            @foreach ($dayItems as $item)
+                            @php
+                                $serviceableType = class_basename((string) ($item->serviceable_type ?? ''));
+                                $typeLabelMap = [
+                                    'Activity' => 'Activity',
+                                    'FoodBeverage' => 'Food and Beverage',
+                                    'Transport' => 'Transport',
+                                    'TransportUnit' => 'Transport',
+                                    'TouristAttraction' => 'Tourist Attraction',
+                                    'HotelRoom' => 'Hotel',
+                                ];
+                                $typeLabel = $typeLabelMap[$serviceableType] ?? $serviceableType;
+                                $itemName = trim((string) ($item->serviceable?->name ?? ''));
+                                if ($itemName === '' && $serviceableType === 'HotelRoom') {
+                                    $itemName = trim((string) ($item->serviceable?->rooms ?? ''));
+                                }
+                                $descriptionLabel = $itemName !== '' ? $itemName : '-';
+                                $vendorProviderItemLabel = $item->serviceable?->name ?? '-';
+                                $dayNumber = (int) ($item->day_number ?? 0);
+                                $dayKey = $dayNumber > 0 ? 'day-' . $dayNumber : 'day-without';
+                                $dayText = $dayNumber > 0 ? ('Day ' . $dayNumber) : 'Without Day';
+
+                                if (in_array($serviceableType, ['Activity', 'FoodBeverage', 'Transport', 'TransportUnit'], true)) {
+                                    $vendorName = trim((string) ($item->serviceable?->vendor?->name ?? ''));
+                                    if ($vendorName !== '') {
+                                        $vendorProviderItemLabel = $vendorName;
+                                    }
+                                } elseif ($serviceableType === 'HotelRoom') {
+                                    $hotelName = trim((string) ($item->serviceable?->hotel?->name ?? ''));
+                                    if ($hotelName !== '') {
+                                        $vendorProviderItemLabel = $hotelName;
+                                    }
+
+                                    $roomName = trim((string) ($item->serviceable?->rooms ?? $item->serviceable?->name ?? ''));
+                                    if ($roomName !== '') {
+                                        $descriptionLabel = $roomName;
+                                    }
+                                }
+
+                                if ($serviceableType === 'FoodBeverage') {
+                                    $mealType = trim((string) ($item->serviceable_meta['meal_type'] ?? ''));
+                                    if ($mealType === '') {
+                                        $startTime = trim((string) ($item->serviceable_meta['start_time'] ?? ''));
+                                        if (preg_match('/^(\d{1,2}):(\d{2})$/', $startTime, $matches)) {
+                                            $hour = (int) $matches[1];
+                                            if ($hour <= 10) {
+                                                $mealType = 'breakfast';
+                                            } elseif ($hour <= 15) {
+                                                $mealType = 'lunch';
+                                            } else {
+                                                $mealType = 'dinner';
+                                            }
+                                        }
+                                    }
+                                    if ($mealType !== '') {
+                                        $mealTypeFormatted = ucfirst(strtolower($mealType));
+                                        if (! str_contains($descriptionLabel, '(' . $mealTypeFormatted . ')')) {
+                                            $descriptionLabel .= ' (' . $mealTypeFormatted . ')';
+                                        }
+                                    }
+                                }
+                            @endphp
+                            <tr data-validation-item-row="{{ $item->id }}">
+                                <td class="px-3 py-2 align-top">
+                                    <div class="space-y-1">
+                                        <input type="hidden" name="items[{{ $item->id }}][is_validated]" value="0">
+                                        <label class="inline-flex items-center gap-2 text-xs text-gray-700 dark:text-gray-200">
+                                            <input type="checkbox" name="items[{{ $item->id }}][is_validated]" value="1" @checked((bool) ($item->is_validated ?? false)) class="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500">
+                                        </label>
+                                        <p data-item-feedback="{{ $item->id }}" class="hidden text-[11px]"></p>
+                                    </div>
+                                </td>
+                                <td class="px-3 py-2 align-top text-gray-700 dark:text-gray-200">{{ $typeLabel }}</td>
+                                <td class="px-3 py-2 align-top">
+                                    <button type="button" data-open-validation-detail="{{ $item->id }}" class="text-left text-indigo-700 hover:underline dark:text-indigo-300">
+                                        {{ $vendorProviderItemLabel }}
+                                    </button>
+                                </td>
+                                <td class="px-3 py-2 align-top">
+                                    <span class="text-gray-700 dark:text-gray-200">{{ $descriptionLabel }}</span>
+                                </td>
+                                <td class="px-3 py-2 align-top text-right text-gray-700 dark:text-gray-200">{{ (int) ($item->qty ?? 0) }}</td>
+                                <td class="px-3 py-2 align-top">
+                                    <input
+                                        type="text"
+                                        pattern="[0-9.]*"
+                                        inputmode="numeric"
+                                        name="items[{{ $item->id }}][contract_rate]"
+                                        value="{{ old('items.' . $item->id . '.contract_rate', number_format((float) ($item->contract_rate ?? 0), 0, ',', '.')) }}"
+                                        data-contract-rate-input
+                                        class="app-input text-right"
+                                    >
+                                </td>
+                                <td class="px-3 py-2 align-top">
+                                    <select name="items[{{ $item->id }}][markup_type]" class="app-input">
+                                        <option value="fixed" @selected(old('items.' . $item->id . '.markup_type', $item->markup_type) === 'fixed')>{{ __('ui.common.fixed') }}</option>
+                                        <option value="percent" @selected(old('items.' . $item->id . '.markup_type', $item->markup_type) === 'percent')>{{ __('ui.common.percent') }}</option>
+                                    </select>
+                                </td>
+                                <td class="px-3 py-2 align-top">
+                                    <input
+                                        type="text"
+                                        pattern="[0-9.]*"
+                                        inputmode="numeric"
+                                        name="items[{{ $item->id }}][markup]"
+                                        value="{{ old('items.' . $item->id . '.markup', number_format((float) ($item->markup ?? 0), 0, ',', '.')) }}"
+                                        data-markup-input
+                                        class="app-input text-right"
+                                    >
+                                </td>
+                                <td class="px-3 py-2 align-top text-xs text-gray-600 dark:text-gray-300" data-item-updated="{{ $item->id }}">
+                                    {{ $item->validator?->name ?? '-' }}
+                                    @if ($item->updated_at)
+                                        <br><x-local-time :value="$item->updated_at" />
+                                    @endif
+                                </td>
+                                <td class="px-3 py-2 align-top" data-item-status="{{ $item->id }}">
+                                    @if ((bool) ($item->is_validated ?? false))
+                                        <span class="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">{{ __('ui.modules.quotations.validated') }}</span>
+                                    @else
+                                        <span class="inline-flex rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700 dark:border-amber-700 dark:bg-amber-900/30 dark:text-amber-300">{{ __('ui.modules.quotations.pending_validation') }}</span>
+                                    @endif
+                                </td>
+                                <td class="px-3 py-2 align-top">
+                                    <button type="button" class="btn-outline-sm" data-save-item="{{ $item->id }}" data-save-item-url="{{ route('quotations.validate.save-item', ['quotation' => $quotation, 'item' => $item]) }}">
+                                        <span data-item-spinner="{{ $item->id }}" class="mr-1 hidden inline-block h-3 w-3 animate-spin rounded-full border border-current border-t-transparent align-[-1px]"></span>
+                                        <span data-item-save-label="{{ $item->id }}">{{ __('ui.modules.quotations.validate') }}</span>
+                                    </button>
+                                </td>
+                            </tr>
+                            @endforeach
+                        @endforeach
+                        @else
+                            <tr>
+                                <td colspan="11" class="px-3 py-4 text-center text-sm text-gray-500 dark:text-gray-400">{{ __('ui.modules.quotations.no_validation_required_items') }}</td>
+                            </tr>
+                        @endif
+
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="flex flex-wrap items-center justify-between gap-2 pt-2">
+                <button type="submit" class="btn-secondary">{{ __('ui.modules.quotations.save_progress') }}</button>
+                @if ((bool) ($progress['is_complete'] ?? false))
+                    <button type="submit" form="quotation-finalize-form" class="btn-primary">{{ __('ui.modules.quotations.validate_quotation') }}</button>
+                @endif
+            </div>
+        </form>
+        <form id="quotation-finalize-form" method="POST" action="{{ route('quotations.validate.finalize', $quotation) }}" class="hidden">
+            @csrf
+        </form>
+    </div>
+
+    <div
+        id="validation-item-detail-modal"
+        class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 p-4"
+        data-detail-endpoint-template="{{ route('quotations.validate.item-detail-json', ['quotation' => $quotation, 'item' => '__ITEM__']) }}"
+        data-contact-update-endpoint-template="{{ route('quotations.validate.update-item-contact', ['quotation' => $quotation, 'item' => '__ITEM__']) }}"
+    >
+        <div class="w-full max-w-3xl rounded-xl border border-gray-200 bg-white p-5 shadow-xl dark:border-gray-700 dark:bg-gray-900">
+            <div class="flex items-center justify-between gap-3">
+                <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100" data-modal-title>{{ __('ui.modules.quotations.item_detail_modal_title') }}</h3>
+                <div class="flex items-center gap-2">
+                    <button type="button" class="btn-secondary px-2 py-1 text-xs" data-update-contact>
+                        <span data-update-contact-spinner class="mr-1 hidden inline-block h-3 w-3 animate-spin rounded-full border border-current border-t-transparent align-[-1px]"></span>
+                        <span data-update-contact-label>{{ __('ui.modules.quotations.update_contact') }}</span>
+                    </button>
+                    <button type="button" class="btn-ghost px-2 py-1 text-xs" data-close-validation-modal>{{ __('ui.common.close') }}</button>
+                </div>
+            </div>
+
+            <div data-modal-loading class="mt-6 hidden flex justify-center">
+                <span class="inline-block h-8 w-8 animate-spin rounded-full border-2 border-gray-300 border-t-indigo-500 dark:border-gray-600 dark:border-t-indigo-300"></span>
+            </div>
+            <div data-modal-error class="mt-4 hidden rounded-md border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700 dark:border-rose-700 dark:bg-rose-900/30 dark:text-rose-300"></div>
+            <div data-update-contact-feedback class="mt-4 hidden text-xs"></div>
+
+            <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div data-modal-contact class="rounded-lg border border-gray-200 p-3 text-xs dark:border-gray-700">
+                    <div class="mb-2">
+                        <p class="font-semibold text-gray-900 dark:text-gray-100" data-contact-provider>-</p>
+                        <p class="mt-1 text-[11px] text-gray-600 dark:text-gray-300">
+                            <span class="font-semibold">{{ __('ui.modules.quotations.address') }}:</span>
+                            <span data-contact-address-display>-</span>
+                        </p>
+                    </div>
+                    <div class="space-y-2">
+                        <div>
+                            <label class="block text-[11px] font-semibold text-gray-500 dark:text-gray-400">{{ __('ui.modules.quotations.contact_person') }}</label>
+                            <input type="text" class="app-input mt-1 text-xs" data-contact-name>
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-semibold text-gray-500 dark:text-gray-400">{{ __('ui.common.phone') }}</label>
+                            <input type="text" class="app-input mt-1 text-xs" data-contact-phone>
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-semibold text-gray-500 dark:text-gray-400">{{ __('ui.modules.quotations.email') }}</label>
+                            <input type="email" class="app-input mt-1 text-xs" data-contact-email>
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-semibold text-gray-500 dark:text-gray-400">{{ __('ui.modules.quotations.website') }}</label>
+                            <input type="text" class="app-input mt-1 text-xs" data-contact-website>
+                        </div>
+                    </div>
+                </div>
+                <div data-modal-current class="rounded-lg border border-gray-200 p-3 text-xs dark:border-gray-700"></div>
+            </div>
+
+        </div>
+    </div>
+@endsection

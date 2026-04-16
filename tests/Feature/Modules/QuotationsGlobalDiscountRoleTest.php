@@ -215,7 +215,7 @@ class QuotationsGlobalDiscountRoleTest extends ModuleSmokeTestCase
             ->assertRedirect(route('quotations.show', $quotation));
     }
 
-    public function test_index_only_shows_approved_and_final_quotations(): void
+    public function test_index_shows_quotations_across_all_statuses(): void
     {
         $user = $this->createUserWithRole('Marketing');
         $this->actingAs($user);
@@ -246,7 +246,7 @@ class QuotationsGlobalDiscountRoleTest extends ModuleSmokeTestCase
             ->assertOk()
             ->assertSeeText($approvedQuotation->quotation_number)
             ->assertSeeText($finalQuotation->quotation_number)
-            ->assertDontSeeText($pendingQuotation->quotation_number);
+            ->assertSeeText($pendingQuotation->quotation_number);
     }
 
     public function test_my_quotations_page_shows_all_statuses_created_by_authenticated_user_only(): void

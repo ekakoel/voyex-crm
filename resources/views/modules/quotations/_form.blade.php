@@ -185,6 +185,7 @@
                         <option
                             value="{{ $itinerary->id }}"
                             data-inquiry-id="{{ $itinerary->inquiry_id ?? '' }}"
+                            data-inquiry-number="{{ $itinerary->inquiry?->inquiry_number ?? '' }}"
                             @selected((string) old('itinerary_id', $quotation->itinerary_id ?? $prefillItineraryId ?? '') === (string) $itinerary->id)
                         >
                             {{ $itinerary->title }}
@@ -1318,6 +1319,16 @@
                     if (summaryEl) summaryEl.textContent = message || '';
                 };
 
+                const emitItinerarySelection = () => {
+                    const selectedOption = itinerarySelect?.options[itinerarySelect.selectedIndex];
+                    const detail = {
+                        itineraryId: itinerarySelect?.value || '',
+                        inquiryId: selectedOption?.dataset?.inquiryId || '',
+                        inquiryNumber: selectedOption?.dataset?.inquiryNumber || '',
+                    };
+                    window.dispatchEvent(new CustomEvent('quotation:itinerary-selected', { detail }));
+                };
+
                 const fetchItems = async () => {
                     if (!canUseItinerary || !itinerarySelect) return;
                     const itineraryId = itinerarySelect.value;
@@ -1448,8 +1459,10 @@
                         if (itinerarySelect.value === '') {
                             updateSummary('');
                         }
+                        emitItinerarySelection();
                     });
                     updateGenerateButtonState();
+                    emitItinerarySelection();
                 }
 
                 const addManualItem = () => {

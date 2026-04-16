@@ -199,6 +199,32 @@ Kebijakan ini wajib untuk setiap update code (penambahan, perubahan, pengurangan
 
 # CHANGELOG (LATEST)
 
+Date: 2026-04-15
+Completed in this cycle:
+
+- Quotation validation performance improvement (lazy modal detail API):
+  - added JSON endpoint for on-demand item detail in validation page:
+    - `GET /quotations/{quotation}/validate/items/{item}/detail-json`
+    - controller: `app/Http/Controllers/Sales/QuotationValidationController.php::itemDetailJson(...)`.
+  - refactored validation modal rendering on:
+    - `resources/views/modules/quotations/validate.blade.php`
+    so item detail, vendor/contact, and history are fetched only when description is clicked (no full pre-render for all items).
+  - added backend detail payload builder:
+    - `app/Services/QuotationValidationService.php::buildValidationItemDetail(...)`.
+
+- Quotation validation UAT documentation rollout:
+  - added dedicated UAT matrix:
+    - `docs/technical/QUOTATION_VALIDATION_UAT_MATRIX.md`
+    covering access control, save-progress, partial/valid transitions, approval guard, source-rate update checks, audit trail, and performance checkpoint.
+  - updated documentation map:
+    - `docs/README.md` now includes quotation validation UAT reference.
+
+- QA note:
+  - `php -l` passed for updated validation service/controller and Blade wiring.
+  - `php artisan test tests/Feature/Modules/QuotationValidationWorkflowTest.php` passed.
+  - `php artisan test tests/Feature/Modules/QuotationsGlobalDiscountRoleTest.php` passed.
+  - `php artisan view:cache` passed.
+
 Date: 2026-04-13
 Completed in this cycle:
 
@@ -554,4 +580,3 @@ Completed in this cycle:
 
 Historical detailed entries moved to:
 - docs/changelog/ROADMAP_CHANGELOG_ARCHIVE.md
-
