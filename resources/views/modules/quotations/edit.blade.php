@@ -26,9 +26,9 @@
                 </div>
             </div>
 
-            <aside class="module-grid-side space-y-4">
+            <aside class="module-grid-side">
                 @if ($quotation->itinerary?->inquiry)
-                    <div class="module-card p-6 space-y-3">
+                    <div class="module-card p-6">
                         <p class="text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300">{{ __('ui.modules.quotations.inquiry_detail') }}</p>
                         <dl class="space-y-1 text-xs text-gray-700 dark:text-gray-200">
                             <div class="flex justify-between gap-3">
@@ -77,7 +77,7 @@
                 @endif
 
                 @if ($quotation->itinerary)
-                    <div class="module-card p-6 space-y-3">
+                    <div class="module-card p-6">
                         <p class="text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300">{{ __('ui.modules.quotations.itinerary_info') }}</p>
                         <dl class="space-y-1 text-xs text-gray-700 dark:text-gray-200">
                             <div class="flex justify-between gap-3">
@@ -96,7 +96,7 @@
                     </div>
                 @endif
 
-                <div class="module-card p-6 space-y-4">
+                <div class="module-card p-6">
                     <div>
                         <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ __('ui.common.activity_timeline') }}</h3>
                         <p class="text-xs text-gray-600 dark:text-gray-300">{{ __('ui.modules.quotations.detailed_audit_log') }}</p>
@@ -105,8 +105,8 @@
                 </div>
                 @include('partials._quotation-comments', ['quotation' => $quotation])
 
-                <div class="module-card p-6 space-y-4">
-                    <p class="text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300">{{ __('ui.common.validation') }}</p>
+                <div class="module-card p-6">
+                    <p class="text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300">{{ __('ui.common.approval') }}</p>
                     <div class="rounded-lg border border-gray-200 p-4 dark:border-gray-700">
                         <div class="flex flex-wrap items-center justify-between gap-3">
                             <div>
@@ -301,6 +301,43 @@
                         @endif
                     </div>
                 </div>
+
+                <div class="module-card p-6 space-y-4">
+                    <div class="flex items-center justify-between gap-2">
+                        <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ __('ui.modules.quotations.validation_progress') }}</h3>
+                        <span class="inline-flex rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide {{ (string) ($validationProgress['status'] ?? 'pending') === 'valid' ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300' : ((string) ($validationProgress['status'] ?? 'pending') === 'partial' ? 'border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-700 dark:bg-sky-900/20 dark:text-sky-300' : 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-300') }}">
+                            {{ (string) ($validationProgress['status'] ?? 'pending') }}
+                        </span>
+                    </div>
+
+                    <div class="space-y-2 text-xs text-gray-700 dark:text-gray-200">
+                        <div class="flex justify-between gap-3">
+                            <span class="text-gray-500 dark:text-gray-400">{{ __('ui.modules.quotations.total_required_validation') }}</span>
+                            <span class="font-medium">{{ (int) ($validationProgress['total_required'] ?? 0) }}</span>
+                        </div>
+                        <div class="flex justify-between gap-3">
+                            <span class="text-gray-500 dark:text-gray-400">{{ __('ui.modules.quotations.total_validated_items') }}</span>
+                            <span class="font-medium">{{ (int) ($validationProgress['total_validated'] ?? 0) }}</span>
+                        </div>
+                        <div class="flex justify-between gap-3">
+                            <span class="text-gray-500 dark:text-gray-400">{{ __('ui.modules.quotations.validation_progress') }}</span>
+                            <span class="font-medium">{{ (int) ($validationProgress['validation_percent'] ?? 0) }}%</span>
+                        </div>
+                    </div>
+
+                    <div class="h-2 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
+                        <div
+                            class="h-full rounded-full bg-emerald-500 transition-all"
+                            style="width: {{ max(0, min(100, (int) ($validationProgress['validation_percent'] ?? 0))) }}%;"
+                        ></div>
+                    </div>
+
+                    @if (($canValidateQuotation ?? false) === true)
+                        <a href="{{ route('quotations.validate.show', $quotation) }}" class="btn-outline w-full justify-center">
+                            {{ __('ui.modules.quotations.validate_quotation') }}
+                        </a>
+                    @endif
+                </div>
             </aside>
         </div>
     </div>
@@ -343,4 +380,3 @@
         })();
     </script>
 @endpush
-

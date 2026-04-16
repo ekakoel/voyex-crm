@@ -318,14 +318,9 @@ Technical references:
 - `docs/technical/QUOTATION_APPROVAL_UAT_MATRIX.md`
 - `docs/technical/TECHNICAL_FIX_NOTES.md`
 
-Archive/pointer docs:
+Archive docs:
 - `docs/archive/PROJECT_AUDIT_ARCHIVE.md`
 - `docs/changelog/ROADMAP_CHANGELOG_ARCHIVE.md`
-- `ANALYSIS_REPORT.md` (archived pointer)
-- `QUICK_SUMMARY.md` (archived pointer)
-- `ACTIVITY_LOG_FIX.md` (merged pointer)
-- `SIDEBAR_COLLAPSE_FIX.md` (merged pointer)
-- `modul.md` (module pointer)
 
 ---
 

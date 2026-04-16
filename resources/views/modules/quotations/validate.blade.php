@@ -46,6 +46,16 @@
                 return `IDR ${num.toLocaleString('en-US', { maximumFractionDigits: 2 })}`;
             };
 
+            const readableItemType = (rawType) => {
+                const type = String(rawType || '').trim();
+                const map = {
+                    FoodBeverage: 'Food and Beverage',
+                    TouristAttraction: 'Tourist Attraction',
+                    TransportUnit: 'Transport',
+                };
+                return map[type] || type || '-';
+            };
+
             const setLoadingState = (isLoading) => {
                 if (loadingEl) loadingEl.classList.toggle('hidden', !isLoading);
                 if (errorEl) errorEl.classList.add('hidden');
@@ -62,7 +72,11 @@
                 const contact = payload.contact || {};
 
                 if (titleEl) {
-                    titleEl.textContent = `${item.serviceable_type || '-'} - ${item.description || '-'}`;
+                    const dayNumber = Number(item.day_number || 0);
+                    const dayLabel = dayNumber > 0 ? `Day ${dayNumber}` : 'Without Day';
+                    const typeLabel = readableItemType(item.serviceable_type);
+                    const itemName = String(item.item_name || '').trim() || String(item.description || '').trim() || '-';
+                    titleEl.textContent = `${dayLabel} - ${typeLabel} - ${itemName}`;
                 }
 
                 modal.setAttribute('data-current-item-id', String(item.id || ''));
@@ -82,13 +96,26 @@
                 if (contactWebsiteInput) contactWebsiteInput.value = contact.contact_website && contact.contact_website !== '-' ? contact.contact_website : '';
 
                 if (currentEl) {
+                    const updatedAtText = (() => {
+                        const iso = String(item.updated_at || '').trim();
+                        if (!iso) return '-';
+                        const parsed = new Date(iso);
+                        if (Number.isNaN(parsed.getTime())) return '-';
+                        const yyyy = parsed.getFullYear();
+                        const mm = String(parsed.getMonth() + 1).padStart(2, '0');
+                        const dd = String(parsed.getDate()).padStart(2, '0');
+                        const hh = String(parsed.getHours()).padStart(2, '0');
+                        const ii = String(parsed.getMinutes()).padStart(2, '0');
+                        return `${yyyy}-${mm}-${dd} (${hh}:${ii})`;
+                    })();
+
                     currentEl.innerHTML = `
                         <p class="mb-2 text-[11px] text-gray-500 dark:text-gray-400">This section shows the rate currently used by this quotation item.</p>
                         <div><span class="font-semibold">{{ __('ui.modules.quotations.active_contract_rate') }}:</span> ${money(item.contract_rate)}</div>
                         <div class="mt-1"><span class="font-semibold">{{ __('ui.modules.quotations.active_markup_type') }}:</span> ${item.markup_type || 'fixed'}</div>
                         <div class="mt-1"><span class="font-semibold">{{ __('ui.modules.quotations.active_markup') }}:</span> ${Number(item.markup || 0).toLocaleString('en-US', { maximumFractionDigits: 2 })}</div>
                         <div class="mt-1"><span class="font-semibold">{{ __('ui.common.updated_by') }}:</span> ${item.validator || '-'}</div>
-                        <div class="mt-1"><span class="font-semibold">{{ __('ui.common.updated_at') }}:</span> ${item.updated_at || '-'}</div>
+                        <div class="mt-1"><span class="font-semibold">{{ __('ui.common.updated_at') }}:</span> ${updatedAtText}</div>
                     `;
                 }
 
@@ -220,22 +247,24 @@
             updateContactButton?.addEventListener('click', updateContactAjax);
 
             const setItemFeedback = (itemId, message, type = 'success') => {
-                const el = document.querySelector(`[data-item-feedback="${itemId}"]`);
-                if (!el) return;
+                const elements = document.querySelectorAll(`[data-item-feedback="${itemId}"]`);
+                if (!elements.length) return;
 
-                if (!message) {
-                    el.textContent = '';
-                    el.classList.add('hidden');
-                    return;
-                }
+                elements.forEach((el) => {
+                    if (!message) {
+                        el.textContent = '';
+                        el.classList.add('hidden');
+                        return;
+                    }
 
-                el.textContent = message;
-                el.classList.remove('hidden', 'text-emerald-700', 'text-rose-700', 'dark:text-emerald-300', 'dark:text-rose-300');
-                if (type === 'error') {
-                    el.classList.add('text-rose-700', 'dark:text-rose-300');
-                } else {
-                    el.classList.add('text-emerald-700', 'dark:text-emerald-300');
-                }
+                    el.textContent = message;
+                    el.classList.remove('hidden', 'text-emerald-700', 'text-rose-700', 'dark:text-emerald-300', 'dark:text-rose-300');
+                    if (type === 'error') {
+                        el.classList.add('text-rose-700', 'dark:text-rose-300');
+                    } else {
+                        el.classList.add('text-emerald-700', 'dark:text-emerald-300');
+                    }
+                });
             };
 
             const formatDateTime = (isoDate) => {
@@ -267,6 +296,7 @@
                 const totalValidatedEl = document.querySelector('[data-progress-total-validated]');
                 const percentEl = document.querySelector('[data-progress-percent]');
                 const statusEl = document.querySelector('[data-progress-status]');
+                const finalizeButton = document.querySelector('[data-finalize-quotation-btn]');
 
                 if (totalValidatedEl && progress.total_validated !== undefined) {
                     totalValidatedEl.textContent = String(progress.total_validated);
@@ -277,29 +307,67 @@
                 if (statusEl && progress.status) {
                     statusEl.textContent = String(progress.status);
                 }
+                if (finalizeButton && progress.is_complete !== undefined) {
+                    finalizeButton.classList.toggle('hidden', !Boolean(progress.is_complete));
+                }
             };
 
             const updateItemRowUi = (itemId, item) => {
-                const statusCell = document.querySelector(`[data-item-status="${itemId}"]`);
-                const updatedCell = document.querySelector(`[data-item-updated="${itemId}"]`);
-                const validatedCheckbox = document.querySelector(`input[type="checkbox"][name="items[${itemId}][is_validated]"][value="1"]`);
+                const statusCells = document.querySelectorAll(`[data-item-status="${itemId}"]`);
+                const updatedCells = document.querySelectorAll(`[data-item-updated="${itemId}"]`);
+                const validatedCheckboxes = document.querySelectorAll(`[data-item-validated-checkbox="${itemId}"]`);
 
-                if (statusCell) {
+                statusCells.forEach((statusCell) => {
                     if (item.is_validated) {
                         statusCell.innerHTML = `<span class="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">{{ __('ui.modules.quotations.validated') }}</span>`;
                     } else {
                         statusCell.innerHTML = `<span class="inline-flex rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700 dark:border-amber-700 dark:bg-amber-900/30 dark:text-amber-300">{{ __('ui.modules.quotations.pending_validation') }}</span>`;
                     }
-                }
+                });
 
-                if (updatedCell) {
+                updatedCells.forEach((updatedCell) => {
                     const validatorName = item.validator_name || '-';
                     const updatedAt = formatDateTime(item.updated_at);
                     updatedCell.innerHTML = `${validatorName}<br>${updatedAt}`;
+                });
+
+                validatedCheckboxes.forEach((validatedCheckbox) => {
+                    validatedCheckbox.checked = Boolean(item.is_validated);
+                });
+            };
+
+            const getCanonicalInput = (itemId, field) => {
+                return document.querySelector(`[data-canonical-input="${field}-${itemId}"]`)
+                    || document.querySelector(`[name="items[${itemId}][${field}]"]`);
+            };
+
+            const syncMobileFieldsToCanonical = (itemId) => {
+                const mobileContainer = document.querySelector('[data-mobile-validation-list]');
+                if (mobileContainer && mobileContainer.offsetParent === null) {
+                    return;
                 }
 
-                if (validatedCheckbox) {
-                    validatedCheckbox.checked = Boolean(item.is_validated);
+                const mobileRateInput = document.querySelector(`[data-mobile-contract-rate="${itemId}"]`);
+                const mobileMarkupTypeInput = document.querySelector(`[data-mobile-markup-type="${itemId}"]`);
+                const mobileMarkupInput = document.querySelector(`[data-mobile-markup="${itemId}"]`);
+                const mobileValidatedInput = document.querySelector(`[data-item-validated-checkbox="${itemId}"]:not([name])`);
+
+                const canonicalRateInput = getCanonicalInput(itemId, 'contract_rate');
+                const canonicalMarkupTypeInput = getCanonicalInput(itemId, 'markup_type');
+                const canonicalMarkupInput = getCanonicalInput(itemId, 'markup');
+                const canonicalValidatedInput = document.querySelector(`input[type="checkbox"][name="items[${itemId}][is_validated]"][value="1"]`);
+
+                if (mobileRateInput && canonicalRateInput) {
+                    canonicalRateInput.value = formatIntegerDisplay(mobileRateInput.value);
+                }
+                if (mobileMarkupTypeInput && canonicalMarkupTypeInput) {
+                    canonicalMarkupTypeInput.value = mobileMarkupTypeInput.value || 'fixed';
+                }
+                if (mobileMarkupInput && canonicalMarkupInput) {
+                    canonicalMarkupInput.value = formatIntegerDisplay(mobileMarkupInput.value);
+                }
+                if (mobileValidatedInput && canonicalValidatedInput) {
+                    canonicalValidatedInput.checked = mobileValidatedInput.checked;
                 }
             };
 
@@ -308,10 +376,11 @@
                 const url = button.getAttribute('data-save-item-url');
                 if (!itemId || !url) return;
 
-                const contractRateInput = document.querySelector(`[name="items[${itemId}][contract_rate]"]`);
-                const markupTypeInput = document.querySelector(`[name="items[${itemId}][markup_type]"]`);
-                const markupInput = document.querySelector(`[name="items[${itemId}][markup]"]`);
-                const validatedInput = document.querySelector(`input[type="checkbox"][name="items[${itemId}][is_validated]"][value="1"]`);
+                syncMobileFieldsToCanonical(itemId);
+
+                const contractRateInput = getCanonicalInput(itemId, 'contract_rate');
+                const markupTypeInput = getCanonicalInput(itemId, 'markup_type');
+                const markupInput = getCanonicalInput(itemId, 'markup');
                 const spinner = document.querySelector(`[data-item-spinner="${itemId}"]`);
                 const label = document.querySelector(`[data-item-save-label="${itemId}"]`);
                 const normalizedContractRate = Math.max(0, parseIntegerFromDisplay(contractRateInput?.value || 0));
@@ -391,8 +460,52 @@
                 });
             });
 
+            document.querySelectorAll('[data-mobile-markup]').forEach((input) => {
+                input.value = formatIntegerDisplay(input.value);
+                const itemId = input.getAttribute('data-mobile-markup');
+                input.addEventListener('input', () => {
+                    input.value = formatIntegerDisplay(input.value);
+                    if (itemId) syncMobileFieldsToCanonical(itemId);
+                });
+                input.addEventListener('blur', () => {
+                    input.value = formatIntegerDisplay(input.value);
+                    if (itemId) syncMobileFieldsToCanonical(itemId);
+                });
+            });
+
+            document.querySelectorAll('[data-mobile-contract-rate]').forEach((input) => {
+                input.value = formatIntegerDisplay(input.value);
+                const itemId = input.getAttribute('data-mobile-contract-rate');
+                input.addEventListener('input', () => {
+                    input.value = formatIntegerDisplay(input.value);
+                    if (itemId) syncMobileFieldsToCanonical(itemId);
+                });
+                input.addEventListener('blur', () => {
+                    input.value = formatIntegerDisplay(input.value);
+                    if (itemId) syncMobileFieldsToCanonical(itemId);
+                });
+            });
+
+            document.querySelectorAll('[data-mobile-markup-type]').forEach((select) => {
+                const itemId = select.getAttribute('data-mobile-markup-type');
+                select.addEventListener('change', () => {
+                    if (itemId) syncMobileFieldsToCanonical(itemId);
+                });
+            });
+
+            document.querySelectorAll('[data-item-validated-checkbox]:not([name])').forEach((checkbox) => {
+                const itemId = checkbox.getAttribute('data-item-validated-checkbox');
+                checkbox.addEventListener('change', () => {
+                    if (itemId) syncMobileFieldsToCanonical(itemId);
+                });
+            });
+
             const progressForm = document.querySelector('[data-validation-progress-form]');
             progressForm?.addEventListener('submit', () => {
+                document.querySelectorAll('[data-mobile-contract-rate]').forEach((input) => {
+                    const itemId = input.getAttribute('data-mobile-contract-rate');
+                    if (itemId) syncMobileFieldsToCanonical(itemId);
+                });
                 document.querySelectorAll('[data-contract-rate-input]').forEach((input) => {
                     input.value = String(Math.max(0, parseIntegerFromDisplay(input.value)));
                 });
@@ -440,7 +553,7 @@
                 </div>
             </div>
 
-            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
+            <div class="module-kpi-grid">
                 <div class="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/30">
                     <p class="text-xs text-gray-500 dark:text-gray-400">{{ __('ui.modules.quotations.total_items') }}</p>
                     <p class="mt-1 text-base font-semibold text-gray-900 dark:text-gray-100">{{ (int) ($progress['total_items'] ?? 0) }}</p>
@@ -472,7 +585,186 @@
                 <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ __('ui.modules.quotations.validation_items') }}</h3>
             </div>
 
-            <div class="overflow-x-auto">
+            @php
+                $resolveDayNumber = function ($item): int {
+                    $dayNumber = (int) ($item->day_number ?? 0);
+                    return $dayNumber > 0 ? $dayNumber : PHP_INT_MAX;
+                };
+
+                $sortedValidationItems = collect($validationItems ?? [])
+                    ->sort(function ($a, $b) use ($resolveDayNumber): int {
+                        $dayCompare = $resolveDayNumber($a) <=> $resolveDayNumber($b);
+                        if ($dayCompare !== 0) {
+                            return $dayCompare;
+                        }
+
+                        return ((int) ($a->id ?? 0)) <=> ((int) ($b->id ?? 0));
+                    })
+                    ->values();
+
+                $groupedValidationItems = $sortedValidationItems->groupBy(function ($item) use ($resolveDayNumber): string {
+                    $dayNumber = $resolveDayNumber($item);
+                    return $dayNumber !== PHP_INT_MAX ? ('day-' . $dayNumber) : 'day-without';
+                });
+            @endphp
+
+            <div class="responsive-data-shell">
+            <div class="space-y-4 responsive-data-mobile" data-mobile-validation-list>
+                @if ($groupedValidationItems->isNotEmpty())
+                    @foreach ($groupedValidationItems as $dayItems)
+                        @php
+                            $firstDayItem = $dayItems->first();
+                            $groupDayNumber = (int) ($firstDayItem->day_number ?? 0);
+                            $dayText = $groupDayNumber > 0 ? ('Day ' . $groupDayNumber) : 'Without Day';
+                        @endphp
+                        <div class="responsive-group-card">
+                            <div class="responsive-group-header">
+                                {{ $dayText }}
+                            </div>
+                            <div class="divide-y divide-gray-100 dark:divide-gray-700">
+                                @foreach ($dayItems as $item)
+                                    @php
+                                        $serviceableType = class_basename((string) ($item->serviceable_type ?? ''));
+                                        $typeLabelMap = [
+                                            'Activity' => 'Activity',
+                                            'FoodBeverage' => 'Food and Beverage',
+                                            'Transport' => 'Transport',
+                                            'TransportUnit' => 'Transport',
+                                            'TouristAttraction' => 'Tourist Attraction',
+                                            'HotelRoom' => 'Hotel',
+                                        ];
+                                        $typeLabel = $typeLabelMap[$serviceableType] ?? $serviceableType;
+                                        $itemName = trim((string) ($item->serviceable?->name ?? ''));
+                                        if ($itemName === '' && $serviceableType === 'HotelRoom') {
+                                            $itemName = trim((string) ($item->serviceable?->rooms ?? ''));
+                                        }
+                                        $descriptionLabel = $itemName !== '' ? $itemName : '-';
+                                        $vendorProviderItemLabel = $item->serviceable?->name ?? '-';
+
+                                        if (in_array($serviceableType, ['Activity', 'FoodBeverage', 'Transport', 'TransportUnit'], true)) {
+                                            $vendorName = trim((string) ($item->serviceable?->vendor?->name ?? ''));
+                                            if ($vendorName !== '') {
+                                                $vendorProviderItemLabel = $vendorName;
+                                            }
+                                        } elseif ($serviceableType === 'HotelRoom') {
+                                            $hotelName = trim((string) ($item->serviceable?->hotel?->name ?? ''));
+                                            if ($hotelName !== '') {
+                                                $vendorProviderItemLabel = $hotelName;
+                                            }
+
+                                            $roomName = trim((string) ($item->serviceable?->rooms ?? $item->serviceable?->name ?? ''));
+                                            if ($roomName !== '') {
+                                                $descriptionLabel = $roomName;
+                                            }
+                                        }
+
+                                        if ($serviceableType === 'FoodBeverage') {
+                                            $mealType = trim((string) ($item->serviceable_meta['meal_type'] ?? ''));
+                                            if ($mealType === '') {
+                                                $startTime = trim((string) ($item->serviceable_meta['start_time'] ?? ''));
+                                                if (preg_match('/^(\d{1,2}):(\d{2})$/', $startTime, $matches)) {
+                                                    $hour = (int) $matches[1];
+                                                    if ($hour <= 10) {
+                                                        $mealType = 'breakfast';
+                                                    } elseif ($hour <= 15) {
+                                                        $mealType = 'lunch';
+                                                    } else {
+                                                        $mealType = 'dinner';
+                                                    }
+                                                }
+                                            }
+                                            if ($mealType !== '') {
+                                                $mealTypeFormatted = ucfirst(strtolower($mealType));
+                                                if (! str_contains($descriptionLabel, '(' . $mealTypeFormatted . ')')) {
+                                                    $descriptionLabel .= ' (' . $mealTypeFormatted . ')';
+                                                }
+                                            }
+                                        }
+                                    @endphp
+                                    <div class="responsive-item-card space-y-3" data-validation-item-row="{{ $item->id }}">
+                                        <div class="flex items-start justify-between gap-3">
+                                            <button type="button" data-open-validation-detail="{{ $item->id }}" class="text-left text-sm font-semibold text-indigo-700 hover:underline dark:text-indigo-300">
+                                                {{ $vendorProviderItemLabel }}
+                                            </button>
+                                            <div class="flex items-center gap-2">
+                                                <input
+                                                    type="checkbox"
+                                                    value="1"
+                                                    data-item-validated-checkbox="{{ $item->id }}"
+                                                    @checked((bool) ($item->is_validated ?? false))
+                                                    class="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                                                >
+                                                <button type="button" class="btn-outline-sm" data-save-item="{{ $item->id }}" data-save-item-url="{{ route('quotations.validate.save-item', ['quotation' => $quotation, 'item' => $item]) }}">
+                                                    <span data-item-spinner="{{ $item->id }}" class="mr-1 hidden inline-block h-3 w-3 animate-spin rounded-full border border-current border-t-transparent align-[-1px]"></span>
+                                                    <span data-item-save-label="{{ $item->id }}">{{ __('ui.modules.quotations.validate') }}</span>
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <div class="grid grid-cols-2 gap-2 text-xs text-gray-600 dark:text-gray-300">
+                                            <div>{{ __('ui.common.type') }}</div><div class="text-right text-gray-800 dark:text-gray-100">{{ $typeLabel }}</div>
+                                            <div>{{ __('ui.common.description') }}</div><div class="text-right text-gray-800 dark:text-gray-100">{{ $descriptionLabel }}</div>
+                                            <div>{{ __('ui.common.qty') }}</div><div class="text-right text-gray-800 dark:text-gray-100">{{ (int) ($item->qty ?? 0) }}</div>
+                                            <div>{{ __('ui.modules.quotations.contract_rate') }}</div>
+                                            <div>
+                                                <input
+                                                    type="text"
+                                                    pattern="[0-9.]*"
+                                                    inputmode="numeric"
+                                                    data-mobile-contract-rate="{{ $item->id }}"
+                                                    value="{{ old('items.' . $item->id . '.contract_rate', number_format((float) ($item->contract_rate ?? 0), 0, ',', '.')) }}"
+                                                    class="app-input text-right text-xs"
+                                                >
+                                            </div>
+                                            <div>{{ __('ui.modules.quotations.markup_type') }}</div>
+                                            <div>
+                                                <select data-mobile-markup-type="{{ $item->id }}" class="app-input text-xs">
+                                                    <option value="fixed" @selected(old('items.' . $item->id . '.markup_type', $item->markup_type) === 'fixed')>{{ __('ui.common.fixed') }}</option>
+                                                    <option value="percent" @selected(old('items.' . $item->id . '.markup_type', $item->markup_type) === 'percent')>{{ __('ui.common.percent') }}</option>
+                                                </select>
+                                            </div>
+                                            <div>{{ __('ui.modules.quotations.markup') }}</div>
+                                            <div>
+                                                <input
+                                                    type="text"
+                                                    pattern="[0-9.]*"
+                                                    inputmode="numeric"
+                                                    data-mobile-markup="{{ $item->id }}"
+                                                    value="{{ old('items.' . $item->id . '.markup', number_format((float) ($item->markup ?? 0), 0, ',', '.')) }}"
+                                                    class="app-input text-right text-xs"
+                                                >
+                                            </div>
+                                        </div>
+
+                                        <div class="flex items-center justify-between gap-2 text-xs">
+                                            <div data-item-updated="{{ $item->id }}" class="text-gray-600 dark:text-gray-300">
+                                                {{ $item->validator?->name ?? '-' }}
+                                                @if ($item->updated_at)
+                                                    <br><x-local-time :value="$item->updated_at" />
+                                                @endif
+                                            </div>
+                                            <div data-item-status="{{ $item->id }}">
+                                                @if ((bool) ($item->is_validated ?? false))
+                                                    <span class="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">{{ __('ui.modules.quotations.validated') }}</span>
+                                                @else
+                                                    <span class="inline-flex rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700 dark:border-amber-700 dark:bg-amber-900/30 dark:text-amber-300">{{ __('ui.modules.quotations.pending_validation') }}</span>
+                                                @endif
+                                            </div>
+                                        </div>
+                                        <p data-item-feedback="{{ $item->id }}" class="hidden text-[11px]"></p>
+                                    </div>
+                                @endforeach
+                            </div>
+                        </div>
+                    @endforeach
+                @else
+                    <div class="rounded-xl border border-dashed border-gray-300 px-4 py-6 text-center text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400">
+                        {{ __('ui.modules.quotations.no_validation_required_items') }}
+                    </div>
+                @endif
+            </div>
+
+            <div class="responsive-data-desktop overflow-x-auto">
                 <table class="app-table w-full divide-y divide-gray-200 text-sm dark:divide-gray-700">
                     <thead>
                         <tr>
@@ -490,28 +782,6 @@
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
-                        @php
-                            $resolveDayNumber = function ($item): int {
-                                $dayNumber = (int) ($item->day_number ?? 0);
-                                return $dayNumber > 0 ? $dayNumber : PHP_INT_MAX;
-                            };
-
-                            $sortedValidationItems = collect($validationItems ?? [])
-                                ->sort(function ($a, $b) use ($resolveDayNumber): int {
-                                    $dayCompare = $resolveDayNumber($a) <=> $resolveDayNumber($b);
-                                    if ($dayCompare !== 0) {
-                                        return $dayCompare;
-                                    }
-
-                                    return ((int) ($a->id ?? 0)) <=> ((int) ($b->id ?? 0));
-                                })
-                                ->values();
-
-                            $groupedValidationItems = $sortedValidationItems->groupBy(function ($item) use ($resolveDayNumber): string {
-                                $dayNumber = $resolveDayNumber($item);
-                                return $dayNumber !== PHP_INT_MAX ? ('day-' . $dayNumber) : 'day-without';
-                            });
-                        @endphp
                         @if ($groupedValidationItems->isNotEmpty())
                         @foreach ($groupedValidationItems as $dayKey => $dayItems)
                             @php
@@ -591,7 +861,7 @@
                                     <div class="space-y-1">
                                         <input type="hidden" name="items[{{ $item->id }}][is_validated]" value="0">
                                         <label class="inline-flex items-center gap-2 text-xs text-gray-700 dark:text-gray-200">
-                                            <input type="checkbox" name="items[{{ $item->id }}][is_validated]" value="1" @checked((bool) ($item->is_validated ?? false)) class="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500">
+                                            <input type="checkbox" name="items[{{ $item->id }}][is_validated]" value="1" data-item-validated-checkbox="{{ $item->id }}" @checked((bool) ($item->is_validated ?? false)) class="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500">
                                         </label>
                                         <p data-item-feedback="{{ $item->id }}" class="hidden text-[11px]"></p>
                                     </div>
@@ -614,11 +884,12 @@
                                         name="items[{{ $item->id }}][contract_rate]"
                                         value="{{ old('items.' . $item->id . '.contract_rate', number_format((float) ($item->contract_rate ?? 0), 0, ',', '.')) }}"
                                         data-contract-rate-input
+                                        data-canonical-input="contract_rate-{{ $item->id }}"
                                         class="app-input text-right"
                                     >
                                 </td>
                                 <td class="px-3 py-2 align-top">
-                                    <select name="items[{{ $item->id }}][markup_type]" class="app-input">
+                                    <select name="items[{{ $item->id }}][markup_type]" data-canonical-input="markup_type-{{ $item->id }}" class="app-input">
                                         <option value="fixed" @selected(old('items.' . $item->id . '.markup_type', $item->markup_type) === 'fixed')>{{ __('ui.common.fixed') }}</option>
                                         <option value="percent" @selected(old('items.' . $item->id . '.markup_type', $item->markup_type) === 'percent')>{{ __('ui.common.percent') }}</option>
                                     </select>
@@ -631,6 +902,7 @@
                                         name="items[{{ $item->id }}][markup]"
                                         value="{{ old('items.' . $item->id . '.markup', number_format((float) ($item->markup ?? 0), 0, ',', '.')) }}"
                                         data-markup-input
+                                        data-canonical-input="markup-{{ $item->id }}"
                                         class="app-input text-right"
                                     >
                                 </td>
@@ -665,12 +937,18 @@
                     </tbody>
                 </table>
             </div>
+            </div>
 
-            <div class="flex flex-wrap items-center justify-between gap-2 pt-2">
+            <div class="module-action-row pt-2">
                 <button type="submit" class="btn-secondary">{{ __('ui.modules.quotations.save_progress') }}</button>
-                @if ((bool) ($progress['is_complete'] ?? false))
-                    <button type="submit" form="quotation-finalize-form" class="btn-primary">{{ __('ui.modules.quotations.validate_quotation') }}</button>
-                @endif
+                <button
+                    type="submit"
+                    form="quotation-finalize-form"
+                    class="btn-primary {{ (bool) ($progress['is_complete'] ?? false) ? '' : 'hidden' }}"
+                    data-finalize-quotation-btn
+                >
+                    {{ __('ui.modules.quotations.validate_quotation') }}
+                </button>
             </div>
         </form>
         <form id="quotation-finalize-form" method="POST" action="{{ route('quotations.validate.finalize', $quotation) }}" class="hidden">

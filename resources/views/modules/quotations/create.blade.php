@@ -19,6 +19,13 @@
                 el.textContent = value && String(value).trim() !== '' ? value : '-';
             };
 
+            const setHtmlField = (key, value) => {
+                const el = card.querySelector(`[data-inquiry-field="${key}"]`);
+                if (!el) return;
+                const html = value && String(value).trim() !== '' ? String(value) : '';
+                el.innerHTML = html !== '' ? html : '-';
+            };
+
             const renderByItineraryId = (itineraryId) => {
                 if (!itineraryId || !map[itineraryId]) {
                     card.classList.add('hidden');
@@ -33,7 +40,7 @@
                 setField('source', data.source);
                 setField('assigned_user_name', data.assigned_user_name);
                 setField('deadline', data.deadline);
-                setField('notes', data.notes);
+                setHtmlField('notes', data.notes_html || '');
                 card.classList.remove('hidden');
             };
 
@@ -100,7 +107,7 @@
                         </div>
                         <div class="border-t border-gray-200 pt-2 dark:border-gray-700">
                             <dt class="text-gray-500 dark:text-gray-400">{{ __('ui.common.notes') }}</dt>
-                            <dd class="mt-1 text-gray-700 dark:text-gray-200 whitespace-pre-wrap" data-inquiry-field="notes">-</dd>
+                            <dd class="mt-1 text-gray-700 dark:text-gray-200 prose prose-sm max-w-none dark:prose-invert" data-inquiry-field="notes">-</dd>
                         </div>
                     </dl>
                 </div>
@@ -108,5 +115,3 @@
         </div>
     </div>
 @endsection
-
-

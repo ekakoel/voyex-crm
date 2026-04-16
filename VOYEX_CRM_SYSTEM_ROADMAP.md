@@ -1,7 +1,7 @@
 ﻿# VOYEX CRM -- SYSTEM ROADMAP
 
 Version: 1.3  
-Last Updated: 2026-04-13
+Last Updated: 2026-04-16
 
 Legend:  
 - DONE = Implemented  
@@ -198,6 +198,89 @@ Kebijakan ini wajib untuk setiap update code (penambahan, perubahan, pengurangan
 ----------------------------------------------------------------------------------------------------
 
 # CHANGELOG (LATEST)
+
+Date: 2026-04-16
+Completed in this cycle:
+
+- Quotation revalidation access rule update:
+  - validation page access is now kept available for validation actors even after validation status reaches `valid`.
+  - access is locked only when quotation status becomes `approved` or `final`.
+  - implemented by aligning `canValidateQuotation` flag logic in:
+    - `app/Http/Controllers/Sales/QuotationController.php` (`show` and `edit`).
+
+- Quotation sidebar visibility enhancement (edit/detail):
+  - added dedicated `Validation Progress` card in quotation edit and detail sidebar.
+  - card now shows validation status, required item count, validated item count, progress percentage, and progress bar.
+  - includes direct CTA to `Validate Quotation` page when user has validation access.
+
+- Quotation Validation responsive standardization:
+  - validation page now uses standardized responsive pattern:
+    - mobile/tablet card grouping for validation items,
+    - desktop table view (`xl+`) for dense operational data.
+  - added reusable global CSS utility classes in `resources/css/app.css`:
+    - `responsive-data-shell`, `responsive-data-mobile`, `responsive-data-desktop`,
+    - `responsive-group-card`, `responsive-group-header`, `responsive-item-card`,
+    - `module-kpi-grid`, `module-action-row`.
+  - applied shared utility classes to `resources/views/modules/quotations/validate.blade.php` for KPI grid, grouped list, and action row consistency.
+  - updated standards documents so responsive behavior becomes mandatory baseline for existing and future pages:
+    - `docs/core/LAYOUT_GUIDE.md`,
+    - `PROJECT_GUIDELINES.md`,
+    - `VOYEX_CRM_AI_GUIDELINE.md`.
+
+- Quotation validation UX refinement (high-usage operational flow):
+  - validation table grouped by `Day N` using section rows for better scanability on large quotations.
+  - validation table column order standardized to:
+    `Mark Validated -> Type -> Vendor/Provider/Item -> Description -> QTY -> Contract Rate -> Markup Type -> Markup -> Validated by -> Validation Status -> Actions`.
+  - item labels readability improvements:
+    - type labels mapped (`Food and Beverage`, `Tourist Attraction`, `Transport`, `Hotel`).
+    - description simplified to item name only.
+    - vendor/provider column behavior tuned by type:
+      - Activity/Transport/F&B: vendor/provider name,
+      - Hotel: hotel name,
+      - room detail shown in description.
+  - modal trigger moved from description to `Vendor/Provider/Item` column.
+  - removed obsolete hint text for description click interaction.
+  - modal detail title format updated to:
+    `Day N - Item Type - Item Name`,
+    including readable item type mapping (`Food and Beverage`, `Tourist Attraction`, `Transport`).
+  - modal timestamp formatting updated to:
+    `Updated at: yyyy-mm-dd (hh:ii)`.
+  - validation row action copy streamlined (`Save Item` => `Validate`) and success inline text noise removed.
+
+- Quotation create/edit hardening and consistency:
+  - `Contract Rate`, `Markup Type`, and `Markup` on quotation item rows are now read-only in create/edit to enforce rate governance via validation flow.
+  - inquiry detail notes rendering aligned:
+    - create page now renders sanitized HTML notes (read-only), matching edit behavior.
+
+- Quotation lifecycle visibility behavior:
+  - quotation index now displays active (non-deactivated) data only.
+  - `My Quotation` keeps showing both active and deactivated records.
+  - deactivated quotations now present status badge as `inactive` in listing/detail views.
+  - activate/deactivate action now redirects back to originating page context.
+
+- Documentation updates:
+  - updated UAT matrix:
+    - `docs/technical/QUOTATION_VALIDATION_UAT_MATRIX.md`
+    to reflect current UI flow (AJAX per-row validate, vendor/provider modal trigger, validate button visibility rule, modal title format).
+  - removed unused legacy root markdown files to eliminate stale duplication:
+    - `ACTIVITY_LOG_FIX.md`
+    - `ANALYSIS_REPORT.md`
+    - `CHEAT_SHEET.md`
+    - `ITINERARY_CREATE_EDIT_FLOW.md`
+    - `ITINERARY_DETAIL_MAP_ARCHITECTURE.md`
+    - `LAYOUT_GUIDE.md`
+    - `modul.md`
+    - `PROJECT_AUDIT_ARCHIVE.md`
+    - `QUICK_SUMMARY.md`
+    - `QUOTATION_APPROVAL_UAT_MATRIX.md`
+    - `QUOTATION_VALIDATION_UAT_MATRIX.md` (root copy)
+    - `SIDEBAR_COLLAPSE_FIX.md`
+    - `TECHNICAL_FIX_NOTES.md`
+  - updated documentation map:
+    - `README.md` (added validation UAT reference + cleanup rule)
+    - `docs/README.md` (canonical maintenance rule and source-of-truth boundary)
+    - `PROJECT_KNOWLEDGE_BASE.md` (removed obsolete pointer references)
+    - `docs/archive/PROJECT_AUDIT_ARCHIVE.md` (archive note adjusted post-cleanup).
 
 Date: 2026-04-15
 Completed in this cycle:

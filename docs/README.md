@@ -1,5 +1,17 @@
 ﻿# Documentation Structure
 
+## Canonical Maintenance Rule
+- Canonical docs live in:
+  - `docs/**` (core/technical/archive/changelog),
+  - plus root source-of-truth files:
+    - `PROJECT_KNOWLEDGE_BASE.md`
+    - `PROJECT_GUIDELINES.md`
+    - `VOYEX_CRM_SYSTEM_ROADMAP.md`
+    - `VOYEX_CRM_AI_GUIDELINE.md`
+    - `README.md`
+- Legacy root pointer docs have been removed to prevent stale duplication.
+- Any feature update must be written in canonical docs plus roadmap changelog.
+
 ## Core
 - PROJECT_KNOWLEDGE_BASE.md
 - PROJECT_GUIDELINES.md
@@ -21,4 +33,4 @@
 - docs/changelog/ROADMAP_CHANGELOG_ARCHIVE.md
 
 Note:
-Legacy root .md file names are retained as pointer files for backward compatibility.
+Use canonical paths above for all documentation updates.

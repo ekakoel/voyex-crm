@@ -742,6 +742,93 @@
         align-content: start;
     }
 
+    /* Responsive data presentation baseline (table desktop + cards mobile/tablet) */
+    .responsive-data-shell {
+        display: block;
+        width: 100%;
+    }
+
+    .responsive-data-mobile {
+        display: block;
+    }
+
+    .responsive-data-desktop {
+        display: none;
+    }
+
+    .responsive-group-card {
+        border-radius: 0.75rem;
+        border: 1px solid #e5e7eb;
+        overflow: hidden;
+    }
+
+    .dark .responsive-group-card {
+        border-color: #374151;
+    }
+
+    .responsive-group-header {
+        border-bottom: 1px solid #e5e7eb;
+        background: #f9fafb;
+        padding: 0.5rem 1rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: #374151;
+    }
+
+    .dark .responsive-group-header {
+        border-bottom-color: #374151;
+        background: rgba(31, 41, 55, 0.7);
+        color: #e5e7eb;
+    }
+
+    .responsive-item-card {
+        padding: 1rem;
+    }
+
+    .responsive-item-card + .responsive-item-card {
+        border-top: 1px solid #f3f4f6;
+    }
+
+    .dark .responsive-item-card + .responsive-item-card {
+        border-top-color: #374151;
+    }
+
+    .module-kpi-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 0.75rem;
+    }
+
+    .module-action-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+    }
+
+    @media (min-width: 640px) {
+        .module-kpi-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+
+    @media (min-width: 1280px) {
+        .responsive-data-mobile {
+            display: none;
+        }
+
+        .responsive-data-desktop {
+            display: block;
+        }
+
+        .module-kpi-grid {
+            grid-template-columns: repeat(5, minmax(0, 1fr));
+        }
+    }
+
     @media (min-width: 768px) {
         .module-grid-4-8 {
             grid-template-columns: minmax(0, 4fr) minmax(0, 8fr);

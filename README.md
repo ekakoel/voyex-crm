@@ -29,6 +29,7 @@ php artisan serve
 - `docs/technical/ITINERARY_CREATE_EDIT_FLOW.md`
 - `docs/technical/ITINERARY_DETAIL_MAP_ARCHITECTURE.md`
 - `docs/technical/QUOTATION_APPROVAL_UAT_MATRIX.md`
+- `docs/technical/QUOTATION_VALIDATION_UAT_MATRIX.md`
 - `docs/technical/TECHNICAL_FIX_NOTES.md`
 
 ## Catatan Konsolidasi Dokumentasi
@@ -36,4 +37,8 @@ php artisan serve
 Per 2026-04-09, dokumentasi telah:
 - dipadatkan untuk mengurangi duplikasi,
 - dipisahkan ke struktur `docs/` untuk core/technical/archive/changelog,
-- tetap menjaga backward compatibility melalui pointer file `.md` di root.
+- legacy root pointer files yang duplikatif sudah dibersihkan.
+
+Aturan praktis:
+- update isi dokumentasi hanya pada file canonical (`docs/**` + root source-of-truth utama),
+- hindari membuat duplikasi dokumen lama di root.

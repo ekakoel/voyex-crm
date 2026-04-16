@@ -40,6 +40,23 @@ Aturan: jika `final`, data view-only (tanpa mutasi).
 - Hindari duplikasi data yang tidak perlu (single source of truth per konteks).
 - Ikuti standar UI global (`app-card`, `app-table`, `app-input`, `btn-*`).
 
+## 4a. Standar Responsive UI (Wajib)
+
+1. Semua halaman baru wajib mobile-friendly dan tablet-friendly, bukan desktop-only.
+2. Halaman existing yang diubah wajib sekalian disesuaikan ke pola responsive project.
+3. Untuk list data besar:
+   - gunakan table untuk desktop,
+   - gunakan card/list responsive untuk mobile/tablet bila table tidak nyaman dipakai.
+4. Semua aksi utama (save/update/validate/approve) harus tetap dapat dilakukan di mobile tanpa horizontal-scroll kritis.
+5. Jika ada interaksi AJAX per-item, state UI wajib sinkron lintas breakpoint (mobile/tablet/desktop) tanpa reload.
+6. Gunakan utility global responsive dari `resources/css/app.css`:
+   - `.responsive-data-shell`, `.responsive-data-mobile`, `.responsive-data-desktop`,
+   - `.responsive-group-card`, `.responsive-group-header`, `.responsive-item-card`,
+   - `.module-kpi-grid`, `.module-action-row`.
+7. Implementasi layout data besar wajib memakai pola:
+   - card/list untuk mobile-tablet,
+   - table untuk desktop (`xl` ke atas), kecuali ada alasan UX yang terdokumentasi.
+
 ## 5. Aturan Dokumentasi Wajib
 
 1. Setiap perubahan code wajib dicatat di `VOYEX_CRM_SYSTEM_ROADMAP.md` bagian `CHANGELOG (LATEST)`.
@@ -53,6 +70,10 @@ Aturan: jika `final`, data view-only (tanpa mutasi).
 3. Cek empty/error state yang relevan.
 4. Pastikan tidak ada error JS console untuk halaman interaktif.
 5. Catat ringkas hasil QA pada laporan pekerjaan.
+6. Wajib uji minimal 3 viewport setelah perubahan UI:
+   - mobile (<= 640px),
+   - tablet (641px - 1279px),
+   - desktop (>= 1280px).
 
 ## 7. Referensi Ringkas
 

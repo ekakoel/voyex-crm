@@ -95,6 +95,26 @@ class QuotationValidationService
         $serviceable = $item->serviceable;
         $serviceableType = class_basename((string) ($item->serviceable_type ?? ''));
         $meta = is_array($item->serviceable_meta ?? null) ? $item->serviceable_meta : [];
+        $dayNumber = (int) ($item->day_number ?? 0);
+        if ($dayNumber <= 0) {
+            $dayNumber = (int) ($meta['day_number'] ?? 0);
+        }
+        $itemName = '-';
+        if ($serviceable instanceof HotelRoom) {
+            $itemName = $this->firstNonEmptyString([
+                $serviceable->rooms,
+                $serviceable->name ?? null,
+                $serviceable->hotel?->name ?? null,
+            ]) ?? '-';
+        } elseif ($serviceable instanceof Activity
+            || $serviceable instanceof FoodBeverage
+            || $serviceable instanceof TransportUnit
+            || $serviceable instanceof Transport
+            || $serviceable instanceof TouristAttraction) {
+            $itemName = $this->firstNonEmptyString([
+                $serviceable->name ?? null,
+            ]) ?? '-';
+        }
 
         $vendorProviderName = '-';
         $contactName = '-';
@@ -175,6 +195,8 @@ class QuotationValidationService
                 'id' => (int) $item->id,
                 'description' => (string) ($item->description ?? ''),
                 'serviceable_type' => $serviceableType,
+                'day_number' => $dayNumber > 0 ? $dayNumber : null,
+                'item_name' => $itemName,
                 'serviceable_meta' => $meta,
                 'contract_rate' => (float) ($item->contract_rate ?? 0),
                 'markup_type' => $this->normalizeMarkupType((string) ($item->markup_type ?? 'fixed')),

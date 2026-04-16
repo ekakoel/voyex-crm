@@ -325,7 +325,8 @@
                     </div>
                     <div>
                         <label class="block text-xs text-gray-500 sm:hidden">Markup Type</label>
-                        <select data-field="markup_type" name="items[{{ $i }}][markup_type]" class="quotation-item-control dark:border-gray-600 app-input">
+                        <input type="hidden" data-field="markup_type" name="items[{{ $i }}][markup_type]" value="{{ ($row['markup_type'] ?? 'fixed') === 'percent' ? 'percent' : 'fixed' }}">
+                        <select data-markup-type-display disabled class="quotation-item-control cursor-not-allowed bg-gray-100 text-gray-600 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 app-input">
                             <option value="fixed" @selected(($row['markup_type'] ?? 'fixed') === 'fixed')>Fixed</option>
                             <option value="percent" @selected(($row['markup_type'] ?? '') === 'percent')>Percent</option>
                         </select>
@@ -340,6 +341,7 @@
                             data-field="markup"
                             input-class="quotation-item-control"
                             step="0.01"
+                            readonly
                             compact
                         />
                     </div>
@@ -415,7 +417,8 @@
                 </div>
                 <div>
                     <label class="block text-xs text-gray-500 sm:hidden">Markup Type</label>
-                    <select data-field="markup_type" class="quotation-item-control dark:border-gray-600 app-input">
+                    <input type="hidden" data-field="markup_type" value="fixed">
+                    <select data-markup-type-display disabled class="quotation-item-control cursor-not-allowed bg-gray-100 text-gray-600 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 app-input">
                         <option value="fixed">Fixed</option>
                         <option value="percent">Percent</option>
                     </select>
@@ -428,6 +431,7 @@
                         data-field="markup"
                         input-class="quotation-item-control"
                         step="0.01"
+                        readonly
                         compact
                     />
                 </div>
@@ -813,6 +817,15 @@
                     const markupType = (row.querySelector('[data-field="markup_type"]')?.value || 'fixed');
                     const markupInput = row.querySelector('[data-field="markup"]');
                     setBadge(markupInput, markupType === 'percent' ? '%' : currency);
+                };
+
+                const syncMarkupTypeDisplay = (row) => {
+                    if (!row) return;
+                    const hiddenType = row.querySelector('[data-field="markup_type"]')?.value || 'fixed';
+                    const displaySelect = row.querySelector('[data-markup-type-display]');
+                    if (displaySelect) {
+                        displaySelect.value = hiddenType === 'percent' ? 'percent' : 'fixed';
+                    }
                 };
 
                 const updateOverallDiscountBadge = () => {
@@ -1231,6 +1244,7 @@
                     applyPaxTypeBadge(node, normalizedRow);
                     const markupType = node.querySelector('[data-field="markup_type"]')?.value || 'fixed';
                     const discountType = node.querySelector('[data-field="discount_type"]')?.value || 'fixed';
+                    syncMarkupTypeDisplay(node);
                     if (markupType === 'percent') {
                         const markupInput = node.querySelector('[data-field="markup"]');
                         if (markupInput) {
@@ -1298,6 +1312,8 @@
                         } else {
                             setMoneyInputDisplay(discountInput, idrToDisplay(parseInteger(discountInput?.value)));
                         }
+
+                        syncMarkupTypeDisplay(row);
                     });
                 };
 
@@ -1596,6 +1612,7 @@
                     row.querySelectorAll('[data-field="discount_type"]').forEach((el) => {
                         el.dataset.prevType = el.value || 'fixed';
                     });
+                    syncMarkupTypeDisplay(row);
                 });
                 convertExistingRowsFromIdrToDisplay();
                 itemsContainer.querySelectorAll('.quotation-item-row').forEach((row) => {

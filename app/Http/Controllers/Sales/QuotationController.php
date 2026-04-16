@@ -195,6 +195,7 @@ class QuotationController extends Controller
                     'assigned_user_name' => (string) ($inquiry?->assignedUser?->name ?? '-'),
                     'deadline' => optional($inquiry?->deadline)->format('Y-m-d') ?? '-',
                     'notes' => trim((string) ($inquiry?->notes ?? '')) !== '' ? (string) ($inquiry?->notes ?? '') : '-',
+                    'notes_html' => \App\Support\SafeRichText::sanitize((string) ($inquiry?->notes ?? '')),
                 ],
             ];
         })->all();
@@ -336,8 +337,7 @@ class QuotationController extends Controller
         $kpiSummary = $this->computeQuotationKpiSummary($quotation);
         $canValidateQuotation = $this->quotationValidationService->isValidationActor($request->user())
             && ! in_array((string) ($quotation->status ?? ''), ['approved', Quotation::FINAL_STATUS], true)
-            && (bool) ($validationProgress['requires_validation'] ?? false)
-            && (string) ($validationProgress['status'] ?? QuotationValidationService::STATUS_PENDING) !== QuotationValidationService::STATUS_VALID;
+            && (bool) ($validationProgress['requires_validation'] ?? false);
 
         $activities = $quotation->activities()
             ->with('user:id,name')
@@ -385,8 +385,7 @@ class QuotationController extends Controller
         $validationProgress = $this->quotationValidationService->getProgress($quotation);
         $canValidateQuotation = $this->quotationValidationService->isValidationActor($request->user())
             && ! in_array((string) ($quotation->status ?? ''), ['approved', Quotation::FINAL_STATUS], true)
-            && (bool) ($validationProgress['requires_validation'] ?? false)
-            && (string) ($validationProgress['status'] ?? QuotationValidationService::STATUS_PENDING) !== QuotationValidationService::STATUS_VALID;
+            && (bool) ($validationProgress['requires_validation'] ?? false);
         $activities = $quotation->activities()
             ->with('user:id,name')
             ->latest()

@@ -16,6 +16,6 @@ Dokumen ini menggantikan ringkasan audit lama yang saling duplikatif.
 
 ## Catatan
 
-File berikut diarsipkan agar histori tetap ada, namun tidak lagi menjadi referensi utama:
-- `ANALYSIS_REPORT.md`
-- `QUICK_SUMMARY.md`
+Snapshot audit lama dari root sudah dibersihkan untuk menghindari duplikasi/stale reference.
+Histori perubahan dokumentasi dipertahankan melalui:
+- `docs/changelog/ROADMAP_CHANGELOG_ARCHIVE.md`

@@ -21,6 +21,10 @@ AI harus bertindak sebagai:
 - Pertahankan RBAC + policy checks pada setiap mutasi data.
 - Pertahankan performa query (hindari N+1, gunakan eager loading saat relevan).
 - Pertahankan standar UI komponen global.
+- Untuk halaman data besar, pertahankan standar responsive:
+  - mobile/tablet: card/list,
+  - desktop (`xl+`): table,
+  - state AJAX sinkron lintas breakpoint.
 
 ## 4. Kewajiban Dokumentasi
 

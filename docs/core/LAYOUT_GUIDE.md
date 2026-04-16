@@ -86,6 +86,59 @@ Class acuan di `resources/css/app.css`:
 - `module-grid-3-9` / `module-grid-4-8`: dipakai untuk pola index/list.
 - Dashboard boleh punya layout sendiri.
 
+## 5a. Responsive Content Standard (Required)
+
+Untuk semua halaman module (existing maupun baru):
+
+1. Mobile-first:
+   - konten utama harus terbaca jelas di layar kecil tanpa zoom.
+2. Tablet-friendly:
+   - layout tidak boleh hanya mengandalkan table horizontal panjang.
+3. Data-list adaptation:
+   - desktop: table (`app-table`) diperbolehkan sebagai primary view.
+   - mobile/tablet: sediakan mode card/list responsive jika table menjadi tidak usable.
+4. Action parity:
+   - semua action penting harus tersedia pada semua breakpoint (mobile/tablet/desktop).
+5. State sync:
+   - jika menggunakan AJAX per-row/per-item, status/progress harus sinkron pada semua variant layout.
+
+## 5b. Reusable Responsive Classes (Global)
+
+Gunakan class global ini agar implementasi responsive konsisten:
+
+- Wrapper:
+  - `.responsive-data-shell`
+- Mobile/Tablet variant:
+  - `.responsive-data-mobile`
+  - `.responsive-group-card`
+  - `.responsive-group-header`
+  - `.responsive-item-card`
+- Desktop variant:
+  - `.responsive-data-desktop`
+- Shared page blocks:
+  - `.module-kpi-grid`
+  - `.module-action-row`
+
+Contoh pola wajib (table desktop + card mobile/tablet):
+
+```blade
+<div class="responsive-data-shell">
+    <div class="responsive-data-mobile">
+        {{-- grouped cards for mobile/tablet --}}
+    </div>
+
+    <div class="responsive-data-desktop overflow-x-auto">
+        <table class="app-table w-full">
+            {{-- desktop table --}}
+        </table>
+    </div>
+</div>
+```
+
+Aturan breakpoint:
+- mobile/tablet memakai card/list (`responsive-data-mobile`),
+- desktop `xl` ke atas memakai table (`responsive-data-desktop`).
+
 ## 6. Map Standard Section
 
 Modul dengan field Google Maps URL wajib pakai partial:
