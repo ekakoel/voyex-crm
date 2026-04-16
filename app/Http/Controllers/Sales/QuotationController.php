@@ -52,19 +52,19 @@ class QuotationController extends Controller
         $this->autoFinalizeExpiredApprovedQuotations();
         $showNeedsMyApproval = request()->boolean('needs_my_approval');
 
-        $query = Quotation::query()->withTrashed()->with(['inquiry.customer', 'creator', 'approvals:id,quotation_id,user_id,approval_role']);
+        $query = Quotation::query()->with(['inquiry.customer', 'creator', 'approvals:id,quotation_id,user_id,approval_role']);
         $this->applyQuotationKeywordFilter($query, (string) request('q'));
         if ($showNeedsMyApproval) {
             $this->applyNeedsMyApprovalFilter($query, auth()->user());
             $statusFilterOptions = ['pending'];
-            $statsCards = $this->buildQuotationStatsCards(null, ['pending']);
+            $statsCards = $this->buildQuotationStatsCards(null, ['pending'], false);
         } else {
             $status = strtolower(trim((string) request('status')));
             if ($status !== '' && in_array($status, Quotation::STATUS_OPTIONS, true)) {
                 $query->where('status', $status);
             }
             $statusFilterOptions = Quotation::STATUS_OPTIONS;
-            $statsCards = $this->buildQuotationStatsCards(null, null);
+            $statsCards = $this->buildQuotationStatsCards(null, null, false);
         }
         $perPage = (int) request('per_page', 10);
         $perPage = $perPage > 0 && $perPage <= 100 ? $perPage : 10;
@@ -114,7 +114,7 @@ class QuotationController extends Controller
             $quotation->setAttribute('needs_my_approval_badge', false);
             return $quotation;
         });
-        $statsCards = $this->buildQuotationStatsCards((int) auth()->id(), null);
+        $statsCards = $this->buildQuotationStatsCards((int) auth()->id(), null, true);
 
         return view('modules.quotations.index', [
             'quotations' => $quotations,
@@ -333,6 +333,7 @@ class QuotationController extends Controller
         $this->quotationValidationService->syncValidationRequirementsAndMasterRates($quotation);
         $approvalProgress = $this->buildApprovalProgress($quotation);
         $validationProgress = $this->quotationValidationService->getProgress($quotation);
+        $kpiSummary = $this->computeQuotationKpiSummary($quotation);
         $canValidateQuotation = $this->quotationValidationService->isValidationActor($request->user())
             && ! in_array((string) ($quotation->status ?? ''), ['approved', Quotation::FINAL_STATUS], true)
             && (bool) ($validationProgress['requires_validation'] ?? false)
@@ -348,7 +349,7 @@ class QuotationController extends Controller
             return $this->activityTimelineFragmentResponse($activities);
         }
 
-        return view('modules.quotations.show', compact('quotation', 'approvalProgress', 'validationProgress', 'canValidateQuotation', 'activities'));
+        return view('modules.quotations.show', compact('quotation', 'approvalProgress', 'validationProgress', 'canValidateQuotation', 'activities', 'kpiSummary'));
     }
 
 
@@ -664,7 +665,7 @@ class QuotationController extends Controller
         $this->syncLinkedLifecycleStatusesForQuotation($quotation);
 
         return redirect()
-            ->route('quotations.index')
+            ->back()
             ->with('success', 'Quotation deactivated successfully.');
     }
 
@@ -691,7 +692,7 @@ class QuotationController extends Controller
             $this->syncLinkedLifecycleStatusesForQuotation($quotation);
 
             return redirect()
-                ->route('quotations.index')
+                ->back()
                 ->with('success', 'Quotation activated successfully.');
         }
 
@@ -699,7 +700,7 @@ class QuotationController extends Controller
         $this->syncLinkedLifecycleStatusesForQuotation($quotation);
 
         return redirect()
-            ->route('quotations.index')
+            ->back()
             ->with('success', 'Quotation deactivated successfully.');
     }
 
@@ -1619,6 +1620,68 @@ SVG;
         ];
     }
 
+    private function computeQuotationKpiSummary(Quotation $quotation): array
+    {
+        $subTotal = 0.0;
+        $itemDiscountTotal = 0.0;
+
+        foreach ($quotation->items as $item) {
+            $qty = max(0, (int) ($item->qty ?? 0));
+            $itemType = (string) ($item->itinerary_item_type ?? '');
+            $isManualItem = $itemType === 'manual';
+
+            $contractRate = max(0, (float) ($item->contract_rate ?? 0));
+            $markupType = (string) (($item->markup_type ?? 'fixed') === 'percent' ? 'percent' : 'fixed');
+            $markupValue = max(0, (float) ($item->markup ?? 0));
+
+            if ($isManualItem) {
+                $unitPrice = max(0, (float) ($item->unit_price ?? 0));
+                $baseAmount = $qty * $unitPrice;
+            } else {
+                $unitPriceFromMarkup = $markupType === 'percent'
+                    ? ($contractRate + ($contractRate * ($markupValue / 100)))
+                    : ($contractRate + $markupValue);
+                $fallbackUnitPrice = max(0, (float) ($item->unit_price ?? 0));
+                $effectiveUnitPrice = $contractRate > 0 || $markupValue > 0 ? $unitPriceFromMarkup : $fallbackUnitPrice;
+                $baseAmount = $qty * max(0, $effectiveUnitPrice);
+            }
+
+            $itemDiscountType = (string) (($item->discount_type ?? 'fixed') === 'percent' ? 'percent' : 'fixed');
+            $itemDiscountValue = max(0, (float) ($item->discount ?? 0));
+            $itemDiscountAmount = $itemDiscountType === 'percent'
+                ? ($baseAmount * (min(100, $itemDiscountValue) / 100))
+                : $itemDiscountValue;
+
+            $rowTotal = max(0, $baseAmount - $itemDiscountAmount);
+            $appliedItemDiscount = $baseAmount - $rowTotal;
+
+            $subTotal += $rowTotal;
+            $itemDiscountTotal += $appliedItemDiscount;
+        }
+
+        $globalDiscountType = (string) ($quotation->discount_type ?? '');
+        $globalDiscountValue = max(0, (float) ($quotation->discount_value ?? 0));
+        $globalDiscountAmount = 0.0;
+
+        if ($globalDiscountType === 'percent') {
+            $globalDiscountAmount = $subTotal * (min(100, $globalDiscountValue) / 100);
+        } elseif ($globalDiscountType === 'fixed') {
+            $globalDiscountAmount = $globalDiscountValue;
+        }
+
+        $appliedGlobalDiscount = min($subTotal, $globalDiscountAmount);
+        $finalAmount = max(0, $subTotal - $appliedGlobalDiscount);
+
+        return [
+            'sub_total' => $subTotal,
+            'item_discount_total' => $itemDiscountTotal,
+            'global_discount_type' => $globalDiscountType,
+            'global_discount_value' => $globalDiscountValue,
+            'global_discount_amount' => $appliedGlobalDiscount,
+            'final_amount' => $finalAmount,
+        ];
+    }
+
     private function assertPricingPermission(array $validated): void
     {
         $hasDiscount = (float) ($validated['discount_value'] ?? 0) > 0;
@@ -1951,10 +2014,12 @@ SVG;
     /**
      * @return array<int, array<string, mixed>>
      */
-    private function buildQuotationStatsCards(?int $creatorId = null, ?array $statusScope = null): array
+    private function buildQuotationStatsCards(?int $creatorId = null, ?array $statusScope = null, bool $includeTrashed = true): array
     {
-        $query = Quotation::query()
-            ->withTrashed();
+        $query = Quotation::query();
+        if ($includeTrashed) {
+            $query->withTrashed();
+        }
         if ($creatorId && Schema::hasColumn('quotations', 'created_by')) {
             $query->where('created_by', $creatorId);
         }

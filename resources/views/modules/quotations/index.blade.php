@@ -88,7 +88,7 @@
                                                 </span>
                                             @endif
                                 </div>
-                                <x-status-badge :status="$quotation->status" size="xs" />
+                                <x-status-badge :status="$quotation->trashed() ? 'inactive' : $quotation->status" size="xs" />
                             </div>
                             <div class="mt-3 grid grid-cols-2 gap-2 text-xs text-gray-600 dark:text-gray-300">
                                 <div>{{ __('ui.modules.quotations.validity') }}</div>
@@ -182,7 +182,7 @@
                                             </div>
                                         </td>
                                         <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">
-                                            <x-status-badge :status="$quotation->status" size="xs" />
+                                            <x-status-badge :status="$quotation->trashed() ? 'inactive' : $quotation->status" size="xs" />
                                         </td>
                                         <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">
                                             {{ $quotation->validity_date?->format('Y-m-d') ?? '-' }}</td>

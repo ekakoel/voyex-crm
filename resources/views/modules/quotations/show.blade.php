@@ -57,28 +57,10 @@
 
 @section('content')
     @php
-        $subTotal = (float) ($quotation->sub_total ?? 0);
-        $discountType = $quotation->discount_type ?? null;
-        $discountValue = (float) ($quotation->discount_value ?? 0);
-        $globalDiscountAmount = 0;
-        $itemDiscountAmount = (float) $quotation->items->sum(function ($item) {
-            $qty = (int) ($item->qty ?? 0);
-            $unitPrice = (float) ($item->unit_price ?? 0);
-            $itemDiscountType = ($item->discount_type ?? 'fixed') === 'percent' ? 'percent' : 'fixed';
-            $itemDiscountValue = (float) ($item->discount ?? 0);
-
-            if ($itemDiscountType === 'percent') {
-                return ($qty * $unitPrice) * ($itemDiscountValue / 100);
-            }
-
-            return $itemDiscountValue;
-        });
-
-        if ($discountType === 'percent') {
-            $globalDiscountAmount = $subTotal * ($discountValue / 100);
-        } elseif ($discountType === 'fixed') {
-            $globalDiscountAmount = $discountValue;
-        }
+        $subTotal = (float) ($kpiSummary['sub_total'] ?? 0);
+        $itemDiscountAmount = (float) ($kpiSummary['item_discount_total'] ?? 0);
+        $globalDiscountAmount = (float) ($kpiSummary['global_discount_amount'] ?? 0);
+        $finalAmount = (float) ($kpiSummary['final_amount'] ?? 0);
     @endphp
 
     <div class="space-y-6 module-page module-page--quotations">
@@ -102,7 +84,7 @@
                             <p class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ __('ui.modules.quotations.number') }}</p>
                             <h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100">{{ $quotation->quotation_number }}</h2>
                         </div>
-                        <x-status-badge :status="$quotation->status" size="xs" />
+                        <x-status-badge :status="$quotation->trashed() ? 'inactive' : $quotation->status" size="xs" />
                     </div>
 
                     <dl class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -137,19 +119,11 @@
                         </div>
                         <div class="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/30">
                             <p class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ __('ui.common.global_discount') }}</p>
-                            <p class="mt-1 text-sm font-semibold text-gray-900 dark:text-gray-100">
-                                @if ($discountType === 'percent')
-                                    {{ __('ui.common.percent') }} ({{ number_format($discountValue, 2, ',', '.') }}%)
-                                @elseif ($discountType === 'fixed')
-                                    <x-money :amount="$discountValue" currency="IDR" />
-                                @else
-                                    -
-                                @endif
-                            </p>
+                            <p class="mt-1 text-base font-semibold text-gray-900 dark:text-gray-100"><x-money :amount="$globalDiscountAmount" currency="IDR" /></p>
                         </div>
                         <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-700 dark:bg-emerald-900/20">
                             <p class="text-xs uppercase tracking-wide text-emerald-700 dark:text-emerald-300">{{ __('ui.common.final_amount') }}</p>
-                            <p class="mt-1 text-lg font-semibold text-emerald-800 dark:text-emerald-200"><x-money :amount="$quotation->final_amount ?? 0" currency="IDR" /></p>
+                            <p class="mt-1 text-lg font-semibold text-emerald-800 dark:text-emerald-200"><x-money :amount="$finalAmount" currency="IDR" /></p>
                         </div>
                     </div>
                 </div>
