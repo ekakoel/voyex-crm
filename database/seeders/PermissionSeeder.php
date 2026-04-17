@@ -5,16 +5,43 @@ namespace Database\Seeders;
 use App\Models\Module;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Schema;
+use Spatie\Permission\PermissionRegistrar;
 use Spatie\Permission\Models\Permission;
-use Spatie\Permission\Models\Role;
 
 class PermissionSeeder extends Seeder
 {
+    /**
+     * Global (non-module) permissions managed from one place for easier deploys.
+     *
+     * @var array<int, string>
+     */
+    private const GLOBAL_PERMISSIONS = [
+        'dashboard.superadmin.view',
+        'dashboard.administrator.view',
+        'dashboard.manager.view',
+        'dashboard.marketing.view',
+        'dashboard.reservation.view',
+        'dashboard.finance.view',
+        'dashboard.director.view',
+        'dashboard.editor.view',
+        'company_settings.manage',
+        'quotations.approve',
+        'quotations.reject',
+        'quotations.validate',
+        'quotations.set_pending',
+        'quotations.set_final',
+        'quotations.global_discount',
+        'services.map.view',
+        'superadmin.access_matrix.view',
+    ];
+
     /**
      * Run the database seeds.
      */
     public function run(): void
     {
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+
         if (! Schema::hasTable('modules')) {
             return;
         }
@@ -39,37 +66,13 @@ class PermissionSeeder extends Seeder
             }
         }
 
-        $dashboardPermissions = [
-            'dashboard.superadmin.view',
-            'superadmin.access_matrix.view',
-            'services.map.view',
-            'dashboard.administrator.view',
-            'dashboard.manager.view',
-            'dashboard.marketing.view',
-            'dashboard.reservation.view',
-            'dashboard.finance.view',
-            'dashboard.director.view',
-            'dashboard.editor.view',
-            'company_settings.manage',
-            'quotations.approve',
-            'quotations.reject',
-            'quotations.validate',
-            'quotations.set_pending',
-            'quotations.set_final',
-            'quotations.global_discount',
-        ];
-
-        foreach ($dashboardPermissions as $permissionName) {
+        foreach (self::GLOBAL_PERMISSIONS as $permissionName) {
             Permission::firstOrCreate([
                 'name' => $permissionName,
                 'guard_name' => 'web',
             ]);
         }
 
-        $adminRole = Role::where('name', 'Administrator')->first();
-        if ($adminRole) {
-            $permissions = Permission::query()->pluck('name')->all();
-            $adminRole->syncPermissions($permissions);
-        }
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
     }
 }

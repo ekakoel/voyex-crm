@@ -50,6 +50,13 @@
         ],
         "post-create-project-cmd": [
             "@php artisan key:generate --ansi"
+        ],
+        "db:baseline": [
+            "@php artisan db:seed --class=ProjectBaselineSeeder --force"
+        ],
+        "db:deploy-safe": [
+            "@php artisan migrate --force",
+            "@php artisan db:seed --class=ProjectBaselineSeeder --force"
         ]
     },
     "extra": {

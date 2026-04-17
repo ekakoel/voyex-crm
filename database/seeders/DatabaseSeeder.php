@@ -4,18 +4,7 @@ namespace Database\Seeders;
 
 // use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
-use Database\Seeders\ModuleSeeder;
-use Database\Seeders\PermissionSeeder;
-use Database\Seeders\RoleSeeder;
-use Database\Seeders\RolePermissionSeeder;
-use Database\Seeders\TouristAttractionSeeder;
-use Database\Seeders\InquirySeeder;
-use Database\Seeders\CustomerSeeder;
-use Database\Seeders\UserSeeder;
-use Database\Seeders\VendorActivitySeeder;
-use Database\Seeders\TransportSeeder;
-use Database\Seeders\DestinationBackfillSeeder;
-use Database\Seeders\DestinationProvinceSeeder;
+use Database\Seeders\ProjectBaselineSeeder;
 
 class DatabaseSeeder extends Seeder
 {
@@ -24,17 +13,6 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        $this->call(ModuleSeeder::class);
-        $this->call(RoleSeeder::class);
-        $this->call(PermissionSeeder::class);
-        $this->call(RolePermissionSeeder::class);
-        $this->call(UserSeeder::class);
-        $this->call(CustomerSeeder::class);
-        $this->call(InquirySeeder::class);
-        $this->call(TouristAttractionSeeder::class);
-        $this->call(VendorActivitySeeder::class);
-        $this->call(TransportSeeder::class);
-        $this->call(DestinationProvinceSeeder::class);
-        $this->call(DestinationBackfillSeeder::class);
+        $this->call(ProjectBaselineSeeder::class);
     }
 }

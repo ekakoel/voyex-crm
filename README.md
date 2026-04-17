@@ -26,6 +26,33 @@ php artisan serve
 3. Buat `.env.testing` khusus, jangan biarkan testing memakai DB yang sama dengan `.env`.
 4. Sebelum command migration besar, lakukan backup database terlebih dahulu.
 
+## Deploy Permission Baseline
+
+Untuk menyamakan permission lintas environment (tanpa reset DB), jalankan:
+
+```bash
+php artisan db:seed --class=PermissionBaselineSeeder --force
+```
+
+Seeder ini menjadi baseline tunggal untuk:
+- pembuatan seluruh permission modul/global,
+- sinkronisasi mapping role-permission default.
+
+## Deploy Baseline Project (Seeder Tunggal)
+
+Untuk mengurangi kebingungan karena seeder terpisah, gunakan satu entrypoint:
+
+```bash
+php artisan db:seed --class=ProjectBaselineSeeder --force
+```
+
+Untuk deploy server (migrate + seed baseline):
+
+```bash
+php artisan migrate --force
+php artisan db:seed --class=ProjectBaselineSeeder --force
+```
+
 ## Dokumentasi Utama (Source of Truth)
 
 1. `PROJECT_KNOWLEDGE_BASE.md` -> gambaran sistem menyeluruh (domain, modul, relasi, standar).

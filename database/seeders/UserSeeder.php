@@ -39,7 +39,7 @@ class UserSeeder extends Seeder
             ],
             [
                 'name' => 'Director',
-                'email' => 'Director@example.com',
+                'email' => 'director@example.com',
                 'role' => 'Director',
             ],
             [

@@ -3,13 +3,17 @@
 namespace Database\Seeders;
 
 use App\Models\FeatureAccess;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Schema;
 
 class FeatureAccessSeeder extends Seeder
 {
     public function run(): void
     {
+        if (! Schema::hasTable('feature_accesses')) {
+            return;
+        }
+
         $features = [
         // Administrator ---------------------------------------
             [
@@ -134,11 +138,15 @@ class FeatureAccessSeeder extends Seeder
         ];
 
         foreach ($features as $feature) {
+            $feature['module'] = $feature['module'] ?? '';
+
             FeatureAccess::updateOrCreate(
-                ['route' => $feature['route']],
+                [
+                    'route' => $feature['route'],
+                    'roles' => $feature['roles'],
+                ],
                 $feature
             );
         }
     }
 }
-
