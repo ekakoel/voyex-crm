@@ -12,17 +12,17 @@ class QuotationPolicy
 
     public function update(User $user, Quotation $quotation): bool
     {
-        return $quotation->isCreator($user);
+        return $user->can('module.quotations.update');
     }
 
     public function delete(User $user, Quotation $quotation): bool
     {
-        return $quotation->isCreator($user);
+        return $user->can('module.quotations.delete');
     }
 
     public function validateQuotation(User $user, Quotation $quotation): bool
     {
-        return $user->hasAnyRole(['Reservation', 'Manager', 'Director'])
+        return $user->can('quotations.validate')
             && ! $quotation->isFinal()
             && ! in_array((string) ($quotation->status ?? ''), ['approved'], true);
     }

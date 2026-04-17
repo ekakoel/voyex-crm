@@ -9,6 +9,7 @@ use App\Models\Inquiry;
 use App\Models\Module;
 use App\Models\Quotation;
 use App\Models\User;
+use App\Services\ModuleService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -24,7 +25,8 @@ class DashboardController extends Controller
         $canServices = (bool) $user?->can('module.service_manager.access');
         $canInquiries = (bool) $user?->can('module.inquiries.access');
         $canQuotations = (bool) $user?->can('module.quotations.access');
-        $canBookings = (bool) $user?->can('module.bookings.access');
+        $bookingsModuleEnabled = ModuleService::isEnabledStatic('bookings');
+        $canBookings = $bookingsModuleEnabled && (bool) $user?->can('module.bookings.access');
 
         /*
         |--------------------------------------------------------------------------
@@ -92,14 +94,16 @@ class DashboardController extends Controller
                 ->pluck('total', 'month')
             : collect();
 
-        $isEditor = (bool) ($user?->hasRole('Editor') && ! $user?->hasRole('Administrator'));
+        $isEditor = (bool) ($user?->can('dashboard.editor.view') && ! $user?->can('dashboard.administrator.view'));
         $dashboardTitle = $isEditor ? 'Editor Dashboard' : 'Administrator Dashboard';
         $dashboardSubtitle = $isEditor
             ? "Fokus pengelolaan konten dan katalog layanan."
             : "Welcome back, {$user?->name}. Here's your performance overview.";
 
+        $userBaseQuery = User::query()->withoutSuperAdmin();
+
         $teamStats = [
-            'total_users' => $canUsers ? User::query()->count() : 0,
+            'total_users' => $canUsers ? (clone $userBaseQuery)->count() : 0,
             'sales_team' => $canUsers ? User::role(['Manager', 'Marketing'])->count() : 0,
             'operations' => $canUsers ? User::role('Reservation')->count() : 0,
             'finance' => $canUsers ? User::role('Finance')->count() : 0,

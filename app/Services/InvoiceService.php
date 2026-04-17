@@ -22,7 +22,7 @@ class InvoiceService
         }
 
         $approver = User::query()->find($quotation->approved_by);
-        if (! $approver || ! $approver->hasRole('Director')) {
+        if (! $approver || ! $approver->can('dashboard.director.view')) {
             return null;
         }
 

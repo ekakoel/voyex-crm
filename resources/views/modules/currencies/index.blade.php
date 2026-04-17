@@ -34,7 +34,7 @@
         @if ($errors->has('currency'))
             <div class="rounded-lg mb-6 border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-700 dark:bg-rose-900/20 dark:text-rose-300">{{ $errors->first('currency') }}</div>
         @endif
-    @if (auth()->user()?->hasAnyRole(['Manager', 'Administrator', 'Super Admin']))
+    @can('module.currencies.update')
             <div class="app-card p-4">
                 <div class="flex flex-wrap items-center justify-between gap-2">
                     <div>
@@ -82,7 +82,7 @@
                     </div>
                 </form>
             </div>
-        @endif
+        @endcan
         <div class="hidden md:block app-card overflow-hidden">
             <div class="overflow-x-auto">
             <table class="app-table w-full divide-y divide-gray-200 text-sm dark:divide-gray-700">
@@ -118,13 +118,13 @@
                             <td class="px-4 py-3 text-right text-sm actions-compact">
     <div class="flex items-center justify-end gap-2">
         <a href="{{ route('currencies.edit', $currency) }}"  class="btn-secondary-sm" title="{{ __('ui.common.edit') }}" aria-label="{{ __('ui.common.edit') }}"><i class="fa-solid fa-pen"></i><span class="sr-only">{{ __('ui.common.edit') }}</span></a>
-                                @if (auth()->user()?->hasRole('Super Admin'))
+                                @can('module.currencies.delete')
                                 <form action="{{ route('currencies.destroy', $currency) }}" method="POST" class="inline">
                                     @csrf
                                     @method('DELETE')
                                     <button type="submit" onclick="return confirm('{{ __('ui.modules.currencies.confirm_delete') }}')"   class="btn-danger-sm">{{ __('ui.common.delete') }}</button>
                                 </form>
-                                @endif
+                                @endcan
     </div>
 </td>
                         </tr>
@@ -164,13 +164,13 @@
                     </div>
                     <div class="mt-3 flex flex-wrap gap-2">
                         <a href="{{ route('currencies.edit', $currency) }}" class="btn-secondary-sm" title="{{ __('ui.common.edit') }}" aria-label="{{ __('ui.common.edit') }}"><i class="fa-solid fa-pen"></i><span class="sr-only">{{ __('ui.common.edit') }}</span></a>
-                        @if (auth()->user()?->hasRole('Super Admin'))
+                        @can('module.currencies.delete')
                         <form action="{{ route('currencies.destroy', $currency) }}" method="POST" class="inline">
                             @csrf
                             @method('DELETE')
                             <button type="submit" onclick="return confirm('{{ __('ui.modules.currencies.confirm_delete') }}')" class="btn-danger-sm">{{ __('ui.common.delete') }}</button>
                         </form>
-                        @endif
+                        @endcan
                     </div>
                 </div>
             @empty
@@ -182,7 +182,6 @@
         </div>
 </div>
 @endsection
-
 
 
 

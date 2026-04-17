@@ -54,26 +54,12 @@ return new class extends Migration
             }
         };
 
-        $ensureRole = function (string $name) use ($roleTable): void {
-            $exists = DB::table($roleTable)->where('name', $name)->exists();
-            if (! $exists) {
-                DB::table($roleTable)->insert([
-                    'name' => $name,
-                    'guard_name' => 'web',
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ]);
-            }
-        };
-
         $mergeRole('Admin', 'Administrator');
         $mergeRole('Admin User', 'Administrator');
         $mergeRole('Sales Manager', 'Manager');
         $mergeRole('Sales Agent', 'Marketing');
         $mergeRole('Operations', 'Reservation');
         $mergeRole('Accountant', 'Finance');
-        $ensureRole('Editor');
-        $ensureRole('Finance');
 
         if (Schema::hasTable('feature_accesses')) {
             $roleMap = [

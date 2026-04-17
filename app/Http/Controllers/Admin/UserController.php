@@ -105,9 +105,7 @@ class UserController extends Controller
     public function update(Request $request, User $user): RedirectResponse
     {
         if ($user->isSuperAdmin()) {
-            return redirect()
-                ->route('users.index')
-                ->with('error', 'Super Admin account is managed outside User Manager.');
+            abort(404);
         }
 
         $validated = $request->validate([
@@ -138,9 +136,7 @@ class UserController extends Controller
     public function destroy(User $user): RedirectResponse
     {
         if ($user->isSuperAdmin()) {
-            return redirect()
-                ->route('users.index')
-                ->with('error', 'Super Admin account cannot be deleted from User Manager.');
+            abort(404);
         }
 
         $isCurrentUser = auth()->id() === $user->id;
@@ -158,6 +154,5 @@ class UserController extends Controller
             ->with('success', 'Employee deleted successfully.');
     }
 }
-
 
 

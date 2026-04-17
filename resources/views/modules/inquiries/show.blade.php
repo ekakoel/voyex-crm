@@ -246,7 +246,7 @@
 
                                         <td class="px-3 py-2 text-sm text-gray-700 dark:text-gray-200">
                                             <div class="text-xs text-gray-500 dark:text-gray-400">
-                                                {{ $followUp->creator?->name ? __('ui.modules.inquiries.by_label', ['name' => $followUp->creator->name]) : __('ui.modules.inquiries.by_fallback') }}
+                                                {{ $followUp->creator?->name ? __('ui.modules.inquiries.by_label', ['name' => $followUp->creator->displayNameFor(auth()->user(), 'System')]) : __('ui.modules.inquiries.by_fallback') }}
                                             </div>
                                             <div class="text-sm text-gray-700 dark:text-gray-200">
                                                 {{ $followUp->note ?? '-' }}
@@ -515,8 +515,6 @@
     </div>
 
 @endsection
-
-
 
 
 

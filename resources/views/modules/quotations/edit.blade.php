@@ -86,7 +86,7 @@
                             </div>
                             <div class="flex justify-between gap-3">
                                 <dt class="text-gray-500 dark:text-gray-400">{{ __('ui.common.created_by') }}</dt>
-                                <dd class="font-medium text-right">{{ $quotation->itinerary?->creator?->name ?? '-' }}</dd>
+                                <dd class="font-medium text-right"><x-masked-user-name :user="$quotation->itinerary?->creator" /></dd>
                             </div>
                             <div class="flex justify-between gap-3">
                                 <dt class="text-gray-500 dark:text-gray-400">{{ __('ui.common.created_at') }}</dt>
@@ -141,7 +141,7 @@
                                 <ul class="mt-2 space-y-1 text-xs text-gray-700 dark:text-gray-200">
                                     @foreach ($quotation->approvals as $approval)
                                         <li>
-                                            {{ ucfirst((string) $approval->approval_role) }} - {{ $approval->user?->name ?? '-' }}
+                                            {{ ucfirst((string) $approval->approval_role) }} - <x-masked-user-name :user="$approval->user" />
                                             @if ($approval->approved_at)
                                                 (<x-local-time :value="$approval->approved_at" />)
                                             @endif
@@ -155,7 +155,7 @@
                             <div class="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-300">
                                 <p class="mt-1">{{ $quotation->approval_note }}</p>
                                 <div class="mt-1 text-[11px] text-amber-700/80 dark:text-amber-200/80">
-                                    {{ __('ui.common.updated_by') }}{{ $quotation->approvalNoteBy?->name ? ' - ' . $quotation->approvalNoteBy->name : '' }}
+                                    {{ __('ui.common.updated_by') }}{{ $quotation->approvalNoteBy ? ' - ' . $quotation->approvalNoteBy->displayNameFor(auth()->user(), 'System') : '' }}
                                     @if ($quotation->approval_note_at)
                                         | <x-local-time :value="$quotation->approval_note_at" />
                                     @endif
@@ -170,7 +170,7 @@
                             </div>
                         @endif
 
-                        @if (auth()->user()->hasAnyRole(['Director', 'Manager']))
+                        @can('quotations.global_discount')
                             <form method="POST" action="{{ route('quotations.global-discount', $quotation) }}" class="mt-3 space-y-3 border-t border-gray-200 pt-3 dark:border-gray-700">
                                 @csrf
                                 @method('PATCH')
@@ -201,9 +201,9 @@
                                 </div>
                                 <button type="submit" class="btn-outline-sm">{{ __('ui.common.update_global_discount') }}</button>
                             </form>
-                        @endif
+                        @endcan
 
-                        @if (auth()->user()->hasAnyRole(['Director', 'Manager', 'Reservation']))
+                        @if (auth()->check() && (auth()->user()->can('quotations.approve') || $quotation->isCreator(auth()->user()) || auth()->user()->can('quotations.reject') || auth()->user()->can('quotations.set_pending')))
                             <div class="mt-3 space-y-3">
                                 @php
                                     $authUser = auth()->user();
@@ -215,7 +215,7 @@
                                     $nonCreatorApprovalCount = (int) ($approvalProgress['non_creator_approval_count'] ?? 0);
                                     $canApproveByRole = false;
                                     if (!$isCreator && !$alreadyApprovedByUser && $authUser) {
-                                        $canApproveByRole = $authUser->hasAnyRole(['Director', 'Manager', 'Reservation'])
+                                        $canApproveByRole = $authUser->can('quotations.approve')
                                             && $nonCreatorApprovalCount < $requiredApprovals;
                                     }
                                     $isValidationComplete = (bool) ($validationProgress['is_complete'] ?? false);
@@ -230,9 +230,9 @@
                                                 <button type="submit" class="btn-primary-sm">{{ __('ui.common.approve') }}</button>
                                             </form>
                                         @endif
-                                        @if (auth()->user()->hasAnyRole(['Director', 'Manager']))
+                                        @can('quotations.reject')
                                             <button type="button" class="btn-danger-sm" data-open-reject-modal="edit-reject-modal">{{ __('ui.common.reject') }}</button>
-                                        @endif
+                                        @endcan
                                     @else
                                         @if (($quotation->status ?? '') === 'approved' && $quotation->isCreator(auth()->user()))
                                             <form method="POST" action="{{ route('quotations.set-final', $quotation) }}">
@@ -242,7 +242,7 @@
                                                 </button>
                                             </form>
                                         @endif
-                                        @if (($quotation->status ?? '') === 'approved' && auth()->user()->hasRole('Director'))
+                                        @if (($quotation->status ?? '') === 'approved' && auth()->user()->can('quotations.set_pending'))
                                             <form method="POST" action="{{ route('quotations.set-pending', $quotation) }}">
                                                 @csrf
                                                 <button type="submit" class="btn-warning-sm">
@@ -269,7 +269,7 @@
                             </div>
                         @endif
 
-                        @if (auth()->user()->hasAnyRole(['Director', 'Manager']) && ($quotation->status ?? '') !== 'approved' && ($quotation->status ?? '') !== 'final')
+                        @if (auth()->user()->can('quotations.reject') && ($quotation->status ?? '') !== 'approved' && ($quotation->status ?? '') !== 'final')
                             <div id="edit-reject-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 p-4">
                                 <div class="w-full max-w-lg rounded-xl border border-gray-200 bg-white p-5 shadow-xl dark:border-gray-700 dark:bg-gray-900">
                                     <div class="flex items-center justify-between gap-3">

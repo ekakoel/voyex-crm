@@ -1405,7 +1405,7 @@ SVG;
     {
         return redirect()
             ->route('itineraries.show', $itinerary)
-            ->with('error', 'Hanya creator yang dapat mengubah atau menghapus itinerary ini.');
+            ->with('error', 'You do not have permission to modify this itinerary.');
     }
 
     private function isItineraryLockedByQuotation(Itinerary $itinerary): bool
@@ -1755,48 +1755,88 @@ SVG;
             $dayStartTravel = isset($dayStartTravelMinutes[$day]) && $dayStartTravelMinutes[$day] !== ''
                 ? max(0, (int) $dayStartTravelMinutes[$day])
                 : 0;
+            $startHotelIsSelfBooked = $startType === 'hotel' && $startHotelBookingMode === 'self';
+            $endHotelIsSelfBooked = $endType === 'hotel' && $endHotelBookingMode === 'self';
             $mainExperienceType = (string) ($mainExperienceTypes[$day] ?? '');
             if (! in_array($mainExperienceType, ['attraction', 'activity', 'fnb'], true)) {
                 $mainExperienceType = '';
             }
             $mainExperienceItemId = (int) ($mainExperienceItems[$day] ?? 0);
 
-            if (in_array($startType, ['hotel', 'airport'], true) && $startItemId <= 0) {
+            if (
+                ($startType === 'airport' || ($startType === 'hotel' && ! $startHotelIsSelfBooked))
+                && $startItemId <= 0
+            ) {
                 throw ValidationException::withMessages([
                     "daily_start_point_items.{$day}" => "Start point item on day {$day} is required.",
                 ]);
             }
             if ($startType === 'hotel') {
-                if ($startRoomId <= 0) {
-                    throw ValidationException::withMessages([
-                        "daily_start_point_room_ids.{$day}" => "Start room on day {$day} is required when start point is hotel.",
-                    ]);
-                }
-                $roomHotelId = (int) ($roomHotelMap[$startRoomId] ?? 0);
-                if ($roomHotelId !== $startItemId) {
-                    throw ValidationException::withMessages([
-                        "daily_start_point_room_ids.{$day}" => "Selected start room on day {$day} does not belong to selected hotel.",
-                    ]);
+                if (! $startHotelIsSelfBooked) {
+                    if ($startRoomId <= 0) {
+                        throw ValidationException::withMessages([
+                            "daily_start_point_room_ids.{$day}" => "Start room on day {$day} is required when start point is hotel.",
+                        ]);
+                    }
+                    $roomHotelId = (int) ($roomHotelMap[$startRoomId] ?? 0);
+                    if ($roomHotelId !== $startItemId) {
+                        throw ValidationException::withMessages([
+                            "daily_start_point_room_ids.{$day}" => "Selected start room on day {$day} does not belong to selected hotel.",
+                        ]);
+                    }
+                } else {
+                    if ($startRoomId > 0 && $startItemId <= 0) {
+                        throw ValidationException::withMessages([
+                            "daily_start_point_items.{$day}" => "Please select start hotel on day {$day} when start room is selected.",
+                        ]);
+                    }
+                    if ($startRoomId > 0 && $startItemId > 0) {
+                        $roomHotelId = (int) ($roomHotelMap[$startRoomId] ?? 0);
+                        if ($roomHotelId !== $startItemId) {
+                            throw ValidationException::withMessages([
+                                "daily_start_point_room_ids.{$day}" => "Selected start room on day {$day} does not belong to selected hotel.",
+                            ]);
+                        }
+                    }
                 }
             } else {
                 $startHotelBookingMode = null;
             }
-            if (in_array($endType, ['hotel', 'airport'], true) && $endItemId <= 0) {
+            if (
+                ($endType === 'airport' || ($endType === 'hotel' && ! $endHotelIsSelfBooked))
+                && $endItemId <= 0
+            ) {
                 throw ValidationException::withMessages([
                     "daily_end_point_items.{$day}" => "End point item on day {$day} is required.",
                 ]);
             }
             if ($endType === 'hotel') {
-                if ($endRoomId <= 0) {
-                    throw ValidationException::withMessages([
-                        "daily_end_point_room_ids.{$day}" => "End room on day {$day} is required when end point is hotel.",
-                    ]);
-                }
-                $roomHotelId = (int) ($roomHotelMap[$endRoomId] ?? 0);
-                if ($roomHotelId !== $endItemId) {
-                    throw ValidationException::withMessages([
-                        "daily_end_point_room_ids.{$day}" => "Selected end room on day {$day} does not belong to selected hotel.",
-                    ]);
+                if (! $endHotelIsSelfBooked) {
+                    if ($endRoomId <= 0) {
+                        throw ValidationException::withMessages([
+                            "daily_end_point_room_ids.{$day}" => "End room on day {$day} is required when end point is hotel.",
+                        ]);
+                    }
+                    $roomHotelId = (int) ($roomHotelMap[$endRoomId] ?? 0);
+                    if ($roomHotelId !== $endItemId) {
+                        throw ValidationException::withMessages([
+                            "daily_end_point_room_ids.{$day}" => "Selected end room on day {$day} does not belong to selected hotel.",
+                        ]);
+                    }
+                } else {
+                    if ($endRoomId > 0 && $endItemId <= 0) {
+                        throw ValidationException::withMessages([
+                            "daily_end_point_items.{$day}" => "Please select end hotel on day {$day} when end room is selected.",
+                        ]);
+                    }
+                    if ($endRoomId > 0 && $endItemId > 0) {
+                        $roomHotelId = (int) ($roomHotelMap[$endRoomId] ?? 0);
+                        if ($roomHotelId !== $endItemId) {
+                            throw ValidationException::withMessages([
+                                "daily_end_point_room_ids.{$day}" => "Selected end room on day {$day} does not belong to selected hotel.",
+                            ]);
+                        }
+                    }
                 }
             } else {
                 $endHotelBookingMode = null;
@@ -1858,8 +1898,8 @@ SVG;
                 'start_hotel_booking_mode' => $resolvedStartHotelBookingMode,
                 'end_point_type' => $endType,
                 'end_airport_id' => $endType === 'airport' ? $endItemId : null,
-                'end_hotel_id' => $endType === 'hotel' ? $endItemId : null,
-                'end_hotel_room_id' => $endType === 'hotel' ? $endRoomId : null,
+                'end_hotel_id' => $endType === 'hotel' && $endItemId > 0 ? $endItemId : null,
+                'end_hotel_room_id' => $endType === 'hotel' && $endRoomId > 0 ? $endRoomId : null,
                 'end_hotel_booking_mode' => $endType === 'hotel' ? $endHotelBookingMode : null,
             ];
         }

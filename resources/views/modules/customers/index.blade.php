@@ -32,7 +32,7 @@
                         <select name="created_by" class="app-input" data-service-filter-input>
                             <option value="">{{ __('ui.modules.customers.creator') }}</option>
                             @foreach ($creators as $creator)
-                                <option value="{{ $creator->id }}" @selected((string) request('created_by') === (string) $creator->id)>{{ $creator->name }}
+                                <option value="{{ $creator->id }}" @selected((string) request('created_by') === (string) $creator->id)>{{ $creator->displayNameFor(auth()->user(), 'System') }}
                                 </option>
                             @endforeach
                         </select>
@@ -177,8 +177,6 @@
         </div>
     </div>
 @endsection
-
-
 
 
 

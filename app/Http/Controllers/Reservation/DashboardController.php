@@ -7,6 +7,7 @@ use App\Models\Booking;
 use App\Models\Inquiry;
 use App\Models\Itinerary;
 use App\Models\Quotation;
+use App\Services\ModuleService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -19,7 +20,8 @@ class DashboardController extends Controller
         $canInquiries = (bool) $user?->can('module.inquiries.access');
         $canItineraries = (bool) $user?->can('module.itineraries.access');
         $canQuotations = (bool) $user?->can('module.quotations.access');
-        $canBookings = (bool) $user?->can('module.bookings.access');
+        $bookingsModuleEnabled = ModuleService::isEnabledStatic('bookings');
+        $canBookings = $bookingsModuleEnabled && (bool) $user?->can('module.bookings.access');
         $now = Carbon::now();
         $startOfMonth = $now->copy()->startOfMonth();
         $kpis = [];

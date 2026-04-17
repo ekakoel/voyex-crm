@@ -97,7 +97,7 @@
                                 <div><x-money :amount="$quotation->final_amount ?? 0" currency="IDR" /></div>
                                 <div>{{ __('ui.modules.quotations.created_by') }}</div>
                                 <div>
-                                    {{ $quotation->creator?->name ?? '-' }}<br>
+                                    <x-masked-user-name :user="$quotation->creator" /><br>
                                     <x-local-time :value="$quotation->created_at" />
                                 </div>
                             </div>
@@ -189,7 +189,7 @@
                                         <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200"><x-money
                                                 :amount="$quotation->final_amount ?? 0" currency="IDR" /></td>
                                         <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">
-                                            {{ $quotation->creator?->name ?? '-' }}<br>
+                                            <x-masked-user-name :user="$quotation->creator" /><br>
                                             <i><x-local-time :value="$quotation->created_at" /></i>
                                         </td>
                                         <td class="px-4 py-3 text-right text-sm actions-compact">

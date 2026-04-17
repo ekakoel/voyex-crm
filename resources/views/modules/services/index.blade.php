@@ -14,6 +14,11 @@
                 {{ session('success') }}
             </div>
         @endif
+        @if (session('error'))
+            <div class="rounded-lg mb-4 border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-700 dark:bg-rose-900/20 dark:text-rose-300">
+                {{ session('error') }}
+            </div>
+        @endif
 
         <div class="grid grid-cols-1 gap-3 xl:grid-cols-12">
             <section class="xl:col-span-9 space-y-3">

@@ -12,11 +12,11 @@ class ItineraryPolicy
 
     public function update(User $user, Itinerary $itinerary): bool
     {
-        return $itinerary->isCreator($user);
+        return $user->can('module.itineraries.update');
     }
 
     public function delete(User $user, Itinerary $itinerary): bool
     {
-        return $itinerary->isCreator($user);
+        return $user->can('module.itineraries.delete');
     }
 }

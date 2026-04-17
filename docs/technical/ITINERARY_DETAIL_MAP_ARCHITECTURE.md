@@ -1,5 +1,8 @@
 # Itinerary Detail Map Architecture
 
+Last Updated: 2026-04-17
+
+
 Dokumen ini menjelaskan implementasi map pada halaman detail itinerary (`show`) agar developer/AI bisa memahami sistem tanpa trial-error.
 
 Referensi kode utama:

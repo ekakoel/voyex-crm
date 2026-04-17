@@ -28,7 +28,7 @@ class QuotationValidationService
 
     public function isValidationActor($user): bool
     {
-        return (bool) ($user?->hasAnyRole(['Reservation', 'Manager', 'Director']));
+        return (bool) ($user?->can('quotations.validate'));
     }
 
     public function prepareValidationPageData(Quotation $quotation): array

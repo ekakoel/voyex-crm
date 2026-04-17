@@ -21,6 +21,7 @@ use App\Models\TouristAttraction;
 use App\Models\Transport;
 use App\Models\User;
 use App\Models\Vendor;
+use App\Services\ModuleService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -34,13 +35,14 @@ class DashboardController extends Controller
     public function index()
     {
         $today = now();
+        $bookingsModuleEnabled = ModuleService::isEnabledStatic('bookings');
 
         $systemCounts = [
             'users' => User::query()->count(),
             'customers' => Customer::query()->count(),
             'inquiries' => Inquiry::query()->count(),
             'quotations' => Quotation::query()->count(),
-            'bookings' => Booking::query()->count(),
+            'bookings' => $bookingsModuleEnabled ? Booking::query()->count() : 0,
             'invoices' => Invoice::query()->count(),
             'itineraries' => Itinerary::query()->count(),
             'vendors' => Vendor::query()->count(),
@@ -77,13 +79,15 @@ class DashboardController extends Controller
             ->pluck('total', 'status')
             ->toArray();
 
-        $bookingByStatus = Booking::query()
-            ->select('status', DB::raw('COUNT(*) as total'))
-            ->groupBy('status')
-            ->pluck('total', 'status')
-            ->toArray();
+        $bookingByStatus = $bookingsModuleEnabled
+            ? Booking::query()
+                ->select('status', DB::raw('COUNT(*) as total'))
+                ->groupBy('status')
+                ->pluck('total', 'status')
+                ->toArray()
+            : [];
 
-        $recentSystemHistory = $this->buildRecentSystemHistory();
+        $recentSystemHistory = $this->buildRecentSystemHistory($bookingsModuleEnabled);
 
         $operationalAlerts = [
             'pending_followups' => InquiryFollowUp::query()->where('is_done', false)->count(),
@@ -99,10 +103,12 @@ class DashboardController extends Controller
                 ->whereDate('validity_date', '>=', $today->toDateString())
                 ->whereDate('validity_date', '<=', $today->copy()->addDays(7)->toDateString())
                 ->count(),
-            'upcoming_bookings_7d' => Booking::query()
-                ->whereDate('travel_date', '>=', $today->toDateString())
-                ->whereDate('travel_date', '<=', $today->copy()->addDays(7)->toDateString())
-                ->count(),
+            'upcoming_bookings_7d' => $bookingsModuleEnabled
+                ? Booking::query()
+                    ->whereDate('travel_date', '>=', $today->toDateString())
+                    ->whereDate('travel_date', '<=', $today->copy()->addDays(7)->toDateString())
+                    ->count()
+                : 0,
         ];
 
         $upcomingFollowUps = InquiryFollowUp::query()
@@ -117,10 +123,12 @@ class DashboardController extends Controller
             ->limit(8)
             ->get(['id', 'quotation_number', 'status', 'validity_date']);
 
-        $upcomingBookings = Booking::query()
-            ->orderBy('travel_date')
-            ->limit(8)
-            ->get(['id', 'booking_number', 'status', 'travel_date']);
+        $upcomingBookings = $bookingsModuleEnabled
+            ? Booking::query()
+                ->orderBy('travel_date')
+                ->limit(8)
+                ->get(['id', 'booking_number', 'status', 'travel_date'])
+            : collect();
 
         $activityLogs = collect();
         if (Schema::hasTable('activity_logs')) {
@@ -176,13 +184,15 @@ class DashboardController extends Controller
                 'severity' => ($operationalAlerts['quotations_expiring_7d'] ?? 0) > 0 ? 'warning' : 'ok',
                 'hint' => 'Potential conversion risk window.',
             ],
-            [
+        ];
+        if ($bookingsModuleEnabled) {
+            $actionCenter[] = [
                 'label' => 'Upcoming Bookings (7D)',
                 'value' => (int) ($operationalAlerts['upcoming_bookings_7d'] ?? 0),
                 'severity' => 'info',
                 'hint' => 'Operational readiness checkpoint.',
-            ],
-        ];
+            ];
+        }
 
         $funnel = $this->buildBusinessFunnel($systemCounts);
         $moduleHealthMatrix = $this->buildModuleHealthMatrix($systemCounts);
@@ -202,6 +212,7 @@ class DashboardController extends Controller
             'inquiryByStatus',
             'quotationByStatus',
             'bookingByStatus',
+            'bookingsModuleEnabled',
             'operationalAlerts',
             'upcomingFollowUps',
             'expiringQuotations',
@@ -219,6 +230,7 @@ class DashboardController extends Controller
 
     public function trend(Request $request): JsonResponse
     {
+        $bookingsModuleEnabled = ModuleService::isEnabledStatic('bookings');
         $period = (int) $request->integer('period', 30);
         if (! in_array($period, [7, 30, 90], true)) {
             $period = 30;
@@ -234,7 +246,7 @@ class DashboardController extends Controller
 
         $inquirySeries = $this->buildDailySeries(Inquiry::class, $startDate, $endDate);
         $quotationSeries = $this->buildDailySeries(Quotation::class, $startDate, $endDate);
-        $bookingSeries = $this->buildDailySeries(Booking::class, $startDate, $endDate);
+        $bookingSeries = $bookingsModuleEnabled ? $this->buildDailySeries(Booking::class, $startDate, $endDate) : [];
 
         $labels = [];
         $inquiries = [];
@@ -254,7 +266,7 @@ class DashboardController extends Controller
         $bars = [
             Inquiry::query()->count(),
             Quotation::query()->count(),
-            Booking::query()->count(),
+            $bookingsModuleEnabled ? Booking::query()->count() : 0,
             Itinerary::query()->count(),
             Vendor::query()->count(),
             Activity::query()->count(),
@@ -279,20 +291,22 @@ class DashboardController extends Controller
                 'values' => [
                     Inquiry::query()->count(),
                     Quotation::query()->count(),
-                    Booking::query()->count(),
+                    $bookingsModuleEnabled ? Booking::query()->count() : 0,
                     Itinerary::query()->count(),
                 ],
             ],
         ]);
     }
 
-    private function buildRecentSystemHistory(): Collection
+    private function buildRecentSystemHistory(bool $bookingsModuleEnabled): Collection
     {
         $users = User::query()->latest('updated_at')->limit(5)->get(['id', 'name', 'updated_at']);
         $customers = Customer::query()->latest('updated_at')->limit(5)->get(['id', 'name', 'updated_at']);
         $inquiries = Inquiry::query()->latest('updated_at')->limit(8)->get(['id', 'inquiry_number', 'status', 'updated_at']);
         $quotations = Quotation::query()->latest('updated_at')->limit(8)->get(['id', 'quotation_number', 'status', 'updated_at']);
-        $bookings = Booking::query()->latest('updated_at')->limit(8)->get(['id', 'booking_number', 'status', 'updated_at']);
+        $bookings = $bookingsModuleEnabled
+            ? Booking::query()->latest('updated_at')->limit(8)->get(['id', 'booking_number', 'status', 'updated_at'])
+            : collect();
         $itineraries = Itinerary::query()->latest('updated_at')->limit(8)->get(['id', 'title', 'updated_at']);
 
         return collect()
@@ -561,5 +575,3 @@ class DashboardController extends Controller
         return $groups;
     }
 }
-
-

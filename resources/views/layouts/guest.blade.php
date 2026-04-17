@@ -4,8 +4,43 @@
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="csrf-token" content="{{ csrf_token() }}">
+        @php
+            $appTitle = config('app.name', 'VOYEX CRM');
+            $faviconUrl = null;
+            $faviconMime = 'image/x-icon';
 
-        <title>{{ config('app.name', 'Laravel') }}</title>
+            try {
+                if (\Illuminate\Support\Facades\Schema::hasTable('company_settings')) {
+                    $settings = \App\Models\CompanySetting::query()->select(['company_name', 'favicon_path', 'updated_at'])->first();
+                    if (! empty($settings?->company_name)) {
+                        $appTitle = trim((string) $settings->company_name);
+                    }
+                    if (! empty($settings?->favicon_path)) {
+                        $faviconUrl = \App\Support\ImageThumbnailGenerator::resolveOriginalPublicUrl($settings->favicon_path);
+                        if ($faviconUrl && ! empty($settings?->updated_at)) {
+                            $faviconUrl .= '?v=' . $settings->updated_at->timestamp;
+                        }
+                        $ext = strtolower((string) pathinfo((string) $settings->favicon_path, PATHINFO_EXTENSION));
+                        $faviconMime = match ($ext) {
+                            'png' => 'image/png',
+                            'ico' => 'image/x-icon',
+                            'webp' => 'image/webp',
+                            'jpg', 'jpeg' => 'image/jpeg',
+                            default => 'image/x-icon',
+                        };
+                    }
+                }
+            } catch (\Throwable $e) {
+                // Keep fallback branding when DB is not ready.
+            }
+        @endphp
+
+        <title>{{ $appTitle }}</title>
+        @if ($faviconUrl)
+            <link rel="icon" type="{{ $faviconMime }}" href="{{ $faviconUrl }}">
+            <link rel="shortcut icon" type="{{ $faviconMime }}" href="{{ $faviconUrl }}">
+            <link rel="apple-touch-icon" href="{{ $faviconUrl }}">
+        @endif
 
         <!-- Fonts -->
         <link rel="preconnect" href="https://fonts.bunny.net">

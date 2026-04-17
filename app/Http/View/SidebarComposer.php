@@ -236,6 +236,7 @@ class SidebarComposer
                         'route' => 'services.map',
                         'icon'  => 'earth-asia',
                         'module' => 'service_manager',
+                        'permission' => 'services.map.view',
                         'roles' => ['Administrator', 'Super Admin'],
                     ],
                     [
@@ -249,7 +250,7 @@ class SidebarComposer
                         'title' => 'Access Matrix',
                         'route' => 'superadmin.access-matrix',
                         'icon'  => 'table-cells',
-                        'roles' => ['Super Admin'],
+                        'permission' => 'superadmin.access_matrix.view',
                     ],
                     [
                         'title' => 'User Manager',
@@ -284,7 +285,7 @@ class SidebarComposer
                 continue;
             }
 
-            if ($user && ! $user->hasRole('Super Admin')) {
+            if ($user && ! $user->isSuperAdmin()) {
                 $requiredPermission = $item['permission'] ?? (! empty($item['module']) ? "module.{$item['module']}.access" : null);
                 if ($requiredPermission && ! $user->can($requiredPermission)) {
                     continue;
@@ -309,7 +310,11 @@ class SidebarComposer
                 continue;
             }
 
-            if (! empty($item['roles']) && (! $user || (! $user->hasRole('Super Admin') && ! $user->hasAnyRole($item['roles'])))) {
+            if (
+                $this->shouldEnforceRoleConstraint($item)
+                && ! empty($item['roles'])
+                && (! $user || (! $user->isSuperAdmin() && ! $user->hasAnyRole($item['roles'])))
+            ) {
                 continue;
             }
 
@@ -331,6 +336,27 @@ class SidebarComposer
         }
 
         return $this->normalizeSeparators($accessible);
+    }
+
+    /**
+     * Sidebar is permission-first by default.
+     * Static role constraints are only enforced for menu items that are explicitly role-locked
+     * or for standalone role-only entries with no permission/module signal.
+     *
+     * @param array<string, mixed> $item
+     */
+    private function shouldEnforceRoleConstraint(array $item): bool
+    {
+        if (($item['enforce_roles'] ?? false) === true) {
+            return true;
+        }
+
+        $hasPermissionSignal = ! empty($item['permission'])
+            || ! empty($item['module'])
+            || ! empty($item['any_permissions']);
+        $hasChildren = ! empty($item['children']) && is_array($item['children']);
+
+        return ! $hasPermissionSignal && ! $hasChildren;
     }
 
     /**
@@ -405,16 +431,24 @@ class SidebarComposer
             return $empty;
         }
 
+        if (! ModuleService::isEnabledStatic('quotations')) {
+            return $empty;
+        }
+
         if (! $user->can('module.quotations.access')) {
             return $empty;
         }
 
+        if (! $user->can('quotations.approve')) {
+            return $empty;
+        }
+
         $role = null;
-        if ($user->hasRole('Director')) {
+        if ($user->can('dashboard.director.view')) {
             $role = 'director';
-        } elseif ($user->hasRole('Manager')) {
+        } elseif ($user->can('dashboard.manager.view')) {
             $role = 'manager';
-        } elseif ($user->hasRole('Reservation')) {
+        } elseif ($user->can('dashboard.reservation.view')) {
             $role = 'reservation';
         }
 

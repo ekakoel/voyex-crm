@@ -7,6 +7,11 @@ use Illuminate\Support\Facades\Storage;
 
 class ImageThumbnailGenerator
 {
+    private static function buildPublicDiskUrl(string $path): string
+    {
+        return '/storage/' . ltrim($path, '/');
+    }
+
     public static function normalizeStoredPath(?string $path, array $directories = [], string $disk = 'public'): ?string
     {
         $value = trim((string) $path);
@@ -60,6 +65,10 @@ class ImageThumbnailGenerator
             return null;
         }
 
+        if ($disk === 'public') {
+            return self::buildPublicDiskUrl($normalized);
+        }
+
         return $storage->url($normalized);
     }
 
@@ -92,8 +101,15 @@ class ImageThumbnailGenerator
             }
 
             if ($storage->exists($thumbnailPath)) {
+                if ($disk === 'public') {
+                    return self::buildPublicDiskUrl($thumbnailPath);
+                }
                 return $storage->url($thumbnailPath);
             }
+        }
+
+        if ($disk === 'public') {
+            return self::buildPublicDiskUrl($normalized);
         }
 
         return $storage->url($normalized);

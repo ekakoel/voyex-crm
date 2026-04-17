@@ -27,10 +27,10 @@
     $badgeText = $badge ?? $activeCurrencySymbol;
     $wrapperClass = $wrapperClass ?? ($compact ? '' : 'space-y-1');
     $baseInputClass = $compact
-        ? 'app-input pr-14'
-        : 'mt-1 app-input pr-14';
+        ? 'app-input pl-14 text-right'
+        : 'mt-1 app-input pl-14 text-right';
     $inputClass = trim($baseInputClass . ' ' . ($inputClass ?? ''));
-    $baseBadgeClass = 'input-right-affix rounded-md border border-gray-200 bg-gray-50 px-1.5 py-0.5 text-[10px] font-semibold text-gray-600 shadow-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200';
+    $baseBadgeClass = 'input-left-affix rounded-md border border-gray-200 bg-gray-50 px-1.5 py-0.5 text-[10px] font-semibold text-gray-600 shadow-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200';
     $badgeClass = trim($baseBadgeClass . ' ' . ($badgeClass ?? ''));
 @endphp
 
@@ -41,7 +41,7 @@
             class="{{ $labelClass ?? 'block text-sm font-medium text-gray-700 dark:text-gray-200' }}"
         >{{ $label }}</label>
     @endif
-    <div class="input-with-right-affix">
+    <div class="input-with-left-affix">
         <input
             @if ($name) name="{{ $name }}" @endif
             @if ($id) id="{{ $id }}" @endif
@@ -65,5 +65,3 @@
         </span>
     </div>
 </div>
-
-

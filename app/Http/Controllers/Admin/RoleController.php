@@ -17,21 +17,45 @@ class RoleController extends Controller
 {
     public function index(Request $request): View
     {
+        $actor = $request->user();
+        $isSuperAdminActor = (bool) ($actor?->isSuperAdmin());
         $perPage = (int) $request->input('per_page', 10);
         $perPage = in_array($perPage, [10, 25, 50, 100], true) ? $perPage : 10;
         $search = trim((string) $request->input('search', ''));
 
-        $roles = Role::query()
+        $rolesBaseQuery = Role::query()
             ->with('permissions')
-            ->when($search !== '', function ($query) use ($search) {
-                $query->where('name', 'like', "%{$search}%")
-                    ->orWhereHas('permissions', function ($permissionQuery) use ($search) {
-                        $permissionQuery->where('name', 'like', "%{$search}%");
-                    });
+            ->when(! $isSuperAdminActor, fn ($query) => $query->where('name', '!=', 'Super Admin'));
+
+        $roles = (clone $rolesBaseQuery)
+            ->when($search !== '', function ($query) use ($search): void {
+                $query->where(function ($searchQuery) use ($search): void {
+                    $searchQuery->where('name', 'like', "%{$search}%")
+                        ->orWhereHas('permissions', function ($permissionQuery) use ($search): void {
+                            $permissionQuery->where('name', 'like', "%{$search}%");
+                        });
+                });
             })
             ->orderBy('name')
             ->paginate($perPage)
             ->withQueryString();
+
+        $statsCards = [
+            [
+                'key' => 'total_roles',
+                'label' => 'Total',
+                'value' => (int) (clone $rolesBaseQuery)->count(),
+                'caption' => 'Roles',
+                'tone' => 'bg-slate-50 text-slate-700 border-slate-100',
+            ],
+            [
+                'key' => 'filtered_roles',
+                'label' => 'Visible',
+                'value' => (int) $roles->total(),
+                'caption' => $search !== '' ? 'Filtered result' : 'Current list',
+                'tone' => 'bg-indigo-50 text-indigo-700 border-indigo-100',
+            ],
+        ];
 
         if ($this->wantsAjaxFragment($request)) {
             return response()->json([
@@ -40,15 +64,19 @@ class RoleController extends Controller
             ]);
         }
 
-        return view('modules.roles.index', compact('roles', 'search'));
+        return view('modules.roles.index', compact('roles', 'search', 'statsCards'));
     }
 
     public function create(Request $request): View
     {
+        $isSuperAdminActor = $this->isSuperAdminActor($request);
         [$modulePermissions, $otherPermissions, $permissionLabels] = $this->getPermissionsGrouped();
-        [$templateRoles, $rolePermissionMap] = $this->getTemplateRoles();
+        [$templateRoles, $rolePermissionMap] = $this->getTemplateRoles($isSuperAdminActor);
         $selectedTemplateRoleId = $request->integer('template_role_id');
         $selectedTemplateRoleName = null;
+        if (! $isSuperAdminActor && $selectedTemplateRoleId) {
+            $selectedTemplateRoleId = null;
+        }
         if ($selectedTemplateRoleId) {
             $selectedTemplateRoleName = $templateRoles
                 ->firstWhere('id', $selectedTemplateRoleId)
@@ -68,8 +96,15 @@ class RoleController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
+        $isSuperAdminActor = $this->isSuperAdminActor($request);
         $validated = $request->validate([
-            'name' => ['required', 'string', 'max:255', 'unique:roles,name'],
+            'name' => array_values(array_filter([
+                'required',
+                'string',
+                'max:255',
+                'unique:roles,name',
+                ! $isSuperAdminActor ? Rule::notIn(['Super Admin']) : null,
+            ])),
             'permissions' => ['nullable', 'array'],
             'permissions.*' => ['string', Rule::exists('permissions', 'name')],
             'custom_permission' => ['nullable', 'string', 'max:255'],
@@ -92,6 +127,10 @@ class RoleController extends Controller
             $permissions[] = $permission->name;
         }
 
+        if (! $isSuperAdminActor) {
+            $validated['template_role_id'] = null;
+        }
+
         if (empty($permissions) && ! empty($validated['template_role_id'])) {
             $templateRole = Role::with('permissions')->find($validated['template_role_id']);
             if ($templateRole) {
@@ -109,9 +148,14 @@ class RoleController extends Controller
 
     public function edit(Role $role): View
     {
+        $isSuperAdminActor = $this->isSuperAdminActor();
+        if (! $isSuperAdminActor && $role->name === 'Super Admin') {
+            abort(404);
+        }
+
         [$modulePermissions, $otherPermissions, $permissionLabels] = $this->getPermissionsGrouped();
         $selectedPermissions = $role->permissions->pluck('name')->all();
-        [$templateRoles, $rolePermissionMap] = $this->getTemplateRoles();
+        [$templateRoles, $rolePermissionMap] = $this->getTemplateRoles($isSuperAdminActor);
 
         return view('modules.roles.edit', compact(
             'role',
@@ -126,8 +170,19 @@ class RoleController extends Controller
 
     public function update(Request $request, Role $role): RedirectResponse
     {
+        $isSuperAdminActor = $this->isSuperAdminActor($request);
+        if (! $isSuperAdminActor && $role->name === 'Super Admin') {
+            abort(404);
+        }
+
         $validated = $request->validate([
-            'name' => ['required', 'string', 'max:255', Rule::unique('roles', 'name')->ignore($role->id)],
+            'name' => array_values(array_filter([
+                'required',
+                'string',
+                'max:255',
+                Rule::unique('roles', 'name')->ignore($role->id),
+                ! $isSuperAdminActor ? Rule::notIn(['Super Admin']) : null,
+            ])),
             'permissions' => ['nullable', 'array'],
             'permissions.*' => ['string', Rule::exists('permissions', 'name')],
             'custom_permission' => ['nullable', 'string', 'max:255'],
@@ -149,6 +204,10 @@ class RoleController extends Controller
             $permissions[] = $permission->name;
         }
 
+        if (! $isSuperAdminActor) {
+            $validated['template_role_id'] = null;
+        }
+
         if (empty($permissions) && ! empty($validated['template_role_id'])) {
             $templateRole = Role::with('permissions')->find($validated['template_role_id']);
             if ($templateRole) {
@@ -166,10 +225,16 @@ class RoleController extends Controller
 
     public function destroy(Role $role): RedirectResponse
     {
+        $isSuperAdminActor = $this->isSuperAdminActor();
+        if (! $isSuperAdminActor && $role->name === 'Super Admin') {
+            abort(404);
+        }
+
         if (in_array($role->name, ['Super Admin', 'Administrator'], true)) {
+            $blockedLabel = $role->name === 'Super Admin' && ! $isSuperAdminActor ? 'This role' : $role->name;
             return redirect()
                 ->route('roles.index')
-                ->with('error', "The {$role->name} role cannot be deleted.");
+                ->with('error', "The {$blockedLabel} role cannot be deleted.");
         }
 
         $role->delete();
@@ -195,7 +260,7 @@ class RoleController extends Controller
         foreach ($permissions as $permission) {
             if (! str_starts_with($permission->name, 'module.')) {
                 $otherPermissions[] = $permission->name;
-                $permissionLabels[$permission->name] = $this->humanizePermission($permission->name);
+                $permissionLabels[$permission->name] = $this->friendlyPermissionLabel($permission->name);
             }
         }
 
@@ -238,10 +303,21 @@ class RoleController extends Controller
         return ucwords(trim($label));
     }
 
-    private function getTemplateRoles(): array
+    private function friendlyPermissionLabel(string $name): string
+    {
+        $customLabels = [
+            'services.map.view' => 'View Service Map',
+            'superadmin.access_matrix.view' => 'View Access Matrix',
+        ];
+
+        return $customLabels[$name] ?? $this->humanizePermission($name);
+    }
+
+    private function getTemplateRoles(bool $isSuperAdminActor = false): array
     {
         $templateRoles = Role::query()
             ->with('permissions')
+            ->when(! $isSuperAdminActor, fn ($query) => $query->where('name', '!=', 'Super Admin'))
             ->orderBy('name')
             ->get();
 
@@ -258,7 +334,12 @@ class RoleController extends Controller
             || $request->expectsJson()
             || $request->header('X-Roles-Ajax') === '1';
     }
+
+    private function isSuperAdminActor(?Request $request = null): bool
+    {
+        $request = $request ?: request();
+        $user = $request?->user();
+
+        return (bool) ($user?->isSuperAdmin());
+    }
 }
-
-
-

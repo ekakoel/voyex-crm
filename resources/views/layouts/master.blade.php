@@ -6,6 +6,15 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     @php
         $appTitle = trim((string) ($companySettings->company_name ?? 'VOYEX CRM'));
+        $logoPath = $companySettings->logo_path ?? null;
+        $logoVersion = !empty($companySettings?->updated_at) ? $companySettings->updated_at->timestamp : null;
+        $logoUrl = $logoPath
+            ? (\App\Support\ImageThumbnailGenerator::resolvePublicUrl($logoPath)
+                ?? \App\Support\ImageThumbnailGenerator::resolveOriginalPublicUrl($logoPath))
+            : null;
+        if ($logoUrl && $logoVersion) {
+            $logoUrl .= '?v=' . $logoVersion;
+        }
         $faviconPath = $companySettings->favicon_path ?? null;
         $faviconVersion = !empty($companySettings?->updated_at) ? $companySettings->updated_at->timestamp : null;
         $faviconUrl = $faviconPath
@@ -53,9 +62,18 @@
                   }">
 
         <div class="p-4 border-b border-gray-700 flex items-center justify-between gap-2">
-            <div class="text-xl font-bold whitespace-nowrap overflow-hidden"
-                 :class="sidebarCollapsed ? 'md:hidden' : 'block'">
-                {{ $appTitle !== '' ? $appTitle : 'VOYEX CRM' }}
+            <div class="flex items-center gap-2 min-w-0 overflow-hidden">
+                @if ($logoUrl)
+                    <img
+                        src="{{ $logoUrl }}"
+                        alt="{{ $appTitle !== '' ? $appTitle : 'VOYEX CRM' }} Logo"
+                        class="h-8 w-8 rounded-lg object-cover border border-white/20 shrink-0"
+                    >
+                @endif
+                <div class="text-xl font-bold whitespace-nowrap overflow-hidden"
+                     :class="sidebarCollapsed ? 'md:hidden' : 'block'">
+                    {{ $appTitle !== '' ? $appTitle : 'VOYEX CRM' }}
+                </div>
             </div>
 
             <button type="button"
@@ -449,8 +467,92 @@
     }
 
     function attachMoneyHints(root = document) {
-        const moneyPattern = /(price|rate|amount|fee|cost|discount|total)/i;
+        const moneyPattern = /(contract_rate|publish_rate|unit_price|overtime_rate|optional_rate|kick_back|markup|price|amount|fee|cost|discount|total|final_amount|sub_total)/i;
         const fields = root.querySelectorAll('input[data-money-input="1"], input[type="number"], input[inputmode="decimal"], input[inputmode="numeric"], input[type="text"]');
+        const currencyBadgeText = window.appCurrencySymbol || window.appCurrency || 'IDR';
+
+        const ensureLeftAffixWrapper = (field) => {
+            if (!(field instanceof HTMLInputElement)) {
+                return null;
+            }
+
+            const existingWrapper = field.closest('.input-with-left-affix');
+            if (existingWrapper) {
+                let existingBadge = existingWrapper.querySelector('[data-money-badge="1"]');
+                if (!existingBadge) {
+                    existingBadge = document.createElement('span');
+                    existingBadge.className = 'input-left-affix rounded-md border border-gray-200 bg-gray-50 px-1.5 py-0.5 text-[10px] font-semibold text-gray-600 shadow-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200';
+                    existingBadge.setAttribute('data-money-badge', '1');
+                    existingBadge.setAttribute('data-money-badge-default', currencyBadgeText);
+                    existingBadge.textContent = currencyBadgeText;
+                    existingWrapper.appendChild(existingBadge);
+                }
+                return existingBadge;
+            }
+
+            const wrapper = document.createElement('div');
+            wrapper.className = 'input-with-left-affix';
+
+            const parent = field.parentElement;
+            if (!parent) {
+                return null;
+            }
+
+            parent.insertBefore(wrapper, field);
+            wrapper.appendChild(field);
+
+            const badge = document.createElement('span');
+            badge.className = 'input-left-affix rounded-md border border-gray-200 bg-gray-50 px-1.5 py-0.5 text-[10px] font-semibold text-gray-600 shadow-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200';
+            badge.setAttribute('data-money-badge', '1');
+            badge.setAttribute('data-money-badge-default', currencyBadgeText);
+            badge.textContent = currencyBadgeText;
+            wrapper.appendChild(badge);
+
+            return badge;
+        };
+
+        const findRelatedMarkupTypeSelect = (field) => {
+            if (!(field instanceof HTMLInputElement)) {
+                return null;
+            }
+
+            const fieldName = String(field.getAttribute('name') || '').trim();
+            const isMarkupField = /\bmarkup\b/i.test(fieldName) || field.dataset.hotelRate === 'markup';
+            if (!isMarkupField) {
+                return null;
+            }
+
+            const candidates = [];
+            if (fieldName.includes('[markup]')) {
+                candidates.push(fieldName.replace('[markup]', '[markup_type]'));
+            }
+            if (/_markup$/i.test(fieldName)) {
+                candidates.push(fieldName.replace(/_markup$/i, '_markup_type'));
+            }
+            if (/\bmarkup$/i.test(fieldName)) {
+                candidates.push(fieldName.replace(/\bmarkup$/i, 'markup_type'));
+            }
+
+            const form = field.closest('form');
+            if (form && typeof CSS !== 'undefined' && typeof CSS.escape === 'function') {
+                for (const candidate of candidates) {
+                    const select = form.querySelector(`select[name="${CSS.escape(candidate)}"]`);
+                    if (select) {
+                        return select;
+                    }
+                }
+            }
+
+            const rowScope = field.closest('[data-row], tr, .grid, .space-y-3, .space-y-4');
+            if (rowScope) {
+                const rowSelect = rowScope.querySelector('[data-hotel-rate="markup_type"], select[name*="markup_type"]');
+                if (rowSelect) {
+                    return rowSelect;
+                }
+            }
+
+            return null;
+        };
 
         const toIdrInteger = (value) => {
             const raw = String(value ?? '').trim();
@@ -499,6 +601,7 @@
             field.dataset.moneyHintBound = '1';
             field.dataset.moneyFormatBound = '1';
             field.dataset.moneyCurrency = String(window.appCurrency || 'IDR').toUpperCase();
+            field.classList.add('pl-14', 'text-right');
             field.setAttribute('inputmode', 'numeric');
             field.setAttribute('autocomplete', 'off');
 
@@ -506,10 +609,15 @@
                 field.type = 'text';
             }
 
-            const badge = field.parentElement?.querySelector('[data-money-badge="1"]');
-            if (badge) {
-                badge.textContent = window.appCurrencySymbol || window.appCurrency || 'IDR';
-            }
+            const badge = ensureLeftAffixWrapper(field);
+            const markupTypeSelect = findRelatedMarkupTypeSelect(field);
+            const syncBadge = () => {
+                if (!badge) {
+                    return;
+                }
+                const isPercent = markupTypeSelect && String(markupTypeSelect.value || 'fixed').toLowerCase() === 'percent';
+                badge.textContent = isPercent ? '%' : currencyBadgeText;
+            };
 
             const applyFormat = () => {
                 field.value = toIdrGrouped(field.value);
@@ -518,9 +626,16 @@
             if (field.value) {
                 applyFormat();
             }
+            syncBadge();
 
             field.addEventListener('input', applyFormat);
             field.addEventListener('change', applyFormat);
+            if (markupTypeSelect && markupTypeSelect.dataset.moneyBadgeBound !== '1') {
+                markupTypeSelect.dataset.moneyBadgeBound = '1';
+                markupTypeSelect.addEventListener('change', () => {
+                    syncBadge();
+                });
+            }
 
             // Global hint intentionally disabled: all money inputs already enforce IDR formatting.
         });

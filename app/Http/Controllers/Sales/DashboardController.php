@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Booking;
 use App\Models\Inquiry;
 use App\Models\User;
+use App\Services\ModuleService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 
@@ -17,10 +18,11 @@ class DashboardController extends Controller
         $now = Carbon::now();
         $salesTeamIds = [];
         $canInquiries = (bool) $user?->can('module.inquiries.access');
-        $canBookings = (bool) $user?->can('module.bookings.access');
+        $bookingsModuleEnabled = ModuleService::isEnabledStatic('bookings');
+        $canBookings = $bookingsModuleEnabled && (bool) $user?->can('module.bookings.access');
 
-        // Determine data scope based on role
-        if ($user->hasRole('Manager')) {
+        // Determine data scope based on permission
+        if ($user?->can('dashboard.manager.view')) {
             // Manager sees the whole sales team data
             $salesTeamIds = User::role(['Manager', 'Marketing'])->pluck('id')->toArray();
         } else {

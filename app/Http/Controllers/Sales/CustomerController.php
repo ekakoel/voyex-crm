@@ -32,7 +32,11 @@ class CustomerController extends Controller
         $perPage = $perPage > 0 && $perPage <= 100 ? $perPage : 10;
 
         $customers = $query->latest()->paginate($perPage)->withQueryString();
-        $creators = \App\Models\User::query()->orderBy('name')->get();
+        $actor = auth()->user();
+        $creators = \App\Models\User::query()
+            ->when(! $actor?->isSuperAdmin(), fn ($query) => $query->withoutSuperAdmin())
+            ->orderBy('name')
+            ->get();
 
         $totalCustomers = Customer::withTrashed()->count();
         $activeCustomers = Customer::query()->count();
@@ -223,6 +227,5 @@ class CustomerController extends Controller
         return $countries;
     }
 }
-
 
 

@@ -1,4 +1,7 @@
-﻿# Roadmap Changelog Archive
+# Roadmap Changelog Archive
+
+Last Updated: 2026-04-17
+
 
 Historical roadmap changelog entries were moved here during documentation consolidation on 2026-04-09.
 

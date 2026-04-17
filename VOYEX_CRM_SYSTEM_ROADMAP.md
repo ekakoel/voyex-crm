@@ -1,7 +1,7 @@
-﻿# VOYEX CRM -- SYSTEM ROADMAP
+# VOYEX CRM -- SYSTEM ROADMAP
 
-Version: 1.3  
-Last Updated: 2026-04-16
+Version: 1.4  
+Last Updated: 2026-04-17
 
 Legend:  
 - DONE = Implemented  
@@ -59,7 +59,7 @@ Tourist Attractions CRUD | DONE | Standard forms
 Soft Delete / Deactivate Toggle | DONE | Master data modules use soft delete + activate toggle
 Location Autofill | DONE | Shared resolver for modules
 Seasonal Pricing | TODO | Not implemented
-Contract Rate Logic | TODO | Not implemented
+Contract Rate Logic | DONE | Quotation validation + source master sync implemented
 
 ## Itinerary Builder
 
@@ -86,7 +86,7 @@ Auto Number Generator | DONE | Quotation number
 Price Calculation | DONE | Final amount calc
 Discount Workflow | DONE | Discount + approval guard
 Approval Workflow | DONE | Approve/Reject/Pending
-Quotation Template | DONE | Template support
+Quotation Template | REMOVED | Legacy template table removed from current architecture
 PDF Generator | DONE | PDF export
 CSV Export | DONE | CSV export
 Versioning | TODO | Not implemented
@@ -98,7 +98,7 @@ Margin Calculation | TODO | Not implemented
 
 Feature | Status | Notes
 --- | --- | ---
-Convert Quotation â†’ Booking | DONE | Booking creation flow
+Convert Quotation → Booking | DONE | Booking creation flow
 Booking Status Workflow | DONE | Status + Final lock
 CSV Export | DONE | Export from bookings
 Participant Management | TODO | Not implemented
@@ -166,13 +166,13 @@ Auto Reminder Engine | TODO | Not implemented
 
 # CRITICAL PRIORITY (NEXT)
 
-1. Approval Workflow (Quotation) â€” DONE (basic), enhance matrix + audit
-2. Margin & Profit Calculation â€” TODO
-3. Structured Itinerary Engine â€” DONE (basic), needs pricing + templates
-4. Expense â†’ Profit Linking â€” TODO
-5. Audit Trail System â€” PARTIAL (activity logs only)
-6. Participant Management â€” TODO
-7. Auto Reminder Engine â€” TODO
+1. Approval Workflow (Quotation) — DONE (basic), enhance matrix + audit
+2. Margin & Profit Calculation — TODO
+3. Structured Itinerary Engine — DONE (basic), needs pricing + templates
+4. Expense → Profit Linking — TODO
+5. Audit Trail System — PARTIAL (activity logs only)
+6. Participant Management — TODO
+7. Auto Reminder Engine — TODO
 
 ----------------------------------------------------------------------------------------------------
 
@@ -199,8 +199,165 @@ Kebijakan ini wajib untuk setiap update code (penambahan, perubahan, pengurangan
 
 # CHANGELOG (LATEST)
 
+Date: 2026-04-17
+Completed in this cycle:
+
+- Documentation full-sync (all markdown):
+  - refreshed root source-of-truth docs (`README.md`, `PROJECT_GUIDELINES.md`, `PROJECT_KNOWLEDGE_BASE.md`, `VOYEX_CRM_AI_GUIDELINE.md`).
+  - refreshed technical docs index (`docs/README.md`) and added consistent `Last Updated` metadata across markdown files.
+  - updated approval and validation UAT matrices to match current behavior:
+    - approval is permission-first with minimum two non-creator approvals,
+    - validation flow is AJAX per-row and final validation visibility at 100% progress.
+
+- Access control documentation alignment:
+  - documented permission-first strategy for CRUD and non-CRUD actions.
+  - documented dashboard redirect priority including `dashboard.superadmin.view`.
+  - documented service-manager routes enforcement with `module.permission`.
+
+- Database safety documentation hardening:
+  - added explicit rule that testing must use isolated `.env.testing` database.
+  - added prohibition notes for destructive commands on primary database (`migrate:fresh`, `db:wipe`, `migrate:refresh`).
+
+- Developer superadmin bypass hardening:
+  - `superadmin@example.com` is now treated as superadmin identity even without role binding.
+  - centralized bypass through `User::isSuperAdmin()` and wired to Gate + permission/module middlewares + sidebar/role guards.
+  - impact: developer account keeps full system access across pages/features/functions without dependency on role/permission records.
+
+- System Modules strict enforcement hardening:
+  - module toggle is now enforced universally (including superadmin identity) for access paths guarded by module/permission middleware.
+  - disabled module now returns `404` from route access checks (`module`, `module.permission`, and `permission:module.*` pathways).
+  - sidebar menu now consistently hides disabled modules for all users.
+  - quotation approval notification widget now auto-hides when quotations module is disabled.
+  - `service_manager` module is protected from disable action to prevent lockout of System Modules control center.
+
+- Company branding asset activation fix:
+  - fixed missing `public/storage` symlink by running `php artisan storage:link`, enabling browser access to uploaded files from `storage/app/public`.
+  - master layout now renders uploaded company logo in sidebar header when `company_settings.logo_path` is available.
+  - global `application-logo` component now uses uploaded company logo as primary source with SVG fallback.
+  - guest layout now uses company name + uploaded favicon for page title/head branding consistency.
+  - setup quick-start updated to include `php artisan storage:link`.
+  - image public URL resolver for local `public` disk now returns relative `/storage/...` path (instead of host-bound URL), preventing host/port mismatch issues (for example `localhost` vs `localhost:8000`) that caused broken favicon/logo previews.
+
+- Role & Permission coverage expansion for admin tools:
+  - added dedicated permissions:
+    - `services.map.view` (Service Map page),
+    - `superadmin.access_matrix.view` (Access Matrix page).
+  - wired route guards:
+    - `services.map` now requires `services.map.view`,
+    - `superadmin.access-matrix` now requires `superadmin.access_matrix.view`.
+  - updated sidebar access checks to use these dedicated permissions.
+  - added migration `2026_04_17_120000_add_service_map_and_access_matrix_permissions.php` so existing databases receive both permissions without full reseed.
+  - improved role-form UI labels for these permissions:
+    - `services.map.view` => `View Service Map`,
+    - `superadmin.access_matrix.view` => `View Access Matrix`.
+  - fixed route guard mismatch causing false `403` after enabling view permissions:
+    - `services.map` now requires only `services.map.view` (plus module enabled),
+    - `superadmin.access-matrix` accepts `superadmin.access_matrix.view` with legacy fallback `dashboard.superadmin.view`.
+
 Date: 2026-04-16
 Completed in this cycle:
+
+- Itinerary airport filter accuracy fix (destination-based):
+  - updated start/end point item destination matching from broad substring matching to token-based exact-word matching.
+  - impact example:
+    - destination `Bali` now matches Bali-related airport entries,
+    - no longer incorrectly matches `Balikpapan`.
+  - applied to day-point option filtering logic used by `Select start point item` and `Select end point item`.
+
+- Itinerary day action rollback:
+  - reverted `+ Add Item` placement back to original top-right position in day header row.
+  - removed custom action-row relocation script that caused add-item layout instability.
+
+- Itinerary day action layout refinement:
+  - moved `+ Add Item` button to align with `Estimated travel time to end point (minutes)` row.
+  - enforced placement order per day section:
+    - schedule items list,
+    - then travel-time input + `+ Add Item` inline on the right,
+    - then `Day N End Point`.
+  - button now stays on the right side of the travel-time input (always inline beside input).
+  - button style updated to primary and height aligned with travel-time input control.
+
+- Itinerary schedule wording update:
+  - updated travel connector placeholder texts:
+    - `Travel to next item (minutes)` -> `Estimated travel time to the next item (minutes)`
+    - `Travel to End Point (minutes)` -> `Estimated travel time to end point (minutes)`.
+
+- Itinerary transport unit option label refinement:
+  - updated `Day N Transport Unit` select option text to `Brand Name (Seat Capacity)`.
+  - brand source uses transport brand name when available, with safe fallback to unit name.
+
+- Itinerary schedule-point select label simplification:
+  - `Day N Start Point` and `Day N End Point` item select now show hotel option text as hotel name only.
+  - `Select room` options now show room name only (without hotel prefix/view suffix).
+  - applied to both start-point and end-point selectors in shared itinerary create/edit form.
+
+- Itinerary day-point self-booked hotel flexibility (create/edit):
+  - updated schedule day-point validation so `Start Point` / `End Point` item and room are no longer mandatory when point type is `hotel` and booking mode is `self`.
+  - retained strict validation for arranged-hotel flow:
+    - hotel item remains required,
+    - room remains required,
+    - room-hotel consistency is still enforced.
+  - frontend behavior aligned in itinerary form:
+    - when booking mode is `self`, point item becomes optional,
+    - room selector/count are auto-disabled and can stay empty,
+    - switching booking mode immediately re-syncs field required/disabled state.
+  - applied on both create and edit itinerary pages (shared `_form` script).
+
+- Global currency-input standard enforcement (all modules/pages):
+  - enforced money-field detection globally in master layout for monetary inputs (`contract_rate`, `publish_rate`, `unit_price`, `markup`, `discount`, `total`, etc).
+  - any detected monetary input now auto-applies:
+    - left currency badge affix,
+    - right-aligned numeric value,
+    - grouped display formatting,
+    - numeric-only normalization before submit.
+  - standardized markup badge behavior globally:
+    - `%` when paired `markup_type` is `percent`,
+    - active currency symbol/code when `fixed`.
+  - impact:
+    - standard now applies beyond quotation validation and covers all pages using nominal inputs (including legacy plain inputs that were not yet wrapped by `x-money-input`).
+
+- Project-wide nominal input standard formalization:
+  - established `x-money-input` as mandatory component for nominal fields (price/rate/amount/fee/cost/discount/total).
+  - locked UI convention: currency badge must use left affix (not right affix).
+  - standardized nominal behavior:
+    - display with readable grouped format,
+    - submit payload normalized as numeric-only value.
+  - documented markup badge contract:
+    - `%` for percent markup,
+    - active currency badge for fixed markup.
+- Documentation updates to prevent standard drift:
+  - updated `PROJECT_GUIDELINES.md` with mandatory `Standar Input Nominal`.
+  - updated `VOYEX_CRM_AI_GUIDELINE.md` with nominal-input guard.
+  - updated `PROJECT_KNOWLEDGE_BASE.md` section 7 with project-level nominal-input baseline.
+  - updated `docs/core/LAYOUT_GUIDE.md` anti-drift section to include nominal standard.
+  - added technical source-of-truth doc `docs/technical/NOMINAL_INPUT_STANDARD.md`.
+  - updated `docs/README.md` technical map to include nominal-input standard reference.
+
+Date: 2026-04-16
+Completed in this cycle:
+
+- Global money-input affix alignment:
+  - standardized `x-money-input` component to render currency badge on left affix by default.
+  - updated shared money-input CSS compatibility so quotation item layouts remain aligned for both left/right affix classes during transition.
+  - impact scope: all pages using `resources/views/components/money-input.blade.php` now inherit left-side currency badge behavior.
+
+- Quotation validation money-input badge standardization:
+  - aligned validation-page nominal inputs with create/edit quotation money-input pattern.
+  - adjusted badge placement to left affix on validation nominal inputs to avoid overlay with long numeric values.
+  - added currency/code badge for contract-rate inputs in mobile and desktop variants.
+  - added dynamic markup badge behavior:
+    - `%` when markup type is `percent`,
+    - active currency badge (`Rp/$/code`) when markup type is `fixed`.
+  - implemented sync helpers in validation JS:
+    - `refreshAllMoneyBadges()`,
+    - `refreshMarkupBadgesForItem(itemId)`.
+
+- Quotation validation currency alignment:
+  - validation modal and validation item price display now follow active app currency (`window.appCurrency`) including symbol and locale formatting.
+  - added IDR-to-display and display-to-IDR conversion in validation page JS so:
+    - user sees values in selected currency,
+    - submitted payload remains normalized in IDR for backend integrity.
+  - updated `resources/views/modules/quotations/validate.blade.php` currency formatter and submit normalization flow for both AJAX save-item and save-progress actions.
 
 - Quotation revalidation access rule update:
   - validation page access is now kept available for validation actors even after validation status reaches `valid`.
@@ -661,5 +818,51 @@ Completed in this cycle:
   - `php -l` passed for updated controllers (`ItineraryController`, `InquiryController`, `QuotationController`),
   - `php artisan view:cache` passed after activity timeline pagination update.
 
+Date: 2026-04-16
+Completed in this cycle:
+
+- Role & Permission hardening (permission-first access control):
+  - super-admin privacy hardening:
+    - `Super Admin` role/user is hidden from non-superadmin role-management surfaces.
+    - non-superadmin cannot access/edit/delete `Super Admin` user/role even via direct URL.
+    - role template cloning for non-superadmin excludes `Super Admin` template.
+    - error responses for protected Super Admin targets are normalized to non-disclosing behavior (`404`).
+    - UI identity masking applied on non-admin modules: when historical records reference a super-admin user, displayed name is masked as `System` for non-superadmin viewers.
+    - non-superadmin dashboard/user counters and creator filters now exclude super-admin user/role data.
+    - roles & permissions screen hardening:
+      - non-superadmin role search/list now enforces hidden `Super Admin` role even under keyword search.
+      - role index KPI cards for non-superadmin are based on superadmin-excluded dataset.
+  - super-admin full-access baseline:
+    - global Gate `before` allows `Super Admin` all abilities without requiring explicit permission mapping.
+  - sidebar filtering now prioritizes permission/module access; static role constraints are enforced only for explicit role-only entries.
+  - fixed hidden-menu issue where users (e.g., Director) with full module permissions still could not see some sidebar features due to hardcoded role lists.
+  - `module.permission` middleware is now fully CRUD-permission driven; removed hardcoded delete restriction to Super Admin.
+  - stage-2 non-CRUD hardening completed for dashboard/quotation flow:
+    - dashboard redirect now uses dashboard permissions priority instead of role checks.
+    - quotation approval/reject/set-pending/global-discount/validation routes now guarded by specific permissions (`quotations.approve`, `quotations.reject`, `quotations.set_pending`, `quotations.global_discount`, `quotations.validate`).
+    - quotation show/edit action visibility now follows permission checks (no role hardcode).
+    - quotation approval role resolution and approval bell context now derive from permissions (not role hardcode).
+    - quotation validation actor/policy now use `quotations.validate` permission.
+  - updated currency rate update authorization to use `module.currencies.update` permission instead of hardcoded role checks.
+  - aligned UI action visibility to permission checks on key pages:
+    - `currencies` (bulk update + delete actions)
+    - `users` (delete action)
+    - `roles` list partial (delete action)
+  - added regression tests for:
+    - sidebar permission-first behavior
+    - module delete access by `module.*.delete` permission
+- QA note:
+  - `php artisan test tests/Feature/Modules/RolePermissionAccessControlTest.php` passed.
+  - `php artisan view:cache` passed.
+
+- Itinerary Day Card visual consistency standardization:
+  - Day 1 card is now enforced as the visual baseline for all Day N cards in create/edit itinerary.
+  - standardized key wrappers and controls (`day card`, point cards, primary add-item button, core input/select controls) for cloned and existing Day sections.
+  - removed per-point theme color switching (`theme-airport` / `theme-hotel`) so each Day card stays visually consistent.
+- QA note:
+  - `php artisan view:cache` passed after Blade/JS updates.
+
 Historical detailed entries moved to:
 - docs/changelog/ROADMAP_CHANGELOG_ARCHIVE.md
+
+

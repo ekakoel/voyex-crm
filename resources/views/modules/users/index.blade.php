@@ -60,7 +60,7 @@
                     </div>
                     <div class="mt-3 flex flex-wrap gap-2">
                         <a href="{{ route('users.edit', $user) }}"  class="btn-secondary-sm" title="{{ __('ui.common.edit') }}" aria-label="{{ __('ui.common.edit') }}"><i class="fa-solid fa-pen"></i><span class="sr-only">{{ __('ui.common.edit') }}</span></a>
-                        @if (auth()->user()?->hasRole('Super Admin'))
+                        @can('module.user_manager.delete')
                             <form action="{{ route('users.destroy', $user) }}" method="POST" class="inline">
                                 @csrf
                                 @method('DELETE')
@@ -68,7 +68,7 @@
                                     {{ __('ui.common.delete') }}
                                 </button>
                             </form>
-                        @endif
+                        @endcan
                     </div>
                 </div>
             @empty
@@ -108,7 +108,7 @@
     <div class="flex items-center justify-end gap-2">
         <a href="{{ route('users.edit', $user) }}"
                                     class="btn-secondary-sm" title="{{ __('ui.common.edit') }}" aria-label="{{ __('ui.common.edit') }}"><i class="fa-solid fa-pen"></i><span class="sr-only">{{ __('ui.common.edit') }}</span></a>
-                                @if (auth()->user()?->hasRole('Super Admin'))
+                                @can('module.user_manager.delete')
                                     <form action="{{ route('users.destroy', $user) }}" method="POST" class="inline">
                                         @csrf
                                         @method('DELETE')
@@ -118,7 +118,7 @@
                                               class="btn-danger-sm">{{ __('ui.common.delete') }}
                                         </button>
                                     </form>
-                                @endif
+                                @endcan
     </div>
 </td>
                         </tr>
@@ -140,6 +140,5 @@
         </div>
 </div>
 @endsection
-
 
 

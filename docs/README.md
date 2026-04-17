@@ -1,4 +1,6 @@
-﻿# Documentation Structure
+# Documentation Structure
+
+Last Updated: 2026-04-17
 
 ## Canonical Maintenance Rule
 - Canonical docs live in:
@@ -24,6 +26,7 @@
 - docs/technical/ITINERARY_DETAIL_MAP_ARCHITECTURE.md
 - docs/technical/QUOTATION_APPROVAL_UAT_MATRIX.md
 - docs/technical/QUOTATION_VALIDATION_UAT_MATRIX.md
+- docs/technical/NOMINAL_INPUT_STANDARD.md
 - docs/technical/TECHNICAL_FIX_NOTES.md
 - docs/technical/I18N_TRANSLATION_STANDARD.md
 - docs/technical/IMAGE_THUMBNAIL_STANDARD.md

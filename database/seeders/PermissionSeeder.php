@@ -40,6 +40,9 @@ class PermissionSeeder extends Seeder
         }
 
         $dashboardPermissions = [
+            'dashboard.superadmin.view',
+            'superadmin.access_matrix.view',
+            'services.map.view',
             'dashboard.administrator.view',
             'dashboard.manager.view',
             'dashboard.marketing.view',
@@ -50,6 +53,10 @@ class PermissionSeeder extends Seeder
             'company_settings.manage',
             'quotations.approve',
             'quotations.reject',
+            'quotations.validate',
+            'quotations.set_pending',
+            'quotations.set_final',
+            'quotations.global_discount',
         ];
 
         foreach ($dashboardPermissions as $permissionName) {

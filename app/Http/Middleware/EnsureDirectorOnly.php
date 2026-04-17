@@ -10,7 +10,7 @@ class EnsureDirectorOnly
     public function handle(Request $request, Closure $next)
     {
         $user = $request->user();
-        if (! $user || (! $user->hasRole('Director') && ! $user->hasRole('Super Admin'))) {
+        if (! $user || ! ($user->can('dashboard.director.view') || $user->can('dashboard.superadmin.view'))) {
             abort(403, 'This page is accessible by Director only.');
         }
 

@@ -30,6 +30,11 @@
             const updateContactLabel = modal.querySelector('[data-update-contact-label]');
             const updateContactFeedback = modal.querySelector('[data-update-contact-feedback]');
             const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+            const appCurrency = String(window.appCurrency || 'IDR').toUpperCase();
+            const appCurrencyRateToIdr = Number(window.appCurrencyRateToIdr || 1);
+            const appCurrencySymbol = String(window.appCurrencySymbol || (appCurrency === 'USD' ? '$' : 'Rp'));
+            const currencyBadgeText = appCurrencySymbol || appCurrency;
+            const appDisplayLocale = appCurrency === 'USD' ? 'en-US' : 'id-ID';
 
             const openModal = () => {
                 modal.classList.remove('hidden');
@@ -39,11 +44,6 @@
             const closeModal = () => {
                 modal.classList.remove('flex');
                 modal.classList.add('hidden');
-            };
-
-            const money = (value) => {
-                const num = Number(value || 0);
-                return `IDR ${num.toLocaleString('en-US', { maximumFractionDigits: 2 })}`;
             };
 
             const readableItemType = (rawType) => {
@@ -96,6 +96,10 @@
                 if (contactWebsiteInput) contactWebsiteInput.value = contact.contact_website && contact.contact_website !== '-' ? contact.contact_website : '';
 
                 if (currentEl) {
+                    const normalizedMarkupType = String(item.markup_type || 'fixed').toLowerCase() === 'percent' ? 'percent' : 'fixed';
+                    const markupDisplay = normalizedMarkupType === 'percent'
+                        ? `${Number(item.markup || 0).toLocaleString(appDisplayLocale, { maximumFractionDigits: 2 })}%`
+                        : formatMoneyFromIdr(item.markup);
                     const updatedAtText = (() => {
                         const iso = String(item.updated_at || '').trim();
                         if (!iso) return '-';
@@ -111,9 +115,9 @@
 
                     currentEl.innerHTML = `
                         <p class="mb-2 text-[11px] text-gray-500 dark:text-gray-400">This section shows the rate currently used by this quotation item.</p>
-                        <div><span class="font-semibold">{{ __('ui.modules.quotations.active_contract_rate') }}:</span> ${money(item.contract_rate)}</div>
-                        <div class="mt-1"><span class="font-semibold">{{ __('ui.modules.quotations.active_markup_type') }}:</span> ${item.markup_type || 'fixed'}</div>
-                        <div class="mt-1"><span class="font-semibold">{{ __('ui.modules.quotations.active_markup') }}:</span> ${Number(item.markup || 0).toLocaleString('en-US', { maximumFractionDigits: 2 })}</div>
+                        <div><span class="font-semibold">{{ __('ui.modules.quotations.active_contract_rate') }}:</span> ${formatMoneyFromIdr(item.contract_rate)}</div>
+                        <div class="mt-1"><span class="font-semibold">{{ __('ui.modules.quotations.active_markup_type') }}:</span> ${normalizedMarkupType}</div>
+                        <div class="mt-1"><span class="font-semibold">{{ __('ui.modules.quotations.active_markup') }}:</span> ${markupDisplay}</div>
                         <div class="mt-1"><span class="font-semibold">{{ __('ui.common.updated_by') }}:</span> ${item.validator || '-'}</div>
                         <div class="mt-1"><span class="font-semibold">{{ __('ui.common.updated_at') }}:</span> ${updatedAtText}</div>
                     `;
@@ -286,59 +290,80 @@
                 return Number.parseInt(digits, 10) || 0;
             };
 
+            const fromIdrToDisplayInteger = (value) => {
+                const idrValue = Math.max(0, Number(value || 0));
+                if (!Number.isFinite(idrValue)) return 0;
+                if (appCurrency === 'IDR' || !Number.isFinite(appCurrencyRateToIdr) || appCurrencyRateToIdr <= 0) {
+                    return Math.round(idrValue);
+                }
+
+                return Math.round(idrValue / appCurrencyRateToIdr);
+            };
+
+            const toIdrInteger = (displayValue) => {
+                const numericDisplay = Math.max(0, Number(displayValue || 0));
+                if (!Number.isFinite(numericDisplay)) return 0;
+                if (appCurrency === 'IDR' || !Number.isFinite(appCurrencyRateToIdr) || appCurrencyRateToIdr <= 0) {
+                    return Math.round(numericDisplay);
+                }
+
+                return Math.round(numericDisplay * appCurrencyRateToIdr);
+            };
+
             const formatIntegerDisplay = (value) => {
                 const num = parseIntegerFromDisplay(value);
-                return num.toLocaleString('id-ID');
+                return num.toLocaleString(appDisplayLocale);
             };
 
-            const updateProgressUi = (progress) => {
-                if (!progress || typeof progress !== 'object') return;
-                const totalValidatedEl = document.querySelector('[data-progress-total-validated]');
-                const percentEl = document.querySelector('[data-progress-percent]');
-                const statusEl = document.querySelector('[data-progress-status]');
-                const finalizeButton = document.querySelector('[data-finalize-quotation-btn]');
+            const formatMoneyFromIdr = (value) => {
+                const displayValue = fromIdrToDisplayInteger(value);
+                const formattedValue = Number(displayValue).toLocaleString(appDisplayLocale, {
+                    maximumFractionDigits: 0,
+                });
+                if (appCurrency === 'USD') {
+                    return `${appCurrencySymbol}${formattedValue}`;
+                }
 
-                if (totalValidatedEl && progress.total_validated !== undefined) {
-                    totalValidatedEl.textContent = String(progress.total_validated);
-                }
-                if (percentEl && progress.validation_percent !== undefined) {
-                    percentEl.textContent = `${Number(progress.validation_percent || 0)}%`;
-                }
-                if (statusEl && progress.status) {
-                    statusEl.textContent = String(progress.status);
-                }
-                if (finalizeButton && progress.is_complete !== undefined) {
-                    finalizeButton.classList.toggle('hidden', !Boolean(progress.is_complete));
-                }
+                return `${appCurrencySymbol} ${formattedValue}`;
             };
 
-            const updateItemRowUi = (itemId, item) => {
-                const statusCells = document.querySelectorAll(`[data-item-status="${itemId}"]`);
-                const updatedCells = document.querySelectorAll(`[data-item-updated="${itemId}"]`);
-                const validatedCheckboxes = document.querySelectorAll(`[data-item-validated-checkbox="${itemId}"]`);
-
-                statusCells.forEach((statusCell) => {
-                    if (item.is_validated) {
-                        statusCell.innerHTML = `<span class="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">{{ __('ui.modules.quotations.validated') }}</span>`;
-                    } else {
-                        statusCell.innerHTML = `<span class="inline-flex rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700 dark:border-amber-700 dark:bg-amber-900/30 dark:text-amber-300">{{ __('ui.modules.quotations.pending_validation') }}</span>`;
-                    }
-                });
-
-                updatedCells.forEach((updatedCell) => {
-                    const validatorName = item.validator_name || '-';
-                    const updatedAt = formatDateTime(item.updated_at);
-                    updatedCell.innerHTML = `${validatorName}<br>${updatedAt}`;
-                });
-
-                validatedCheckboxes.forEach((validatedCheckbox) => {
-                    validatedCheckbox.checked = Boolean(item.is_validated);
-                });
+            const convertInputFromIdrToDisplayCurrency = (input) => {
+                if (!input) return;
+                const idrValue = parseIntegerFromDisplay(input.value);
+                const displayValue = fromIdrToDisplayInteger(idrValue);
+                input.value = formatIntegerDisplay(displayValue);
             };
 
             const getCanonicalInput = (itemId, field) => {
                 return document.querySelector(`[data-canonical-input="${field}-${itemId}"]`)
                     || document.querySelector(`[name="items[${itemId}][${field}]"]`);
+            };
+
+            const setTextForSelectors = (selector, text) => {
+                document.querySelectorAll(selector).forEach((el) => {
+                    el.textContent = text;
+                });
+            };
+
+            const refreshMarkupBadgesForItem = (itemId) => {
+                const canonicalTypeInput = getCanonicalInput(itemId, 'markup_type');
+                const mobileTypeInput = document.querySelector(`[data-mobile-markup-type="${itemId}"]`);
+                const selectedType = String(canonicalTypeInput?.value || mobileTypeInput?.value || 'fixed').toLowerCase() === 'percent'
+                    ? 'percent'
+                    : 'fixed';
+                const badgeText = selectedType === 'percent' ? '%' : currencyBadgeText;
+                setTextForSelectors(`[data-markup-badge="${itemId}"], [data-mobile-markup-badge="${itemId}"]`, badgeText);
+            };
+
+            const refreshAllMoneyBadges = () => {
+                setTextForSelectors('[data-contract-rate-badge]', currencyBadgeText);
+                setTextForSelectors('[data-mobile-contract-rate-badge]', currencyBadgeText);
+                document.querySelectorAll('[data-canonical-input^="markup_type-"]').forEach((input) => {
+                    const itemId = String(input.getAttribute('data-canonical-input') || '').replace('markup_type-', '');
+                    if (itemId !== '') {
+                        refreshMarkupBadgesForItem(itemId);
+                    }
+                });
             };
 
             const syncMobileFieldsToCanonical = (itemId) => {
@@ -383,13 +408,15 @@
                 const markupInput = getCanonicalInput(itemId, 'markup');
                 const spinner = document.querySelector(`[data-item-spinner="${itemId}"]`);
                 const label = document.querySelector(`[data-item-save-label="${itemId}"]`);
-                const normalizedContractRate = Math.max(0, parseIntegerFromDisplay(contractRateInput?.value || 0));
-                const normalizedMarkup = Math.max(0, parseIntegerFromDisplay(markupInput?.value || 0));
+                const normalizedContractRateDisplay = Math.max(0, parseIntegerFromDisplay(contractRateInput?.value || 0));
+                const normalizedMarkupDisplay = Math.max(0, parseIntegerFromDisplay(markupInput?.value || 0));
+                const normalizedContractRate = toIdrInteger(normalizedContractRateDisplay);
+                const normalizedMarkup = toIdrInteger(normalizedMarkupDisplay);
                 if (contractRateInput) {
-                    contractRateInput.value = formatIntegerDisplay(normalizedContractRate);
+                    contractRateInput.value = formatIntegerDisplay(normalizedContractRateDisplay);
                 }
                 if (markupInput) {
-                    markupInput.value = formatIntegerDisplay(normalizedMarkup);
+                    markupInput.value = formatIntegerDisplay(normalizedMarkupDisplay);
                 }
 
                 const payload = {
@@ -441,7 +468,7 @@
             });
 
             document.querySelectorAll('[data-markup-input]').forEach((input) => {
-                input.value = formatIntegerDisplay(input.value);
+                convertInputFromIdrToDisplayCurrency(input);
                 input.addEventListener('input', () => {
                     input.value = formatIntegerDisplay(input.value);
                 });
@@ -451,7 +478,7 @@
             });
 
             document.querySelectorAll('[data-contract-rate-input]').forEach((input) => {
-                input.value = formatIntegerDisplay(input.value);
+                convertInputFromIdrToDisplayCurrency(input);
                 input.addEventListener('input', () => {
                     input.value = formatIntegerDisplay(input.value);
                 });
@@ -461,7 +488,7 @@
             });
 
             document.querySelectorAll('[data-mobile-markup]').forEach((input) => {
-                input.value = formatIntegerDisplay(input.value);
+                convertInputFromIdrToDisplayCurrency(input);
                 const itemId = input.getAttribute('data-mobile-markup');
                 input.addEventListener('input', () => {
                     input.value = formatIntegerDisplay(input.value);
@@ -474,7 +501,7 @@
             });
 
             document.querySelectorAll('[data-mobile-contract-rate]').forEach((input) => {
-                input.value = formatIntegerDisplay(input.value);
+                convertInputFromIdrToDisplayCurrency(input);
                 const itemId = input.getAttribute('data-mobile-contract-rate');
                 input.addEventListener('input', () => {
                     input.value = formatIntegerDisplay(input.value);
@@ -489,7 +516,19 @@
             document.querySelectorAll('[data-mobile-markup-type]').forEach((select) => {
                 const itemId = select.getAttribute('data-mobile-markup-type');
                 select.addEventListener('change', () => {
-                    if (itemId) syncMobileFieldsToCanonical(itemId);
+                    if (itemId) {
+                        syncMobileFieldsToCanonical(itemId);
+                        refreshMarkupBadgesForItem(itemId);
+                    }
+                });
+            });
+
+            document.querySelectorAll('[data-canonical-input^="markup_type-"]').forEach((select) => {
+                const itemId = String(select.getAttribute('data-canonical-input') || '').replace('markup_type-', '');
+                select.addEventListener('change', () => {
+                    if (itemId) {
+                        refreshMarkupBadgesForItem(itemId);
+                    }
                 });
             });
 
@@ -507,12 +546,63 @@
                     if (itemId) syncMobileFieldsToCanonical(itemId);
                 });
                 document.querySelectorAll('[data-contract-rate-input]').forEach((input) => {
-                    input.value = String(Math.max(0, parseIntegerFromDisplay(input.value)));
+                    const normalizedDisplay = Math.max(0, parseIntegerFromDisplay(input.value));
+                    input.value = String(toIdrInteger(normalizedDisplay));
                 });
                 document.querySelectorAll('[data-markup-input]').forEach((input) => {
-                    input.value = String(Math.max(0, parseIntegerFromDisplay(input.value)));
+                    const normalizedDisplay = Math.max(0, parseIntegerFromDisplay(input.value));
+                    input.value = String(toIdrInteger(normalizedDisplay));
                 });
             });
+
+            const updateProgressUi = (progress) => {
+                if (!progress || typeof progress !== 'object') return;
+                const totalValidatedEl = document.querySelector('[data-progress-total-validated]');
+                const percentEl = document.querySelector('[data-progress-percent]');
+                const statusEl = document.querySelector('[data-progress-status]');
+                const finalizeButton = document.querySelector('[data-finalize-quotation-btn]');
+
+                if (totalValidatedEl && progress.total_validated !== undefined) {
+                    totalValidatedEl.textContent = String(progress.total_validated);
+                }
+                if (percentEl && progress.validation_percent !== undefined) {
+                    percentEl.textContent = `${Number(progress.validation_percent || 0)}%`;
+                }
+                if (statusEl && progress.status) {
+                    statusEl.textContent = String(progress.status);
+                }
+                if (finalizeButton && progress.is_complete !== undefined) {
+                    finalizeButton.classList.toggle('hidden', !Boolean(progress.is_complete));
+                }
+            };
+
+            const updateItemRowUi = (itemId, item) => {
+                const statusCells = document.querySelectorAll(`[data-item-status="${itemId}"]`);
+                const updatedCells = document.querySelectorAll(`[data-item-updated="${itemId}"]`);
+                const validatedCheckboxes = document.querySelectorAll(`[data-item-validated-checkbox="${itemId}"]`);
+
+                statusCells.forEach((statusCell) => {
+                    if (item.is_validated) {
+                        statusCell.innerHTML = `<span class="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">{{ __('ui.modules.quotations.validated') }}</span>`;
+                    } else {
+                        statusCell.innerHTML = `<span class="inline-flex rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700 dark:border-amber-700 dark:bg-amber-900/30 dark:text-amber-300">{{ __('ui.modules.quotations.pending_validation') }}</span>`;
+                    }
+                });
+
+                updatedCells.forEach((updatedCell) => {
+                    const validatorName = item.validator_name || '-';
+                    const updatedAt = formatDateTime(item.updated_at);
+                    updatedCell.innerHTML = `${validatorName}<br>${updatedAt}`;
+                });
+
+                validatedCheckboxes.forEach((validatedCheckbox) => {
+                    validatedCheckbox.checked = Boolean(item.is_validated);
+                });
+
+                refreshMarkupBadgesForItem(itemId);
+            };
+
+            refreshAllMoneyBadges();
         })();
     </script>
 @endpush
@@ -707,14 +797,20 @@
                                             <div>{{ __('ui.common.qty') }}</div><div class="text-right text-gray-800 dark:text-gray-100">{{ (int) ($item->qty ?? 0) }}</div>
                                             <div>{{ __('ui.modules.quotations.contract_rate') }}</div>
                                             <div>
-                                                <input
-                                                    type="text"
-                                                    pattern="[0-9.]*"
-                                                    inputmode="numeric"
-                                                    data-mobile-contract-rate="{{ $item->id }}"
-                                                    value="{{ old('items.' . $item->id . '.contract_rate', number_format((float) ($item->contract_rate ?? 0), 0, ',', '.')) }}"
-                                                    class="app-input text-right text-xs"
-                                                >
+                                                <div class="input-with-left-affix">
+                                                    <input
+                                                        type="text"
+                                                        pattern="[0-9.]*"
+                                                        inputmode="numeric"
+                                                        data-mobile-contract-rate="{{ $item->id }}"
+                                                        value="{{ old('items.' . $item->id . '.contract_rate', number_format((float) ($item->contract_rate ?? 0), 0, ',', '.')) }}"
+                                                        class="app-input pl-14 text-right text-xs"
+                                                    >
+                                                    <span
+                                                        data-mobile-contract-rate-badge="{{ $item->id }}"
+                                                        class="input-left-affix rounded-md border border-gray-200 bg-gray-50 px-1.5 py-0.5 text-[10px] font-semibold text-gray-600 shadow-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
+                                                    ></span>
+                                                </div>
                                             </div>
                                             <div>{{ __('ui.modules.quotations.markup_type') }}</div>
                                             <div>
@@ -725,14 +821,20 @@
                                             </div>
                                             <div>{{ __('ui.modules.quotations.markup') }}</div>
                                             <div>
-                                                <input
-                                                    type="text"
-                                                    pattern="[0-9.]*"
-                                                    inputmode="numeric"
-                                                    data-mobile-markup="{{ $item->id }}"
-                                                    value="{{ old('items.' . $item->id . '.markup', number_format((float) ($item->markup ?? 0), 0, ',', '.')) }}"
-                                                    class="app-input text-right text-xs"
-                                                >
+                                                <div class="input-with-left-affix">
+                                                    <input
+                                                        type="text"
+                                                        pattern="[0-9.]*"
+                                                        inputmode="numeric"
+                                                        data-mobile-markup="{{ $item->id }}"
+                                                        value="{{ old('items.' . $item->id . '.markup', number_format((float) ($item->markup ?? 0), 0, ',', '.')) }}"
+                                                        class="app-input pl-14 text-right text-xs"
+                                                    >
+                                                    <span
+                                                        data-mobile-markup-badge="{{ $item->id }}"
+                                                        class="input-left-affix rounded-md border border-gray-200 bg-gray-50 px-1.5 py-0.5 text-[10px] font-semibold text-gray-600 shadow-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
+                                                    ></span>
+                                                </div>
                                             </div>
                                         </div>
 
@@ -877,16 +979,22 @@
                                 </td>
                                 <td class="px-3 py-2 align-top text-right text-gray-700 dark:text-gray-200">{{ (int) ($item->qty ?? 0) }}</td>
                                 <td class="px-3 py-2 align-top">
-                                    <input
-                                        type="text"
-                                        pattern="[0-9.]*"
-                                        inputmode="numeric"
-                                        name="items[{{ $item->id }}][contract_rate]"
-                                        value="{{ old('items.' . $item->id . '.contract_rate', number_format((float) ($item->contract_rate ?? 0), 0, ',', '.')) }}"
-                                        data-contract-rate-input
-                                        data-canonical-input="contract_rate-{{ $item->id }}"
-                                        class="app-input text-right"
-                                    >
+                                    <div class="input-with-left-affix">
+                                        <input
+                                            type="text"
+                                            pattern="[0-9.]*"
+                                            inputmode="numeric"
+                                            name="items[{{ $item->id }}][contract_rate]"
+                                            value="{{ old('items.' . $item->id . '.contract_rate', number_format((float) ($item->contract_rate ?? 0), 0, ',', '.')) }}"
+                                            data-contract-rate-input
+                                            data-canonical-input="contract_rate-{{ $item->id }}"
+                                            class="app-input pl-14 text-right"
+                                        >
+                                        <span
+                                            data-contract-rate-badge="{{ $item->id }}"
+                                            class="input-left-affix rounded-md border border-gray-200 bg-gray-50 px-1.5 py-0.5 text-[10px] font-semibold text-gray-600 shadow-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
+                                        ></span>
+                                    </div>
                                 </td>
                                 <td class="px-3 py-2 align-top">
                                     <select name="items[{{ $item->id }}][markup_type]" data-canonical-input="markup_type-{{ $item->id }}" class="app-input">
@@ -895,16 +1003,22 @@
                                     </select>
                                 </td>
                                 <td class="px-3 py-2 align-top">
-                                    <input
-                                        type="text"
-                                        pattern="[0-9.]*"
-                                        inputmode="numeric"
-                                        name="items[{{ $item->id }}][markup]"
-                                        value="{{ old('items.' . $item->id . '.markup', number_format((float) ($item->markup ?? 0), 0, ',', '.')) }}"
-                                        data-markup-input
-                                        data-canonical-input="markup-{{ $item->id }}"
-                                        class="app-input text-right"
-                                    >
+                                    <div class="input-with-left-affix">
+                                        <input
+                                            type="text"
+                                            pattern="[0-9.]*"
+                                            inputmode="numeric"
+                                            name="items[{{ $item->id }}][markup]"
+                                            value="{{ old('items.' . $item->id . '.markup', number_format((float) ($item->markup ?? 0), 0, ',', '.')) }}"
+                                            data-markup-input
+                                            data-canonical-input="markup-{{ $item->id }}"
+                                            class="app-input pl-14 text-right"
+                                        >
+                                        <span
+                                            data-markup-badge="{{ $item->id }}"
+                                            class="input-left-affix rounded-md border border-gray-200 bg-gray-50 px-1.5 py-0.5 text-[10px] font-semibold text-gray-600 shadow-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
+                                        ></span>
+                                    </div>
                                 </td>
                                 <td class="px-3 py-2 align-top text-xs text-gray-600 dark:text-gray-300" data-item-updated="{{ $item->id }}">
                                     {{ $item->validator?->name ?? '-' }}

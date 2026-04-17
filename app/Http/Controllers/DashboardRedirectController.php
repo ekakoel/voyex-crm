@@ -20,41 +20,29 @@ class DashboardRedirectController extends Controller
     public function __invoke(Request $request): RedirectResponse
     {
         $user = Auth::user();
-
-        // Role priority when a user has more than one role.
-        if ($user->hasRole('Super Admin')) {
-            return redirect()->route('superadmin.dashboard');
+        if (! $user) {
+            abort(403, 'Unauthenticated.');
         }
 
-        if ($user->hasRole('Administrator')) {
-            return redirect()->route('dashboard.administrator');
+        // Permission-first dashboard routing.
+        // Priority matters when a user has multiple dashboard permissions.
+        $dashboardPermissionPriority = [
+            'dashboard.superadmin.view' => 'superadmin.dashboard',
+            'dashboard.administrator.view' => 'dashboard.administrator',
+            'dashboard.director.view' => 'dashboard.director',
+            'dashboard.finance.view' => 'dashboard.finance',
+            'dashboard.reservation.view' => 'dashboard.reservation',
+            'dashboard.manager.view' => 'dashboard.manager',
+            'dashboard.marketing.view' => 'dashboard.marketing',
+            'dashboard.editor.view' => 'dashboard.editor',
+        ];
+
+        foreach ($dashboardPermissionPriority as $permission => $routeName) {
+            if ($user->can($permission)) {
+                return redirect()->route($routeName);
+            }
         }
 
-        if ($user->hasRole('Editor')) {
-            return redirect()->route('dashboard.editor');
-        }
-
-        if ($user->hasRole('Director')) {
-            return redirect()->route('dashboard.director');
-        }
-
-        if ($user->hasRole('Finance')) {
-            return redirect()->route('dashboard.finance');
-        }
-
-        if ($user->hasRole('Reservation')) {
-            return redirect()->route('dashboard.reservation');
-        }
-
-        if ($user->hasRole('Manager')) {
-            return redirect()->route('dashboard.manager');
-        }
-
-        if ($user->hasRole('Marketing')) {
-            return redirect()->route('dashboard.marketing');
-        }
-
-        abort(403, 'This role has no dashboard.');
+        abort(403, 'This user has no dashboard permission.');
     }
 }
-

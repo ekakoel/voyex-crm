@@ -9,6 +9,7 @@ use App\Models\InquiryFollowUp;
 use App\Models\Itinerary;
 use App\Models\Quotation;
 use App\Models\User;
+use App\Services\ModuleService;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
@@ -24,7 +25,8 @@ class DashboardController extends Controller
         $canInquiries = (bool) $user?->can('module.inquiries.access');
         $canQuotations = (bool) $user?->can('module.quotations.access');
         $canItineraries = (bool) $user?->can('module.itineraries.access');
-        $canBookings = (bool) $user?->can('module.bookings.access');
+        $bookingsModuleEnabled = ModuleService::isEnabledStatic('bookings');
+        $canBookings = $bookingsModuleEnabled && (bool) $user?->can('module.bookings.access');
 
         // Manager dashboard scope: Manager + Marketing team data.
         $teamIds = User::role(['Manager', 'Marketing'])->pluck('id')->toArray();

@@ -57,7 +57,7 @@
                             <td class="px-4 py-3 text-sm font-medium text-gray-800 dark:text-gray-100">{{ ++$index }}</td>
                             <td class="px-4 py-3 text-sm text-gray-800 dark:text-gray-100">
                                 <div class="font-medium">{{ $itinerary->title }}</div>
-                                <div class="text-xs text-gray-500 dark:text-gray-400">{{ __('ui.modules.itineraries.by', ['name' => $itinerary->creator?->name ?? '-']) }}</div>
+                                <div class="text-xs text-gray-500 dark:text-gray-400">{{ __('ui.modules.itineraries.by', ['name' => $itinerary->creator?->displayNameFor(auth()->user(), 'System') ?: '-']) }}</div>
                             </td>
                             <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">
                                 @if ($itinerary->inquiry)
@@ -107,7 +107,7 @@
             @forelse ($itineraries as $itinerary)
                 <div class="app-card p-4">
                     <p class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ $itinerary->title }}</p>
-                    <p class="text-xs text-gray-500 dark:text-gray-400">{{ __('ui.modules.itineraries.by', ['name' => $itinerary->creator?->name ?? '-']) }}</p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">{{ __('ui.modules.itineraries.by', ['name' => $itinerary->creator?->displayNameFor(auth()->user(), 'System') ?: '-']) }}</p>
                     <p class="text-xs text-gray-500 dark:text-gray-400">
                         {{ __('ui.modules.itineraries.inquiry') }}:
                         {{ $itinerary->inquiry?->inquiry_number ?? __('ui.modules.itineraries.independent') }}
@@ -140,6 +140,4 @@
         </div>
 </div>
 @endsection
-
-
 

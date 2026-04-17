@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Services\ModuleService;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -13,15 +14,14 @@ class EnsureModulePermission
      */
     public function handle(Request $request, Closure $next, string $moduleKey): Response
     {
-        $user = $request->user();
-
-        if ($user && $user->hasRole('Super Admin')) {
-            return $next($request);
+        if (! ModuleService::isEnabledStatic($moduleKey)) {
+            abort(404);
         }
 
-        // Deletion across module resources is restricted to Super Admin only.
-        if ($request->isMethod('DELETE')) {
-            abort(403, 'Only Super Admin can delete module data.');
+        $user = $request->user();
+
+        if ($user && $user->isSuperAdmin()) {
+            return $next($request);
         }
 
         $action = $request->route()?->getActionMethod();

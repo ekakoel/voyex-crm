@@ -1,5 +1,8 @@
 # Image Thumbnail Standard
 
+Last Updated: 2026-04-17
+
+
 ## Objective
 - All user-uploaded images rendered by the system must use thumbnail-first delivery for better performance.
 - If thumbnail file is missing, system regenerates it from the original image and stores it under `thumbs/`.

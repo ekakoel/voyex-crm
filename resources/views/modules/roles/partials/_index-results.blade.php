@@ -53,13 +53,13 @@
                                     <div class="flex items-center justify-end gap-2">
                                         <a href="{{ route('roles.edit', $role) }}" class="btn-secondary-sm" title="{{ __('ui.common.edit') }}" aria-label="{{ __('ui.common.edit') }}"><i class="fa-solid fa-pen"></i><span class="sr-only">{{ __('ui.common.edit') }}</span></a>
                                         <a href="{{ route('roles.create', ['template_role_id' => $role->id]) }}" class="btn-outline-sm"><i class="fa-solid fa-copy mr-1"></i>{{ __('ui.common.clone') }}</a>
-                                        @if (auth()->user()?->hasRole('Super Admin'))
+                                        @can('module.role_manager.delete')
                                             <form action="{{ route('roles.destroy', $role) }}" method="POST" class="inline">
                                                 @csrf
                                                 @method('DELETE')
                                                 <button type="submit" onclick="return confirm('{{ __('ui.modules.roles.confirm_delete') }}')" class="btn-danger-sm">{{ __('ui.common.delete') }}</button>
                                             </form>
-                                        @endif
+                                        @endcan
                                     </div>
                                 </td>
                             </tr>
@@ -105,7 +105,7 @@
                         <a href="{{ route('roles.create', ['template_role_id' => $role->id]) }}" class="btn-outline-sm">
                             <i class="fa-solid fa-copy mr-1"></i>{{ __('ui.common.clone') }}
                         </a>
-                        @if (auth()->user()?->hasRole('Super Admin'))
+                        @can('module.role_manager.delete')
                             <form action="{{ route('roles.destroy', $role) }}" method="POST" class="inline">
                                 @csrf
                                 @method('DELETE')
@@ -113,7 +113,7 @@
                                     {{ __('ui.common.delete') }}
                                 </button>
                             </form>
-                        @endif
+                        @endcan
                     </div>
                 </div>
             @empty

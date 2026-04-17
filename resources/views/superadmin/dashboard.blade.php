@@ -5,8 +5,10 @@
     $statusBlocks = [
         'Inquiry Status' => $inquiryByStatus,
         'Quotation Status' => $quotationByStatus,
-        'Booking Status' => $bookingByStatus,
     ];
+    if ($bookingsModuleEnabled ?? false) {
+        $statusBlocks['Booking Status'] = $bookingByStatus;
+    }
 @endphp
 
 <div class="sa-wrap rounded-3xl border border-slate-200/80 bg-slate-100/70 p-3 dark:border-slate-700 dark:bg-slate-900/60">
@@ -118,7 +120,7 @@
                                             </div>
                                         </div>
                                         <div class="mt-3 flex items-center gap-2">
-                                            @if(!empty($module['route']) && \Illuminate\Support\Facades\Route::has($module['route']))
+                                            @if(($module['is_enabled'] ?? false) && !empty($module['route']) && \Illuminate\Support\Facades\Route::has($module['route']))
                                                 <a href="{{ route($module['route']) }}"  class="inline-flex items-center rounded-lg bg-slate-700 px-3 py-1.5 text-[11px] font-medium text-white hover:bg-slate-600">
                                                     Open
                                                 </a>
@@ -211,7 +213,9 @@
                     <div class="sa-mini"><span>Pending Follow-ups</span><b>{{ $operationalAlerts['pending_followups'] ?? 0 }}</b></div>
                     <div class="sa-mini"><span>Due Today</span><b>{{ $operationalAlerts['followups_due_today'] ?? 0 }}</b></div>
                     <div class="sa-mini"><span>Expiring Quotations (7D)</span><b>{{ $operationalAlerts['quotations_expiring_7d'] ?? 0 }}</b></div>
+                    @if($bookingsModuleEnabled ?? false)
                     <div class="sa-mini"><span>Upcoming Bookings (7D)</span><b>{{ $operationalAlerts['upcoming_bookings_7d'] ?? 0 }}</b></div>
+                    @endif
                 </div>
             </div>
 
@@ -243,6 +247,5 @@
 @push('scripts')
 {{-- Scripts are not changed --}}
 @endpush
-
 
 

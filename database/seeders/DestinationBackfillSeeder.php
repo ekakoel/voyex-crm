@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
 class DestinationBackfillSeeder extends Seeder
@@ -48,6 +49,17 @@ class DestinationBackfillSeeder extends Seeder
         };
 
         $syncByCityProvince = function (string $tableName) use ($resolveDestinationId): void {
+            if (! Schema::hasTable($tableName)) {
+                return;
+            }
+
+            $requiredColumns = ['id', 'city', 'province', 'destination_id'];
+            foreach ($requiredColumns as $column) {
+                if (! Schema::hasColumn($tableName, $column)) {
+                    return;
+                }
+            }
+
             DB::table($tableName)
                 ->select(['id', 'city', 'province', 'destination_id'])
                 ->orderBy('id')

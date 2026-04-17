@@ -22,44 +22,41 @@ return new class extends Migration
         }
 
         $permissions = [
-            'dashboard.administrator.view',
-            'dashboard.manager.view',
-            'dashboard.marketing.view',
-            'dashboard.reservation.view',
-            'dashboard.finance.view',
-            'dashboard.director.view',
-            'dashboard.editor.view',
+            'quotations.validate',
+            'quotations.set_pending',
+            'quotations.global_discount',
         ];
 
         foreach ($permissions as $permissionName) {
             DB::table($permissionTable)->updateOrInsert(
                 ['name' => $permissionName, 'guard_name' => 'web'],
-                ['created_at' => now(), 'updated_at' => now()]
+                ['updated_at' => now(), 'created_at' => now()]
             );
         }
 
         $permissionIds = DB::table($permissionTable)
             ->whereIn('name', $permissions)
-            ->pluck('id', 'name')
-            ->all();
+            ->pluck('id', 'name');
 
-        $roleMap = [
-            'Administrator' => ['dashboard.administrator.view'],
-            'Manager' => ['dashboard.manager.view'],
-            'Marketing' => ['dashboard.marketing.view'],
-            'Reservation' => ['dashboard.reservation.view'],
-            'Finance' => ['dashboard.finance.view'],
-            'Director' => ['dashboard.director.view'],
-            'Editor' => ['dashboard.editor.view'],
+        $rolePermissions = [
+            'Super Admin' => $permissions,
+            'Administrator' => $permissions,
+            'Director' => $permissions,
+            'Reservation' => ['quotations.validate'],
+            'Manager' => ['quotations.validate', 'quotations.global_discount'],
         ];
 
-        foreach ($roleMap as $roleName => $rolePermissions) {
-            $roleId = DB::table($roleTable)->where('name', $roleName)->value('id');
+        $roles = DB::table($roleTable)
+            ->whereIn('name', array_keys($rolePermissions))
+            ->pluck('id', 'name');
+
+        foreach ($rolePermissions as $roleName => $permissionNames) {
+            $roleId = $roles[$roleName] ?? null;
             if (! $roleId) {
                 continue;
             }
 
-            foreach ($rolePermissions as $permissionName) {
+            foreach ($permissionNames as $permissionName) {
                 $permissionId = $permissionIds[$permissionName] ?? null;
                 if (! $permissionId) {
                     continue;
@@ -82,6 +79,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        // No-op: permissions should remain once introduced.
+        // No-op: keep permissions once introduced to avoid breaking live access matrices.
     }
 };

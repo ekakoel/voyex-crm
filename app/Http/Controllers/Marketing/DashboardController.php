@@ -7,6 +7,7 @@ use App\Models\Booking;
 use App\Models\Inquiry;
 use App\Models\InquiryFollowUp;
 use App\Models\Quotation;
+use App\Services\ModuleService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -21,7 +22,8 @@ class DashboardController extends Controller
         $canCustomers = (bool) $user?->can('module.customer_management.access');
         $canInquiries = (bool) $user?->can('module.inquiries.access');
         $canQuotations = (bool) $user?->can('module.quotations.access');
-        $canBookings = (bool) $user?->can('module.bookings.access');
+        $bookingsModuleEnabled = ModuleService::isEnabledStatic('bookings');
+        $canBookings = $bookingsModuleEnabled && (bool) $user?->can('module.bookings.access');
 
         $kpis = [];
         $funnel = [];

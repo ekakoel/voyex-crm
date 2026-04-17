@@ -1,4 +1,7 @@
-﻿# Layout Guide
+# Layout Guide
+
+Last Updated: 2026-04-17
+
 
 Panduan ini khusus untuk standar layout halaman agar konsisten lintas modul.
 Detail domain/business rule ada di `PROJECT_KNOWLEDGE_BASE.md`.
@@ -160,4 +163,5 @@ Field non-standar (misal timezone/hidden khusus) diletakkan di luar partial.
 Agar layout tidak drift antar modul:
 1. jangan buat class grid custom per halaman jika sudah ada utility global,
 2. pakai komponen style global (`app-card`, `app-table`, `app-input`, `btn-*`),
-3. update dokumen ini jika baseline layout global berubah.
+3. untuk field nominal gunakan standar `x-money-input` dengan badge currency kiri (left affix),
+4. update dokumen ini jika baseline layout global berubah.

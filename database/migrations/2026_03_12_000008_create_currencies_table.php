@@ -2,7 +2,6 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -21,32 +20,8 @@ return new class extends Migration
             $table->timestamps();
         });
 
-        if (DB::table('currencies')->count() === 0) {
-            DB::table('currencies')->insert([
-                [
-                    'code' => 'IDR',
-                    'name' => 'Indonesian Rupiah',
-                    'symbol' => 'Rp',
-                    'rate_to_idr' => 1,
-                    'decimal_places' => 0,
-                    'is_active' => true,
-                    'is_default' => true,
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ],
-                [
-                    'code' => 'USD',
-                    'name' => 'US Dollar',
-                    'symbol' => '$',
-                    'rate_to_idr' => 16000,
-                    'decimal_places' => 2,
-                    'is_active' => true,
-                    'is_default' => false,
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ],
-            ]);
-        }
+        // Intentionally no default data insert.
+        // Baseline currency data should be added via seeder, not migration.
     }
 
     public function down(): void

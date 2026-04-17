@@ -518,7 +518,7 @@
                                         data-location="{{ $unit->transport?->vendor?->location ?? '' }}"
                                         data-destination="{{ $unit->transport?->vendor?->destination?->name ?? '' }}"
                                         @selected((string) ($dailyTransportUnitItems[$day]['transport_unit_id'] ?? '') === (string) $unit->id)>
-                                        {{ $unit->name }}{{ !empty($unit->transport?->name) ? ' - ' . $unit->transport->name : '' }}{{ !empty($unit->seat_capacity) ? ' (' . $unit->seat_capacity . ' seats)' : '' }}
+                                        {{ $unit->transport?->name ?? $unit->name }}{{ !empty($unit->seat_capacity) ? ' (' . $unit->seat_capacity . ')' : '' }}
                                     </option>
                                 @endforeach
                             </select>
@@ -558,7 +558,7 @@
                                                 data-latitude="{{ $hotel->latitude ?? '' }}"
                                                 data-longitude=sho"{{ $hotel->longitude ?? '' }}"
                                                 @selected($startType === 'hotel' && $startItem === (string) $hotel->id)>
-                                                {{ !empty($hotel->city) ? $hotel->city : '-' }} - {{ $hotel->name }}
+                                                {{ $hotel->name }}
                                             </option>
                                         @endforeach
                                         @foreach ($airports ?? collect() as $airport)
@@ -585,8 +585,7 @@
                                                 <option value="{{ $room->id }}"
                                                     data-hotel-id="{{ $hotel->id }}"
                                                     @selected($startType === 'hotel' && $startRoomId === (string) $room->id)>
-                                                    {{ $hotel->name }} -
-                                                    {{ $room->rooms }}{{ !empty($room->view) ? ' (' . $room->view . ')' : '' }}
+                                                    {{ $room->rooms }}
                                                 </option>
                                             @endforeach
                                         @endforeach
@@ -614,9 +613,9 @@
                                 name="day_start_travel_minutes[{{ $day }}]"
                                 value="{{ $dayStartTravelMinutes }}"
                                 class="day-start-travel dark:border-gray-600 app-input"
-                                placeholder="Travel to next item (minutes)"
-                                data-next-placeholder="Travel to next item (minutes)"
-                                data-endpoint-placeholder="Travel to End Point (minutes)">
+                                placeholder="Estimated travel time to the next item (minutes)"
+                                data-next-placeholder="Estimated travel time to the next item (minutes)"
+                                data-endpoint-placeholder="Estimated travel time to end point (minutes)">
                         </div>
                     </div>
 
@@ -868,7 +867,7 @@
                                                 data-latitude="{{ $hotel->latitude ?? '' }}"
                                                 data-longitude="{{ $hotel->longitude ?? '' }}"
                                                 @selected($endType === 'hotel' && $endItem === (string) $hotel->id)>
-                                                {{ !empty($hotel->city) ? $hotel->city : '-' }} - {{ $hotel->name }}
+                                                {{ $hotel->name }}
                                             </option>
                                         @endforeach
                                         @foreach ($airports ?? collect() as $airport)
@@ -895,8 +894,7 @@
                                                 <option value="{{ $room->id }}"
                                                     data-hotel-id="{{ $hotel->id }}"
                                                     @selected($endType === 'hotel' && $endRoomId === (string) $room->id)>
-                                                    {{ $hotel->name }} -
-                                                    {{ $room->rooms }}{{ !empty($room->view) ? ' (' . $room->view . ')' : '' }}
+                                                    {{ $room->rooms }}
                                                 </option>
                                             @endforeach
                                         @endforeach
@@ -1833,7 +1831,7 @@
                             <path d="M5.5 11.5L7.3 6.9C7.6 6.1 8.3 5.5 9.2 5.5h5.6c.9 0 1.6.6 1.9 1.4l1.8 4.6c1 .2 1.8 1.1 1.8 2.2v2.3c0 .8-.7 1.5-1.5 1.5h-.5a2.3 2.3 0 01-4.6 0h-4.4a2.3 2.3 0 01-4.6 0h-.5c-.8 0-1.5-.7-1.5-1.5v-2.3c0-1.1.8-2 1.8-2.2zm3.1-4.2L7.2 11h9.6l-1.4-3.7a.8.8 0 00-.7-.5H9.3c-.3 0-.6.2-.7.5zM8.2 18.9c.5 0 .9-.4.9-.9s-.4-.9-.9-.9-.9.4-.9.9.4.9.9.9zm7.6 0c.5 0 .9-.4.9-.9s-.4-.9-.9-.9-.9.4-.9.9.4.9.9.9z"/>
                         </svg>
                     </span>
-                    <input type="number" min="0" step="5" class="travel-connector-input dark:border-gray-600 app-input" placeholder="${isLast ? 'Travel to End Point (minutes)' : 'Travel to next item (minutes)'}">
+                    <input type="number" min="0" step="5" class="travel-connector-input dark:border-gray-600 app-input" placeholder="${isLast ? 'Estimated travel time to end point (minutes)' : 'Estimated travel time to the next item (minutes)'}">
                 </div>
             `;
                         const input = connector.querySelector('.travel-connector-input');
@@ -1851,8 +1849,8 @@
                     if (!section) return;
                     const input = section.querySelector('.day-start-travel');
                     if (!input) return;
-                    const nextLabel = String(input.dataset.nextPlaceholder || 'Travel to next item (minutes)');
-                    const endPointLabel = String(input.dataset.endpointPlaceholder || 'Travel to End Point (minutes)');
+                    const nextLabel = String(input.dataset.nextPlaceholder || 'Estimated travel time to the next item (minutes)');
+                    const endPointLabel = String(input.dataset.endpointPlaceholder || 'Estimated travel time to end point (minutes)');
                     const rows = Array.isArray(activeRows)
                         ? activeRows
                         : [...section.querySelectorAll('.schedule-row')]
@@ -2167,18 +2165,53 @@
                     if (!section) return;
                     const startCard = section.querySelector('.day-start-point-card');
                     const endCard = section.querySelector('.day-end-point-card');
-                    const startType = normalizePointType(section.querySelector('.day-start-point-type')?.value || '');
-                    const endType = normalizePointType(section.querySelector('.day-end-point-type')?.value || '');
                     if (startCard) {
                         startCard.classList.remove('theme-airport', 'theme-hotel');
-                        if (startType === 'airport') startCard.classList.add('theme-airport');
-                        if (isHotelPointType(startType)) startCard.classList.add('theme-hotel');
                     }
                     if (endCard) {
                         endCard.classList.remove('theme-airport', 'theme-hotel');
-                        if (endType === 'airport') endCard.classList.add('theme-airport');
-                        if (isHotelPointType(endType)) endCard.classList.add('theme-hotel');
                     }
+                };
+                const copyDayVisualClass = (section, baselineSection, selector) => {
+                    if (!section || !baselineSection) return;
+                    const target = section.querySelector(selector);
+                    const baseline = baselineSection.querySelector(selector);
+                    if (!target || !baseline) return;
+                    target.className = baseline.className;
+                };
+                const standardizeDaySectionVisual = (section, baselineSection = null) => {
+                    if (!section) return;
+                    const baseline = baselineSection || daySections.querySelector('.day-section[data-day="1"]') || daySections
+                        .querySelector('.day-section');
+                    if (!baseline || baseline === section) return;
+                    section.className = baseline.className;
+                    [
+                        '.day-card-header',
+                        '.day-card-header-pill',
+                        '.day-start-point-card',
+                        '.day-end-point-card',
+                        '.add-item',
+                        '.day-start-time',
+                        '.day-end-time',
+                        '.day-transport-unit',
+                        '.day-start-point-type',
+                        '.day-start-point-item',
+                        '.day-start-room-select',
+                        '.day-start-booking-mode',
+                        '.day-end-point-type',
+                        '.day-end-point-item',
+                        '.day-end-room-select',
+                        '.day-end-booking-mode',
+                        '.day-start-travel',
+                    ].forEach((selector) => copyDayVisualClass(section, baseline, selector));
+                };
+                const standardizeAllDaySectionVisuals = () => {
+                    const baseline = daySections.querySelector('.day-section[data-day="1"]') || daySections.querySelector(
+                        '.day-section');
+                    if (!baseline) return;
+                    daySections.querySelectorAll('.day-section').forEach((section) => {
+                        standardizeDaySectionVisual(section, baseline);
+                    });
                 };
                 const resetClonedWysiwyg = (section) => {
                     if (!section) return;
@@ -2232,15 +2265,36 @@
                 };
                 const destinationInput = document.getElementById('itinerary-destination');
                 const normalizeDestination = (value) => String(value || '').toLowerCase().trim();
+                const normalizeDestinationText = (value) => normalizeDestination(value).replace(/\s+/g, ' ');
+                const tokenizeDestinationText = (value) =>
+                    normalizeDestinationText(value)
+                        .split(/[^a-z0-9]+/i)
+                        .map((token) => token.trim())
+                        .filter((token) => token !== '');
+                const destinationFieldMatches = (value, keyword) => {
+                    const normalizedValue = normalizeDestinationText(value);
+                    const normalizedKeyword = normalizeDestinationText(keyword);
+                    if (!normalizedKeyword) return true;
+                    if (!normalizedValue) return false;
+                    if (normalizedValue === normalizedKeyword) return true;
+
+                    const valueTokens = tokenizeDestinationText(normalizedValue);
+                    const keywordTokens = tokenizeDestinationText(normalizedKeyword);
+                    if (keywordTokens.length === 0) return true;
+
+                    return keywordTokens.every((keywordToken) => valueTokens.includes(keywordToken));
+                };
                 const matchesDestinationOption = (option) => {
                     const keyword = normalizeDestination(destinationInput?.value || '');
                     if (!keyword) return true;
-                    const city = normalizeDestination(option.dataset.city);
-                    const province = normalizeDestination(option.dataset.province);
-                    const location = normalizeDestination(option.dataset.location);
-                    const destination = normalizeDestination(option.dataset.destination);
-                    return city.includes(keyword) || province.includes(keyword) || location.includes(keyword) ||
-                        destination.includes(keyword);
+                    const city = option.dataset.city || '';
+                    const province = option.dataset.province || '';
+                    const location = option.dataset.location || '';
+                    const destination = option.dataset.destination || '';
+                    return destinationFieldMatches(city, keyword)
+                        || destinationFieldMatches(province, keyword)
+                        || destinationFieldMatches(location, keyword)
+                        || destinationFieldMatches(destination, keyword);
                 };
                 const findFieldLabel = (field) => {
                     if (!field) return null;
@@ -2300,10 +2354,10 @@
                         const endBookingSelect = section.querySelector('.day-end-booking-mode');
                         const endRoomInput = section.querySelector('.day-end-room-count');
 
-                            const applyFilter = (typeSelect, itemSelect) => {
+                            const applyFilter = (typeSelect, itemSelect, isHotelSelfBooking = false) => {
                                 if (!typeSelect || !itemSelect) return;
                                 const selectedType = normalizePointType(typeSelect.value || '');
-                                const requiresItem = isHotelPointType(selectedType) || selectedType === 'airport';
+                                const requiresItem = selectedType === 'airport' || (isHotelPointType(selectedType) && !isHotelSelfBooking);
                                 const selectedValue = String(itemSelect.value || '');
                             let allOptions = pointOptionCache.get(itemSelect);
                             if (!allOptions) {
@@ -2371,10 +2425,9 @@
                             }
                         };
 
-                        applyFilter(startType, startItem);
-                        applyFilter(endType, endItem);
-
                         const startHotel = isHotelPointType(startType?.value || '');
+                        const startHotelSelfBooking = startHotel && String(startBookingSelect?.value || 'arranged') === 'self';
+                        applyFilter(startType, startItem, startHotelSelfBooking);
                         if (startRoomWrap) startRoomWrap.classList.toggle('hidden', !startHotel);
                         if (startBookingWrap) startBookingWrap.classList.toggle('hidden', !startHotel);
                         if (startRoomSelect) {
@@ -2390,9 +2443,9 @@
                                 option.hidden = !match;
                                 option.disabled = !match;
                             });
-                            startRoomSelect.disabled = !startHotel;
-                            startRoomSelect.required = startHotel;
-                            if (!startHotel) {
+                            startRoomSelect.disabled = !startHotel || startHotelSelfBooking;
+                            startRoomSelect.required = startHotel && !startHotelSelfBooking;
+                            if (!startHotel || startHotelSelfBooking) {
                                 startRoomSelect.value = '';
                             } else if (String(startRoomSelect.value || '') === '' || startRoomSelect
                                 .selectedOptions?.[0]?.hidden) {
@@ -2400,8 +2453,8 @@
                             }
                         }
                         if (startRoomInput) {
-                            startRoomInput.disabled = !startHotel;
-                            if (!startHotel) startRoomInput.value = '1';
+                            startRoomInput.disabled = !startHotel || startHotelSelfBooking;
+                            if (!startHotel || startHotelSelfBooking) startRoomInput.value = '1';
                         }
                         if (startBookingSelect) {
                             startBookingSelect.disabled = !startHotel;
@@ -2414,6 +2467,8 @@
                         }
 
                         const endHotel = isHotelPointType(endType?.value || '');
+                        const endHotelSelfBooking = endHotel && String(endBookingSelect?.value || 'arranged') === 'self';
+                        applyFilter(endType, endItem, endHotelSelfBooking);
                         if (endRoomWrap) endRoomWrap.classList.toggle('hidden', !endHotel);
                         if (endBookingWrap) endBookingWrap.classList.toggle('hidden', !endHotel);
                         if (endRoomSelect) {
@@ -2429,9 +2484,9 @@
                                 option.hidden = !match;
                                 option.disabled = !match;
                             });
-                            endRoomSelect.disabled = !endHotel;
-                            endRoomSelect.required = endHotel;
-                            if (!endHotel) {
+                            endRoomSelect.disabled = !endHotel || endHotelSelfBooking;
+                            endRoomSelect.required = endHotel && !endHotelSelfBooking;
+                            if (!endHotel || endHotelSelfBooking) {
                                 endRoomSelect.value = '';
                             } else if (String(endRoomSelect.value || '') === '' || endRoomSelect.selectedOptions
                                 ?.[0]?.hidden) {
@@ -2439,8 +2494,8 @@
                             }
                         }
                         if (endRoomInput) {
-                            endRoomInput.disabled = !endHotel;
-                            if (!endHotel) endRoomInput.value = '1';
+                            endRoomInput.disabled = !endHotel || endHotelSelfBooking;
+                            if (!endHotel || endHotelSelfBooking) endRoomInput.value = '1';
                         }
                         if (endBookingSelect) {
                             endBookingSelect.disabled = !endHotel;
@@ -2738,8 +2793,10 @@
                     sec.querySelector('.day-start-point-item')?.addEventListener('change', syncPointItemVisibility);
                     sec.querySelector('.day-start-room-select')?.addEventListener('change',
                         recalcNoConnectorRebuild);
-                    sec.querySelector('.day-start-booking-mode')?.addEventListener('change',
-                        recalcNoConnectorRebuild);
+                    sec.querySelector('.day-start-booking-mode')?.addEventListener('change', () => {
+                        syncPointItemVisibility();
+                        recalcNoConnectorRebuild();
+                    });
                     sec.querySelector('.day-start-room-count')?.addEventListener('input', recalcNoConnectorRebuild);
                     sec.querySelector('.day-end-point-type')?.addEventListener('change', () => {
                         updateDayPointTheme(sec);
@@ -2753,6 +2810,10 @@
                     });
                     sec.querySelector('.day-end-point-item')?.addEventListener('change', syncPointItemVisibility);
                     sec.querySelector('.day-end-room-select')?.addEventListener('change', recalcNoConnectorRebuild);
+                    sec.querySelector('.day-end-booking-mode')?.addEventListener('change', () => {
+                        syncPointItemVisibility();
+                        recalcNoConnectorRebuild();
+                    });
                     sec.querySelector('.day-end-room-count')?.addEventListener('input', recalcNoConnectorRebuild);
                     sec.querySelector('.day-start-travel')?.addEventListener('input', recalcNoConnectorRebuild);
                     sec.querySelector('.day-start-time')?.addEventListener('change', recalc);
@@ -2760,6 +2821,7 @@
                     initSortable(sec);
                     updateDayPointTheme(sec);
                 });
+                standardizeAllDaySectionVisuals();
                 durationInput.addEventListener('change', () => {
                     let d = clampDurationDays(durationInput.value || MIN_DURATION_DAYS);
                     durationInput.value = String(d);
@@ -2930,10 +2992,12 @@
                             c.querySelector('.day-transport-unit')?.addEventListener('change',
                                 recalcNoConnectorRebuild);
                             initSortable(c);
+                            standardizeDaySectionVisual(c);
                         }
                     } [...daySections.querySelectorAll('.day-section')].forEach((s) => {
                         if (Number(s.dataset.day) > d) s.remove();
                     });
+                    standardizeAllDaySectionVisuals();
                     recalc();
                 });
                 durationInput.addEventListener('input', syncDurationNights);

@@ -95,13 +95,16 @@ Route::middleware('auth')->group(function () {
     Route::get('location/resolve-google-map', [AdminLocationResolverController::class, 'resolve'])
         ->name('location.resolve-google-map');
 
-    Route::prefix('superadmin')->middleware('role:Super Admin')->name('superadmin.')->group(function () {
+    Route::prefix('superadmin')->name('superadmin.')->group(function () {
         Route::get('/dashboard', [SuperAdminDashboardController::class, 'index'])
-            ->name('dashboard');
+            ->name('dashboard')
+            ->middleware('permission:dashboard.superadmin.view');
         Route::get('/dashboard/trend', [SuperAdminDashboardController::class, 'trend'])
-            ->name('dashboard.trend');
+            ->name('dashboard.trend')
+            ->middleware('permission:dashboard.superadmin.view');
         Route::get('/access-matrix', [SuperAdminAccessMatrixController::class, 'index'])
-            ->name('access-matrix');
+            ->name('access-matrix')
+            ->middleware('permission:superadmin.access_matrix.view|dashboard.superadmin.view');
     });
 
     Route::get('company-settings', [DirectorCompanySettingController::class, 'edit'])
@@ -245,6 +248,7 @@ Route::middleware('auth')->group(function () {
         ->name('quotations.approve')
         ->middleware([
             'module:quotations',
+            'permission:quotations.approve',
             'permission:module.quotations.access',
             'module.permission:quotations',
         ]);
@@ -252,6 +256,7 @@ Route::middleware('auth')->group(function () {
         ->name('quotations.validate.show')
         ->middleware([
             'module:quotations',
+            'permission:quotations.validate',
             'permission:module.quotations.access',
             'module.permission:quotations',
         ]);
@@ -259,6 +264,7 @@ Route::middleware('auth')->group(function () {
         ->name('quotations.validate.save-progress')
         ->middleware([
             'module:quotations',
+            'permission:quotations.validate',
             'permission:module.quotations.access',
             'module.permission:quotations',
         ]);
@@ -266,6 +272,7 @@ Route::middleware('auth')->group(function () {
         ->name('quotations.validate.save-item')
         ->middleware([
             'module:quotations',
+            'permission:quotations.validate',
             'permission:module.quotations.access',
             'module.permission:quotations',
         ]);
@@ -273,6 +280,7 @@ Route::middleware('auth')->group(function () {
         ->name('quotations.validate.item-detail-json')
         ->middleware([
             'module:quotations',
+            'permission:quotations.validate',
             'permission:module.quotations.access',
             'module.permission:quotations',
         ]);
@@ -280,6 +288,7 @@ Route::middleware('auth')->group(function () {
         ->name('quotations.validate.update-item-contact')
         ->middleware([
             'module:quotations',
+            'permission:quotations.validate',
             'permission:module.quotations.access',
             'module.permission:quotations',
         ]);
@@ -287,6 +296,7 @@ Route::middleware('auth')->group(function () {
         ->name('quotations.validate.validate-selected')
         ->middleware([
             'module:quotations',
+            'permission:quotations.validate',
             'permission:module.quotations.access',
             'module.permission:quotations',
         ]);
@@ -294,16 +304,23 @@ Route::middleware('auth')->group(function () {
         ->name('quotations.validate.finalize')
         ->middleware([
             'module:quotations',
+            'permission:quotations.validate',
             'permission:module.quotations.access',
             'module.permission:quotations',
         ]);
     Route::post('quotations/{quotation}/reject', [SalesQuotationController::class, 'reject'])
         ->name('quotations.reject')
-        ->middleware(['module:quotations', 'permission:quotations.reject']);
+        ->middleware([
+            'module:quotations',
+            'permission:quotations.reject',
+            'permission:module.quotations.access',
+            'module.permission:quotations',
+        ]);
     Route::post('quotations/{quotation}/set-pending', [SalesQuotationController::class, 'setPending'])
         ->name('quotations.set-pending')
         ->middleware([
             'module:quotations',
+            'permission:quotations.set_pending',
             'permission:module.quotations.access',
             'module.permission:quotations',
         ]);
@@ -311,6 +328,7 @@ Route::middleware('auth')->group(function () {
         ->name('quotations.set-final')
         ->middleware([
             'module:quotations',
+            'permission:quotations.set_final',
             'permission:module.quotations.access',
             'module.permission:quotations',
         ]);
@@ -318,6 +336,7 @@ Route::middleware('auth')->group(function () {
         ->name('quotations.global-discount')
         ->middleware([
             'module:quotations',
+            'permission:quotations.global_discount',
             'permission:module.quotations.access',
             'module.permission:quotations',
         ]);
@@ -357,13 +376,24 @@ Route::middleware('auth')->group(function () {
             ->middleware(['permission:dashboard.administrator.view']);
         Route::get('/services', [AdminServiceController::class, 'index'])
             ->name('services.index')
-            ->middleware('permission:module.service_manager.access');
+            ->middleware([
+                'module:service_manager',
+                'permission:module.service_manager.access',
+                'module.permission:service_manager',
+            ]);
         Route::get('/services/map', [AdminServiceMapController::class, 'index'])
             ->name('services.map')
-            ->middleware('permission:module.service_manager.access');
+            ->middleware([
+                'module:service_manager',
+                'permission:services.map.view',
+            ]);
         Route::patch('/services/{module}/toggle', [AdminServiceController::class, 'toggle'])
             ->name('services.toggle')
-            ->middleware('permission:module.service_manager.access');
+            ->middleware([
+                'module:service_manager',
+                'permission:module.service_manager.access',
+                'module.permission:service_manager',
+            ]);
         Route::resource('users', AdminUserController::class)
             ->except(['show'])
             ->middleware([
@@ -648,7 +678,11 @@ Route::middleware('auth')->group(function () {
             ]);
         Route::get('bookings/export/csv', [\App\Http\Controllers\BookingController::class, 'exportCsv'])
             ->name('bookings.export')
-            ->middleware(['module:bookings', 'permission:module.bookings.access']);
+            ->middleware([
+                'module:bookings',
+                'permission:module.bookings.access',
+                'module.permission:bookings',
+            ]);
     });
 
     // ----------------------------------------------------------------------------------------------------------

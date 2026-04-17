@@ -30,6 +30,12 @@ class ServiceController extends Controller
      */
     public function toggle(Module $module): RedirectResponse
     {
+        if ($module->key === 'service_manager' && $module->is_enabled) {
+            return redirect()
+                ->route('services.index')
+                ->with('error', 'System Modules cannot be disabled.');
+        }
+
         $module->update([
             'is_enabled' => ! $module->is_enabled,
         ]);
@@ -41,6 +47,5 @@ class ServiceController extends Controller
             ->with('success', "Module {$module->name} was successfully {$status}.");
     }
 }
-
 
 

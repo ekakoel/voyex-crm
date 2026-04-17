@@ -3,6 +3,7 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Models\Concerns\HasMaskedDisplayName;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -12,7 +13,7 @@ use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
 {
-    use HasApiTokens, HasFactory, Notifiable, HasRoles;
+    use HasApiTokens, HasFactory, Notifiable, HasRoles, HasMaskedDisplayName;
 
     /**
      * The attributes that are mass assignable.
@@ -47,16 +48,9 @@ class User extends Authenticatable
         'password' => 'hashed',
     ];
 
-    public function isSuperAdmin(): bool
-    {
-        return $this->hasRole('Super Admin');
-    }
-
     public function scopeWithoutSuperAdmin(Builder $query): Builder
     {
         return $query->whereDoesntHave('roles', fn (Builder $roles) => $roles->where('name', 'Super Admin'));
     }
 }
-
-
 

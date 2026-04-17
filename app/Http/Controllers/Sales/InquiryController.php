@@ -149,7 +149,7 @@ class InquiryController extends Controller
     {
         $customers = Customer::query()->orderBy('name')->get();
         $assignees = User::role(['Reservation'])->orderBy('name')->get();
-        $canAssignToReservation = auth()->user()?->hasRole(['Manager', 'Director']) ?? false;
+        $canAssignToReservation = auth()->user()?->can('module.inquiries.update') ?? false;
 
         $sourceLabels = self::SOURCE_LABELS;
         $channelLabels = self::CHANNEL_LABELS;
@@ -162,7 +162,7 @@ class InquiryController extends Controller
      */
     public function store(Request $request)
     {
-        $canAssignToReservation = auth()->user()?->hasRole(['Manager', 'Director']) ?? false;
+        $canAssignToReservation = auth()->user()?->can('module.inquiries.update') ?? false;
         $reservationRoleId = $canAssignToReservation
             ? Role::query()->where('name', 'Reservation')->value('id')
             : null;
@@ -270,7 +270,7 @@ class InquiryController extends Controller
         }
         $customers = Customer::query()->orderBy('name')->get();
         $assignees = User::role(['Reservation'])->orderBy('name')->get();
-        $canAssignToReservation = auth()->user()?->hasRole(['Manager', 'Director']) ?? false;
+        $canAssignToReservation = auth()->user()?->can('module.inquiries.update') ?? false;
         $activities = $inquiry->activities()
             ->with('user:id,name')
             ->latest()
@@ -305,7 +305,7 @@ class InquiryController extends Controller
                 ->route('inquiries.show', $inquiry)
                 ->with('error', 'Inquiry cannot be updated because the related quotation is approved/final.');
         }
-        $canAssignToReservation = auth()->user()?->hasRole(['Manager', 'Director']) ?? false;
+        $canAssignToReservation = auth()->user()?->can('module.inquiries.update') ?? false;
         $reservationRoleId = $canAssignToReservation
             ? Role::query()->where('name', 'Reservation')->value('id')
             : null;
@@ -541,7 +541,7 @@ class InquiryController extends Controller
             return false;
         }
 
-        if ($user->hasRole(['Reservation', 'Director', 'Manager'])) {
+        if ($user->can('module.inquiries.update')) {
             return true;
         }
 
@@ -555,7 +555,7 @@ class InquiryController extends Controller
             return false;
         }
 
-        if ($inquiry->isCreator($user)) {
+        if ($user->can('module.inquiries.update')) {
             return true;
         }
 
@@ -569,14 +569,14 @@ class InquiryController extends Controller
             return false;
         }
 
-        return $user->hasRole(['Super Admin', 'Administrator', 'Director', 'Manager']);
+        return $user->can('module.inquiries.update');
     }
 
     private function denyInquiryMutation(Inquiry $inquiry)
     {
         return redirect()
             ->route('inquiries.show', $inquiry)
-            ->with('error', 'Hanya creator yang dapat mengubah atau menghapus inquiry ini.');
+            ->with('error', 'You do not have permission to modify this inquiry.');
     }
 
     private function buildInquiryAuditSnapshot(Inquiry $inquiry): array
@@ -595,6 +595,4 @@ class InquiryController extends Controller
     }
 
 }
-
-
 

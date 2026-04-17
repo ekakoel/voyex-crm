@@ -12,11 +12,11 @@ class BookingPolicy
 
     public function update(User $user, Booking $booking): bool
     {
-        return $booking->isCreator($user);
+        return $user->can('module.bookings.update');
     }
 
     public function delete(User $user, Booking $booking): bool
     {
-        return $user->hasRole('Super Admin');
+        return $user->can('module.bookings.delete');
     }
 }

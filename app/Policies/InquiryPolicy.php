@@ -12,15 +12,11 @@ class InquiryPolicy
 
     public function update(User $user, Inquiry $inquiry): bool
     {
-        if ($inquiry->isCreator($user)) {
-            return true;
-        }
-
-        return (int) ($inquiry->assigned_to ?? 0) === (int) $user->id;
+        return $user->can('module.inquiries.update');
     }
 
     public function delete(User $user, Inquiry $inquiry): bool
     {
-        return $user->hasRole('Super Admin');
+        return $user->can('module.inquiries.delete');
     }
 }

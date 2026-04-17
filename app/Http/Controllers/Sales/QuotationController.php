@@ -1250,7 +1250,7 @@ SVG;
 
         $approvalRole = $this->resolveApprovalRoleForUser($user);
         if (! $approvalRole) {
-            return redirect()->back()->with('error', 'Only Manager, Director, or Reservation can approve this quotation.');
+            return redirect()->back()->with('error', 'You do not have permission to approve this quotation.');
         }
         $alreadyApprovedByUser = $quotation->approvals()
             ->where('user_id', $user->id)
@@ -1278,7 +1278,7 @@ SVG;
             ]
         );
 
-        if ($note !== '' && $user->hasRole('Director')) {
+        if ($note !== '' && $this->canWriteApprovalNote($user)) {
             $quotation->update([
                 'approval_note' => $note,
                 'approval_note_by' => $user->id,
@@ -1309,8 +1309,8 @@ SVG;
     {
         $this->autoFinalizeApprovedQuotationIfExpired($quotation);
         $user = $request->user();
-        if (! $user || ! $user->hasAnyRole(['Director', 'Manager'])) {
-            return redirect()->back()->with('error', 'Only Director or Manager can reject quotation.');
+        if (! $user || ! $user->can('quotations.reject')) {
+            return redirect()->back()->with('error', 'You do not have permission to reject quotation.');
         }
 
         $validated = $request->validate([
@@ -1346,8 +1346,8 @@ SVG;
             return redirect()->back()->with('error', 'Final quotation cannot be modified.');
         }
         $user = $request->user();
-        if (! $user || ! $user->hasAnyRole(['Director'])) {
-            return redirect()->back()->with('error', 'Only Director can set quotation to pending.');
+        if (! $user || ! $this->canSetQuotationPending($user)) {
+            return redirect()->back()->with('error', 'You do not have permission to set quotation to pending.');
         }
 
         if (($quotation->status ?? '') !== 'approved') {
@@ -1421,7 +1421,7 @@ SVG;
             return $this->denyQuotationMutation($quotation);
         }
         if (! $this->canApplyGlobalDiscount()) {
-            return redirect()->back()->with('error', 'Only Manager or Director can set global discount.');
+            return redirect()->back()->with('error', 'You do not have permission to set global discount.');
         }
 
         $validated = $request->validate([
@@ -1684,8 +1684,8 @@ SVG;
     private function assertPricingPermission(array $validated): void
     {
         $hasDiscount = (float) ($validated['discount_value'] ?? 0) > 0;
-        if ($hasDiscount && ! auth()->user()->hasAnyRole(['Manager', 'Director'])) {
-            abort(403, 'Only Managers or Directors can apply discounts.');
+        if ($hasDiscount && ! $this->canApplyGlobalDiscount()) {
+            abort(403, 'You do not have permission to apply discounts.');
         }
     }
 
@@ -1696,7 +1696,7 @@ SVG;
             return false;
         }
 
-        return $user->hasAnyRole(['Manager', 'Director']);
+        return $user->can('quotations.global_discount');
     }
 
     private function resolveInquiryIdFromItinerary(int $itineraryId): ?int
@@ -1761,7 +1761,7 @@ SVG;
     {
         return redirect()
             ->route('quotations.show', $quotation)
-            ->with('error', 'Quotation ini hanya dapat diubah oleh creator-nya sendiri.');
+            ->with('error', 'You do not have permission to modify this quotation.');
     }
 
     public function itineraryItems(Itinerary $itinerary)
@@ -1836,17 +1836,39 @@ SVG;
             return null;
         }
 
-        if ($user->hasRole('Director')) {
+        if (! $user->can('quotations.approve')) {
+            return null;
+        }
+
+        if ($user->can('dashboard.director.view')) {
             return 'director';
         }
-        if ($user->hasRole('Manager')) {
+        if ($user->can('dashboard.manager.view')) {
             return 'manager';
         }
-        if ($user->hasRole('Reservation')) {
+        if ($user->can('dashboard.reservation.view')) {
             return 'reservation';
         }
 
         return null;
+    }
+
+    private function canSetQuotationPending($user): bool
+    {
+        if (! $user) {
+            return false;
+        }
+
+        return $user->can('quotations.set_pending');
+    }
+
+    private function canWriteApprovalNote($user): bool
+    {
+        if (! $user) {
+            return false;
+        }
+
+        return $user->can('quotations.set_pending');
     }
 
     private function syncLinkedLifecycleStatusesForQuotation(Quotation $quotation, ?int $previousItineraryId = null): void

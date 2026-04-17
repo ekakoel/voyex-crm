@@ -1,4 +1,6 @@
-﻿# VOYEX CRM
+# VOYEX CRM
+
+Last Updated: 2026-04-17
 
 Voyex CRM adalah CRM khusus travel agent dengan flow utama:
 
@@ -12,9 +14,17 @@ npm install
 cp .env.example .env
 php artisan key:generate
 php artisan migrate --seed
+php artisan storage:link
 npm run dev
 php artisan serve
 ```
+
+## Environment Safety (Wajib)
+
+1. Jangan jalankan command destruktif (`migrate:fresh`, `db:wipe`) pada database produksi/utama.
+2. Test suite (`php artisan test`) wajib memakai database testing terpisah.
+3. Buat `.env.testing` khusus, jangan biarkan testing memakai DB yang sama dengan `.env`.
+4. Sebelum command migration besar, lakukan backup database terlebih dahulu.
 
 ## Dokumentasi Utama (Source of Truth)
 
@@ -30,6 +40,9 @@ php artisan serve
 - `docs/technical/ITINERARY_DETAIL_MAP_ARCHITECTURE.md`
 - `docs/technical/QUOTATION_APPROVAL_UAT_MATRIX.md`
 - `docs/technical/QUOTATION_VALIDATION_UAT_MATRIX.md`
+- `docs/technical/NOMINAL_INPUT_STANDARD.md`
+- `docs/technical/I18N_TRANSLATION_STANDARD.md`
+- `docs/technical/IMAGE_THUMBNAIL_STANDARD.md`
 - `docs/technical/TECHNICAL_FIX_NOTES.md`
 
 ## Catatan Konsolidasi Dokumentasi

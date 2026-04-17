@@ -16,6 +16,7 @@ use App\Models\TouristAttraction;
 use App\Models\Transport;
 use App\Models\User;
 use App\Models\Vendor;
+use App\Services\ModuleService;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 
@@ -30,7 +31,8 @@ class DashboardController extends Controller
         $canCustomers = (bool) $user?->can('module.customer_management.access');
         $canInquiries = (bool) $user?->can('module.inquiries.access');
         $canQuotations = (bool) $user?->can('module.quotations.access');
-        $canBookings = (bool) $user?->can('module.bookings.access');
+        $bookingsModuleEnabled = ModuleService::isEnabledStatic('bookings');
+        $canBookings = $bookingsModuleEnabled && (bool) $user?->can('module.bookings.access');
         $canVendors = (bool) $user?->can('module.vendor_management.access');
         $canDestinations = (bool) $user?->can('module.destinations.access');
         $canActivities = (bool) $user?->can('module.activities.access');
@@ -39,9 +41,12 @@ class DashboardController extends Controller
         $canFoodBeverages = (bool) $user?->can('module.food_beverages.access');
         $canAirports = (bool) $user?->can('module.airports.access');
 
+        $userBaseQuery = User::query()->withoutSuperAdmin();
+        $roleBaseQuery = Role::query()->where('name', '!=', 'Super Admin');
+
         $systemManagementStats = [
-            'users' => $canUsers ? User::query()->count() : 0,
-            'roles' => $canRoles ? Role::query()->count() : 0,
+            'users' => $canUsers ? (clone $userBaseQuery)->count() : 0,
+            'roles' => $canRoles ? (clone $roleBaseQuery)->count() : 0,
             'permissions' => ($canUsers || $canRoles) ? Permission::query()->count() : 0,
             'modules_enabled' => $canServices ? Module::query()->where('is_enabled', true)->count() : 0,
             'modules_disabled' => $canServices ? Module::query()->where('is_enabled', false)->count() : 0,
@@ -75,6 +80,7 @@ class DashboardController extends Controller
 
         $recentUsers = $canUsers
             ? User::query()
+                ->withoutSuperAdmin()
                 ->latest('updated_at')
                 ->limit(5)
                 ->get()

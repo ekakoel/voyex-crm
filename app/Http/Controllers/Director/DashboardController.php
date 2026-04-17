@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Booking;
 use App\Models\Inquiry;
 use App\Models\Quotation;
+use App\Services\ModuleService;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
@@ -19,7 +20,8 @@ class DashboardController extends Controller
         $now = Carbon::now();
         $canInquiries = (bool) $user?->can('module.inquiries.access');
         $canQuotations = (bool) $user?->can('module.quotations.access');
-        $canBookings = (bool) $user?->can('module.bookings.access');
+        $bookingsModuleEnabled = ModuleService::isEnabledStatic('bookings');
+        $canBookings = $bookingsModuleEnabled && (bool) $user?->can('module.bookings.access');
         $currentMonthStart = $now->copy()->startOfMonth();
         $previousMonthStart = $now->copy()->subMonthNoOverflow()->startOfMonth();
         $previousMonthEnd = $previousMonthStart->copy()->endOfMonth();

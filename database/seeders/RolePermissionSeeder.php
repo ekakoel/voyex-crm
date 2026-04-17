@@ -30,8 +30,13 @@ class RolePermissionSeeder extends Seeder
 
         $allPermissions = Permission::query()->pluck('name')->all();
 
+        $adminPermissions = array_values(array_filter(
+            $allPermissions,
+            fn (string $permission): bool => $permission !== 'dashboard.superadmin.view'
+        ));
+
         $defaults = [
-            'Administrator' => $allPermissions,
+            'Administrator' => $adminPermissions,
             'Super Admin' => $allPermissions,
             'Manager' => [
                 'dashboard.manager.view',
@@ -40,6 +45,9 @@ class RolePermissionSeeder extends Seeder
                 'module.quotations.access',
                 'quotations.approve',
                 'quotations.reject',
+                'quotations.validate',
+                'quotations.set_final',
+                'quotations.global_discount',
                 'module.bookings.access',
                 'module.vendor_management.access',
                 'module.destinations.access',
@@ -53,6 +61,7 @@ class RolePermissionSeeder extends Seeder
                 'module.customer_management.access',
                 'module.inquiries.access',
                 'module.quotations.access',
+                'quotations.set_final',
                 'module.vendor_management.access',
                 'module.destinations.access',
                 'module.activities.access',
@@ -68,6 +77,10 @@ class RolePermissionSeeder extends Seeder
                 'module.quotations.access',
                 'quotations.approve',
                 'quotations.reject',
+                'quotations.validate',
+                'quotations.set_pending',
+                'quotations.set_final',
+                'quotations.global_discount',
                 'module.bookings.access',
                 'module.invoices.access',
                 'dashboard.finance.view',
@@ -82,6 +95,8 @@ class RolePermissionSeeder extends Seeder
                 'dashboard.reservation.view',
                 'module.quotations.access',
                 'quotations.approve',
+                'quotations.validate',
+                'quotations.set_final',
                 'module.bookings.access',
                 'module.vendor_management.access',
                 'module.destinations.access',
@@ -102,6 +117,14 @@ class RolePermissionSeeder extends Seeder
                 'module.tourist_attractions.access',
             ],
         ];
+
+        // Keep access-matrix privilege explicit (not bundled into generic admin defaults by exclusion rule only).
+        // If needed, assign this permission per-role from Role & Permissions screen.
+        $adminPermissions = array_values(array_filter(
+            $adminPermissions,
+            fn (string $permission): bool => $permission !== 'superadmin.access_matrix.view'
+        ));
+        $defaults['Administrator'] = $adminPermissions;
 
         $moduleKeys = array_keys($modules);
 

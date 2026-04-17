@@ -197,8 +197,8 @@ class CurrencyController extends Controller
     private function authorizeRateUpdate(): void
     {
         $user = auth()->user();
-        if (! $user || ! $user->hasAnyRole(['Manager', 'Administrator', 'Super Admin'])) {
-            abort(403, 'Only Manager/Administrator/Super Admin can update currency rates.');
+        if (! $user || ! $user->can('module.currencies.update')) {
+            abort(403, 'You do not have permission to update currency rates.');
         }
     }
 }

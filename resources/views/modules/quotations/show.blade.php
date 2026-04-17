@@ -229,7 +229,7 @@
                             <div class="flex justify-between gap-3"><dt class="text-gray-500 dark:text-gray-400">{{ __('ui.common.customer') }}</dt><dd class="font-medium text-right">{{ $quotation->itinerary?->inquiry?->customer?->name ?? '-' }}</dd></div>
                             <div class="flex justify-between gap-3"><dt class="text-gray-500 dark:text-gray-400">{{ __('ui.modules.quotations.inquiry_status') }}</dt><dd class="font-medium text-right">{{ $quotation->itinerary?->inquiry?->status ?? '-' }}</dd></div>
                             <div class="flex justify-between gap-3"><dt class="text-gray-500 dark:text-gray-400">{{ __('ui.common.itinerary') }}</dt><dd class="font-medium text-right">#{{ $quotation->itinerary?->id ?? '-' }} - {{ $quotation->itinerary?->title ?? '-' }}</dd></div>
-                            <div class="flex justify-between gap-3"><dt class="text-gray-500 dark:text-gray-400">{{ __('ui.common.created_by') }}</dt><dd class="font-medium text-right">{{ $quotation->itinerary?->creator?->name ?? '-' }}</dd></div>
+                            <div class="flex justify-between gap-3"><dt class="text-gray-500 dark:text-gray-400">{{ __('ui.common.created_by') }}</dt><dd class="font-medium text-right"><x-masked-user-name :user="$quotation->itinerary?->creator" /></dd></div>
                             <div class="flex justify-between gap-3"><dt class="text-gray-500 dark:text-gray-400">{{ __('ui.common.created_at') }}</dt><dd class="font-medium text-right"><x-local-time :value="$quotation->itinerary?->created_at" /></dd></div>
                         </dl>
                     </div>
@@ -351,7 +351,7 @@
                             <ul class="mt-2 space-y-1 text-xs text-gray-700 dark:text-gray-200">
                                 @foreach ($quotation->approvals as $approval)
                                     <li>
-                                        {{ ucfirst((string) $approval->approval_role) }} - {{ $approval->user?->name ?? '-' }}
+                                        {{ ucfirst((string) $approval->approval_role) }} - <x-masked-user-name :user="$approval->user" />
                                         @if ($approval->approved_at)
                                             (<x-local-time :value="$approval->approved_at" />)
                                         @endif
@@ -368,7 +368,7 @@
                         </div>
                     @endif
 
-                    @if (auth()->check() && ($quotation->status ?? '') !== 'final' && (auth()->user()?->hasAnyRole(['Director', 'Manager', 'Reservation']) || $quotation->isCreator(auth()->user())))
+                    @if (auth()->check() && ($quotation->status ?? '') !== 'final' && (auth()->user()?->can('quotations.approve') || $quotation->isCreator(auth()->user()) || auth()->user()?->can('quotations.reject') || auth()->user()?->can('quotations.set_pending')))
                         <div class="space-y-3">
                             @php
                                 $authUser = auth()->user();
@@ -380,7 +380,7 @@
                                 $nonCreatorApprovalCount = (int) ($approvalProgress['non_creator_approval_count'] ?? 0);
                                 $canApproveByRole = false;
                                 if (!$isCreator && !$alreadyApprovedByUser && $authUser) {
-                                    $canApproveByRole = $authUser->hasAnyRole(['Director', 'Manager', 'Reservation'])
+                                    $canApproveByRole = $authUser->can('quotations.approve')
                                         && $nonCreatorApprovalCount < $requiredApprovals;
                                 }
                                 $isValidationComplete = (bool) ($validationProgress['is_complete'] ?? false);
@@ -395,9 +395,9 @@
                                             <button type="submit" class="btn-primary-sm">{{ __('ui.common.approve') }}</button>
                                         </form>
                                     @endif
-                                    @if (auth()->user()?->hasAnyRole(['Director', 'Manager']))
+                                    @can('quotations.reject')
                                         <button type="button" class="btn-danger-sm" data-open-reject-modal="show-reject-modal">{{ __('ui.common.reject') }}</button>
-                                    @endif
+                                    @endcan
                                 @else
                                     @if ($quotation->isCreator(auth()->user()))
                                         <form method="POST" action="{{ route('quotations.set-final', $quotation) }}">
@@ -405,7 +405,7 @@
                                             <button type="submit" class="btn-primary-sm">{{ __('ui.common.set_final') }}</button>
                                         </form>
                                     @endif
-                                    @if (auth()->user()?->hasRole('Director'))
+                                    @if (auth()->user()?->can('quotations.set_pending'))
                                         <form method="POST" action="{{ route('quotations.set-pending', $quotation) }}">
                                             @csrf
                                             <button type="submit" class="btn-warning-sm">{{ __('ui.common.set_pending') }}</button>
@@ -430,7 +430,7 @@
                         </div>
                     @endif
 
-                    @if (auth()->user()?->hasAnyRole(['Director', 'Manager']) && ($quotation->status ?? '') !== 'approved' && ($quotation->status ?? '') !== 'final')
+                    @if (auth()->user()?->can('quotations.reject') && ($quotation->status ?? '') !== 'approved' && ($quotation->status ?? '') !== 'final')
                         <div id="show-reject-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 p-4">
                             <div class="w-full max-w-lg rounded-xl border border-gray-200 bg-white p-5 shadow-xl dark:border-gray-700 dark:bg-gray-900">
                                 <div class="flex items-center justify-between gap-3">

@@ -1,4 +1,6 @@
-﻿# Voyex CRM Project Guidelines
+# Voyex CRM Project Guidelines
+
+Last Updated: 2026-04-17
 
 Dokumen ini berisi aturan kerja wajib. Untuk detail domain/fitur, rujuk `PROJECT_KNOWLEDGE_BASE.md`.
 
@@ -15,7 +17,7 @@ Dokumen ini berisi aturan kerja wajib. Untuk detail domain/fitur, rujuk `PROJECT
 2. `PROJECT_KNOWLEDGE_BASE.md`
 3. `VOYEX_CRM_SYSTEM_ROADMAP.md`
 4. `docs/core/LAYOUT_GUIDE.md`
-5. Dokumen teknis spesifik modul
+5. `Dokumen teknis spesifik modul`
 
 ## 3. Scope Sistem
 
@@ -40,7 +42,16 @@ Aturan: jika `final`, data view-only (tanpa mutasi).
 - Hindari duplikasi data yang tidak perlu (single source of truth per konteks).
 - Ikuti standar UI global (`app-card`, `app-table`, `app-input`, `btn-*`).
 
-## 4a. Standar Responsive UI (Wajib)
+## 4a. Standar Akses (Wajib)
+
+1. Semua CRUD dan aksi khusus harus dikontrol oleh permission matrix.
+2. Hindari hardcode role pada flow bisnis. Role dipakai untuk identity/seed awal, bukan guard utama aksi.
+3. Untuk modul CRUD, gunakan kombinasi:
+   - `permission:module.{module}.access`
+   - `module.permission:{module}`
+4. Policy model harus permission-first (`module.{module}.create/read/update/delete`).
+
+## 4b. Standar Responsive UI (Wajib)
 
 1. Semua halaman baru wajib mobile-friendly dan tablet-friendly, bukan desktop-only.
 2. Halaman existing yang diubah wajib sekalian disesuaikan ke pola responsive project.
@@ -56,6 +67,24 @@ Aturan: jika `final`, data view-only (tanpa mutasi).
 7. Implementasi layout data besar wajib memakai pola:
    - card/list untuk mobile-tablet,
    - table untuk desktop (`xl` ke atas), kecuali ada alasan UX yang terdokumentasi.
+
+## 4c. Standar Input Nominal (Wajib)
+
+1. Semua input nominal harga/rate/amount wajib menggunakan komponen `x-money-input`.
+2. Badge currency wajib tampil di sisi kiri input (left affix), bukan di kanan.
+3. Input nominal tidak boleh ditulis sebagai `<input type="number">` plain pada Blade jika merupakan nilai uang/rate.
+4. Normalisasi sebelum submit wajib tetap mengirim angka murni (tanpa separator ribuan) ke backend.
+5. Untuk halaman interaktif AJAX, format tampil boleh mengikuti currency aktif, tetapi payload backend wajib tetap konsisten dengan rule modul terkait.
+6. Untuk field markup:
+   - jika `markup_type = percent`, badge wajib `%`,
+   - jika `markup_type = fixed`, badge wajib symbol/code currency aktif.
+
+## 4d. Database Safety (Wajib)
+
+1. Dilarang menjalankan command destruktif (`migrate:fresh`, `db:wipe`, `migrate:refresh`) pada database utama.
+2. Testing harus menggunakan database terpisah (`.env.testing`).
+3. Sebelum migrasi besar, lakukan backup database.
+4. Jika perlu verifikasi destructive command, wajib explicit approval dan di environment non-production.
 
 ## 5. Aturan Dokumentasi Wajib
 
@@ -83,4 +112,5 @@ Aturan: jika `final`, data view-only (tanpa mutasi).
 - Layout: `docs/core/LAYOUT_GUIDE.md`
 - Itinerary detail teknis: `docs/technical/ITINERARY_CREATE_EDIT_FLOW.md`, `docs/technical/ITINERARY_DETAIL_MAP_ARCHITECTURE.md`
 - UAT quotation approval: `docs/technical/QUOTATION_APPROVAL_UAT_MATRIX.md`
+- UAT quotation validation: `docs/technical/QUOTATION_VALIDATION_UAT_MATRIX.md`
 - Ringkasan fix teknis: `docs/technical/TECHNICAL_FIX_NOTES.md`

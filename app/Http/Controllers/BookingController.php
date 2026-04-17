@@ -171,7 +171,7 @@ class BookingController extends Controller
     {
         return redirect()
             ->route('bookings.show', $booking)
-            ->with('error', 'Hanya creator yang dapat mengubah atau menghapus booking ini.');
+            ->with('error', 'You do not have permission to modify this booking.');
     }
 
     public function exportCsv(): StreamedResponse
@@ -232,6 +232,5 @@ class BookingController extends Controller
         return $number;
     }
 }
-
 
 
