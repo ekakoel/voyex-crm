@@ -269,7 +269,7 @@
                     </div>
                 </div>
                 <div class="sa-card p-4">
-                    <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100">Recently Confirmed Bookings</h3>
+                    <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100">Recent Active Bookings</h3>
                     <div class="mt-3 space-y-2">
                         @forelse($recentBookings as $booking)
                             <a href="{{ route('bookings.show', $booking) }}"  class="block rounded-lg bg-slate-50 px-3 py-2 text-xs hover:bg-slate-100 dark:bg-slate-800/50 dark:hover:bg-slate-800">
@@ -304,6 +304,5 @@
     })();
 </script>
 @endpush
-
 
 

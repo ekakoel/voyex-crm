@@ -356,6 +356,15 @@
             class="mt-1 dark:border-gray-600 app-input"
             required>
     </div>
+    <div>
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Order Number</label>
+        <input name="order_number" value="{{ old('order_number', $itinerary->order_number ?? '') }}"
+            class="mt-1 dark:border-gray-600 app-input"
+            placeholder="Example: ORD-2026-0001">
+        @error('order_number')
+            <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
+        @enderror
+    </div>
     <div class="grid grid-cols-1 gap-3 md:grid-cols-12">
         <div class="md:col-span-6">
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Destination</label>

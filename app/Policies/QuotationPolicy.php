@@ -12,12 +12,14 @@ class QuotationPolicy
 
     public function update(User $user, Quotation $quotation): bool
     {
-        return $user->can('module.quotations.update');
+        return $user->can('module.quotations.update')
+            && $quotation->isCreator($user);
     }
 
     public function delete(User $user, Quotation $quotation): bool
     {
-        return $user->can('module.quotations.delete');
+        return $user->can('module.quotations.delete')
+            && $quotation->isCreator($user);
     }
 
     public function validateQuotation(User $user, Quotation $quotation): bool

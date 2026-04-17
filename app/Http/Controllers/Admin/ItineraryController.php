@@ -173,6 +173,7 @@ class ItineraryController extends Controller
     {
         $validated = $request->validate([
             'title' => ['required', 'string', 'max:255'],
+            'order_number' => ['nullable', 'string', 'max:100'],
             'destination' => ['required', 'string', 'max:255'],
             'arrival_transport_id' => ['nullable', 'integer', 'exists:transports,id'],
             'departure_transport_id' => ['nullable', 'integer', 'exists:transports,id'],
@@ -351,6 +352,7 @@ class ItineraryController extends Controller
                         'inquiry_id' => $itinerary->inquiry_id,
                         'created_by' => auth()->id(),
                         'title' => $this->buildDuplicatedTitle((string) $itinerary->title),
+                        'order_number' => $itinerary->order_number,
                         'destination' => $itinerary->destination,
                         'destination_id' => $itinerary->destination_id,
                         'arrival_transport_id' => $itinerary->arrival_transport_id,
@@ -1144,6 +1146,7 @@ SVG;
         }
         $validated = $request->validate([
             'title' => ['required', 'string', 'max:255'],
+            'order_number' => ['nullable', 'string', 'max:100'],
             'destination' => ['required', 'string', 'max:255'],
             'arrival_transport_id' => ['nullable', 'integer', 'exists:transports,id'],
             'departure_transport_id' => ['nullable', 'integer', 'exists:transports,id'],

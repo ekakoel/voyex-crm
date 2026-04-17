@@ -129,11 +129,24 @@
         </div>
     </div>
 
-    @if (! empty($otherPermissions))
+    @if (! empty($otherPermissions) || ! empty($systemPermissions ?? []))
         <div class="app-card p-6">
             <p class="mb-2 block text-sm font-semibold text-gray-700 dark:text-gray-200">Other Permissions</p>
             <div class="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
                 @foreach ($otherPermissions as $permission)
+                    <label class="inline-flex items-center gap-2 rounded-md bg-white px-2 py-1.5 text-sm text-gray-700 transition hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700/40">
+                        <input
+                            type="checkbox"
+                            name="permissions[]"
+                            value="{{ $permission }}"
+                            class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                            @checked(in_array($permission, $selectedValues, true))
+                        >
+                        <span>{{ $permissionLabels[$permission] ?? $permission }}</span>
+                    </label>
+                @endforeach
+
+                @foreach (($systemPermissions ?? []) as $permission)
                     <label class="inline-flex items-center gap-2 rounded-md bg-white px-2 py-1.5 text-sm text-gray-700 transition hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700/40">
                         <input
                             type="checkbox"
@@ -341,7 +354,5 @@
     })();
 </script>
 @endpush
-
-
 
 

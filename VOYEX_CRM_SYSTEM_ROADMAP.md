@@ -254,6 +254,100 @@ Completed in this cycle:
     - `services.map` now requires only `services.map.view` (plus module enabled),
     - `superadmin.access-matrix` accepts `superadmin.access_matrix.view` with legacy fallback `dashboard.superadmin.view`.
 
+- Reservation dashboard data consistency hardening:
+  - removed legacy booking status dependency (`confirmed`) and aligned dashboard booking queries to active booking lifecycle statuses (`processed`, `approved`, `final`).
+  - fixed KPI data wiring for `Quotations Ready to Book` and `Upcoming Trips` by populating `kpis.ready_to_book` and `kpis.upcoming_trips` from controller.
+  - tightened `Upcoming Trips` scope to the next 30 days so query behavior matches panel label.
+  - refined ready-to-book quotation source to approved quotations without booking linkage (`whereDoesntHave('booking')`).
+  - aligned recent bookings panel data with active booking statuses and removed unused `statusSummary` payload from reservation dashboard controller.
+  - QA note:
+    - `php -l app/Http/Controllers/Reservation/DashboardController.php` passed.
+    - `php -l resources/views/reservation/dashboard.blade.php` passed.
+
+- Test database safety hardening (critical):
+  - enforced isolated test DB at `phpunit.xml` level:
+    - `DB_CONNECTION=sqlite`
+    - `DB_DATABASE=:memory:`
+  - added runtime guard in `tests/CreatesApplication.php` to block test execution when testing environment points to a non-test database.
+  - added `.env.testing` local safe defaults and updated `.gitignore` to ignore `.env.testing` from VCS.
+  - impact:
+    - prevents accidental `RefreshDatabase` wipes on primary/local main database during `php artisan test`.
+  - QA note:
+    - `php -l tests/CreatesApplication.php` passed.
+
+- Test-suite DB risk elimination by removal:
+  - removed all feature/module/auth/dashboard tests that used DB-mutating traits (`RefreshDatabase`, `DatabaseTransactions`) or inherited DB transaction test base.
+  - removed `tests/Feature/Modules/ModuleSmokeTestCase.php` and all extending smoke/workflow tests to eliminate accidental DB writes/resets from test execution path.
+  - current remaining tests are only non-DB placeholder examples (`tests/Feature/ExampleTest.php`, `tests/Unit/ExampleTest.php`).
+  - impact:
+    - `php artisan test` no longer has project test files that mutate/reset application database.
+
+- Inquiry edit access hardening (creator-only):
+  - updated `InquiryPolicy::update` so edit/update inquiry is allowed only when:
+    - user has `module.inquiries.update`, and
+    - user is the record creator (`created_by` ownership check).
+  - effect:
+    - assignee/non-creator can no longer edit inquiry data even if they have update permission.
+    - Inquiry edit button visibility (already using `@can`) now follows creator-only policy consistently.
+  - governance:
+    - documented owner-based mutation standard in `PROJECT_GUIDELINES.md` and `PROJECT_KNOWLEDGE_BASE.md` for future modules.
+  - QA note:
+    - `php -l app/Policies/InquiryPolicy.php` passed.
+
+- Itinerary edit access hardening (creator-only):
+  - updated `ItineraryPolicy::update` so edit/update itinerary is allowed only when:
+    - user has `module.itineraries.update`, and
+    - user is the record creator (`created_by` ownership check).
+  - effect:
+    - non-creator cannot edit itinerary even when they have itinerary update permission.
+    - existing itinerary edit button visibility (using `@can`) now consistently follows creator-only policy.
+  - governance:
+    - owner-based mutation standard now explicitly mentions both Inquiry and Itinerary in core docs.
+  - QA note:
+    - `php -l app/Policies/ItineraryPolicy.php` passed.
+
+- Quotation mutation access hardening (creator-only for edit/delete):
+  - updated `QuotationPolicy::update` and `QuotationPolicy::delete` so quotation mutation is allowed only when:
+    - user has module permission (`module.quotations.update/delete`), and
+    - user is the quotation creator (`created_by` ownership check).
+  - effect:
+    - non-creator cannot edit/deactivate quotation data even with module update/delete permission.
+    - quotation action visibility using `@can('update', $quotation)` / mutation guards via policy now consistently follows creator-only rule.
+  - scope note:
+    - approval workflow actions (`approve/reject/set pending/set final`) remain permission-based by workflow design and are not changed by this policy hardening.
+  - governance:
+    - owner-based mutation standard now explicitly includes Inquiry, Itinerary, and Quotation in core docs.
+  - QA note:
+    - `php -l app/Policies/QuotationPolicy.php` passed.
+
+- Booking mutation access hardening (creator-only for edit/delete):
+  - updated `BookingPolicy::update` and `BookingPolicy::delete` so booking mutation is allowed only when:
+    - user has module permission (`module.bookings.update/delete`), and
+    - user is the booking creator (`created_by` ownership check).
+  - effect:
+    - non-creator cannot edit/delete booking even with booking update/delete permission.
+    - booking action visibility using `@can('update', $booking)` / `@can('delete', $booking)` now follows creator-only policy consistently.
+  - QA note:
+    - `php -l app/Policies/BookingPolicy.php` passed.
+
+- Invoice module access note (current architecture):
+  - confirmed Finance Invoice module remains read-only (`index/show`) with no mutation endpoints (`create/store/edit/update/destroy`) in active routes/controller.
+  - governance:
+    - documented read-only module standard in core guidelines to prevent accidental mutation-surface expansion without policy design.
+
+- Role & Permission form enhancement for admin tools:
+  - added dedicated `System Tools Permissions` section on role create/edit form.
+  - surfaced and grouped critical non-module permissions:
+    - `services.map.view` (`View Service Map`)
+    - `superadmin.access_matrix.view` (`View Access Matrix`)
+  - behavior:
+    - both permissions are now easy to find and toggle directly from Role & Permission edit flow (no longer buried in generic other-permissions list).
+  - QA note:
+    - `php -l app/Http/Controllers/Admin/RoleController.php` passed.
+    - `php -l resources/views/modules/roles/_form.blade.php` passed.
+  - UI placement adjustment:
+    - `View Service Map` and `View Access Matrix` are now rendered under `Other Permissions` (bottom section) per operator preference.
+
 Date: 2026-04-16
 Completed in this cycle:
 
@@ -865,4 +959,4 @@ Completed in this cycle:
 Historical detailed entries moved to:
 - docs/changelog/ROADMAP_CHANGELOG_ARCHIVE.md
 
-
+- Reservation dashboard: added short-term caching for heavy booking queries and weekly trend data (Cache TTL 120s) to improve dashboard responsiveness; added feature test `tests/Feature/Dashboard/ReservationDashboardTest.php` to verify permission guard and rendering. (Controller: `app/Http/Controllers/Reservation/DashboardController.php`, View: `resources/views/reservation/dashboard.blade.php`).

@@ -12,11 +12,13 @@ class BookingPolicy
 
     public function update(User $user, Booking $booking): bool
     {
-        return $user->can('module.bookings.update');
+        return $user->can('module.bookings.update')
+            && $booking->isCreator($user);
     }
 
     public function delete(User $user, Booking $booking): bool
     {
-        return $user->can('module.bookings.delete');
+        return $user->can('module.bookings.delete')
+            && $booking->isCreator($user);
     }
 }

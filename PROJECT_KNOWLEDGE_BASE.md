@@ -92,6 +92,12 @@ Pattern utama:
 - per-action CRUD: `module.permission:{module}` (`create/read/update/delete`)
 - policy model: permission-based checks
 
+Owner-based mutation standard:
+- untuk modul transaksi owner-centric (contoh Inquiry, Itinerary, Quotation, dan Booking), `update/delete` mengikuti rule creator-only:
+  - `user` harus punya permission aksi terkait, dan
+  - record wajib dimiliki user (`created_by` sama dengan user login).
+- modul Invoice pada baseline saat ini bersifat read-only di Finance flow (`index/show`), tanpa endpoint mutasi data.
+
 ### 5.2 Super Admin Strategy
 
 - Super Admin bypass via `Gate::before`.
@@ -182,3 +188,12 @@ Jika terjadi konflik dokumen, urutan prioritas:
 3. `VOYEX_CRM_SYSTEM_ROADMAP.md`
 4. `docs/core/LAYOUT_GUIDE.md`
 5. Dokumen teknis lainnya
+
+---
+
+## Reservation Dashboard Notes
+
+- Access: gated by permission `dashboard.reservation.view` and surfaced via dashboard redirect priority.
+- Performance: heavy booking queries (status counts, monthly counts, weekly trends, top customers) are cached with a short TTL (120 seconds) using cache keys namespaced under `reservation:*` to reduce load during high traffic. Consider invalidating these keys in booking/quotation update hooks.
+- Testing: feature test `tests/Feature/Dashboard/ReservationDashboardTest.php` added to assert permission enforcement and page rendering.
+

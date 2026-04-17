@@ -50,6 +50,11 @@ Aturan: jika `final`, data view-only (tanpa mutasi).
    - `permission:module.{module}.access`
    - `module.permission:{module}`
 4. Policy model harus permission-first (`module.{module}.create/read/update/delete`).
+5. Untuk modul transaksi berbasis owner (contoh Inquiry, Itinerary, Quotation, dan Booking), aksi mutasi `update/delete` wajib `creator-only`:
+   - wajib lolos permission terkait, dan
+   - wajib lolos ownership check (`created_by == auth()->id()`).
+6. Ownership check harus diletakkan di Policy (bukan di Blade saja), dan UI hanya mengikuti hasil Policy via `@can`.
+7. Untuk modul read-only (contoh Invoice saat ini), jangan menambahkan endpoint mutasi (`create/store/edit/update/destroy`) tanpa keputusan arsitektur dan update policy/standar akses.
 
 ## 4b. Standar Responsive UI (Wajib)
 

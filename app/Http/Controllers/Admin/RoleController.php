@@ -70,7 +70,7 @@ class RoleController extends Controller
     public function create(Request $request): View
     {
         $isSuperAdminActor = $this->isSuperAdminActor($request);
-        [$modulePermissions, $otherPermissions, $permissionLabels] = $this->getPermissionsGrouped();
+        [$modulePermissions, $otherPermissions, $systemPermissions, $permissionLabels] = $this->getPermissionsGrouped();
         [$templateRoles, $rolePermissionMap] = $this->getTemplateRoles($isSuperAdminActor);
         $selectedTemplateRoleId = $request->integer('template_role_id');
         $selectedTemplateRoleName = null;
@@ -86,6 +86,7 @@ class RoleController extends Controller
         return view('modules.roles.create', compact(
             'modulePermissions',
             'otherPermissions',
+            'systemPermissions',
             'permissionLabels',
             'templateRoles',
             'rolePermissionMap',
@@ -153,7 +154,7 @@ class RoleController extends Controller
             abort(404);
         }
 
-        [$modulePermissions, $otherPermissions, $permissionLabels] = $this->getPermissionsGrouped();
+        [$modulePermissions, $otherPermissions, $systemPermissions, $permissionLabels] = $this->getPermissionsGrouped();
         $selectedPermissions = $role->permissions->pluck('name')->all();
         [$templateRoles, $rolePermissionMap] = $this->getTemplateRoles($isSuperAdminActor);
 
@@ -161,6 +162,7 @@ class RoleController extends Controller
             'role',
             'modulePermissions',
             'otherPermissions',
+            'systemPermissions',
             'permissionLabels',
             'selectedPermissions',
             'templateRoles',
@@ -249,7 +251,12 @@ class RoleController extends Controller
     {
         $modulePermissions = [];
         $otherPermissions = [];
+        $systemPermissions = [];
         $permissionLabels = [];
+        $systemPermissionNames = [
+            'services.map.view',
+            'superadmin.access_matrix.view',
+        ];
 
         $permissions = Permission::query()->orderBy('name')->get();
         $modules = Schema::hasTable('modules')
@@ -259,6 +266,11 @@ class RoleController extends Controller
 
         foreach ($permissions as $permission) {
             if (! str_starts_with($permission->name, 'module.')) {
+                if (in_array($permission->name, $systemPermissionNames, true)) {
+                    $systemPermissions[] = $permission->name;
+                    $permissionLabels[$permission->name] = $this->friendlyPermissionLabel($permission->name);
+                    continue;
+                }
                 $otherPermissions[] = $permission->name;
                 $permissionLabels[$permission->name] = $this->friendlyPermissionLabel($permission->name);
             }
@@ -293,7 +305,7 @@ class RoleController extends Controller
 
         ksort($modulePermissions);
 
-        return [$modulePermissions, $otherPermissions, $permissionLabels];
+        return [$modulePermissions, $otherPermissions, $systemPermissions, $permissionLabels];
     }
 
     private function humanizePermission(string $name): string
