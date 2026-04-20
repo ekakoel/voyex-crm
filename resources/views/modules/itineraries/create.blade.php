@@ -5,7 +5,7 @@
     <a href="{{ route('itineraries.index') }}" class="btn-ghost">{{ __('ui.common.back') }}</a>
 @endsection
 @section('content')
-    <div class="space-y-6 module-page module-page--itineraries">
+    <div class="space-y-5 module-page module-page--itineraries">
         <div class="module-grid-8-4">
             <div class="module-grid-main">
                 <div class="module-form-wrap">

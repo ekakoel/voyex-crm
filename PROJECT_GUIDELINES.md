@@ -1,6 +1,6 @@
 # Voyex CRM Project Guidelines
 
-Last Updated: 2026-04-17
+Last Updated: 2026-04-20
 
 Dokumen ini berisi aturan kerja wajib. Untuk detail domain/fitur, rujuk `PROJECT_KNOWLEDGE_BASE.md`.
 
@@ -50,9 +50,11 @@ Aturan: jika `final`, data view-only (tanpa mutasi).
    - `permission:module.{module}.access`
    - `module.permission:{module}`
 4. Policy model harus permission-first (`module.{module}.create/read/update/delete`).
-5. Untuk modul transaksi berbasis owner (contoh Inquiry, Itinerary, Quotation, dan Booking), aksi mutasi `update/delete` wajib `creator-only`:
+5. Untuk modul transaksi berbasis owner, aksi mutasi `update/delete` wajib ownership-based dengan permission check:
    - wajib lolos permission terkait, dan
-   - wajib lolos ownership check (`created_by == auth()->id()`).
+   - wajib lolos ownership check sesuai policy modul.
+   - untuk `Inquiry`: `creator OR assigned user` dapat memutasi inquiry.
+   - untuk `Itinerary`, `Quotation`, dan `Booking`: tetap `creator-only`.
 6. Ownership check harus diletakkan di Policy (bukan di Blade saja), dan UI hanya mengikuti hasil Policy via `@can`.
 7. Untuk modul read-only (contoh Invoice saat ini), jangan menambahkan endpoint mutasi (`create/store/edit/update/destroy`) tanpa keputusan arsitektur dan update policy/standar akses.
 
@@ -90,6 +92,23 @@ Aturan: jika `final`, data view-only (tanpa mutasi).
 2. Testing harus menggunakan database terpisah (`.env.testing`).
 3. Sebelum migrasi besar, lakukan backup database.
 4. Jika perlu verifikasi destructive command, wajib explicit approval dan di environment non-production.
+
+## 4e. Standar Format Tanggal/Waktu (Wajib)
+
+1. Format tampilan tanggal wajib `YYYY-MM-DD`.
+2. Format tampilan tanggal+waktu wajib `YYYY-MM-DD (HH:ii)`.
+3. Aturan ini berlaku untuk seluruh UI, termasuk halaman dashboard, detail/list modul, dan PDF.
+4. Dilarang menggunakan format relatif seperti `diffForHumans()` untuk tanggal utama yang ditampilkan user.
+5. Gunakan formatter terpusat `\App\Support\DateTimeDisplay` untuk output tanggal/waktu di Blade/PDF.
+6. Untuk render tanggal via JavaScript, gunakan format deterministic (`en-CA` + `formatToParts`) agar tidak tergantung locale browser.
+
+## 4f. CI Guard Tanggal/Waktu (Wajib)
+
+1. Setiap PR wajib lolos workflow `Date Format Guard`.
+2. Guard script berada di `scripts/ci/check-date-format.sh`.
+3. Script ini memblokir pattern non-standar pada layer UI/PDF (contoh: `diffForHumans()`, format `d M Y`, render locale-dependent datetime).
+4. Jalankan lokal sebelum push:
+   - `bash scripts/ci/check-date-format.sh`
 
 ## 5. Aturan Dokumentasi Wajib
 

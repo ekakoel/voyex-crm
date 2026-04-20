@@ -1,6 +1,6 @@
 # VOYEX CRM
 
-Last Updated: 2026-04-17
+Last Updated: 2026-04-20
 
 Voyex CRM adalah CRM khusus travel agent dengan flow utama:
 
@@ -25,6 +25,28 @@ php artisan serve
 2. Test suite (`php artisan test`) wajib memakai database testing terpisah.
 3. Buat `.env.testing` khusus, jangan biarkan testing memakai DB yang sama dengan `.env`.
 4. Sebelum command migration besar, lakukan backup database terlebih dahulu.
+
+## Date Format Guard (CI)
+
+Standar wajib tampilan tanggal/waktu:
+- tanggal: `YYYY-MM-DD`
+- tanggal+waktu: `YYYY-MM-DD (HH:ii)`
+
+CI guard untuk rule ini:
+- workflow: `.github/workflows/date-format-guard.yml`
+- script: `scripts/ci/check-date-format.sh`
+
+Jalankan lokal sebelum push:
+
+```bash
+bash scripts/ci/check-date-format.sh
+```
+
+Untuk Windows PowerShell:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/ci/check-date-format.ps1
+```
 
 ## Deploy Permission Baseline
 
@@ -65,6 +87,7 @@ php artisan db:seed --class=ProjectBaselineSeeder --force
 
 - `docs/technical/ITINERARY_CREATE_EDIT_FLOW.md`
 - `docs/technical/ITINERARY_DETAIL_MAP_ARCHITECTURE.md`
+- `docs/technical/ISLAND_TRANSFER_MODULE.md`
 - `docs/technical/QUOTATION_APPROVAL_UAT_MATRIX.md`
 - `docs/technical/QUOTATION_VALIDATION_UAT_MATRIX.md`
 - `docs/technical/NOMINAL_INPUT_STANDARD.md`

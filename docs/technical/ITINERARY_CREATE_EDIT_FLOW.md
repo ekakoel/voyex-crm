@@ -1,6 +1,6 @@
 # Itinerary Create/Edit Flow
 
-Last Updated: 2026-04-17
+Last Updated: 2026-04-20
 
 
 Dokumen ini menjelaskan flow create/edit itinerary secara end-to-end tanpa mengulang detail map show-page.
@@ -81,9 +81,10 @@ Form membuat state awal dari dua sumber:
 1. `old(...)` saat validasi gagal,
 2. data itinerary existing saat edit.
 
-Schedule item dari 3 sumber digabung dulu menjadi satu state row:
+Schedule item dari 4 sumber digabung dulu menjadi satu state row:
 - `itinerary_items` (attraction),
-- `itinerary_activity_items`,
+- `itinerary_activity_items` (activity),
+- `itinerary_island_transfer_items` (island transfer dari modul khusus),
 - `itinerary_food_beverage_items`.
 
 Setelah itu row diurutkan dan dikelompokkan per hari (`rowsByDay`) untuk render DOM dinamis.
@@ -124,11 +125,12 @@ Komponen inti row:
 - sequence badge,
 - item type,
 - region/city filter,
-- selector item (attraction/activity/fnb),
+- selector item (attraction/activity/island transfer/fnb),
 - start-end time (hasil kalkulasi),
 - main-experience toggle,
 - remove action,
 - hidden travel minutes + hidden day/order.
+- hint otomatis antar-pulau jika ada perpindahan lintas area tanpa item transfer.
 
 Catatan penting:
 - row tidak selalu punya `name` input sejak awal,
@@ -139,7 +141,7 @@ Catatan penting:
 ### 6.1 Selection dan mode row
 
 - `getRowSelection(row)`: menentukan selector aktif berdasarkan type + value.
-- `toggleType(row, type)`: switch mode attraction/activity/fnb dan reset state terkait.
+- `toggleType(row, type)`: switch mode attraction/activity/transfer/fnb dan reset state terkait.
 
 ### 6.2 Kalkulasi waktu
 
@@ -152,6 +154,7 @@ Catatan penting:
 - Fungsi ini memberi nama field final untuk 3 kelompok payload:
   - `itinerary_items[...]`,
   - `itinerary_activity_items[...]`,
+  - `itinerary_island_transfer_items[...]`,
   - `itinerary_food_beverage_items[...]`.
 
 Tanpa `reindex()` yang benar, payload backend akan tidak sinkron.
@@ -161,6 +164,8 @@ Tanpa `reindex()` yang benar, payload backend akan tidak sinkron.
 - `syncDayPointOptionRules()`: aturan day-dependent (`previous_day_end`, naming per-day).
 - `syncPointItemVisibility()`: filter option berdasarkan type + destination + room availability.
 - `syncMainExperienceSelection()`: hanya satu main experience per day.
+- Item type `transfer` tidak boleh dijadikan main experience (highlight otomatis dinonaktifkan).
+- Untuk `transfer`, sumber data bukan dari modul Activities, melainkan modul `Island Transfers` terpisah.
 
 ### 6.5 Clone, sorting, dan submit
 
@@ -186,6 +191,7 @@ Tanpa `reindex()` yang benar, payload backend akan tidak sinkron.
 ### Layer schedule item
 - `itinerary_items`
 - `itinerary_activity_items`
+- `itinerary_island_transfer_items`
 - `itinerary_food_beverage_items`
 
 ### Layer day-level
@@ -227,6 +233,9 @@ Hasil akhirnya disimpan ke struktur relasional terpisah (bukan satu tabel flat).
 ## 11. Hubungan dengan Map
 
 - Create/edit map adalah preview berbasis DOM state form.
+- Untuk segment transfer antar pulau:
+  - preview memprioritaskan `route_geojson` dari master `island_transfers`,
+  - jika tidak ada `route_geojson`, barulah fallback ke route darat (OSRM) per segmen.
 - Show-page map adalah renderer berbasis data tersimpan.
 
 Karena itu detail map show-page dipisah di:
@@ -237,7 +246,8 @@ Karena itu detail map show-page dipisah di:
 1. Buat itinerary baru multi-day dan submit.
 2. Edit itinerary existing, cek prefill dan submit ulang.
 3. Uji type switch item (`attraction/activity/fnb`) + reordering.
-4. Uji start/end point airport-hotel termasuk room filtering.
-5. Uji perubahan duration days (clone/remove section).
-6. Pastikan tidak ada JS error saat map preview, reindex, dan submit.
-7. Pastikan payload tersimpan konsisten di detail itinerary setelah redirect.
+4. Uji skenario lintas area dan pastikan warning inter-island muncul jika transfer belum ditambahkan.
+5. Uji start/end point airport-hotel termasuk room filtering.
+6. Uji perubahan duration days (clone/remove section).
+7. Pastikan tidak ada JS error saat map preview, reindex, dan submit.
+8. Pastikan payload tersimpan konsisten di detail itinerary setelah redirect.

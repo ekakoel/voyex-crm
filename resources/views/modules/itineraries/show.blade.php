@@ -4,7 +4,7 @@
 @section('page_subtitle', __('ui.modules.itineraries.show_page_subtitle'))
 
 @section('content')
-    <div class="space-y-6 itinerary-show-page">
+    <div class="space-y-5 itinerary-show-page">
         <div class="app-card p-4 mb-6">
             @section('page_actions')@if (Route::has('quotations.create') && auth()->user()->can('module.quotations.access') && ! $itinerary->quotation)
                         <a href="{{ route('quotations.create', ['itinerary_id' => $itinerary->id]) }}" class="rounded-lg border border-indigo-300 px-4 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-50 dark:border-indigo-700 dark:text-indigo-300 dark:hover:bg-indigo-900/20">{{ __('ui.common.generate_quotation') }}</a>
@@ -216,6 +216,22 @@
                                     'visit_order' => $activityItem->visit_order ?? 999999,
                                 ]);
                             }
+                            $transferItemsForDay = collect();
+                            foreach (($islandTransferDayGroups[$day] ?? collect()) as $transferItem) {
+                                $transfer = $transferItem->islandTransfer;
+                                $transferItemsForDay->push([
+                                    'type' => 'transfer',
+                                    'experience_id' => (int) ($transferItem->island_transfer_id ?? 0),
+                                    'name' => $transfer->name ?? '-',
+                                    'location' => trim((string) (($transfer->departure_point_name ?? '-') . ' -> ' . ($transfer->arrival_point_name ?? '-'))),
+                                    'description' => $transfer->notes ?? null,
+                                    'pax' => $transferItem->pax,
+                                    'start_time' => $transferItem->start_time,
+                                    'end_time' => $transferItem->end_time,
+                                    'travel_minutes_to_next' => $transferItem->travel_minutes_to_next,
+                                    'visit_order' => $transferItem->visit_order ?? 999999,
+                                ]);
+                            }
                             $foodBeverages = collect();
                             foreach (($foodBeverageDayGroups[$day] ?? collect()) as $foodBeverageItem) {
                                 $foodBeverage = $foodBeverageItem->foodBeverage;
@@ -240,7 +256,7 @@
                                     'visit_order' => $foodBeverageItem->visit_order ?? 999999,
                                 ]);
                             }
-                            $dayItems = $attractions->merge($activityItemsForDay)->merge($foodBeverages)->sortBy('visit_order')->values();
+                            $dayItems = $attractions->merge($activityItemsForDay)->merge($transferItemsForDay)->merge($foodBeverages)->sortBy('visit_order')->values();
                             $dayTransport = $transportUnitByDay[$day] ?? null;
                             $dayPoint = $dayPointByDay[$day] ?? null;
                             $previousDayPoint = $dayPointByDay[$day - 1] ?? null;
@@ -381,8 +397,8 @@
                                     <li class="flex items-start gap-0">
                                         <div class="timeline-node-col has-travel w-10 flex flex-col items-center">
                                             <span
-                                                 class="timeline-node inline-flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-semibold text-white {{ $item['type'] === 'activity' ? 'bg-emerald-600' : ($item['type'] === 'fnb' ? 'bg-amber-600' : 'bg-indigo-600') }}">
-                                                <i class="{{ $item['type'] === 'activity' ? 'fa-solid fa-person-hiking' : ($item['type'] === 'fnb' ? 'fa-solid fa-utensils' : 'fa-solid fa-location-dot') }}"></i>
+                                                 class="timeline-node inline-flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-semibold text-white {{ $item['type'] === 'activity' ? 'bg-emerald-600' : ($item['type'] === 'transfer' ? 'bg-violet-600' : ($item['type'] === 'fnb' ? 'bg-amber-600' : 'bg-indigo-600')) }}">
+                                                <i class="{{ $item['type'] === 'activity' ? 'fa-solid fa-person-hiking' : ($item['type'] === 'transfer' ? 'fa-solid fa-ship' : ($item['type'] === 'fnb' ? 'fa-solid fa-utensils' : 'fa-solid fa-location-dot')) }}"></i>
                                             </span>
                                             <span class="timeline-travel-spacer"></span>
                                             <span class="timeline-travel-icon" aria-hidden="true">
@@ -416,7 +432,7 @@
                                                 <x-rich-text :content="$item['menu_highlights'] ?? null" class="mt-1 text-xs text-gray-600 dark:text-gray-300" />
                                             @else
                                                 <span class="font-medium">{{ $item['name'] }}</span>
-                                                <span class="ml-1 text-[11px] uppercase tracking-wide {{ $item['type'] === 'activity' ? 'text-emerald-600 dark:text-emerald-400' : 'text-indigo-600 dark:text-indigo-400' }}">{{ $item['type'] }}</span>
+                                                <span class="ml-1 text-[11px] uppercase tracking-wide {{ $item['type'] === 'activity' ? 'text-emerald-600 dark:text-emerald-400' : ($item['type'] === 'transfer' ? 'text-violet-600 dark:text-violet-400' : 'text-indigo-600 dark:text-indigo-400') }}">{{ $item['type'] }}</span>
                                                 @if ($isMainExperience)
                                                     <span class="ml-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700 dark:bg-amber-500/20 dark:text-amber-300">{{ __('ui.common.main_experience') }}</span>
                                                 @endif
@@ -532,6 +548,86 @@
 @push('scripts')
     @php
         $dayPointByDayForMap = $itinerary->dayPoints->keyBy(fn ($point) => (int) $point->day_number);
+        $normalizeTransferRouteCoords = static function ($routeGeoJson): array {
+            if (is_string($routeGeoJson)) {
+                $decoded = json_decode($routeGeoJson, true);
+                if (json_last_error() === JSON_ERROR_NONE) {
+                    $routeGeoJson = $decoded;
+                }
+            }
+            if (is_string($routeGeoJson)) {
+                $decoded = json_decode($routeGeoJson, true);
+                if (json_last_error() === JSON_ERROR_NONE) {
+                    $routeGeoJson = $decoded;
+                }
+            }
+            if (!is_array($routeGeoJson)) {
+                return [];
+            }
+
+            $coordinates = [];
+            $type = strtolower((string) ($routeGeoJson['type'] ?? ''));
+            if ($type === 'linestring') {
+                $candidate = $routeGeoJson['coordinates'] ?? null;
+                if (is_string($candidate)) {
+                    $candidate = json_decode($candidate, true);
+                }
+                if (is_array($candidate)) {
+                    $coordinates = $candidate;
+                }
+            } elseif ($type === 'feature' && is_array($routeGeoJson['geometry'] ?? null)) {
+                $geometry = $routeGeoJson['geometry'];
+                if (strtolower((string) ($geometry['type'] ?? '')) === 'linestring') {
+                    $candidate = $geometry['coordinates'] ?? null;
+                    if (is_string($candidate)) {
+                        $candidate = json_decode($candidate, true);
+                    }
+                    if (is_array($candidate)) {
+                        $coordinates = $candidate;
+                    }
+                }
+            } elseif ($type === 'featurecollection' && is_array($routeGeoJson['features'] ?? null)) {
+                foreach ($routeGeoJson['features'] as $feature) {
+                    if (!is_array($feature) || !is_array($feature['geometry'] ?? null)) {
+                        continue;
+                    }
+                    $geometry = $feature['geometry'];
+                    if (strtolower((string) ($geometry['type'] ?? '')) === 'linestring') {
+                        $candidate = $geometry['coordinates'] ?? null;
+                        if (is_string($candidate)) {
+                            $candidate = json_decode($candidate, true);
+                        }
+                        if (!is_array($candidate)) {
+                            continue;
+                        }
+                        $coordinates = $candidate;
+                        break;
+                    }
+                }
+            } elseif (array_is_list($routeGeoJson)) {
+                $coordinates = $routeGeoJson;
+            }
+
+            $normalized = [];
+            foreach ($coordinates as $coordinate) {
+                if (!is_array($coordinate) || count($coordinate) < 2) {
+                    continue;
+                }
+                $lng = $coordinate[0] ?? null;
+                $lat = $coordinate[1] ?? null;
+                if (!is_numeric($lat) || !is_numeric($lng)) {
+                    continue;
+                }
+                $lat = (float) $lat;
+                $lng = (float) $lng;
+                if (abs($lat) > 90 || abs($lng) > 180) {
+                    continue;
+                }
+                $normalized[] = ['lat' => $lat, 'lng' => $lng];
+            }
+
+            return count($normalized) >= 2 ? $normalized : [];
+        };
         $resolveMapPoint = function ($dayPoint, string $scope, ?array $previousEnd = null) {
             if (!$dayPoint) {
                 return null;
@@ -599,6 +695,7 @@
                     'lng' => (float) $startData['lng'],
                     'day_number' => $day,
                     'visit_order' => 0,
+                    'map_order' => 0,
                     'travel_minutes_to_next' => $dayPoint && $dayPoint->day_start_travel_minutes !== null
                         ? max(0, (int) $dayPoint->day_start_travel_minutes)
                         : null,
@@ -617,6 +714,7 @@
                     'lng' => (float) $attraction->longitude,
                     'day_number' => $day,
                     'visit_order' => (int) ($attraction->pivot->visit_order ?? 999999),
+                    'map_order' => ((int) ($attraction->pivot->visit_order ?? 999999)) * 10,
                     'travel_minutes_to_next' => $attraction->pivot->travel_minutes_to_next !== null
                         ? max(0, (int) $attraction->pivot->travel_minutes_to_next)
                         : null,
@@ -636,10 +734,67 @@
                     'lng' => (float) $lng,
                     'day_number' => $day,
                     'visit_order' => (int) ($activityItem->visit_order ?? 999999),
+                    'map_order' => ((int) ($activityItem->visit_order ?? 999999)) * 10,
                     'travel_minutes_to_next' => $activityItem->travel_minutes_to_next !== null
                         ? max(0, (int) $activityItem->travel_minutes_to_next)
                         : null,
                 ]);
+            }
+            foreach (($islandTransferDayGroups[$day] ?? collect()) as $transferItem) {
+                $transfer = $transferItem->islandTransfer;
+                if (!$transfer) {
+                    continue;
+                }
+                $departureLat = $transfer->departure_latitude ?? null;
+                $departureLng = $transfer->departure_longitude ?? null;
+                $arrivalLat = $transfer->arrival_latitude ?? null;
+                $arrivalLng = $transfer->arrival_longitude ?? null;
+                $transferRouteCoords = $normalizeTransferRouteCoords($transfer->route_geojson ?? null);
+                if ((!is_numeric($departureLat) || !is_numeric($departureLng)) && count($transferRouteCoords) >= 1) {
+                    $firstRoutePoint = $transferRouteCoords[0];
+                    $departureLat = $firstRoutePoint['lat'] ?? null;
+                    $departureLng = $firstRoutePoint['lng'] ?? null;
+                }
+                if ((!is_numeric($arrivalLat) || !is_numeric($arrivalLng)) && count($transferRouteCoords) >= 1) {
+                    $lastRoutePoint = $transferRouteCoords[count($transferRouteCoords) - 1];
+                    $arrivalLat = $lastRoutePoint['lat'] ?? null;
+                    $arrivalLng = $lastRoutePoint['lng'] ?? null;
+                }
+                if (is_numeric($departureLat) && is_numeric($departureLng)) {
+                    $mapPoints->push([
+                        'type' => 'transfer',
+                        'transfer_role' => 'departure',
+                        'transfer_id' => (int) ($transferItem->island_transfer_id ?? 0),
+                        'transfer_pair_key' => (string) ('transfer-' . (int) ($transferItem->island_transfer_id ?? 0) . '-day-' . $day . '-order-' . (int) ($transferItem->visit_order ?? 999999)),
+                        'name' => (string) (($transfer->name ?? '-') . ' (Departure)'),
+                        'location' => (string) ($transfer->departure_point_name ?? '-'),
+                        'lat' => (float) $departureLat,
+                        'lng' => (float) $departureLng,
+                        'day_number' => $day,
+                        'visit_order' => (int) ($transferItem->visit_order ?? 999999),
+                        'map_order' => ((int) ($transferItem->visit_order ?? 999999)) * 10,
+                        'travel_minutes_to_next' => 0,
+                        'route_to_next_coords' => $transferRouteCoords,
+                    ]);
+                }
+                if (is_numeric($arrivalLat) && is_numeric($arrivalLng)) {
+                    $mapPoints->push([
+                        'type' => 'transfer',
+                        'transfer_role' => 'arrival',
+                        'transfer_id' => (int) ($transferItem->island_transfer_id ?? 0),
+                        'transfer_pair_key' => (string) ('transfer-' . (int) ($transferItem->island_transfer_id ?? 0) . '-day-' . $day . '-order-' . (int) ($transferItem->visit_order ?? 999999)),
+                        'name' => (string) (($transfer->name ?? '-') . ' (Arrival)'),
+                        'location' => (string) ($transfer->arrival_point_name ?? '-'),
+                        'lat' => (float) $arrivalLat,
+                        'lng' => (float) $arrivalLng,
+                        'day_number' => $day,
+                        'visit_order' => ((int) ($transferItem->visit_order ?? 999999)) + 1,
+                        'map_order' => (((int) ($transferItem->visit_order ?? 999999)) * 10) + 1,
+                        'travel_minutes_to_next' => $transferItem->travel_minutes_to_next !== null
+                            ? max(0, (int) $transferItem->travel_minutes_to_next)
+                            : null,
+                    ]);
+                }
             }
             foreach (($foodBeverageDayGroups[$day] ?? collect()) as $foodBeverageItem) {
                 $lat = $foodBeverageItem->foodBeverage->vendor->latitude ?? null;
@@ -655,6 +810,7 @@
                     'lng' => (float) $lng,
                     'day_number' => $day,
                     'visit_order' => (int) ($foodBeverageItem->visit_order ?? 999999),
+                    'map_order' => ((int) ($foodBeverageItem->visit_order ?? 999999)) * 10,
                     'travel_minutes_to_next' => $foodBeverageItem->travel_minutes_to_next !== null
                         ? max(0, (int) $foodBeverageItem->travel_minutes_to_next)
                         : null,
@@ -670,6 +826,7 @@
                     'lng' => (float) $endData['lng'],
                     'day_number' => $day,
                     'visit_order' => 999999,
+                    'map_order' => 9999999,
                     'travel_minutes_to_next' => null,
                 ]);
             }
@@ -703,7 +860,7 @@
     </style>
     <script>
         (function () {
-            const points = @json($mapPoints->sortBy(fn ($point) => ((int) $point['day_number'] * 1000000) + (int) $point['visit_order'])->values());
+            const points = @json($mapPoints->sortBy(fn ($point) => ((int) $point['day_number'] * 10000000) + (int) ($point['map_order'] ?? $point['visit_order']))->values());
             let isInitialized = false;
             let leafletFallbackRequested = false;
 
@@ -726,11 +883,12 @@
 
             const normalizeType = (type) => {
                 const value = String(type || '').toLowerCase().trim();
-                return ['attraction', 'activity', 'fnb', 'hotel', 'airport'].includes(value) ? value : 'attraction';
+                return ['attraction', 'activity', 'transfer', 'fnb', 'hotel', 'airport'].includes(value) ? value : 'attraction';
             };
             const iconByType = (type) => {
                 const normalized = normalizeType(type);
                 if (normalized === 'activity') return 'fa-solid fa-person-hiking';
+                if (normalized === 'transfer') return 'fa-solid fa-ship';
                 if (normalized === 'fnb') return 'fa-solid fa-utensils';
                 if (normalized === 'airport') return 'fa-solid fa-plane';
                 if (normalized === 'hotel') return 'fa-solid fa-bed';
@@ -762,17 +920,52 @@
                 const markerType = normalizeType(type);
                 const color = markerType === 'activity'
                     ? '#059669'
-                    : (markerType === 'fnb'
+                    : (markerType === 'transfer'
+                        ? '#7c3aed'
+                        : (markerType === 'fnb'
                         ? '#d97706'
                         : (markerType === 'airport'
                             ? '#0284c7'
-                            : (markerType === 'hotel' ? '#0f766e' : '#1d4ed8')));
+                            : (markerType === 'hotel' ? '#0f766e' : '#1d4ed8'))));
                 return L.divIcon({
                     className: 'itinerary-show-map-marker-icon',
                     html: `<span style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:9999px;background:${color};color:#fff;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.25);font-size:12px;position:relative"><i class="${iconByType(markerType)}"></i><span style="position:absolute;right:-5px;bottom:-5px;min-width:14px;height:14px;border-radius:9999px;background:#111827;color:#fff;border:1px solid #fff;font-size:9px;line-height:14px;text-align:center;padding:0 3px">${order}</span></span>`,
                     iconSize: [28, 28],
                     iconAnchor: [14, 14],
                 });
+            };
+            const normalizeRouteToNextCoords = (routeCoords) => {
+                if (!Array.isArray(routeCoords)) return [];
+                const normalized = routeCoords
+                    .map((coordinate) => {
+                        if (!coordinate) return null;
+                        const lat = coordinate?.lat ?? coordinate?.[1] ?? null;
+                        const lng = coordinate?.lng ?? coordinate?.[0] ?? null;
+                        return toLatLng(lat, lng);
+                    })
+                    .filter((point) => point && Number.isFinite(point.lat) && Number.isFinite(point.lng));
+                return normalized.length >= 2 ? normalized : [];
+            };
+            const orientSegmentCoords = (segmentCoords, fromPoint, toPoint) => {
+                if (!Array.isArray(segmentCoords) || segmentCoords.length < 2 || !fromPoint || !toPoint) {
+                    return Array.isArray(segmentCoords) ? segmentCoords : [];
+                }
+                const first = segmentCoords[0];
+                const last = segmentCoords[segmentCoords.length - 1];
+                if (!first || !last) return segmentCoords;
+
+                const distanceSq = (a, b) => {
+                    const dLat = Number(a.lat) - Number(b.lat);
+                    const dLng = Number(a.lng) - Number(b.lng);
+                    return (dLat * dLat) + (dLng * dLng);
+                };
+
+                const normalScore = distanceSq(first, fromPoint) + distanceSq(last, toPoint);
+                const reversedScore = distanceSq(last, fromPoint) + distanceSq(first, toPoint);
+                if (reversedScore + 1e-12 < normalScore) {
+                    return segmentCoords.slice().reverse();
+                }
+                return segmentCoords;
             };
 
             const validPoints = (Array.isArray(points) ? points : [])
@@ -785,12 +978,16 @@
                         lng: normalized.lng,
                         day_number: Number(point?.day_number || 0),
                         visit_order: Number(point?.visit_order || 0),
+                        map_order: Number(point?.map_order ?? point?.visit_order ?? 0),
                         type: normalizeType(point?.type),
                         travel_minutes_to_next: Number(point?.travel_minutes_to_next ?? 0),
+                        route_to_next_coords: normalizeRouteToNextCoords(point?.route_to_next_coords),
+                        transfer_role: String(point?.transfer_role || ''),
+                        transfer_pair_key: String(point?.transfer_pair_key || ''),
                     };
                 })
                 .filter((point) => point && point.day_number > 0)
-                .sort((a, b) => (a.day_number - b.day_number) || (a.visit_order - b.visit_order));
+                .sort((a, b) => (a.day_number - b.day_number) || (a.map_order - b.map_order) || (a.visit_order - b.visit_order));
 
             const map = L.map(mapElement, {
                 zoomControl: true,
@@ -849,27 +1046,6 @@
                     if (latLng) routePoints.push(latLng);
                 });
                 return routePoints.length >= 2 ? routePoints : null;
-            };
-            const fetchRoadRouteForDay = async (dayLatLngPoints, signal) => {
-                if (!Array.isArray(dayLatLngPoints) || dayLatLngPoints.length < 2) return null;
-                // Build road-following route segment-by-segment to avoid URL length limits.
-                const mergedRoute = [];
-                const segmentRoutes = [];
-                for (let index = 0; index < dayLatLngPoints.length - 1; index += 1) {
-                    const from = dayLatLngPoints[index];
-                    const to = dayLatLngPoints[index + 1];
-                    const segment = await fetchRoadRouteGeometry([from, to], signal);
-                    if (!Array.isArray(segment) || segment.length < 2) {
-                        return null;
-                    }
-                    segmentRoutes.push(segment);
-                    if (mergedRoute.length === 0) {
-                        mergedRoute.push(...segment);
-                    } else {
-                        mergedRoute.push(...segment.slice(1));
-                    }
-                }
-                return mergedRoute.length >= 2 ? { mergedRoute, segmentRoutes } : null;
             };
             const midpointOfRoute = (routeCoords) => {
                 if (!Array.isArray(routeCoords) || routeCoords.length === 0) return null;
@@ -961,24 +1137,68 @@
                 for (const dayNumber of orderedDays) {
                     const dayPointEntries = pointsByDay[String(dayNumber)]
                         .slice()
-                        .sort((a, b) => (a.visit_order - b.visit_order));
+                        .sort((a, b) => (a.map_order - b.map_order) || (a.visit_order - b.visit_order));
                     const dayLatLngPoints = dayPointEntries
                         .map((point) => toLatLng(point.lat, point.lng))
                         .filter((point) => point && Number.isFinite(point.lat) && Number.isFinite(point.lng));
                     if (dayLatLngPoints.length < 2) continue;
 
                     const color = routePalette[(dayNumber - 1) % routePalette.length];
-                    let roadRouteData = null;
-                    try {
-                        roadRouteData = await fetchRoadRouteForDay(dayLatLngPoints, routeSignal);
-                        if (currentToken !== routeRenderToken) return;
-                    } catch (_) {}
-                    if (!roadRouteData || !Array.isArray(roadRouteData.mergedRoute) || roadRouteData.mergedRoute.length < 2) {
-                        // Explicitly skip drawing if road route cannot be resolved.
+                    const segmentRoutes = [];
+                    const mergedRoute = [];
+                    let canRenderDayRoute = true;
+                    for (let index = 0; index < dayPointEntries.length - 1; index += 1) {
+                        const fromPoint = dayPointEntries[index];
+                        const toPoint = dayPointEntries[index + 1];
+                        const from = dayLatLngPoints[index];
+                        const to = dayLatLngPoints[index + 1];
+                        const isTransferSegment =
+                            normalizeType(fromPoint?.type) === 'transfer' &&
+                            normalizeType(toPoint?.type) === 'transfer';
+                        const isMatchingTransferPair =
+                            isTransferSegment &&
+                            fromPoint?.transfer_role === 'departure' &&
+                            toPoint?.transfer_role === 'arrival' &&
+                            fromPoint?.transfer_pair_key !== '' &&
+                            fromPoint?.transfer_pair_key === toPoint?.transfer_pair_key;
+                        let segment = isMatchingTransferPair &&
+                            Array.isArray(fromPoint?.route_to_next_coords) &&
+                            fromPoint.route_to_next_coords.length >= 2
+                            ? fromPoint.route_to_next_coords
+                            : null;
+                        if (segment) {
+                            segment = orientSegmentCoords(segment, from, to);
+                        }
+                        if (isMatchingTransferPair && !segment) {
+                            continue;
+                        }
+                        if (!segment) {
+                            try {
+                                segment = await fetchRoadRouteGeometry([from, to], routeSignal);
+                                if (currentToken !== routeRenderToken) return;
+                            } catch (_) {
+                                segment = null;
+                            }
+                            if (segment) {
+                                segment = orientSegmentCoords(segment, from, to);
+                            }
+                        }
+                        if (!Array.isArray(segment) || segment.length < 2) {
+                            canRenderDayRoute = false;
+                            break;
+                        }
+                        segmentRoutes.push(segment);
+                        if (mergedRoute.length === 0) {
+                            mergedRoute.push(...segment);
+                        } else {
+                            mergedRoute.push(...segment.slice(1));
+                        }
+                    }
+                    if (!canRenderDayRoute || mergedRoute.length < 2) {
                         continue;
                     }
 
-                    L.polyline(roadRouteData.mergedRoute, {
+                    L.polyline(mergedRoute, {
                         color,
                         weight: 4,
                         opacity: 0.9,
@@ -991,7 +1211,7 @@
                     for (let index = 0; index < dayPointEntries.length - 1; index += 1) {
                         const minutes = Math.max(0, Math.round(Number(dayPointEntries[index]?.travel_minutes_to_next ?? 0)));
                         if (!Number.isFinite(minutes) || minutes <= 0) continue;
-                        const segmentRoute = roadRouteData.segmentRoutes?.[index] ?? null;
+                        const segmentRoute = segmentRoutes[index] ?? null;
                         const labelLatLng = midpointOfRoute(segmentRoute);
                         if (!labelLatLng) continue;
                         const dayMarkerList = dayMarkers[String(dayNumber)] || [];

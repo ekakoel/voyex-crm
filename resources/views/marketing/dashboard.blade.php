@@ -108,7 +108,7 @@
                                     @endif
                                 </div>
                                 <p class="{{ $isOverdue ? 'text-rose-600 dark:text-rose-300' : 'text-slate-500 dark:text-slate-400' }}">
-                                    Due {{ optional($followUp->due_date)->format('d M Y') ?? '-' }}
+                                    Due {{ \App\Support\DateTimeDisplay::date(optional($followUp->due_date)) }}
                                 </p>
                             </a>
                         @empty
@@ -133,7 +133,7 @@
                                 </div>
                                  <div class="mt-1 flex items-center justify-between text-xs">
                                     <span class="text-slate-500 dark:text-slate-400">Customer: {{ $inquiry->customer->name ?? 'N/A' }}</span>
-                                    <span class="text-slate-500 dark:text-slate-400">{{ $inquiry->created_at->format('d M Y') }}</span>
+                                    <span class="text-slate-500 dark:text-slate-400">{{ \App\Support\DateTimeDisplay::date($inquiry->created_at) }}</span>
                                 </div>
                             </a>
                         @empty
@@ -158,4 +158,7 @@
     })();
 </script>
 @endpush
+
+
+
 

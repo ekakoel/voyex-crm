@@ -8,6 +8,7 @@ use App\Models\Activity;
 use App\Models\FoodBeverage;
 use App\Models\HotelRoom;
 use App\Models\Inquiry;
+use App\Models\IslandTransfer;
 use App\Models\Itinerary;
 use App\Models\Quotation;
 use App\Models\QuotationApproval;
@@ -302,7 +303,9 @@ class QuotationController extends Controller
             DB::commit();
         } catch (\Throwable $e) {
             DB::rollBack();
-            return back()->with('error', 'Failed to save quotation. Please check the data.');
+            return back()
+                ->withInput()
+                ->with('error', 'Failed to save quotation. Please check the data.');
         }
 
         return redirect()
@@ -331,7 +334,7 @@ class QuotationController extends Controller
             'updater',
             'approvals.user',
         ]);
-        $this->quotationValidationService->syncValidationRequirementsAndMasterRates($quotation);
+        $this->quotationValidationService->syncValidationRequirements($quotation);
         $approvalProgress = $this->buildApprovalProgress($quotation);
         $validationProgress = $this->quotationValidationService->getProgress($quotation);
         $kpiSummary = $this->computeQuotationKpiSummary($quotation);
@@ -369,7 +372,7 @@ class QuotationController extends Controller
             return $this->denyQuotationMutation($quotation);
         }
         $quotation->load(['items', 'itinerary.inquiry.customer', 'itinerary.inquiry.assignedUser', 'itinerary.creator', 'comments.user', 'approvedBy', 'approvalNoteBy', 'approvals.user']);
-        $this->quotationValidationService->syncValidationRequirementsAndMasterRates($quotation);
+        $this->quotationValidationService->syncValidationRequirements($quotation);
 
         $itineraries = $this->availableItinerariesQuery((int) ($quotation->itinerary_id ?? 0))
             ->where(function ($query) use ($quotation) {
@@ -525,7 +528,9 @@ class QuotationController extends Controller
             DB::commit();
         } catch (\Throwable $e) {
             DB::rollBack();
-            return back()->with('error', 'Failed to save quotation. Please check the data.');
+            return back()
+                ->withInput()
+                ->with('error', 'Failed to save quotation. Please check the data.');
         }
 
         return redirect()
@@ -791,6 +796,8 @@ class QuotationController extends Controller
             'touristAttractions:id,name,location,latitude,longitude,description,gallery_images',
             'itineraryActivities.activity:id,vendor_id,name,activity_type,duration_minutes,adult_publish_rate,child_publish_rate,notes,includes,excludes,gallery_images',
             'itineraryActivities.activity.vendor:id,name,location,city,province,latitude,longitude',
+            'itineraryIslandTransfers.islandTransfer:id,vendor_id,name,transfer_type,departure_point_name,arrival_point_name,duration_minutes,notes',
+            'itineraryIslandTransfers.islandTransfer.vendor:id,name,location,city,province,latitude,longitude',
             'itineraryFoodBeverages.foodBeverage:id,vendor_id,name,service_type,duration_minutes,publish_rate,meal_period,notes,menu_highlights,gallery_images',
             'itineraryFoodBeverages.foodBeverage.vendor:id,name,location,city,province,latitude,longitude',
             'itineraryTransportUnits.transportUnit:id,name,brand_model,seat_capacity,luggage_capacity,air_conditioned,with_driver,images',
@@ -898,16 +905,18 @@ class QuotationController extends Controller
         for ($day = 1; $day <= (int) $itinerary->duration_days; $day++) {
             $dayPoint = $dayPointByDay[$day] ?? null;
             $mainExperienceType = (string) ($dayPoint?->main_experience_type ?? '');
-            if (! in_array($mainExperienceType, ['attraction', 'activity', 'fnb'], true)) {
+            if (! in_array($mainExperienceType, ['attraction', 'activity', 'transfer', 'fnb'], true)) {
                 $mainExperienceType = '';
             }
             $mainExperienceId = $mainExperienceType === 'attraction'
                 ? (int) ($dayPoint?->main_tourist_attraction_id ?? 0)
                 : ($mainExperienceType === 'activity'
                     ? (int) ($dayPoint?->main_activity_id ?? 0)
-                    : ($mainExperienceType === 'fnb'
+                    : ($mainExperienceType === 'transfer'
+                        ? (int) ($dayPoint?->main_island_transfer_id ?? 0)
+                        : ($mainExperienceType === 'fnb'
                         ? (int) ($dayPoint?->main_food_beverage_id ?? 0)
-                        : 0));
+                        : 0)));
 
             $attractions = $itinerary->touristAttractions
                 ->filter(fn ($attraction) => (int) ($attraction->pivot->day_number ?? 0) === $day)
@@ -974,7 +983,27 @@ class QuotationController extends Controller
                     ];
                 });
 
-            $items = $attractions->merge($activities)->merge($foodBeverages)
+            $islandTransfers = $itinerary->itineraryIslandTransfers
+                ->filter(fn ($item) => (int) ($item->day_number ?? 0) === $day)
+                ->map(function ($item) {
+                    $transfer = $item->islandTransfer;
+                    return [
+                        'type' => 'Island Transfer',
+                        'source_type' => 'transfer',
+                        'source_id' => (int) ($item->island_transfer_id ?? 0),
+                        'name' => (string) ($transfer->name ?? '-'),
+                        'location' => trim((string) (($transfer->departure_point_name ?? '-') . ' -> ' . ($transfer->arrival_point_name ?? '-'))),
+                        'description' => (string) ($transfer->notes ?? '-'),
+                        'thumbnail_data_uri' => null,
+                        'pax' => (int) ($item->pax ?? 0),
+                        'start_time' => $item->start_time ? substr((string) $item->start_time, 0, 5) : '--:--',
+                        'end_time' => $item->end_time ? substr((string) $item->end_time, 0, 5) : '--:--',
+                        'travel_minutes_to_next' => $item->travel_minutes_to_next,
+                        'visit_order' => (int) ($item->visit_order ?? 999999),
+                    ];
+                });
+
+            $items = $attractions->merge($activities)->merge($islandTransfers)->merge($foodBeverages)
                 ->sortBy('visit_order')
                 ->values()
                 ->map(function (array $item) use ($mainExperienceType, $mainExperienceId) {
@@ -1232,7 +1261,7 @@ SVG;
         if ($quotation->isFinal()) {
             return redirect()->back()->with('error', 'Final quotation cannot be modified.');
         }
-        $this->quotationValidationService->syncValidationRequirementsAndMasterRates($quotation);
+        $this->quotationValidationService->syncValidationRequirements($quotation);
         if (! $this->quotationValidationService->canBeApproved($quotation)) {
             return redirect()
                 ->route('quotations.show', $quotation)
@@ -1485,6 +1514,7 @@ SVG;
             TouristAttraction::class,
             Activity::class,
             FoodBeverage::class,
+            IslandTransfer::class,
             TransportUnit::class,
             HotelRoom::class,
         ];
@@ -1499,6 +1529,7 @@ SVG;
             'transport_day',
             'attraction',
             'activity',
+            'transfer',
             'fnb',
             'hotel_day_end',
             'manual',

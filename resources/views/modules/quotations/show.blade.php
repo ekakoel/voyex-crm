@@ -298,6 +298,30 @@
                         ></div>
                     </div>
 
+                    @php
+                        $validators = collect($validationProgress['validators'] ?? []);
+                    @endphp
+                    @if ($validators->isNotEmpty())
+                        <div class="rounded-lg border border-gray-200 p-3 dark:border-gray-700">
+                            <div class="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                                {{ __('ui.common.validated_by') }} ({{ (int) ($validationProgress['validators_count'] ?? $validators->count()) }})
+                            </div>
+                            <ul class="space-y-1.5 text-xs text-gray-700 dark:text-gray-200">
+                                @foreach ($validators as $validator)
+                                    <li class="flex items-center justify-between gap-2">
+                                        <span class="font-medium">{{ $validator['name'] ?? '-' }}</span>
+                                        <span class="whitespace-nowrap text-right text-gray-500 dark:text-gray-400">
+                                            {{ (int) ($validator['validated_items'] ?? 0) }} item
+                                            @if (!empty($validator['last_validated_at']))
+                                                - <x-local-time :value="$validator['last_validated_at']" />
+                                            @endif
+                                        </span>
+                                    </li>
+                                @endforeach
+                            </ul>
+                        </div>
+                    @endif
+
                     @if (($canValidateQuotation ?? false) === true)
                         <a href="{{ route('quotations.validate.show', $quotation) }}" class="btn-outline w-full justify-center">
                             {{ __('ui.modules.quotations.validate_quotation') }}

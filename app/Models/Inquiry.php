@@ -81,6 +81,15 @@ class Inquiry extends Model
         return $this->status === self::FINAL_STATUS;
     }
 
+    public function isAssignedTo(?User $user): bool
+    {
+        if (! $user) {
+            return false;
+        }
+
+        return (int) ($this->assigned_to ?? 0) === (int) $user->id;
+    }
+
     protected static function boot()
     {
         parent::boot();
@@ -132,7 +141,6 @@ class Inquiry extends Model
         return $letters;
     }
 }
-
 
 
 

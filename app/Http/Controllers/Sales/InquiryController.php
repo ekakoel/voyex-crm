@@ -102,7 +102,7 @@ class InquiryController extends Controller
                 'customer',
                 'assignedUser',
                 'quotation:id,inquiry_id,status',
-                'itineraries:id,inquiry_id,title,is_active,updated_at',
+                'itineraries:id,inquiry_id,title,status,is_active,updated_at',
             ])
             ->withCount('itineraries');
 
@@ -536,30 +536,12 @@ class InquiryController extends Controller
 
     private function canManageFollowUp(Inquiry $inquiry): bool
     {
-        $user = auth()->user();
-        if (! $user) {
-            return false;
-        }
-
-        if ($user->can('module.inquiries.update')) {
-            return true;
-        }
-
-        return $user->can('update', $inquiry);
+        return $this->canManageInquiry($inquiry, 'update');
     }
 
     private function canMarkFollowUpDone(Inquiry $inquiry): bool
     {
-        $user = auth()->user();
-        if (! $user) {
-            return false;
-        }
-
-        if ($user->can('module.inquiries.update')) {
-            return true;
-        }
-
-        return (int) ($inquiry->assigned_to ?? 0) === (int) $user->id;
+        return $this->canManageInquiry($inquiry, 'update');
     }
 
     private function canResetFollowUpReminder(): bool
@@ -595,4 +577,3 @@ class InquiryController extends Controller
     }
 
 }
-

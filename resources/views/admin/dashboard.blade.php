@@ -17,7 +17,7 @@
     @section('page_title', $dashboardTitle ?? 'Administrator Dashboard')
     @section('page_subtitle', $dashboardSubtitle ?? "Welcome back, ".auth()->user()->name.". Here's your performance overview.")
     @section('page_actions')
-        <span class="text-sm font-medium text-gray-600 dark:text-gray-300">{{ \Carbon\Carbon::now()->format('l, j F Y') }}</span>
+        <span class="text-sm font-medium text-gray-600 dark:text-gray-300">{{ \App\Support\DateTimeDisplay::date(now()) }}</span>
     @endsection
 
     @if (! ($isEditor ?? false))
@@ -213,7 +213,7 @@
                         </div>
                         <div>
                             <p class="font-semibold text-gray-700 dark:text-gray-200">{{ $q->quotation_number }}</p>
-                            <p class="text-sm text-red-500">Expires: {{ \Carbon\Carbon::parse($q->validity_date)->diffForHumans() }}</p>
+                            <p class="text-sm text-red-500">Expires: {{ \App\Support\DateTimeDisplay::date($q->validity_date) }}</p>
                         </div>
                     </div>
                 @empty
@@ -246,7 +246,7 @@
                             {{ $b->booking_number }}
                         </th>
                         <td class="px-6 py-4">
-                            {{ \Carbon\Carbon::parse($b->travel_date)->format('d M Y') }}
+                            {{ \App\Support\DateTimeDisplay::date($b->travel_date) }}
                         </td>
                         <td class="px-6 py-4">
                             <span class="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300">
@@ -360,5 +360,10 @@
     @endif
     @endpush
 @endsection
+
+
+
+
+
 
 

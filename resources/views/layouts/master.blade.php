@@ -934,7 +934,7 @@
             if (Number.isNaN(parsed.getTime())) return;
 
             const showTimezone = node.hasAttribute('data-local-timezone');
-            const formatter = new Intl.DateTimeFormat(undefined, {
+            const parts = new Intl.DateTimeFormat('en-CA', {
                 year: 'numeric',
                 month: '2-digit',
                 day: '2-digit',
@@ -942,10 +942,19 @@
                 minute: '2-digit',
                 hour12: false,
                 timeZone: timezone,
-                timeZoneName: showTimezone ? 'short' : undefined,
-            });
+            }).formatToParts(parsed);
+            const map = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+            const formatted = `${map.year}-${map.month}-${map.day} (${map.hour}:${map.minute})`;
 
-            node.textContent = formatter.format(parsed);
+            if (showTimezone) {
+                const tzName = new Intl.DateTimeFormat('en', {
+                    timeZone: timezone,
+                    timeZoneName: 'short',
+                }).formatToParts(parsed).find((part) => part.type === 'timeZoneName')?.value;
+                node.textContent = tzName ? `${formatted} ${tzName}` : formatted;
+            } else {
+                node.textContent = formatted;
+            }
             node.setAttribute('title', `${iso} UTC`);
         });
     }

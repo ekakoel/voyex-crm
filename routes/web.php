@@ -8,6 +8,7 @@ use App\Http\Controllers\Admin\CurrencyController as AdminCurrencyController;
 use App\Http\Controllers\Admin\DestinationController as AdminDestinationController;
 use App\Http\Controllers\Admin\FoodBeverageController as AdminFoodBeverageController;
 use App\Http\Controllers\Admin\HotelController as AdminHotelController;
+use App\Http\Controllers\Admin\IslandTransferController as AdminIslandTransferController;
 use App\Http\Controllers\Admin\TransportController as AdminTransportController;
 use App\Http\Controllers\Admin\RoleController as AdminRoleController;
 use App\Http\Controllers\Admin\ServiceController as AdminServiceController;
@@ -575,6 +576,13 @@ Route::middleware('auth')->group(function () {
                 'permission:module.activities.access',
                 'module.permission:activities',
             ]);
+        Route::resource('island-transfers', AdminIslandTransferController::class)
+            ->except(['show'])
+            ->middleware([
+                'module:island_transfers',
+                'permission:module.island_transfers.access',
+                'module.permission:island_transfers',
+            ]);
         Route::get('activities/{activity}', [AdminActivityController::class, 'show'])
             ->name('activities.show')
             ->middleware([
@@ -582,12 +590,26 @@ Route::middleware('auth')->group(function () {
                 'permission:module.activities.access',
                 'module.permission:activities',
             ]);
+        Route::get('island-transfers/{island_transfer}', [AdminIslandTransferController::class, 'show'])
+            ->name('island-transfers.show')
+            ->middleware([
+                'module:island_transfers',
+                'permission:module.island_transfers.access',
+                'module.permission:island_transfers',
+            ]);
         Route::patch('activities/{activity}/toggle-status', [AdminActivityController::class, 'toggleStatus'])
             ->name('activities.toggle-status')
             ->middleware([
                 'module:activities',
                 'permission:module.activities.access',
                 'module.permission:activities',
+            ]);
+        Route::patch('island-transfers/{island_transfer}/toggle-status', [AdminIslandTransferController::class, 'toggleStatus'])
+            ->name('island-transfers.toggle-status')
+            ->middleware([
+                'module:island_transfers',
+                'permission:module.island_transfers.access',
+                'module.permission:island_transfers',
             ]);
     Route::post('activities/{activity}/gallery-images/remove', [AdminActivityController::class, 'removeGalleryImage'])
         ->name('activities.gallery-images.remove')

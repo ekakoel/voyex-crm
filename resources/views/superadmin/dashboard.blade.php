@@ -18,7 +18,7 @@
                 @section('page_title', 'Super Admin Analytics')
                 @section('page_subtitle', 'Data refreshes when the page is opened or manually refreshed.')
                 @section('page_actions')
-                    <span class="text-xs text-slate-500 dark:text-slate-400">Last loaded: {{ now()->format('d M Y H:i') }}</span>
+                    <span class="text-xs text-slate-500 dark:text-slate-400">Last loaded: {{ \App\Support\DateTimeDisplay::datetime(now()) }}</span>
                 @endsection
 
                 <div class="mt-4 grid grid-cols-1 gap-3 xl:grid-cols-12">
@@ -148,7 +148,7 @@
                         @forelse($recentSystemHistory as $entry)
                             <div class="rounded-xl bg-slate-50 px-3 py-2 text-sm dark:bg-slate-900">
                                 <p class="font-medium text-slate-700 dark:text-slate-200">{{ $entry['type'] }} - {{ $entry['title'] }}</p>
-                                <p class="text-xs text-slate-500 dark:text-slate-400">{{ $entry['meta'] }} � {{ \Illuminate\Support\Carbon::parse($entry['updated_at'])->diffForHumans() }}</p>
+                                <p class="text-xs text-slate-500 dark:text-slate-400">{{ $entry['meta'] }} - {{ \App\Support\DateTimeDisplay::datetime($entry['updated_at']) }}</p>
                             </div>
                         @empty
                             <p class="text-sm text-slate-500 dark:text-slate-400">No history yet.</p>
@@ -247,5 +247,7 @@
 @push('scripts')
 {{-- Scripts are not changed --}}
 @endpush
+
+
 
 

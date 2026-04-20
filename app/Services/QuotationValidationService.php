@@ -7,6 +7,7 @@ use App\Models\FoodBeverage;
 use App\Models\Hotel;
 use App\Models\HotelPrice;
 use App\Models\HotelRoom;
+use App\Models\IslandTransfer;
 use App\Models\Quotation;
 use App\Models\QuotationItem;
 use App\Models\QuotationItemValidation;
@@ -14,6 +15,7 @@ use App\Models\ServiceRateHistory;
 use App\Models\TouristAttraction;
 use App\Models\Transport;
 use App\Models\TransportUnit;
+use App\Models\User;
 use App\Models\Vendor;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Support\Arr;
@@ -43,6 +45,7 @@ class QuotationValidationService
                     $morphTo->morphWith([
                         Activity::class => ['vendor:id,name,contact_name,contact_email,contact_phone,website,address,location'],
                         FoodBeverage::class => ['vendor:id,name,contact_name,contact_email,contact_phone,website,address,location'],
+                        IslandTransfer::class => ['vendor:id,name,contact_name,contact_email,contact_phone,website,address,location'],
                         Transport::class => ['vendor:id,name,contact_name,contact_email,contact_phone,website,address,location'],
                         TransportUnit::class => ['vendor:id,name,contact_name,contact_email,contact_phone,website,address,location'],
                         TouristAttraction::class => ['destination:id,name'],
@@ -84,6 +87,7 @@ class QuotationValidationService
                 $morphTo->morphWith([
                     Activity::class => ['vendor:id,name,contact_name,contact_email,contact_phone,website,address,location'],
                     FoodBeverage::class => ['vendor:id,name,contact_name,contact_email,contact_phone,website,address,location'],
+                    IslandTransfer::class => ['vendor:id,name,contact_name,contact_email,contact_phone,website,address,location'],
                     Transport::class => ['vendor:id,name,contact_name,contact_email,contact_phone,website,address,location'],
                     TransportUnit::class => ['vendor:id,name,contact_name,contact_email,contact_phone,website,address,location'],
                     TouristAttraction::class => ['destination:id,name'],
@@ -108,6 +112,7 @@ class QuotationValidationService
             ]) ?? '-';
         } elseif ($serviceable instanceof Activity
             || $serviceable instanceof FoodBeverage
+            || $serviceable instanceof IslandTransfer
             || $serviceable instanceof TransportUnit
             || $serviceable instanceof Transport
             || $serviceable instanceof TouristAttraction) {
@@ -123,7 +128,7 @@ class QuotationValidationService
         $contactWebsite = '-';
         $contactAddress = '-';
 
-        if ($serviceable instanceof Activity || $serviceable instanceof FoodBeverage || $serviceable instanceof TransportUnit || $serviceable instanceof Transport) {
+        if ($serviceable instanceof Activity || $serviceable instanceof FoodBeverage || $serviceable instanceof IslandTransfer || $serviceable instanceof TransportUnit || $serviceable instanceof Transport) {
             $vendor = $serviceable->vendor;
             if (! $vendor && (int) ($serviceable->vendor_id ?? 0) > 0) {
                 $vendor = Vendor::withTrashed()->find((int) $serviceable->vendor_id);
@@ -231,6 +236,7 @@ class QuotationValidationService
                     $morphTo->morphWith([
                         Activity::class => ['vendor:id,name,contact_name,contact_email,contact_phone,website,address,location'],
                         FoodBeverage::class => ['vendor:id,name,contact_name,contact_email,contact_phone,website,address,location'],
+                        IslandTransfer::class => ['vendor:id,name,contact_name,contact_email,contact_phone,website,address,location'],
                         Transport::class => ['vendor:id,name,contact_name,contact_email,contact_phone,website,address,location'],
                         TransportUnit::class => ['vendor:id,name,contact_name,contact_email,contact_phone,website,address,location'],
                         HotelRoom::class => ['hotel:id,name,contact_person,phone,address,web'],
@@ -348,7 +354,7 @@ class QuotationValidationService
     public function saveProgress(Quotation $quotation, array $itemsPayload, int $actorId): array
     {
         return DB::transaction(function () use ($quotation, $itemsPayload, $actorId): array {
-            $this->syncValidationRequirements($quotation);
+            $this->syncValidationRequirements($quotation, false);
             $quotation->loadMissing('items');
 
             foreach ($itemsPayload as $itemId => $payload) {
@@ -381,7 +387,8 @@ class QuotationValidationService
         }
 
         return DB::transaction(function () use ($quotation, $item, $payload, $actorId): array {
-            $this->syncValidationRequirements($quotation);
+            $item->refresh();
+            $this->syncValidationRequirementForItem($item);
             $item->refresh();
 
             if (! (bool) ($item->is_validation_required ?? false)) {
@@ -399,7 +406,7 @@ class QuotationValidationService
     public function validateSelected(Quotation $quotation, array $itemIds, int $actorId): array
     {
         return DB::transaction(function () use ($quotation, $itemIds, $actorId): array {
-            $this->syncValidationRequirements($quotation);
+            $this->syncValidationRequirements($quotation, false);
             $quotation->loadMissing('items');
 
             foreach ($itemIds as $itemId) {
@@ -418,8 +425,8 @@ class QuotationValidationService
     public function finalize(Quotation $quotation, int $actorId): array
     {
         return DB::transaction(function () use ($quotation, $actorId): array {
-            $this->syncValidationRequirements($quotation);
-            $progress = $this->refreshProgress($quotation, $actorId);
+            $quotation->refresh();
+            $progress = $this->getProgress($quotation);
 
             if ((int) $progress['total_required'] <= 0) {
                 throw ValidationException::withMessages([
@@ -444,53 +451,65 @@ class QuotationValidationService
 
             $this->logQuotationFinalValidation($quotation, $actorId);
 
-            return $this->getProgress($quotation->fresh('items'));
+            return $this->getProgress($quotation->fresh());
         });
     }
 
-    public function syncValidationRequirements(Quotation $quotation): void
+    public function syncValidationRequirements(Quotation $quotation, bool $refreshProgress = true): void
     {
         $quotation->loadMissing('items');
 
         foreach ($quotation->items as $item) {
-            $required = $this->isValidationRequired($item);
-
-            $patch = [];
-            if ((bool) ($item->is_validation_required ?? false) !== $required) {
-                $patch['is_validation_required'] = $required;
-            }
-
-            if (! $required && (bool) ($item->is_validated ?? false)) {
-                $patch['is_validated'] = false;
-                $patch['validated_at'] = null;
-                $patch['validated_by'] = null;
-            }
-
-            if ($patch !== []) {
-                $item->fill($patch);
-                $item->save();
-            }
+            $this->syncValidationRequirementForItem($item);
         }
 
-        $this->refreshProgress($quotation);
+        if ($refreshProgress) {
+            $this->refreshProgress($quotation);
+        }
     }
 
     public function syncValidationRequirementsAndMasterRates(Quotation $quotation): void
     {
-        $this->syncValidationRequirements($quotation);
+        $this->syncValidationRequirements($quotation, false);
         $this->syncRatesFromMaster($quotation);
+        $this->refreshProgress($quotation);
     }
 
     public function getProgress(Quotation $quotation): array
     {
-        $quotation->loadMissing('items');
-
-        $totalItems = (int) $quotation->items->count();
-        $totalRequired = (int) $quotation->items->where('is_validation_required', true)->count();
-        $totalValidated = (int) $quotation->items
-            ->where('is_validation_required', true)
+        $itemsQuery = $quotation->items();
+        $totalItems = (int) (clone $itemsQuery)->count();
+        $requiredQuery = (clone $itemsQuery)->where('is_validation_required', true);
+        $totalRequired = (int) (clone $requiredQuery)->count();
+        $totalValidated = (int) (clone $requiredQuery)
             ->where('is_validated', true)
             ->count();
+
+        $validatorRows = (clone $requiredQuery)
+            ->where('is_validated', true)
+            ->whereNotNull('validated_by')
+            ->selectRaw('validated_by, COUNT(*) as validated_items, MAX(validated_at) as last_validated_at')
+            ->groupBy('validated_by')
+            ->orderByRaw('MAX(validated_at) DESC')
+            ->get();
+        $validatorIds = $validatorRows
+            ->pluck('validated_by')
+            ->filter(fn ($id) => (int) $id > 0)
+            ->map(fn ($id) => (int) $id)
+            ->values()
+            ->all();
+        $validatorNames = User::query()
+            ->whereIn('id', $validatorIds)
+            ->pluck('name', 'id');
+        $validators = $validatorRows->map(function ($row) use ($validatorNames): array {
+            $validatorId = (int) ($row->validated_by ?? 0);
+            return [
+                'id' => $validatorId,
+                'name' => (string) ($validatorNames[$validatorId] ?? ('User #' . $validatorId)),
+                'validated_items' => (int) ($row->validated_items ?? 0),
+                'last_validated_at' => $row->last_validated_at,
+            ];
+        })->values()->all();
 
         $percent = $totalRequired > 0
             ? (int) round(($totalValidated / $totalRequired) * 100)
@@ -506,13 +525,16 @@ class QuotationValidationService
             'is_complete' => $isComplete,
             'requires_validation' => $totalRequired > 0,
             'status' => (string) ($quotation->validation_status ?? self::STATUS_PENDING),
+            'validators_count' => count($validators),
+            'validators' => $validators,
         ];
     }
 
     public function requiresValidationBeforeApproval(Quotation $quotation): bool
     {
-        $quotation->loadMissing('items');
-        return $quotation->items->contains(fn (QuotationItem $item): bool => (bool) ($item->is_validation_required ?? false));
+        return $quotation->items()
+            ->where('is_validation_required', true)
+            ->exists();
     }
 
     public function canBeApproved(Quotation $quotation): bool
@@ -650,6 +672,8 @@ class QuotationValidationService
 
         $today = now()->startOfDay();
         $nextMonth = now()->addMonth()->startOfDay();
+        $startDate = $today->toDateString();
+        $endDate = $nextMonth->toDateString();
 
         $serviceType = (string) ($item->serviceable_type ?? '');
         if ($this->isServiceableType($serviceType, HotelRoom::class)) {
@@ -662,33 +686,47 @@ class QuotationValidationService
                 ->sortByDesc(fn ($price) => $price->start_date ?? $price->id)
                 ->first();
 
-            $hotelPrice = HotelPrice::query()->create([
-                'hotels_id' => (int) $room->hotels_id,
-                'rooms_id' => (int) $room->id,
-                'start_date' => $today->toDateString(),
-                'end_date' => $nextMonth->toDateString(),
-                'contract_rate' => $contractRate,
-                'markup_type' => $markupType,
-                'markup' => $markup,
-                'publish_rate' => $publishRate,
-                'kick_back' => $lastPrice?->kick_back,
-                'author' => $actorId,
-            ]);
+            $hotelPrice = $this->findActiveHotelPrice((int) $room->hotels_id, (int) $room->id, $today);
+            $hotelPriceWasCreated = false;
+            if ($hotelPrice) {
+                $hotelPrice->update([
+                    'contract_rate' => $contractRate,
+                    'markup_type' => $markupType,
+                    'markup' => $markup,
+                    'publish_rate' => $publishRate,
+                    'author' => $actorId,
+                ]);
+            } else {
+                $hotelPrice = HotelPrice::query()->create([
+                    'hotels_id' => (int) $room->hotels_id,
+                    'rooms_id' => (int) $room->id,
+                    'start_date' => $startDate,
+                    'end_date' => $endDate,
+                    'contract_rate' => $contractRate,
+                    'markup_type' => $markupType,
+                    'markup' => $markup,
+                    'publish_rate' => $publishRate,
+                    'kick_back' => $lastPrice?->kick_back,
+                    'author' => $actorId,
+                ]);
+                $hotelPriceWasCreated = true;
+            }
 
-            ServiceRateHistory::query()->create([
-                'quotation_id' => $quotation->id,
-                'quotation_item_id' => $item->id,
-                'serviceable_type' => HotelRoom::class,
-                'serviceable_id' => $serviceableId,
-                'contract_rate' => $contractRate,
-                'markup_type' => $markupType,
-                'markup' => $markup,
-                'publish_rate' => $publishRate,
-                'start_date' => $today->toDateString(),
-                'end_date' => $nextMonth->toDateString(),
-                'notes' => $notes,
-                'updated_by' => $actorId,
-            ]);
+            $history = $this->upsertActiveServiceRateHistory(
+                quotation: $quotation,
+                item: $item,
+                serviceableType: HotelRoom::class,
+                serviceableId: $serviceableId,
+                contractRate: $contractRate,
+                markupType: $markupType,
+                markup: $markup,
+                publishRate: $publishRate,
+                notes: $notes,
+                actorId: $actorId,
+                activeDate: $today,
+                defaultStartDate: $startDate,
+                defaultEndDate: $endDate
+            );
 
             return [
                 'type' => HotelPrice::class,
@@ -698,8 +736,10 @@ class QuotationValidationService
                     'markup_type' => $markupType,
                     'markup' => $markup,
                     'publish_rate' => $publishRate,
-                    'start_date' => $today->toDateString(),
-                    'end_date' => $nextMonth->toDateString(),
+                    'start_date' => $hotelPrice->start_date ? (string) $hotelPrice->start_date : $startDate,
+                    'end_date' => $hotelPrice->end_date ? (string) $hotelPrice->end_date : $endDate,
+                    'rate_action' => $hotelPriceWasCreated ? 'created' : 'updated',
+                    'history_action' => $history->wasRecentlyCreated ? 'created' : 'updated',
                 ],
             ];
         }
@@ -727,25 +767,30 @@ class QuotationValidationService
                 ]);
             }
 
-            ServiceRateHistory::query()->create([
-                'quotation_id' => $quotation->id,
-                'quotation_item_id' => $item->id,
-                'serviceable_type' => Activity::class,
-                'serviceable_id' => $serviceableId,
-                'contract_rate' => $contractRate,
-                'markup_type' => $markupType,
-                'markup' => $markup,
-                'publish_rate' => $publishRate,
-                'start_date' => $today->toDateString(),
-                'end_date' => $nextMonth->toDateString(),
-                'notes' => $notes,
-                'updated_by' => $actorId,
-            ]);
+            $history = $this->upsertActiveServiceRateHistory(
+                quotation: $quotation,
+                item: $item,
+                serviceableType: Activity::class,
+                serviceableId: $serviceableId,
+                contractRate: $contractRate,
+                markupType: $markupType,
+                markup: $markup,
+                publishRate: $publishRate,
+                notes: $notes,
+                actorId: $actorId,
+                activeDate: $today,
+                defaultStartDate: $startDate,
+                defaultEndDate: $endDate
+            );
 
             return [
                 'type' => Activity::class,
                 'id' => $activity->id,
-                'snapshot' => ['pax_type' => $paxType, 'publish_rate' => $publishRate],
+                'snapshot' => [
+                    'pax_type' => $paxType,
+                    'publish_rate' => $publishRate,
+                    'history_action' => $history->wasRecentlyCreated ? 'created' : 'updated',
+                ],
             ];
         }
 
@@ -762,60 +807,107 @@ class QuotationValidationService
                 'publish_rate' => $publishRate,
             ]);
 
-            ServiceRateHistory::query()->create([
-                'quotation_id' => $quotation->id,
-                'quotation_item_id' => $item->id,
-                'serviceable_type' => FoodBeverage::class,
-                'serviceable_id' => $serviceableId,
-                'contract_rate' => $contractRate,
-                'markup_type' => $markupType,
-                'markup' => $markup,
-                'publish_rate' => $publishRate,
-                'start_date' => $today->toDateString(),
-                'end_date' => $nextMonth->toDateString(),
-                'notes' => $notes,
-                'updated_by' => $actorId,
-            ]);
+            $history = $this->upsertActiveServiceRateHistory(
+                quotation: $quotation,
+                item: $item,
+                serviceableType: FoodBeverage::class,
+                serviceableId: $serviceableId,
+                contractRate: $contractRate,
+                markupType: $markupType,
+                markup: $markup,
+                publishRate: $publishRate,
+                notes: $notes,
+                actorId: $actorId,
+                activeDate: $today,
+                defaultStartDate: $startDate,
+                defaultEndDate: $endDate
+            );
 
             return [
                 'type' => FoodBeverage::class,
                 'id' => $food->id,
-                'snapshot' => ['publish_rate' => $publishRate],
+                'snapshot' => [
+                    'publish_rate' => $publishRate,
+                    'history_action' => $history->wasRecentlyCreated ? 'created' : 'updated',
+                ],
+            ];
+        }
+
+        if ($this->isServiceableType($serviceType, IslandTransfer::class)) {
+            $transfer = IslandTransfer::query()->find($serviceableId);
+            if (! $transfer) {
+                return null;
+            }
+
+            $transfer->update([
+                'contract_rate' => $contractRate,
+                'markup_type' => $markupType,
+                'markup' => $markup,
+                'publish_rate' => $publishRate,
+            ]);
+
+            $history = $this->upsertActiveServiceRateHistory(
+                quotation: $quotation,
+                item: $item,
+                serviceableType: IslandTransfer::class,
+                serviceableId: $serviceableId,
+                contractRate: $contractRate,
+                markupType: $markupType,
+                markup: $markup,
+                publishRate: $publishRate,
+                notes: $notes,
+                actorId: $actorId,
+                activeDate: $today,
+                defaultStartDate: $startDate,
+                defaultEndDate: $endDate
+            );
+
+            return [
+                'type' => IslandTransfer::class,
+                'id' => $transfer->id,
+                'snapshot' => [
+                    'publish_rate' => $publishRate,
+                    'history_action' => $history->wasRecentlyCreated ? 'created' : 'updated',
+                ],
             ];
         }
 
         if ($this->isServiceableType($serviceType, TransportUnit::class)) {
-            $transport = Transport::query()->find($serviceableId);
-            if (! $transport) {
+            $transportUnit = TransportUnit::query()->find($serviceableId);
+            if (! $transportUnit) {
                 return null;
             }
 
-            $transport->update([
+            $transportUnit->update([
                 'contract_rate' => $contractRate,
                 'markup_type' => $markupType,
                 'markup' => $markup,
                 'publish_rate' => round($publishRate, 0),
             ]);
 
-            ServiceRateHistory::query()->create([
-                'quotation_id' => $quotation->id,
-                'quotation_item_id' => $item->id,
-                'serviceable_type' => TransportUnit::class,
-                'serviceable_id' => $serviceableId,
-                'contract_rate' => $contractRate,
-                'markup_type' => $markupType,
-                'markup' => $markup,
-                'publish_rate' => $publishRate,
-                'start_date' => $today->toDateString(),
-                'end_date' => $nextMonth->toDateString(),
-                'notes' => $notes,
-                'updated_by' => $actorId,
-            ]);
+            $history = $this->upsertActiveServiceRateHistory(
+                quotation: $quotation,
+                item: $item,
+                serviceableType: TransportUnit::class,
+                serviceableId: $serviceableId,
+                contractRate: $contractRate,
+                markupType: $markupType,
+                markup: $markup,
+                publishRate: $publishRate,
+                notes: $notes,
+                actorId: $actorId,
+                activeDate: $today,
+                defaultStartDate: $startDate,
+                defaultEndDate: $endDate
+            );
 
             return [
-                'type' => Transport::class,
-                'id' => $transport->id,
-                'snapshot' => ['publish_rate' => $publishRate],
+                'type' => TransportUnit::class,
+                'id' => $transportUnit->id,
+                'snapshot' => [
+                    'publish_rate' => $publishRate,
+                    'history_action' => $history->wasRecentlyCreated ? 'created' : 'updated',
+                ],
             ];
         }
 
@@ -832,29 +924,106 @@ class QuotationValidationService
                 'publish_rate_per_pax' => $publishRate,
             ]);
 
-            ServiceRateHistory::query()->create([
-                'quotation_id' => $quotation->id,
-                'quotation_item_id' => $item->id,
-                'serviceable_type' => TouristAttraction::class,
-                'serviceable_id' => $serviceableId,
-                'contract_rate' => $contractRate,
-                'markup_type' => $markupType,
-                'markup' => $markup,
-                'publish_rate' => $publishRate,
-                'start_date' => $today->toDateString(),
-                'end_date' => $nextMonth->toDateString(),
-                'notes' => $notes,
-                'updated_by' => $actorId,
-            ]);
+            $history = $this->upsertActiveServiceRateHistory(
+                quotation: $quotation,
+                item: $item,
+                serviceableType: TouristAttraction::class,
+                serviceableId: $serviceableId,
+                contractRate: $contractRate,
+                markupType: $markupType,
+                markup: $markup,
+                publishRate: $publishRate,
+                notes: $notes,
+                actorId: $actorId,
+                activeDate: $today,
+                defaultStartDate: $startDate,
+                defaultEndDate: $endDate
+            );
 
             return [
                 'type' => TouristAttraction::class,
                 'id' => $attraction->id,
-                'snapshot' => ['publish_rate' => $publishRate],
+                'snapshot' => [
+                    'publish_rate' => $publishRate,
+                    'history_action' => $history->wasRecentlyCreated ? 'created' : 'updated',
+                ],
             ];
         }
 
         return null;
+    }
+
+    private function upsertActiveServiceRateHistory(
+        Quotation $quotation,
+        QuotationItem $item,
+        string $serviceableType,
+        int $serviceableId,
+        float $contractRate,
+        string $markupType,
+        float $markup,
+        float $publishRate,
+        ?string $notes,
+        int $actorId,
+        $activeDate,
+        string $defaultStartDate,
+        string $defaultEndDate
+    ): ServiceRateHistory {
+        $history = ServiceRateHistory::query()
+            ->where('serviceable_type', $serviceableType)
+            ->where('serviceable_id', $serviceableId)
+            ->where(function ($query) use ($activeDate): void {
+                $query->whereNull('start_date')
+                    ->orWhereDate('start_date', '<=', $activeDate->toDateString());
+            })
+            ->where(function ($query) use ($activeDate): void {
+                $query->whereNull('end_date')
+                    ->orWhereDate('end_date', '>=', $activeDate->toDateString());
+            })
+            ->latest('start_date')
+            ->latest('id')
+            ->first();
+
+        if ($history) {
+            $history->update([
+                'quotation_id' => $quotation->id,
+                'quotation_item_id' => $item->id,
+                'contract_rate' => $contractRate,
+                'markup_type' => $markupType,
+                'markup' => $markup,
+                'publish_rate' => $publishRate,
+                'notes' => $notes,
+                'updated_by' => $actorId,
+            ]);
+
+            return $history;
+        }
+
+        return ServiceRateHistory::query()->create([
+            'quotation_id' => $quotation->id,
+            'quotation_item_id' => $item->id,
+            'serviceable_type' => $serviceableType,
+            'serviceable_id' => $serviceableId,
+            'contract_rate' => $contractRate,
+            'markup_type' => $markupType,
+            'markup' => $markup,
+            'publish_rate' => $publishRate,
+            'start_date' => $defaultStartDate,
+            'end_date' => $defaultEndDate,
+            'notes' => $notes,
+            'updated_by' => $actorId,
+        ]);
+    }
+
+    private function findActiveHotelPrice(int $hotelId, int $roomId, $activeDate): ?HotelPrice
+    {
+        return HotelPrice::query()
+            ->where('hotels_id', $hotelId)
+            ->where('rooms_id', $roomId)
+            ->whereDate('start_date', '<=', $activeDate->toDateString())
+            ->whereDate('end_date', '>=', $activeDate->toDateString())
+            ->latest('start_date')
+            ->latest('id')
+            ->first();
     }
 
     private function assertItemCanBeValidated(float $contractRate, string $markupType, float $markup): void
@@ -883,7 +1052,7 @@ class QuotationValidationService
 
     private function refreshProgress(Quotation $quotation, ?int $actorId = null): array
     {
-        $quotation->loadMissing('items');
+        $quotation->refresh();
         $progress = $this->getProgress($quotation);
 
         $newStatus = self::STATUS_PENDING;
@@ -919,6 +1088,27 @@ class QuotationValidationService
         return $progress;
     }
 
+    private function syncValidationRequirementForItem(QuotationItem $item): void
+    {
+        $required = $this->isValidationRequired($item);
+
+        $patch = [];
+        if ((bool) ($item->is_validation_required ?? false) !== $required) {
+            $patch['is_validation_required'] = $required;
+        }
+
+        if (! $required && (bool) ($item->is_validated ?? false)) {
+            $patch['is_validated'] = false;
+            $patch['validated_at'] = null;
+            $patch['validated_by'] = null;
+        }
+
+        if ($patch !== []) {
+            $item->fill($patch);
+            $item->save();
+        }
+    }
+
     private function isValidationRequired(QuotationItem $item): bool
     {
         $type = (string) ($item->serviceable_type ?? '');
@@ -926,6 +1116,7 @@ class QuotationValidationService
         if (
             $this->isServiceableType($type, Activity::class)
             || $this->isServiceableType($type, FoodBeverage::class)
+            || $this->isServiceableType($type, IslandTransfer::class)
             || $this->isServiceableType($type, TransportUnit::class)
             || $this->isServiceableType($type, TouristAttraction::class)
         ) {
@@ -973,6 +1164,7 @@ class QuotationValidationService
                 $morphTo->morphWith([
                     Activity::class => [],
                     FoodBeverage::class => [],
+                    IslandTransfer::class => [],
                     TransportUnit::class => [],
                     TouristAttraction::class => [],
                     HotelRoom::class => ['prices'],
@@ -1060,6 +1252,14 @@ class QuotationValidationService
         }
 
         if ($serviceable instanceof FoodBeverage) {
+            return [
+                'contract_rate' => (float) ($serviceable->contract_rate ?? 0),
+                'markup_type' => (string) ($serviceable->markup_type ?? 'fixed'),
+                'markup' => (float) ($serviceable->markup ?? 0),
+            ];
+        }
+
+        if ($serviceable instanceof IslandTransfer) {
             return [
                 'contract_rate' => (float) ($serviceable->contract_rate ?? 0),
                 'markup_type' => (string) ($serviceable->markup_type ?? 'fixed'),

@@ -5,6 +5,7 @@
     $airports = $airports ?? collect();
     $hotels = $hotels ?? collect();
     $transportUnits = $transportUnits ?? collect();
+    $islandTransfers = $islandTransfers ?? collect();
     $destinations = $destinations ?? collect();
     $destinationNameById = $destinations->pluck('name', 'id')->toArray();
     $prefillInquiryId = $prefillInquiryId ?? null;
@@ -56,6 +57,23 @@
             }
         }
     }
+    $rawIslandTransfers = old('itinerary_island_transfer_items');
+    if (!is_array($rawIslandTransfers)) {
+        $rawIslandTransfers = [];
+        if (isset($itinerary)) {
+            foreach ($itinerary->itineraryIslandTransfers as $t) {
+                $rawIslandTransfers[] = [
+                    'island_transfer_id' => $t->island_transfer_id,
+                    'pax' => $t->pax ?? 1,
+                    'day_number' => $t->day_number ?? 1,
+                    'start_time' => $t->start_time ? substr((string) $t->start_time, 0, 5) : '',
+                    'end_time' => $t->end_time ? substr((string) $t->end_time, 0, 5) : '',
+                    'travel_minutes_to_next' => $t->travel_minutes_to_next ?? null,
+                    'visit_order' => $t->visit_order ?? null,
+                ];
+            }
+        }
+    }
     $rawFoodBeverages = old('itinerary_food_beverage_items');
     if (!is_array($rawFoodBeverages)) {
         $rawFoodBeverages = [];
@@ -89,6 +107,13 @@
             return $city . '|' . $name . '|' . $vendor;
         })
         ->values();
+    $islandTransfersSorted = collect($islandTransfers ?? [])
+        ->sortBy(function ($item) {
+            $vendor = strtolower(trim((string) ($item->vendor?->name ?? '')));
+            $name = strtolower(trim((string) ($item->name ?? '')));
+            return $vendor . '|' . $name;
+        })
+        ->values();
     $foodBeveragesSorted = collect($foodBeverages ?? [])
         ->sortBy(function ($item) {
             $city = strtolower(trim((string) ($item->vendor?->city ?? '')));
@@ -100,6 +125,7 @@
     $itemRegions = $touristAttractionsSorted
         ->pluck('city')
         ->merge($activitiesSorted->pluck('vendor.city'))
+        ->merge($islandTransfersSorted->pluck('vendor.city'))
         ->merge($foodBeveragesSorted->pluck('vendor.city'))
         ->map(fn ($city) => trim((string) $city))
         ->filter(fn ($city) => $city !== '')
@@ -130,7 +156,7 @@
                 if ($day <= 0) {
                     continue;
                 }
-                $dailyEndPointTypes[$day] = $normalizePointType($dayPoint->end_point_type ?? '', 'hotel');
+                $dailyEndPointTypes[$day] = $normalizePointType($dayPoint->end_point_type ?? '', '');
                 $dailyEndPointItems[$day] =
                     (string) ($dailyEndPointTypes[$day] === 'airport'
                         ? $dayPoint->end_airport_id ?? ''
@@ -198,10 +224,7 @@
                 if ($day <= 0) {
                     continue;
                 }
-                $dailyStartPointTypes[$day] = $normalizePointType(
-                    $dayPoint->start_point_type ?? '',
-                    $day === 1 ? 'airport' : 'previous_day_end',
-                );
+                $dailyStartPointTypes[$day] = $normalizePointType($dayPoint->start_point_type ?? '', '');
                 $dailyStartPointItems[$day] =
                     (string) ($dailyStartPointTypes[$day] === 'airport'
                         ? $dayPoint->start_airport_id ?? ''
@@ -212,7 +235,7 @@
         }
         for ($day = 1; $day <= $durationDays; $day++) {
             if (!isset($dailyStartPointTypes[$day])) {
-                $dailyStartPointTypes[$day] = $day === 1 ? 'airport' : 'previous_day_end';
+                $dailyStartPointTypes[$day] = '';
             }
             if (!isset($dailyStartPointItems[$day])) {
                 $dailyStartPointItems[$day] = '';
@@ -255,6 +278,8 @@
             'item_type' => 'attraction',
             'tourist_attraction_id' => $item['tourist_attraction_id'] ?? '',
             'activity_id' => '',
+            'island_transfer_id' => '',
+            'food_beverage_id' => '',
             'pax' => 1,
             'day_number' => (int) ($item['day_number'] ?? 1),
             'start_time' => $item['start_time'] ?? '',
@@ -265,10 +290,12 @@
         ]);
     }
     foreach ($rawActivities as $i => $item) {
+        $activityId = (int) ($item['activity_id'] ?? 0);
         $rows->push([
             'item_type' => 'activity',
             'tourist_attraction_id' => '',
-            'activity_id' => $item['activity_id'] ?? '',
+            'activity_id' => $activityId > 0 ? (string) $activityId : '',
+            'island_transfer_id' => '',
             'food_beverage_id' => '',
             'pax' => max(1, (int) ($item['pax'] ?? 1)),
             'day_number' => (int) ($item['day_number'] ?? 1),
@@ -279,11 +306,29 @@
             '_sort' => 100000 + $i,
         ]);
     }
+    foreach ($rawIslandTransfers as $i => $item) {
+        $islandTransferId = (int) ($item['island_transfer_id'] ?? 0);
+        $rows->push([
+            'item_type' => 'transfer',
+            'tourist_attraction_id' => '',
+            'activity_id' => '',
+            'island_transfer_id' => $islandTransferId > 0 ? (string) $islandTransferId : '',
+            'food_beverage_id' => '',
+            'pax' => max(1, (int) ($item['pax'] ?? 1)),
+            'day_number' => (int) ($item['day_number'] ?? 1),
+            'start_time' => $item['start_time'] ?? '',
+            'end_time' => $item['end_time'] ?? '',
+            'travel_minutes_to_next' => $item['travel_minutes_to_next'] ?? '',
+            'visit_order' => $item['visit_order'] ?? null,
+            '_sort' => 150000 + $i,
+        ]);
+    }
     foreach ($rawFoodBeverages as $i => $item) {
         $rows->push([
             'item_type' => 'fnb',
             'tourist_attraction_id' => '',
             'activity_id' => '',
+            'island_transfer_id' => '',
             'food_beverage_id' => $item['food_beverage_id'] ?? '',
             'pax' => max(1, (int) ($item['pax'] ?? 1)),
             'day_number' => (int) ($item['day_number'] ?? 1),
@@ -360,7 +405,7 @@
         <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Order Number</label>
         <input name="order_number" value="{{ old('order_number', $itinerary->order_number ?? '') }}"
             class="mt-1 dark:border-gray-600 app-input"
-            placeholder="Example: ORD-2026-0001">
+            placeholder="Example: ORD260424A">
         @error('order_number')
             <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
         @enderror
@@ -458,17 +503,14 @@
                 <div class="day-section rounded-xl border border-gray-400 bg-white p-3 shadow-sm dark:border-gray-700 dark:bg-gray-800"
                     data-day="{{ $day }}">
                     @php
-                        $startType = $normalizePointType(
-                            $dailyStartPointTypes[$day] ?? '',
-                            $day === 1 ? 'airport' : 'previous_day_end',
-                        );
+                        $startType = $normalizePointType($dailyStartPointTypes[$day] ?? '', '');
                         $startItem = (string) ($dailyStartPointItems[$day] ?? '');
                         $startRoomId = (string) ($dailyStartPointRoomIds[$day] ?? '');
                         $startHotelBookingMode = (string) ($dailyStartHotelBookingModes[$day] ?? 'arranged');
                         if (!in_array($startHotelBookingMode, ['arranged', 'self'], true)) {
                             $startHotelBookingMode = 'arranged';
                         }
-                        $endType = $normalizePointType($dailyEndPointTypes[$day] ?? '', 'hotel');
+                        $endType = $normalizePointType($dailyEndPointTypes[$day] ?? '', '');
                         $endItem = (string) ($dailyEndPointItems[$day] ?? '');
                         $endRoomId = (string) ($dailyEndPointRoomIds[$day] ?? '');
                         $endHotelBookingMode = (string) ($dailyEndHotelBookingModes[$day] ?? 'arranged');
@@ -545,7 +587,8 @@
                             <div class="mb-3 flex flex-col gap-2 md:flex-row">
                                 <div class="md:w-1/4">
                                     <select name="daily_start_point_types[{{ $day }}]"
-                                        class="day-start-point-type dark:border-gray-600 app-input" required>
+                                        class="day-start-point-type dark:border-gray-600 app-input">
+                                        <option value="" @selected($startType === '')>Not set</option>
                                         @if ($day !== 1)
                                             <option value="previous_day_end" @selected($startType === 'previous_day_end')>Previous Day
                                                 Endpoint (Auto)</option>
@@ -565,7 +608,7 @@
                                                 data-province="{{ $hotel->province ?? '' }}"
                                                 data-destination="{{ $destinationNameById[$hotel->destination_id] ?? '' }}"
                                                 data-latitude="{{ $hotel->latitude ?? '' }}"
-                                                data-longitude=sho"{{ $hotel->longitude ?? '' }}"
+                                                data-longitude="{{ $hotel->longitude ?? '' }}"
                                                 @selected($startType === 'hotel' && $startItem === (string) $hotel->id)>
                                                 {{ $hotel->name }}
                                             </option>
@@ -636,7 +679,9 @@
                                         ? (string) ($r['tourist_attraction_id'] ?? '')
                                         : ($r['item_type'] === 'activity'
                                             ? (string) ($r['activity_id'] ?? '')
-                                            : (string) ($r['food_beverage_id'] ?? ''));
+                                            : ($r['item_type'] === 'transfer'
+                                                ? (string) ($r['island_transfer_id'] ?? '')
+                                                : (string) ($r['food_beverage_id'] ?? '')));
                                 $isRowMainExperience =
                                     $mainExperienceType !== '' &&
                                     $mainExperienceType === (string) ($r['item_type'] ?? '') &&
@@ -681,6 +726,7 @@
                                             class="item-type dark:border-gray-600 app-input">
                                             <option value="attraction" @selected($r['item_type'] === 'attraction')>Attraction</option>
                                             <option value="activity" @selected($r['item_type'] === 'activity')>Activity</option>
+                                            <option value="transfer" @selected($r['item_type'] === 'transfer')>Inter-Island Transfer</option>
                                             <option value="fnb" @selected($r['item_type'] === 'fnb')>F&B</option>
                                         </select>
                                     </div>
@@ -717,6 +763,24 @@
                                                     data-latitude="{{ $a->vendor?->latitude ?? '' }}"
                                                     data-longitude="{{ $a->vendor?->longitude ?? '' }}"
                                                     @selected((string) ($r['activity_id'] ?? '') === (string) $a->id)>{{ $a->name }} - {{ !empty($a->vendor?->name) ? $a->vendor->name : '-' }}</option>
+                                            @endforeach
+                                        </select>
+                                        <select
+                                            class="item-transfer {{ $r['item_type'] !== 'transfer' ? 'hidden' : '' }} dark:border-gray-600 app-input">
+                                            <option value="">Select inter-island transfer</option>
+                                            @foreach ($islandTransfersSorted as $t)
+                                                <option value="{{ $t->id }}"
+                                                    data-duration="{{ $t->duration_minutes ?? 60 }}"
+                                                    data-city="{{ $t->vendor?->city ?? '' }}"
+                                                    data-province="{{ $t->vendor?->province ?? '' }}"
+                                                    data-latitude="{{ $t->arrival_latitude ?? '' }}"
+                                                    data-longitude="{{ $t->arrival_longitude ?? '' }}"
+                                                    data-departure-latitude="{{ $t->departure_latitude ?? '' }}"
+                                                    data-departure-longitude="{{ $t->departure_longitude ?? '' }}"
+                                                    data-arrival-latitude="{{ $t->arrival_latitude ?? '' }}"
+                                                    data-arrival-longitude="{{ $t->arrival_longitude ?? '' }}"
+                                                    data-route-geojson='@json($t->route_geojson ?? null, JSON_UNESCAPED_SLASHES)'
+                                                    @selected((string) ($r['island_transfer_id'] ?? '') === (string) $t->id)>{{ $t->name }} - {{ !empty($t->vendor?->name) ? $t->vendor->name : '-' }}</option>
                                             @endforeach
                                         </select>
                                         <select
@@ -779,6 +843,7 @@
                                             class="item-type dark:border-gray-600 app-input">
                                             <option value="attraction">Attraction</option>
                                             <option value="activity">Activity</option>
+                                            <option value="transfer">Inter-Island Transfer</option>
                                             <option value="fnb">F&B</option>
                                         </select>
                                     </div>
@@ -817,6 +882,24 @@
                                             @endforeach
                                         </select>
                                         <select
+                                            class="item-transfer hidden dark:border-gray-600 app-input">
+                                            <option value="">Select inter-island transfer</option>
+                                            @foreach ($islandTransfersSorted as $t)
+                                                <option value="{{ $t->id }}"
+                                                    data-duration="{{ $t->duration_minutes ?? 60 }}"
+                                                    data-city="{{ $t->vendor?->city ?? '' }}"
+                                                    data-province="{{ $t->vendor?->province ?? '' }}"
+                                                    data-latitude="{{ $t->arrival_latitude ?? '' }}"
+                                                    data-longitude="{{ $t->arrival_longitude ?? '' }}"
+                                                    data-departure-latitude="{{ $t->departure_latitude ?? '' }}"
+                                                    data-departure-longitude="{{ $t->departure_longitude ?? '' }}"
+                                                    data-arrival-latitude="{{ $t->arrival_latitude ?? '' }}"
+                                                    data-arrival-longitude="{{ $t->arrival_longitude ?? '' }}"
+                                                    data-route-geojson='@json($t->route_geojson ?? null, JSON_UNESCAPED_SLASHES)'>
+                                                    {{ $t->name }} - {{ !empty($t->vendor?->name) ? $t->vendor->name : '-' }}</option>
+                                            @endforeach
+                                        </select>
+                                        <select
                                             class="item-fnb hidden dark:border-gray-600 app-input">
                                             <option value="">Select F&B</option>
                                             @foreach ($foodBeveragesSorted as $f)
@@ -839,6 +922,7 @@
                             </div>
                         @endforelse
                     </div>
+                    <div class="inter-island-hint mb-2 hidden rounded-md border border-amber-200 bg-amber-50 px-2.5 py-2 text-xs text-amber-700 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-300"></div>
 
                     <div
                         class="mt-3 mb-3 rounded-lg border border-slate-200 bg-slate-50/60 p-3 day-end-point-card dark:border-slate-600 dark:bg-slate-900/25">
@@ -856,7 +940,8 @@
                             <div class="flex flex-col gap-2 md:flex-row">
                                 <div class="md:w-1/4">
                                     <select name="daily_end_point_types[{{ $day }}]"
-                                        class="day-end-point-type dark:border-gray-600 app-input" required>
+                                        class="day-end-point-type dark:border-gray-600 app-input">
+                                        <option value="" @selected($endType === '')>Not set</option>
                                         <option value="hotel" @selected($endType === 'hotel')>Hotel</option>
                                         @if ($day === $durationDays)
                                             <option value="airport" @selected($endType === 'airport')>Airport</option>
@@ -953,6 +1038,9 @@
         @error('itinerary_activity_items')
             <p class="text-xs text-rose-600">{{ $message }}</p>
         @enderror
+        @error('itinerary_island_transfer_items')
+            <p class="text-xs text-rose-600">{{ $message }}</p>
+        @enderror
         @error('itinerary_food_beverage_items')
             <p class="text-xs text-rose-600">{{ $message }}</p>
         @enderror
@@ -992,6 +1080,10 @@
                 border-color: #a7f3d0 !important;
                 background-color: rgba(16, 185, 129, 0.12) !important;
             }
+            .schedule-row.item-theme-transfer {
+                border-color: #c4b5fd !important;
+                background-color: rgba(139, 92, 246, 0.12) !important;
+            }
             .schedule-row.item-theme-fnb {
                 border-color: #fde68a !important;
                 background-color: rgba(245, 158, 11, 0.12) !important;
@@ -1003,6 +1095,10 @@
             .dark .schedule-row.item-theme-activity {
                 border-color: rgba(16, 185, 129, 0.5) !important;
                 background-color: rgba(6, 78, 59, 0.35) !important;
+            }
+            .dark .schedule-row.item-theme-transfer {
+                border-color: rgba(139, 92, 246, 0.55) !important;
+                background-color: rgba(76, 29, 149, 0.35) !important;
             }
             .dark .schedule-row.item-theme-fnb {
                 border-color: rgba(245, 158, 11, 0.5) !important;
@@ -1047,6 +1143,9 @@
             }
             .itinerary-map-marker--activity {
                 background: #10b981;
+            }
+            .itinerary-map-marker--transfer {
+                background: #8b5cf6;
             }
             .itinerary-map-marker--fnb {
                 background: #f59e0b;
@@ -1131,7 +1230,7 @@
                     if (!text) return '-';
                     const parsed = new Date(text);
                     if (Number.isNaN(parsed.getTime())) return '-';
-                    return new Intl.DateTimeFormat(undefined, {
+                    const parts = new Intl.DateTimeFormat('en-CA', {
                         year: 'numeric',
                         month: '2-digit',
                         day: '2-digit',
@@ -1139,7 +1238,9 @@
                         minute: '2-digit',
                         hour12: false,
                         timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-                    }).format(parsed);
+                    }).formatToParts(parsed);
+                    const map = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+                    return `${map.year}-${map.month}-${map.day} (${map.hour}:${map.minute})`;
                 };
                 const setDetail = () => {
                     if (!inquirySelect || !detailEmpty || !detailContent) return;
@@ -1222,6 +1323,10 @@
                             select: row.querySelector('.item-activity')
                         },
                         {
+                            type: 'transfer',
+                            select: row.querySelector('.item-transfer')
+                        },
+                        {
                             type: 'fnb',
                             select: row.querySelector('.item-fnb')
                         },
@@ -1230,13 +1335,13 @@
                     candidates.forEach((candidate) => {
                         byType[candidate.type] = candidate.select;
                     });
-                    const fallbackType = typeFieldValue === 'activity' || typeFieldValue === 'fnb' ?
+                    const fallbackType = typeFieldValue === 'activity' || typeFieldValue === 'transfer' || typeFieldValue === 'fnb' ?
                         typeFieldValue :
-                        (datasetTypeValue === 'activity' || datasetTypeValue === 'fnb' ? datasetTypeValue :
+                        (datasetTypeValue === 'activity' || datasetTypeValue === 'transfer' || datasetTypeValue === 'fnb' ? datasetTypeValue :
                             'attraction');
                     const preferredTypes = [];
                     [typeFieldValue, datasetTypeValue].forEach((type) => {
-                        if ((type === 'attraction' || type === 'activity' || type === 'fnb') &&
+                        if ((type === 'attraction' || type === 'activity' || type === 'transfer' || type === 'fnb') &&
                             !preferredTypes.includes(type)) {
                             preferredTypes.push(type);
                         }
@@ -1280,34 +1385,51 @@
                 const activeSelect = (r) => getRowSelection(r).select;
                 const selected = (r) => getRowSelection(r).option !== null;
                 const toggleType = (r, t, reset = true) => {
-                    const type = t === 'activity' || t === 'fnb' ? t : 'attraction';
+                    const type = t === 'activity' || t === 'transfer' || t === 'fnb' ? t : 'attraction';
                     r.dataset.itemType = type;
                     r.querySelector('.item-type').value = type;
                     const a = r.querySelector('.item-attraction');
                     const b = r.querySelector('.item-activity');
+                    const tr = r.querySelector('.item-transfer');
                     const f = r.querySelector('.item-fnb');
                     if (type === 'activity') {
                         a.classList.add('hidden');
                         b.classList.remove('hidden');
+                        tr.classList.add('hidden');
                         f.classList.add('hidden');
                         if (reset) {
                             a.value = '';
+                            tr.value = '';
+                            f.value = '';
+                        }
+                    } else if (type === 'transfer') {
+                        a.classList.add('hidden');
+                        b.classList.add('hidden');
+                        tr.classList.remove('hidden');
+                        f.classList.add('hidden');
+                        if (reset) {
+                            a.value = '';
+                            b.value = '';
                             f.value = '';
                         }
                     } else if (type === 'fnb') {
                         a.classList.add('hidden');
                         b.classList.add('hidden');
+                        tr.classList.add('hidden');
                         f.classList.remove('hidden');
                         if (reset) {
                             a.value = '';
                             b.value = '';
+                            tr.value = '';
                         }
                     } else {
                         a.classList.remove('hidden');
                         b.classList.add('hidden');
+                        tr.classList.add('hidden');
                         f.classList.add('hidden');
                         if (reset) {
                             b.value = '';
+                            tr.value = '';
                             f.value = '';
                         }
                     }
@@ -1321,6 +1443,14 @@
                     if (!select) return '';
                     const option = select.selectedOptions?.[0];
                     return String(option?.dataset?.city || '').trim();
+                };
+                const getSelectedItemArea = (row) => {
+                    const select = activeSelect(row);
+                    const option = select?.selectedOptions?.[0];
+                    return {
+                        city: String(option?.dataset?.city || '').trim().toLowerCase(),
+                        province: String(option?.dataset?.province || '').trim().toLowerCase(),
+                    };
                 };
                 const syncRegionFromSelectedItem = (row, force = false) => {
                     if (!row) return;
@@ -1438,7 +1568,7 @@
                 };
                 const normalizeMapPointType = (rawType) => {
                     const type = String(rawType || '').trim().toLowerCase();
-                    if (type === 'activity' || type === 'fnb' || type === 'hotel' || type === 'airport' || type === 'attraction') {
+                    if (type === 'activity' || type === 'transfer' || type === 'fnb' || type === 'hotel' || type === 'airport' || type === 'attraction') {
                         return type;
                     }
                     return 'attraction';
@@ -1446,6 +1576,7 @@
                 const markerTypeClass = (type) => {
                     const normalized = normalizeMapPointType(type);
                     if (normalized === 'activity') return 'itinerary-map-marker--activity';
+                    if (normalized === 'transfer') return 'itinerary-map-marker--transfer';
                     if (normalized === 'fnb') return 'itinerary-map-marker--fnb';
                     if (normalized === 'hotel') return 'itinerary-map-marker--hotel';
                     if (normalized === 'airport') return 'itinerary-map-marker--airport';
@@ -1454,6 +1585,7 @@
                 const markerTypeIcon = (type) => {
                     const normalized = normalizeMapPointType(type);
                     if (normalized === 'activity') return 'fa-solid fa-person-hiking';
+                    if (normalized === 'transfer') return 'fa-solid fa-ship';
                     if (normalized === 'fnb') return 'fa-solid fa-utensils';
                     if (normalized === 'hotel') return 'fa-solid fa-bed';
                     if (normalized === 'airport') return 'fa-solid fa-plane';
@@ -1478,6 +1610,73 @@
                         name: String(option.textContent || '').trim() || '-',
                         type: normalizeMapPointType(typeHint || option.dataset.pointType || ''),
                     };
+                };
+                const parseTransferRouteCoords = (option) => {
+                    if (!option) return null;
+                    const raw = String(option.dataset.routeGeojson || '').trim();
+                    const decodeHtmlEntities = (value) => {
+                        const source = String(value || '');
+                        if (!source || !/[&][a-z#0-9]+;/i.test(source)) return source;
+                        const textarea = document.createElement('textarea');
+                        textarea.innerHTML = source;
+                        return textarea.value || source;
+                    };
+                    const rawDecoded = decodeHtmlEntities(raw);
+                    let coordinates = [];
+                    const extractLineCoordinates = (value) => {
+                        if (!value) return [];
+                        if (Array.isArray(value)) {
+                            if (value.length && Array.isArray(value[0])) return value;
+                            return [];
+                        }
+                        if (typeof value === 'string') {
+                            const trimmed = value.trim();
+                            if (!trimmed) return [];
+                            try {
+                                return extractLineCoordinates(JSON.parse(trimmed));
+                            } catch (_) {
+                                return [];
+                            }
+                        }
+                        if (typeof value !== 'object') return [];
+                        if (value.type === 'LineString' && Array.isArray(value.coordinates)) {
+                            return value.coordinates;
+                        }
+                        if (value.type === 'LineString' && typeof value.coordinates === 'string') {
+                            try {
+                                const parsedCoordinates = JSON.parse(value.coordinates);
+                                return Array.isArray(parsedCoordinates) ? parsedCoordinates : [];
+                            } catch (_) {
+                                return [];
+                            }
+                        }
+                        if (value.type === 'Feature' && value.geometry) {
+                            return extractLineCoordinates(value.geometry);
+                        }
+                        if (value.type === 'FeatureCollection' && Array.isArray(value.features)) {
+                            for (const feature of value.features) {
+                                const found = extractLineCoordinates(feature);
+                                if (Array.isArray(found) && found.length >= 2) return found;
+                            }
+                        }
+                        return [];
+                    };
+                    if (rawDecoded !== '' && rawDecoded !== 'null') {
+                        try {
+                            coordinates = extractLineCoordinates(JSON.parse(rawDecoded));
+                        } catch (_) {
+                            coordinates = extractLineCoordinates(rawDecoded);
+                        }
+                    }
+                    const routePoints = [];
+                    coordinates.forEach((coord) => {
+                        if (!Array.isArray(coord) || coord.length < 2) return;
+                        const normalized = normalizeLatLngPair(Number(coord[1]), Number(coord[0]));
+                        if (!normalized) return;
+                        routePoints.push(normalized);
+                    });
+                    if (routePoints.length < 2) return null;
+                    return routePoints;
                 };
                 const toLeafletLatLng = (rawLat, rawLng) => {
                     const normalized = normalizeLatLngPair(rawLat, rawLng);
@@ -1505,6 +1704,25 @@
                         }
                     });
                     return best;
+                };
+                const orientSegmentCoords = (segmentCoords, fromPoint, toPoint) => {
+                    if (!Array.isArray(segmentCoords) || segmentCoords.length < 2 || !fromPoint || !toPoint) {
+                        return Array.isArray(segmentCoords) ? segmentCoords : [];
+                    }
+                    const first = segmentCoords[0];
+                    const last = segmentCoords[segmentCoords.length - 1];
+                    if (!first || !last) return segmentCoords;
+                    const distanceSq = (a, b) => {
+                        const dLat = Number(a.lat) - Number(b.lat);
+                        const dLng = Number(a.lng) - Number(b.lng);
+                        return (dLat * dLat) + (dLng * dLng);
+                    };
+                    const normalScore = distanceSq(first, fromPoint) + distanceSq(last, toPoint);
+                    const reversedScore = distanceSq(last, fromPoint) + distanceSq(first, toPoint);
+                    if (reversedScore + 1e-12 < normalScore) {
+                        return segmentCoords.slice().reverse();
+                    }
+                    return segmentCoords;
                 };
                 const fetchRoadRouteGeometry = async (latLngPoints, signal) => {
                     if (!Array.isArray(latLngPoints) || latLngPoints.length < 2) return null;
@@ -1555,6 +1773,7 @@
                         points.push({
                             day,
                             role: 'start',
+                            mapOrder: 0,
                             type: startPoint.type || normalizeMapPointType(startType),
                             lat: startPoint.lat,
                             lng: startPoint.lng,
@@ -1565,6 +1784,7 @@
                         points.push({
                             day,
                             role: 'start',
+                            mapOrder: 0,
                             type: startPoint.type || 'hotel',
                             lat: startPoint.lat,
                             lng: startPoint.lng,
@@ -1577,13 +1797,66 @@
                         if (!selected(row)) return;
                         const selection = getRowSelection(row);
                         const option = selection.option;
+                        if (selection.type === 'transfer' && option) {
+                            let departure = normalizeLatLngPair(
+                                parseFloat(option.dataset.departureLatitude || ''),
+                                parseFloat(option.dataset.departureLongitude || ''),
+                            );
+                            let arrival = normalizeLatLngPair(
+                                parseFloat(option.dataset.arrivalLatitude || ''),
+                                parseFloat(option.dataset.arrivalLongitude || ''),
+                            );
+                            const order = Number(row.querySelector('.item-order')?.value || '0');
+                            const safeOrder = Number.isFinite(order) && order > 0 ? order : 9999;
+                            const transferId = String(option.value || '').trim() || String(safeOrder);
+                            const transferPairKey = `transfer-${transferId}-day-${day}-order-${safeOrder}`;
+                            const routeToNextCoords = parseTransferRouteCoords(option);
+                            if (Array.isArray(routeToNextCoords) && routeToNextCoords.length >= 2) {
+                                if (!departure) departure = routeToNextCoords[0];
+                                if (!arrival) arrival = routeToNextCoords[routeToNextCoords.length - 1];
+                            }
+                            if (departure) {
+                                points.push({
+                                    day,
+                                    role: 'schedule',
+                                    order: safeOrder,
+                                    mapOrder: (safeOrder * 10),
+                                    type: 'transfer',
+                                    lat: departure.lat,
+                                    lng: departure.lng,
+                                    name: `${String(option.textContent || '').trim()} (Departure)`,
+                                    travelMinutes: 0,
+                                    routeToNextCoords,
+                                    transferRole: 'departure',
+                                    transferPairKey,
+                                });
+                            }
+                            if (arrival) {
+                                points.push({
+                                    day,
+                                    role: 'schedule',
+                                    order: safeOrder + 0.01,
+                                    mapOrder: (safeOrder * 10) + 1,
+                                    type: 'transfer',
+                                    lat: arrival.lat,
+                                    lng: arrival.lng,
+                                    name: `${String(option.textContent || '').trim()} (Arrival)`,
+                                    travelMinutes: Math.max(0, parseInt(row.querySelector('.item-travel')?.value || '0', 10) || 0),
+                                    transferRole: 'arrival',
+                                    transferPairKey,
+                                });
+                            }
+                            return;
+                        }
                         const point = parseOptionPoint(option, selection.type);
                         if (!point) return;
                         const order = Number(row.querySelector('.item-order')?.value || '0');
+                        const safeOrder = Number.isFinite(order) && order > 0 ? order : 9999;
                         points.push({
                             day,
                             role: 'schedule',
-                            order: Number.isFinite(order) && order > 0 ? order : 9999,
+                            order: safeOrder,
+                            mapOrder: safeOrder * 10,
                             type: selection.type,
                             lat: point.lat,
                             lng: point.lng,
@@ -1592,10 +1865,13 @@
                         });
                     });
                     points.sort((a, b) => {
+                        const aOrder = Number(a.mapOrder ?? (a.order || 0));
+                        const bOrder = Number(b.mapOrder ?? (b.order || 0));
+                        if (aOrder !== bOrder) return aOrder - bOrder;
                         const aRank = a.role === 'start' ? 0 : (a.role === 'schedule' ? 1 : 2);
                         const bRank = b.role === 'start' ? 0 : (b.role === 'schedule' ? 1 : 2);
                         if (aRank !== bRank) return aRank - bRank;
-                        return (a.order || 0) - (b.order || 0);
+                        return Number(a.order || 0) - Number(b.order || 0);
                     });
                     const endType = normalizePointType(section.querySelector('.day-end-point-type')?.value || '');
                     const endOpt = section.querySelector('.day-end-point-item')?.selectedOptions?.[0] || null;
@@ -1604,6 +1880,7 @@
                         points.push({
                             day,
                             role: 'end',
+                            mapOrder: 9999999,
                             type: endPoint.type || normalizeMapPointType(endType),
                             lat: endPoint.lat,
                             lng: endPoint.lng,
@@ -1697,12 +1974,10 @@
                             if (renderSeq !== mapRenderSeq) return;
                             const safePoints = points.filter(isFiniteLatLng);
                             if (!safePoints.length) continue;
-                            const polylineCoords = [];
                             safePoints.forEach((point) => {
                                 const latLng = toLeafletLatLng(point.lat, point.lng);
                                 if (!latLng) return;
                                 bounds.push([latLng.lat, latLng.lng]);
-                                polylineCoords.push(latLng);
                                 const markerType = normalizeMapPointType(point.type || (point.role === 'end' || point.role === 'start' ? 'hotel' : 'attraction'));
                                 const marker = L.marker(latLng, {
                                     icon: markerByTypeWithOrder(markerType, markerIndex),
@@ -1710,46 +1985,54 @@
                                 marker.bindPopup(`#${markerIndex} | Day ${day} | ${markerType.toUpperCase()} | ${point.name}`);
                                 markerIndex += 1;
                             });
-                            const validPolylineCoords = polylineCoords
-                                .filter((coord) => coord && Number.isFinite(coord.lat) && Number.isFinite(coord.lng));
-                            let displayedRouteCoords = validPolylineCoords;
-                            if (validPolylineCoords.length >= 2) {
-                                let skipRouteDrawForThisSegment = false;
-                                // Keep OSRM requests bounded to avoid URL overflow and reduce flakiness.
-                                if (validPolylineCoords.length <= 25) {
-                                    try {
-                                        const roadRoute = await fetchRoadRouteGeometry(validPolylineCoords, routeSignal);
-                                        if (renderSeq !== mapRenderSeq) return;
-                                        if (roadRoute && roadRoute.length >= 2) {
-                                            displayedRouteCoords = roadRoute;
-                                        }
-                                    } catch (fetchError) {
-                                        if (renderSeq !== mapRenderSeq) return;
-                                        if (fetchError?.name === 'AbortError') {
-                                            // Render is being superseded by a newer run; skip drawing this segment
-                                            // to avoid transient straight-line artifacts.
-                                            skipRouteDrawForThisSegment = true;
-                                        }
-                                        if (fetchError?.name !== 'AbortError') {
-                                            console.warn('Road route fetch failed, fallback to straight polyline.', fetchError);
-                                        }
-                                    }
-                                }
-                                if (!skipRouteDrawForThisSegment) {
-                                    const route = L.polyline(displayedRouteCoords, {
-                                        color: routePalette[(Number(day) - 1) % routePalette.length],
-                                        weight: 4,
-                                        opacity: 0.95,
-                                        interactive: false,
-                                        bubblingMouseEvents: false,
-                                    }).addTo(itineraryDataLayer);
-                                    itineraryRouteLayers.push(route);
-                                }
-                            }
                             for (let i = 0; i < safePoints.length - 1; i++) {
                                 const from = safePoints[i];
                                 const to = safePoints[i + 1];
                                 if (!isFiniteLatLng(from) || !isFiniteLatLng(to)) continue;
+                                const fromLatLng = toLeafletLatLng(from.lat, from.lng);
+                                const toLatLng = toLeafletLatLng(to.lat, to.lng);
+                                if (!fromLatLng || !toLatLng) continue;
+                                let segmentCoords = [fromLatLng, toLatLng];
+                                const isTransferSegment =
+                                    normalizeMapPointType(from.type) === 'transfer' &&
+                                    normalizeMapPointType(to.type) === 'transfer';
+                                const isMatchingTransferPair =
+                                    isTransferSegment &&
+                                    String(from.transferRole || '') === 'departure' &&
+                                    String(to.transferRole || '') === 'arrival' &&
+                                    String(from.transferPairKey || '') !== '' &&
+                                    String(from.transferPairKey || '') === String(to.transferPairKey || '');
+                                if (isMatchingTransferPair && Array.isArray(from.routeToNextCoords) && from.routeToNextCoords.length >= 2) {
+                                    const customCoords = from.routeToNextCoords
+                                        .map((coord) => toLeafletLatLng(coord.lat, coord.lng))
+                                        .filter((coord) => coord && Number.isFinite(coord.lat) && Number.isFinite(coord.lng));
+                                    if (customCoords.length >= 2) {
+                                        segmentCoords = orientSegmentCoords(customCoords, fromLatLng, toLatLng);
+                                    }
+                                } else if (isMatchingTransferPair) {
+                                    continue;
+                                } else {
+                                    try {
+                                        const roadRoute = await fetchRoadRouteGeometry([fromLatLng, toLatLng], routeSignal);
+                                        if (renderSeq !== mapRenderSeq) return;
+                                        if (Array.isArray(roadRoute) && roadRoute.length >= 2) {
+                                            segmentCoords = orientSegmentCoords(roadRoute, fromLatLng, toLatLng);
+                                        }
+                                    } catch (fetchError) {
+                                        if (renderSeq !== mapRenderSeq) return;
+                                        if (fetchError?.name !== 'AbortError') {
+                                            console.warn('Road route fetch failed, fallback to straight segment.', fetchError);
+                                        }
+                                    }
+                                }
+                                const route = L.polyline(segmentCoords, {
+                                    color: routePalette[(Number(day) - 1) % routePalette.length],
+                                    weight: 4,
+                                    opacity: 0.95,
+                                    interactive: false,
+                                    bubblingMouseEvents: false,
+                                }).addTo(itineraryDataLayer);
+                                itineraryRouteLayers.push(route);
                                 const minutes = Math.max(0, Number(from.travelMinutes || 0));
                                 if (minutes <= 0) continue;
                                 const normFrom = normalizeLatLngPair(from.lat, from.lng);
@@ -1759,7 +2042,7 @@
                                 const midLng = (normFrom.lng + normTo.lng) / 2;
                                 const midLatLng = toLeafletLatLng(midLat, midLng);
                                 if (!midLatLng) continue;
-                                const badgeLatLng = closestPointOnRoute(displayedRouteCoords, midLatLng) || midLatLng;
+                                const badgeLatLng = closestPointOnRoute(segmentCoords, midLatLng) || midLatLng;
                                 const badge = L.tooltip({
                                     permanent: true,
                                     direction: 'top',
@@ -1909,6 +2192,7 @@
                     const regionSelect = row.querySelector('.item-region');
                     const attractionSelect = row.querySelector('.item-attraction');
                     const activitySelect = row.querySelector('.item-activity');
+                    const transferSelect = row.querySelector('.item-transfer');
                     const fnbSelect = row.querySelector('.item-fnb');
                     const paxInput = row.querySelector('.item-pax');
                     const startInput = row.querySelector('.item-start');
@@ -1922,6 +2206,7 @@
                     if (regionSelect) regionSelect.value = '';
                     if (attractionSelect) attractionSelect.value = '';
                     if (activitySelect) activitySelect.value = '';
+                    if (transferSelect) transferSelect.value = '';
                     if (fnbSelect) fnbSelect.value = '';
                     if (paxInput) paxInput.value = '1';
                     if (startInput) startInput.value = '';
@@ -2036,9 +2321,51 @@
                     for (const sec of [...daySections.querySelectorAll('.day-section')].sort((a, b) => Number(a
                             .dataset.day) - Number(b.dataset.day))) await recalcDay(sec);
                 };
+                const updateInterIslandHints = () => {
+                    daySections.querySelectorAll('.day-section').forEach((section) => {
+                        const hint = section.querySelector('.inter-island-hint');
+                        if (!hint) return;
+                        const rows = [...section.querySelectorAll('.schedule-row')]
+                            .filter((row) => !row.classList.contains('schedule-row-template') && selected(row));
+                        const warnings = [];
+                        for (let i = 0; i < rows.length - 1; i++) {
+                            const current = rows[i];
+                            const next = rows[i + 1];
+                            const currentType = rowType(current);
+                            const nextType = rowType(next);
+                            if (currentType === 'transfer' || nextType === 'transfer') continue;
+                            const currentArea = getSelectedItemArea(current);
+                            const nextArea = getSelectedItemArea(next);
+                            const currentLabel = String(activeSelect(current)?.selectedOptions?.[0]?.textContent || '')
+                                .trim();
+                            const nextLabel = String(activeSelect(next)?.selectedOptions?.[0]?.textContent || '')
+                                .trim();
+                            const hasProvinceDiff = currentArea.province && nextArea.province && currentArea.province !==
+                                nextArea.province;
+                            const hasCityDiffFallback = !hasProvinceDiff &&
+                                (!currentArea.province || !nextArea.province) &&
+                                currentArea.city &&
+                                nextArea.city &&
+                                currentArea.city !== nextArea.city;
+                            if (!hasProvinceDiff && !hasCityDiffFallback) continue;
+                            warnings.push(`${currentLabel || 'Item ' + (i + 1)} -> ${nextLabel || 'Item ' + (i + 2)}`);
+                        }
+                        if (!warnings.length) {
+                            hint.classList.add('hidden');
+                            hint.textContent = '';
+                            return;
+                        }
+                        const warningText = warnings.length > 2 ? `${warnings.slice(0, 2).join('; ')}; ...` : warnings
+                            .join('; ');
+                        hint.classList.remove('hidden');
+                        hint.textContent =
+                            `Potential inter-island move detected (${warningText}). Add an "Inter-Island Transfer" item between those points.`;
+                    });
+                };
                 const reindex = () => {
                     let ai = 0,
                         bi = 0,
+                        ti = 0,
                         fi = 0;
                     [...daySections.querySelectorAll('.day-section')].sort((a, b) => Number(a.dataset.day) - Number(b
                         .dataset.day)).forEach((sec) => {
@@ -2047,6 +2374,7 @@
                         sec.querySelectorAll('.schedule-row').forEach((r) => {
                             const a = r.querySelector('.item-attraction'),
                                 b = r.querySelector('.item-activity'),
+                                tr = r.querySelector('.item-transfer'),
                                 f = r.querySelector('.item-fnb'),
                                 p = r.querySelector('.item-pax'),
                                 d = r.querySelector('.item-day'),
@@ -2054,13 +2382,13 @@
                                 e = r.querySelector('.item-end'),
                                 t = r.querySelector('.item-travel'),
                                 o = r.querySelector('.item-order');
-                            [a, b, f, p, d, s, e, t, o].forEach((el) => el?.removeAttribute('name'));
+                            [a, b, tr, f, p, d, s, e, t, o].forEach((el) => el?.removeAttribute('name'));
                             d.value = String(day);
                             if (!selected(r)) return;
                             order += 1;
                             o.value = String(order);
                             if (rowType(r) === 'activity') {
-                                b.name = `itinerary_activity_items[${bi}][activity_id]`;
+                                if (b) b.name = `itinerary_activity_items[${bi}][activity_id]`;
                                 d.name = `itinerary_activity_items[${bi}][day_number]`;
                                 p.name = `itinerary_activity_items[${bi}][pax]`;
                                 s.name = `itinerary_activity_items[${bi}][start_time]`;
@@ -2068,6 +2396,15 @@
                                 t.name = `itinerary_activity_items[${bi}][travel_minutes_to_next]`;
                                 o.name = `itinerary_activity_items[${bi}][visit_order]`;
                                 bi++;
+                            } else if (rowType(r) === 'transfer') {
+                                if (tr) tr.name = `itinerary_island_transfer_items[${ti}][island_transfer_id]`;
+                                d.name = `itinerary_island_transfer_items[${ti}][day_number]`;
+                                p.name = `itinerary_island_transfer_items[${ti}][pax]`;
+                                s.name = `itinerary_island_transfer_items[${ti}][start_time]`;
+                                e.name = `itinerary_island_transfer_items[${ti}][end_time]`;
+                                t.name = `itinerary_island_transfer_items[${ti}][travel_minutes_to_next]`;
+                                o.name = `itinerary_island_transfer_items[${ti}][visit_order]`;
+                                ti++;
                             } else if (rowType(r) === 'fnb') {
                                 f.name = `itinerary_food_beverage_items[${fi}][food_beverage_id]`;
                                 d.name = `itinerary_food_beverage_items[${fi}][day_number]`;
@@ -2147,17 +2484,14 @@
                             const previousOption = startType.querySelector('option[value="previous_day_end"]');
                             if (day === 1) {
                                 previousOption?.remove();
-                                if (startType.value === 'previous_day_end' || startType.value === '') {
-                                    startType.value = 'airport';
+                                if (startType.value === 'previous_day_end') {
+                                    startType.value = '';
                                 }
                             } else {
                                 if (!previousOption) {
                                     startType.insertAdjacentHTML('afterbegin',
                                         '<option value="previous_day_end">Previous Day Endpoint (Auto)</option>'
                                         );
-                                }
-                                if (startType.value === '') {
-                                    startType.value = 'previous_day_end';
                                 }
                             }
                         }
@@ -2241,9 +2575,11 @@
                 const updateScheduleRowTheme = (row) => {
                     if (!row) return;
                     const type = rowType(row);
-                    row.classList.remove('item-theme-attraction', 'item-theme-activity', 'item-theme-fnb');
+                    row.classList.remove('item-theme-attraction', 'item-theme-activity', 'item-theme-transfer', 'item-theme-fnb');
                     if (type === 'activity') {
                         row.classList.add('item-theme-activity');
+                    } else if (type === 'transfer') {
+                        row.classList.add('item-theme-transfer');
                     } else if (type === 'fnb') {
                         row.classList.add('item-theme-fnb');
                     } else {
@@ -2536,7 +2872,7 @@
                     let selectedMainRow = null;
                     rows.forEach((row) => {
                         const checkbox = row.querySelector('.item-main-experience');
-                        const isEligible = selected(row);
+                        const isEligible = selected(row) && rowType(row) !== 'transfer';
                         if (checkbox && !isEligible) {
                             checkbox.checked = false;
                         }
@@ -2564,6 +2900,15 @@
 
                     const type = rowType(selectedMainRow);
                     const itemId = String(activeSelect(selectedMainRow)?.value || '');
+                    if (type === 'transfer') {
+                        const checkbox = selectedMainRow.querySelector('.item-main-experience');
+                        if (checkbox) checkbox.checked = false;
+                        typeSelect.value = '';
+                        itemSelect.value = '';
+                        selectedMainRow.classList.remove('ring-2', 'ring-amber-300', 'border-amber-400',
+                            'bg-amber-50/40', 'dark:border-amber-500/60', 'dark:bg-amber-900/10');
+                        return;
+                    }
                     if (itemId === '') {
                         const checkbox = selectedMainRow.querySelector('.item-main-experience');
                         if (checkbox) checkbox.checked = false;
@@ -2656,6 +3001,7 @@
                     syncDayPointOptionRules();
                     syncPointItemVisibility();
                     await recalcAll();
+                    updateInterIslandHints();
                     reindex();
                     syncHotelStaysHidden();
                     updateDayEndpointBadges();
@@ -2706,9 +3052,11 @@
                         markRegionManualState(r, value !== '');
                         const attractionSelect = r.querySelector('.item-attraction');
                         const activitySelect = r.querySelector('.item-activity');
+                        const transferSelect = r.querySelector('.item-transfer');
                         const fnbSelect = r.querySelector('.item-fnb');
                         if (attractionSelect) attractionSelect.value = '';
                         if (activitySelect) activitySelect.value = '';
+                        if (transferSelect) transferSelect.value = '';
                         if (fnbSelect) fnbSelect.value = '';
                         recalcNoConnectorRebuild();
                     });
@@ -2717,6 +3065,10 @@
                         recalc();
                     });
                     r.querySelector('.item-activity')?.addEventListener('change', () => {
+                        syncRegionFromSelectedItem(r);
+                        recalc();
+                    });
+                    r.querySelector('.item-transfer')?.addEventListener('change', () => {
                         syncRegionFromSelectedItem(r);
                         recalc();
                     });
@@ -2761,6 +3113,8 @@
                     markRegionManualState(r, false);
                     r.querySelector('.item-attraction').value = '';
                     r.querySelector('.item-activity').value = '';
+                    const transferSelect = r.querySelector('.item-transfer');
+                    if (transferSelect) transferSelect.value = '';
                     r.querySelector('.item-fnb').value = '';
                     r.querySelector('.item-pax').value = '1';
                     r.querySelector('.item-start').value = '';
@@ -2780,7 +3134,7 @@
                     const rows = [...(section?.querySelectorAll('.schedule-row') || [])];
                     const lastSelected = [...rows].reverse().find((row) => selected(row));
                     const currentType = rowType(lastSelected || rows[rows.length - 1]);
-                    return ['attraction', 'activity', 'fnb'].includes(currentType) ? currentType : 'attraction';
+                    return ['attraction', 'activity', 'transfer', 'fnb'].includes(currentType) ? currentType : 'attraction';
                 };
                 const syncDurationNights = () => {
                     if (!durationNightsInput) return;
@@ -2865,7 +3219,7 @@
                             const dayStartPointType = c.querySelector('.day-start-point-type');
                             if (dayStartPointType) {
                                 dayStartPointType.name = `daily_start_point_types[${i}]`;
-                                dayStartPointType.value = i === 1 ? 'airport' : 'previous_day_end';
+                                dayStartPointType.value = '';
                             }
                             const dayStartPointItem = c.querySelector('.day-start-point-item');
                             if (dayStartPointItem) {
@@ -2897,7 +3251,7 @@
                             const dayEndPointType = c.querySelector('.day-end-point-type');
                             if (dayEndPointType) {
                                 dayEndPointType.name = `daily_end_point_types[${i}]`;
-                                dayEndPointType.value = 'hotel';
+                                dayEndPointType.value = '';
                             }
                             const dayEndPointSelect = c.querySelector('.day-end-point-item');
                             if (dayEndPointSelect) {
@@ -2908,13 +3262,13 @@
                             if (dayEndRoomSelect) {
                                 dayEndRoomSelect.name = `daily_end_point_room_ids[${i}]`;
                                 dayEndRoomSelect.value = '';
-                                dayEndRoomSelect.disabled = false;
+                                dayEndRoomSelect.disabled = true;
                             }
                             const dayEndBookingSelect = c.querySelector('.day-end-booking-mode');
                             if (dayEndBookingSelect) {
                                 dayEndBookingSelect.name = `daily_end_hotel_booking_modes[${i}]`;
                                 dayEndBookingSelect.value = 'arranged';
-                                dayEndBookingSelect.disabled = false;
+                                dayEndBookingSelect.disabled = true;
                             }
                             const dayEndRoomInput = c.querySelector('.day-end-room-count');
                             const dayEndRoomWrap = c.querySelector('.day-end-room-wrap');
@@ -2922,10 +3276,10 @@
                             if (dayEndRoomInput) {
                                 dayEndRoomInput.name = `daily_end_point_room_counts[${i}]`;
                                 dayEndRoomInput.value = '1';
-                                dayEndRoomInput.disabled = false;
+                                dayEndRoomInput.disabled = true;
                             }
-                            dayEndRoomWrap?.classList.remove('hidden');
-                            dayEndBookingWrap?.classList.remove('hidden');
+                            dayEndRoomWrap?.classList.add('hidden');
+                            dayEndBookingWrap?.classList.add('hidden');
                             const dayStartTravelInput = c.querySelector('.day-start-travel');
                             if (dayStartTravelInput) {
                                 dayStartTravelInput.name = `day_start_travel_minutes[${i}]`;
@@ -3020,30 +3374,6 @@
                     reindex();
                     syncHotelStaysHidden();
                     clearEndPointValidationState();
-                    const invalidEndPointDays = [];
-                    [...daySections.querySelectorAll('.day-section')]
-                    .sort((a, b) => Number(a.dataset.day) - Number(b.dataset.day))
-                        .forEach((section) => {
-                            const day = Number(section.dataset.day || '1');
-                            const endPointSelect = section.querySelector('.day-end-point-select');
-                            const isEmpty = !endPointSelect || String(endPointSelect.value || '').trim() ===
-                                '';
-                            if (isEmpty) {
-                                invalidEndPointDays.push(day);
-                                endPointSelect?.classList.add('border-rose-500', 'focus:border-rose-500',
-                                    'focus:ring-rose-500');
-                            }
-                        });
-                    if (invalidEndPointDays.length > 0) {
-                        const firstInvalidDay = invalidEndPointDays[0];
-                        daySections.querySelector(`.day-section[data-day="${firstInvalidDay}"]`)
-                            ?.scrollIntoView({
-                                behavior: 'smooth',
-                                block: 'center',
-                            });
-                        alert(`End Point is required for Day: ${invalidEndPointDays.join(', ')}.`);
-                        return;
-                    }
                     form.submit();
                 });
                 recalc();
@@ -3177,7 +3507,7 @@
 
                 const applyDestinationFilter = () => {
                     document.querySelectorAll(
-                            '.item-attraction, .item-activity, .item-fnb, .day-start-point-item, .day-end-point-item, .day-transport-unit'
+                            '.item-attraction, .item-activity, .item-transfer, .item-fnb, .day-start-point-item, .day-end-point-item, .day-transport-unit'
                             )
                         .forEach(applyFilterToSelect);
                 };

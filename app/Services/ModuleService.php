@@ -9,6 +9,42 @@ use Spatie\Permission\Models\Role;
 
 class ModuleService
 {
+    private static function ensureIslandTransferModule(): void
+    {
+        if (! Schema::hasTable('modules')) {
+            return;
+        }
+
+        Module::query()->firstOrCreate(
+            ['key' => 'island_transfers'],
+            [
+                'name' => 'Island Transfers',
+                'description' => 'Manage inter-island transfer services and sea routes.',
+                'is_enabled' => true,
+            ]
+        );
+
+        $permissions = [
+            'module.island_transfers.access',
+            'module.island_transfers.create',
+            'module.island_transfers.read',
+            'module.island_transfers.update',
+            'module.island_transfers.delete',
+        ];
+
+        foreach ($permissions as $permissionName) {
+            Permission::firstOrCreate([
+                'name' => $permissionName,
+                'guard_name' => 'web',
+            ]);
+        }
+
+        $roles = ['Administrator', 'Super Admin', 'Manager', 'Marketing', 'Reservation', 'Editor'];
+        $roleModels = Role::query()->whereIn('name', $roles)->get();
+        foreach ($roleModels as $role) {
+            $role->givePermissionTo($permissions);
+        }
+    }
 
     private static function ensureHotelModule(): void
     {
@@ -55,6 +91,7 @@ class ModuleService
     public static function isEnabledStatic(string $key): bool
     {
         self::ensureHotelModule();
+        self::ensureIslandTransferModule();
         if (! Schema::hasTable('modules')) {
             return (bool) config('modules.fail_open', false);
         }
@@ -74,6 +111,7 @@ class ModuleService
     public function listAll()
     {
         self::ensureHotelModule();
+        self::ensureIslandTransferModule();
         if (! Schema::hasTable('modules')) {
             return collect();
         }

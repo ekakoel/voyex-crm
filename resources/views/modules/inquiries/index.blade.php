@@ -119,10 +119,10 @@
                                                             @if (Route::has('itineraries.show') && auth()->user()->can('module.itineraries.access'))
                                                                 <a href="{{ route('itineraries.show', $itinerary) }}"
                                                                     class="text-indigo-600 hover:text-indigo-700 hover:underline dark:text-indigo-400">
-                                                                    {{ $itinerary->title }}
+                                                                    {{ $itinerary->title }} ({{ ucfirst((string) ($itinerary->status ?? 'pending')) }})
                                                                 </a>
                                                             @else
-                                                                {{ $itinerary->title }}
+                                                                {{ $itinerary->title }} ({{ ucfirst((string) ($itinerary->status ?? 'pending')) }})
                                                             @endif
                                                         </p>
                                                     @endforeach
@@ -195,10 +195,10 @@
                                                 @if (Route::has('itineraries.show') && auth()->user()->can('module.itineraries.access'))
                                                     <a href="{{ route('itineraries.show', $itinerary) }}"
                                                         class="text-indigo-600 hover:text-indigo-700 hover:underline dark:text-indigo-400">
-                                                        {{ $itinerary->title }}
+                                                        {{ $itinerary->title }} ({{ ucfirst((string) ($itinerary->status ?? 'pending')) }})
                                                     </a>
                                                 @else
-                                                    {{ $itinerary->title }}
+                                                    {{ $itinerary->title }} ({{ ucfirst((string) ($itinerary->status ?? 'pending')) }})
                                                 @endif
                                             </p>
                                         @endforeach
@@ -234,5 +234,4 @@
         </div>
     </div>
 @endsection
-
 

@@ -52,6 +52,13 @@ class FeatureAccessSeeder extends Seeder
                 'roles' => 'Administrator',
             ],
             [
+                'title' => 'Island Transfers',
+                'route' => 'island-transfers.index',
+                'icon'  => 'ship',
+                'module'  => 'island_transfers',
+                'roles' => 'Administrator',
+            ],
+            [
                 'title' => 'Tourist Attractions',
                 'route' => 'tourist-attractions.index',
                 'icon'  => 'landmark',

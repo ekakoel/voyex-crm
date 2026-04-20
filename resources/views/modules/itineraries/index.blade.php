@@ -5,7 +5,7 @@
     <a href="{{ route('itineraries.create') }}" class="btn-primary">{{ __('ui.modules.itineraries.create_itinerary') }}</a>
 @endsection
 @section('content')
-    <div class="space-y-6 module-page module-page--itineraries" data-service-filter-page data-page-spinner="off">
+    <div class="space-y-5 module-page module-page--itineraries" data-service-filter-page data-page-spinner="off">
         <x-index-stats :cards="$statsCards ?? []" />
         <div class="grid min-w-0 grid-cols-1 gap-6 xl:grid-cols-12">
             <aside class="min-w-0 space-y-4 xl:col-span-3">

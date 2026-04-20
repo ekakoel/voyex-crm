@@ -18,7 +18,7 @@
     @section('page_title', 'Editor Dashboard')
     @section('page_subtitle', 'Manage service catalogs and master content.')
     @section('page_actions')
-        <span class="text-xs text-slate-500 dark:text-slate-400">Updated: {{ now()->format('d M Y H:i') }}</span>
+        <span class="text-xs text-slate-500 dark:text-slate-400">Updated: {{ \App\Support\DateTimeDisplay::datetime(now()) }}</span>
     @endsection
 
     <div class="grid grid-cols-1 gap-3 xl:grid-cols-12">
@@ -49,7 +49,7 @@
                         <p class="text-xs font-semibold text-slate-700 dark:text-slate-200">Destinations</p>
                         <div class="mt-2 space-y-1 text-xs">
                             @forelse($recentDestinations as $item)
-                                <p class="text-slate-500 dark:text-slate-400">{{ $item->name }} • {{ optional($item->updated_at)->diffForHumans() }}</p>
+                                <p class="text-slate-500 dark:text-slate-400">{{ $item->name }} • {{ \App\Support\DateTimeDisplay::datetime(optional($item->updated_at)) }}</p>
                             @empty
                                 <p class="text-slate-500 dark:text-slate-400">No updates.</p>
                             @endforelse
@@ -91,4 +91,8 @@
     })();
 </script>
 @endpush
+
+
+
+
 

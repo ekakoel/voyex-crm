@@ -16,7 +16,7 @@
     @section('page_title', 'Finance Dashboard')
     @section('page_subtitle', 'Monitor invoices and payment flow.')
     @section('page_actions')
-        <span class="text-xs text-slate-500 dark:text-slate-400">Updated: {{ now()->format('d M Y H:i') }}</span>
+        <span class="text-xs text-slate-500 dark:text-slate-400">Updated: {{ \App\Support\DateTimeDisplay::datetime(now()) }}</span>
     @endsection
 
     <div class="grid grid-cols-1 gap-3 xl:grid-cols-12">
@@ -76,4 +76,6 @@
     })();
 </script>
 @endpush
+
+
 

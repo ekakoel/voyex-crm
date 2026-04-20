@@ -81,6 +81,12 @@ class ModuleSeeder extends Seeder
                 'is_enabled' => true,
             ],
             [
+                'key' => 'island_transfers',
+                'name' => 'Island Transfers',
+                'description' => 'Manage dedicated inter-island transfer routes with departure/arrival points and sea lanes.',
+                'is_enabled' => true,
+            ],
+            [
                 'key' => 'food_beverages',
                 'name' => 'Food & Beverage',
                 'description' => 'Manage F&B services as itinerary stop points.',

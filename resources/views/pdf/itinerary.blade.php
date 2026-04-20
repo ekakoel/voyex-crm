@@ -71,7 +71,7 @@
     <div class="header">
         <span>ITINERARY</span><br>
         <div class="title">{{ $itinerary->title }}</div>
-        <div class="subtitle">Generated on {{ now()->format('d M Y H:i') }}</div>
+        <div class="subtitle">Generated on {{ \App\Support\DateTimeDisplay::datetime(now()) }}</div>
         <span>Duration: {{ $itinerary->duration_days."D" }}{{ $itinerary->duration_nights > 0 ? "/".$itinerary->duration_nights."N":"";  }}</span>
     </div>
 
@@ -147,10 +147,6 @@
                                             <span>Main Experience</span>
                                         @endif
                                     </div>
-                                    @php
-                                        $itemDescription = \App\Support\SafeRichText::sanitize((string) ($item['description'] ?? ''));
-                                    @endphp
-                                    <div class="richtext">{!! $itemDescription !== '' ? $itemDescription : '-' !!}</div>
                                 @endif
                                 @if (strtolower((string) ($item['type'] ?? '')) === 'activity')
                                     @php

@@ -169,6 +169,23 @@
 @endphp
 
 <div class="space-y-5 module-form quotation-form-no-labels">
+    @if (session('error'))
+        <div class="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-800 dark:bg-rose-900/20 dark:text-rose-300">
+            {{ session('error') }}
+        </div>
+    @endif
+
+    @if ($errors->any())
+        <div class="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-800 dark:bg-rose-900/20 dark:text-rose-300">
+            <p class="font-semibold">Gagal menyimpan quotation. Mohon periksa data berikut:</p>
+            <ul class="mt-2 list-disc pl-5 space-y-1 text-xs sm:text-sm">
+                @foreach ($errors->all() as $message)
+                    <li>{{ $message }}</li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
+
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Itinerary</label>

@@ -1,7 +1,7 @@
 # VOYEX CRM -- SYSTEM ROADMAP
 
 Version: 1.4  
-Last Updated: 2026-04-17
+Last Updated: 2026-04-20
 
 Legend:  
 - DONE = Implemented  
@@ -199,6 +199,98 @@ Kebijakan ini wajib untuk setiap update code (penambahan, perubahan, pengurangan
 
 # CHANGELOG (LATEST)
 
+Date: 2026-04-20
+Completed in this cycle:
+
+- Date/time format hardening + CI guard:
+  - added canonical formatter `\App\Support\DateTimeDisplay` usage across UI/PDF touchpoints for consistent display format.
+  - standardized frontend datetime renderers to deterministic output `YYYY-MM-DD (HH:ii)` (non-locale-dependent) for:
+    - global local-time renderer in layout,
+    - quotation validation dynamic row updates,
+    - itinerary create/edit inquiry preview.
+  - added GitHub Actions workflow `.github/workflows/date-format-guard.yml`.
+  - added guard script `scripts/ci/check-date-format.sh` to block non-standard patterns in PRs:
+    - `diffForHumans()` in UI output,
+    - non-standard PHP date format usage like `d M Y`, `M Y`, `l, j F Y`,
+    - locale-dependent JS datetime rendering (`toLocaleString`, `toLocaleDateString`, `Intl.DateTimeFormat(undefined, ...)`).
+  - updated project docs (`README.md`, `PROJECT_GUIDELINES.md`, `PROJECT_KNOWLEDGE_BASE.md`) with date/time standard and CI enforcement.
+  - impact:
+    - prevents future regressions on date/time display format,
+    - guarantees consistent date rendering in web UI and PDF outputs,
+    - enforces format compliance automatically on pull requests.
+
+- Island Transfer documentation sync for cross-module stability:
+  - completed full markdown review and aligned canonical docs for Island Transfer integration across itinerary, quotation validation, and PDF behavior.
+  - updated `docs/technical/ISLAND_TRANSFER_MODULE.md` with:
+    - quotation integration flow,
+    - canonical `serviceable_type` and `itinerary_item_type` values,
+    - validation + master-rate sync scope,
+    - PDF itinerary/quotation consistency notes.
+  - updated `docs/technical/ITINERARY_CREATE_EDIT_FLOW.md`:
+    - added explicit schedule payload key `itinerary_island_transfer_items`,
+    - clarified map preview rule for transfer segment (`route_geojson` priority, OSRM fallback).
+  - updated `docs/technical/QUOTATION_VALIDATION_UAT_MATRIX.md` and `PROJECT_KNOWLEDGE_BASE.md`:
+    - validation-required item list now explicitly includes `Island Transfer`.
+  - updated `docs/technical/TECHNICAL_FIX_NOTES.md`:
+    - recorded root cause and fix notes for quotation save errors related to invalid `serviceable_type` / `itinerary_item_type` after Island Transfer rollout.
+- impact:
+  - documentation source-of-truth is now consistent with current code behavior for Island Transfer in create/edit itinerary, quotation validation, and PDF outputs.
+  - lowers risk of future regression caused by enum mismatch across quotation pipelines.
+
+- Quotation validation realtime UX + performance optimization:
+  - fixed stale validation progress after per-item AJAX save by ensuring progress is always calculated from latest DB state.
+  - `Validate Quotation` button now appears immediately once progress reaches 100% (no longer requires `Save Progress` click).
+  - reduced redundant validation sync passes in `QuotationValidationService`:
+    - `saveItem` now syncs requirement for current item only,
+    - `saveProgress`, `validateSelected`, and `finalize` avoid duplicate progress refresh,
+    - `syncValidationRequirementsAndMasterRates` refreshes progress once at end of pipeline.
+  - replaced in-memory validation progress counters with direct DB aggregate queries (`count/exists`) to reduce memory and response time on large quotation items.
+  - removed heavy master-rate sync from non-validation view paths:
+    - `quotations.show`,
+    - `quotations.edit`,
+    - quotation `approve` pre-check.
+    These paths now use requirement sync only.
+  - impact:
+    - faster response on validation-heavy quotations,
+    - clearer realtime behavior for validator users on finalization step,
+    - reduced latency after clicking `Validate Quotation` before detail page is shown.
+
+- Quotation validation rate period behavior alignment:
+  - adjusted validation rate sync so rate records follow validity period upsert rules:
+    - if an active rate period exists (`start_date <= today <= end_date`), update existing rate record,
+    - if no active period exists (or existing period expired), create a new rate record.
+  - applied to:
+    - `service_rate_histories` entries for Activity, Food & Beverage, Island Transfer, Transport Unit, Tourist Attraction, and Hotel Room,
+    - `hotel_prices` entries for hotel room rate source update.
+  - impact:
+    - avoids unnecessary duplicate period records,
+    - keeps rate history aligned with active validity windows.
+
+- Quotation finalize flow simplification:
+  - optimized `Validate Quotation` step to run in lightweight mode:
+    - no full item re-sync loop during finalize,
+    - finalize now validates completion from DB progress and commits `validation_status` directly.
+  - impact:
+    - faster finalize response after all items have been validated,
+    - reduced redundant workload on quotation with large validation item counts.
+
+- Quotation validation finalize UX feedback:
+  - added full-page loading overlay on `Validate Quotation` submit (finalize form).
+  - finalize flow remains non-AJAX; AJAX is kept only for per-item `Validate`.
+  - impact:
+    - clearer submit feedback during reload/redirect phase,
+    - reduced perceived slowness and duplicate-click behavior.
+  - adjustment:
+    - removed button-level spinner on `Validate Quotation`,
+    - finalize now behaves as regular form submit and uses the global page spinner only (no page-local overlay) to avoid double-overlay stacking.
+
+- Quotation detail validation transparency enhancement:
+  - `Validation Progress` card on quotation detail now shows validator users involved in validation (supports multi-validator scenario).
+  - includes per-validator validated item count and latest validation timestamp.
+  - impact:
+    - clearer audit visibility for collaborative validation workflow,
+    - easier reviewer tracking without opening validation page.
+
 Date: 2026-04-17
 Completed in this cycle:
 
@@ -258,6 +350,51 @@ Completed in this cycle:
   - removed legacy booking status dependency (`confirmed`) and aligned dashboard booking queries to active booking lifecycle statuses (`processed`, `approved`, `final`).
   - fixed KPI data wiring for `Quotations Ready to Book` and `Upcoming Trips` by populating `kpis.ready_to_book` and `kpis.upcoming_trips` from controller.
   - tightened `Upcoming Trips` scope to the next 30 days so query behavior matches panel label.
+
+- Seeder baseline consolidation for safer deploy:
+  - added single-entry baseline seeder `ProjectBaselineSeeder` and wired `DatabaseSeeder` to call it.
+  - retained `PermissionBaselineSeeder` for permission-only sync use case.
+  - added deploy shortcut commands in `composer.json`:
+    - `composer run db:baseline`
+    - `composer run db:deploy-safe`
+  - updated `README.md` with deploy baseline workflow.
+  - impact: seed execution is simpler and less error-prone across environments.
+
+- Inquiry index itinerary visibility enhancement:
+  - Inquiry index now loads itinerary `status` in list eager-load.
+  - itinerary label in Inquiry index updated to `Nama Itinerary (Status)` for desktop and mobile cards.
+  - impact: users can see itinerary lifecycle state directly from Inquiry list without opening detail page.
+
+- Inquiry assignee access parity with creator:
+  - updated Inquiry ownership rule for mutation to `creator OR assigned user` (still permission-gated by `module.inquiries.update`).
+  - inquiry communication and follow-up mutation checks now follow the same policy path.
+  - impact: assigned PIC can edit and maintain inquiry communication/follow-up flow without requiring creator identity.
+
+- Itinerary PDF item column cleanup:
+  - removed item-level `description` rendering from `resources/views/pdf/itinerary.blade.php` in the `Item` column.
+  - impact: PDF itinerary item rows are more concise and no longer show long description blocks under item names.
+
+- Quotation-with-itinerary PDF consistency cleanup:
+  - removed item-level `description` rendering from `resources/views/pdf/quotation_with_itinerary.blade.php` in the itinerary schedule `Item` column.
+  - impact: itinerary schedule table in quotation PDF now matches itinerary PDF behavior (no item description block).
+
+- Quotation validation button loading-state fix:
+  - improved per-item validation button state handling on `resources/views/modules/quotations/validate.blade.php`.
+  - when `Validate` is clicked, button label is hidden and spinner is shown consistently (including duplicated mobile/desktop action buttons for the same item).
+  - added loading spinner state for `Save Progress` and `Validate Quotation` action buttons during submit.
+  - impact: clearer submission feedback and reduced double-click risk during async validation save.
+
+- Itinerary day point optionality update:
+  - create/edit itinerary now allows `Day N Start Point` and `Day N End Point` to be left empty.
+  - removed client-side blocking rule that previously required end point per day.
+  - backend day-point normalization and validation now accept empty point type values and persist them as `null`.
+  - impact: users can save itinerary schedule flow without forcing start/end point selection on every day.
+
+- Itinerary create/edit quality hardening (error + performance):
+  - fixed malformed HTML attribute in day start point options (`data-longitude` typo) that could break DOM dataset parsing.
+  - removed duplicate hotel-room mapping query in `normalizeDayPoints()` to reduce unnecessary DB work on itinerary create/update submit.
+  - validated Blade compile with `php artisan view:cache`.
+  - impact: safer front-end behavior and faster backend normalization path for itinerary save.
   - refined ready-to-book quotation source to approved quotations without booking linkage (`whereDoesntHave('booking')`).
   - aligned recent bookings panel data with active booking statuses and removed unused `statusSummary` payload from reservation dashboard controller.
   - QA note:

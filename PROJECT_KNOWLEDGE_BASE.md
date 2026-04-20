@@ -1,10 +1,10 @@
 # Voyex CRM - Project Knowledge Base
 
-Last Updated: 2026-04-17
+Last Updated: 2026-04-20
 
 
-Version: 2.4  
-Date: 2026-04-17  
+Version: 2.5  
+Date: 2026-04-20  
 Status: Source of truth aktif
 
 ---
@@ -125,6 +125,7 @@ Dashboard redirect berbasis permission priority:
   - Hotel (`Hotel arranged by us`),
   - Activity,
   - Food & Beverage,
+  - Island Transfer,
   - Transport,
   - Tourist Attraction.
 - Save item via AJAX per-row.
@@ -149,6 +150,14 @@ Dashboard redirect berbasis permission priority:
 - Tampilan grouped format, payload tetap numeric murni.
 - Markup badge mengikuti `markup_type` (`%` atau currency symbol/code).
 
+### 7.3 Date & Time Display
+- Format tanggal wajib `YYYY-MM-DD`.
+- Format tanggal+waktu wajib `YYYY-MM-DD (HH:ii)`.
+- Berlaku untuk seluruh UI dan PDF.
+- Formatter backend canonical: `\App\Support\DateTimeDisplay`.
+- Render datetime di JavaScript wajib deterministic (tidak bergantung locale browser).
+- CI guard: `.github/workflows/date-format-guard.yml` menjalankan `scripts/ci/check-date-format.sh`.
+
 ---
 
 ## 8. Database Safety Baseline
@@ -171,6 +180,7 @@ Root source-of-truth:
 Technical docs:
 - `docs/technical/ITINERARY_CREATE_EDIT_FLOW.md`
 - `docs/technical/ITINERARY_DETAIL_MAP_ARCHITECTURE.md`
+- `docs/technical/ISLAND_TRANSFER_MODULE.md`
 - `docs/technical/QUOTATION_APPROVAL_UAT_MATRIX.md`
 - `docs/technical/QUOTATION_VALIDATION_UAT_MATRIX.md`
 - `docs/technical/NOMINAL_INPUT_STANDARD.md`

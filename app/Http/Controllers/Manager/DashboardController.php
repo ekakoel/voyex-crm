@@ -133,7 +133,7 @@ class DashboardController extends Controller
                 'key' => 'revenue',
                 'label' => 'Team Revenue (MTD)',
                 'value' => (int) round($kpis['monthly_revenue']),
-                'caption' => $now->format('M Y').' bookings',
+                'caption' => $now->format('Y-m-d').' bookings',
                 'tone' => 'bg-emerald-50 text-emerald-700 border-emerald-100',
             ];
         }

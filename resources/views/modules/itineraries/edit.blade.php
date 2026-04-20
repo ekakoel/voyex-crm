@@ -9,7 +9,7 @@
 
 
 @section('content')
-    <div class="space-y-6 module-page module-page--itineraries">
+    <div class="space-y-5 module-page module-page--itineraries">
         <div class="module-grid-8-4">
             <div class="module-grid-main">
                 <div class="module-form-wrap">
@@ -23,7 +23,7 @@
                     </form>
                 </div>
             </div>
-            <aside class="module-grid-side space-y-4">
+            <aside class="module-grid-side">
 
                 <div id="inquiry-detail-card"
                     class="mb-4 rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">

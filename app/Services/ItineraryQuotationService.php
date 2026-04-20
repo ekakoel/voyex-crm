@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Activity;
 use App\Models\FoodBeverage;
 use App\Models\HotelRoom;
+use App\Models\IslandTransfer;
 use App\Models\Itinerary;
 use App\Models\TouristAttraction;
 use App\Models\TransportUnit;
@@ -19,6 +20,7 @@ class ItineraryQuotationService
         $itinerary->loadMissing([
             'touristAttractions:id,name,contract_rate_per_pax,markup_type,markup,publish_rate_per_pax',
             'itineraryActivities.activity:id,name,adult_contract_rate,child_contract_rate,adult_markup_type,adult_markup,child_markup_type,child_markup,adult_publish_rate,child_publish_rate',
+            'itineraryIslandTransfers.islandTransfer:id,name,contract_rate,markup_type,markup,publish_rate',
             'itineraryFoodBeverages.foodBeverage:id,name,contract_rate,markup_type,markup,publish_rate',
             'itineraryTransportUnits.transportUnit:id,name,contract_rate,markup_type,markup,publish_rate',
             'dayPoints.endHotelRoom:id,hotels_id,rooms,view',
@@ -226,6 +228,57 @@ class ItineraryQuotationService
                     'item' => $childItem,
                 ];
             }
+        }
+
+        foreach ($itinerary->itineraryIslandTransfers as $transferItem) {
+            $transfer = $transferItem->islandTransfer;
+            if (! $transfer) {
+                continue;
+            }
+            $day = (int) ($transferItem->day_number ?? 0);
+            $qty = max(1, (int) ($transferItem->pax ?? 1));
+            $contractRate = (float) ($transfer->contract_rate ?? 0);
+            $markupType = ($transfer->markup_type ?? 'fixed') === 'percent' ? 'percent' : 'fixed';
+            $markup = (float) ($transfer->markup ?? 0);
+            $price = (float) ($transfer->publish_rate ?? 0);
+            if ($contractRate <= 0 && $price > 0) {
+                $contractRate = $price;
+            }
+            if ($price <= 0) {
+                $price = $markupType === 'percent'
+                    ? ($contractRate + ($contractRate * ($markup / 100)))
+                    : ($contractRate + $markup);
+            }
+            $item = $this->makeItem(
+                $this->dayPrefix($day) . 'Island Transfer: ' . $transfer->name,
+                $qty,
+                $price,
+                0,
+                IslandTransfer::class,
+                (int) $transfer->id,
+                $day,
+                [
+                    'day_number' => $day,
+                    'pax' => $qty,
+                    'start_time' => $this->normalizeTime($transferItem->start_time ?? null),
+                    'end_time' => $this->normalizeTime($transferItem->end_time ?? null),
+                    'travel_minutes_to_next' => $this->normalizeInt($transferItem->travel_minutes_to_next ?? null),
+                    'visit_order' => $this->normalizeInt($transferItem->visit_order ?? null),
+                ],
+                'transfer'
+            );
+            $item['contract_rate'] = max(0, $contractRate);
+            $item['markup_type'] = $markupType;
+            $item['markup'] = max(0, $markup);
+            $item['unit_price'] = max(0, $price);
+            $dayRows[] = [
+                'day' => $day,
+                'bucket_order' => 1,
+                'visit_order' => $this->normalizeInt($transferItem->visit_order ?? null),
+                'start_minutes' => $this->timeToMinutes($transferItem->start_time ?? null),
+                'sequence' => $sequence++,
+                'item' => $item,
+            ];
         }
 
         foreach ($itinerary->itineraryFoodBeverages as $foodItem) {
@@ -545,5 +598,4 @@ class ItineraryQuotationService
         return ((int) $hours * 60) + (int) $minutes;
     }
 }
-
 

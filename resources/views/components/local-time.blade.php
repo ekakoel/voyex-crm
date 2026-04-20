@@ -18,7 +18,7 @@
     }
 
     $iso = $dt?->toIso8601String();
-    $fallback = $dt ? $dt->format('Y-m-d H:i') . ' UTC' : $placeholder;
+    $fallback = $dt ? $dt->format('Y-m-d (H:i)') : $placeholder;
 @endphp
 
 @if ($iso)
@@ -33,4 +33,3 @@
 @else
     <span @class([$class])>{{ $placeholder }}</span>
 @endif
-

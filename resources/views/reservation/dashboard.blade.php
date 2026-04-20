@@ -223,7 +223,7 @@
                                                 <p class="text-xs">Final Amount</p>
                                             </td>
                                             <td class="whitespace-nowrap px-3 py-2 text-sm text-slate-500 dark:text-slate-300">
-                                                 <p class="font-semibold text-slate-700 dark:text-slate-200">{{ $quotation->updated_at->format('d M, Y') }}</p>
+                                                 <p class="font-semibold text-slate-700 dark:text-slate-200">{{ \App\Support\DateTimeDisplay::date($quotation->updated_at) }}</p>
                                                  <p class="text-xs">Approved Date</p>
                                             </td>
                                             <td class="whitespace-nowrap px-3 py-2 text-right text-sm">
@@ -257,7 +257,7 @@
                             <a href="{{ route('bookings.show', $booking) }}"  class="block rounded-lg bg-slate-50 px-3 py-2 text-xs hover:bg-slate-100 dark:bg-slate-800/50 dark:hover:bg-slate-800">
                                 <div class="flex items-center justify-between">
                                     <p class="font-bold text-slate-700 dark:text-slate-200">{{ $booking->booking_number }}</p>
-                                    <span class="font-semibold text-slate-600 dark:text-slate-300">{{ $booking->travel_date->format('d M, Y') }}</span>
+                                    <span class="font-semibold text-slate-600 dark:text-slate-300">{{ \App\Support\DateTimeDisplay::date($booking->travel_date) }}</span>
                                 </div>
                                 <p class="text-slate-500 dark:text-slate-400">
                                     Customer: {{ $booking->quotation?->inquiry?->customer?->name ?? 'N/A' }}
@@ -278,7 +278,7 @@
                                     <x-status-badge :status="$booking->status" />
                                 </div>
                                 <p class="text-slate-500 dark:text-slate-400">
-                                    Confirmed on {{ $booking->created_at->format('d M, Y') }}
+                                    Confirmed on {{ \App\Support\DateTimeDisplay::date($booking->created_at) }}
                                 </p>
                             </a>
                         @empty
@@ -304,5 +304,7 @@
     })();
 </script>
 @endpush
+
+
 
 

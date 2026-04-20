@@ -93,6 +93,13 @@ class Itinerary extends Model
             ->orderBy('visit_order');
     }
 
+    public function itineraryIslandTransfers()
+    {
+        return $this->hasMany(ItineraryIslandTransfer::class)
+            ->orderBy('day_number')
+            ->orderBy('visit_order');
+    }
+
     public function itineraryFoodBeverages()
     {
         return $this->hasMany(ItineraryFoodBeverage::class)
@@ -160,4 +167,3 @@ class Itinerary extends Model
         return $this->belongsTo(Transport::class, 'departure_transport_id');
     }
 }
-

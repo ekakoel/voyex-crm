@@ -24,10 +24,10 @@
         </div>
         <div class="muted">
             @if ($quotation->created_at)
-                <div>Date: {{ $quotation->created_at->format('d M Y') }}</div>
+                <div>Date: {{ \App\Support\DateTimeDisplay::date($quotation->created_at) }}</div>
             @endif
             @if ($quotation->validity_date)
-                <div>Valid Until: {{ $quotation->validity_date->format('d M Y') }}</div>
+                <div>Valid Until: {{ \App\Support\DateTimeDisplay::date($quotation->validity_date) }}</div>
             @endif
         </div>
     </div>

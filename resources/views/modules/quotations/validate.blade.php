@@ -50,6 +50,7 @@
                 const type = String(rawType || '').trim();
                 const map = {
                     FoodBeverage: 'Food and Beverage',
+                    IslandTransfer: 'Island Transfer',
                     TouristAttraction: 'Tourist Attraction',
                     TransportUnit: 'Transport',
                 };
@@ -275,13 +276,17 @@
                 if (!isoDate) return '-';
                 const parsed = new Date(isoDate);
                 if (Number.isNaN(parsed.getTime())) return isoDate;
-                return parsed.toLocaleString('en-US', {
+                const parts = new Intl.DateTimeFormat('en-CA', {
                     year: 'numeric',
-                    month: 'short',
+                    month: '2-digit',
                     day: '2-digit',
                     hour: '2-digit',
                     minute: '2-digit',
-                });
+                    hour12: false,
+                    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                }).formatToParts(parsed);
+                const map = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+                return `${map.year}-${map.month}-${map.day} (${map.hour}:${map.minute})`;
             };
 
             const parseIntegerFromDisplay = (value) => {
@@ -355,6 +360,15 @@
                 setTextForSelectors(`[data-markup-badge="${itemId}"], [data-mobile-markup-badge="${itemId}"]`, badgeText);
             };
 
+            const setActionButtonLoading = (button, isLoading, spinnerSelector, labelSelector) => {
+                if (!button) return;
+                button.disabled = isLoading;
+                const spinnerEl = button.querySelector(spinnerSelector);
+                const labelEl = button.querySelector(labelSelector);
+                if (spinnerEl) spinnerEl.classList.toggle('hidden', !isLoading);
+                if (labelEl) labelEl.classList.toggle('hidden', isLoading);
+            };
+
             const refreshAllMoneyBadges = () => {
                 setTextForSelectors('[data-contract-rate-badge]', currencyBadgeText);
                 setTextForSelectors('[data-mobile-contract-rate-badge]', currencyBadgeText);
@@ -396,6 +410,16 @@
                 }
             };
 
+            const setItemButtonLoading = (itemId, isLoading) => {
+                document.querySelectorAll(`[data-save-item="${itemId}"]`).forEach((btnEl) => {
+                    btnEl.disabled = isLoading;
+                    const spinnerEl = btnEl.querySelector(`[data-item-spinner="${itemId}"]`);
+                    const labelEl = btnEl.querySelector(`[data-item-save-label="${itemId}"]`);
+                    if (spinnerEl) spinnerEl.classList.toggle('hidden', !isLoading);
+                    if (labelEl) labelEl.classList.toggle('hidden', isLoading);
+                });
+            };
+
             const saveItemAjax = async (button) => {
                 const itemId = button.getAttribute('data-save-item');
                 const url = button.getAttribute('data-save-item-url');
@@ -406,8 +430,6 @@
                 const contractRateInput = getCanonicalInput(itemId, 'contract_rate');
                 const markupTypeInput = getCanonicalInput(itemId, 'markup_type');
                 const markupInput = getCanonicalInput(itemId, 'markup');
-                const spinner = document.querySelector(`[data-item-spinner="${itemId}"]`);
-                const label = document.querySelector(`[data-item-save-label="${itemId}"]`);
                 const normalizedContractRateDisplay = Math.max(0, parseIntegerFromDisplay(contractRateInput?.value || 0));
                 const normalizedMarkupDisplay = Math.max(0, parseIntegerFromDisplay(markupInput?.value || 0));
                 const normalizedContractRate = toIdrInteger(normalizedContractRateDisplay);
@@ -428,9 +450,7 @@
                     is_validated: 1,
                 };
 
-                button.disabled = true;
-                if (spinner) spinner.classList.remove('hidden');
-                if (label) label.classList.add('hidden');
+                setItemButtonLoading(itemId, true);
                 setItemFeedback(itemId, '');
 
                 try {
@@ -457,9 +477,7 @@
                 } catch (error) {
                     setItemFeedback(itemId, error.message || 'Failed to save item validation.', 'error');
                 } finally {
-                    button.disabled = false;
-                    if (spinner) spinner.classList.add('hidden');
-                    if (label) label.classList.remove('hidden');
+                    setItemButtonLoading(itemId, false);
                 }
             };
 
@@ -540,6 +558,10 @@
             });
 
             const progressForm = document.querySelector('[data-validation-progress-form]');
+            const saveProgressButton = document.querySelector('[data-save-progress-btn]');
+            const finalizeButton = document.querySelector('[data-finalize-quotation-btn]');
+            const finalizeForm = document.getElementById('quotation-finalize-form');
+
             progressForm?.addEventListener('submit', () => {
                 document.querySelectorAll('[data-mobile-contract-rate]').forEach((input) => {
                     const itemId = input.getAttribute('data-mobile-contract-rate');
@@ -553,6 +575,17 @@
                     const normalizedDisplay = Math.max(0, parseIntegerFromDisplay(input.value));
                     input.value = String(toIdrInteger(normalizedDisplay));
                 });
+                setActionButtonLoading(saveProgressButton, true, '[data-save-progress-spinner]', '[data-save-progress-label]');
+            });
+
+            finalizeButton?.addEventListener('click', (event) => {
+                event.preventDefault();
+                if (!finalizeForm) return;
+                finalizeButton.disabled = true;
+                if (saveProgressButton) {
+                    saveProgressButton.disabled = true;
+                }
+                finalizeForm.requestSubmit();
             });
 
             const updateProgressUi = (progress) => {
@@ -560,7 +593,6 @@
                 const totalValidatedEl = document.querySelector('[data-progress-total-validated]');
                 const percentEl = document.querySelector('[data-progress-percent]');
                 const statusEl = document.querySelector('[data-progress-status]');
-                const finalizeButton = document.querySelector('[data-finalize-quotation-btn]');
 
                 if (totalValidatedEl && progress.total_validated !== undefined) {
                     totalValidatedEl.textContent = String(progress.total_validated);
@@ -718,6 +750,7 @@
                                         $typeLabelMap = [
                                             'Activity' => 'Activity',
                                             'FoodBeverage' => 'Food and Beverage',
+                                            'IslandTransfer' => 'Island Transfer',
                                             'Transport' => 'Transport',
                                             'TransportUnit' => 'Transport',
                                             'TouristAttraction' => 'Tourist Attraction',
@@ -731,7 +764,7 @@
                                         $descriptionLabel = $itemName !== '' ? $itemName : '-';
                                         $vendorProviderItemLabel = $item->serviceable?->name ?? '-';
 
-                                        if (in_array($serviceableType, ['Activity', 'FoodBeverage', 'Transport', 'TransportUnit'], true)) {
+                                        if (in_array($serviceableType, ['Activity', 'FoodBeverage', 'IslandTransfer', 'Transport', 'TransportUnit'], true)) {
                                             $vendorName = trim((string) ($item->serviceable?->vendor?->name ?? ''));
                                             if ($vendorName !== '') {
                                                 $vendorProviderItemLabel = $vendorName;
@@ -902,6 +935,7 @@
                                 $typeLabelMap = [
                                     'Activity' => 'Activity',
                                     'FoodBeverage' => 'Food and Beverage',
+                                    'IslandTransfer' => 'Island Transfer',
                                     'Transport' => 'Transport',
                                     'TransportUnit' => 'Transport',
                                     'TouristAttraction' => 'Tourist Attraction',
@@ -918,7 +952,7 @@
                                 $dayKey = $dayNumber > 0 ? 'day-' . $dayNumber : 'day-without';
                                 $dayText = $dayNumber > 0 ? ('Day ' . $dayNumber) : 'Without Day';
 
-                                if (in_array($serviceableType, ['Activity', 'FoodBeverage', 'Transport', 'TransportUnit'], true)) {
+                                if (in_array($serviceableType, ['Activity', 'FoodBeverage', 'IslandTransfer', 'Transport', 'TransportUnit'], true)) {
                                     $vendorName = trim((string) ($item->serviceable?->vendor?->name ?? ''));
                                     if ($vendorName !== '') {
                                         $vendorProviderItemLabel = $vendorName;
@@ -1054,14 +1088,16 @@
             </div>
 
             <div class="module-action-row pt-2">
-                <button type="submit" class="btn-secondary">{{ __('ui.modules.quotations.save_progress') }}</button>
+                <button type="submit" class="btn-secondary" data-save-progress-btn>
+                    <span data-save-progress-spinner class="mr-1 hidden inline-block h-3 w-3 animate-spin rounded-full border border-current border-t-transparent align-[-1px]"></span>
+                    <span data-save-progress-label>{{ __('ui.modules.quotations.save_progress') }}</span>
+                </button>
                 <button
-                    type="submit"
-                    form="quotation-finalize-form"
+                    type="button"
                     class="btn-primary {{ (bool) ($progress['is_complete'] ?? false) ? '' : 'hidden' }}"
                     data-finalize-quotation-btn
                 >
-                    {{ __('ui.modules.quotations.validate_quotation') }}
+                    <span>{{ __('ui.modules.quotations.validate_quotation') }}</span>
                 </button>
             </div>
         </form>

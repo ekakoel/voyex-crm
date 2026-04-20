@@ -57,7 +57,11 @@ class Vendor extends Model
         return $this->hasMany(Transport::class);
     }
 
-}
+    public function islandTransfers()
+    {
+        return $this->hasMany(IslandTransfer::class);
+    }
 
+}
 
 

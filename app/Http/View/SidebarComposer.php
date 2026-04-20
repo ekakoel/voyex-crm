@@ -170,6 +170,13 @@ class SidebarComposer
                         'roles' => ['Administrator', 'Super Admin', 'Reservation', 'Manager', 'Marketing', 'Editor'],
                     ],
                     [
+                        'title' => 'Island Transfers',
+                        'route' => 'island-transfers.index',
+                        'icon'  => 'ship',
+                        'module' => 'island_transfers',
+                        'roles' => ['Administrator', 'Super Admin', 'Reservation', 'Manager', 'Marketing', 'Editor'],
+                    ],
+                    [
                         'title' => 'F&B',
                         'route' => 'food-beverages.index',
                         'icon'  => 'utensils',

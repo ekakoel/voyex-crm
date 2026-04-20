@@ -1,6 +1,6 @@
 # Itinerary Detail Map Architecture
 
-Last Updated: 2026-04-17
+Last Updated: 2026-04-20
 
 
 Dokumen ini menjelaskan implementasi map pada halaman detail itinerary (`show`) agar developer/AI bisa memahami sistem tanpa trial-error.
@@ -13,7 +13,9 @@ Referensi kode utama:
 Map di halaman detail itinerary harus:
 - menampilkan marker untuk setiap titik itinerary (start, item schedule, end),
 - mendukung filter `All Days` atau per hari,
-- menampilkan polyline yang mengikuti route jalan,
+- menampilkan polyline per segmen sesuai tipe perjalanan:
+  - route darat: OSRM driving,
+  - route laut transfer antar pulau: `route_geojson` dari master island transfer,
 - tidak menampilkan polyline lurus sebagai fallback.
 
 ## 2. Komponen UI
@@ -40,16 +42,18 @@ Data map dibangun dulu di Blade (PHP) sebelum masuk JavaScript:
    - anchor start day (jika ada koordinat valid),
    - semua attraction hari itu (dari `$dayGroups`),
    - semua activity hari itu (vendor lat/lng),
+   - semua island transfer hari itu (departure + arrival point),
    - semua F&B hari itu (vendor lat/lng),
    - anchor end day (jika ada koordinat valid).
 
 Struktur item `$mapPoints`:
-- `type` (`attraction|activity|fnb|hotel|airport`)
+- `type` (`attraction|activity|transfer|fnb|hotel|airport`)
 - `name`
 - `location`
 - `lat`, `lng`
 - `day_number`
 - `visit_order`
+- `route_to_next_coords` (opsional, khusus transfer departure bila tersedia `route_geojson`)
 
 Semua titik di-sort sebelum dikirim ke JS:
 - urutan utama: `day_number`
@@ -91,20 +95,22 @@ Fungsi `renderMarkers(day)`:
 - membuat marker bernomor per hari dengan ikon berdasarkan `type`,
 - bind popup marker berisi nomor, day, nama, lokasi.
 
-## 7. Render Polyline Route Jalan
+## 7. Render Polyline Route Segment
 
 Implementasi polyline:
 
 1. Titik dikelompokkan per hari.
 2. Untuk setiap hari dengan minimal 2 titik:
-   - ambil route OSRM per pasangan titik berurutan (`A->B`, `B->C`, dst) via `fetchRoadRouteForDay(...)`.
-   - gabungkan segmen jadi satu route harian.
+   - proses pasangan titik berurutan (`A->B`, `B->C`, dst).
+   - jika titik asal memiliki `route_to_next_coords`, gunakan route custom tersebut.
+   - jika tidak ada route custom, fallback ke route OSRM driving per segmen.
+   - gabungkan seluruh segmen menjadi satu route harian.
 3. Hanya jika route jalan valid (`>= 2` titik), polyline digambar.
-4. Jika route jalan gagal, polyline hari tersebut di-skip.
+4. Jika salah satu segmen gagal resolve, polyline hari tersebut di-skip.
 
 Penting:
 - tidak ada fallback polyline lurus.
-- hasil akhir adalah satu jalur yang mengikuti jalan.
+- hasil akhir adalah satu jalur yang mengikuti mode perjalanan sebenarnya (darat/laut).
 
 Endpoint route:
 - `https://router.project-osrm.org/route/v1/driving/{lng,lat;...}?overview=full&geometries=geojson`
@@ -147,13 +153,13 @@ Perbaikan yang dipertahankan:
 
 Jika mengubah map detail itinerary:
 - jangan kembalikan fallback garis lurus, kecuali ada kebutuhan bisnis baru,
-- pertahankan pola `fetchRoadRouteForDay` segment-by-segment,
+- pertahankan pola render segment-by-segment dan prioritas `route_to_next_coords` untuk transfer,
 - pertahankan guard render (`routeRenderToken`, `AbortController`, `mapBusy`),
 - pastikan `type` marker tetap sinkron dengan data `mapPoints` dari server,
 - setelah perubahan, selalu cek:
   - map muncul,
   - marker tampil,
-  - polyline hanya route jalan,
+  - polyline mengikuti jalur yang benar (darat/laut),
   - filter day berfungsi,
   - tidak ada error console.
 
@@ -161,6 +167,6 @@ Jika mengubah map detail itinerary:
 
 1. Buka halaman detail itinerary dengan data multi-day.
 2. Pastikan marker semua item muncul saat `All Days`.
-3. Pastikan hanya ada route jalan (tanpa garis diagonal lurus).
+3. Pastikan segmen transfer antar pulau mengikuti `route_geojson` (contoh Sanur -> Nusa Penida langsung).
 4. Klik `Day 1`, `Day 2`, dst dan cek marker + route terfilter benar.
 5. Cek console browser: tidak ada error JS Leaflet.

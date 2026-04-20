@@ -256,7 +256,7 @@ class DashboardController extends Controller
 
         while ($cursor->lte($endDate)) {
             $key = $cursor->format('Y-m-d');
-            $labels[] = $cursor->format('d M');
+            $labels[] = $cursor->format('Y-m-d');
             $inquiries[] = (int) ($inquirySeries[$key] ?? 0);
             $quotations[] = (int) ($quotationSeries[$key] ?? 0);
             $bookings[] = (int) ($bookingSeries[$key] ?? 0);

@@ -203,7 +203,7 @@ class DashboardController extends Controller
                         $weekDate = $weekStart->copy()->addWeeks($offset);
                         $key = $weekDate->format('oW');
                         return [
-                            'label' => $weekDate->format('d M'),
+                            'label' => $weekDate->format('Y-m-d'),
                             'count' => (int) ($weeklyCounts[$key] ?? 0),
                         ];
                     })

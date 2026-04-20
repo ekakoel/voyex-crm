@@ -1,6 +1,6 @@
 # Quotation Validation UAT Matrix
 
-Last Updated: 2026-04-17
+Last Updated: 2026-04-20
 
 Dokumen ini untuk validasi fitur Quotation Validation end-to-end sebelum approval.
 
@@ -16,6 +16,7 @@ Dokumen ini untuk validasi fitur Quotation Validation end-to-end sebelum approva
    - Hotel (hanya jika `Hotel arranged by us`),
    - Activity,
    - Food & Beverage,
+   - Island Transfer,
    - Transport,
    - Tourist Attraction.
 
@@ -36,7 +37,7 @@ Dokumen ini untuk validasi fitur Quotation Validation end-to-end sebelum approva
 | 11 | Approver | Coba approve sebelum `validation_status=valid` | Ditolak dengan pesan validation guard |
 | 12 | Validator | Revalidation sebelum status approved/final | Halaman validasi tetap bisa diakses untuk koreksi |
 | 13 | Validator | Cek sync ke module source saat validasi disimpan | Data source module + quotation item ikut terupdate |
-| 14 | User modul source | Ubah rate di module source (Activity/F&B/Transport/Attraction/Hotel) | Data di halaman validation mengikuti source terbaru |
+| 14 | User modul source | Ubah rate di module source (Activity/F&B/Island Transfer/Transport/Attraction/Hotel) | Data di halaman validation mengikuti source terbaru |
 | 15 | Validator | Cek modal contact detail | Contact person/phone/email/website update via AJAX, address tampil read-only |
 
 ## Negative Test (Recommended)
