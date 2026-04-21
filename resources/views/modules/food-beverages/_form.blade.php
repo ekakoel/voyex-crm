@@ -9,10 +9,28 @@
     $isLegacyServiceType = $selectedServiceType !== '' && ! in_array($selectedServiceType, $standardServiceTypes, true);
     $selectedDestinationId = (int) old('destination_filter_id', $foodBeverage->vendor->destination_id ?? 0);
     $defaultMarkupType = old('markup_type', $foodBeverage->markup_type ?? ($prefill['markup_type'] ?? 'fixed'));
-    $defaultMarkup = old('markup', $foodBeverage->markup ?? ($prefill['markup'] ?? null));
+    $activeCurrencyCode = strtoupper((string) (\App\Support\Currency::current() ?: 'IDR'));
+    $toDisplayMoney = static function ($amount) use ($activeCurrencyCode): float {
+        return round(\App\Support\Currency::convert((float) ($amount ?? 0), 'IDR', $activeCurrencyCode), 0);
+    };
+    $defaultMarkup = old('markup');
     $existingGalleryImages = is_array($foodBeverage->gallery_images ?? null) ? $foodBeverage->gallery_images : [];
     if ($defaultMarkup === null) {
+        $defaultMarkup = $foodBeverage->markup ?? ($prefill['markup'] ?? null);
+    }
+    if ($defaultMarkup === null) {
         $defaultMarkup = max(0, (float) (($foodBeverage->publish_rate ?? ($prefill['publish_rate'] ?? 0)) - ($foodBeverage->contract_rate ?? ($prefill['contract_rate'] ?? 0))));
+    }
+    if (old('markup') === null && $defaultMarkupType !== 'percent') {
+        $defaultMarkup = $toDisplayMoney($defaultMarkup);
+    }
+    $contractRateValue = old('contract_rate');
+    if ($contractRateValue === null) {
+        $contractRateValue = $toDisplayMoney($foodBeverage->contract_rate ?? ($prefill['contract_rate'] ?? ($prefill['contract_price'] ?? 0)));
+    }
+    $publishRateValue = old('publish_rate');
+    if ($publishRateValue === null) {
+        $publishRateValue = $toDisplayMoney($foodBeverage->publish_rate ?? ($prefill['publish_rate'] ?? ($prefill['agent_price'] ?? 0)));
     }
 @endphp
 
@@ -146,7 +164,7 @@
             <x-money-input
                 label="Contract Rate (per pax)"
                 name="contract_rate"
-                :value="old('contract_rate', $foodBeverage->contract_rate ?? ($prefill['contract_rate'] ?? ($prefill['contract_price'] ?? '')))"
+                :value="$contractRateValue"
                 id="food-beverage-contract-rate"
                 min="0"
                 step="1"
@@ -177,7 +195,7 @@
                 label="Publish Rate (Auto / per pax)"
                 name="publish_rate"
                 id="food-beverage-publish-rate"
-                :value="old('publish_rate', $foodBeverage->publish_rate ?? ($prefill['publish_rate'] ?? ($prefill['agent_price'] ?? '')))"
+                :value="$publishRateValue"
                 min="0"
                 step="1"
                 readonly
@@ -414,6 +432,5 @@
         </script>
     @endpush
 @endonce
-
 
 

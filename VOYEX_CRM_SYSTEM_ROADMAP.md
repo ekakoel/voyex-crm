@@ -199,6 +199,21 @@ Kebijakan ini wajib untuk setiap update code (penambahan, perubahan, pengurangan
 
 # CHANGELOG (LATEST)
 
+Date: 2026-04-21
+Completed in this cycle:
+
+- Food & Beverage pricing currency canonicalization (IDR persistence):
+  - fixed create/edit F&B pricing persistence so `contract_rate` and fixed `markup` are always stored in IDR regardless of active display currency.
+  - backend normalization now converts submitted display-currency values to IDR using current currency rate before publish-rate computation and persistence.
+  - updated F&B form initial values (create/edit/copy) to render pricing fields in active display currency, then safely round-trip to IDR on submit.
+  - percent markup behavior is preserved as percentage (not currency-converted), while fixed markup is converted to IDR.
+  - impact:
+    - switching top-nav currency (e.g., USD) no longer causes raw foreign-currency values to be persisted as if they were IDR,
+    - F&B price data remains consistent with project-wide IDR canonical storage rule.
+- QA note:
+  - `php -l app/Http/Controllers/Admin/FoodBeverageController.php` passed.
+  - `php artisan view:cache` passed.
+
 Date: 2026-04-20
 Completed in this cycle:
 

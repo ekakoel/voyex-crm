@@ -537,6 +537,23 @@ Dampak:
 - Informasi validasi menjadi lebih jelas saat ada lebih dari satu validator.
 - User dapat melihat kontribusi masing-masing validator langsung dari halaman detail quotation.
 
+## 32. Food & Beverage Currency Persistence Hardening (2026-04-21)
+
+Masalah:
+- Saat currency aktif diganti ke non-IDR (contoh: USD), input nominal pada create/edit F&B tersimpan sebagai nilai mentah display currency.
+- Dampaknya, `contract_rate` dan `markup` (fixed) berpotensi tersimpan bukan dalam canonical IDR.
+
+Perbaikan:
+- Menambahkan normalisasi backend di `FoodBeverageController` agar sebelum simpan:
+  - `contract_rate` display currency -> dikonversi ke IDR,
+  - `markup` dikonversi ke IDR jika `markup_type=fixed`,
+  - `markup_type=percent` tetap diperlakukan sebagai persen (tanpa konversi mata uang).
+- Menyesuaikan nilai awal field pricing pada form F&B agar tampil mengikuti currency aktif, sehingga round-trip edit tidak memicu over-conversion.
+
+Dampak:
+- Canonical storage rule (harga/rate disimpan dalam IDR) kembali konsisten untuk create/edit F&B.
+- Pergantian currency tampilan tidak lagi mengubah basis penyimpanan data master pricing.
+
 
 ## Referensi Kode
 

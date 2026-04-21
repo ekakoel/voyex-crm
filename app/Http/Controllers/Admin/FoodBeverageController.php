@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Destination;
 use App\Models\FoodBeverage;
 use App\Models\Vendor;
+use App\Support\Currency;
 use App\Support\ImageThumbnailGenerator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -221,6 +222,19 @@ class FoodBeverageController extends Controller
         $validated['markup_type'] = (($validated['markup_type'] ?? 'fixed') === 'percent') ? 'percent' : 'fixed';
         $validated['contract_rate'] = max(0, (float) ($validated['contract_rate'] ?? 0));
         $validated['markup'] = max(0, (float) ($validated['markup'] ?? 0));
+
+        // Input nominal on UI follows current display currency.
+        // Persisted values for service master pricing must remain canonical in IDR.
+        $activeCurrency = strtoupper((string) Currency::current());
+        $displayToIdrRate = (float) Currency::rate($activeCurrency, 'IDR');
+        if (! is_finite($displayToIdrRate) || $displayToIdrRate <= 0) {
+            $displayToIdrRate = 1.0;
+        }
+
+        $validated['contract_rate'] = $validated['contract_rate'] * $displayToIdrRate;
+        if ($validated['markup_type'] === 'fixed') {
+            $validated['markup'] = $validated['markup'] * $displayToIdrRate;
+        }
 
         if ($validated['markup_type'] === 'percent' && $validated['markup'] > 100) {
             throw ValidationException::withMessages([

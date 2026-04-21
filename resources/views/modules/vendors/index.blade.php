@@ -5,11 +5,11 @@
     <a href="{{ route('vendors.create') }}" class="btn-primary">{{ __('ui.modules.vendors.add_vendor') }}</a>
 @endsection
 @section('content')
-    <div class="space-y-6 module-page module-page--vendors" data-service-filter-page data-page-spinner="off">
+    <div class="space-y-5 module-page module-page--vendors" data-service-filter-page data-page-spinner="off">
         <x-index-stats :cards="$statsCards ?? []" />
         <div class="module-grid-3-9">
-            <aside class="module-grid-side space-y-4">
-                <div class="app-card p-5 space-y-4">
+            <aside class="module-grid-side">
+                <div class="app-card p-5">
                     <div>
                         <h2 class="text-base font-semibold text-gray-800 dark:text-gray-100">{{ __('ui.common.filters') }}</h2>
                         <p class="text-sm text-gray-500 dark:text-gray-400">{{ __('ui.index.refine_list_quickly') }}</p>
@@ -27,7 +27,7 @@
                     </form>
                 </div>
             </aside>
-            <div class="module-grid-main space-y-4" data-service-filter-results>
+            <div class="module-grid-main" data-service-filter-results>
                 @if (session('success'))
                     <div class="rounded-lg mb-6 border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300">{{ session('success') }}</div>
                 @endif
