@@ -27,8 +27,8 @@
     @endif
 
     <div class="space-y-3">
-        <div data-progressive-group>
-            <x-index-stats :cards="$statsCards ?? []" class="dashboard-kpi-grid" />
+            <div data-progressive-group>
+            <x-index-stats :cards="$statsCards ?? []" class="dashboard-kpi-grid grid grid-cols-2 gap-3 lg:grid-cols-4" />
         </div>
 
         <div class="grid grid-cols-1 gap-3 xl:grid-cols-12">
@@ -36,34 +36,34 @@
                 @if($canQuotations)
                     <div class="sa-card p-5" data-progressive-item>
                         <div class="flex items-center justify-between">
-                            <h2 class="text-sm font-semibold text-slate-900 dark:text-slate-100">Approval Pipeline</h2>
+                            <h2 class="text-sm font-semibold text-slate-900 dark:text-slate-100">{{ __('Approval Pipeline') }}</h2>
                             <a href="{{ route('quotations.index', ['status' => 'pending', 'needs_my_approval' => 1]) }}" class="text-xs font-medium text-indigo-600 hover:text-indigo-700 dark:text-indigo-300">
                                 Open My Approval List
                             </a>
                         </div>
                         <div class="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3 text-xs">
                             <div class="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900">
-                                <p class="text-slate-500 dark:text-slate-400">Step 1: First Approval</p>
+                                <p class="text-slate-500 dark:text-slate-400">{{ __('Step 1: First Approval') }}</p>
                                 <p class="mt-1 text-lg font-semibold text-slate-800 dark:text-slate-100">{{ number_format((int) ($needsReservationApprovalCount ?? 0)) }}</p>
-                                <p class="text-slate-500 dark:text-slate-400">No non-creator approval yet</p>
+                                <p class="text-slate-500 dark:text-slate-400">{{ __('No non-creator approval yet') }}</p>
                             </div>
                             <div class="rounded-xl border border-amber-200 bg-amber-50 p-3 dark:border-amber-700 dark:bg-amber-900/20">
-                                <p class="text-amber-700 dark:text-amber-300">My Approval Queue</p>
+                                <p class="text-amber-700 dark:text-amber-300">{{ __('My Approval Queue') }}</p>
                                 <p class="mt-1 text-lg font-semibold text-amber-800 dark:text-amber-200">{{ number_format((int) ($needsManagerApprovalCount ?? 0)) }}</p>
-                                <p class="text-amber-700 dark:text-amber-300">Need your approval</p>
+                                <p class="text-amber-700 dark:text-amber-300">{{ __('Need your approval') }}</p>
                             </div>
                             <div class="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900">
-                                <p class="text-slate-500 dark:text-slate-400">Step 2: Final Approval</p>
+                                <p class="text-slate-500 dark:text-slate-400">{{ __('Step 2: Final Approval') }}</p>
                                 <p class="mt-1 text-lg font-semibold text-slate-800 dark:text-slate-100">{{ number_format((int) ($needsDirectorApprovalCount ?? 0)) }}</p>
-                                <p class="text-slate-500 dark:text-slate-400">Already has 1 non-creator approval</p>
+                                <p class="text-slate-500 dark:text-slate-400">{{ __('Already has 1 non-creator approval') }}</p>
                             </div>
                         </div>
                     </div>
 
                     <div class="sa-card p-5" data-progressive-item>
                         <div class="flex items-center justify-between">
-                            <h2 class="text-sm font-semibold text-slate-900 dark:text-slate-100">Manager Approval Queue</h2>
-                            <span class="text-[11px] text-slate-500 dark:text-slate-400">Prioritized by validity date</span>
+                            <h2 class="text-sm font-semibold text-slate-900 dark:text-slate-100">{{ __('Manager Approval Queue') }}</h2>
+                            <span class="text-[11px] text-slate-500 dark:text-slate-400">{{ __('Prioritized by validity date') }}</span>
                         </div>
                         <div class="mt-3 space-y-2 text-xs">
                             @forelse($managerApprovalQueue as $quotation)
@@ -85,7 +85,7 @@
                                     </div>
                                 </div>
                             @empty
-                                <p class="text-xs text-slate-500 dark:text-slate-400">No quotation is currently waiting for manager approval.</p>
+                                <p class="text-xs text-slate-500 dark:text-slate-400">{{ __('No quotation is currently waiting for manager approval.') }}</p>
                             @endforelse
                         </div>
                     </div>
@@ -93,7 +93,7 @@
 
                 @if($canInquiries || $canQuotations || $canItineraries || $canBookings)
                     <div class="sa-card p-5" data-progressive-item>
-                        <h2 class="text-sm font-semibold text-slate-900 dark:text-slate-100">Team Funnel</h2>
+                        <h2 class="text-sm font-semibold text-slate-900 dark:text-slate-100">{{ __('Team Funnel') }}</h2>
                         <div class="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
                             @forelse($funnel as $stage)
                                 <div class="app-card p-3 text-center" data-progressive-item>
@@ -107,7 +107,7 @@
                                     </p>
                                 </div>
                             @empty
-                                <p class="text-xs text-slate-500 dark:text-slate-400">No funnel data available.</p>
+                                <p class="text-xs text-slate-500 dark:text-slate-400">{{ __('No funnel data available.') }}</p>
                             @endforelse
                         </div>
                     </div>
@@ -117,7 +117,7 @@
             <aside class="xl:col-span-4 space-y-3" data-progressive-group>
                 @if($canQuotations)
                     <div class="sa-card p-4" data-progressive-item>
-                        <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100">Quotation Status Snapshot</h3>
+                        <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100">{{ __('Quotation Status Snapshot') }}</h3>
                         <div class="mt-3 space-y-2 text-xs">
                             @forelse(($quotationStatusCounts ?? collect())->sortKeys() as $status => $count)
                                 <div class="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2 dark:border-slate-700 dark:bg-slate-900" data-progressive-item>
@@ -125,7 +125,7 @@
                                     <span class="font-semibold text-slate-900 dark:text-slate-100">{{ number_format((int) $count) }}</span>
                                 </div>
                             @empty
-                                <p class="text-xs text-slate-500 dark:text-slate-400">No quotation status data.</p>
+                                <p class="text-xs text-slate-500 dark:text-slate-400">{{ __('No quotation status data.') }}</p>
                             @endforelse
                         </div>
                     </div>
@@ -133,7 +133,7 @@
 
                 @if($canInquiries)
                     <div class="sa-card p-4" data-progressive-item>
-                        <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100">Inquiry Status Distribution</h3>
+                        <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100">{{ __('Inquiry Status Distribution') }}</h3>
                         <div class="mt-3 grid grid-cols-1 gap-2 text-xs">
                             @forelse($inquiryByStatus as $status => $total)
                                 <div class="app-card px-3 py-2 flex items-center justify-between" data-progressive-item>
@@ -141,7 +141,7 @@
                                     <b class="text-slate-700 dark:text-slate-200">{{ number_format($total) }}</b>
                                 </div>
                             @empty
-                                <p class="text-xs text-slate-500 dark:text-slate-400">No inquiry data found.</p>
+                                <p class="text-xs text-slate-500 dark:text-slate-400">{{ __('No inquiry data found.') }}</p>
                             @endforelse
                         </div>
                     </div>
@@ -149,7 +149,7 @@
 
                 @if($canInquiries)
                     <div class="sa-card p-4" data-progressive-item>
-                        <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100">Action Center: Follow-ups</h3>
+                        <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100">{{ __('Action Center: Follow-ups') }}</h3>
                         <div class="mt-3 space-y-2">
                             @forelse($upcomingFollowUps as $followUp)
                                 @php
@@ -172,7 +172,7 @@
                                     </p>
                                 </a>
                             @empty
-                                <p class="text-xs text-slate-500 dark:text-slate-400">No upcoming follow-ups.</p>
+                                <p class="text-xs text-slate-500 dark:text-slate-400">{{ __('No upcoming follow-ups.') }}</p>
                             @endforelse
                         </div>
                     </div>
@@ -183,8 +183,8 @@
         @if($canInquiries)
             <div class="sa-card p-5" data-progressive-group>
                 <div class="flex items-center justify-between">
-                    <h2 class="text-sm font-semibold text-slate-900 dark:text-slate-100">Recent Team Inquiries</h2>
-                    <a href="{{ route('inquiries.index') }}" class="text-xs font-medium text-indigo-600 hover:text-indigo-500 dark:text-indigo-400">View all</a>
+                    <h2 class="text-sm font-semibold text-slate-900 dark:text-slate-100">{{ __('Recent Team Inquiries') }}</h2>
+                    <a href="{{ route('inquiries.index') }}" class="text-xs font-medium text-indigo-600 hover:text-indigo-500 dark:text-indigo-400">{{ __('View all') }}</a>
                 </div>
                 <div class="mt-3 space-y-2">
                     @forelse($recentInquiries as $inquiry)
@@ -199,7 +199,7 @@
                             </div>
                         </a>
                     @empty
-                        <p class="text-center text-xs text-slate-500 dark:text-slate-400">No recent inquiries found.</p>
+                        <p class="text-center text-xs text-slate-500 dark:text-slate-400">{{ __('No recent inquiries found.') }}</p>
                     @endforelse
                 </div>
             </div>

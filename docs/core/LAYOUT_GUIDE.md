@@ -38,6 +38,7 @@ Gunakan baseline berikut untuk halaman non-dashboard:
 
 - Index: `4 / 8` (filter kiri, list kanan)
 - Create/Edit/Detail: `8 / 4` (main kiri, sidebar kanan)
+- Gap antar-card/container card: `gap-3` (`0.75rem`) sebagai rhythm global.
 
 Class acuan di `resources/css/app.css`:
 - `.module-grid-3-9`
@@ -45,6 +46,42 @@ Class acuan di `resources/css/app.css`:
 - `.module-grid-8-4`
 - `.module-grid-main`
 - `.module-grid-side`
+- `.app-card-stack`
+- `.app-card-row`
+
+## 2a. Global Card Rhythm Standard
+
+Semua halaman mengikuti rhythm card global:
+
+- token utama: `--app-card-gap: 0.75rem`;
+- class Tailwind equivalent: `gap-3`;
+- berlaku untuk grid, flex row, stack, dashboard KPI, responsive card list, dan sidebar card group;
+- wrapper lama yang masih memakai `gap-4`, `gap-5`, `gap-6`, atau `space-y-6` akan dinormalisasi oleh CSS global selama wrapper tersebut berisi card (`app-card`, `sa-card`, atau `module-card`).
+
+Untuk halaman baru, gunakan salah satu pola berikut:
+
+```blade
+<div class="app-card-stack">
+    <section class="app-card p-4">...</section>
+    <section class="app-card p-4">...</section>
+</div>
+```
+
+```blade
+<div class="app-card-row">
+    <section class="app-card p-4">...</section>
+    <section class="app-card p-4">...</section>
+</div>
+```
+
+Jika butuh grid kolom responsive, tetap gunakan `gap-3` secara eksplisit:
+
+```blade
+<div class="grid gap-3 lg:grid-cols-3">
+    <section class="app-card p-4">...</section>
+    <section class="app-card p-4">...</section>
+</div>
+```
 
 ## 3. Template Index (Filter + Results)
 
@@ -171,6 +208,7 @@ Checklist cepat sebelum merge:
 3. Filter/form tetap bisa dioperasikan satu tangan di mobile.
 4. Tabel besar punya fallback card/list pada mobile/tablet.
 5. Spacing, ukuran font, dan hierarchy tetap konsisten dengan class global (`app-*`, `module-*`, `responsive-*`).
+6. Page header harus memiliki jarak aman dari sticky top navigation pada mobile. Baseline global: `main.app-content` memakai `pt-6` (`1.5rem`) sebelum page header dirender.
 
 ## 6. Map Standard Section
 
@@ -194,7 +232,8 @@ Agar layout tidak drift antar modul:
 1. jangan buat class grid custom per halaman jika sudah ada utility global,
 2. pakai komponen style global (`app-card`, `app-table`, `app-input`, `btn-*`),
 3. untuk field nominal gunakan standar `x-money-input` dengan badge currency kiri (left affix),
-4. update dokumen ini jika baseline layout global berubah.
+4. untuk jarak antar-card gunakan baseline global `--app-card-gap: 0.75rem` (`gap-3`), bukan variasi lokal seperti `gap-5`, `gap-6`, atau `space-y-6` untuk wrapper card baru,
+5. update dokumen ini jika baseline layout global berubah.
 
 ## 8. Async Dashboard Pattern (Recommended)
 

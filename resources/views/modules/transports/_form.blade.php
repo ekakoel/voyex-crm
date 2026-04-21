@@ -40,7 +40,7 @@
 <div class="space-y-5">
     <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Unit Images (max 2)</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Unit Images (max 2)') }}</label>
             <div id="transport-gallery-preview"
                 class="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2"
                 data-remove-endpoint-template="{{ isset($transport) ? route('transports.gallery-images.remove', $transport) : '' }}"
@@ -53,7 +53,7 @@
                             <button
                                 type="button"
                                 class="transport-gallery-remove-btn absolute right-1 top-1 z-10 inline-flex h-6 w-6 items-center justify-center rounded-full bg-rose-600/95 text-xs font-bold text-white shadow hover:bg-rose-700"
-                                title="Remove image"
+                                title="{{ __('Remove image') }}"
                                 aria-label="Remove image">
                                 X
                             </button>
@@ -63,7 +63,7 @@
                                         <path d="M4 7h3l2-2h6l2 2h3a1 1 0 0 1 1 1v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a1 1 0 0 1 1-1z"></path>
                                         <circle cx="12" cy="13" r="4"></circle>
                                     </svg>
-                                    <span>Select image to preview</span>
+                                    <span>{{ __('Select image to preview') }}</span>
                                 </div>
                                 @if ($thumbUrl)
                                     <img
@@ -84,7 +84,7 @@
                                     <path d="M4 7h3l2-2h6l2 2h3a1 1 0 0 1 1 1v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a1 1 0 0 1 1-1z"></path>
                                     <circle cx="12" cy="13" r="4"></circle>
                                 </svg>
-                                <span>Select image to preview</span>
+                                <span>{{ __('Select image to preview') }}</span>
                             </div>
                         </div>
                     </div>
@@ -99,14 +99,14 @@
 
     <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
         <div class="md:col-span-2">
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Transport Unit Name</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Transport Unit Name') }}</label>
             <input name="name" value="{{ old('name', $transport->name ?? '') }}" class="mt-1 dark:border-gray-600 app-input" required>
             @error('name') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
         </div>
         <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Transport Type</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Transport Type') }}</label>
             <select name="transport_type" class="mt-1 dark:border-gray-600 app-input" required>
-                <option value="">Select type</option>
+                <option value="">{{ __('Select type') }}</option>
                 @foreach ($transportTypes as $type)
                     <option value="{{ $type }}" @selected(old('transport_type', $transport->transport_type ?? '') === $type)>{{ str_replace('_', ' ', ucfirst($type)) }}</option>
                 @endforeach
@@ -117,9 +117,9 @@
 
     <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Destination (Filter Vendor)</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Destination (Filter Vendor)') }}</label>
             <select id="transport-destination-filter" name="destination_filter_id" class="mt-1 dark:border-gray-600 app-input">
-                <option value="">All destinations</option>
+                <option value="">{{ __('All destinations') }}</option>
                 @foreach ($destinations as $destination)
                     <option value="{{ $destination->id }}" @selected($selectedDestinationId === (int) $destination->id)>
                         {{ $destination->name ?: ($destination->province ?: 'Destination') }}
@@ -129,12 +129,12 @@
                     </option>
                 @endforeach
             </select>
-            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Filter-only, tidak disimpan ke database transport.</p>
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ __('Filter-only, tidak disimpan ke database transport.') }}</p>
         </div>
         <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Vendor</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Vendor') }}</label>
             <select id="transport-vendor-select" name="vendor_id" class="mt-1 dark:border-gray-600 app-input" required>
-                <option value="">Select vendor</option>
+                <option value="">{{ __('Select vendor') }}</option>
                 @foreach ($vendors as $vendor)
                     <option value="{{ $vendor->id }}"
                         data-destination-id="{{ (int) ($vendor->destination_id ?? 0) }}"
@@ -146,20 +146,20 @@
             @error('vendor_id') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
         </div>
         <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Brand / Model</label>
-            <input name="brand_model" value="{{ old('brand_model', $transport->brand_model ?? '') }}" class="mt-1 dark:border-gray-600 app-input" placeholder="Toyota Innova">
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Brand / Model') }}</label>
+            <input name="brand_model" value="{{ old('brand_model', $transport->brand_model ?? '') }}" class="mt-1 dark:border-gray-600 app-input" placeholder="{{ __('Toyota Innova') }}">
             @error('brand_model') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
         </div>
     </div>
 
     <div class="grid grid-cols-1 gap-4 md:grid-cols-6">
         <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Seats</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Seats') }}</label>
             <input name="seat_capacity" type="number" min="1" value="{{ old('seat_capacity', $transport->seat_capacity ?? 4) }}" class="mt-1 dark:border-gray-600 app-input" required>
             @error('seat_capacity') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
         </div>
         <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Luggage</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Luggage') }}</label>
             <input name="luggage_capacity" type="number" min="0" value="{{ old('luggage_capacity', $transport->luggage_capacity ?? '') }}" class="mt-1 dark:border-gray-600 app-input">
             @error('luggage_capacity') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
         </div>
@@ -174,10 +174,10 @@
             required
         />
         <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Markup Type</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Markup Type') }}</label>
             <select name="markup_type" id="transport-markup-type" class="mt-1 dark:border-gray-600 app-input">
-                <option value="fixed" @selected($defaultMarkupType === 'fixed')>Fixed</option>
-                <option value="percent" @selected($defaultMarkupType === 'percent')>Percent</option>
+                <option value="fixed" @selected($defaultMarkupType === 'fixed')>{{ __('Fixed') }}</option>
+                <option value="percent" @selected($defaultMarkupType === 'percent')>{{ __('Percent') }}</option>
             </select>
             @error('markup_type') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
         </div>
@@ -212,74 +212,74 @@
 
     <div class="grid grid-cols-1 gap-4 md:grid-cols-4">
         <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Fuel Type</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Fuel Type') }}</label>
             <select name="fuel_type" class="mt-1 dark:border-gray-600 app-input">
-                <option value="">Select fuel</option>
+                <option value="">{{ __('Select fuel') }}</option>
                 @foreach ($fuelTypes as $fuelType)
                     <option value="{{ $fuelType }}" @selected(old('fuel_type', $transport->fuel_type ?? '') === $fuelType)>{{ ucfirst($fuelType) }}</option>
                 @endforeach
             </select>
         </div>
         <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Transmission</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Transmission') }}</label>
             <select name="transmission" class="mt-1 dark:border-gray-600 app-input">
-                <option value="">Select transmission</option>
+                <option value="">{{ __('Select transmission') }}</option>
                 @foreach ($transmissions as $transmission)
                     <option value="{{ $transmission }}" @selected(old('transmission', $transport->transmission ?? '') === $transmission)>{{ ucfirst($transmission) }}</option>
                 @endforeach
             </select>
         </div>
         <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Air Conditioned</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Air Conditioned') }}</label>
             <select name="air_conditioned" class="mt-1 dark:border-gray-600 app-input">
-                <option value="1" @selected((string) old('air_conditioned', (int) ($transport->air_conditioned ?? true)) === '1')>Yes</option>
-                <option value="0" @selected((string) old('air_conditioned', (int) ($transport->air_conditioned ?? true)) === '0')>No</option>
+                <option value="1" @selected((string) old('air_conditioned', (int) ($transport->{{ __('air_conditioned ?? true)) === \'1\')>Yes') }}</option>
+                <option value="0" @selected((string) old('air_conditioned', (int) ($transport->{{ __('air_conditioned ?? true)) === \'0\')>No') }}</option>
             </select>
         </div>
         <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">With Driver</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('With Driver') }}</label>
             <select name="with_driver" class="mt-1 dark:border-gray-600 app-input">
-                <option value="1" @selected((string) old('with_driver', (int) ($transport->with_driver ?? true)) === '1')>Yes</option>
-                <option value="0" @selected((string) old('with_driver', (int) ($transport->with_driver ?? true)) === '0')>No</option>
+                <option value="1" @selected((string) old('with_driver', (int) ($transport->{{ __('with_driver ?? true)) === \'1\')>Yes') }}</option>
+                <option value="0" @selected((string) old('with_driver', (int) ($transport->{{ __('with_driver ?? true)) === \'0\')>No') }}</option>
             </select>
         </div>
     </div>
 
     <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Description</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Description') }}</label>
             <textarea name="description" rows="3" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">{{ old('description', $transport->description ?? '') }}</textarea>
         </div>
         <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Notes</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Notes') }}</label>
             <textarea name="notes" rows="3" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">{{ old('notes', $transport->notes ?? '') }}</textarea>
         </div>
     </div>
 
     <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Inclusions</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Inclusions') }}</label>
             <textarea name="inclusions" rows="3" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">{{ old('inclusions', $transport->inclusions ?? '') }}</textarea>
         </div>
         <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Exclusions</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Exclusions') }}</label>
             <textarea name="exclusions" rows="3" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">{{ old('exclusions', $transport->exclusions ?? '') }}</textarea>
         </div>
     </div>
 
     <div>
-        <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Cancellation Policy</label>
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Cancellation Policy') }}</label>
         <textarea name="cancellation_policy" rows="3" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">{{ old('cancellation_policy', $transport->cancellation_policy ?? '') }}</textarea>
     </div>
 
     <div class="flex items-center gap-2">
         <input type="checkbox" name="is_active" value="1" class="rounded border-gray-300 text-indigo-600" @checked(old('is_active', $transport->is_active ?? true))>
-        <span class="text-sm text-gray-700 dark:text-gray-200">Active</span>
+        <span class="text-sm text-gray-700 dark:text-gray-200">{{ __('Active') }}</span>
     </div>
 
     <div class="flex items-center gap-2">
         <button class="btn-primary">{{ $buttonLabel }}</button>
-        <a href="{{ route('transports.index') }}" class="btn-secondary">Cancel</a>
+        <a href="{{ route('transports.index') }}" class="btn-secondary">{{ __('Cancel') }}</a>
     </div>
 </div>
 

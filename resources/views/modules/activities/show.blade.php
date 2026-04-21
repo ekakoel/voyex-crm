@@ -53,7 +53,7 @@
                                         data-gallery-thumb="{{ $loop->index }}"
                                         data-gallery-src="{{ $item['full_url'] }}"
                                     >
-                                        <img src="{{ $item['thumbnail_url'] ?: $item['full_url'] }}" alt="{{ __('ui.modules.activities.activity_thumbnail_alt', ['number' => $loop->iteration]) }}" class="h-16 w-full object-cover">
+                                        <img src="{{ $item['thumbnail_url'] ?: $item['full_url'] }}" alt="{{ __('ui.modules.activities.activity_thumbnail_alt', ['number' => $loop->iteration]) }}" class="h-16 w-full object-cover" loading="lazy" decoding="async">
                                     </button>
                                 @endforeach
                             </div>

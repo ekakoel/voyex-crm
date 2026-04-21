@@ -14,7 +14,7 @@
     <div class="app-card p-6">
         <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <div class="space-y-1.5">
-            <label for="name" class="block text-sm font-medium text-gray-700 dark:text-gray-200">Role Name</label>
+            <label for="name" class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Role Name') }}</label>
             <input
                 id="name"
                 name="name"
@@ -29,36 +29,36 @@
         </div>
 
         <div class="space-y-1.5">
-            <label for="template_role_id" class="block text-sm font-medium text-gray-700 dark:text-gray-200">Use Template Role</label>
+            <label for="template_role_id" class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Use Template Role') }}</label>
             <select
                 id="template_role_id"
                 name="template_role_id"
                 class="app-input"
             >
-                <option value="">- None -</option>
+                <option value="">{{ __('- None -') }}</option>
                 @foreach (($templateRoles ?? []) as $templateRole)
                     <option value="{{ $templateRole->id }}" @selected((string) $selectedTemplateRoleId === (string) $templateRole->id)>
                         {{ $templateRole->name }}
                     </option>
                 @endforeach
             </select>
-            <p class="text-xs text-gray-500 dark:text-gray-400">Select a template role to auto-select permissions, then adjust as needed.</p>
+            <p class="text-xs text-gray-500 dark:text-gray-400">{{ __('Select a template role to auto-select permissions, then adjust as needed.') }}</p>
             @error('template_role_id')
                 <p class="text-xs text-rose-600">{{ $message }}</p>
             @enderror
         </div>
 
         <div class="space-y-1.5">
-            <label for="custom_permission" class="block text-sm font-medium text-gray-700 dark:text-gray-200">Custom Permission</label>
+            <label for="custom_permission" class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Custom Permission') }}</label>
             <input
                 id="custom_permission"
                 name="custom_permission"
                 type="text"
                 value="{{ old('custom_permission') }}"
-                placeholder="example: reports.view"
+                placeholder="{{ __('example: reports.view') }}"
                 class="app-input"
             >
-            <p class="text-xs text-gray-500 dark:text-gray-400">Use this only for permissions outside the available modules.</p>
+            <p class="text-xs text-gray-500 dark:text-gray-400">{{ __('Use this only for permissions outside the available modules.') }}</p>
             @error('custom_permission')
                 <p class="text-xs text-rose-600">{{ $message }}</p>
             @enderror
@@ -68,10 +68,10 @@
 
     <div class="app-card p-6">
         <div class="mb-3 flex items-center justify-between gap-3">
-            <p class="text-sm font-semibold text-gray-700 dark:text-gray-200">Permissions per Module</p>
+            <p class="text-sm font-semibold text-gray-700 dark:text-gray-200">{{ __('Permissions per Module') }}</p>
             <div class="flex items-center gap-2">
-                <button type="button" id="selectAllPermissions"  class="btn-secondary-sm">Select all</button>
-                <button type="button" id="clearAllPermissions"  class="btn-secondary-sm">Clear all</button>
+                <button type="button" id="selectAllPermissions"  class="btn-secondary-sm">{{ __('Select all') }}</button>
+                <button type="button" id="clearAllPermissions"  class="btn-secondary-sm">{{ __('Clear all') }}</button>
                 <span id="selectedPermissionsCount" class="inline-flex rounded-full bg-indigo-100 px-2.5 py-1 text-xs font-semibold text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300">
                     {{ count($selectedValues) }} selected
                 </span>
@@ -94,11 +94,11 @@
                     <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
                         <div class="flex items-center gap-2">
                             <p class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ $moduleName }}</p>
-                            <span class="module-crud-badge hidden rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">Full CRUD</span>
+                            <span class="module-crud-badge hidden rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">{{ __('Full CRUD') }}</span>
                         </div>
                         <div class="flex items-center gap-2">
-                            <button type="button"  class="btn-secondary-sm" data-module-toggle="all">All</button>
-                            <button type="button"  class="btn-secondary-sm" data-module-toggle="none">None</button>
+                            <button type="button"  class="btn-secondary-sm" data-module-toggle="all">{{ __('All') }}</button>
+                            <button type="button"  class="btn-secondary-sm" data-module-toggle="none">{{ __('None') }}</button>
                             <span class="module-counter text-xs text-gray-500 dark:text-gray-400">{{ $moduleSelectedCount }}/{{ count($modulePermissionsList) }}</span>
                         </div>
                     </div>
@@ -124,14 +124,14 @@
                     </div>
                 </section>
             @empty
-                <p class="text-sm text-gray-500 dark:text-gray-400">No module permissions available yet.</p>
+                <p class="text-sm text-gray-500 dark:text-gray-400">{{ __('No module permissions available yet.') }}</p>
             @endforelse
         </div>
     </div>
 
     @if (! empty($otherPermissions) || ! empty($systemPermissions ?? []))
         <div class="app-card p-6">
-            <p class="mb-2 block text-sm font-semibold text-gray-700 dark:text-gray-200">Other Permissions</p>
+            <p class="mb-2 block text-sm font-semibold text-gray-700 dark:text-gray-200">{{ __('Other Permissions') }}</p>
             <div class="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
                 @foreach ($otherPermissions as $permission)
                     <label class="inline-flex items-center gap-2 rounded-md bg-white px-2 py-1.5 text-sm text-gray-700 transition hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700/40">

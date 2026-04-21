@@ -114,9 +114,9 @@
                         <div>{{ $hotel->prices_count }}</div>
                     </div>
                     <div class="mt-3 flex flex-wrap gap-2">
-                        <a href="{{ route('hotels.show', $hotel) }}" class="btn-outline-sm" title="View"
+                        <a href="{{ route('hotels.show', $hotel) }}" class="btn-outline-sm" title="{{ __('View') }}"
                             aria-label="{{ __('ui.common.view') }}"><i class="fa-solid fa-eye"></i><span class="sr-only">{{ __('ui.common.view') }}</span></a>
-                        <a href="{{ route('hotels.edit', $hotel) }}" class="btn-secondary-sm" title="Edit"
+                        <a href="{{ route('hotels.edit', $hotel) }}" class="btn-secondary-sm" title="{{ __('Edit') }}"
                             aria-label="{{ __('ui.common.edit') }}"><i class="fa-solid fa-pen"></i><span class="sr-only">{{ __('ui.common.edit') }}</span></a>
                         <form action="{{ route('hotels.toggle-status', $hotel->id) }}" method="POST"
                             class="inline">

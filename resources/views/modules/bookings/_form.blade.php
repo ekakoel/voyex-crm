@@ -4,9 +4,9 @@
 
 <div class="space-y-5 module-form">
     <div>
-        <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Quotation</label>
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Quotation') }}</label>
         <select name="quotation_id" class="mt-1 app-input" required>
-            <option value="">Select quotation</option>
+            <option value="">{{ __('Select quotation') }}</option>
             @foreach ($quotations as $quotation)
                 <option value="{{ $quotation->id }}" @selected(old('quotation_id', $booking->quotation_id ?? null) == $quotation->id)>
                     {{ $quotation->quotation_number }} - {{ $quotation->inquiry?->customer?->name ?? '-' }}
@@ -20,7 +20,7 @@
 
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Travel Date</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Travel Date') }}</label>
             <input
                 name="travel_date"
                 type="date"
@@ -34,7 +34,7 @@
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Status</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Status') }}</label>
             <select name="status" class="mt-1 app-input" required>
                 @foreach (\App\Models\Booking::STATUS_OPTIONS as $status)
                     <option value="{{ $status }}" @selected(old('status', $booking->status ?? 'draft') === $status)>{{ ucfirst($status) }}</option>
@@ -47,7 +47,7 @@
     </div>
 
     <div>
-        <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Notes / Reason</label>
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Notes / Reason') }}</label>
         <textarea
             name="notes"
             rows="3"
@@ -56,7 +56,7 @@
         @error('notes')
             <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
         @enderror
-        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Required when status is rejected.</p>
+        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ __('Required when status is rejected.') }}</p>
     </div>
 
     <div class="flex items-center gap-2">

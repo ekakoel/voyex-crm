@@ -177,7 +177,7 @@
 
     @if ($errors->any())
         <div class="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-800 dark:bg-rose-900/20 dark:text-rose-300">
-            <p class="font-semibold">Gagal menyimpan quotation. Mohon periksa data berikut:</p>
+            <p class="font-semibold">{{ __('Gagal menyimpan quotation. Mohon periksa data berikut:') }}</p>
             <ul class="mt-2 list-disc pl-5 space-y-1 text-xs sm:text-sm">
                 @foreach ($errors->all() as $message)
                     <li>{{ $message }}</li>
@@ -188,7 +188,7 @@
 
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Itinerary</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Itinerary') }}</label>
             <div class="mt-1 flex flex-col gap-2 sm:flex-row sm:items-center">
                 <select
                     id="itinerary-select"
@@ -197,7 +197,7 @@
                     data-endpoint="{{ url('quotations/itinerary-items') }}"
                     required
                 >
-                    <option value="">Select itinerary</option>
+                    <option value="">{{ __('Select itinerary') }}</option>
                     @foreach ($itineraries as $itinerary)
                         <option
                             value="{{ $itinerary->id }}"
@@ -251,7 +251,7 @@
 
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Validity Date</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Validity Date') }}</label>
             <input
                 name="validity_date"
                 type="date"
@@ -272,7 +272,7 @@
             </div>
         @endif
         <div class="flex flex-wrap items-center justify-between gap-2">
-            <p class="text-sm font-semibold text-gray-800 dark:text-gray-100">Items</p>
+            <p class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ __('Items') }}</p>
             <span id="itinerary-items-summary" class="text-xs text-gray-500 dark:text-gray-400"></span>
         </div>
         <div id="quotation-items" class="mt-3 divide-y divide-gray-200 dark:divide-gray-700">
@@ -307,7 +307,7 @@
                 @endphp
                 <div class="grid grid-cols-1 gap-2 py-2 sm:grid-cols-9 quotation-item-row" data-row-mode="itinerary">
                     <div class="sm:col-span-2">
-                        <label class="block text-xs text-gray-500 sm:hidden">Description</label>
+                        <label class="block text-xs text-gray-500 sm:hidden">{{ __('Description') }}</label>
                         <div
                             data-role="description-text"
                             class="quotation-item-control flex min-h-[42px] items-center rounded-lg border border-gray-200 bg-gray-50 px-3 text-sm text-gray-800 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
@@ -323,7 +323,7 @@
                         </span>
                     </div>
                     <div>
-                        <label class="block text-xs text-gray-500 sm:hidden">Qty</label>
+                        <label class="block text-xs text-gray-500 sm:hidden">{{ __('Qty') }}</label>
                         <input data-field="qty" name="items[{{ $i }}][qty]" type="number" min="1" value="{{ $row['qty'] ?? 1 }}" class="quotation-item-control dark:border-gray-600 app-input" required>
                     </div>
                     <div>
@@ -341,11 +341,11 @@
                         />
                     </div>
                     <div>
-                        <label class="block text-xs text-gray-500 sm:hidden">Markup Type</label>
+                        <label class="block text-xs text-gray-500 sm:hidden">{{ __('Markup Type') }}</label>
                         <input type="hidden" data-field="markup_type" name="items[{{ $i }}][markup_type]" value="{{ ($row['markup_type'] ?? 'fixed') === 'percent' ? 'percent' : 'fixed' }}">
                         <select data-markup-type-display disabled class="quotation-item-control cursor-not-allowed bg-gray-100 text-gray-600 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 app-input">
-                            <option value="fixed" @selected(($row['markup_type'] ?? 'fixed') === 'fixed')>Fixed</option>
-                            <option value="percent" @selected(($row['markup_type'] ?? '') === 'percent')>Percent</option>
+                            <option value="fixed" @selected(($row['markup_type'] ?? 'fixed') === 'fixed')>{{ __('Fixed') }}</option>
+                            <option value="percent" @selected(($row['markup_type'] ?? '') === 'percent')>{{ __('Percent') }}</option>
                         </select>
                     </div>
                     <div>
@@ -363,10 +363,10 @@
                         />
                     </div>
                     <div>
-                        <label class="block text-xs text-gray-500 sm:hidden">Discount Type</label>
+                        <label class="block text-xs text-gray-500 sm:hidden">{{ __('Discount Type') }}</label>
                         <select data-field="discount_type" name="items[{{ $i }}][discount_type]" class="quotation-item-control dark:border-gray-600 app-input">
-                            <option value="fixed" @selected(($row['discount_type'] ?? 'fixed') === 'fixed')>Fixed</option>
-                            <option value="percent" @selected(($row['discount_type'] ?? '') === 'percent')>Percent</option>
+                            <option value="fixed" @selected(($row['discount_type'] ?? 'fixed') === 'fixed')>{{ __('Fixed') }}</option>
+                            <option value="percent" @selected(($row['discount_type'] ?? '') === 'percent')>{{ __('Percent') }}</option>
                         </select>
                     </div>
                     <div>
@@ -408,7 +408,7 @@
         <template id="quotation-item-row-template">
             <div class="grid grid-cols-1 gap-2 py-2 sm:grid-cols-9 quotation-item-row" data-row-mode="itinerary">
                 <div class="sm:col-span-2">
-                    <label class="block text-xs text-gray-500 sm:hidden">Description</label>
+                    <label class="block text-xs text-gray-500 sm:hidden">{{ __('Description') }}</label>
                     <div
                         data-role="description-text"
                         class="quotation-item-control flex min-h-[42px] items-center rounded-lg border border-gray-200 bg-gray-50 px-3 text-sm text-gray-800 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
@@ -417,7 +417,7 @@
                     <span data-field="pax_type_badge" class="hidden mt-1 items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide"></span>
                 </div>
                 <div>
-                    <label class="block text-xs text-gray-500 sm:hidden">Qty</label>
+                    <label class="block text-xs text-gray-500 sm:hidden">{{ __('Qty') }}</label>
                     <input data-field="qty" type="number" min="1" class="quotation-item-control dark:border-gray-600 app-input" required>
                 </div>
                 <div>
@@ -433,11 +433,11 @@
                     />
                 </div>
                 <div>
-                    <label class="block text-xs text-gray-500 sm:hidden">Markup Type</label>
+                    <label class="block text-xs text-gray-500 sm:hidden">{{ __('Markup Type') }}</label>
                     <input type="hidden" data-field="markup_type" value="fixed">
                     <select data-markup-type-display disabled class="quotation-item-control cursor-not-allowed bg-gray-100 text-gray-600 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 app-input">
-                        <option value="fixed">Fixed</option>
-                        <option value="percent">Percent</option>
+                        <option value="fixed">{{ __('Fixed') }}</option>
+                        <option value="percent">{{ __('Percent') }}</option>
                     </select>
                 </div>
                 <div>
@@ -453,10 +453,10 @@
                     />
                 </div>
                 <div>
-                    <label class="block text-xs text-gray-500 sm:hidden">Discount Type</label>
+                    <label class="block text-xs text-gray-500 sm:hidden">{{ __('Discount Type') }}</label>
                     <select data-field="discount_type" class="quotation-item-control dark:border-gray-600 app-input">
-                        <option value="fixed">Fixed</option>
-                        <option value="percent">Percent</option>
+                        <option value="fixed">{{ __('Fixed') }}</option>
+                        <option value="percent">{{ __('Percent') }}</option>
                     </select>
                 </div>
                 <div>
@@ -494,7 +494,7 @@
 
     <div id="quotation-manual-items-section" class="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
         <div class="flex flex-wrap items-center justify-between gap-2">
-            <p class="text-sm font-semibold text-gray-800 dark:text-gray-100">Additional Items</p>
+            <p class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ __('Additional Items') }}</p>
             <button
                 type="button"
                 id="quotation-add-item-btn"
@@ -515,11 +515,11 @@
                 @endphp
                 <div class="grid grid-cols-1 gap-2 py-2 sm:grid-cols-12 quotation-manual-row" data-row-mode="manual">
                     <div class="sm:col-span-5">
-                        <label class="block text-xs text-gray-500 sm:hidden">Description</label>
+                        <label class="block text-xs text-gray-500 sm:hidden">{{ __('Description') }}</label>
                         <input data-field="description" name="items[{{ $idx }}][description]" value="{{ $row['description'] ?? '' }}" class="quotation-item-control dark:border-gray-600 app-input" required>
                     </div>
                     <div class="sm:col-span-2">
-                        <label class="block text-xs text-gray-500 sm:hidden">Qty</label>
+                        <label class="block text-xs text-gray-500 sm:hidden">{{ __('Qty') }}</label>
                         <input data-field="qty" name="items[{{ $idx }}][qty]" type="number" min="1" value="{{ $manualQty }}" class="quotation-item-control dark:border-gray-600 app-input" required>
                     </div>
                     <div class="sm:col-span-2">
@@ -576,11 +576,11 @@
         <template id="quotation-manual-row-template">
             <div class="grid grid-cols-1 gap-2 py-2 sm:grid-cols-12 quotation-manual-row" data-row-mode="manual">
                 <div class="sm:col-span-5">
-                    <label class="block text-xs text-gray-500 sm:hidden">Description</label>
+                    <label class="block text-xs text-gray-500 sm:hidden">{{ __('Description') }}</label>
                     <input data-field="description" class="quotation-item-control dark:border-gray-600 app-input" required>
                 </div>
                 <div class="sm:col-span-2">
-                    <label class="block text-xs text-gray-500 sm:hidden">Qty</label>
+                    <label class="block text-xs text-gray-500 sm:hidden">{{ __('Qty') }}</label>
                     <input data-field="qty" type="number" min="1" class="quotation-item-control dark:border-gray-600 app-input" required>
                 </div>
                 <div class="sm:col-span-2">

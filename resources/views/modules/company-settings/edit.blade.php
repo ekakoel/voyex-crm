@@ -137,7 +137,7 @@
                             @php($faviconPreviewUrl = \App\Support\ImageThumbnailGenerator::resolvePublicUrl($settings->favicon_path) ?? \App\Support\ImageThumbnailGenerator::resolveOriginalPublicUrl($settings->favicon_path))
                             @if ($faviconPreviewUrl)
                                 <div class="mt-2 flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-                                    <img src="{{ $faviconPreviewUrl }}" alt="{{ __('ui.modules.company_settings.favicon') }}" class="h-6 w-6 rounded border border-gray-200 dark:border-gray-700">
+                                    <img src="{{ $faviconPreviewUrl }}" alt="{{ __('ui.modules.company_settings.favicon') }}" class="h-6 w-6 rounded border border-gray-200 dark:border-gray-700" loading="lazy" decoding="async">
                                     <span>{{ __('ui.modules.company_settings.current_favicon') }}</span>
                                 </div>
                             @endif
@@ -151,7 +151,7 @@
                             @php($logoPreviewUrl = \App\Support\ImageThumbnailGenerator::resolvePublicUrl($settings->logo_path) ?? \App\Support\ImageThumbnailGenerator::resolveOriginalPublicUrl($settings->logo_path))
                             @if ($logoPreviewUrl)
                                 <div class="mt-2 flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-                                    <img src="{{ $logoPreviewUrl }}" alt="{{ __('ui.modules.company_settings.company_logo') }}" class="h-8 w-8 rounded border border-gray-200 dark:border-gray-700 object-cover">
+                                    <img src="{{ $logoPreviewUrl }}" alt="{{ __('ui.modules.company_settings.company_logo') }}" class="h-8 w-8 rounded border border-gray-200 dark:border-gray-700 object-cover" loading="lazy" decoding="async">
                                     <span>{{ __('ui.modules.company_settings.current_logo') }}</span>
                                 </div>
                             @endif

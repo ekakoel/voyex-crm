@@ -51,6 +51,7 @@ Gunakan cache per-user per-section untuk mengurangi query berat:
 Catatan:
 - TTL boleh disesuaikan per section.
 - Untuk data sangat dinamis, gunakan TTL lebih pendek atau invalidasi event-based.
+- Untuk dashboard SSR yang belum dipecah menjadi widget async, gunakan cache aggregate singkat sebagai baseline sementara. Detail TTL dan invalidation mengikuti `docs/technical/PERFORMANCE_OPTIMIZATION_STANDARD.md`.
 
 ## Frontend Behavior
 

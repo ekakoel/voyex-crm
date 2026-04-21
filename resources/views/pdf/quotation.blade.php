@@ -44,10 +44,10 @@
     <table>
             <thead>
             <tr>
-                <th style="width: 50%">Description</th>
-                <th style="width: 10%">Qty</th>
-                <th style="width: 20%">Unit Price</th>
-                <th style="width: 20%">Total</th>
+                <th style="width: 50%">{{ __('Description') }}</th>
+                <th style="width: 10%">{{ __('Qty') }}</th>
+                <th style="width: 20%">{{ __('Unit Price') }}</th>
+                <th style="width: 20%">{{ __('Total') }}</th>
             </tr>
             </thead>
             <tbody>

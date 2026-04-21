@@ -51,7 +51,7 @@
         <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">
             Customer Type <span class="text-rose-600">*</span>
         </label>
-        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Choose the customer type first, then complete the details.</p>
+        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ __('Choose the customer type first, then complete the details.') }}</p>
         <div class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
             <label class="cursor-pointer rounded-lg border p-3 transition hover:border-indigo-400"
                    :class="selectedType === 'individual' ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20' : 'border-gray-300 dark:border-gray-600'">
@@ -83,7 +83,7 @@
             class="mt-1 uppercase dark:border-gray-600 app-input"
             required
         >
-        <p x-show="codeStatus === 'checking'" x-cloak class="mt-1 text-xs text-slate-500">Checking code...</p>
+        <p x-show="codeStatus === 'checking'" x-cloak class="mt-1 text-xs text-slate-500">{{ __('Checking code...') }}</p>
         <p x-show="codeStatus === 'available'" x-cloak class="mt-1 text-xs text-emerald-600" x-text="codeMessage"></p>
         <p x-show="codeStatus === 'used'" x-cloak class="mt-1 text-xs text-rose-600" x-text="codeMessage"></p>
         @error('code')
@@ -107,7 +107,7 @@
 
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Email</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Email') }}</label>
             <input
                 name="email"
                 type="email"
@@ -120,7 +120,7 @@
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Phone</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Phone') }}</label>
             <input
                 name="phone"
                 type="text"
@@ -140,14 +140,14 @@
             :options="$countries"
             :value="$customer->country ?? 'Indonesia'"
             list-id="customer-country-options"
-            placeholder="Select or search country"
+            placeholder="{{ __('Select or search country') }}"
             :required="true"
             class="mt-1"
         />
     </div>
 
     <div>
-        <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Address</label>
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Address') }}</label>
         <textarea
             name="address"
             rows="3"

@@ -6,7 +6,7 @@
         <meta name="csrf-token" content="{{ csrf_token() }}">
         @include('layouts.partials.page-transition-init')
 
-        <title>{{ config('app.name', 'Laravel') }}</title>
+        <title>{{ config('app.name', __('Laravel')) }}</title>
 
         <!-- Fonts -->
         <link rel="preconnect" href="https://fonts.bunny.net">
@@ -19,7 +19,7 @@
         <div class="page-spinner" data-page-spinner aria-hidden="true">
             <div class="page-spinner__inner">
                 <div class="page-spinner__ring" aria-hidden="true"></div>
-                <div class="page-spinner__text">Loading...</div>
+                <div class="page-spinner__text">{{ __('Loading...') }}</div>
             </div>
         </div>
         <div class="min-h-screen bg-gray-100">

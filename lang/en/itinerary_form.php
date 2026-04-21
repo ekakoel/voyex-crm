@@ -1,0 +1,68 @@
+<?php
+
+return [
+    'wizard' => [
+        'step_basic_info' => 'Basic Info',
+        'step_day_planner' => 'Day Planner',
+        'step_include_exclude' => 'Include/Exclude',
+        'step_review' => 'Review',
+        'schedule_items_optional' => 'Schedule Items (Optional)',
+        'previous_day' => 'Previous Day',
+        'next_day' => 'Next Day',
+        'focus_one_day_hint' => 'Focus one day at a time for faster planning.',
+        'include_exclude_title' => 'Include & Exclude',
+        'include_exclude_hint' => 'Fill itinerary coverage clearly to help users understand what is included and excluded.',
+        'include_placeholder' => 'Write what is included for the entire itinerary...',
+        'exclude_placeholder' => 'Write what is excluded for the entire itinerary...',
+    ],
+    'review' => [
+        'title' => 'Review Itinerary',
+        'subtitle' => 'Double-check the full itinerary detail before saving.',
+        'basic_info' => 'Basic Info',
+        'day_planner' => 'Day Planner',
+        'day_planner_hint' => 'Each day summary with start/end point and selected schedule items.',
+        'include_exclude' => 'Include & Exclude',
+        'selected_schedule_items' => 'Selected Schedule Items',
+        'order_number' => 'Order Number',
+        'no_planner_data' => 'No planner data available.',
+        'no_schedule_item_selected' => 'No schedule item selected.',
+        'tour_time' => 'Tour Time',
+        'transport' => 'Transport',
+        'start_point' => 'Start Point',
+        'end_point' => 'End Point',
+        'unnamed_item' => 'Unnamed item',
+        'independent_itinerary' => 'Independent itinerary',
+    ],
+    'status' => [
+        'complete' => 'Complete',
+        'incomplete' => 'Incomplete',
+    ],
+    'points' => [
+        'previous_day_endpoint' => 'Previous day endpoint',
+        'airport_not_set' => 'Airport not set',
+        'hotel_not_set' => 'Hotel not set',
+        'self_booked_hotel' => 'Self-booked hotel',
+        'self_booked_suffix' => 'Self-booked',
+        'not_set' => 'Not set',
+    ],
+    'labels' => [
+        'pax' => 'Pax',
+        'day' => 'Day',
+        'travel_minutes' => 'Travel :minutes min',
+    ],
+    'row_types' => [
+        'attraction' => 'Attraction',
+        'activity' => 'Activity',
+        'transfer' => 'Transfer',
+        'fnb' => 'F&B',
+    ],
+    'patterns' => [
+        'selected_items' => ':count item(s) selected',
+        'duration' => ':days Day(s) / :nights Night(s)',
+    ],
+    'buttons' => [
+        'back' => 'Back',
+        'next' => 'Next',
+        'cancel' => 'Cancel',
+    ],
+];

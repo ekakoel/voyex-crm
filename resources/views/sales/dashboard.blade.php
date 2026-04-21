@@ -13,35 +13,44 @@
 
         {{-- Main KPI row --}}
         @if($canBookings || $canInquiries)
-            <div class="dashboard-kpi-grid">
+            <div class="dashboard-kpi-grid grid grid-cols-2 gap-3 lg:grid-cols-3">
                 @if($canBookings)
-                    <div>
-                        <div class="card">
-                            <div class="card-body">
-                                <h6>Monthly Revenue</h6>
-                                <h4><x-money :amount="$monthlyRevenue ?? 0" currency="IDR" /></h4>
+                    <div class="app-card app-kpi-card p-4">
+                        <div class="flex items-center justify-between h-full relative">
+                            <div class="data-card">
+                                <p class="text-xs font-semibold uppercase tracking-wide text-gray-400">{{ __('Monthly Revenue') }}</p>
+                                <p class="mt-2 text-2xl font-semibold text-gray-900"><x-money :amount="$monthlyRevenue ?? 0" currency="IDR" /></p>
+                            </div>
+                            <div class="icon-kpi icon-kpi--emerald">
+                                <i class="fa-solid fa-wallet"></i>
                             </div>
                         </div>
                     </div>
                 @endif
 
                 @if($canBookings && $canInquiries)
-                    <div>
-                        <div class="card">
-                            <div class="card-body">
-                                <h6>Conversion Rate</h6>
-                                <h4>{{ $conversionRate }}%</h4>
+                    <div class="app-card app-kpi-card p-4">
+                        <div class="flex items-center justify-between h-full relative">
+                            <div class="data-card">
+                                <p class="text-xs font-semibold uppercase tracking-wide text-gray-400">{{ __('Conversion Rate') }}</p>
+                                <p class="mt-2 text-2xl font-semibold text-gray-900">{{ number_format((float) $conversionRate, 2) }}%</p>
+                            </div>
+                            <div class="icon-kpi icon-kpi--indigo">
+                                <i class="fa-solid fa-chart-line"></i>
                             </div>
                         </div>
                     </div>
                 @endif
 
                 @if($canInquiries)
-                    <div>
-                        <div class="card">
-                            <div class="card-body">
-                                <h6>Pending Follow-up</h6>
-                                <h4>{{ $pendingInquiries->count() }}</h4>
+                    <div class="app-card app-kpi-card p-4">
+                        <div class="flex items-center justify-between h-full relative">
+                            <div class="data-card">
+                                <p class="text-xs font-semibold uppercase tracking-wide text-gray-400">{{ __('Pending Follow-up') }}</p>
+                                <p class="mt-2 text-2xl font-semibold text-gray-900">{{ number_format($pendingInquiries->count()) }}</p>
+                            </div>
+                            <div class="icon-kpi icon-kpi--amber">
+                                <i class="fa-solid fa-calendar-check"></i>
                             </div>
                         </div>
                     </div>
@@ -55,7 +64,7 @@
         @if($canInquiries)
             <div class="row">
                 <div class="col-12">
-                    <h5>Pending Inquiries</h5>
+                    <h5>{{ __('Pending Inquiries') }}</h5>
                     <div class="card">
                         <div class="card-body">
                             <ul class="list-group list-group-flush">
@@ -65,7 +74,7 @@
                                         <span class="badge bg-primary rounded-pill">{{ $inquiry->status }}</span>
                                     </li>
                                 @empty
-                                    <li class="list-group-item">No pending inquiries. Great job!</li>
+                                    <li class="list-group-item">{{ __('No pending inquiries. Great job!') }}</li>
                                 @endforelse
                             </ul>
                         </div>

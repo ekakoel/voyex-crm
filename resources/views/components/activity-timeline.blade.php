@@ -74,7 +74,7 @@
                         class="inline-flex h-7 w-7 items-center justify-center rounded-md border border-gray-300 text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800"
                         x-data
                         x-on:click.prevent="$dispatch('open-modal', '{{ $modalName }}')"
-                        title="View log detail"
+                        title="{{ __('View log detail') }}"
                         aria-label="View log detail"
                     >
                         <i class="fa-solid fa-eye text-[11px]"></i>
@@ -106,18 +106,18 @@
                                 <div class="rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-700 dark:border-gray-700 dark:bg-gray-900/40 dark:text-gray-200">
                                     <p class="font-semibold">{{ $change['label'] ?? $change['field'] ?? 'Field' }}</p>
                                     <p class="mt-1">
-                                        <span class="text-gray-500 dark:text-gray-400">From:</span>
+                                        <span class="text-gray-500 dark:text-gray-400">{{ __('From:') }}</span>
                                         <span>{{ $formatValue($change['from'] ?? null) }}</span>
                                     </p>
                                     <p>
-                                        <span class="text-gray-500 dark:text-gray-400">To:</span>
+                                        <span class="text-gray-500 dark:text-gray-400">{{ __('To:') }}</span>
                                         <span>{{ $formatValue($change['to'] ?? null) }}</span>
                                     </p>
                                 </div>
                             @endforeach
                         </div>
                     @else
-                        <p class="text-sm text-gray-500 dark:text-gray-400">No detailed field changes available for this log.</p>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">{{ __('No detailed field changes available for this log.') }}</p>
                     @endif
                 </div>
             </x-modal>

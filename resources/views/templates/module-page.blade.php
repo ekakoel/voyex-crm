@@ -1,10 +1,10 @@
 @extends('layouts.master')
 
-@section('page_title', 'Module')
-@section('page_subtitle', 'Page description')
+@section('page_title', __('Module'))
+@section('page_subtitle', __('Page description'))
 @section('page_actions')
     <a href="{{ route('route.create') }}"  class="btn-primary">
-        Action
+        {{ __('Action') }}
     </a>
 @endsection
 
@@ -20,4 +20,3 @@
         </div>
     </div>
 @endsection
-

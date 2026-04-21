@@ -1,6 +1,6 @@
 # Voyex CRM Project Guidelines
 
-Last Updated: 2026-04-20
+Last Updated: 2026-04-21
 
 Dokumen ini berisi aturan kerja wajib. Untuk detail domain/fitur, rujuk `PROJECT_KNOWLEDGE_BASE.md`.
 
@@ -110,6 +110,21 @@ Aturan: jika `final`, data view-only (tanpa mutasi).
 4. Jalankan lokal sebelum push:
    - `bash scripts/ci/check-date-format.sh`
 
+## 4g. Standar Performa Shared Layer (Wajib)
+
+1. Area yang berjalan di hampir semua request (`View::composer`, middleware module/permission, helper global, layout master) tidak boleh melakukan query berulang tanpa cache atau memoization.
+2. Gunakan `App\Support\SchemaInspector` untuk pengecekan schema berulang pada hot path.
+3. Gunakan cache shared yang sudah tersedia:
+   - `ModuleService` untuk module enabled map/list,
+   - `App\Support\Currency` untuk metadata currency,
+   - `CompanySettingsCache` untuk company branding/settings.
+4. Setiap cache shared wajib punya invalidation jelas pada mutation flow:
+   - module toggle -> `ModuleService::flushCache()`,
+   - currency mutation -> `App\Support\Currency::flushCache()`,
+   - company settings update -> `CompanySettingsCache::flush()`.
+5. Dashboard atau halaman agregat berat wajib memakai cache aggregate singkat, async widgets, atau progressive reveal sesuai `docs/technical/PERFORMANCE_OPTIMIZATION_STANDARD.md`.
+6. Hindari side-effect DB write pada service yang dipanggil dari layout/sidebar/middleware tanpa guard cache yang eksplisit.
+
 ## 5. Aturan Dokumentasi Wajib
 
 1. Setiap perubahan code wajib dicatat di `VOYEX_CRM_SYSTEM_ROADMAP.md` bagian `CHANGELOG (LATEST)`.
@@ -134,6 +149,7 @@ Aturan: jika `final`, data view-only (tanpa mutasi).
 - Roadmap + changelog: `VOYEX_CRM_SYSTEM_ROADMAP.md`
 - Peta dokumentasi: `docs/README.md`
 - Layout: `docs/core/LAYOUT_GUIDE.md`
+- Performa: `docs/technical/PERFORMANCE_OPTIMIZATION_STANDARD.md`
 - Itinerary detail teknis: `docs/technical/ITINERARY_CREATE_EDIT_FLOW.md`, `docs/technical/ITINERARY_DETAIL_MAP_ARCHITECTURE.md`
 - UAT quotation approval: `docs/technical/QUOTATION_APPROVAL_UAT_MATRIX.md`
 - UAT quotation validation: `docs/technical/QUOTATION_VALIDATION_UAT_MATRIX.md`

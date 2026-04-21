@@ -35,17 +35,17 @@
                         ? \App\Support\ImageThumbnailGenerator::resolveOriginalPublicUrl($coverStoredPath)
                         : $coverStoredPath;
                 @endphp
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Cover (Upload Image)</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Cover (Upload Image)') }}</label>
                 <div class="hotel-cover-preview room-cover-preview image-preview mt-2 flex w-full items-center justify-center overflow-hidden rounded-lg border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800/40">
                     <div class="image-preview-placeholder">
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                             <path d="M4 7h3l2-2h6l2 2h3a1 1 0 0 1 1 1v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a1 1 0 0 1 1-1z"></path>
                             <circle cx="12" cy="13" r="4"></circle>
                         </svg>
-                        <span>Select image to preview</span>
+                        <span>{{ __('Select image to preview') }}</span>
                     </div>
                     @if ($coverStoredPath !== '')
-                        <img src="{{ $coverThumb }}" onload="this.classList.add('image-loaded');var p=this.closest('.image-preview');if(p){p.classList.add('has-image');}" onerror="if(this.dataset.fallbackApplied){var p=this.closest('.image-preview');if(p){p.classList.remove('has-image');}this.remove();}else{this.dataset.fallbackApplied='1';this.src='{{ $coverFull }}';}" alt="Hotel cover preview" class="h-full w-full object-cover">
+                        <img src="{{ $coverThumb }}" loading="lazy" decoding="async" onload="this.classList.add('image-loaded');var p=this.closest('.image-preview');if(p){p.classList.add('has-image');}" onerror="if(this.dataset.fallbackApplied){var p=this.closest('.image-preview');if(p){p.classList.remove('has-image');}this.remove();}else{this.dataset.fallbackApplied='1';this.src='{{ $coverFull }}';}" alt="Hotel cover preview" class="h-full w-full object-cover">
                     @endif
                 </div>
                 <div data-hotel-info-cover class="mt-2 space-y-2">
@@ -56,7 +56,7 @@
                 @error('cover') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
             </div>
             <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Status</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Status') }}</label>
                 <select name="status" class="mt-1 app-input" required>
                     @foreach (['active' => 'Active', 'inactive' => 'Inactive'] as $value => $label)
                         <option value="{{ $value }}" @selected($statusValue === $value)>{{ $label }}</option>
@@ -65,49 +65,49 @@
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Hotel Name</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Hotel Name') }}</label>
                 <input name="name" value="{{ old('name', $hotel->name ?? '') }}" class="mt-1 app-input" required>
             </div>
             <input type="hidden" name="region" value="{{ old('region', $hotel->region ?? '') }}">
             <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Contact Person</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Contact Person') }}</label>
                 <input name="contact_person" value="{{ old('contact_person', $hotel->contact_person ?? '') }}" class="mt-1 app-input" required>
             </div>
             <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Phone</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Phone') }}</label>
                 <input name="phone" value="{{ old('phone', $hotel->phone ?? '') }}" class="mt-1 app-input" required>
             </div>
             <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Website</label>
-                <input name="web" value="{{ old('web', $hotel->web ?? '') }}" class="mt-1 app-input" type="url" placeholder="https://...">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Website') }}</label>
+                <input name="web" value="{{ old('web', $hotel->web ?? '') }}" class="mt-1 app-input" type="url" placeholder="{{ __('https://...') }}">
             </div>
             <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div>
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Check-in Time</label>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Check-in Time') }}</label>
                     <input name="check_in_time" type="time" value="{{ old('check_in_time', isset($hotel->check_in_time) ? substr((string) $hotel->check_in_time, 0, 5) : '') }}" class="mt-1 app-input" placeholder="14:00">
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Check-out Time</label>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Check-out Time') }}</label>
                     <input name="check_out_time" type="time" value="{{ old('check_out_time', isset($hotel->check_out_time) ? substr((string) $hotel->check_out_time, 0, 5) : '') }}" class="mt-1 app-input" placeholder="12:00">
                 </div>
             </div>
             <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div>
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Min Stay (days)</label>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Min Stay (days)') }}</label>
                     <input name="min_stay" value="{{ old('min_stay', $hotel->min_stay ?? '') }}" class="mt-1 app-input">
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Max Stay (days)</label>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Max Stay (days)') }}</label>
                     <input name="max_stay" value="{{ old('max_stay', $hotel->max_stay ?? '') }}" class="mt-1 app-input">
                 </div>
              </div>
              <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div>
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Airport Distance (km)</label>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Airport Distance (km)') }}</label>
                     <input name="airport_distance" value="{{ old('airport_distance', $hotel->airport_distance ?? '') }}" class="mt-1 app-input" type="number" min="0">
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Airport Duration (minutes)</label>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Airport Duration (minutes)') }}</label>
                     <input name="airport_duration" value="{{ old('airport_duration', $hotel->airport_duration ?? '') }}" class="mt-1 app-input" type="number" min="0">
                 </div>
             </div>
@@ -133,19 +133,19 @@
 
         <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Description</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Description') }}</label>
                 <textarea name="description" rows="3" class="mt-1 app-input">{{ old('description', $hotel->description ?? '') }}</textarea>
             </div>
             <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Facility</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Facility') }}</label>
                 <textarea name="facility" rows="3" class="mt-1 app-input">{{ old('facility', $hotel->facility ?? '') }}</textarea>
             </div>
             <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Additional Info</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Additional Info') }}</label>
                 <textarea name="additional_info" rows="3" class="mt-1 app-input">{{ old('additional_info', $hotel->additional_info ?? '') }}</textarea>
             </div>
             <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Cancellation Policy</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Cancellation Policy') }}</label>
                 <textarea name="cancellation_policy" rows="3" class="mt-1 app-input">{{ old('cancellation_policy', $hotel->cancellation_policy ?? '') }}</textarea>
             </div>
         </div>

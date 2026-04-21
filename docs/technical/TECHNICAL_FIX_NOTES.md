@@ -615,6 +615,41 @@ Dampak:
 - Bootstrap Artisan kembali normal.
 - Command seperti `php artisan list`, `php artisan about`, dan `php artisan optimize:clear` tidak lagi crash karena loop registrasi command.
 
+## 36. Shared Performance Cache Baseline (2026-04-21)
+
+Masalah:
+- Beberapa area shared request melakukan pekerjaan berulang pada hampir semua halaman:
+  - query module enabled state per item sidebar/middleware,
+  - query company settings dan currency options dari composer/layout,
+  - schema inspection berulang,
+  - index stats dan Super Admin dashboard aggregate tanpa cache singkat.
+
+Perbaikan:
+- Menambahkan `App\Support\SchemaInspector` untuk memoization `Schema::hasTable()` dan `Schema::hasColumn()` per-request.
+- Mengoptimalkan `ModuleService`:
+  - enabled map/list memakai cache singkat,
+  - bootstrap default module dibatasi cache guard,
+  - invalidation tersedia via `ModuleService::flushCache()`.
+- Mengoptimalkan currency metadata:
+  - `App\Support\Currency` memakai cache metadata terpusat,
+  - currency mutation memanggil `Currency::flushCache()`.
+- Mengoptimalkan company settings:
+  - menambahkan `CompanySettingsCache`,
+  - auth/sidebar composer memakai cache yang sama,
+  - update company settings memanggil `CompanySettingsCache::flush()`.
+- Mengoptimalkan global composer:
+  - `SidebarComposer` memakai module map/currency/company cache,
+  - quotation approval badge memakai cache singkat per user/role,
+  - `IndexStatsComposer` memakai cache singkat untuk stats cards.
+- Mengoptimalkan Super Admin dashboard:
+  - aggregate utama dan trend endpoint memakai cache singkat.
+
+Dampak:
+- Request layout umum lebih ringan karena data shared tidak di-query ulang terus-menerus.
+- Sidebar dan module middleware tidak lagi memicu query module per item/check.
+- Dashboard berat lebih responsif tanpa mengorbankan data near-real-time.
+- Standar performa baru terdokumentasi di `docs/technical/PERFORMANCE_OPTIMIZATION_STANDARD.md`.
+
 
 ## Referensi Kode
 
@@ -661,6 +696,15 @@ Dampak:
 - `lang/en/ui.php`
 - `resources/views/modules/island-transfers/_form.blade.php`
 - `docs/technical/ISLAND_TRANSFER_MODULE.md`
+- `app/Support/SchemaInspector.php`
+- `app/Support/CompanySettingsCache.php`
+- `app/Services/ModuleService.php`
+- `app/Support/Currency.php`
+- `app/Http/View/SidebarComposer.php`
+- `app/Http/View/CompanyBrandComposer.php`
+- `app/Http/View/IndexStatsComposer.php`
+- `app/Http/Controllers/SuperAdmin/DashboardController.php`
+- `docs/technical/PERFORMANCE_OPTIMIZATION_STANDARD.md`
 
 ## Catatan Governance
 

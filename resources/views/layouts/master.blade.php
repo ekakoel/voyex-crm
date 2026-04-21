@@ -6,7 +6,7 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     @include('layouts.partials.page-transition-init')
     @php
-        $appTitle = trim((string) ($companySettings->company_name ?? 'VOYEX CRM'));
+        $appTitle = trim((string) ($companySettings->company_name ?? __('VOYEX CRM')));
         $logoPath = $companySettings->logo_path ?? null;
         $logoVersion = !empty($companySettings?->updated_at) ? $companySettings->updated_at->timestamp : null;
         $logoUrl = $logoPath
@@ -33,12 +33,12 @@
             default => 'image/x-icon',
         };
     @endphp
-    <title>{{ $appTitle !== '' ? $appTitle : 'VOYEX CRM' }}</title>
+    <title>{{ $appTitle !== '' ? $appTitle : __('VOYEX CRM') }}</title>
     <meta name="theme-color" content="#0f172a">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="{{ $appTitle !== '' ? $appTitle : 'VOYEX CRM' }}">
+    <meta name="apple-mobile-web-app-title" content="{{ $appTitle !== '' ? $appTitle : __('VOYEX CRM') }}">
     <link rel="manifest" href="{{ asset('manifest.webmanifest') }}">
     @if ($faviconUrl)
         <link rel="icon" type="{{ $faviconMime }}" href="{{ $faviconUrl }}">
@@ -51,15 +51,15 @@
     @stack('styles')
 </head>
 
-<body class="app-shell bg-gray-100 dark:bg-gray-900 transition-colors duration-300" data-currency="{{ $currentCurrency ?? 'IDR' }}">
+<body class="mb-4 app-shell bg-gray-100 dark:bg-gray-900 transition-colors duration-300" data-currency="{{ $currentCurrency ?? 'IDR' }}">
 <div class="page-spinner" data-page-spinner aria-hidden="true">
     <div class="page-spinner__inner">
         <div class="page-spinner__ring" aria-hidden="true"></div>
-        <div class="page-spinner__text">Loading...</div>
+        <div class="page-spinner__text">{{ __('Loading...') }}</div>
     </div>
 </div>
 
-<div class="flex h-screen overflow-hidden">
+<div class="mb-4 flex h-screen overflow-hidden">
 
     <!-- SIDEBAR -->
     <aside  class="fixed inset-y-0 left-0 z-40 bg-primary text-white transform transition-all duration-300
@@ -75,20 +75,20 @@
                 @if ($logoUrl)
                     <img
                         src="{{ $logoUrl }}"
-                        alt="{{ $appTitle !== '' ? $appTitle : 'VOYEX CRM' }} Logo"
+                        alt="{{ $appTitle !== '' ? $appTitle : __('VOYEX CRM') }} {{ __('Logo') }}"
                         class="h-8 w-8 rounded-lg object-cover border border-white/20 shrink-0"
                     >
                 @endif
                 <div class="text-xl font-bold whitespace-nowrap overflow-hidden"
                      :class="sidebarCollapsed ? 'md:hidden' : 'block'">
-                    {{ $appTitle !== '' ? $appTitle : 'VOYEX CRM' }}
+                    {{ $appTitle !== '' ? $appTitle : __('VOYEX CRM') }}
                 </div>
             </div>
 
             <button type="button"
                      class="hidden md:inline-flex items-center justify-center h-9 w-9 rounded-lg hover:bg-gray-700 transition"
                     @click="toggleSidebar()"
-                    :title="sidebarCollapsed ? 'Show icons + labels' : 'Show icons only'">
+                     :title="sidebarCollapsed ? '{{ __('Show icons + labels') }}' : '{{ __('Show icons only') }}'">
                 <svg x-show="sidebarCollapsed" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                     <path fill-rule="evenodd" d="M12.293 15.707a1 1 0 010-1.414L15.586 11H4a1 1 0 110-2h11.586l-3.293-3.293a1 1 0 111.414-1.414l5 5a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0z" clip-rule="evenodd" />
                 </svg>
@@ -218,7 +218,7 @@
             </button>
 
             <div class="hidden md:flex items-center gap-2 min-w-0 overflow-x-auto">
-                <span class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 whitespace-nowrap">Rates</span>
+                <span class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 whitespace-nowrap">{{ __('Rates') }}</span>
                 @php
                     $nonIdrCurrencyOptions = collect($currencyOptions ?? [])->filter(function ($currency) {
                         return strtoupper((string) ($currency->code ?? '')) !== 'IDR';
@@ -238,7 +238,7 @@
                     @endforeach
                 @else
                     <span class="inline-flex items-center rounded-full border border-gray-200 bg-white px-2 py-1 text-[11px] text-gray-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300">
-                        No non-IDR rates
+                        {{ __('No non-IDR rates') }}
                     </span>
                 @endif
             </div>
@@ -249,8 +249,8 @@
                     $notifCount = (int) ($approvalNotif['count'] ?? 0);
                     $notifRole = (string) ($approvalNotif['role'] ?? '');
                     $notifTitle = $notifRole !== ''
-                        ? ('Quotation approvals pending for ' . ucfirst($notifRole))
-                        : 'Quotation approvals pending';
+                        ? (__('Quotation approvals pending for') . ' ' . ucfirst($notifRole))
+                        : __('Quotation approvals pending');
                     $notifClass = match ($notifRole) {
                         'director' => 'border-violet-300 bg-violet-50 text-violet-700 hover:bg-violet-100 dark:border-violet-700 dark:bg-violet-900/20 dark:text-violet-300 dark:hover:bg-violet-900/30',
                         'manager' => 'border-sky-300 bg-sky-50 text-sky-700 hover:bg-sky-100 dark:border-sky-700 dark:bg-sky-900/20 dark:text-sky-300 dark:hover:bg-sky-900/30',
@@ -295,7 +295,7 @@
                                         <option value="{{ $currencyOption->code }}" @selected(($currentCurrency ?? 'IDR') === $currencyOption->code)>{{ $currencyOption->code }}</option>
                                     @endforeach
                                 @else
-                                    <option value="IDR" selected>IDR</option>
+                                    <option value="IDR" selected>{{ __('IDR') }}</option>
                                 @endif
                             </select>
                             
@@ -312,7 +312,7 @@
                     type="button"
                     id="fullscreen-toggle-btn"
                     class="inline-flex items-center justify-center h-9 w-9 rounded-lg border border-gray-200 text-gray-600 hover:border-indigo-300 hover:text-indigo-600 dark:border-gray-700 dark:text-gray-200 dark:hover:border-indigo-600 dark:hover:text-indigo-300"
-                    title="Toggle fullscreen"
+                    title="{{ __('Toggle fullscreen') }}"
                     aria-label="Toggle fullscreen"
                 >
                     <i class="fa-solid fa-expand" data-fullscreen-icon></i>
@@ -322,7 +322,7 @@
                 <button @click="toggleTheme()"
                          class="inline-flex items-center justify-center h-9 w-9 rounded-lg border border-gray-200 transition-colors duration-200 dark:border-gray-700"
                         :class="dark ? 'text-yellow-400 hover:text-yellow-300' : 'text-gray-500 hover:text-amber-500'"
-                        :title="dark ? 'Dark mode on' : 'Light mode on'">
+                        :title="{{ __('dark ? \'Dark mode on\' : \'Light mode on\'') }}">
                     <svg x-show="!dark" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v2.25m6.364.386-1.591 1.591M21 12h-2.25m-.386 6.364-1.591-1.591M12 18.75V21m-4.773-4.227-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0Z" />
                     </svg>
@@ -339,7 +339,7 @@
                             <i class="fa-solid fa-user"></i>
                         </span>
                         <span class="hidden sm:inline truncate max-w-[140px] md:max-w-[180px]">{{ auth()->user()->name }}</span>
-                        <span class="sm:hidden text-sm font-medium">User</span>
+                        <span class="sm:hidden text-sm font-medium">{{ __('User') }}</span>
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transition-transform" :class="open ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
                     </button>
 
@@ -373,7 +373,7 @@
         </header>
 
         <!-- PAGE CONTENT -->
-        <main class="app-content flex-1 min-h-0 overflow-y-auto px-3 py-3 sm:px-4 sm:py-4 lg:px-5 xl:px-6" data-page-progressive-content>
+        <main class="app-content flex-1 min-h-0 overflow-y-auto px-3 pt-6 pb-6 sm:px-5 sm:py-5 lg:px-5 xl:px-6" data-page-progressive-content>
             <div class="app-page-shell">
             @php
                 $routeName = (string) (Route::currentRouteName() ?? '');
@@ -439,15 +439,15 @@
 <div id="pwa-install-banner" class="pwa-install-banner hidden" role="dialog" aria-live="polite" aria-label="Install app banner">
     <div class="pwa-install-banner__card">
         <div class="pwa-install-banner__header">
-            <p class="pwa-install-banner__title">Install Aplikasi</p>
+            <p class="pwa-install-banner__title">{{ __('Install Aplikasi') }}</p>
             <button type="button" id="pwa-install-close" class="pwa-install-banner__close" aria-label="Tutup banner install">
                 <i class="fa-solid fa-xmark"></i>
             </button>
         </div>
         <p id="pwa-install-message" class="pwa-install-banner__message"></p>
         <div class="pwa-install-banner__actions">
-            <button type="button" id="pwa-install-action" class="btn-primary-sm hidden">Install Sekarang</button>
-            <button type="button" id="pwa-install-later" class="btn-ghost-sm">Nanti</button>
+            <button type="button" id="pwa-install-action" class="btn-primary-sm hidden">{{ __('Install Sekarang') }}</button>
+            <button type="button" id="pwa-install-later" class="btn-ghost-sm">{{ __('Nanti') }}</button>
         </div>
     </div>
 </div>

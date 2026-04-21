@@ -69,9 +69,9 @@
     @endsection
 
     <div class="space-y-3">
-        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-6" data-progressive-group>
+    <div class="dashboard-kpi-grid grid grid-cols-2 gap-3 lg:grid-cols-4" data-progressive-group>
             @foreach($kpiCards as $card)
-                <div class="app-card p-4" data-progressive-item>
+                <div class="app-card app-kpi-card p-4" data-progressive-item>
                     <div class="flex items-center justify-between h-full relative">
                         <div class="data-card">
                             <p class="text-xs font-semibold uppercase tracking-wide text-gray-400">{{ $card['label'] }}</p>
@@ -122,27 +122,27 @@
         @if($canBookings)
             <div class="grid grid-cols-1 gap-3 lg:grid-cols-3" data-progressive-group>
                 <div class="app-card p-4" data-progressive-item>
-                    <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100">Booking Insights (This Month)</h3>
+                    <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100">{{ __('Booking Insights (This Month)') }}</h3>
                     <div class="mt-3 space-y-2 text-xs text-slate-600 dark:text-slate-300">
                         <div class="flex items-center justify-between">
-                            <span>Top Destination</span>
+                            <span>{{ __('Top Destination') }}</span>
                             <span class="font-semibold text-slate-700 dark:text-slate-100">{{ $topDestinationSummary ?? '?' }}</span>
                         </div>
                         <div class="flex items-center justify-between">
-                            <span>Avg SLA (Approval ? Booking)</span>
+                            <span>{{ __('Avg SLA (Approval ? Booking)') }}</span>
                             <span class="font-semibold text-slate-700 dark:text-slate-100">
                                 {{ $slaDaysAvg !== null ? number_format($slaDaysAvg, 1) . ' days' : '?' }}
                             </span>
                         </div>
                         <div class="flex items-center justify-between">
-                            <span>Overdue to Close</span>
+                            <span>{{ __('Overdue to Close') }}</span>
                             <span class="font-semibold text-rose-600 dark:text-rose-300">{{ number_format($overdueCloseCount ?? 0) }}</span>
                         </div>
                     </div>
                 </div>
 
                 <div class="app-card p-4" data-progressive-item>
-                    <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100">Weekly Booking Trend</h3>
+                    <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100">{{ __('Weekly Booking Trend') }}</h3>
                     @php($maxWeekly = max(array_column($weeklyBookingTrend ?? [], 'count') ?: [0]))
                     <div class="mt-3 space-y-2">
                         @if(! empty($weeklyBookingTrend ?? []))
@@ -159,16 +159,16 @@
                                 </div>
                             @endforeach
                         @else
-                            <p class="text-xs text-slate-500 dark:text-slate-400">No booking data this period.</p>
+                            <p class="text-xs text-slate-500 dark:text-slate-400">{{ __('No booking data this period.') }}</p>
                         @endif
                     </div>
                 </div>
 
                 <div class="app-card p-4" data-progressive-item>
-                    <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100">Booking Performance (This Month)</h3>
+                    <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100">{{ __('Booking Performance (This Month)') }}</h3>
                     <div class="mt-3 space-y-3">
                         <div>
-                            <p class="text-[11px] font-semibold uppercase text-slate-500 dark:text-slate-400">By Staff</p>
+                            <p class="text-[11px] font-semibold uppercase text-slate-500 dark:text-slate-400">{{ __('By Staff') }}</p>
                             <div class="mt-2 space-y-1">
                                 @if(! empty($bookingByStaff ?? []))
                                     @foreach($bookingByStaff as $row)
@@ -178,12 +178,12 @@
                                         </div>
                                     @endforeach
                                 @else
-                                    <p class="text-xs text-slate-500 dark:text-slate-400">No booking data.</p>
+                                    <p class="text-xs text-slate-500 dark:text-slate-400">{{ __('No booking data.') }}</p>
                                 @endif
                             </div>
                         </div>
                         <div>
-                            <p class="text-[11px] font-semibold uppercase text-slate-500 dark:text-slate-400">Top Customers</p>
+                            <p class="text-[11px] font-semibold uppercase text-slate-500 dark:text-slate-400">{{ __('Top Customers') }}</p>
                             <div class="mt-2 space-y-1">
                                 @if(! empty($topCustomers ?? []))
                                     @foreach($topCustomers as $row)
@@ -193,7 +193,7 @@
                                         </div>
                                     @endforeach
                                 @else
-                                    <p class="text-xs text-slate-500 dark:text-slate-400">No booking data.</p>
+                                    <p class="text-xs text-slate-500 dark:text-slate-400">{{ __('No booking data.') }}</p>
                                 @endif
                             </div>
                         </div>
@@ -205,7 +205,7 @@
         @if($canQuotations && $canBookings)
             <div class="sa-card p-5" data-progressive-group>
                 <div class="flex items-center justify-between">
-                    <h2 class="text-sm font-semibold text-slate-900 dark:text-slate-100">Action Center: Approved Quotations to Book</h2>
+                    <h2 class="text-sm font-semibold text-slate-900 dark:text-slate-100">{{ __('Action Center: Approved Quotations to Book') }}</h2>
                      <a href="{{ route('quotations.index', ['status' => 'approved']) }}" class="text-xs font-medium text-indigo-600 hover:text-indigo-500 dark:text-indigo-400">View all</a>
                 </div>
                 <div class="mt-3 flow-root">
@@ -227,11 +227,11 @@
                                                 </td>
                                                 <td class="whitespace-nowrap px-3 py-2 text-sm text-slate-500 dark:text-slate-300">
                                                     <p class="font-semibold text-slate-700 dark:text-slate-200"><x-money :amount="$quotation->final_amount" /></p>
-                                                    <p class="text-xs">Final Amount</p>
+                                                    <p class="text-xs">{{ __('Final Amount') }}</p>
                                                 </td>
                                                 <td class="whitespace-nowrap px-3 py-2 text-sm text-slate-500 dark:text-slate-300">
                                                      <p class="font-semibold text-slate-700 dark:text-slate-200">{{ \App\Support\DateTimeDisplay::date($quotation->updated_at) }}</p>
-                                                     <p class="text-xs">Approved Date</p>
+                                                     <p class="text-xs">{{ __('Approved Date') }}</p>
                                                 </td>
                                                 <td class="whitespace-nowrap px-3 py-2 text-right text-sm">
                                                     <a href="{{ route('bookings.create', ['quotation_id' => $quotation->id]) }}" class="btn-primary-sm">
@@ -259,7 +259,7 @@
         @if($canBookings)
             <div class="grid grid-cols-1 gap-3 lg:grid-cols-2" data-progressive-group>
                 <div class="sa-card p-4" data-progressive-item>
-                    <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100">Upcoming Trips (Next 30 Days)</h3>
+                    <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100">{{ __('Upcoming Trips (Next 30 Days)') }}</h3>
                     <div class="mt-3 space-y-2">
                         @if(! empty($upcomingTrips ?? []))
                             @foreach($upcomingTrips as $booking)
@@ -274,12 +274,12 @@
                                 </a>
                             @endforeach
                         @else
-                            <p class="py-4 text-center text-xs text-slate-500 dark:text-slate-400">No upcoming trips.</p>
+                            <p class="py-4 text-center text-xs text-slate-500 dark:text-slate-400">{{ __('No upcoming trips.') }}</p>
                         @endif
                     </div>
                 </div>
                 <div class="sa-card p-4" data-progressive-item>
-                    <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100">Recent Active Bookings</h3>
+                    <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100">{{ __('Recent Active Bookings') }}</h3>
                     <div class="mt-3 space-y-2">
                         @if(! empty($recentBookings ?? []))
                             @foreach($recentBookings as $booking)
@@ -294,7 +294,7 @@
                                 </a>
                             @endforeach
                         @else
-                            <p class="py-4 text-center text-xs text-slate-500 dark:text-slate-400">No recent bookings.</p>
+                            <p class="py-4 text-center text-xs text-slate-500 dark:text-slate-400">{{ __('No recent bookings.') }}</p>
                         @endif
                     </div>
                 </div>
@@ -316,7 +316,6 @@
     })();
 </script>
 @endpush
-
 
 
 

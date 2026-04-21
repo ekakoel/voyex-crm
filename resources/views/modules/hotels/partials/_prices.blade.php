@@ -33,45 +33,45 @@
 <div class="space-y-6 hotel-form">
     <div class="app-card p-5 space-y-4">
         <div class="flex items-center justify-between">
-            <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">Hotel Prices</h3>
-            <button type="button" class="btn-ghost-sm" data-add-row="price">Add Price</button>
+            <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ __('Hotel Prices') }}</h3>
+            <button type="button" class="btn-ghost-sm" data-add-row="price">{{ __('Add Price') }}</button>
         </div>
         <div id="price-rows" class="space-y-3">
             @foreach ($priceRows as $index => $row)
                 <div class="grid grid-cols-1 gap-3 rounded-lg border border-slate-200 p-3 dark:border-slate-700 md:grid-cols-12" data-row>
                     <div class="md:col-span-4">
-                        <label class="block text-xs text-gray-500">Room</label>
+                        <label class="block text-xs text-gray-500">{{ __('Room') }}</label>
                         <select name="hotel_prices[{{ $index }}][rooms_id]" class="mt-1 app-input">
-                            <option value="">Select room</option>
+                            <option value="">{{ __('Select room') }}</option>
                             @foreach ($roomOptions as $roomOption)
                                 <option value="{{ $roomOption->id }}" @selected((string) ($row['rooms_id'] ?? '') === (string) $roomOption->id)>{{ $roomOption->rooms }}</option>
                             @endforeach
                         </select>
                     </div>
-                    <div class="md:col-span-4">                        <label class="block text-xs text-gray-500">Start Date</label>
+                    <div class="md:col-span-4">                        <label class="block text-xs text-gray-500">{{ __('Start Date') }}</label>
                         <input type="date" name="hotel_prices[{{ $index }}][start_date]" value="{{ $row['start_date'] ?? '' }}" class="mt-1 app-input">
                     </div>
-                    <div class="md:col-span-4">                        <label class="block text-xs text-gray-500">End Date</label>
+                    <div class="md:col-span-4">                        <label class="block text-xs text-gray-500">{{ __('End Date') }}</label>
                         <input type="date" name="hotel_prices[{{ $index }}][end_date]" value="{{ $row['end_date'] ?? '' }}" class="mt-1 app-input">
                     </div>
-                    <div class="md:col-span-3">                        <label class="block text-xs text-gray-500">Contract Rate (IDR)</label>
+                    <div class="md:col-span-3">                        <label class="block text-xs text-gray-500">{{ __('Contract Rate (IDR)') }}</label>
                         <input type="number" min="0" step="1" name="hotel_prices[{{ $index }}][contract_rate]" data-hotel-rate="contract" value="{{ $row['contract_rate'] ?? '' }}" class="mt-1 app-input">
                     </div>
-                    <div class="md:col-span-3">                        <label class="block text-xs text-gray-500">Markup Type</label>
+                    <div class="md:col-span-3">                        <label class="block text-xs text-gray-500">{{ __('Markup Type') }}</label>
                         <select name="hotel_prices[{{ $index }}][markup_type]" data-hotel-rate="markup_type" class="mt-1 app-input">
-                            <option value="fixed" @selected(($row['markup_type'] ?? 'fixed') === 'fixed')>Fixed</option>
-                            <option value="percent" @selected(($row['markup_type'] ?? 'fixed') === 'percent')>Percent</option>
+                            <option value="fixed" @selected(($row['markup_type'] ?? 'fixed') === 'fixed')>{{ __('Fixed') }}</option>
+                            <option value="percent" @selected(($row['markup_type'] ?? 'fixed') === 'percent')>{{ __('Percent') }}</option>
                         </select>
                     </div>
-                    <div class="md:col-span-3">                        <label class="block text-xs text-gray-500">Markup</label>
+                    <div class="md:col-span-3">                        <label class="block text-xs text-gray-500">{{ __('Markup') }}</label>
                         <input type="number" min="0" step="1" name="hotel_prices[{{ $index }}][markup]" data-hotel-rate="markup" value="{{ $row['markup'] ?? '' }}" class="mt-1 app-input">
                     </div>
-                    <div class="md:col-span-3">                        <label class="block text-xs text-gray-500">Publish Rate (Auto)</label>
+                    <div class="md:col-span-3">                        <label class="block text-xs text-gray-500">{{ __('Publish Rate (Auto)') }}</label>
                         <input type="number" min="0" step="1" name="hotel_prices[{{ $index }}][publish_rate]" data-hotel-rate="publish" value="{{ $row['publish_rate'] ?? '' }}" class="mt-1 app-input" readonly>
                     </div>
 
                     <div class="md:col-span-12 flex justify-end">
-                        <button type="button" class="mt-1 btn-ghost-sm h-[38px] w-full md:w-auto" data-remove-row>Remove</button>
+                        <button type="button" class="mt-1 btn-ghost-sm h-[38px] w-full md:w-auto" data-remove-row>{{ __('Remove') }}</button>
                     </div>
                 </div>
             @endforeach

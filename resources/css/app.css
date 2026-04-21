@@ -32,6 +32,8 @@
         --app-form-control-h: 42px;
         --app-form-label-h: 20px;
         --app-form-font-size: 14px;
+        --app-card-gap: 0.75rem;
+        --app-kpi-card-min-height: 128px;
     }
 
     .app-shell {
@@ -57,6 +59,110 @@
 
     .app-page-shell > * {
         min-width: 0;
+    }
+
+    /*
+     * Global card rhythm:
+     * keep repeated card groups at gap-3 (0.75rem) across module pages,
+     * dashboards, sidebars, responsive mobile cards, and index stat grids.
+     */
+    .app-page-shell > .grid,
+    .module-page > .grid,
+    .module-page > [class*="module-grid-"],
+    .module-grid-3-9,
+    .module-grid-4-8,
+    .module-grid-8-4,
+    .module-grid-main,
+    .module-grid-side,
+    .app-card-grid,
+    .dashboard-kpi-grid,
+    .module-kpi-grid,
+    .responsive-data-mobile,
+    .responsive-data-shell,
+    .responsive-group-card,
+    .app-card > .grid,
+    .sa-card > .grid,
+    .app-card-grid--services {
+        gap: var(--app-card-gap) !important;
+    }
+
+    .module-page,
+    .module-grid-main,
+    .module-grid-side,
+    .responsive-data-mobile,
+    .responsive-data-shell,
+    .app-page-shell > .space-y-4,
+    .app-page-shell > .space-y-5,
+    .app-page-shell > .space-y-6,
+    .module-page.space-y-4,
+    .module-page.space-y-5,
+    .module-page.space-y-6,
+    .module-grid-main.space-y-4,
+    .module-grid-main.space-y-5,
+    .module-grid-main.space-y-6,
+    .module-grid-side.space-y-4,
+    .module-grid-side.space-y-5,
+    .module-grid-side.space-y-6 {
+        --tw-space-y-reverse: 0;
+    }
+
+    .app-page-shell > .space-y-4 > :not([hidden]) ~ :not([hidden]),
+    .app-page-shell > .space-y-5 > :not([hidden]) ~ :not([hidden]),
+    .app-page-shell > .space-y-6 > :not([hidden]) ~ :not([hidden]),
+    .module-page.space-y-4 > :not([hidden]) ~ :not([hidden]),
+    .module-page.space-y-5 > :not([hidden]) ~ :not([hidden]),
+    .module-page.space-y-6 > :not([hidden]) ~ :not([hidden]),
+    .module-grid-main.space-y-4 > :not([hidden]) ~ :not([hidden]),
+    .module-grid-main.space-y-5 > :not([hidden]) ~ :not([hidden]),
+    .module-grid-main.space-y-6 > :not([hidden]) ~ :not([hidden]),
+    .module-grid-side.space-y-4 > :not([hidden]) ~ :not([hidden]),
+    .module-grid-side.space-y-5 > :not([hidden]) ~ :not([hidden]),
+    .module-grid-side.space-y-6 > :not([hidden]) ~ :not([hidden]) {
+        margin-top: calc(var(--app-card-gap) * calc(1 - var(--tw-space-y-reverse))) !important;
+        margin-bottom: calc(var(--app-card-gap) * var(--tw-space-y-reverse)) !important;
+    }
+
+    /*
+     * Full-page card spacing guard:
+     * normalize legacy grid/flex/stack wrappers that already contain app cards.
+     * This keeps field-level grids untouched while making whole-page card rhythm
+     * consistent without rewriting every Blade view.
+     */
+    .app-content .grid:has(> :is(.app-card, .sa-card, .module-card, [class*="app-card"], [class*="sa-card"], [class*="module-card"])),
+    .app-content .flex:has(> :is(.app-card, .sa-card, .module-card, [class*="app-card"], [class*="sa-card"], [class*="module-card"])),
+    .app-content [class*="gap-"]:has(> :is(.app-card, .sa-card, .module-card, [class*="app-card"], [class*="sa-card"], [class*="module-card"])) {
+        gap: var(--app-card-gap) !important;
+    }
+
+    .app-content :is(.space-y-4, .space-y-5, .space-y-6, .space-y-8):has(> :is(.app-card, .sa-card, .module-card, [class*="app-card"], [class*="sa-card"], [class*="module-card"])) {
+        --tw-space-y-reverse: 0;
+    }
+
+    .app-content :is(.space-y-4, .space-y-5, .space-y-6, .space-y-8):has(> :is(.app-card, .sa-card, .module-card, [class*="app-card"], [class*="sa-card"], [class*="module-card"])) > :not([hidden]) ~ :not([hidden]) {
+        margin-top: calc(var(--app-card-gap) * calc(1 - var(--tw-space-y-reverse))) !important;
+        margin-bottom: calc(var(--app-card-gap) * var(--tw-space-y-reverse)) !important;
+    }
+
+    /*
+     * Do not apply vertical offset to card siblings inside KPI grids/flex rows.
+     * Using gap on parent is the canonical spacing; margin-top here causes
+     * second/third KPI cards to appear lower than the first card.
+     */
+    .app-content :is(.grid, .flex, .app-card-grid, .dashboard-kpi-grid, .module-kpi-grid)
+        > :is(.app-card, .sa-card, .module-card, [class*="app-card"], [class*="sa-card"], [class*="module-card"]) {
+        margin-top: 0 !important;
+        margin-bottom: 0 !important;
+    }
+
+    .app-card-stack {
+        display: grid;
+        gap: var(--app-card-gap);
+    }
+
+    .app-card-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--app-card-gap);
     }
 
     /* Keep card containers visually consistent without heavy borders */
@@ -286,6 +392,33 @@
     .dark .sa-kpi > b {
         color: #e2e8f0;
     }
+
+    /* Unified KPI card baseline across dashboards and module indexes. */
+    .app-kpi-card,
+    :is(.app-card-grid, .dashboard-kpi-grid, .module-kpi-grid) > :is(.app-card, .sa-card, .sa-kpi, .card, a),
+    :is(.app-card-grid, .dashboard-kpi-grid, .module-kpi-grid) > * > :is(.app-card, .sa-card, .sa-kpi, .card) {
+        min-height: var(--app-kpi-card-min-height);
+        height: 100%;
+        border-radius: 1rem !important;
+        border: 1px solid #e5e7eb !important;
+        background: #ffffff !important;
+        box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06) !important;
+    }
+
+    :is(.app-card-grid, .dashboard-kpi-grid, .module-kpi-grid) > :is(.app-card, .sa-card, .sa-kpi, .card, a),
+    :is(.app-card-grid, .dashboard-kpi-grid, .module-kpi-grid) > * > :is(.app-card, .sa-card, .sa-kpi, .card) {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .dark .app-kpi-card,
+    .dark :is(.app-card-grid, .dashboard-kpi-grid, .module-kpi-grid) > :is(.app-card, .sa-card, .sa-kpi, .card, a),
+    .dark :is(.app-card-grid, .dashboard-kpi-grid, .module-kpi-grid) > * > :is(.app-card, .sa-card, .sa-kpi, .card) {
+        border-color: #334155 !important;
+        background: #1f2937 !important;
+        box-shadow: 0 10px 24px rgba(2, 6, 23, 0.28) !important;
+    }
+
     .sa-mini-kpi { display: flex; align-items: center; gap: .65rem; border: 1px solid #e2e8f0; border-radius: .9rem; padding: .65rem .75rem; background: #fff; }
     .sa-mini-kpi p { font-size: 11px; color: #64748b; }
     .sa-mini-kpi b { color: #0f172a; font-size: 16px; line-height: 1; }
@@ -1611,6 +1744,11 @@
     }
 
     @media (max-width: 640px) {
+        /* Keep bottom content visible above mobile gesture/nav area. */
+        .app-content {
+            padding-bottom: calc(18px + env(safe-area-inset-bottom, 0px)) !important;
+        }
+
         .page-actions {
             width: 100%;
             align-items: stretch;

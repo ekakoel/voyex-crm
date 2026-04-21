@@ -73,12 +73,12 @@
         </div>
     @endif
 
-    <div class="dashboard-kpi-grid" data-progressive-group>
+    <div class="dashboard-kpi-grid grid grid-cols-2 gap-3 lg:grid-cols-4" data-progressive-group>
         @foreach($kpiCards as $card)
-            <div class="sa-card p-4" data-progressive-item>
+            <div class="sa-card app-kpi-card p-4" data-progressive-item>
                 <div class="flex items-center justify-between">
                     <span class="sa-dot sa-{{ $card['color'] }}"><i class="fa-solid fa-{{ $card['icon'] }}"></i></span>
-                    <span class="text-[10px] text-slate-400 uppercase">KPI</span>
+                    <span class="text-[10px] text-slate-400 uppercase">{{ __('KPI') }}</span>
                 </div>
                 <p class="mt-3 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{{ $card['label'] }}</p>
                 <b class="mt-1 block text-xl text-slate-900 dark:text-slate-100">
@@ -98,34 +98,34 @@
             @if($canQuotations)
                 <div class="sa-card p-5" data-progressive-item>
                     <div class="flex items-center justify-between">
-                        <h2 class="text-sm font-semibold text-slate-900 dark:text-slate-100">Approval Pipeline</h2>
+                        <h2 class="text-sm font-semibold text-slate-900 dark:text-slate-100">{{ __('Approval Pipeline') }}</h2>
                         <a href="{{ route('quotations.index', ['status' => 'pending', 'needs_my_approval' => 1]) }}" class="text-xs font-medium text-indigo-600 hover:text-indigo-700 dark:text-indigo-300">
                             Open My Approval List
                         </a>
                     </div>
                     <div class="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3 text-xs">
                         <div class="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900">
-                            <p class="text-slate-500 dark:text-slate-400">Step 1: First Approval</p>
+                            <p class="text-slate-500 dark:text-slate-400">{{ __('Step 1: First Approval') }}</p>
                             <p class="mt-1 text-lg font-semibold text-slate-800 dark:text-slate-100">{{ number_format((int) ($needsReservationApprovalCount ?? 0)) }}</p>
-                            <p class="text-slate-500 dark:text-slate-400">No non-creator approval yet</p>
+                            <p class="text-slate-500 dark:text-slate-400">{{ __('No non-creator approval yet') }}</p>
                         </div>
                         <div class="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900">
-                            <p class="text-slate-500 dark:text-slate-400">Step 2: Final Approval</p>
+                            <p class="text-slate-500 dark:text-slate-400">{{ __('Step 2: Final Approval') }}</p>
                             <p class="mt-1 text-lg font-semibold text-slate-800 dark:text-slate-100">{{ number_format((int) ($needsManagerApprovalCount ?? 0)) }}</p>
-                            <p class="text-slate-500 dark:text-slate-400">Already has 1 non-creator approval</p>
+                            <p class="text-slate-500 dark:text-slate-400">{{ __('Already has 1 non-creator approval') }}</p>
                         </div>
                         <div class="rounded-xl border border-amber-200 bg-amber-50 p-3 dark:border-amber-700 dark:bg-amber-900/20">
-                            <p class="text-amber-700 dark:text-amber-300">My Approval Queue</p>
+                            <p class="text-amber-700 dark:text-amber-300">{{ __('My Approval Queue') }}</p>
                             <p class="mt-1 text-lg font-semibold text-amber-800 dark:text-amber-200">{{ number_format((int) ($needsDirectorApprovalCount ?? 0)) }}</p>
-                            <p class="text-amber-700 dark:text-amber-300">Need your approval</p>
+                            <p class="text-amber-700 dark:text-amber-300">{{ __('Need your approval') }}</p>
                         </div>
                     </div>
                 </div>
 
                 <div class="sa-card p-5" data-progressive-item>
                     <div class="flex items-center justify-between">
-                        <h2 class="text-sm font-semibold text-slate-900 dark:text-slate-100">Director Approval Queue</h2>
-                        <span class="text-[11px] text-slate-500 dark:text-slate-400">Prioritized by validity date</span>
+                        <h2 class="text-sm font-semibold text-slate-900 dark:text-slate-100">{{ __('Director Approval Queue') }}</h2>
+                        <span class="text-[11px] text-slate-500 dark:text-slate-400">{{ __('Prioritized by validity date') }}</span>
                     </div>
                     <div class="mt-3 space-y-2 text-xs">
                         @forelse($pendingApprovals as $quotation)
@@ -149,7 +149,7 @@
                                 </div>
                             </div>
                         @empty
-                            <p class="text-xs text-slate-500 dark:text-slate-400">No quotation is currently waiting for director approval.</p>
+                            <p class="text-xs text-slate-500 dark:text-slate-400">{{ __('No quotation is currently waiting for director approval.') }}</p>
                         @endforelse
                     </div>
                 </div>
@@ -159,7 +159,7 @@
                 <div class="sa-card p-5" data-progressive-item>
                     <div class="flex items-center justify-between">
                         <h2 class="text-sm font-semibold text-slate-900 dark:text-slate-100">Revenue Trend ({{ now()->year }})</h2>
-                        <span class="text-[11px] text-slate-500 dark:text-slate-400">Based on booking creation date</span>
+                        <span class="text-[11px] text-slate-500 dark:text-slate-400">{{ __('Based on booking creation date') }}</span>
                     </div>
                     <div class="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6 xl:grid-cols-12">
                         @foreach($monthlyData as $row)
@@ -183,7 +183,7 @@
         <aside class="xl:col-span-4 space-y-3" data-progressive-group>
             @if($canQuotations)
                 <div class="sa-card p-4" data-progressive-item>
-                    <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100">Quotation Status Snapshot</h3>
+                    <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100">{{ __('Quotation Status Snapshot') }}</h3>
                     <div class="mt-3 space-y-2 text-xs">
                         @forelse(($quotationStatusCounts ?? collect())->sortKeys() as $status => $count)
                             <div class="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2 dark:border-slate-700 dark:bg-slate-900" data-progressive-item>
@@ -191,7 +191,7 @@
                                 <span class="font-semibold text-slate-900 dark:text-slate-100">{{ number_format((int) $count) }}</span>
                             </div>
                         @empty
-                            <p class="text-xs text-slate-500 dark:text-slate-400">No quotation status data.</p>
+                            <p class="text-xs text-slate-500 dark:text-slate-400">{{ __('No quotation status data.') }}</p>
                         @endforelse
                     </div>
                 </div>
@@ -199,7 +199,7 @@
 
             @if($canBookings)
                 <div class="sa-card p-4" data-progressive-item>
-                    <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100">Upcoming Bookings</h3>
+                    <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100">{{ __('Upcoming Bookings') }}</h3>
                     <div class="mt-3 space-y-2 text-xs">
                         @forelse($upcomingBookings as $booking)
                             <div class="rounded-lg border border-slate-200 bg-white px-3 py-2 dark:border-slate-700 dark:bg-slate-900" data-progressive-item>
@@ -208,7 +208,7 @@
                                 <p class="text-slate-500 dark:text-slate-400">{{ $booking->quotation?->inquiry?->customer?->name ?? 'Customer not set' }}</p>
                             </div>
                         @empty
-                            <p class="text-xs text-slate-500 dark:text-slate-400">No upcoming bookings.</p>
+                            <p class="text-xs text-slate-500 dark:text-slate-400">{{ __('No upcoming bookings.') }}</p>
                         @endforelse
                     </div>
                 </div>

@@ -20,14 +20,14 @@
                         <input name="q" value="{{ request('q') }}" placeholder="{{ __('ui.modules.inquiries.search') }}"
                             class="app-input sm:col-span-2" data-service-filter-input>
                         <select name="status" class="app-input" data-service-filter-input>
-                            <option value="">Status</option>
+                            <option value="">{{ __('Status') }}</option>
                             @foreach (\App\Models\Inquiry::STATUS_OPTIONS as $status)
                                 <option value="{{ $status }}" @selected(request('status') === $status)>{{ ucfirst($status) }}
                                 </option>
                             @endforeach
                         </select>
                         <select name="priority" class="app-input" data-service-filter-input>
-                            <option value="">Priority</option>
+                            <option value="">{{ __('Priority') }}</option>
                             @foreach (['low', 'normal', 'high'] as $priority)
                                 <option value="{{ $priority }}" @selected(request('priority') === $priority)>{{ $priority }}
                                 </option>

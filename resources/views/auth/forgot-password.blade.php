@@ -28,7 +28,7 @@
     <div class="auth-left auth-left--security">
         <div class="auth-brand">
             @if (!empty($companyLogoUrl))
-                <img src="{{ $companyLogoUrl }}" alt="{{ $appTitle }} logo" class="auth-brand-logo">
+                <img src="{{ $companyLogoUrl }}" alt="{{ $appTitle }} logo" class="auth-brand-logo" loading="lazy" decoding="async">
             @else
                 <span class="auth-brand-dot" aria-hidden="true"></span>
             @endif

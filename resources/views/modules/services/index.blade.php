@@ -24,8 +24,8 @@
             <section class="xl:col-span-9 space-y-3">
                 <div class="sa-card p-5">
                     <div class="mb-3 flex items-center justify-between">
-                        <h2 class="text-sm font-semibold text-slate-900 dark:text-slate-100">Module Control Center</h2>
-                        <span class="text-[11px] text-slate-500 dark:text-slate-400">Toggle access availability per module</span>
+                        <h2 class="text-sm font-semibold text-slate-900 dark:text-slate-100">{{ __('Module Control Center') }}</h2>
+                        <span class="text-[11px] text-slate-500 dark:text-slate-400">{{ __('Toggle access availability per module') }}</span>
                     </div>
                     <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
                         @forelse ($modules as $module)
@@ -70,17 +70,17 @@
 
             <aside class="xl:col-span-3 space-y-3">
                 <div class="sa-card p-4">
-                    <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100">Snapshot</h3>
+                    <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100">{{ __('Snapshot') }}</h3>
                     <div class="mt-3 space-y-2 text-xs">
-                        <div class="sa-mini"><span>Total Modules</span><b>{{ number_format($totalCount) }}</b></div>
-                        <div class="sa-mini"><span>Enabled</span><b class="text-emerald-600 dark:text-emerald-400">{{ number_format($enabledCount) }}</b></div>
-                        <div class="sa-mini"><span>Disabled</span><b class="text-rose-600 dark:text-rose-400">{{ number_format($disabledCount) }}</b></div>
+                        <div class="sa-mini"><span>{{ __('Total Modules') }}</span><b>{{ number_format($totalCount) }}</b></div>
+                        <div class="sa-mini"><span>{{ __('Enabled') }}</span><b class="text-emerald-600 dark:text-emerald-400">{{ number_format($enabledCount) }}</b></div>
+                        <div class="sa-mini"><span>{{ __('Disabled') }}</span><b class="text-rose-600 dark:text-rose-400">{{ number_format($disabledCount) }}</b></div>
                     </div>
                 </div>
 
                 <div class="sa-card p-4 text-xs text-slate-500 dark:text-slate-400">
-                    <p class="font-semibold text-slate-700 dark:text-slate-200">Usage Tips</p>
-                    <p class="mt-2">Disable module only when unused, because related menu and workflow access will be hidden.</p>
+                    <p class="font-semibold text-slate-700 dark:text-slate-200">{{ __('Usage Tips') }}</p>
+                    <p class="mt-2">{{ __('Disable module only when unused, because related menu and workflow access will be hidden.') }}</p>
                 </div>
             </aside>
         </div>

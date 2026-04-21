@@ -1,10 +1,10 @@
 # Voyex CRM - Project Knowledge Base
 
-Last Updated: 2026-04-20
+Last Updated: 2026-04-21
 
 
-Version: 2.5  
-Date: 2026-04-20  
+Version: 2.6  
+Date: 2026-04-21  
 Status: Source of truth aktif
 
 ---
@@ -168,7 +168,29 @@ Dashboard redirect berbasis permission priority:
 
 ---
 
-## 9. Canonical Documentation Map
+## 9. Performance Baseline
+
+Shared request layer sekarang memakai cache/memoization untuk mengurangi query berulang:
+
+- Schema check hot path: `\App\Support\SchemaInspector`.
+- Module enabled map/list: `\App\Services\ModuleService`.
+- Currency metadata/display options: `\App\Support\Currency`.
+- Company branding/settings: `\App\Support\CompanySettingsCache`.
+- Index stats cards: cache singkat pada `IndexStatsComposer`.
+- Dashboard berat: cache aggregate singkat atau async widget pattern.
+
+Invalidation wajib:
+
+- module toggle -> `ModuleService::flushCache()`.
+- currency mutation -> `\App\Support\Currency::flushCache()`.
+- company settings update -> `CompanySettingsCache::flush()`.
+
+Detail standar:
+- `docs/technical/PERFORMANCE_OPTIMIZATION_STANDARD.md`
+
+---
+
+## 10. Canonical Documentation Map
 
 Root source-of-truth:
 - `README.md`
@@ -187,10 +209,11 @@ Technical docs:
 - `docs/technical/I18N_TRANSLATION_STANDARD.md`
 - `docs/technical/IMAGE_THUMBNAIL_STANDARD.md`
 - `docs/technical/TECHNICAL_FIX_NOTES.md`
+- `docs/technical/PERFORMANCE_OPTIMIZATION_STANDARD.md`
 
 ---
 
-## 10. Maintenance Rule
+## 11. Maintenance Rule
 
 Jika terjadi konflik dokumen, urutan prioritas:
 1. `PROJECT_GUIDELINES.md`

@@ -52,7 +52,7 @@
 <div class="space-y-4">
     <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Gallery Images</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Gallery Images') }}</label>
             <div id="activity-gallery-preview"
                 class="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3"
                 data-remove-endpoint-template="{{ isset($activity) ? route('activities.gallery-images.remove', $activity) : '' }}"
@@ -65,7 +65,7 @@
                             <button
                                 type="button"
                                 class="activity-gallery-remove-btn absolute right-1 top-1 z-10 inline-flex h-6 w-6 items-center justify-center rounded-full bg-rose-600/95 text-xs font-bold text-white shadow hover:bg-rose-700"
-                                title="Remove image"
+                                title="{{ __('Remove image') }}"
                                 aria-label="Remove image">
                                 X
                             </button>
@@ -75,7 +75,7 @@
                                         <path d="M4 7h3l2-2h6l2 2h3a1 1 0 0 1 1 1v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a1 1 0 0 1 1-1z"></path>
                                         <circle cx="12" cy="13" r="4"></circle>
                                     </svg>
-                                    <span>Select image to preview</span>
+                                    <span>{{ __('Select image to preview') }}</span>
                                 </div>
                                 @if ($thumbUrl)
                                     <img
@@ -96,7 +96,7 @@
                                     <path d="M4 7h3l2-2h6l2 2h3a1 1 0 0 1 1 1v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a1 1 0 0 1 1-1z"></path>
                                     <circle cx="12" cy="13" r="4"></circle>
                                 </svg>
-                                <span>Select image to preview</span>
+                                <span>{{ __('Select image to preview') }}</span>
                             </div>
                         </div>
                     </div>
@@ -112,9 +112,9 @@
     
     <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Destination (Filter Vendor)</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Destination (Filter Vendor)') }}</label>
             <select id="activity-destination-filter" name="destination_filter_id" class="mt-1 dark:border-gray-600 app-input">
-                <option value="">Select destinations</option>
+                <option value="">{{ __('Select destinations') }}</option>
                 @foreach ($destinations as $destination)
                     <option value="{{ $destination->id }}" @selected($selectedDestinationId === (int) $destination->id)>
                         {{ $destination->name ?: ($destination->province ?: 'Destination') }}
@@ -126,9 +126,9 @@
             </select>
         </div>
         <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Vendor</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Vendor') }}</label>
             <select id="activity-vendor-select" name="vendor_id" class="mt-1 dark:border-gray-600 app-input" required>
-                <option value="">Select vendor</option>
+                <option value="">{{ __('Select vendor') }}</option>
                 @foreach ($vendors as $vendor)
                     <option value="{{ $vendor->id }}"
                         data-destination-id="{{ (int) ($vendor->destination_id ?? 0) }}"
@@ -140,19 +140,19 @@
             @error('vendor_id') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
         </div>
         <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Activity Name</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Activity Name') }}</label>
             <input name="name" value="{{ old('name', $activity->name ?? '') }}" class="mt-1 dark:border-gray-600 app-input" required>
             @error('name') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
         </div>
     </div>
     <div class="grid grid-cols-1 gap-4 md:grid-cols-4">
         <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Activity Type</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Activity Type') }}</label>
             <input
                 list="activity-type-options"
                 name="activity_type_name"
                 value="{{ $selectedActivityTypeName }}"
-                placeholder="Select existing or type new activity type"
+                placeholder="{{ __('Select existing or type new activity type') }}"
                 class="mt-1 dark:border-gray-600 app-input"
                 required>
             <datalist id="activity-type-options">
@@ -163,17 +163,17 @@
             @error('activity_type_name') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
         </div>
         <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Duration (minutes)</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Duration (minutes)') }}</label>
             <input name="duration_minutes" type="number" min="15" max="1440" value="{{ old('duration_minutes', $activity->duration_minutes ?? 120) }}" class="mt-1 dark:border-gray-600 app-input" required>
             @error('duration_minutes') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
         </div>
         <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Capacity Min</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Capacity Min') }}</label>
             <input name="capacity_min" type="number" min="1" value="{{ old('capacity_min', $activity->capacity_min ?? '') }}" class="mt-1 dark:border-gray-600 app-input">
             @error('capacity_min') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
         </div>
         <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Capacity Max</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Capacity Max') }}</label>
             <input name="capacity_max" type="number" min="1" value="{{ old('capacity_max', $activity->capacity_max ?? '') }}" class="mt-1 dark:border-gray-600 app-input">
             @error('capacity_max') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
         </div>
@@ -193,10 +193,10 @@
                 @error('adult_contract_rate') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
             </div>
             <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Adult Markup Type</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Adult Markup Type') }}</label>
                 <select name="adult_markup_type" id="activity-adult-markup-type" class="mt-1 dark:border-gray-600 app-input">
-                    <option value="fixed" @selected($defaultAdultMarkupType === 'fixed')>Fixed</option>
-                    <option value="percent" @selected($defaultAdultMarkupType === 'percent')>Percent</option>
+                    <option value="fixed" @selected($defaultAdultMarkupType === 'fixed')>{{ __('Fixed') }}</option>
+                    <option value="percent" @selected($defaultAdultMarkupType === 'percent')>{{ __('Percent') }}</option>
                 </select>
                 @error('adult_markup_type') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
             </div>
@@ -238,10 +238,10 @@
                 @error('child_contract_rate') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
             </div>
             <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Child Markup Type</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Child Markup Type') }}</label>
                 <select name="child_markup_type" id="activity-child-markup-type" class="mt-1 dark:border-gray-600 app-input">
-                    <option value="fixed" @selected($defaultChildMarkupType === 'fixed')>Fixed</option>
-                    <option value="percent" @selected($defaultChildMarkupType === 'percent')>Percent</option>
+                    <option value="fixed" @selected($defaultChildMarkupType === 'fixed')>{{ __('Fixed') }}</option>
+                    <option value="percent" @selected($defaultChildMarkupType === 'percent')>{{ __('Percent') }}</option>
                 </select>
                 @error('child_markup_type') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
             </div>
@@ -272,38 +272,38 @@
     </div>
 
     <div>
-        <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Benefits</label>
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Benefits') }}</label>
         <textarea name="benefits" rows="3" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">{{ old('benefits', $activity->benefits ?? '') }}</textarea>
         @error('benefits') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
     </div>
 
     <div>
-        <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Descriptions</label>
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Descriptions') }}</label>
         <textarea name="descriptions" rows="3" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">{{ old('descriptions', $activity->descriptions ?? '') }}</textarea>
         @error('descriptions') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
     </div>
 
     <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Includes</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Includes') }}</label>
             <textarea name="includes" rows="3" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">{{ old('includes', $activity->includes ?? '') }}</textarea>
             @error('includes') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
         </div>
         <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Excludes</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Excludes') }}</label>
             <textarea name="excludes" rows="3" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">{{ old('excludes', $activity->excludes ?? '') }}</textarea>
             @error('excludes') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
         </div>
     </div>
 
     <div>
-        <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Cancellation Policy</label>
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Cancellation Policy') }}</label>
         <textarea name="cancellation_policy" rows="3" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">{{ old('cancellation_policy', $activity->cancellation_policy ?? '') }}</textarea>
         @error('cancellation_policy') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
     </div>
 
     <div>
-        <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Notes</label>
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Notes') }}</label>
         <textarea name="notes" rows="3" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">{{ old('notes', $activity->notes ?? '') }}</textarea>
         @error('notes') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
     </div>
@@ -311,12 +311,12 @@
     <div class="flex items-center gap-2">
         <input type="checkbox" name="is_active" value="1" class="rounded border-gray-300 text-indigo-600"
             @checked(old('is_active', $activity->is_active ?? true))>
-        <span class="text-sm text-gray-700 dark:text-gray-200">Active</span>
+        <span class="text-sm text-gray-700 dark:text-gray-200">{{ __('Active') }}</span>
     </div>
 
     <div class="flex items-center gap-2">
         <button  class="btn-primary">{{ $buttonLabel }}</button>
-        <a href="{{ route('activities.index') }}"  class="btn-secondary">Cancel</a>
+        <a href="{{ route('activities.index') }}"  class="btn-secondary">{{ __('Cancel') }}</a>
     </div>
 </div>
 

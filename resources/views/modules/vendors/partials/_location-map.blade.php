@@ -1,5 +1,5 @@
 <div class="space-y-2">
-    <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">Location on Map (open map)</h3>
+    <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ __('Location on Map (open map)') }}</h3>
     <div class="h-[360px] overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700" data-vendor-map></div>
     <p class="text-xs text-gray-500 dark:text-gray-400" data-vendor-map-hint></p>
 </div>

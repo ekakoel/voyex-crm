@@ -214,6 +214,61 @@ Completed in this cycle:
   - bootstrap isolation confirmed the failure was inside `Kernel::commands()`.
   - `php artisan optimize:clear` passed after the fix.
 
+- Shared performance optimization baseline:
+  - added `App\Support\SchemaInspector` for per-request memoization of repeated schema checks.
+  - added `App\Support\CompanySettingsCache` and migrated auth/sidebar branding reads to shared cached data.
+  - optimized `App\Services\ModuleService` with cached enabled-map/list reads and explicit `flushCache()` invalidation after module toggle.
+  - optimized `App\Support\Currency` with cached currency metadata/options and explicit invalidation after currency mutations.
+  - optimized `SidebarComposer`:
+    - uses module enabled map instead of per-item module DB checks,
+    - uses cached company settings and currency options,
+    - caches quotation approval bell count briefly per user/role.
+  - optimized `IndexStatsComposer` with short-lived stats card cache for module index pages.
+  - optimized Super Admin dashboard aggregate payload and trend endpoint with short-lived cache.
+  - added canonical performance standard documentation:
+    - `docs/technical/PERFORMANCE_OPTIMIZATION_STANDARD.md`.
+  - impact:
+    - lower repeated DB/query overhead on shared layout requests,
+    - faster sidebar/layout render path,
+    - faster heavy dashboard response while retaining near-real-time data windows,
+    - clearer cache invalidation standard for future feature work.
+- QA note:
+  - `php -l` passed for updated support classes, composers, services, and controllers.
+  - `php artisan optimize:clear` passed.
+  - `php artisan view:cache` passed.
+  - `php artisan route:list` passed.
+
+- Master layout mobile top spacing adjustment:
+  - added `pt-6` (`1.5rem`) to `main.app-content` so the page header has breathing room below the sticky top navigation on mobile.
+  - removed the temporary Super Admin dashboard content-grid top padding to avoid double spacing below the header.
+  - impact:
+    - page headers no longer sit flush against the sticky top navigation on mobile devices,
+    - dashboard content spacing remains governed by the global page header/content structure.
+- QA note:
+  - `php artisan view:cache` passed.
+
+- Global card spacing standardization:
+  - added global `--app-card-gap: 0.75rem` (`gap-3`) in `resources/css/app.css`.
+  - standardized repeated card/grid/stack containers to use the same card rhythm:
+    - module grids,
+    - module side/main columns,
+    - index stat grids,
+    - dashboard KPI grids,
+    - responsive card lists,
+    - direct app/superadmin card grids.
+  - hardened the global spacing guard for legacy wrappers that contain cards:
+    - grid/flex parents with direct card children are normalized to `gap-3`,
+    - `space-y-4/5/6/8` card stacks are normalized to the global card gap,
+    - direct sibling cards now keep `0.75rem` vertical rhythm even when older pages use local margin utilities.
+  - added reusable `.app-card-stack` and `.app-card-row` helpers for future pages.
+  - updated `docs/core/LAYOUT_GUIDE.md` to define `gap-3` as the global card/container spacing baseline and document the new helper classes.
+  - impact:
+    - card spacing is more compact and consistent across project pages,
+    - future pages have a clear spacing standard instead of local `gap-5/gap-6/space-y-6` drift.
+- QA note:
+  - `php artisan view:cache` passed.
+  - `npm.cmd run build` passed after CSS standardization.
+
 - Food & Beverage pricing currency canonicalization (IDR persistence):
   - fixed create/edit F&B pricing persistence so `contract_rate` and fixed `markup` are always stored in IDR regardless of active display currency.
   - backend normalization now converts submitted display-currency values to IDR using current currency rate before publish-rate computation and persistence.

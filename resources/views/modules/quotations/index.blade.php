@@ -43,7 +43,7 @@
                         <input name="q" value="{{ request('q') }}" placeholder="{{ __('ui.modules.quotations.search') }}"
                             class="sm:col-span-2 app-input" data-service-filter-input>
                         <select name="status" class="app-input" data-service-filter-input>
-                            <option value="">Status</option>
+                            <option value="">{{ __('Status') }}</option>
                             @foreach ($statusFilterOptions as $status)
                                 <option value="{{ $status }}" @selected(request('status') === $status)>{{ ucfirst($status) }}
                                 </option>

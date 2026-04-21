@@ -6,7 +6,6 @@ use App\Models\Module;
 use App\Support\SchemaInspector;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Schema;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 

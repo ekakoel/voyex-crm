@@ -153,7 +153,7 @@
                         type="url"
                         name="departure_google_maps_url"
                         value="{{ $departureGoogleMapsUrl }}"
-                        placeholder="https://maps.google.com/?q=-8.6901,115.2634"
+                        placeholder="{{ __('https://maps.google.com/?q=-8.6901,115.2634') }}"
                         class="app-input"
                         data-map-url-source="departure"
                     >
@@ -198,7 +198,7 @@
                         type="url"
                         name="arrival_google_maps_url"
                         value="{{ $arrivalGoogleMapsUrl }}"
-                        placeholder="https://maps.google.com/?q=-8.7278,115.5444"
+                        placeholder="{{ __('https://maps.google.com/?q=-8.7278,115.5444') }}"
                         class="app-input"
                         data-map-url-source="arrival"
                     >

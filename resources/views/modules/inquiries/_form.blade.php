@@ -14,13 +14,13 @@
 
 <div class="module-form">
     <div>
-        <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Customer</label>
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Customer') }}</label>
         <input
             id="customer_label"
             type="text"
             list="customer-options"
             class="mt-1 app-input"
-            placeholder="Select customer"
+            placeholder="{{ __('Select customer') }}"
             value="{{ $selectedCustomerLabel }}"
             data-datalist-input="1"
             data-hidden-target="customer_id"
@@ -43,7 +43,7 @@
 
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Source</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Source') }}</label>
             <select name="source" class="mt-1 app-input">
                 <option value="">-</option>
                 @foreach (($sourceLabels ?? []) as $value => $label)
@@ -56,7 +56,7 @@
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Deadline</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Deadline') }}</label>
             <input
                 name="deadline"
                 type="date"
@@ -71,9 +71,9 @@
 
     @if (!empty($canAssignToReservation))
         <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Assign To (Reservation)</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Assign To (Reservation)') }}</label>
             <select name="assigned_to" class="mt-1 app-input" required>
-                <option value="">Select reservation</option>
+                <option value="">{{ __('Select reservation') }}</option>
                 @foreach (($assignees ?? []) as $user)
                     <option value="{{ $user->id }}" @selected((string) old('assigned_to', $inquiry->assigned_to ?? '') === (string) $user->id)>{{ $user->name }}</option>
                 @endforeach
@@ -86,7 +86,7 @@
 
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-1">
         <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Priority</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Priority') }}</label>
             <select name="priority" class="mt-1 app-input" required>
                 @foreach (['low','normal','high'] as $priority)
                     <option value="{{ $priority }}" @selected(old('priority', $inquiry->priority ?? 'normal') === $priority)>{{ $priority }}</option>
@@ -99,7 +99,7 @@
     </div>
 
     <div>
-        <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Notes</label>
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Notes') }}</label>
         <textarea
             name="notes"
             rows="4"
@@ -119,7 +119,7 @@
             class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
             @checked(old('reminder_enabled', $inquiry->reminder_enabled ?? true))
         >
-        <label for="reminder_enabled" class="text-sm text-gray-700 dark:text-gray-200">Enable email reminder</label>
+        <label for="reminder_enabled" class="text-sm text-gray-700 dark:text-gray-200">{{ __('Enable email reminder') }}</label>
     </div>
 
     <div class="flex items-center gap-2">

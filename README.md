@@ -1,6 +1,6 @@
 # VOYEX CRM
 
-Last Updated: 2026-04-20
+Last Updated: 2026-04-21
 
 Voyex CRM adalah CRM khusus travel agent dengan flow utama:
 
@@ -94,6 +94,7 @@ php artisan db:seed --class=ProjectBaselineSeeder --force
 - `docs/technical/I18N_TRANSLATION_STANDARD.md`
 - `docs/technical/IMAGE_THUMBNAIL_STANDARD.md`
 - `docs/technical/TECHNICAL_FIX_NOTES.md`
+- `docs/technical/PERFORMANCE_OPTIMIZATION_STANDARD.md`
 
 ## Catatan Konsolidasi Dokumentasi
 

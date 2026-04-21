@@ -64,11 +64,11 @@
             @endforeach
         </div>
         @if (! $hasRooms)
-            <p class="mt-3 text-xs text-gray-500">Prices require at least one room.</p>
+            <p class="mt-3 text-xs text-gray-500">{{ __('Prices require at least one room.') }}</p>
         @endif
         <div class="mt-4">
             <div class="flex items-center justify-between text-xs text-gray-500">
-                <span>Progress</span>
+                <span>{{ __('Progress') }}</span>
                 <span>{{ $progress }}%</span>
             </div>
             <div class="mt-2 h-2 w-full overflow-hidden rounded-full bg-gray-100">

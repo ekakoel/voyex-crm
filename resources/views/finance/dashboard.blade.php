@@ -23,12 +23,12 @@
         @if($canInvoices)
         <section class="xl:col-span-8 space-y-3" data-progressive-group>
             <div class="sa-card p-5" data-progressive-item>
-                <div class="dashboard-kpi-grid">
+                <div class="dashboard-kpi-grid grid grid-cols-2 gap-3 lg:grid-cols-3">
                     @foreach($kpiCards as $card)
-                        <div class="sa-kpi" data-progressive-item>
+                        <div class="sa-kpi app-kpi-card" data-progressive-item>
                             <div class="flex items-center justify-between">
                                 <span class="sa-dot sa-{{ $card['color'] }}"><i class="fa-solid fa-{{ $card['icon'] }}"></i></span>
-                                <span class="text-[10px] text-slate-400">live</span>
+                                <span class="text-[10px] text-slate-400">{{ __('live') }}</span>
                             </div>
                             <p>{{ $card['label'] }}</p>
                             <b>
@@ -47,7 +47,7 @@
 
         <aside  class="xl:col-span-4 space-y-3" data-progressive-group>
             <div class="sa-card p-4" data-progressive-item>
-                <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100">Recent Invoices</h3>
+                <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100">{{ __('Recent Invoices') }}</h3>
                 <div class="mt-3 space-y-2 text-xs">
                     @forelse($recentInvoices as $invoice)
                         <div class="rounded-lg bg-slate-50 px-3 py-2 dark:bg-slate-900" data-progressive-item>
@@ -55,7 +55,7 @@
                             <p class="text-slate-500 dark:text-slate-400">{{ ucfirst($invoice->status) }} • <x-money :amount="$invoice->total_amount" currency="IDR" /></p>
                         </div>
                     @empty
-                        <p class="text-xs text-slate-500 dark:text-slate-400">No recent invoices.</p>
+                        <p class="text-xs text-slate-500 dark:text-slate-400">{{ __('No recent invoices.') }}</p>
                     @endforelse
                 </div>
             </div>
@@ -76,6 +76,5 @@
     })();
 </script>
 @endpush
-
 
 

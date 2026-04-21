@@ -707,23 +707,23 @@
             </div>
 
             <div class="module-kpi-grid">
-                <div class="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/30">
+                <div class="app-kpi-card rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/30">
                     <p class="text-xs text-gray-500 dark:text-gray-400">{{ __('ui.modules.quotations.total_items') }}</p>
                     <p class="mt-1 text-base font-semibold text-gray-900 dark:text-gray-100">{{ (int) ($progress['total_items'] ?? 0) }}</p>
                 </div>
-                <div class="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/30">
+                <div class="app-kpi-card rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/30">
                     <p class="text-xs text-gray-500 dark:text-gray-400">{{ __('ui.modules.quotations.total_required_validation') }}</p>
                     <p class="mt-1 text-base font-semibold text-gray-900 dark:text-gray-100">{{ (int) ($progress['total_required'] ?? 0) }}</p>
                 </div>
-                <div class="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/30">
+                <div class="app-kpi-card rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/30">
                     <p class="text-xs text-gray-500 dark:text-gray-400">{{ __('ui.modules.quotations.total_validated_items') }}</p>
                     <p class="mt-1 text-base font-semibold text-gray-900 dark:text-gray-100" data-progress-total-validated>{{ (int) ($progress['total_validated'] ?? 0) }}</p>
                 </div>
-                <div class="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/30">
+                <div class="app-kpi-card rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/30">
                     <p class="text-xs text-gray-500 dark:text-gray-400">{{ __('ui.modules.quotations.validation_progress') }}</p>
                     <p class="mt-1 text-base font-semibold text-gray-900 dark:text-gray-100" data-progress-percent>{{ (int) ($progress['validation_percent'] ?? 0) }}%</p>
                 </div>
-                <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-700 dark:bg-emerald-900/20">
+                <div class="app-kpi-card rounded-xl border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-700 dark:bg-emerald-900/20">
                     <p class="text-xs text-emerald-700 dark:text-emerald-300">{{ __('ui.common.customer') }}</p>
                     <p class="mt-1 text-sm font-semibold text-emerald-800 dark:text-emerald-200">{{ $quotation->inquiry?->customer?->name ?? '-' }}</p>
                 </div>
@@ -940,7 +940,7 @@
                             <th class="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ __('ui.modules.quotations.contract_rate') }}</th>
                             <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ __('ui.modules.quotations.markup_type') }}</th>
                             <th class="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ __('ui.modules.quotations.markup') }}</th>
-                            <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">Validated by</th>
+                            <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ __('Validated by') }}</th>
                             <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ __('ui.modules.quotations.validation_status') }}</th>
                             <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ __('ui.common.actions') }}</th>
                         </tr>

@@ -70,7 +70,7 @@
                 $iconClass = $iconMap[$key] ?? 'fa-chart-pie';
                 $colorKey = (string) ($card['color'] ?? $colorMap[$key] ?? $tone);
             @endphp
-            <div class="app-card p-4">
+            <div class="app-card app-kpi-card p-4">
                 <div class="flex items-center justify-between h-full relative">
                     <div class="data-card">
                         <p class="text-xs font-semibold uppercase tracking-wide text-gray-400">{{ $label }}</p>
@@ -85,4 +85,3 @@
         @endforeach
     </div>
 @endif
-

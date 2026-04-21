@@ -26,8 +26,8 @@
             <div class="xl:col-span-7 bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-md border border-gray-200 dark:border-gray-700">
                 <div class="flex items-start justify-between">
                     <div>
-                        <h2 class="text-xl font-semibold text-gray-800 dark:text-gray-100">Company Governance</h2>
-                        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Control internal users and operational module statuses.</p>
+                        <h2 class="text-xl font-semibold text-gray-800 dark:text-gray-100">{{ __('Company Governance') }}</h2>
+                        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">{{ __('Control internal users and operational module statuses.') }}</p>
                     </div>
                     <span class="px-3 py-1 rounded-full text-xs font-semibold {{ ($companyProfileReady ?? false) ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300' : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' }}">
                         {{ ($companyProfileReady ?? false) ? 'Company Profile Ready' : 'Company Profile Incomplete' }}
@@ -36,19 +36,19 @@
                 @if($canUsers)
                 <div class="mt-4 grid grid-cols-2 lg:grid-cols-4 gap-3">
                     <div class="rounded-xl bg-gray-50 dark:bg-gray-900 p-3">
-                        <p class="text-xs text-gray-500 dark:text-gray-400">Total Users</p>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">{{ __('Total Users') }}</p>
                         <p class="text-xl font-bold text-gray-800 dark:text-gray-100">{{ number_format($teamStats['total_users'] ?? 0) }}</p>
                     </div>
                     <div class="rounded-xl bg-gray-50 dark:bg-gray-900 p-3">
-                        <p class="text-xs text-gray-500 dark:text-gray-400">Sales Team</p>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">{{ __('Sales Team') }}</p>
                         <p class="text-xl font-bold text-gray-800 dark:text-gray-100">{{ number_format($teamStats['sales_team'] ?? 0) }}</p>
                     </div>
                     <div class="rounded-xl bg-gray-50 dark:bg-gray-900 p-3">
-                        <p class="text-xs text-gray-500 dark:text-gray-400">Reservation</p>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">{{ __('Reservation') }}</p>
                         <p class="text-xl font-bold text-gray-800 dark:text-gray-100">{{ number_format($teamStats['operations'] ?? 0) }}</p>
                     </div>
                     <div class="rounded-xl bg-gray-50 dark:bg-gray-900 p-3">
-                        <p class="text-xs text-gray-500 dark:text-gray-400">Finance</p>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">{{ __('Finance') }}</p>
                         <p class="text-xl font-bold text-gray-800 dark:text-gray-100">{{ number_format($teamStats['finance'] ?? 0) }}</p>
                     </div>
                 </div>
@@ -56,15 +56,15 @@
                 @if($canServices)
                 <div class="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div class="rounded-xl border border-gray-200 dark:border-gray-700 p-3">
-                        <p class="text-xs text-gray-500 dark:text-gray-400">Managed Modules</p>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">{{ __('Managed Modules') }}</p>
                         <p class="text-lg font-semibold text-gray-800 dark:text-gray-100">{{ number_format($moduleGovernance['visible'] ?? 0) }}</p>
                     </div>
                     <div class="rounded-xl border border-gray-200 dark:border-gray-700 p-3">
-                        <p class="text-xs text-gray-500 dark:text-gray-400">Enabled</p>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">{{ __('Enabled') }}</p>
                         <p class="text-lg font-semibold text-emerald-600 dark:text-emerald-400">{{ number_format($moduleGovernance['enabled'] ?? 0) }}</p>
                     </div>
                     <div class="rounded-xl border border-gray-200 dark:border-gray-700 p-3">
-                        <p class="text-xs text-gray-500 dark:text-gray-400">Disabled</p>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">{{ __('Disabled') }}</p>
                         <p class="text-lg font-semibold text-rose-600 dark:text-rose-400">{{ number_format($moduleGovernance['disabled'] ?? 0) }}</p>
                     </div>
                 </div>
@@ -72,20 +72,20 @@
             @endif
 
             <div class="xl:col-span-5 bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-md border border-gray-200 dark:border-gray-700">
-                <h2 class="text-xl font-semibold text-gray-800 dark:text-gray-100">Quick Actions</h2>
-                <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Quick access for company administration activities.</p>
+                <h2 class="text-xl font-semibold text-gray-800 dark:text-gray-100">{{ __('Quick Actions') }}</h2>
+                <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">{{ __('Quick access for company administration activities.') }}</p>
                 <div class="mt-4 grid grid-cols-1 gap-2 text-sm">
                     @if(auth()->user()->can('company_settings.manage'))
-                        <a href="{{ route('company-settings.edit') }}"  class="btn-primary">Company Settings</a>
+                        <a href="{{ route('company-settings.edit') }}"  class="btn-primary">{{ __('Company Settings') }}</a>
                     @endif
                     @if(auth()->user()->can('module.user_manager.access') && Route::has('users.index'))
-                        <a href="{{ route('users.index') }}"  class="btn-primary">Manage Users</a>
+                        <a href="{{ route('users.index') }}"  class="btn-primary">{{ __('Manage Users') }}</a>
                     @endif
                     @if(auth()->user()->can('module.service_manager.access') && Route::has('services.index'))
-                        <a href="{{ route('services.index') }}"  class="btn-primary">Module Management</a>
+                        <a href="{{ route('services.index') }}"  class="btn-primary">{{ __('Module Management') }}</a>
                     @endif
                     @if(auth()->user()->can('module.role_manager.access') && Route::has('roles.index'))
-                        <a href="{{ route('roles.index') }}"  class="btn-primary">Role & Permissions</a>
+                        <a href="{{ route('roles.index') }}"  class="btn-primary">{{ __('Role & Permissions') }}</a>
                     @endif
                 </div>
             </div>
@@ -110,7 +110,7 @@
                     'user_manager' => 'users.index',
                 ];
             @endphp
-            <h3 class="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-4">Accessible Modules</h3>
+            <h3 class="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-4">{{ __('Accessible Modules') }}</h3>
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
                 @forelse(($managedModules ?? []) as $module)
                     @if($module['can_access'])
@@ -155,17 +155,17 @@
     @endif
 
     <!-- Main KPI Grid -->
-    <div class="dashboard-kpi-grid">
+    <div class="dashboard-kpi-grid grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <!-- Monthly Revenue -->
         @if($canBookings)
-        <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-md border border-gray-200 dark:border-gray-700 transition-all duration-300 hover:shadow-lg hover:-translate-y-1">
-            <div class="flex justify-between items-start">
-                <div>
-                    <p class="text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Monthly Revenue</p>
-                    <p class="text-3xl font-bold text-primary mt-2"><x-money :amount="$monthlyRevenue ?? 0" currency="IDR" /></p>
+        <div class="app-card app-kpi-card p-4">
+            <div class="flex items-center justify-between h-full relative">
+                <div class="data-card">
+                    <p class="text-xs font-semibold uppercase tracking-wide text-gray-400">{{ __('Monthly Revenue') }}</p>
+                    <p class="mt-2 text-2xl font-semibold text-gray-900"><x-money :amount="$monthlyRevenue ?? 0" currency="IDR" /></p>
                 </div>
-                <div class="bg-blue-100 dark:bg-blue-900/50 text-primary p-3 rounded-full">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 6v2m0 8v2m-6-4h.01M18 12h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                <div class="icon-kpi icon-kpi--emerald">
+                    <i class="fa-solid fa-wallet"></i>
                 </div>
             </div>
         </div>
@@ -173,14 +173,14 @@
 
         <!-- Conversion Rate -->
         @if($canBookings && $canInquiries)
-        <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-md border border-gray-200 dark:border-gray-700 transition-all duration-300 hover:shadow-lg hover:-translate-y-1">
-            <div class="flex justify-between items-start">
-                <div>
-                    <p class="text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Conversion Rate</p>
-                    <p class="text-3xl font-bold text-green-600 dark:text-green-400 mt-2">{{ number_format($conversionRate, 2) }}%</p>
+        <div class="app-card app-kpi-card p-4">
+            <div class="flex items-center justify-between h-full relative">
+                <div class="data-card">
+                    <p class="text-xs font-semibold uppercase tracking-wide text-gray-400">{{ __('Conversion Rate') }}</p>
+                    <p class="mt-2 text-2xl font-semibold text-gray-900">{{ number_format((float) $conversionRate, 2) }}%</p>
                 </div>
-                <div class="bg-green-100 dark:bg-green-900/50 text-green-600 dark:text-green-400 p-3 rounded-full">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>
+                <div class="icon-kpi icon-kpi--indigo">
+                    <i class="fa-solid fa-chart-line"></i>
                 </div>
             </div>
         </div>
@@ -194,8 +194,8 @@
         @if($canBookings)
         <div class="lg:col-span-2 bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-md border border-gray-200 dark:border-gray-700">
             <div class="flex items-center justify-between mb-4">
-                <h2 class="text-xl font-semibold text-gray-800 dark:text-gray-100">Revenue Trend</h2>
-                <span class="bg-blue-100 text-primary text-xs font-medium px-3 py-1 rounded-full">This Year</span>
+                <h2 class="text-xl font-semibold text-gray-800 dark:text-gray-100">{{ __('Revenue Trend') }}</h2>
+                <span class="bg-blue-100 text-primary text-xs font-medium px-3 py-1 rounded-full">{{ __('This Year') }}</span>
             </div>
             <canvas id="revenueChart" class="max-h-80"></canvas>
         </div>
@@ -204,7 +204,7 @@
         <!-- Deadline Quotations -->
         @if($canQuotations)
         <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-md border border-gray-200 dark:border-gray-700">
-            <h3 class="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-4">Expiring Quotations</h3>
+            <h3 class="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-4">{{ __('Expiring Quotations') }}</h3>
             <div class="space-y-4 max-h-80 overflow-y-auto">
                 @forelse ($deadlineQuotations as $q)
                     <div class="flex items-center">
@@ -218,7 +218,7 @@
                     </div>
                 @empty
                     <div class="text-center py-8">
-                        <p class="text-gray-500">No expiring quotations.</p>
+                        <p class="text-gray-500">{{ __('No expiring quotations.') }}</p>
                     </div>
                 @endforelse
             </div>
@@ -229,14 +229,14 @@
     <!-- Upcoming Bookings -->
     @if($canBookings)
     <div class="mt-8 app-card p-6">
-        <h3 class="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-4">Upcoming Bookings</h3>
+        <h3 class="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-4">{{ __('Upcoming Bookings') }}</h3>
         <div class="overflow-x-auto">
             <table class="app-table w-full text-sm text-left text-gray-500 dark:text-gray-400">
                 <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
                     <tr>
-                        <th scope="col" class="px-6 py-3">Booking ID</th>
-                        <th scope="col" class="px-6 py-3">Travel Date</th>
-                        <th scope="col" class="px-6 py-3">Status</th>
+                        <th scope="col" class="px-6 py-3">{{ __('Booking ID') }}</th>
+                        <th scope="col" class="px-6 py-3">{{ __('Travel Date') }}</th>
+                        <th scope="col" class="px-6 py-3">{{ __('Status') }}</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -360,7 +360,6 @@
     @endif
     @endpush
 @endsection
-
 
 
 

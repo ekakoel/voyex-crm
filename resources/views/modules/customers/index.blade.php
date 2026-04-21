@@ -2,7 +2,7 @@
 @section('page_title', __('ui.modules.customers.page_title'))
 @section('page_subtitle', __('ui.modules.customers.page_subtitle'))
 @section('page_actions')
-    <a href="{{ route('customers.import') }}" class="btn-outline">Import CSV</a>
+    <a href="{{ route('customers.import') }}" class="btn-outline">{{ __('Import CSV') }}</a>
     <a href="{{ route('customers.create') }}" class="btn-primary">
         {{ __('ui.modules.customers.add_customer') }}
     </a>
@@ -28,7 +28,7 @@
                             @endforeach
                         </select>
                         <x-forms.searchable-select name="country" :options="$countries" :value="request('country')"
-                            list-id="country-filter-options" placeholder="Country" />
+                            list-id="country-filter-options" placeholder="{{ __('Country') }}" />
                         <select name="created_by" class="app-input" data-service-filter-input>
                             <option value="">{{ __('ui.modules.customers.creator') }}</option>
                             @foreach ($creators as $creator)

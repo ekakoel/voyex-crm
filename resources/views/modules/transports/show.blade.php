@@ -68,7 +68,7 @@
                                         data-transport-gallery-src="{{ $item['full_url'] }}"
                                         title="{{ $item['label'] }}"
                                     >
-                                        <img src="{{ $item['thumbnail_url'] ?: $item['full_url'] }}" alt="{{ $item['label'] }}" class="h-16 w-full object-cover">
+                                        <img src="{{ $item['thumbnail_url'] ?: $item['full_url'] }}" alt="{{ $item['label'] }}" class="h-16 w-full object-cover" loading="lazy" decoding="async">
                                         <span class="pointer-events-none absolute bottom-1 left-1 right-1 truncate rounded bg-black/70 px-1.5 py-0.5 text-[10px] font-medium text-white">
                                             {{ $item['label'] }}
                                         </span>
@@ -113,7 +113,7 @@
                             <p class="mt-1 text-sm text-gray-800 dark:text-gray-100">{{ $transport->transmission ? ucfirst((string) $transport->transmission) : '-' }}</p>
                         </div>
                         <div>
-                            <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Fuel Type</p>
+                            <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ __('Fuel Type') }}</p>
                             <p class="mt-1 text-sm text-gray-800 dark:text-gray-100">{{ $transport->fuel_type ? ucfirst(str_replace('_', ' ', (string) $transport->fuel_type)) : '-' }}</p>
                         </div>
                         <div>

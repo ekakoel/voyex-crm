@@ -30,7 +30,7 @@
 <div class="space-y-4" data-location-autofill data-location-resolve-url="{{ route('location.resolve-google-map') }}">
     <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Gallery Images</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Gallery Images') }}</label>
             <div id="tourist-attraction-gallery-preview"
                 class="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3"
                 data-remove-endpoint-template="{{ isset($touristAttraction) ? route('tourist-attractions.gallery-images.remove', $touristAttraction) : '' }}"
@@ -45,7 +45,7 @@
                             <button
                                 type="button"
                                 class="tourist-gallery-remove-btn absolute right-1 top-1 z-10 inline-flex h-6 w-6 items-center justify-center rounded-full bg-rose-600/95 text-xs font-bold text-white shadow hover:bg-rose-700"
-                                title="Remove image"
+                                title="{{ __('Remove image') }}"
                                 aria-label="Remove image">
                                 X
                             </button>
@@ -55,7 +55,7 @@
                                         <path d="M4 7h3l2-2h6l2 2h3a1 1 0 0 1 1 1v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a1 1 0 0 1 1-1z"></path>
                                         <circle cx="12" cy="13" r="4"></circle>
                                     </svg>
-                                    <span>Select image to preview</span>
+                                    <span>{{ __('Select image to preview') }}</span>
                                 </div>
                                 @if ($primarySrc)
                                     <img
@@ -77,7 +77,7 @@
                                     <path d="M4 7h3l2-2h6l2 2h3a1 1 0 0 1 1 1v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a1 1 0 0 1 1-1z"></path>
                                     <circle cx="12" cy="13" r="4"></circle>
                                 </svg>
-                                <span>Select image to preview</span>
+                                <span>{{ __('Select image to preview') }}</span>
                             </div>
                         </div>
                     </div>
@@ -92,13 +92,13 @@
 
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Name</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Name') }}</label>
             <input name="name" value="{{ old('name', $touristAttraction->name ?? '') }}" class="mt-1 dark:border-gray-600 app-input" required>
             @error('name') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Ideal Visit Duration (minutes)</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Ideal Visit Duration (minutes)') }}</label>
             <input
                 name="ideal_visit_minutes"
                 type="number"
@@ -128,7 +128,7 @@
     ])
     <input type="hidden" id="location" data-location-field="location" name="location" value="{{ old('location', $touristAttraction->location ?? '') }}">
     <div>
-        <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Timezone</label>
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Timezone') }}</label>
         <input data-location-field="timezone" name="timezone" value="{{ old('timezone', $touristAttraction->timezone ?? '') }}" class="mt-1 dark:border-gray-600 app-input">
     </div>
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -144,10 +144,10 @@
             @error('contract_rate_per_pax') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
         </div>
         <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Markup Type</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Markup Type') }}</label>
             <select name="markup_type" id="tourist-markup-type" class="mt-1 dark:border-gray-600 app-input">
-                <option value="fixed" @selected($defaultMarkupType === 'fixed')>Fixed</option>
-                <option value="percent" @selected($defaultMarkupType === 'percent')>Percent</option>
+                <option value="fixed" @selected($defaultMarkupType === 'fixed')>{{ __('Fixed') }}</option>
+                <option value="percent" @selected($defaultMarkupType === 'percent')>{{ __('Percent') }}</option>
             </select>
             @error('markup_type') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
         </div>
@@ -176,7 +176,7 @@
         </div>
     </div>
     <div>
-        <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Description</label>
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Description') }}</label>
         <textarea name="description" rows="4" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">{{ old('description', $touristAttraction->description ?? '') }}</textarea>
         @error('description') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
     </div>
@@ -184,12 +184,12 @@
     <div class="flex items-center gap-2">
         <input type="checkbox" name="is_active" value="1" class="rounded border-gray-300 text-indigo-600"
             @checked(old('is_active', $touristAttraction->is_active ?? true))>
-        <span class="text-sm text-gray-700 dark:text-gray-200">Active</span>
+        <span class="text-sm text-gray-700 dark:text-gray-200">{{ __('Active') }}</span>
     </div>
 
     <div class="flex items-center gap-2">
         <button  class="btn-primary">{{ $buttonLabel }}</button>
-        <a href="{{ route('tourist-attractions.index') }}"  class="btn-secondary">Cancel</a>
+        <a href="{{ route('tourist-attractions.index') }}"  class="btn-secondary">{{ __('Cancel') }}</a>
     </div>
 </div>
 

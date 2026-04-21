@@ -13,9 +13,9 @@
     <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ $mapTitle }}</h3>
     @if ($interactive)
         <div class="flex items-center gap-2 text-xs" data-island-transfer-map-mode-group>
-            <span class="text-gray-600 dark:text-gray-300">Pin mode:</span>
-            <button type="button" class="btn-outline-sm !h-8 !px-2.5" data-island-transfer-pin-mode="departure">Departure</button>
-            <button type="button" class="btn-secondary-sm !h-8 !px-2.5" data-island-transfer-pin-mode="arrival">Arrival</button>
+            <span class="text-gray-600 dark:text-gray-300">{{ __('Pin mode:') }}</span>
+            <button type="button" class="btn-outline-sm !h-8 !px-2.5" data-island-transfer-pin-mode="departure">{{ __('Departure') }}</button>
+            <button type="button" class="btn-secondary-sm !h-8 !px-2.5" data-island-transfer-pin-mode="arrival">{{ __('Arrival') }}</button>
         </div>
     @endif
     <div

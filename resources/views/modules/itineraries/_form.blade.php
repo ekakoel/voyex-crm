@@ -374,12 +374,37 @@
     }
 @endphp
 
-<div class="space-y-4 itinerary-form-page">
+<div class="space-y-4 itinerary-form-page" data-itinerary-wizard>
+    <div class="itinerary-wizard-shell rounded-xl border border-gray-200 bg-white p-3 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+        <div class="itinerary-wizard-steps">
+            <button type="button" class="itinerary-wizard-step is-active" data-wizard-step-chip="1">
+                <span class="itinerary-wizard-step__index">1</span>
+                <span class="itinerary-wizard-step__label">{{ __('itinerary_form.wizard.step_basic_info') }}</span>
+            </button>
+            <button type="button" class="itinerary-wizard-step" data-wizard-step-chip="2">
+                <span class="itinerary-wizard-step__index">2</span>
+                <span class="itinerary-wizard-step__label">{{ __('itinerary_form.wizard.step_day_planner') }}</span>
+            </button>
+            <button type="button" class="itinerary-wizard-step" data-wizard-step-chip="3">
+                <span class="itinerary-wizard-step__index">3</span>
+                <span class="itinerary-wizard-step__label">{{ __('itinerary_form.wizard.step_include_exclude') }}</span>
+            </button>
+            <button type="button" class="itinerary-wizard-step" data-wizard-step-chip="4">
+                <span class="itinerary-wizard-step__index">4</span>
+                <span class="itinerary-wizard-step__label">{{ __('itinerary_form.wizard.step_review') }}</span>
+            </button>
+        </div>
+        <div class="itinerary-wizard-progress-track mt-2">
+            <div class="itinerary-wizard-progress-fill" data-wizard-progress-fill style="width: 25%;"></div>
+        </div>
+    </div>
+
+    <section data-wizard-step="1" class="space-y-4">
     <div>
-        <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Inquiry (Optional)</label>
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Inquiry (Optional)') }}</label>
         <select id="inquiry-select" name="inquiry_id"
             class="mt-1 dark:border-gray-600 app-input">
-            <option value="">Independent itinerary (no inquiry)</option>
+            <option value="">{{ __('Independent itinerary (no inquiry)') }}</option>
             @foreach ($inquiries as $inquiry)
                 <option value="{{ $inquiry->id }}" @selected((string) $selectedInquiryId === (string) $inquiry->id)>
                     {{ date('y-m-d',strtotime($inquiry->deadline)) }}
@@ -396,28 +421,28 @@
     </div>
 
     <div>
-        <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Title</label>
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Title') }}</label>
         <input name="title" value="{{ old('title', $itinerary->title ?? '') }}"
             class="mt-1 dark:border-gray-600 app-input"
             required>
     </div>
     <div>
-        <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Order Number</label>
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Order Number') }}</label>
         <input name="order_number" value="{{ old('order_number', $itinerary->order_number ?? '') }}"
             class="mt-1 dark:border-gray-600 app-input"
-            placeholder="Example: ORD260424A">
+            placeholder="{{ __('Example: ORD260424A') }}">
         @error('order_number')
             <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
         @enderror
     </div>
     <div class="grid grid-cols-1 gap-3 md:grid-cols-12">
         <div class="md:col-span-6">
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Destination</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Destination') }}</label>
             <div class="relative mt-1">
                 <input id="itinerary-destination" name="destination"
                     value="{{ old('destination', $itinerary->destination ?? '') }}"
                     data-endpoint="{{ route('itineraries.destination-suggestions') }}" autocomplete="off"
-                    placeholder="Example: Bali, Lombok, Jakarta"
+                    placeholder="{{ __('Example: Bali, Lombok, Jakarta') }}"
                     class="dark:border-gray-600 app-input"
                     required>
                 <div id="itinerary-destination-dropdown"
@@ -429,15 +454,15 @@
             @enderror
         </div>
         <div class="md:col-span-3">
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Duration (Days)</label>
-            <input id="duration-days" name="duration_days" type="number" min="1" max="7"
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Duration (Days)') }}</label>
+            <input id="duration-days" name="duration_days" type="number" min="1" max="7" step="1" inputmode="numeric"
                 value="{{ $durationDays }}"
                 class="mt-1 dark:border-gray-600 app-input"
                 required>
         </div>
         <div class="md:col-span-3">
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Duration (Nights)</label>
-            <input id="duration-nights" name="duration_nights" type="number" min="0" max="6"
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Duration (Nights)') }}</label>
+            <input id="duration-nights" name="duration_nights" type="number" min="0" max="6" step="1" inputmode="numeric"
                 value="{{ $durationNights }}"
                 class="mt-1 dark:border-gray-600 app-input"
                 required>
@@ -447,10 +472,11 @@
         </div>
     </div>
     <div>
-        <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Description</label>
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Description') }}</label>
         <textarea name="description" rows="4"
             class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">{{ old('description', $itinerary->description ?? '') }}</textarea>
     </div>
+    </section>
 
     <input type="hidden" id="hotel-stays-hidden-enabled" value="1" class="app-input">
     <div id="hotel-stays-hidden"></div>
@@ -476,8 +502,16 @@
         <p class="text-xs text-rose-600">{{ $message }}</p>
     @enderror
 
-    <div class="space-y-2">
-        <p class="text-sm font-medium text-gray-700 dark:text-gray-200">Schedule Items (Optional)</p>
+    <section data-wizard-step="2" class="space-y-2 hidden">
+        <p class="text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('itinerary_form.wizard.schedule_items_optional') }}</p>
+        <div class="itinerary-day-wizard rounded-lg border border-gray-200 bg-gray-50 p-2 dark:border-gray-700 dark:bg-gray-900/40">
+            <div class="flex items-center justify-between gap-2">
+                <button type="button" class="btn-secondary-sm" data-day-wizard-prev>{{ __('itinerary_form.wizard.previous_day') }}</button>
+                <div id="itinerary-day-wizard-tabs" class="itinerary-day-wizard-tabs flex flex-wrap items-center justify-center gap-2"></div>
+                <button type="button" class="btn-secondary-sm" data-day-wizard-next>{{ __('itinerary_form.wizard.next_day') }}</button>
+            </div>
+            <p class="mt-2 text-center text-xs text-gray-500 dark:text-gray-400">{{ __('itinerary_form.wizard.focus_one_day_hint') }}</p>
+        </div>
         <div id="day-sections" class="space-y-3">
             @for ($day = 1; $day <= $durationDays; $day++)
                 @php
@@ -530,19 +564,19 @@
                         <div class="app-day-header day-card-header-pill min-w-0 flex-1">
                             <p class="day-title-label app-day-header-title">Day {{ $day }}</p>
                             <p class="day-endpoint-badge app-day-header-meta">
-                                Starts at: <span class="day-starts-at-label">Not set</span>
+                                Starts at: <span class="day-starts-at-label">{{ __('Not set') }}</span>
                                 <span class="mx-1">|</span>
-                                Ends at: <span class="day-ends-at-label">Not set</span>
+                                Ends at: <span class="day-ends-at-label">{{ __('Not set') }}</span>
                             </p>
                         </div>
                     </div>
                     <div class="mb-3 flex flex-wrap items-center justify-between gap-2 xl:flex-nowrap">
                         <div class="flex flex-wrap items-center gap-2 sm:flex-nowrap">
-                            <label class="whitespace-nowrap text-xs text-gray-500">Start Tour</label>
+                            <label class="whitespace-nowrap text-xs text-gray-500">{{ __('Start Tour') }}</label>
                             <input type="time" value="{{ $dayStart }}"
                                 name="day_start_times[{{ $day }}]"
                                 class="day-start-time dark:border-gray-600 app-input w-full sm:w-36">
-                            <label class="whitespace-nowrap text-xs text-gray-500">End Tour</label>
+                            <label class="whitespace-nowrap text-xs text-gray-500">{{ __('End Tour') }}</label>
                             <input type="time" value=""
                                 class="day-end-time text-gray-700 dark:border-gray-600 app-input w-full sm:w-36"
                                 readonly>
@@ -561,7 +595,7 @@
                             </label>
                             <select
                                 class="day-transport-unit dark:border-gray-600 app-input">
-                                <option value="">Select transport unit</option>
+                                <option value="">{{ __('Select transport unit') }}</option>
                                 @foreach ($transportUnits ?? collect() as $unit)
                                     <option value="{{ $unit->id }}"
                                         data-city="{{ $unit->transport?->vendor?->city ?? '' }}"
@@ -588,19 +622,19 @@
                                 <div class="md:w-1/4">
                                     <select name="daily_start_point_types[{{ $day }}]"
                                         class="day-start-point-type dark:border-gray-600 app-input">
-                                        <option value="" @selected($startType === '')>Not set</option>
+                                        <option value="" @selected($startType === '')>{{ __('Not set') }}</option>
                                         @if ($day !== 1)
                                             <option value="previous_day_end" @selected($startType === 'previous_day_end')>Previous Day
                                                 Endpoint (Auto)</option>
                                         @endif
-                                        <option value="hotel" @selected($startType === 'hotel')>Hotel</option>
-                                        <option value="airport" @selected($startType === 'airport')>Airport</option>
+                                        <option value="hotel" @selected($startType === 'hotel')>{{ __('Hotel') }}</option>
+                                        <option value="airport" @selected($startType === 'airport')>{{ __('Airport') }}</option>
                                     </select>
                                 </div>
                                 <div class="md:w-1/4">
                                     <select name="daily_start_point_items[{{ $day }}]"
                                         class="day-start-point-item dark:border-gray-600 app-input">
-                                        <option value="">Select start point item</option>
+                                        <option value="">{{ __('Select start point item') }}</option>
                                         @foreach ($hotelsSorted as $hotel)
                                             <option value="{{ $hotel->id }}" data-point-type="hotel"
                                                 data-location="{{ $hotel->address ?? '' }}"
@@ -631,7 +665,7 @@
                                     <select name="daily_start_point_room_ids[{{ $day }}]"
                                         class="day-start-room-select dark:border-gray-600 app-input"
                                         {{ $startType === 'hotel' ? '' : 'disabled' }}>
-                                        <option value="">Select room</option>
+                                        <option value="">{{ __('Select room') }}</option>
                                         @foreach ($hotels as $hotel)
                                             @foreach ($hotel->rooms ?? collect() as $room)
                                                 <option value="{{ $room->id }}"
@@ -647,8 +681,8 @@
                                     <select name="daily_start_hotel_booking_modes[{{ $day }}]"
                                         class="day-start-booking-mode dark:border-gray-600 app-input"
                                         {{ $startType === 'hotel' ? '' : 'disabled' }}>
-                                        <option value="arranged" @selected($startHotelBookingMode === 'arranged')>Hotel arranged by us</option>
-                                        <option value="self" @selected($startHotelBookingMode === 'self')>Self-booked hotel</option>
+                                        <option value="arranged" @selected($startHotelBookingMode === 'arranged')>{{ __('Hotel arranged by us') }}</option>
+                                        <option value="self" @selected($startHotelBookingMode === 'self')>{{ __('Self-booked hotel') }}</option>
                                     </select>
                                 </div>
                             </div>
@@ -665,9 +699,9 @@
                                 name="day_start_travel_minutes[{{ $day }}]"
                                 value="{{ $dayStartTravelMinutes }}"
                                 class="day-start-travel dark:border-gray-600 app-input"
-                                placeholder="Estimated travel time to the next item (minutes)"
-                                data-next-placeholder="Estimated travel time to the next item (minutes)"
-                                data-endpoint-placeholder="Estimated travel time to end point (minutes)">
+                                placeholder="{{ __('Estimated travel time to the next item (minutes)') }}"
+                                data-next-placeholder="{{ __('Estimated travel time to the next item (minutes)') }}"
+                                data-endpoint-placeholder="{{ __('Estimated travel time to end point (minutes)') }}">
                         </div>
                     </div>
 
@@ -693,7 +727,7 @@
                                 <div class="mb-2 flex flex-wrap items-start justify-between gap-2">
                                     <button type="button"
                                          class="drag-handle inline-flex h-7 w-7 items-center justify-center rounded-lg border border-gray-300 text-base leading-none text-gray-600 dark:border-gray-600 dark:text-gray-300"
-                                        title="Drag to reorder" aria-label="Drag to reorder">::</button>
+                                        title="{{ __('Drag to reorder') }}" aria-label="Drag to reorder">::</button>
                                     <div class="grid w-full grid-cols-1 gap-2 sm:w-auto sm:grid-cols-[120px_120px_auto_auto] sm:items-center">
                                         <p class="item-time-text text-xs font-medium text-gray-700 dark:text-gray-200 sm:col-span-2">
                                             Start Time: <span class="item-start-text">{{ !empty($r['start_time']) ? $r['start_time'] : '--:-- --' }}</span>
@@ -709,11 +743,11 @@
                                             <input type="checkbox"
                                                 class="item-main-experience rounded border-amber-400 text-amber-600 focus:ring-amber-500"
                                                 @checked($isRowMainExperience)>
-                                            <span>Highlight</span>
+                                            <span>{{ __('Highlight') }}</span>
                                         </label>
                                         <button type="button"
                                              class="remove-row inline-flex h-7 w-7 items-center justify-center rounded-md border border-rose-300 text-sm font-semibold leading-none text-rose-700"
-                                            title="Remove item" aria-label="Remove item">&times;</button>
+                                            title="{{ __('Remove item') }}" aria-label="Remove item">&times;</button>
                                     </div>
                                 </div>
                                 <div class="grid grid-cols-1 gap-2 lg:grid-cols-12 lg:items-center">
@@ -724,15 +758,15 @@
                                     <div class="lg:col-span-2">
                                         <select
                                             class="item-type dark:border-gray-600 app-input">
-                                            <option value="attraction" @selected($r['item_type'] === 'attraction')>Attraction</option>
-                                            <option value="activity" @selected($r['item_type'] === 'activity')>Activity</option>
-                                            <option value="transfer" @selected($r['item_type'] === 'transfer')>Inter-Island Transfer</option>
-                                            <option value="fnb" @selected($r['item_type'] === 'fnb')>F&B</option>
+                                            <option value="attraction" @selected($r['item_type'] === 'attraction')>{{ __('Attraction') }}</option>
+                                            <option value="activity" @selected($r['item_type'] === 'activity')>{{ __('Activity') }}</option>
+                                            <option value="transfer" @selected($r['item_type'] === 'transfer')>{{ __('Inter-Island Transfer') }}</option>
+                                            <option value="fnb" @selected($r['item_type'] === 'fnb')>{{ __('F&B') }}</option>
                                         </select>
                                     </div>
                                     <div class="lg:col-span-3">
                                         <select class="item-region dark:border-gray-600 app-input">
-                                            <option value="">All Regions</option>
+                                            <option value="">{{ __('All Regions') }}</option>
                                             @foreach ($itemRegions as $region)
                                                 <option value="{{ $region }}">{{ $region }}</option>
                                             @endforeach
@@ -741,7 +775,7 @@
                                     <div class="min-w-0 lg:col-span-6">
                                         <select
                                             class="item-attraction {{ $r['item_type'] !== 'attraction' ? 'hidden' : '' }} dark:border-gray-600 app-input">
-                                            <option value="">Select attraction</option>
+                                            <option value="">{{ __('Select attraction') }}</option>
                                             @foreach ($touristAttractionsSorted as $a)
                                                 <option value="{{ $a->id }}"
                                                     data-duration="{{ $a->ideal_visit_minutes ?? 120 }}"
@@ -754,7 +788,7 @@
                                         </select>
                                         <select
                                             class="item-activity {{ $r['item_type'] !== 'activity' ? 'hidden' : '' }} dark:border-gray-600 app-input">
-                                            <option value="">Select activity</option>
+                                            <option value="">{{ __('Select activity') }}</option>
                                             @foreach ($activitiesSorted as $a)
                                                 <option value="{{ $a->id }}"
                                                     data-duration="{{ $a->duration_minutes ?? 60 }}"
@@ -767,7 +801,7 @@
                                         </select>
                                         <select
                                             class="item-transfer {{ $r['item_type'] !== 'transfer' ? 'hidden' : '' }} dark:border-gray-600 app-input">
-                                            <option value="">Select inter-island transfer</option>
+                                            <option value="">{{ __('Select inter-island transfer') }}</option>
                                             @foreach ($islandTransfersSorted as $t)
                                                 <option value="{{ $t->id }}"
                                                     data-duration="{{ $t->duration_minutes ?? 60 }}"
@@ -785,7 +819,7 @@
                                         </select>
                                         <select
                                             class="item-fnb {{ $r['item_type'] !== 'fnb' ? 'hidden' : '' }} dark:border-gray-600 app-input">
-                                            <option value="">Select F&B</option>
+                                            <option value="">{{ __('Select F&B') }}</option>
                                             @foreach ($foodBeveragesSorted as $f)
                                                 <option value="{{ $f->id }}"
                                                     data-duration="{{ $f->duration_minutes ?? 60 }}"
@@ -811,7 +845,7 @@
                                 <div class="mb-2 flex flex-wrap items-start justify-between gap-2">
                                     <button type="button"
                                          class="drag-handle inline-flex h-7 w-7 items-center justify-center rounded-lg border border-gray-300 text-base leading-none text-gray-600 dark:border-gray-600 dark:text-gray-300"
-                                        title="Drag to reorder" aria-label="Drag to reorder">::</button>
+                                        title="{{ __('Drag to reorder') }}" aria-label="Drag to reorder">::</button>
                                     <div class="grid w-full grid-cols-1 gap-2 sm:w-auto sm:grid-cols-[120px_120px_auto_auto] sm:items-center">
                                         <p class="item-time-text text-xs font-medium text-gray-700 dark:text-gray-200 sm:col-span-2">
                                             Start Time: <span class="item-start-text">--:-- --</span>
@@ -826,11 +860,11 @@
                                             class="inline-flex items-center gap-1.5 text-xs font-medium text-amber-700 dark:text-amber-300">
                                             <input type="checkbox"
                                                 class="item-main-experience rounded border-amber-400 text-amber-600 focus:ring-amber-500">
-                                            <span>Highlight</span>
+                                            <span>{{ __('Highlight') }}</span>
                                         </label>
                                         <button type="button"
                                              class="remove-row inline-flex h-7 w-7 items-center justify-center rounded-md border border-rose-300 text-sm font-semibold leading-none text-rose-700"
-                                            title="Remove item" aria-label="Remove item">&times;</button>
+                                            title="{{ __('Remove item') }}" aria-label="Remove item">&times;</button>
                                     </div>
                                 </div>
                                 <div class="grid grid-cols-1 gap-2 lg:grid-cols-12 lg:items-center">
@@ -841,15 +875,15 @@
                                     <div class="lg:col-span-2">
                                         <select
                                             class="item-type dark:border-gray-600 app-input">
-                                            <option value="attraction">Attraction</option>
-                                            <option value="activity">Activity</option>
-                                            <option value="transfer">Inter-Island Transfer</option>
-                                            <option value="fnb">F&B</option>
+                                            <option value="attraction">{{ __('Attraction') }}</option>
+                                            <option value="activity">{{ __('Activity') }}</option>
+                                            <option value="transfer">{{ __('Inter-Island Transfer') }}</option>
+                                            <option value="fnb">{{ __('F&B') }}</option>
                                         </select>
                                     </div>
                                     <div class="lg:col-span-3">
                                         <select class="item-region dark:border-gray-600 app-input">
-                                            <option value="">All Regions</option>
+                                            <option value="">{{ __('All Regions') }}</option>
                                             @foreach ($itemRegions as $region)
                                                 <option value="{{ $region }}">{{ $region }}</option>
                                             @endforeach
@@ -858,7 +892,7 @@
                                     <div class="min-w-0 lg:col-span-6">
                                         <select
                                             class="item-attraction dark:border-gray-600 app-input">
-                                            <option value="">Select attraction</option>
+                                            <option value="">{{ __('Select attraction') }}</option>
                                             @foreach ($touristAttractionsSorted as $a)
                                                 <option value="{{ $a->id }}"
                                                     data-duration="{{ $a->ideal_visit_minutes ?? 120 }}"
@@ -870,7 +904,7 @@
                                         </select>
                                         <select
                                             class="item-activity hidden dark:border-gray-600 app-input">
-                                            <option value="">Select activity</option>
+                                            <option value="">{{ __('Select activity') }}</option>
                                             @foreach ($activitiesSorted as $a)
                                                 <option value="{{ $a->id }}"
                                                     data-duration="{{ $a->duration_minutes ?? 60 }}"
@@ -883,7 +917,7 @@
                                         </select>
                                         <select
                                             class="item-transfer hidden dark:border-gray-600 app-input">
-                                            <option value="">Select inter-island transfer</option>
+                                            <option value="">{{ __('Select inter-island transfer') }}</option>
                                             @foreach ($islandTransfersSorted as $t)
                                                 <option value="{{ $t->id }}"
                                                     data-duration="{{ $t->duration_minutes ?? 60 }}"
@@ -901,7 +935,7 @@
                                         </select>
                                         <select
                                             class="item-fnb hidden dark:border-gray-600 app-input">
-                                            <option value="">Select F&B</option>
+                                            <option value="">{{ __('Select F&B') }}</option>
                                             @foreach ($foodBeveragesSorted as $f)
                                                 <option value="{{ $f->id }}"
                                                     data-duration="{{ $f->duration_minutes ?? 60 }}"
@@ -941,17 +975,17 @@
                                 <div class="md:w-1/4">
                                     <select name="daily_end_point_types[{{ $day }}]"
                                         class="day-end-point-type dark:border-gray-600 app-input">
-                                        <option value="" @selected($endType === '')>Not set</option>
-                                        <option value="hotel" @selected($endType === 'hotel')>Hotel</option>
+                                        <option value="" @selected($endType === '')>{{ __('Not set') }}</option>
+                                        <option value="hotel" @selected($endType === 'hotel')>{{ __('Hotel') }}</option>
                                         @if ($day === $durationDays)
-                                            <option value="airport" @selected($endType === 'airport')>Airport</option>
+                                            <option value="airport" @selected($endType === 'airport')>{{ __('Airport') }}</option>
                                         @endif
                                     </select>
                                 </div>
                                 <div class="md:w-1/4">
                                     <select name="daily_end_point_items[{{ $day }}]"
                                         class="day-end-point-item day-end-point-select dark:border-gray-600 app-input">
-                                        <option value="">Select end point item</option>
+                                        <option value="">{{ __('Select end point item') }}</option>
                                         @foreach ($hotelsSorted as $hotel)
                                             <option value="{{ $hotel->id }}" data-point-type="hotel"
                                                 data-location="{{ $hotel->address ?? '' }}"
@@ -982,7 +1016,7 @@
                                     <select name="daily_end_point_room_ids[{{ $day }}]"
                                         class="day-end-room-select dark:border-gray-600 app-input"
                                         {{ $endType === 'hotel' ? '' : 'disabled' }}>
-                                        <option value="">Select room</option>
+                                        <option value="">{{ __('Select room') }}</option>
                                         @foreach ($hotels as $hotel)
                                             @foreach ($hotel->rooms ?? collect() as $room)
                                                 <option value="{{ $room->id }}"
@@ -998,8 +1032,8 @@
                                     <select name="daily_end_hotel_booking_modes[{{ $day }}]"
                                         class="day-end-booking-mode dark:border-gray-600 app-input"
                                         {{ $endType === 'hotel' ? '' : 'disabled' }}>
-                                        <option value="arranged" @selected($endHotelBookingMode === 'arranged')>Hotel arranged by us</option>
-                                        <option value="self" @selected($endHotelBookingMode === 'self')>Self-booked hotel</option>
+                                        <option value="arranged" @selected($endHotelBookingMode === 'arranged')>{{ __('Hotel arranged by us') }}</option>
+                                        <option value="self" @selected($endHotelBookingMode === 'self')>{{ __('Self-booked hotel') }}</option>
                                     </select>
                                 </div>
                             </div>
@@ -1011,26 +1045,6 @@
                     </div>
                 </div>
             @endfor
-        </div>
-        <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
-            <div>
-                <label
-                    class="mb-1 block text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
-                    Itinerary Include
-                </label>
-                <textarea name="itinerary_include"
-                    class="w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
-                    rows="4" placeholder="Write what is included for the entire itinerary...">{{ $itineraryInclude }}</textarea>
-            </div>
-            <div>
-                <label
-                    class="mb-1 block text-xs font-semibold uppercase tracking-wide text-rose-700 dark:text-rose-300">
-                    Itinerary Exclude
-                </label>
-                <textarea name="itinerary_exclude"
-                    class="w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
-                    rows="4" placeholder="Write what is excluded for the entire itinerary...">{{ $itineraryExclude }}</textarea>
-            </div>
         </div>
         @error('itinerary_items')
             <p class="text-xs text-rose-600">{{ $message }}</p>
@@ -1053,25 +1067,286 @@
         @error('daily_end_hotel_booking_modes.*')
             <p class="text-xs text-rose-600">{{ $message }}</p>
         @enderror
+    </section>
+
+    <section data-wizard-step="3" class="space-y-3 hidden">
+        <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+            <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ __('itinerary_form.wizard.include_exclude_title') }}</h3>
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ __('itinerary_form.wizard.include_exclude_hint') }}</p>
+            <div class="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
+                <div>
+                    <label
+                        class="mb-1 block text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
+                        {{ __('ui.modules.itineraries.itinerary_include') }}
+                    </label>
+                    <textarea name="itinerary_include"
+                        class="w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
+                        rows="6" placeholder="{{ __('itinerary_form.wizard.include_placeholder') }}">{{ $itineraryInclude }}</textarea>
+                </div>
+                <div>
+                    <label
+                        class="mb-1 block text-xs font-semibold uppercase tracking-wide text-rose-700 dark:text-rose-300">
+                        {{ __('ui.modules.itineraries.itinerary_exclude') }}
+                    </label>
+                    <textarea name="itinerary_exclude"
+                        class="w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
+                        rows="6" placeholder="{{ __('itinerary_form.wizard.exclude_placeholder') }}">{{ $itineraryExclude }}</textarea>
+                </div>
+            </div>
+        </div>
         @error('itinerary_include')
             <p class="text-xs text-rose-600">{{ $message }}</p>
         @enderror
         @error('itinerary_exclude')
             <p class="text-xs text-rose-600">{{ $message }}</p>
         @enderror
-    </div>
+    </section>
+
+    <section data-wizard-step="4" class="space-y-3 hidden">
+        <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+            <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ __('itinerary_form.review.title') }}</h3>
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ __('itinerary_form.review.subtitle') }}</p>
+        </div>
+
+        <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+            <h4 class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ __('itinerary_form.review.basic_info') }}</h4>
+            <dl class="mt-3 grid grid-cols-1 gap-2 text-xs sm:grid-cols-2">
+                <div class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-700 dark:bg-gray-900/50">
+                    <dt class="text-gray-500 dark:text-gray-400">{{ __('ui.common.title') }}</dt>
+                    <dd class="font-semibold text-gray-800 dark:text-gray-100" data-wizard-review-title>-</dd>
+                </div>
+                <div class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-700 dark:bg-gray-900/50">
+                    <dt class="text-gray-500 dark:text-gray-400">{{ __('itinerary_form.review.order_number') }}</dt>
+                    <dd class="font-semibold text-gray-800 dark:text-gray-100" data-wizard-review-order-number>-</dd>
+                </div>
+                <div class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-700 dark:bg-gray-900/50">
+                    <dt class="text-gray-500 dark:text-gray-400">{{ __('ui.common.inquiry') }}</dt>
+                    <dd class="font-semibold text-gray-800 dark:text-gray-100" data-wizard-review-inquiry>-</dd>
+                </div>
+                <div class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-700 dark:bg-gray-900/50">
+                    <dt class="text-gray-500 dark:text-gray-400">{{ __('ui.common.destination') }}</dt>
+                    <dd class="font-semibold text-gray-800 dark:text-gray-100" data-wizard-review-destination>-</dd>
+                </div>
+                <div class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-700 dark:bg-gray-900/50">
+                    <dt class="text-gray-500 dark:text-gray-400">{{ __('ui.common.duration') }}</dt>
+                    <dd class="font-semibold text-gray-800 dark:text-gray-100" data-wizard-review-duration>-</dd>
+                </div>
+                <div class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-700 dark:bg-gray-900/50">
+                    <dt class="text-gray-500 dark:text-gray-400">{{ __('itinerary_form.review.selected_schedule_items') }}</dt>
+                    <dd class="font-semibold text-gray-800 dark:text-gray-100" data-wizard-review-items>-</dd>
+                </div>
+                <div class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-700 dark:bg-gray-900/50 sm:col-span-2">
+                    <dt class="text-gray-500 dark:text-gray-400">{{ __('ui.common.description') }}</dt>
+                    <dd class="whitespace-pre-line font-semibold text-gray-800 dark:text-gray-100" data-wizard-review-description>-</dd>
+                </div>
+            </dl>
+        </div>
+
+        <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+            <h4 class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ __('itinerary_form.review.day_planner') }}</h4>
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ __('itinerary_form.review.day_planner_hint') }}</p>
+            <div class="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-2" data-wizard-review-days></div>
+        </div>
+
+        <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+            <h4 class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ __('itinerary_form.review.include_exclude') }}</h4>
+            <div class="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
+                <div class="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 dark:border-emerald-700/60 dark:bg-emerald-900/20">
+                    <p class="text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">{{ __('ui.common.includes') }}</p>
+                    <p class="mt-1 whitespace-pre-line text-sm text-gray-800 dark:text-gray-100" data-wizard-review-include>-</p>
+                </div>
+                <div class="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 dark:border-rose-700/60 dark:bg-rose-900/20">
+                    <p class="text-xs font-semibold uppercase tracking-wide text-rose-700 dark:text-rose-300">{{ __('ui.common.excludes') }}</p>
+                    <p class="mt-1 whitespace-pre-line text-sm text-gray-800 dark:text-gray-100" data-wizard-review-exclude>-</p>
+                </div>
+            </div>
+        </div>
+    </section>
 
     <div class="flex items-center gap-2">
-        <button
-             class="btn-primary">{{ $buttonLabel }}</button>
+        <button type="button" class="btn-secondary hidden" data-wizard-prev>{{ __('itinerary_form.buttons.back') }}</button>
+        <button type="button" class="btn-primary" data-wizard-next>{{ __('itinerary_form.buttons.next') }}</button>
+        <button type="submit" class="btn-primary hidden" data-wizard-submit>{{ $buttonLabel }}</button>
         <a href="{{ route('itineraries.index') }}"
-             class="btn-secondary">Cancel</a>
+             class="btn-secondary">{{ __('itinerary_form.buttons.cancel') }}</a>
     </div>
 </div>
 
 @once
     @push('styles')
         <style>
+            .itinerary-wizard-steps {
+                display: grid;
+                grid-template-columns: repeat(4, minmax(0, 1fr));
+                gap: 0.5rem;
+            }
+            .itinerary-wizard-step {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                gap: 0.4rem;
+                border: 1px solid #d1d5db;
+                border-radius: 9999px;
+                background: #f8fafc;
+                color: #64748b;
+                font-size: 0.75rem;
+                font-weight: 600;
+                padding: 0.3rem 0.65rem;
+                transition: all 120ms ease;
+            }
+            .itinerary-wizard-step.is-active {
+                border-color: #2563eb;
+                background: #eff6ff;
+                color: #1d4ed8;
+            }
+            .itinerary-wizard-step__index {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                width: 1.1rem;
+                height: 1.1rem;
+                border-radius: 9999px;
+                border: 1px solid currentColor;
+                font-size: 0.65rem;
+                font-weight: 700;
+            }
+            .itinerary-wizard-step__label {
+                line-height: 1.15;
+                text-align: center;
+            }
+            @media (max-width: 639px) {
+                .itinerary-wizard-step {
+                    flex-direction: column;
+                    gap: 0.2rem;
+                    border-radius: 0.75rem;
+                    padding: 0.42rem 0.3rem;
+                    min-height: 3.15rem;
+                }
+                .itinerary-wizard-step__index {
+                    width: 1.2rem;
+                    height: 1.2rem;
+                }
+                .itinerary-wizard-step__label {
+                    font-size: 0.66rem;
+                    letter-spacing: 0.01em;
+                }
+            }
+            .itinerary-wizard-progress-track {
+                height: 0.35rem;
+                border-radius: 9999px;
+                background: #e2e8f0;
+                overflow: hidden;
+            }
+            .itinerary-wizard-progress-fill {
+                height: 100%;
+                border-radius: inherit;
+                background: linear-gradient(90deg, #2563eb 0%, #0ea5e9 100%);
+                transition: width 180ms ease;
+            }
+            .itinerary-day-wizard-tabs .itinerary-day-wizard-tab {
+                display: inline-flex;
+                align-items: center;
+                gap: 0.35rem;
+                border: 1px solid #cbd5e1;
+                border-radius: 9999px;
+                background: #fff;
+                color: #475569;
+                font-size: 0.72rem;
+                font-weight: 600;
+                padding: 0.22rem 0.65rem;
+                transition: all 120ms ease;
+            }
+            .itinerary-day-wizard-tabs .itinerary-day-wizard-tab.is-active {
+                border-color: #2563eb;
+                background: #eff6ff;
+                color: #1d4ed8;
+            }
+            .itinerary-day-wizard-tab__state {
+                display: inline-flex;
+                align-items: center;
+                border-radius: 9999px;
+                padding: 0.08rem 0.45rem;
+                font-size: 0.63rem;
+                font-weight: 700;
+                line-height: 1.2;
+            }
+            .itinerary-day-wizard-tab__state.is-complete {
+                background: #dcfce7;
+                color: #15803d;
+            }
+            .itinerary-day-wizard-tab__state.is-incomplete {
+                background: #fef3c7;
+                color: #b45309;
+            }
+            .day-title-label {
+                display: inline-flex;
+                align-items: center;
+                gap: 0.35rem;
+            }
+            .day-section[data-day-complete="1"] .day-title-label::after {
+                content: attr(data-day-status-label);
+                display: inline-flex;
+                align-items: center;
+                border-radius: 9999px;
+                background: #dcfce7;
+                color: #166534;
+                font-size: 0.62rem;
+                font-weight: 700;
+                padding: 0.08rem 0.45rem;
+            }
+            .day-section[data-day-complete="0"] .day-title-label::after {
+                content: attr(data-day-status-label);
+                display: inline-flex;
+                align-items: center;
+                border-radius: 9999px;
+                background: #fef3c7;
+                color: #b45309;
+                font-size: 0.62rem;
+                font-weight: 700;
+                padding: 0.08rem 0.45rem;
+            }
+            .day-section[data-day-hidden="1"] {
+                display: none !important;
+            }
+            .dark .itinerary-wizard-step {
+                border-color: #475569;
+                background: #0f172a;
+                color: #cbd5e1;
+            }
+            .dark .itinerary-wizard-step.is-active {
+                border-color: #1d4ed8;
+                background: rgba(30, 64, 175, 0.35);
+                color: #bfdbfe;
+            }
+            .dark .itinerary-wizard-progress-track {
+                background: #1e293b;
+            }
+            .dark .itinerary-day-wizard-tabs .itinerary-day-wizard-tab {
+                border-color: #475569;
+                background: #0f172a;
+                color: #cbd5e1;
+            }
+            .dark .itinerary-day-wizard-tabs .itinerary-day-wizard-tab.is-active {
+                border-color: #2563eb;
+                background: rgba(30, 64, 175, 0.4);
+                color: #bfdbfe;
+            }
+            .dark .itinerary-day-wizard-tab__state.is-complete {
+                background: rgba(22, 163, 74, 0.32);
+                color: #86efac;
+            }
+            .dark .itinerary-day-wizard-tab__state.is-incomplete {
+                background: rgba(217, 119, 6, 0.3);
+                color: #fcd34d;
+            }
+            .dark .day-section[data-day-complete="1"] .day-title-label::after {
+                background: rgba(22, 163, 74, 0.32);
+                color: #86efac;
+            }
+            .dark .day-section[data-day-complete="0"] .day-title-label::after {
+                background: rgba(217, 119, 6, 0.3);
+                color: #fcd34d;
+            }
             .schedule-row.item-theme-attraction {
                 border-color: #bfdbfe !important;
                 background-color: rgba(59, 130, 246, 0.12) !important;
@@ -1296,6 +1571,428 @@
                 const mapLegendEl = document.getElementById('itinerary-map-legend');
                 const form = daySections?.closest('form');
                 if (!daySections || !durationInput) return;
+                const wizardRoot = document.querySelector('[data-itinerary-wizard]');
+                const wizardStepPanels = wizardRoot ? [...wizardRoot.querySelectorAll('[data-wizard-step]')] : [];
+                const wizardStepChips = wizardRoot ? [...wizardRoot.querySelectorAll('[data-wizard-step-chip]')] : [];
+                const wizardProgressFill = wizardRoot?.querySelector('[data-wizard-progress-fill]') || null;
+                const wizardPrevButton = wizardRoot?.querySelector('[data-wizard-prev]') || null;
+                const wizardNextButton = wizardRoot?.querySelector('[data-wizard-next]') || null;
+                const wizardSubmitButton = wizardRoot?.querySelector('[data-wizard-submit]') || null;
+                const dayWizardPrevButton = wizardRoot?.querySelector('[data-day-wizard-prev]') || null;
+                const dayWizardNextButton = wizardRoot?.querySelector('[data-day-wizard-next]') || null;
+                const dayWizardTabs = wizardRoot?.querySelector('#itinerary-day-wizard-tabs') || null;
+                const itineraryTitleInput = wizardRoot?.querySelector('input[name="title"]') || null;
+                const itineraryOrderNumberInput = wizardRoot?.querySelector('input[name="order_number"]') || null;
+                const itineraryDestinationInput = wizardRoot?.querySelector('#itinerary-destination') || null;
+                const itineraryDescriptionInput = wizardRoot?.querySelector('textarea[name="description"]') || null;
+                const itineraryIncludeInput = wizardRoot?.querySelector('textarea[name="itinerary_include"]') || null;
+                const itineraryExcludeInput = wizardRoot?.querySelector('textarea[name="itinerary_exclude"]') || null;
+                const reviewTitleEl = wizardRoot?.querySelector('[data-wizard-review-title]') || null;
+                const reviewOrderNumberEl = wizardRoot?.querySelector('[data-wizard-review-order-number]') || null;
+                const reviewInquiryEl = wizardRoot?.querySelector('[data-wizard-review-inquiry]') || null;
+                const reviewDestinationEl = wizardRoot?.querySelector('[data-wizard-review-destination]') || null;
+                const reviewDurationEl = wizardRoot?.querySelector('[data-wizard-review-duration]') || null;
+                const reviewItemsEl = wizardRoot?.querySelector('[data-wizard-review-items]') || null;
+                const reviewDescriptionEl = wizardRoot?.querySelector('[data-wizard-review-description]') || null;
+                const reviewDaysEl = wizardRoot?.querySelector('[data-wizard-review-days]') || null;
+                const reviewIncludeEl = wizardRoot?.querySelector('[data-wizard-review-include]') || null;
+                const reviewExcludeEl = wizardRoot?.querySelector('[data-wizard-review-exclude]') || null;
+                const i18n = {
+                    statusComplete: @json(__('itinerary_form.status.complete')),
+                    statusIncomplete: @json(__('itinerary_form.status.incomplete')),
+                    independentItinerary: @json(__('itinerary_form.review.independent_itinerary')),
+                    day: @json(__('itinerary_form.labels.day')),
+                    noPlannerData: @json(__('itinerary_form.review.no_planner_data')),
+                    noScheduleItems: @json(__('itinerary_form.review.no_schedule_item_selected')),
+                    tourTime: @json(__('itinerary_form.review.tour_time')),
+                    transport: @json(__('itinerary_form.review.transport')),
+                    startPoint: @json(__('itinerary_form.review.start_point')),
+                    endPoint: @json(__('itinerary_form.review.end_point')),
+                    previousDayEndpoint: @json(__('itinerary_form.points.previous_day_endpoint')),
+                    airportNotSet: @json(__('itinerary_form.points.airport_not_set')),
+                    hotelNotSet: @json(__('itinerary_form.points.hotel_not_set')),
+                    selfBookedHotel: @json(__('itinerary_form.points.self_booked_hotel')),
+                    selfBookedSuffix: @json(__('itinerary_form.points.self_booked_suffix')),
+                    notSet: @json(__('itinerary_form.points.not_set')),
+                    unnamedItem: @json(__('itinerary_form.review.unnamed_item')),
+                    pax: @json(__('itinerary_form.labels.pax')),
+                    rowTypeAttraction: @json(__('itinerary_form.row_types.attraction')),
+                    rowTypeActivity: @json(__('itinerary_form.row_types.activity')),
+                    rowTypeTransfer: @json(__('itinerary_form.row_types.transfer')),
+                    rowTypeFnb: @json(__('itinerary_form.row_types.fnb')),
+                    selectedItemsPattern: @json(__('itinerary_form.patterns.selected_items')),
+                    durationPattern: @json(__('itinerary_form.patterns.duration')),
+                    travelMinutesPattern: @json(__('itinerary_form.labels.travel_minutes')),
+                };
+                let wizardStep = 1;
+                let wizardActiveDay = 1;
+                const WIZARD_STEP_MIN = 1;
+                const WIZARD_STEP_MAX = 4;
+                const clampWizardStep = (value) => {
+                    const parsed = Number.parseInt(String(value ?? ''), 10);
+                    if (!Number.isFinite(parsed)) return WIZARD_STEP_MIN;
+                    return Math.max(WIZARD_STEP_MIN, Math.min(WIZARD_STEP_MAX, parsed));
+                };
+                const normalizeWizardDaySections = () =>
+                    [...daySections.querySelectorAll('.day-section')]
+                        .sort((a, b) => Number(a.dataset.day || '0') - Number(b.dataset.day || '0'));
+                const clampWizardDay = (value) => {
+                    const parsed = Number.parseInt(String(value ?? ''), 10);
+                    const totalDays = clampDurationDays(durationInput.value || MIN_DURATION_DAYS);
+                    if (!Number.isFinite(parsed)) return 1;
+                    return Math.max(1, Math.min(totalDays, parsed));
+                };
+                const hasInputValue = (field) => String(field?.value || '').trim() !== '';
+                const getRowSelectedValue = (row) => {
+                    const type = String(row.querySelector('.item-type')?.value || 'attraction');
+                    if (type === 'activity') return String(row.querySelector('.item-activity')?.value || '').trim();
+                    if (type === 'transfer') return String(row.querySelector('.item-transfer')?.value || '').trim();
+                    if (type === 'fnb') return String(row.querySelector('.item-fnb')?.value || '').trim();
+                    return String(row.querySelector('.item-attraction')?.value || '').trim();
+                };
+                const evaluateDayCompletion = (section) => {
+                    const day = Number.parseInt(String(section?.dataset?.day || ''), 10);
+                    const dayNumber = Number.isFinite(day) ? day : 1;
+                    const startTimeSet = hasInputValue(section?.querySelector('.day-start-time'));
+                    const startType = normalizePointType(section?.querySelector('.day-start-point-type')?.value || '');
+                    const startItemSet = hasInputValue(section?.querySelector('.day-start-point-item'));
+                    const startRoomSet = hasInputValue(section?.querySelector('.day-start-room-select'));
+                    const startBookingMode = String(section?.querySelector('.day-start-booking-mode')?.value || 'arranged');
+                    const startSelfBooked = isSelfBookedHotelMode(startBookingMode);
+                    let startConfigured = false;
+                    if (startType === 'airport') {
+                        startConfigured = startItemSet;
+                    } else if (startType === 'hotel') {
+                        startConfigured = startSelfBooked ? true : (startItemSet && startRoomSet);
+                    } else if (startType === 'previous_day_end') {
+                        if (dayNumber > 1) {
+                            const prevSection = daySections.querySelector(`.day-section[data-day="${dayNumber - 1}"]`);
+                            const prevEndType = normalizePointType(prevSection?.querySelector('.day-end-point-type')?.value || '');
+                            const prevEndItemSet = hasInputValue(prevSection?.querySelector('.day-end-point-item'));
+                            const prevEndRoomSet = hasInputValue(prevSection?.querySelector('.day-end-room-select'));
+                            const prevEndMode = String(prevSection?.querySelector('.day-end-booking-mode')?.value || 'arranged');
+                            const prevEndSelfBooked = isSelfBookedHotelMode(prevEndMode);
+                            if (prevEndType === 'airport') {
+                                startConfigured = prevEndItemSet;
+                            } else if (prevEndType === 'hotel') {
+                                startConfigured = prevEndSelfBooked ? true : (prevEndItemSet && prevEndRoomSet);
+                            }
+                        }
+                    }
+                    const endType = normalizePointType(section?.querySelector('.day-end-point-type')?.value || '');
+                    const endItemSet = hasInputValue(section?.querySelector('.day-end-point-item'));
+                    const endRoomSet = hasInputValue(section?.querySelector('.day-end-room-select'));
+                    const endBookingMode = String(section?.querySelector('.day-end-booking-mode')?.value || 'arranged');
+                    const endSelfBooked = isSelfBookedHotelMode(endBookingMode);
+                    let endConfigured = false;
+                    if (endType === 'airport') {
+                        endConfigured = endItemSet;
+                    } else if (endType === 'hotel') {
+                        endConfigured = endSelfBooked ? true : (endItemSet && endRoomSet);
+                    }
+                    const activeRows = [...(section?.querySelectorAll('.schedule-row') || [])]
+                        .filter((row) => !row.classList.contains('schedule-row-template') && !row.classList.contains('hidden'));
+                    const hasPlannedItem = activeRows.some((row) => getRowSelectedValue(row) !== '');
+                    return {
+                        complete: startTimeSet && startConfigured && endConfigured && hasPlannedItem,
+                    };
+                };
+                let dayCompletionStatusByDay = {};
+                const applyDayCompletionIndicators = () => {
+                    dayCompletionStatusByDay = {};
+                    normalizeWizardDaySections().forEach((section) => {
+                        const day = Number.parseInt(String(section.dataset.day || ''), 10);
+                        const dayNumber = Number.isFinite(day) ? day : 1;
+                        const status = evaluateDayCompletion(section);
+                        section.dataset.dayComplete = status.complete ? '1' : '0';
+                        section.dataset.dayStatusLabel = status.complete ? i18n.statusComplete : i18n.statusIncomplete;
+                        dayCompletionStatusByDay[dayNumber] = status;
+                    });
+                    return dayCompletionStatusByDay;
+                };
+                const countSelectedScheduleItems = () => {
+                    const rows = [...daySections.querySelectorAll('.schedule-row')]
+                        .filter((row) => !row.classList.contains('schedule-row-template'));
+                    let total = 0;
+                    rows.forEach((row) => {
+                        if (getRowSelectedValue(row) !== '') {
+                            total += 1;
+                        }
+                    });
+                    return total;
+                };
+                const reviewText = (value, fallback = '-') => {
+                    const text = String(value ?? '').trim();
+                    return text !== '' ? text : fallback;
+                };
+                const sanitizeRichHtml = (value) => {
+                    const raw = String(value ?? '').trim();
+                    if (raw === '') return '';
+                    const container = document.createElement('div');
+                    container.innerHTML = raw;
+                    container.querySelectorAll('script, style, iframe, object, embed, form, meta, link').forEach((node) => node.remove());
+                    container.querySelectorAll('*').forEach((node) => {
+                        [...node.attributes].forEach((attr) => {
+                            const attrName = String(attr.name || '').toLowerCase();
+                            const attrValue = String(attr.value || '');
+                            if (attrName.startsWith('on')) {
+                                node.removeAttribute(attr.name);
+                                return;
+                            }
+                            if ((attrName === 'href' || attrName === 'src') && /^\s*javascript:/i.test(attrValue)) {
+                                node.removeAttribute(attr.name);
+                                return;
+                            }
+                            if (attrName === 'style' && /(expression\s*\(|javascript:|url\s*\()/i.test(attrValue)) {
+                                node.removeAttribute(attr.name);
+                            }
+                        });
+                    });
+                    return container.innerHTML.trim();
+                };
+                const reviewRichHtml = (value, fallback = '-') => {
+                    const sanitized = sanitizeRichHtml(value);
+                    if (sanitized !== '') return sanitized;
+                    return `<span>${escapeHtml(fallback)}</span>`;
+                };
+                const escapeHtml = (value) => String(value ?? '')
+                    .replaceAll('&', '&amp;')
+                    .replaceAll('<', '&lt;')
+                    .replaceAll('>', '&gt;')
+                    .replaceAll('"', '&quot;')
+                    .replaceAll("'", '&#39;');
+                const reviewRowTypeLabel = (type) => {
+                    if (type === 'activity') return i18n.rowTypeActivity;
+                    if (type === 'transfer') return i18n.rowTypeTransfer;
+                    if (type === 'fnb') return i18n.rowTypeFnb;
+                    return i18n.rowTypeAttraction;
+                };
+                const reviewRowTypeBadgeClass = (type) => {
+                    if (type === 'activity') return 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-700/60 dark:bg-emerald-900/20 dark:text-emerald-300';
+                    if (type === 'transfer') return 'border-purple-200 bg-purple-50 text-purple-700 dark:border-purple-700/60 dark:bg-purple-900/20 dark:text-purple-300';
+                    if (type === 'fnb') return 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-700/60 dark:bg-amber-900/20 dark:text-amber-300';
+                    return 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-700/60 dark:bg-blue-900/20 dark:text-blue-300';
+                };
+                const reviewPointLabel = (section, kind) => {
+                    if (!section) return i18n.notSet;
+                    const isStart = kind === 'start';
+                    const typeSelect = section.querySelector(isStart ? '.day-start-point-type' : '.day-end-point-type');
+                    const itemSelect = section.querySelector(isStart ? '.day-start-point-item' : '.day-end-point-item');
+                    const bookingSelect = section.querySelector(isStart ? '.day-start-booking-mode' : '.day-end-booking-mode');
+                    const pointType = normalizePointType(typeSelect?.value || '');
+                    const pointItemText = String(itemSelect?.selectedOptions?.[0]?.textContent || '').trim();
+
+                    if (pointType === 'previous_day_end') {
+                        return i18n.previousDayEndpoint;
+                    }
+                    if (pointType === 'airport') {
+                        return pointItemText !== '' ? pointItemText : i18n.airportNotSet;
+                    }
+                    if (pointType === 'hotel') {
+                        if (isSelfBookedHotelMode(bookingSelect?.value || 'arranged')) {
+                            return pointItemText !== '' ? `${pointItemText} (${i18n.selfBookedSuffix})` : i18n.selfBookedHotel;
+                        }
+                        return pointItemText !== '' ? pointItemText : i18n.hotelNotSet;
+                    }
+                    return i18n.notSet;
+                };
+                const updateWizardReview = () => {
+                    if (!wizardRoot) return;
+                    const inquiryOptionText = String(inquirySelect?.selectedOptions?.[0]?.textContent || '').trim();
+                    const destinationText = String(itineraryDestinationInput?.value || '').trim();
+                    const titleText = String(itineraryTitleInput?.value || '').trim();
+                    const orderNumberText = String(itineraryOrderNumberInput?.value || '').trim();
+                    const descriptionText = String(itineraryDescriptionInput?.value || '').trim();
+                    const includeText = String(itineraryIncludeInput?.value || '').trim();
+                    const excludeText = String(itineraryExcludeInput?.value || '').trim();
+                    const dayValue = clampDurationDays(durationInput.value || MIN_DURATION_DAYS);
+                    const nightValue = clampDurationNights(durationNightsInput?.value || MIN_DURATION_NIGHTS, dayValue);
+                    const selectedItemCount = countSelectedScheduleItems();
+                    if (reviewTitleEl) reviewTitleEl.textContent = reviewText(titleText);
+                    if (reviewOrderNumberEl) reviewOrderNumberEl.textContent = reviewText(orderNumberText);
+                    if (reviewInquiryEl) reviewInquiryEl.textContent = inquiryOptionText !== '' ? inquiryOptionText : i18n.independentItinerary;
+                    if (reviewDestinationEl) reviewDestinationEl.textContent = reviewText(destinationText);
+                    if (reviewDurationEl) {
+                        reviewDurationEl.textContent = i18n.durationPattern
+                            .replace(':days', String(dayValue))
+                            .replace(':nights', String(nightValue));
+                    }
+                    if (reviewItemsEl) {
+                        reviewItemsEl.textContent = i18n.selectedItemsPattern.replace(':count', String(selectedItemCount));
+                    }
+                    if (reviewDescriptionEl) reviewDescriptionEl.innerHTML = reviewRichHtml(descriptionText);
+                    if (reviewIncludeEl) reviewIncludeEl.innerHTML = reviewRichHtml(includeText);
+                    if (reviewExcludeEl) reviewExcludeEl.innerHTML = reviewRichHtml(excludeText);
+
+                    applyDayCompletionIndicators();
+                    if (reviewDaysEl) {
+                        const daySectionsSorted = normalizeWizardDaySections();
+                        const dayCards = [];
+                        for (let day = 1; day <= dayValue; day++) {
+                            const section = daySectionsSorted.find((entry) => Number(entry.dataset.day || '0') === day) || null;
+                            const isComplete = dayCompletionStatusByDay[day]?.complete === true;
+                            const statusLabel = isComplete ? i18n.statusComplete : i18n.statusIncomplete;
+                            const statusClass = isComplete
+                                ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-700/60 dark:bg-emerald-900/20 dark:text-emerald-300'
+                                : 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-700/60 dark:bg-amber-900/20 dark:text-amber-300';
+
+                            if (!section) {
+                                dayCards.push(`
+                                    <article class="rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900/30">
+                                        <div class="flex items-center justify-between gap-2">
+                                            <h5 class="text-sm font-semibold text-gray-800 dark:text-gray-100">${i18n.day} ${day}</h5>
+                                            <span class="inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold ${statusClass}">${statusLabel}</span>
+                                        </div>
+                                        <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">${i18n.noPlannerData}</p>
+                                    </article>
+                                `);
+                                continue;
+                            }
+
+                            const startTimeText = reviewText(section.querySelector('.day-start-time')?.value, '--:--');
+                            const endTimeText = reviewText(
+                                section.querySelector('.day-end-time')?.value || section.querySelector('.day-end-time-endpoint-text')?.textContent,
+                                '--:--',
+                            );
+                            const transportText = reviewText(section.querySelector('.day-transport-unit')?.selectedOptions?.[0]?.textContent, i18n.notSet);
+                            const startPointText = reviewPointLabel(section, 'start');
+                            const endPointText = reviewPointLabel(section, 'end');
+                            const selectedRows = [...section.querySelectorAll('.schedule-row')]
+                                .filter((row) =>
+                                    !row.classList.contains('schedule-row-template')
+                                    && !row.classList.contains('hidden')
+                                    && selected(row));
+                            const scheduleItemsHtml = selectedRows.length
+                                ? selectedRows.map((row) => {
+                                    const selection = getRowSelection(row);
+                                    const type = selection.type;
+                                    const typeLabel = reviewRowTypeLabel(type);
+                                    const typeClass = reviewRowTypeBadgeClass(type);
+                                    const itemName = reviewText(selection.option?.textContent, i18n.unnamedItem);
+                                    const itemStart = reviewText(row.querySelector('.item-start')?.value, '--:--');
+                                    const itemEnd = reviewText(row.querySelector('.item-end')?.value, '--:--');
+                                    const paxText = String(row.querySelector('.item-pax')?.value || '').trim();
+                                    const travelText = String(row.querySelector('.item-travel')?.value || '').trim();
+                                    const extras = [];
+                                    if (paxText !== '') extras.push(`${i18n.pax} ${escapeHtml(paxText)}`);
+                                    if (travelText !== '') extras.push(i18n.travelMinutesPattern.replace(':minutes', escapeHtml(travelText)));
+                                    const extraMeta = extras.length ? `<p class="mt-1 text-[11px] text-gray-500 dark:text-gray-400">${extras.join(' | ')}</p>` : '';
+                                    return `
+                                        <li class="rounded-md border border-gray-200 bg-white px-2.5 py-2 dark:border-gray-700 dark:bg-gray-900/50">
+                                            <div class="flex items-start justify-between gap-2">
+                                                <p class="text-xs font-semibold text-gray-800 dark:text-gray-100">${escapeHtml(itemName)}</p>
+                                                <span class="inline-flex rounded-full border px-2 py-0.5 text-[10px] font-semibold ${typeClass}">${typeLabel}</span>
+                                            </div>
+                                            <p class="mt-1 text-[11px] text-gray-600 dark:text-gray-300">${escapeHtml(itemStart)} - ${escapeHtml(itemEnd)}</p>
+                                            ${extraMeta}
+                                        </li>
+                                    `;
+                                }).join('')
+                                : `<p class="rounded-md border border-dashed border-gray-300 px-2.5 py-2 text-xs text-gray-500 dark:border-gray-700 dark:text-gray-400">${i18n.noScheduleItems}</p>`;
+
+                            const dayItemsHtml = `
+                                <div class="rounded-md border border-slate-200 bg-slate-50 px-2.5 py-2 dark:border-slate-700 dark:bg-slate-900/40">
+                                    <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">${i18n.startPoint}</p>
+                                    <p class="mt-1 text-xs font-medium text-gray-800 dark:text-gray-100">${escapeHtml(startPointText)}</p>
+                                </div>
+                                ${scheduleItemsHtml}
+                                <div class="rounded-md border border-slate-200 bg-slate-50 px-2.5 py-2 dark:border-slate-700 dark:bg-slate-900/40">
+                                    <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">${i18n.endPoint}</p>
+                                    <p class="mt-1 text-xs font-medium text-gray-800 dark:text-gray-100">${escapeHtml(endPointText)}</p>
+                                </div>
+                            `;
+
+                            dayCards.push(`
+                                <article class="rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900/30">
+                                    <div class="flex items-center justify-between gap-2">
+                                        <h5 class="text-sm font-semibold text-gray-800 dark:text-gray-100">${i18n.day} ${day}</h5>
+                                        <span class="inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold ${statusClass}">${statusLabel}</span>
+                                    </div>
+                                    <div class="mt-2 grid grid-cols-1 gap-1 text-xs text-gray-700 dark:text-gray-200">
+                                        <p><span class="font-semibold">${i18n.tourTime}:</span> ${escapeHtml(startTimeText)} - ${escapeHtml(endTimeText)}</p>
+                                        <p><span class="font-semibold">${i18n.transport}:</span> ${escapeHtml(transportText)}</p>
+                                        <p><span class="font-semibold">${i18n.startPoint}:</span> ${escapeHtml(startPointText)}</p>
+                                        <p><span class="font-semibold">${i18n.endPoint}:</span> ${escapeHtml(endPointText)}</p>
+                                    </div>
+                                    <div class="mt-2 space-y-1">${dayItemsHtml}</div>
+                                </article>
+                            `);
+                        }
+                        reviewDaysEl.innerHTML = dayCards.join('');
+                    }
+                };
+                const renderDayWizardTabs = () => {
+                    if (!dayWizardTabs) return;
+                    applyDayCompletionIndicators();
+                    const totalDays = clampDurationDays(durationInput.value || MIN_DURATION_DAYS);
+                    let html = '';
+                    for (let day = 1; day <= totalDays; day++) {
+                        const activeClass = wizardActiveDay === day ? ' is-active' : '';
+                        const isComplete = dayCompletionStatusByDay[day]?.complete === true;
+                        const stateLabel = isComplete ? i18n.statusComplete : i18n.statusIncomplete;
+                        const stateClass = isComplete ? 'is-complete' : 'is-incomplete';
+                        html += `<button type="button" class="itinerary-day-wizard-tab${activeClass}" data-day-wizard-tab="${day}"><span>${i18n.day} ${day}</span><span class="itinerary-day-wizard-tab__state ${stateClass}">${stateLabel}</span></button>`;
+                    }
+                    dayWizardTabs.innerHTML = html;
+                };
+                const setWizardDay = (day) => {
+                    if (!wizardRoot) return;
+                    wizardActiveDay = clampWizardDay(day);
+                    normalizeWizardDaySections().forEach((section) => {
+                        const dayNumber = Number(section.dataset.day || '0');
+                        section.dataset.dayHidden = wizardStep === 2 && dayNumber !== wizardActiveDay ? '1' : '0';
+                    });
+                    if (dayWizardPrevButton) {
+                        dayWizardPrevButton.disabled = wizardActiveDay <= 1;
+                    }
+                    if (dayWizardNextButton) {
+                        dayWizardNextButton.disabled = wizardActiveDay >= clampDurationDays(durationInput.value || MIN_DURATION_DAYS);
+                    }
+                    renderDayWizardTabs();
+                };
+                const validateWizardStepOne = () => {
+                    const panel = wizardRoot?.querySelector('[data-wizard-step="1"]');
+                    if (!panel) return true;
+                    const candidates = [...panel.querySelectorAll('input, select, textarea')]
+                        .filter((field) => field instanceof HTMLInputElement || field instanceof HTMLSelectElement || field instanceof HTMLTextAreaElement);
+                    for (const field of candidates) {
+                        if (field.hasAttribute('required') && typeof field.reportValidity === 'function' && !field.checkValidity()) {
+                            field.reportValidity();
+                            field.focus();
+                            return false;
+                        }
+                    }
+                    return true;
+                };
+                const setWizardStep = (targetStep) => {
+                    if (!wizardRoot) return;
+                    wizardStep = clampWizardStep(targetStep);
+                    wizardStepPanels.forEach((panel) => {
+                        const panelStep = clampWizardStep(panel.dataset.wizardStep || WIZARD_STEP_MIN);
+                        panel.classList.toggle('hidden', panelStep !== wizardStep);
+                    });
+                    wizardStepChips.forEach((chip) => {
+                        const chipStep = clampWizardStep(chip.dataset.wizardStepChip || WIZARD_STEP_MIN);
+                        chip.classList.toggle('is-active', chipStep === wizardStep);
+                    });
+                    if (wizardProgressFill) {
+                        wizardProgressFill.style.width = `${(wizardStep / WIZARD_STEP_MAX) * 100}%`;
+                    }
+                    wizardPrevButton?.classList.toggle('hidden', wizardStep === WIZARD_STEP_MIN);
+                    wizardNextButton?.classList.toggle('hidden', wizardStep === WIZARD_STEP_MAX);
+                    wizardSubmitButton?.classList.toggle('hidden', wizardStep !== WIZARD_STEP_MAX);
+                    if (wizardSubmitButton) {
+                        wizardSubmitButton.disabled = wizardStep !== WIZARD_STEP_MAX;
+                    }
+                    setWizardDay(wizardActiveDay);
+                    updateWizardReview();
+                };
+                const syncWizardAfterDurationChange = () => {
+                    if (!wizardRoot) return;
+                    wizardActiveDay = clampWizardDay(wizardActiveDay);
+                    setWizardDay(wizardActiveDay);
+                    updateWizardReview();
+                };
                 let itineraryMap = null;
                 let itineraryMarkerLayer = null;
                 let itineraryRouteLayers = [];
@@ -1309,6 +2006,10 @@
                 const normalizePointType = (value, fallback = '') => {
                     const type = String(value || '').trim();
                     return type !== '' ? type : fallback;
+                };
+                const isSelfBookedHotelMode = (value) => {
+                    const mode = String(value || '').trim().toLowerCase();
+                    return mode === 'self' || mode === 'self-booked' || mode === 'self_booked' || mode === 'delft-booked' || mode === 'delft_booked';
                 };
                 const isHotelPointType = (value) => normalizePointType(value) === 'hotel';
                 const getRowSelection = (row) => {
@@ -2771,7 +3472,7 @@
                         };
 
                         const startHotel = isHotelPointType(startType?.value || '');
-                        const startHotelSelfBooking = startHotel && String(startBookingSelect?.value || 'arranged') === 'self';
+                        const startHotelSelfBooking = startHotel && isSelfBookedHotelMode(startBookingSelect?.value || 'arranged');
                         applyFilter(startType, startItem, startHotelSelfBooking);
                         if (startRoomWrap) startRoomWrap.classList.toggle('hidden', !startHotel);
                         if (startBookingWrap) startBookingWrap.classList.toggle('hidden', !startHotel);
@@ -2806,13 +3507,15 @@
                             startBookingSelect.required = startHotel;
                             if (!startHotel) {
                                 startBookingSelect.value = 'arranged';
+                            } else if (isSelfBookedHotelMode(startBookingSelect.value || '')) {
+                                startBookingSelect.value = 'self';
                             } else if (!['arranged', 'self'].includes(String(startBookingSelect.value || ''))) {
                                 startBookingSelect.value = 'arranged';
                             }
                         }
 
                         const endHotel = isHotelPointType(endType?.value || '');
-                        const endHotelSelfBooking = endHotel && String(endBookingSelect?.value || 'arranged') === 'self';
+                        const endHotelSelfBooking = endHotel && isSelfBookedHotelMode(endBookingSelect?.value || 'arranged');
                         applyFilter(endType, endItem, endHotelSelfBooking);
                         if (endRoomWrap) endRoomWrap.classList.toggle('hidden', !endHotel);
                         if (endBookingWrap) endBookingWrap.classList.toggle('hidden', !endHotel);
@@ -2847,6 +3550,8 @@
                             endBookingSelect.required = endHotel;
                             if (!endHotel) {
                                 endBookingSelect.value = 'arranged';
+                            } else if (isSelfBookedHotelMode(endBookingSelect.value || '')) {
+                                endBookingSelect.value = 'self';
                             } else if (!['arranged', 'self'].includes(String(endBookingSelect.value || ''))) {
                                 endBookingSelect.value = 'arranged';
                             }
@@ -3006,6 +3711,7 @@
                     syncHotelStaysHidden();
                     updateDayEndpointBadges();
                     daySections.querySelectorAll('.day-section').forEach(updateDayPointTheme);
+                    renderDayWizardTabs();
                     requestRenderItineraryMap();
                 };
                 const recalc = async () => {
@@ -3136,10 +3842,18 @@
                     const currentType = rowType(lastSelected || rows[rows.length - 1]);
                     return ['attraction', 'activity', 'transfer', 'fnb'].includes(currentType) ? currentType : 'attraction';
                 };
-                const syncDurationNights = () => {
+                const syncDurationNights = ({
+                    commitDays = false
+                } = {}) => {
                     if (!durationNightsInput) return;
-                    const days = clampDurationDays(durationInput.value || MIN_DURATION_DAYS);
-                    durationInput.value = String(days);
+                    const rawDays = parseInt(String(durationInput.value ?? '').trim(), 10);
+                    if (!Number.isFinite(rawDays) && !commitDays) {
+                        return;
+                    }
+                    const days = clampDurationDays(Number.isFinite(rawDays) ? rawDays : MIN_DURATION_DAYS);
+                    if (commitDays) {
+                        durationInput.value = String(days);
+                    }
                     const nights = clampDurationNights(durationNightsInput.value || MIN_DURATION_NIGHTS, days);
                     durationNightsInput.value = String(nights);
                 };
@@ -3185,10 +3899,53 @@
                     updateDayPointTheme(sec);
                 });
                 standardizeAllDaySectionVisuals();
+                wizardStepChips.forEach((chip) => {
+                    chip.addEventListener('click', () => {
+                        const targetStep = clampWizardStep(chip.dataset.wizardStepChip || WIZARD_STEP_MIN);
+                        if (targetStep > wizardStep && wizardStep === 1 && !validateWizardStepOne()) {
+                            return;
+                        }
+                        setWizardStep(targetStep);
+                    });
+                });
+                wizardPrevButton?.addEventListener('click', () => {
+                    setWizardStep(wizardStep - 1);
+                });
+                wizardNextButton?.addEventListener('click', () => {
+                    if (wizardStep === 1 && !validateWizardStepOne()) {
+                        return;
+                    }
+                    setWizardStep(wizardStep + 1);
+                });
+                dayWizardPrevButton?.addEventListener('click', () => {
+                    setWizardDay(wizardActiveDay - 1);
+                });
+                dayWizardNextButton?.addEventListener('click', () => {
+                    setWizardDay(wizardActiveDay + 1);
+                });
+                dayWizardTabs?.addEventListener('click', (event) => {
+                    const target = event.target instanceof HTMLElement ? event.target.closest('[data-day-wizard-tab]') : null;
+                    if (!target) return;
+                    const selectedDay = Number.parseInt(String(target.dataset.dayWizardTab || ''), 10);
+                    setWizardDay(selectedDay);
+                });
+                inquirySelect?.addEventListener('change', updateWizardReview);
+                itineraryTitleInput?.addEventListener('input', updateWizardReview);
+                itineraryOrderNumberInput?.addEventListener('input', updateWizardReview);
+                itineraryDestinationInput?.addEventListener('input', updateWizardReview);
+                itineraryDescriptionInput?.addEventListener('input', updateWizardReview);
+                itineraryIncludeInput?.addEventListener('input', updateWizardReview);
+                itineraryExcludeInput?.addEventListener('input', updateWizardReview);
+                durationNightsInput?.addEventListener('input', updateWizardReview);
+                daySections.addEventListener('change', updateWizardReview);
+                daySections.addEventListener('input', updateWizardReview);
                 durationInput.addEventListener('change', () => {
-                    let d = clampDurationDays(durationInput.value || MIN_DURATION_DAYS);
+                    const rawDays = parseInt(String(durationInput.value ?? '').trim(), 10);
+                    let d = clampDurationDays(Number.isFinite(rawDays) ? rawDays : MIN_DURATION_DAYS);
                     durationInput.value = String(d);
-                    syncDurationNights();
+                    syncDurationNights({
+                        commitDays: true
+                    });
                     let secs = [...daySections.querySelectorAll('.day-section')];
                     for (let i = 1; i <= d; i++) {
                         if (!daySections.querySelector(`.day-section[data-day="${i}"]`) && secs.length) {
@@ -3362,11 +4119,18 @@
                     });
                     standardizeAllDaySectionVisuals();
                     recalc();
+                    syncWizardAfterDurationChange();
                 });
-                durationInput.addEventListener('input', syncDurationNights);
+                durationInput.addEventListener('blur', () => {
+                    syncDurationNights({
+                        commitDays: true
+                    });
+                });
                 durationNightsInput?.addEventListener('change', syncDurationNights);
                 durationNightsInput?.addEventListener('input', syncDurationNights);
-                syncDurationNights();
+                syncDurationNights({
+                    commitDays: true
+                });
                 refreshRequiredAsterisks();
                 form?.addEventListener('submit', async (e) => {
                     e.preventDefault();
@@ -3377,6 +4141,14 @@
                     form.submit();
                 });
                 recalc();
+                const initialWizardStep = (() => {
+                    const firstError = wizardRoot?.querySelector('[data-wizard-step] .text-rose-600');
+                    if (!firstError) return WIZARD_STEP_MIN;
+                    const parentStep = firstError.closest('[data-wizard-step]');
+                    return parentStep ? clampWizardStep(parentStep.dataset.wizardStep || WIZARD_STEP_MIN) : WIZARD_STEP_MIN;
+                })();
+                setWizardStep(initialWizardStep);
+                syncWizardAfterDurationChange();
             })
             ();
         </script>

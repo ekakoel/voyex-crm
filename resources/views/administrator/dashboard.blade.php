@@ -37,7 +37,7 @@
 
         <aside class="xl:col-span-3 space-y-3">
             <div class="sa-card p-4">
-                <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100">Quick Actions</h3>
+                <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100">{{ __('Quick Actions') }}</h3>
                 <div class="mt-3 grid grid-cols-2 gap-2">
                     @if($canUsers)
                     <a href="{{ route('users.index') }}" class="btn-secondary-sm text-center"><i class="fa-solid fa-user-gear mr-2"></i>Users</a>

@@ -20,7 +20,7 @@
 
 <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
     <div>
-        <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Latitude</label>
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Latitude') }}</label>
         <input
             @if ($latitudeId) id="{{ $latitudeId }}" @endif
             name="{{ $latitudeName }}"
@@ -34,7 +34,7 @@
         @error($resolvedLatitudeErrorKey) <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
     </div>
     <div>
-        <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Longitude</label>
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Longitude') }}</label>
         <input
             @if ($longitudeId) id="{{ $longitudeId }}" @endif
             name="{{ $longitudeName }}"

@@ -32,6 +32,7 @@ Last Updated: 2026-04-21
 - docs/technical/I18N_TRANSLATION_STANDARD.md
 - docs/technical/IMAGE_THUMBNAIL_STANDARD.md
 - docs/technical/DASHBOARD_ASYNC_LOADING_STANDARD.md
+- docs/technical/PERFORMANCE_OPTIMIZATION_STANDARD.md
 
 ## Archive
 - docs/archive/PROJECT_AUDIT_ARCHIVE.md

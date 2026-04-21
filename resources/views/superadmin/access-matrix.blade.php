@@ -20,7 +20,7 @@
                             <table class="app-table w-full min-w-[780px] divide-y divide-gray-200 text-sm dark:divide-gray-700">
                                 <thead class="bg-white dark:bg-gray-800">
                                     <tr>
-                                        <th class="sticky left-0 z-10 bg-white px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:bg-gray-800 dark:text-gray-300">Permission</th>
+                                        <th class="sticky left-0 z-10 bg-white px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:bg-gray-800 dark:text-gray-300">{{ __('Permission') }}</th>
                                         @foreach ($roles as $role)
                                             <th class="px-3 py-2 text-center text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ $role->name }}</th>
                                         @endforeach

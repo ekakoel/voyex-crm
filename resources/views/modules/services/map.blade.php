@@ -3,7 +3,7 @@
 @section('page_title', 'Service Map')
 @section('page_subtitle', 'Full map of services with valid coordinates.')
 @section('page_actions')
-    <a href="{{ route('services.index') }}" class="btn-ghost">Back to Services</a>
+    <a href="{{ route('services.index') }}" class="btn-ghost">{{ __('Back to Services') }}</a>
 @endsection
 
 @section('content')
@@ -24,12 +24,12 @@
         <div class="module-grid-3-9">
             <aside class="module-grid-side space-y-4">
                 <div class="app-card p-5">
-                    <p class="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Summary</p>
+                    <p class="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{{ __('Summary') }}</p>
                     <h3 class="mt-2 text-lg font-semibold text-slate-900 dark:text-slate-100">{{ number_format($stats['total'] ?? 0) }} point(s)</h3>
-                    <p class="mt-1 text-sm text-slate-600 dark:text-slate-300">Auto-loaded from service modules that have latitude and longitude.</p>
+                    <p class="mt-1 text-sm text-slate-600 dark:text-slate-300">{{ __('Auto-loaded from service modules that have latitude and longitude.') }}</p>
                 </div>
                 <div class="app-card p-5">
-                    <p class="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Legend</p>
+                    <p class="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{{ __('Legend') }}</p>
                     <div class="mt-3 space-y-2">
                         @foreach ($legend as $item)
                             <label class="flex items-center justify-between gap-3 rounded-lg border border-slate-200 px-3 py-2 text-sm dark:border-slate-700">

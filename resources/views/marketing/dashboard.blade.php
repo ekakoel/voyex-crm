@@ -35,9 +35,9 @@
 
     <div class="space-y-3">
         <div class="sa-card p-5">
-             <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+             <div class="dashboard-kpi-grid grid grid-cols-2 gap-3 lg:grid-cols-4">
                 @foreach($kpiCards as $card)
-                    <div class="sa-kpi sa-kpi-sm">
+                    <div class="sa-kpi sa-kpi-sm app-kpi-card">
                         <div class="flex items-center justify-between">
                             <span class="sa-dot sa-{{ $card['color'] }}"><i class="fa-solid fa-{{ $card['icon'] }}"></i></span>
                         </div>
@@ -57,7 +57,7 @@
         @if($canInquiries || $canQuotations || $canBookings)
             <div class="grid grid-cols-1 gap-3 lg:grid-cols-2">
                 <div class="sa-card p-5">
-                    <h2 class="text-sm font-semibold text-slate-900 dark:text-slate-100">My Sales Funnel</h2>
+                    <h2 class="text-sm font-semibold text-slate-900 dark:text-slate-100">{{ __('My Sales Funnel') }}</h2>
                     <div class="mt-3 grid grid-cols-3 gap-3">
                         @forelse($funnel as $stage)
                             <div class="rounded-xl border border-slate-200 p-3 text-center dark:border-slate-700">
@@ -65,13 +65,13 @@
                                 <p class="mt-1 text-2xl font-bold text-slate-800 dark:text-slate-100">{{ number_format($stage['value']) }}</p>
                             </div>
                         @empty
-                            <p class="text-xs text-slate-500 dark:text-slate-400">No funnel data available.</p>
+                            <p class="text-xs text-slate-500 dark:text-slate-400">{{ __('No funnel data available.') }}</p>
                         @endforelse
                     </div>
                 </div>
                 @if($canInquiries)
                     <div class="sa-card p-5">
-                        <h2 class="text-sm font-semibold text-slate-900 dark:text-slate-100">My Inquiry Status</h2>
+                        <h2 class="text-sm font-semibold text-slate-900 dark:text-slate-100">{{ __('My Inquiry Status') }}</h2>
                          <div class="mt-3 grid grid-cols-2 gap-x-3 gap-y-2">
                             @forelse($inquiryByStatus as $status => $total)
                                 <div class="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs dark:border-slate-700 dark:bg-slate-900">
@@ -79,7 +79,7 @@
                                     <b class="text-slate-700 dark:text-slate-200">{{ number_format($total) }}</b>
                                 </div>
                             @empty
-                                <p class="text-xs text-slate-500 dark:text-slate-400">No inquiry data found.</p>
+                                <p class="text-xs text-slate-500 dark:text-slate-400">{{ __('No inquiry data found.') }}</p>
                             @endforelse
                         </div>
                     </div>
@@ -90,7 +90,7 @@
         @if($canInquiries)
             <div class="grid grid-cols-1 gap-3 lg:grid-cols-2">
                 <div class="sa-card p-4">
-                    <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100">Action Center: My Follow-ups</h3>
+                    <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100">{{ __('Action Center: My Follow-ups') }}</h3>
                     <div class="mt-3 space-y-2">
                         @forelse($upcomingFollowUps as $followUp)
                              @php
@@ -113,7 +113,7 @@
                             </a>
                         @empty
                              <div class="rounded-lg mb-6 border border-dashed border-slate-200 p-4 text-center dark:border-slate-700">
-                                 <p class="text-xs font-medium text-slate-600 dark:text-slate-300">You have no upcoming follow-ups.</p>
+                                 <p class="text-xs font-medium text-slate-600 dark:text-slate-300">{{ __('You have no upcoming follow-ups.') }}</p>
                             </div>
                         @endforelse
                     </div>
@@ -121,8 +121,8 @@
 
                  <div class="sa-card p-5">
                     <div class="flex items-center justify-between">
-                        <h2 class="text-sm font-semibold text-slate-900 dark:text-slate-100">My Recent Inquiries</h2>
-                        <a href="{{ route('inquiries.index') }}"  class="text-xs font-medium text-indigo-600 hover:text-indigo-500 dark:text-indigo-400">View all</a>
+                        <h2 class="text-sm font-semibold text-slate-900 dark:text-slate-100">{{ __('My Recent Inquiries') }}</h2>
+                        <a href="{{ route('inquiries.index') }}"  class="text-xs font-medium text-indigo-600 hover:text-indigo-500 dark:text-indigo-400">{{ __('View all') }}</a>
                     </div>
                     <div class="mt-3 space-y-2">
                         @forelse($recentInquiries as $inquiry)
@@ -137,7 +137,7 @@
                                 </div>
                             </a>
                         @empty
-                            <p class="text-center text-xs text-slate-500 dark:text-slate-400">You have no recent inquiries.</p>
+                            <p class="text-center text-xs text-slate-500 dark:text-slate-400">{{ __('You have no recent inquiries.') }}</p>
                         @endforelse
                     </div>
                 </div>
@@ -158,7 +158,6 @@
     })();
 </script>
 @endpush
-
 
 
 
