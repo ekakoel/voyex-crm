@@ -5,15 +5,47 @@
     $destinations = $destinations ?? collect();
     $selectedActivityTypeName = (string) old('activity_type_name', $activity->activityType->name ?? $activity->activity_type ?? '');
     $selectedDestinationId = (int) old('destination_filter_id', $activity->vendor->destination_id ?? 0);
+    $activeCurrencyCode = strtoupper((string) (\App\Support\Currency::current() ?: 'IDR'));
+    $toDisplayMoney = static function ($amount) use ($activeCurrencyCode): float {
+        return round(\App\Support\Currency::convert((float) ($amount ?? 0), 'IDR', $activeCurrencyCode), 0);
+    };
     $defaultAdultMarkupType = old('adult_markup_type', $activity->adult_markup_type ?? 'fixed');
-    $defaultAdultMarkup = old('adult_markup', $activity->adult_markup ?? null);
+    $defaultAdultMarkup = old('adult_markup');
+    if ($defaultAdultMarkup === null) {
+        $defaultAdultMarkup = $activity->adult_markup ?? null;
+    }
     if ($defaultAdultMarkup === null) {
         $defaultAdultMarkup = max(0, (float) (($activity->adult_publish_rate ?? 0) - ($activity->adult_contract_rate ?? 0)));
     }
+    if (old('adult_markup') === null && $defaultAdultMarkupType !== 'percent') {
+        $defaultAdultMarkup = $toDisplayMoney($defaultAdultMarkup);
+    }
     $defaultChildMarkupType = old('child_markup_type', $activity->child_markup_type ?? 'fixed');
-    $defaultChildMarkup = old('child_markup', $activity->child_markup ?? null);
+    $defaultChildMarkup = old('child_markup');
+    if ($defaultChildMarkup === null) {
+        $defaultChildMarkup = $activity->child_markup ?? null;
+    }
     if ($defaultChildMarkup === null) {
         $defaultChildMarkup = max(0, (float) (($activity->child_publish_rate ?? 0) - ($activity->child_contract_rate ?? 0)));
+    }
+    if (old('child_markup') === null && $defaultChildMarkupType !== 'percent') {
+        $defaultChildMarkup = $toDisplayMoney($defaultChildMarkup);
+    }
+    $adultContractRateValue = old('adult_contract_rate');
+    if ($adultContractRateValue === null) {
+        $adultContractRateValue = $toDisplayMoney($activity->adult_contract_rate ?? $activity->contract_price ?? 0);
+    }
+    $adultPublishRateValue = old('adult_publish_rate');
+    if ($adultPublishRateValue === null) {
+        $adultPublishRateValue = $toDisplayMoney($activity->adult_publish_rate ?? 0);
+    }
+    $childContractRateValue = old('child_contract_rate');
+    if ($childContractRateValue === null) {
+        $childContractRateValue = $toDisplayMoney($activity->child_contract_rate ?? 0);
+    }
+    $childPublishRateValue = old('child_publish_rate');
+    if ($childPublishRateValue === null) {
+        $childPublishRateValue = $toDisplayMoney($activity->child_publish_rate ?? 0);
     }
 @endphp
 
@@ -153,7 +185,7 @@
                 <x-money-input
                     label="Adult Contract Rate"
                     name="adult_contract_rate"
-                    :value="old('adult_contract_rate', $activity->adult_contract_rate ?? $activity->contract_price ?? '')"
+                    :value="$adultContractRateValue"
                     id="activity-adult-contract-rate"
                     min="0"
                     step="1"
@@ -183,7 +215,7 @@
                 <x-money-input
                     label="Adult Publish Rate (Auto)"
                     name="adult_publish_rate"
-                    :value="old('adult_publish_rate', $activity->adult_publish_rate ?? '')"
+                    :value="$adultPublishRateValue"
                     id="activity-adult-publish-rate"
                     min="0"
                     step="1"
@@ -198,7 +230,7 @@
                 <x-money-input
                     label="Child Contract Rate"
                     name="child_contract_rate"
-                    :value="old('child_contract_rate', $activity->child_contract_rate ?? '')"
+                    :value="$childContractRateValue"
                     id="activity-child-contract-rate"
                     min="0"
                     step="1"
@@ -228,7 +260,7 @@
                 <x-money-input
                     label="Child Publish Rate (Auto)"
                     name="child_publish_rate"
-                    :value="old('child_publish_rate', $activity->child_publish_rate ?? '')"
+                    :value="$childPublishRateValue"
                     id="activity-child-publish-rate"
                     min="0"
                     step="1"
@@ -504,6 +536,5 @@
         </script>
     @endpush
 @endonce
-
 
 

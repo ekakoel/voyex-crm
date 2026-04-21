@@ -640,6 +640,37 @@
 @endpush
 
 @section('content')
+    @php
+        $resolveMealLabelsFromMeta = static function (array $meta): array {
+            $extractTokens = static function ($value): array {
+                if (is_array($value)) {
+                    $raw = implode(' ', array_map(static fn ($entry) => (string) $entry, $value));
+                } else {
+                    $raw = (string) $value;
+                }
+
+                return array_values(array_filter(array_map(
+                    static fn ($part) => strtolower(trim((string) $part)),
+                    preg_split('/[\s,;\/|]+/', $raw) ?: []
+                )));
+            };
+
+            $tokens = array_merge(
+                $extractTokens($meta['meal_type'] ?? ''),
+                $extractTokens($meta['meal_period'] ?? '')
+            );
+            $tokens = array_values(array_unique($tokens));
+
+            $labels = [];
+            foreach (['breakfast' => 'Breakfast', 'lunch' => 'Lunch', 'dinner' => 'Dinner'] as $key => $label) {
+                if (in_array($key, $tokens, true)) {
+                    $labels[] = $label;
+                }
+            }
+
+            return $labels;
+        };
+    @endphp
     <div class="space-y-6 module-page module-page--quotations">
         @if (session('success'))
             <div class="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300">
@@ -782,25 +813,23 @@
                                         }
 
                                         if ($serviceableType === 'FoodBeverage') {
-                                            $mealType = trim((string) ($item->serviceable_meta['meal_type'] ?? ''));
-                                            if ($mealType === '') {
-                                                $startTime = trim((string) ($item->serviceable_meta['start_time'] ?? ''));
+                                            $serviceableMeta = is_array($item->serviceable_meta ?? null) ? $item->serviceable_meta : [];
+                                            $mealLabels = $resolveMealLabelsFromMeta($serviceableMeta);
+                                            if ($mealLabels === []) {
+                                                $startTime = trim((string) ($serviceableMeta['start_time'] ?? ''));
                                                 if (preg_match('/^(\d{1,2}):(\d{2})$/', $startTime, $matches)) {
                                                     $hour = (int) $matches[1];
                                                     if ($hour <= 10) {
-                                                        $mealType = 'breakfast';
+                                                        $mealLabels = ['Breakfast'];
                                                     } elseif ($hour <= 15) {
-                                                        $mealType = 'lunch';
+                                                        $mealLabels = ['Lunch'];
                                                     } else {
-                                                        $mealType = 'dinner';
+                                                        $mealLabels = ['Dinner'];
                                                     }
                                                 }
                                             }
-                                            if ($mealType !== '') {
-                                                $mealTypeFormatted = ucfirst(strtolower($mealType));
-                                                if (! str_contains($descriptionLabel, '(' . $mealTypeFormatted . ')')) {
-                                                    $descriptionLabel .= ' (' . $mealTypeFormatted . ')';
-                                                }
+                                            if ($mealLabels !== []) {
+                                                $descriptionLabel .= ' (' . implode(', ', $mealLabels) . ')';
                                             }
                                         }
                                     @endphp
@@ -970,25 +999,23 @@
                                 }
 
                                 if ($serviceableType === 'FoodBeverage') {
-                                    $mealType = trim((string) ($item->serviceable_meta['meal_type'] ?? ''));
-                                    if ($mealType === '') {
-                                        $startTime = trim((string) ($item->serviceable_meta['start_time'] ?? ''));
+                                    $serviceableMeta = is_array($item->serviceable_meta ?? null) ? $item->serviceable_meta : [];
+                                    $mealLabels = $resolveMealLabelsFromMeta($serviceableMeta);
+                                    if ($mealLabels === []) {
+                                        $startTime = trim((string) ($serviceableMeta['start_time'] ?? ''));
                                         if (preg_match('/^(\d{1,2}):(\d{2})$/', $startTime, $matches)) {
                                             $hour = (int) $matches[1];
                                             if ($hour <= 10) {
-                                                $mealType = 'breakfast';
+                                                $mealLabels = ['Breakfast'];
                                             } elseif ($hour <= 15) {
-                                                $mealType = 'lunch';
+                                                $mealLabels = ['Lunch'];
                                             } else {
-                                                $mealType = 'dinner';
+                                                $mealLabels = ['Dinner'];
                                             }
                                         }
                                     }
-                                    if ($mealType !== '') {
-                                        $mealTypeFormatted = ucfirst(strtolower($mealType));
-                                        if (! str_contains($descriptionLabel, '(' . $mealTypeFormatted . ')')) {
-                                            $descriptionLabel .= ' (' . $mealTypeFormatted . ')';
-                                        }
+                                    if ($mealLabels !== []) {
+                                        $descriptionLabel .= ' (' . implode(', ', $mealLabels) . ')';
                                     }
                                 }
                             @endphp

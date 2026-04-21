@@ -214,6 +214,42 @@ Completed in this cycle:
   - `php -l app/Http/Controllers/Admin/FoodBeverageController.php` passed.
   - `php artisan view:cache` passed.
 
+- Cross-module pricing canonicalization rollout (IDR persistence baseline):
+  - added reusable controller concern `NormalizesDisplayCurrencyToIdr` to standardize server-side display-currency -> IDR normalization.
+  - applied canonical IDR persistence on create/edit flows for pricing modules:
+    - Activities (`adult_contract_rate`, `child_contract_rate`, fixed `adult_markup`, fixed `child_markup`),
+    - Transports (`contract_rate`, fixed `markup`, `overtime_rate`),
+    - Tourist Attractions (`contract_rate_per_pax`, fixed `markup`),
+    - Island Transfers (`contract_rate`, fixed `markup`),
+    - Hotels seasonal prices (`contract_rate`, fixed `markup`, `kick_back`),
+    - Food & Beverage (existing fix retained and refactored to shared concern).
+  - synchronized form prefill values on edit/create partials to render stored IDR amounts in active display currency before submit:
+    - `activities/_form`, `transports/_form`, `tourist-attractions/_form`, `island-transfers/_form`, `hotels/partials/_prices`, `food-beverages/_form`.
+  - percent markup fields remain percentage-only and are not currency-converted.
+  - impact:
+    - all core service-pricing modules now persist monetary values in IDR consistently,
+    - avoids double-conversion risk when editing existing records under non-IDR display currency.
+- QA note:
+  - `php -l` passed on updated controllers and shared concern.
+  - `php artisan view:cache` passed after Blade updates.
+
+- F&B meal period input upgrade (checkbox multi-session):
+  - changed F&B create/edit `Meal Period` from free-text input to checkbox multi-select:
+    - `Breakfast`,
+    - `Lunch`,
+    - `Dinner`.
+  - users can now select one, two, or all session options per package.
+  - backend now accepts `meal_periods[]` and normalizes selection into canonical ordered storage text in `meal_period` (`Breakfast, Lunch, Dinner` format as applicable).
+  - backward compatibility retained:
+    - legacy payload `meal_period` string is still accepted and normalized into selection set.
+  - impact:
+    - avoids inconsistent manual meal-period typing,
+    - improves data consistency for itinerary/F&B session usage.
+- QA note:
+  - `php -l app/Http/Controllers/Admin/FoodBeverageController.php` passed.
+  - `php -l resources/views/modules/food-beverages/_form.blade.php` passed.
+  - `php artisan view:cache` passed.
+
 Date: 2026-04-20
 Completed in this cycle:
 

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Http\Controllers\Concerns\NormalizesDisplayCurrencyToIdr;
 use App\Http\Controllers\Controller;
 use App\Models\Destination;
 use App\Models\Transport;
@@ -13,6 +14,8 @@ use Illuminate\Validation\ValidationException;
 
 class TransportController extends Controller
 {
+    use NormalizesDisplayCurrencyToIdr;
+
     public function index(Request $request)
     {
         $query = Transport::query()
@@ -197,6 +200,14 @@ class TransportController extends Controller
         $validated['markup_type'] = (($validated['markup_type'] ?? 'fixed') === 'percent') ? 'percent' : 'fixed';
         $validated['contract_rate'] = max(0, (float) ($validated['contract_rate'] ?? 0));
         $validated['markup'] = max(0, (float) ($validated['markup'] ?? 0));
+        $validated['overtime_rate'] = max(0, (float) ($validated['overtime_rate'] ?? 0));
+
+        // Persist service pricing in canonical IDR.
+        $validated['contract_rate'] = $this->displayCurrencyToIdr($validated['contract_rate']);
+        if ($validated['markup_type'] === 'fixed') {
+            $validated['markup'] = $this->displayCurrencyToIdr($validated['markup']);
+        }
+        $validated['overtime_rate'] = $this->displayCurrencyToIdr($validated['overtime_rate']);
 
         if ($validated['markup_type'] === 'percent' && $validated['markup'] > 100) {
             throw ValidationException::withMessages([

@@ -43,6 +43,22 @@
         overflow-y: auto;
     }
 
+    .app-shell .app-content {
+        min-width: 0;
+        overflow-x: hidden;
+        --app-page-max-width: 1760px;
+    }
+
+    .app-page-shell {
+        width: min(100%, var(--app-page-max-width));
+        margin-inline: auto;
+        min-width: 0;
+    }
+
+    .app-page-shell > * {
+        min-width: 0;
+    }
+
     /* Keep card containers visually consistent without heavy borders */
     .app-content .rounded-xl.border.border-gray-200.bg-white {
         border-color: color-mix(in oklab, var(--app-border) 88%, transparent);
@@ -809,6 +825,15 @@
         gap: 0.5rem;
     }
 
+    .page-actions {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: flex-start;
+        gap: 0.5rem;
+        min-width: 0;
+    }
+
     @media (min-width: 640px) {
         .module-kpi-grid {
             grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1547,6 +1572,11 @@
     }
 
     @media (max-width: 640px) {
+        .page-actions {
+            width: 100%;
+            align-items: stretch;
+        }
+
         .itinerary-form-page .day-card-header {
             flex-direction: column;
             align-items: stretch;
@@ -1558,6 +1588,12 @@
 
         .itinerary-form-page .travel-connector {
             width: 100% !important;
+        }
+    }
+
+    @media (min-width: 1920px) {
+        .app-shell .app-content {
+            --app-page-max-width: 1880px;
         }
     }
 }
@@ -1632,6 +1668,106 @@
 body.page-loading .page-spinner {
     opacity: 1;
     pointer-events: all;
+}
+
+html.app-standalone,
+body.app-standalone {
+    height: 100dvh;
+    overscroll-behavior-y: none;
+}
+
+body.app-standalone .app-shell {
+    min-height: 100dvh;
+    padding-top: env(safe-area-inset-top, 0);
+    padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
+body.app-standalone .app-content {
+    padding-bottom: max(0.75rem, env(safe-area-inset-bottom, 0));
+}
+
+.pwa-install-banner {
+    position: fixed;
+    left: 0.75rem;
+    right: 0.75rem;
+    bottom: max(0.75rem, env(safe-area-inset-bottom, 0));
+    z-index: 120;
+}
+
+.pwa-install-banner__card {
+    border: 1px solid #d1d5db;
+    background: rgba(255, 255, 255, 0.97);
+    backdrop-filter: blur(6px);
+    border-radius: 0.9rem;
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.2);
+    padding: 0.75rem;
+}
+
+.pwa-install-banner__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+}
+
+.pwa-install-banner__title {
+    font-size: 0.8125rem;
+    font-weight: 700;
+    color: #0f172a;
+    letter-spacing: 0.01em;
+}
+
+.pwa-install-banner__close {
+    width: 1.75rem;
+    height: 1.75rem;
+    border-radius: 0.5rem;
+    border: 1px solid #e2e8f0;
+    background: #f8fafc;
+    color: #475569;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.pwa-install-banner__message {
+    margin-top: 0.4rem;
+    font-size: 0.75rem;
+    line-height: 1.4;
+    color: #334155;
+}
+
+.pwa-install-banner__actions {
+    margin-top: 0.65rem;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.4rem;
+}
+
+.dark .pwa-install-banner__card {
+    border-color: #334155;
+    background: rgba(15, 23, 42, 0.95);
+    box-shadow: 0 12px 28px rgba(2, 6, 23, 0.5);
+}
+
+.dark .pwa-install-banner__title {
+    color: #e2e8f0;
+}
+
+.dark .pwa-install-banner__close {
+    border-color: #334155;
+    background: #0f172a;
+    color: #cbd5e1;
+}
+
+.dark .pwa-install-banner__message {
+    color: #cbd5e1;
+}
+
+@media (min-width: 1025px) {
+    .pwa-install-banner {
+        display: none !important;
+    }
 }
 
 @keyframes pageSpinnerSpin {

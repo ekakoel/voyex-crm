@@ -2,19 +2,28 @@
     $hotel = $hotel ?? null;
     $roomOptions = $roomOptions ?? collect();
     $buttonLabel = $buttonLabel ?? 'Save';
+    $activeCurrencyCode = strtoupper((string) (\App\Support\Currency::current() ?: 'IDR'));
+    $toDisplayMoney = static function ($amount) use ($activeCurrencyCode): float {
+        return round(\App\Support\Currency::convert((float) ($amount ?? 0), 'IDR', $activeCurrencyCode), 0);
+    };
 
     $priceRows = old('hotel_prices');
     if ($priceRows === null) {
-        $priceRows = $hotel?->prices?->map(fn ($price) => [
+        $priceRows = $hotel?->prices?->map(function ($price) use ($toDisplayMoney) {
+            $markupType = $price->markup_type ?? 'fixed';
+            $rawMarkup = $price->markup ?? max(0, (float) (($price->publish_rate ?? 0) - ($price->contract_rate ?? 0)));
+
+            return [
             'rooms_id' => $price->rooms_id,
             'start_date' => $price->start_date,
             'end_date' => $price->end_date,
-            'contract_rate' => $price->contract_rate,
-            'markup_type' => $price->markup_type ?? 'fixed',
-            'markup' => $price->markup ?? max(0, (float) (($price->publish_rate ?? 0) - ($price->contract_rate ?? 0))),
-            'publish_rate' => $price->publish_rate,
-            'kick_back' => $price->kick_back,
-        ])->toArray() ?? [];
+            'contract_rate' => $toDisplayMoney($price->contract_rate ?? 0),
+            'markup_type' => $markupType,
+            'markup' => $markupType === 'percent' ? $rawMarkup : $toDisplayMoney($rawMarkup),
+            'publish_rate' => $toDisplayMoney($price->publish_rate ?? 0),
+            'kick_back' => $toDisplayMoney($price->kick_back ?? 0),
+        ];
+        })->toArray() ?? [];
     }
     if (empty($priceRows)) {
         $priceRows = [['rooms_id' => '']];
@@ -70,7 +79,6 @@
     </div>
 
 </div>
-
 
 
 

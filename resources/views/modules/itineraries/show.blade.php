@@ -108,6 +108,28 @@
                             $mins = $normalized % 60;
                             return str_pad((string) $hours, 2, '0', STR_PAD_LEFT) . ':' . str_pad((string) $mins, 2, '0', STR_PAD_LEFT);
                         };
+                        $resolveMealSessionLabels = static function ($mealType, $mealPeriod): array {
+                            $tokens = [];
+                            foreach ([$mealType, $mealPeriod] as $value) {
+                                $parts = preg_split('/[\s,;\/|]+/', strtolower(trim((string) $value))) ?: [];
+                                foreach ($parts as $part) {
+                                    $part = trim((string) $part);
+                                    if ($part !== '') {
+                                        $tokens[] = $part;
+                                    }
+                                }
+                            }
+                            $tokens = array_values(array_unique($tokens));
+
+                            $labels = [];
+                            foreach (['breakfast' => 'Breakfast', 'lunch' => 'Lunch', 'dinner' => 'Dinner'] as $key => $label) {
+                                if (in_array($key, $tokens, true)) {
+                                    $labels[] = $label;
+                                }
+                            }
+
+                            return $labels;
+                        };
                         $resolvePointLabel = function ($dayPoint, string $scope, string $previousDayEndLabel = null) {
                             $defaultNotSet = __('ui.modules.itineraries.not_set');
                             if (!$dayPoint) {
@@ -235,6 +257,8 @@
                             $foodBeverages = collect();
                             foreach (($foodBeverageDayGroups[$day] ?? collect()) as $foodBeverageItem) {
                                 $foodBeverage = $foodBeverageItem->foodBeverage;
+                                $mealType = $foodBeverageItem->meal_type ?? null;
+                                $mealPeriod = $foodBeverage->meal_period ?? null;
                                 $foodBeverages->push([
                                     'type' => 'fnb',
                                     'experience_id' => (int) ($foodBeverageItem->food_beverage_id ?? 0),
@@ -244,8 +268,9 @@
                                     'location' => $foodBeverage->vendor->location ?? null,
                                     'description' => $foodBeverage->notes ?? $foodBeverage->menu_highlights ?? null,
                                     'menu_highlights' => $foodBeverage->menu_highlights ?? null,
-                                    'meal_type' => $foodBeverageItem->meal_type ?? ($foodBeverage->meal_period ?? null),
-                                    'meal_period' => $foodBeverage->meal_period ?? null,
+                                    'meal_type' => $mealType ?: $mealPeriod,
+                                    'meal_period' => $mealPeriod,
+                                    'meal_sessions' => $resolveMealSessionLabels($mealType, $mealPeriod),
                                     'service_type' => $foodBeverage->service_type ?? null,
                                     'publish_rate' => $foodBeverage->publish_rate ?? null,
                                     'currency' => 'IDR',
@@ -417,7 +442,14 @@
                                             @if ($item['type'] === 'fnb')
                                                 <p class="font-medium text-gray-800 dark:text-gray-100">
                                                     {{ $item['vendor_name'] ?: '-' }} - {{ $item['name'] ?: '-' }} - {{ $item['service_type'] ?: 'F&B' }}
-                                                    <span class="text-xs font-semibold text-amber-600 dark:text-amber-400">| {{ $item['meal_type'] ?: ($item['meal_period'] ?: '-') }}</span>
+                                                    <span class="text-xs font-semibold text-amber-600 dark:text-amber-400">
+                                                        |
+                                                        @if (!empty($item['meal_sessions']))
+                                                            {{ implode(', ', $item['meal_sessions']) }}
+                                                        @else
+                                                            {{ $item['meal_type'] ?: ($item['meal_period'] ?: '-') }}
+                                                        @endif
+                                                    </span>
                                                 </p>
                                                 @if ($isMainExperience)
                                                     <span class="mt-1 inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700 dark:bg-amber-500/20 dark:text-amber-300">{{ __('ui.common.main_experience') }}</span>

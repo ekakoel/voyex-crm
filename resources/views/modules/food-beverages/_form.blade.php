@@ -32,6 +32,21 @@
     if ($publishRateValue === null) {
         $publishRateValue = $toDisplayMoney($foodBeverage->publish_rate ?? ($prefill['publish_rate'] ?? ($prefill['agent_price'] ?? 0)));
     }
+    $mealPeriodSource = old('meal_periods');
+    if ($mealPeriodSource === null) {
+        $mealPeriodSource = $foodBeverage->meal_period ?? ($prefill['meal_period'] ?? '');
+    }
+    if (is_array($mealPeriodSource)) {
+        $selectedMealPeriods = array_values(array_filter(array_map(
+            static fn ($item) => strtolower(trim((string) $item)),
+            $mealPeriodSource
+        )));
+    } else {
+        $selectedMealPeriods = array_values(array_filter(array_map(
+            static fn ($item) => strtolower(trim((string) $item)),
+            preg_split('/[\s,;\/|]+/', (string) $mealPeriodSource) ?: []
+        )));
+    }
 @endphp
 
 <div class="space-y-4">
@@ -152,10 +167,19 @@
             <input name="duration_minutes" type="number" min="15" max="1440" value="{{ old('duration_minutes', $foodBeverage->duration_minutes ?? ($prefill['duration_minutes'] ?? 60)) }}" class="mt-1 dark:border-gray-600 app-input" required>
             @error('duration_minutes') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
         </div>
-        <div>
+        <div class="md:col-span-2">
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">Meal Period</label>
-            <input name="meal_period" maxlength="50" value="{{ old('meal_period', $foodBeverage->meal_period ?? ($prefill['meal_period'] ?? '')) }}" class="mt-1 dark:border-gray-600 app-input" placeholder="Breakfast / Lunch / Dinner">
-            @error('meal_period') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+            <div class="mt-2 grid w-full grid-cols-3 gap-3">
+                @foreach (['breakfast' => 'Breakfast', 'lunch' => 'Lunch', 'dinner' => 'Dinner'] as $value => $label)
+                    <label class="inline-flex w-full items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
+                        <input type="checkbox" name="meal_periods[]" value="{{ $value }}" class="rounded border-gray-300 text-indigo-600"
+                            @checked(in_array($value, $selectedMealPeriods, true))>
+                        <span>{{ $label }}</span>
+                    </label>
+                @endforeach
+            </div>
+            @error('meal_periods') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+            @error('meal_periods.*') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
         </div>
     </div>
 
@@ -432,5 +456,3 @@
         </script>
     @endpush
 @endonce
-
-

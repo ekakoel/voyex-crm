@@ -5,6 +5,23 @@
     <a href="{{ route('food-beverages.create') }}" class="btn-primary">Add F&B</a>
 @endsection
 @section('content')
+    @php
+        $resolveMealSessionBadges = static function (?string $mealPeriod): array {
+            $tokens = array_values(array_filter(array_map(
+                static fn ($item) => strtolower(trim((string) $item)),
+                preg_split('/[\s,;\/|]+/', (string) $mealPeriod) ?: []
+            )));
+
+            $sessions = [];
+            foreach (['breakfast' => 'Breakfast', 'lunch' => 'Lunch', 'dinner' => 'Dinner'] as $key => $label) {
+                if (in_array($key, $tokens, true)) {
+                    $sessions[] = ['key' => $key, 'label' => $label];
+                }
+            }
+
+            return $sessions;
+        };
+    @endphp
     <div class="space-y-6 module-page module-page--food-beverages" data-service-filter-page data-page-spinner="off">
         <x-index-stats :cards="$statsCards ?? []" />
         <div class="module-grid-3-9">
@@ -80,6 +97,19 @@
                                 <div class="text-xs text-gray-500 dark:text-gray-400">
                                     Publish: <x-money :amount="(float) ($foodBeverage->publish_rate ?? 0)" currency="IDR" />
                                 </div>
+                                @php($mealSessions = $resolveMealSessionBadges($foodBeverage->meal_period))
+                                <div class="mt-1 flex flex-wrap gap-1">
+                                    @forelse ($mealSessions as $session)
+                                        <span class="inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium
+                                            {{ $session['key'] === 'breakfast' ? 'border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-300' : '' }}
+                                            {{ $session['key'] === 'lunch' ? 'border-sky-300 bg-sky-50 text-sky-700 dark:border-sky-700 dark:bg-sky-900/20 dark:text-sky-300' : '' }}
+                                            {{ $session['key'] === 'dinner' ? 'border-violet-300 bg-violet-50 text-violet-700 dark:border-violet-700 dark:bg-violet-900/20 dark:text-violet-300' : '' }}">
+                                            {{ $session['label'] }}
+                                        </span>
+                                    @empty
+                                        <span class="text-[11px] text-gray-500 dark:text-gray-400">Meal: -</span>
+                                    @endforelse
+                                </div>
                             </td>
                             <td class="px-4 py-3 text-center text-sm">
                                 <x-status-badge :status="$isActive ? 'active' : 'inactive'" size="xs" />
@@ -128,6 +158,19 @@
                                     : \App\Support\Currency::format((float) ($foodBeverage->markup ?? 0), 'IDR') }}
                             </div>
                             <div class="text-gray-500 dark:text-gray-400">Publish: <x-money :amount="(float) ($foodBeverage->publish_rate ?? 0)" currency="IDR" /></div>
+                            @php($mealSessions = $resolveMealSessionBadges($foodBeverage->meal_period))
+                            <div class="mt-1 flex flex-wrap gap-1">
+                                @forelse ($mealSessions as $session)
+                                    <span class="inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium
+                                        {{ $session['key'] === 'breakfast' ? 'border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-300' : '' }}
+                                        {{ $session['key'] === 'lunch' ? 'border-sky-300 bg-sky-50 text-sky-700 dark:border-sky-700 dark:bg-sky-900/20 dark:text-sky-300' : '' }}
+                                        {{ $session['key'] === 'dinner' ? 'border-violet-300 bg-violet-50 text-violet-700 dark:border-violet-700 dark:bg-violet-900/20 dark:text-violet-300' : '' }}">
+                                        {{ $session['label'] }}
+                                    </span>
+                                @empty
+                                    <span class="text-[11px] text-gray-500 dark:text-gray-400">Meal: -</span>
+                                @endforelse
+                            </div>
                         </div>
                         <div>Status</div>
                         <div><x-status-badge :status="$foodBeverage->trashed() ? 'inactive' : 'active'" size="xs" /></div>
@@ -151,7 +194,6 @@
         </div>
 </div>
 @endsection
-
 
 
 

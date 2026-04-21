@@ -2,10 +2,28 @@
     $buttonLabel = $buttonLabel ?? 'Save';
     $touristAttraction = $touristAttraction ?? null;
     $destinations = $destinations ?? collect();
+    $activeCurrencyCode = strtoupper((string) (\App\Support\Currency::current() ?: 'IDR'));
+    $toDisplayMoney = static function ($amount) use ($activeCurrencyCode): float {
+        return round(\App\Support\Currency::convert((float) ($amount ?? 0), 'IDR', $activeCurrencyCode), 0);
+    };
     $defaultMarkupType = old('markup_type', $touristAttraction->markup_type ?? 'fixed');
-    $defaultMarkup = old('markup', $touristAttraction->markup ?? null);
+    $defaultMarkup = old('markup');
+    if ($defaultMarkup === null) {
+        $defaultMarkup = $touristAttraction->markup ?? null;
+    }
     if ($defaultMarkup === null) {
         $defaultMarkup = max(0, (float) (($touristAttraction->publish_rate_per_pax ?? 0) - ($touristAttraction->contract_rate_per_pax ?? 0)));
+    }
+    if (old('markup') === null && $defaultMarkupType !== 'percent') {
+        $defaultMarkup = $toDisplayMoney($defaultMarkup);
+    }
+    $contractRateValue = old('contract_rate_per_pax');
+    if ($contractRateValue === null) {
+        $contractRateValue = $toDisplayMoney($touristAttraction->contract_rate_per_pax ?? 0);
+    }
+    $publishRateValue = old('publish_rate_per_pax');
+    if ($publishRateValue === null) {
+        $publishRateValue = $toDisplayMoney($touristAttraction->publish_rate_per_pax ?? 0);
     }
 @endphp
 
@@ -118,7 +136,7 @@
             <x-money-input
                 label="Contract Rate (per pax)"
                 name="contract_rate_per_pax"
-                :value="old('contract_rate_per_pax', $touristAttraction->contract_rate_per_pax ?? '')"
+                :value="$contractRateValue"
                 id="tourist-contract-rate"
                 min="0"
                 step="1"
@@ -149,7 +167,7 @@
                 label="Publish Rate (Auto / per pax)"
                 name="publish_rate_per_pax"
                 id="tourist-publish-rate"
-                :value="old('publish_rate_per_pax', $touristAttraction->publish_rate_per_pax ?? '')"
+                :value="$publishRateValue"
                 min="0"
                 step="1"
                 readonly

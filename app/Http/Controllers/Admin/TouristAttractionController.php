@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Http\Controllers\Concerns\NormalizesDisplayCurrencyToIdr;
 use App\Http\Controllers\Controller;
 use App\Models\Destination;
 use App\Models\TouristAttraction;
@@ -14,6 +15,8 @@ use Illuminate\Validation\ValidationException;
 
 class TouristAttractionController extends Controller
 {
+    use NormalizesDisplayCurrencyToIdr;
+
     private const GALLERY_DIRECTORY = 'tourist-attractions';
 
     public function index(Request $request)
@@ -208,6 +211,12 @@ class TouristAttractionController extends Controller
         $validated['contract_rate_per_pax'] = max(0, (float) ($validated['contract_rate_per_pax'] ?? 0));
         $validated['markup'] = max(0, (float) ($validated['markup'] ?? 0));
 
+        // Persist service pricing in canonical IDR.
+        $validated['contract_rate_per_pax'] = $this->displayCurrencyToIdr($validated['contract_rate_per_pax']);
+        if ($validated['markup_type'] === 'fixed') {
+            $validated['markup'] = $this->displayCurrencyToIdr($validated['markup']);
+        }
+
         if ($validated['markup_type'] === 'percent' && $validated['markup'] > 100) {
             throw ValidationException::withMessages([
                 'markup' => 'Markup percent cannot be greater than 100.',
@@ -395,5 +404,4 @@ class TouristAttractionController extends Controller
             || $request->header('X-Tourist-Attractions-Ajax') === '1';
     }
 }
-
 

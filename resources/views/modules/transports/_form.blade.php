@@ -8,10 +8,32 @@
     $transportTypes = ['car', 'van', 'bus', 'boat', 'ferry', 'train', 'helicopter', 'other'];
     $fuelTypes = ['petrol', 'diesel', 'electric', 'hybrid', 'other'];
     $transmissions = ['manual', 'automatic'];
+    $activeCurrencyCode = strtoupper((string) (\App\Support\Currency::current() ?: 'IDR'));
+    $toDisplayMoney = static function ($amount) use ($activeCurrencyCode): float {
+        return round(\App\Support\Currency::convert((float) ($amount ?? 0), 'IDR', $activeCurrencyCode), 0);
+    };
     $defaultMarkupType = old('markup_type', $transport->markup_type ?? 'fixed');
-    $defaultMarkup = old('markup', $transport->markup ?? null);
+    $defaultMarkup = old('markup');
+    if ($defaultMarkup === null) {
+        $defaultMarkup = $transport->markup ?? null;
+    }
     if ($defaultMarkup === null) {
         $defaultMarkup = max(0, (float) (($transport->publish_rate ?? 0) - ($transport->contract_rate ?? 0)));
+    }
+    if (old('markup') === null && $defaultMarkupType !== 'percent') {
+        $defaultMarkup = $toDisplayMoney($defaultMarkup);
+    }
+    $contractRateValue = old('contract_rate');
+    if ($contractRateValue === null) {
+        $contractRateValue = $toDisplayMoney($transport->contract_rate ?? 0);
+    }
+    $publishRateValue = old('publish_rate');
+    if ($publishRateValue === null) {
+        $publishRateValue = $toDisplayMoney($transport->publish_rate ?? 0);
+    }
+    $overtimeRateValue = old('overtime_rate');
+    if ($overtimeRateValue === null) {
+        $overtimeRateValue = $toDisplayMoney($transport->overtime_rate ?? 0);
     }
 @endphp
 
@@ -145,7 +167,7 @@
             label="Contract Rate"
             label-class="block text-sm font-medium text-gray-700 dark:text-gray-200"
             name="contract_rate"
-            :value="old('contract_rate', $transport->contract_rate ?? '')"
+            :value="$contractRateValue"
             id="transport-contract-rate"
             min="0"
             step="0.01"
@@ -172,7 +194,7 @@
             label="Publish Rate (Auto)"
             label-class="block text-sm font-medium text-gray-700 dark:text-gray-200"
             name="publish_rate"
-            :value="old('publish_rate', $transport->publish_rate ?? '')"
+            :value="$publishRateValue"
             id="transport-publish-rate"
             min="0"
             step="0.01"
@@ -182,7 +204,7 @@
             label="Overtime Rate"
             label-class="block text-sm font-medium text-gray-700 dark:text-gray-200"
             name="overtime_rate"
-            :value="old('overtime_rate', $transport->overtime_rate ?? '')"
+            :value="$overtimeRateValue"
             min="0"
             step="0.01"
         />

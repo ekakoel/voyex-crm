@@ -1,6 +1,6 @@
 # Layout Guide
 
-Last Updated: 2026-04-17
+Last Updated: 2026-04-21
 
 
 Panduan ini khusus untuk standar layout halaman agar konsisten lintas modul.
@@ -88,6 +88,7 @@ Class acuan di `resources/css/app.css`:
 - `module-grid-8-4`: stack di mobile/tablet, split di `xl`.
 - `module-grid-3-9` / `module-grid-4-8`: dipakai untuk pola index/list.
 - Dashboard boleh punya layout sendiri.
+- Semua halaman dirender di wrapper global `.app-page-shell` (master layout) agar tetap nyaman di desktop lebar tanpa membuat baris konten terlalu panjang.
 
 ## 5a. Responsive Content Standard (Required)
 
@@ -141,6 +142,35 @@ Contoh pola wajib (table desktop + card mobile/tablet):
 Aturan breakpoint:
 - mobile/tablet memakai card/list (`responsive-data-mobile`),
 - desktop `xl` ke atas memakai table (`responsive-data-desktop`).
+
+## 5c. Device Target Matrix (Required)
+
+Gunakan baseline ini untuk semua modul:
+
+- Small phone (`<= 480px`):
+  - tidak boleh ada horizontal scroll pada body,
+  - semua aksi utama tetap terlihat dan bisa ditekan.
+- Mobile (`481px - 767px`):
+  - gunakan satu kolom untuk form utama,
+  - data list wajib pakai card/list variant.
+- Tablet (`768px - 1279px`):
+  - grid boleh mulai split, tapi tetap prioritaskan keterbacaan,
+  - tabel besar tetap punya fallback card/list.
+- Desktop (`1280px - 1919px`):
+  - layout split penuh (index/detail) aktif,
+  - tabel desktop menjadi primary view.
+- Wide Desktop (`>= 1920px`):
+  - konten tetap dibatasi wrapper (`.app-page-shell`) agar line-length dan scanning tetap nyaman.
+
+## 5d. Responsive QA Minimum (Per Page)
+
+Checklist cepat sebelum merge:
+
+1. Tidak ada horizontal scroll di viewport.
+2. Tombol action utama tersedia di mobile, tablet, desktop.
+3. Filter/form tetap bisa dioperasikan satu tangan di mobile.
+4. Tabel besar punya fallback card/list pada mobile/tablet.
+5. Spacing, ukuran font, dan hierarchy tetap konsisten dengan class global (`app-*`, `module-*`, `responsive-*`).
 
 ## 6. Map Standard Section
 

@@ -554,6 +554,46 @@ Dampak:
 - Canonical storage rule (harga/rate disimpan dalam IDR) kembali konsisten untuk create/edit F&B.
 - Pergantian currency tampilan tidak lagi mengubah basis penyimpanan data master pricing.
 
+## 33. Cross-Module Price Currency Canonicalization (2026-04-21)
+
+Masalah:
+- Risiko inkonsistensi currency tidak hanya terjadi di F&B; modul pricing lain juga memakai input nominal yang mengikuti display currency aktif.
+- Tanpa normalisasi backend terpadu, nilai non-IDR berpotensi tersimpan sebagai nilai mentah.
+
+Perbaikan:
+- Menambahkan concern reusable `NormalizesDisplayCurrencyToIdr` pada layer controller.
+- Menerapkan normalisasi display-currency -> IDR pada seluruh create/edit flow pricing utama:
+  - Activity (`adult_contract_rate`, `child_contract_rate`, fixed markup),
+  - Transport (`contract_rate`, fixed markup, `overtime_rate`),
+  - Tourist Attraction (`contract_rate_per_pax`, fixed markup),
+  - Island Transfer (`contract_rate`, fixed markup),
+  - Hotel price rows (`contract_rate`, fixed markup, `kick_back`),
+  - Food & Beverage (refactor ke concern yang sama).
+- Menyesuaikan prefill value Blade agar nilai IDR tersimpan tampil sebagai active display currency saat edit, sehingga tidak terjadi double-conversion saat submit.
+- Menjaga rule `markup_type=percent` tetap sebagai persentase murni (tidak dikonversi currency).
+
+Dampak:
+- Penyimpanan nominal harga/rate/markup/publish pada modul service pricing menjadi konsisten berbasis IDR.
+- Alur edit data existing pada currency non-IDR tetap aman karena prefill dan normalisasi backend sudah sinkron.
+
+## 34. F&B Meal Period Multi-Select Checkbox (2026-04-21)
+
+Masalah:
+- Field `meal_period` pada form F&B sebelumnya berupa input teks bebas, sehingga rawan variasi penulisan (`Breakfast/Lunch`, `break fast`, dll).
+- User membutuhkan kemampuan menandai ketersediaan paket per sesi makan secara eksplisit dan bisa multi-pilih.
+
+Perbaikan:
+- Mengganti UI `Meal Period` di create/edit F&B menjadi checkbox multi-select:
+  - `Breakfast`,
+  - `Lunch`,
+  - `Dinner`.
+- Backend `FoodBeverageController` kini menerima payload `meal_periods[]`, memvalidasi nilai yang diizinkan, lalu menormalkan ke format penyimpanan terurut pada kolom `meal_period`.
+- Menjaga backward compatibility dengan payload lama `meal_period` string (otomatis diparse ke selection set).
+
+Dampak:
+- User dapat memilih satu atau beberapa sesi makan dengan lebih jelas (contoh: Lunch + Dinner saja).
+- Konsistensi data meal period meningkat karena tidak lagi mengandalkan teks bebas.
+
 
 ## Referensi Kode
 

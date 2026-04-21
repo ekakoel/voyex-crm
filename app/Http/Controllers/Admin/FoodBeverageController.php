@@ -2,19 +2,22 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Http\Controllers\Concerns\NormalizesDisplayCurrencyToIdr;
 use App\Http\Controllers\Controller;
 use App\Models\Destination;
 use App\Models\FoodBeverage;
 use App\Models\Vendor;
-use App\Support\Currency;
 use App\Support\ImageThumbnailGenerator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class FoodBeverageController extends Controller
 {
+    use NormalizesDisplayCurrencyToIdr;
+
     public function index(Request $request)
     {
         $query = FoodBeverage::query()->withTrashed()->with('vendor:id,name')->latest('id');
@@ -183,6 +186,11 @@ class FoodBeverageController extends Controller
         if (! $request->has('publish_rate') && $request->has('agent_price')) {
             $request->merge(['publish_rate' => $request->input('agent_price')]);
         }
+        if (! $request->has('meal_periods') && $request->has('meal_period')) {
+            $request->merge([
+                'meal_periods' => $this->normalizeMealPeriodSelections($request->input('meal_period')),
+            ]);
+        }
 
         $existingGallery = $this->normalizeGalleryImages($foodBeverage?->gallery_images ?? []);
         $requestedRemoved = $request->input('removed_gallery_images', []);
@@ -208,7 +216,8 @@ class FoodBeverageController extends Controller
             'markup_type' => ['nullable', Rule::in(['fixed', 'percent'])],
             'markup' => ['nullable', 'numeric', 'min:0'],
             'publish_rate' => ['nullable', 'numeric', 'min:0'],
-            'meal_period' => ['nullable', 'string', 'max:50'],
+            'meal_periods' => ['nullable', 'array'],
+            'meal_periods.*' => ['string', Rule::in(['breakfast', 'lunch', 'dinner'])],
             'menu_highlights' => ['nullable', 'string'],
             'notes' => ['nullable', 'string'],
             'gallery_images' => ['nullable', 'array'],
@@ -222,18 +231,13 @@ class FoodBeverageController extends Controller
         $validated['markup_type'] = (($validated['markup_type'] ?? 'fixed') === 'percent') ? 'percent' : 'fixed';
         $validated['contract_rate'] = max(0, (float) ($validated['contract_rate'] ?? 0));
         $validated['markup'] = max(0, (float) ($validated['markup'] ?? 0));
+        $validated['meal_period'] = $this->formatMealPeriodForStorage($validated['meal_periods'] ?? []);
+        unset($validated['meal_periods']);
 
-        // Input nominal on UI follows current display currency.
-        // Persisted values for service master pricing must remain canonical in IDR.
-        $activeCurrency = strtoupper((string) Currency::current());
-        $displayToIdrRate = (float) Currency::rate($activeCurrency, 'IDR');
-        if (! is_finite($displayToIdrRate) || $displayToIdrRate <= 0) {
-            $displayToIdrRate = 1.0;
-        }
-
-        $validated['contract_rate'] = $validated['contract_rate'] * $displayToIdrRate;
+        // Persist service master pricing in canonical IDR.
+        $validated['contract_rate'] = $this->displayCurrencyToIdr($validated['contract_rate']);
         if ($validated['markup_type'] === 'fixed') {
-            $validated['markup'] = $validated['markup'] * $displayToIdrRate;
+            $validated['markup'] = $this->displayCurrencyToIdr($validated['markup']);
         }
 
         if ($validated['markup_type'] === 'percent' && $validated['markup'] > 100) {
@@ -251,6 +255,51 @@ class FoodBeverageController extends Controller
         $validated['markup'] = round($validated['markup'], 0);
 
         return $validated;
+    }
+
+    /**
+     * @param  mixed  $source
+     * @return array<int, string>
+     */
+    private function normalizeMealPeriodSelections($source): array
+    {
+        $items = [];
+        if (is_array($source)) {
+            $items = $source;
+        } elseif (is_string($source)) {
+            $items = preg_split('/[\s,;\/|]+/', $source) ?: [];
+        }
+
+        $normalized = [];
+        foreach ($items as $item) {
+            $token = Str::lower(trim((string) $item));
+            if (in_array($token, ['breakfast', 'lunch', 'dinner'], true)) {
+                $normalized[] = $token;
+            }
+        }
+
+        $ordered = [];
+        foreach (['breakfast', 'lunch', 'dinner'] as $allowed) {
+            if (in_array($allowed, $normalized, true)) {
+                $ordered[] = $allowed;
+            }
+        }
+
+        return $ordered;
+    }
+
+    /**
+     * @param  array<int, string>  $selections
+     */
+    private function formatMealPeriodForStorage(array $selections): ?string
+    {
+        $normalized = $this->normalizeMealPeriodSelections($selections);
+        if ($normalized === []) {
+            return null;
+        }
+
+        $labels = array_map(static fn (string $value): string => ucfirst($value), $normalized);
+        return implode(', ', $labels);
     }
 
     private function calculatePublishRate(float $contractRate, string $markupType, float $markup): float

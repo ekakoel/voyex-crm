@@ -15,10 +15,28 @@
         'route_geojson',
         $islandTransfer?->route_geojson ? json_encode($islandTransfer->route_geojson, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) : '',
     );
+    $activeCurrencyCode = strtoupper((string) (\App\Support\Currency::current() ?: 'IDR'));
+    $toDisplayMoney = static function ($amount) use ($activeCurrencyCode): float {
+        return round(\App\Support\Currency::convert((float) ($amount ?? 0), 'IDR', $activeCurrencyCode), 0);
+    };
     $defaultMarkupType = old('markup_type', $islandTransfer->markup_type ?? 'fixed');
-    $defaultMarkup = old('markup', $islandTransfer->markup ?? null);
+    $defaultMarkup = old('markup');
+    if ($defaultMarkup === null) {
+        $defaultMarkup = $islandTransfer->markup ?? null;
+    }
     if ($defaultMarkup === null) {
         $defaultMarkup = max(0, (float) (($islandTransfer->publish_rate ?? 0) - ($islandTransfer->contract_rate ?? 0)));
+    }
+    if (old('markup') === null && $defaultMarkupType !== 'percent') {
+        $defaultMarkup = $toDisplayMoney($defaultMarkup);
+    }
+    $contractRateValue = old('contract_rate');
+    if ($contractRateValue === null) {
+        $contractRateValue = $toDisplayMoney($islandTransfer->contract_rate ?? 0);
+    }
+    $publishRateValue = old('publish_rate');
+    if ($publishRateValue === null) {
+        $publishRateValue = $toDisplayMoney($islandTransfer->publish_rate ?? 0);
     }
 @endphp
 
@@ -86,7 +104,7 @@
                 :label="__('ui.modules.island_transfers.contract_rate')"
                 name="contract_rate"
                 id="island-transfer-contract-rate"
-                :value="old('contract_rate', $islandTransfer->contract_rate ?? '')"
+                :value="$contractRateValue"
                 min="0"
                 step="1"
             />
@@ -116,7 +134,7 @@
                 :label="__('ui.modules.island_transfers.publish_rate')"
                 name="publish_rate"
                 id="island-transfer-publish-rate"
-                :value="old('publish_rate', $islandTransfer->publish_rate ?? '')"
+                :value="$publishRateValue"
                 min="0"
                 step="1"
                 readonly

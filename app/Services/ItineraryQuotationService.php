@@ -311,6 +311,8 @@ class ItineraryQuotationService
                 [
                     'day_number' => $day,
                     'pax' => $qty,
+                    'meal_type' => $this->normalizeMealField($foodItem->meal_type ?? null),
+                    'meal_period' => $this->normalizeMealField($food->meal_period ?? null),
                     'start_time' => $this->normalizeTime($foodItem->start_time ?? null),
                     'end_time' => $this->normalizeTime($foodItem->end_time ?? null),
                     'travel_minutes_to_next' => $this->normalizeInt($foodItem->travel_minutes_to_next ?? null),
@@ -584,6 +586,12 @@ class ItineraryQuotationService
         return (int) $value;
     }
 
+    private function normalizeMealField($value): ?string
+    {
+        $normalized = trim((string) $value);
+        return $normalized !== '' ? $normalized : null;
+    }
+
     private function timeToMinutes($value): ?int
     {
         $time = $this->normalizeTime($value);
@@ -598,4 +606,3 @@ class ItineraryQuotationService
         return ((int) $hours * 60) + (int) $minutes;
     }
 }
-

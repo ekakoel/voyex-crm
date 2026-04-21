@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Http\Controllers\Concerns\NormalizesDisplayCurrencyToIdr;
 use App\Http\Controllers\Controller;
 use App\Models\Destination;
 use App\Models\Hotel;
@@ -19,6 +20,8 @@ use Illuminate\Validation\ValidationException;
 
 class HotelController extends Controller
 {
+    use NormalizesDisplayCurrencyToIdr;
+
     public function index(Request $request)
     {
         $query = Hotel::query()
@@ -698,6 +701,13 @@ class HotelController extends Controller
             $markup = $this->parseRateValue($row['markup'] ?? 0);
             $kickBack = $this->parseRateValue($row['kick_back'] ?? 0);
 
+            // Persist hotel price components in canonical IDR.
+            $contractRate = $this->displayCurrencyToIdr($contractRate);
+            if ($markupType === 'fixed') {
+                $markup = $this->displayCurrencyToIdr($markup);
+            }
+            $kickBack = $this->displayCurrencyToIdr($kickBack);
+
             if ($markupType === 'percent' && $markup > 100) {
                 throw ValidationException::withMessages([
                     "hotel_prices.{$index}.markup" => 'Markup percent cannot be greater than 100.',
@@ -751,5 +761,4 @@ class HotelController extends Controller
     }
 
 }
-
 

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Http\Controllers\Concerns\NormalizesDisplayCurrencyToIdr;
 use App\Http\Controllers\Controller;
 use App\Models\Activity;
 use App\Models\ActivityType;
@@ -16,6 +17,8 @@ use Illuminate\Validation\ValidationException;
 
 class ActivityController extends Controller
 {
+    use NormalizesDisplayCurrencyToIdr;
+
     public function index(Request $request)
     {
         $query = Activity::query()->withTrashed()->with(['vendor:id,name', 'activityType:id,name'])->latest('id');
@@ -236,6 +239,16 @@ class ActivityController extends Controller
         $validated['adult_markup'] = max(0, (float) ($validated['adult_markup'] ?? 0));
         $validated['child_markup'] = max(0, (float) ($validated['child_markup'] ?? 0));
 
+        // Persist service pricing in canonical IDR.
+        $validated['adult_contract_rate'] = $this->displayCurrencyToIdr($validated['adult_contract_rate']);
+        $validated['child_contract_rate'] = $this->displayCurrencyToIdr($validated['child_contract_rate']);
+        if ($validated['adult_markup_type'] === 'fixed') {
+            $validated['adult_markup'] = $this->displayCurrencyToIdr($validated['adult_markup']);
+        }
+        if ($validated['child_markup_type'] === 'fixed') {
+            $validated['child_markup'] = $this->displayCurrencyToIdr($validated['child_markup']);
+        }
+
         if ($validated['adult_markup_type'] === 'percent' && $validated['adult_markup'] > 100) {
             throw ValidationException::withMessages([
                 'adult_markup' => 'Adult markup percent cannot be greater than 100.',
@@ -388,6 +401,5 @@ class ActivityController extends Controller
         }
     }
 }
-
 
 

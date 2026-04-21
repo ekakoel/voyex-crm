@@ -2,7 +2,7 @@
 <html lang="en" x-data="siteData()" :class="dark ? 'dark' : ''">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     @php
         $appTitle = trim((string) ($companySettings->company_name ?? 'VOYEX CRM'));
@@ -33,10 +33,18 @@
         };
     @endphp
     <title>{{ $appTitle !== '' ? $appTitle : 'VOYEX CRM' }}</title>
+    <meta name="theme-color" content="#0f172a">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="{{ $appTitle !== '' ? $appTitle : 'VOYEX CRM' }}">
+    <link rel="manifest" href="{{ asset('manifest.webmanifest') }}">
     @if ($faviconUrl)
         <link rel="icon" type="{{ $faviconMime }}" href="{{ $faviconUrl }}">
         <link rel="shortcut icon" type="{{ $faviconMime }}" href="{{ $faviconUrl }}">
         <link rel="apple-touch-icon" href="{{ $faviconUrl }}">
+    @else
+        <link rel="apple-touch-icon" href="{{ asset('favicon.ico') }}">
     @endif
     @vite(['resources/css/app.css','resources/js/app.js'])
     @stack('styles')
@@ -328,7 +336,8 @@
         </header>
 
         <!-- PAGE CONTENT -->
-        <main class="app-content flex-1 min-h-0 p-3 overflow-y-auto">
+        <main class="app-content flex-1 min-h-0 overflow-y-auto px-3 py-3 sm:px-4 sm:py-4 lg:px-5 xl:px-6">
+            <div class="app-page-shell">
             @php
                 $routeName = (string) (Route::currentRouteName() ?? '');
                 $routeParts = $routeName !== '' ? explode('.', $routeName) : [];
@@ -384,8 +393,25 @@
                 </section>
             @endunless
             @yield('content')
+            </div>
         </main>
 
+    </div>
+</div>
+
+<div id="pwa-install-banner" class="pwa-install-banner hidden" role="dialog" aria-live="polite" aria-label="Install app banner">
+    <div class="pwa-install-banner__card">
+        <div class="pwa-install-banner__header">
+            <p class="pwa-install-banner__title">Install Aplikasi</p>
+            <button type="button" id="pwa-install-close" class="pwa-install-banner__close" aria-label="Tutup banner install">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+        <p id="pwa-install-message" class="pwa-install-banner__message"></p>
+        <div class="pwa-install-banner__actions">
+            <button type="button" id="pwa-install-action" class="btn-primary-sm hidden">Install Sekarang</button>
+            <button type="button" id="pwa-install-later" class="btn-ghost-sm">Nanti</button>
+        </div>
     </div>
 </div>
 
@@ -1182,6 +1208,144 @@
         poll();
         window.setInterval(poll, 20000);
     }
+</script>
+<script>
+    (function () {
+        const storageDismissKey = 'pwa_install_banner_dismissed';
+        const banner = document.getElementById('pwa-install-banner');
+        const messageNode = document.getElementById('pwa-install-message');
+        const actionBtn = document.getElementById('pwa-install-action');
+        const closeBtn = document.getElementById('pwa-install-close');
+        const laterBtn = document.getElementById('pwa-install-later');
+        let deferredInstallPrompt = null;
+
+        const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+        if (isStandalone) {
+            document.documentElement.classList.add('app-standalone');
+            document.body.classList.add('app-standalone');
+        }
+
+        const isMobileViewport = window.matchMedia('(max-width: 1024px)').matches;
+        const ua = window.navigator.userAgent || '';
+        const isIOS = /iPhone|iPad|iPod/i.test(ua);
+        const isAndroid = /Android/i.test(ua);
+        const wasDismissed = window.localStorage.getItem(storageDismissKey) === '1';
+
+        const hideBanner = (persist = false) => {
+            if (!banner) return;
+            banner.classList.add('hidden');
+            if (persist) {
+                window.localStorage.setItem(storageDismissKey, '1');
+            }
+        };
+
+        const tryEnterFullscreen = async () => {
+            if (isStandalone || !isMobileViewport || document.fullscreenElement) {
+                return;
+            }
+
+            const root = document.documentElement;
+            const requestFullscreen = root.requestFullscreen
+                || root.webkitRequestFullscreen
+                || root.msRequestFullscreen;
+
+            if (!requestFullscreen) {
+                return;
+            }
+
+            try {
+                await requestFullscreen.call(root);
+            } catch (_) {
+                // Ignore fullscreen rejection in restricted browsers.
+            }
+        };
+
+        const bindAutoFullscreenAttempt = () => {
+            if (isStandalone || !isMobileViewport) {
+                return;
+            }
+
+            let attempted = false;
+            const autoAttempt = () => {
+                if (attempted) return;
+                attempted = true;
+                tryEnterFullscreen();
+                window.removeEventListener('touchend', autoAttempt, true);
+                window.removeEventListener('click', autoAttempt, true);
+                window.removeEventListener('keydown', autoAttempt, true);
+            };
+
+            window.addEventListener('touchend', autoAttempt, true);
+            window.addEventListener('click', autoAttempt, true);
+            window.addEventListener('keydown', autoAttempt, true);
+        };
+
+        const showBanner = () => {
+            if (!banner || !isMobileViewport || isStandalone || wasDismissed) {
+                return;
+            }
+            banner.classList.remove('hidden');
+        };
+
+        const setBannerContent = (message, showActionButton) => {
+            if (!messageNode || !actionBtn) return;
+            messageNode.textContent = message;
+            actionBtn.classList.toggle('hidden', !showActionButton);
+        };
+
+        if (closeBtn) {
+            closeBtn.addEventListener('click', () => hideBanner(true));
+        }
+
+        if (laterBtn) {
+            laterBtn.addEventListener('click', () => hideBanner(true));
+        }
+
+        if (actionBtn) {
+            actionBtn.addEventListener('click', async () => {
+                if (!deferredInstallPrompt) return;
+                deferredInstallPrompt.prompt();
+                try {
+                    await deferredInstallPrompt.userChoice;
+                } catch (_) {
+                    // Ignore install prompt runtime error.
+                }
+                deferredInstallPrompt = null;
+                hideBanner(true);
+            });
+        }
+
+        window.addEventListener('beforeinstallprompt', (event) => {
+            event.preventDefault();
+            deferredInstallPrompt = event;
+            setBannerContent('Install aplikasi ini ke Home Screen agar tampil fullscreen seperti mobile app.', true);
+            showBanner();
+        });
+
+        window.addEventListener('appinstalled', () => {
+            hideBanner(true);
+        });
+
+        if (!isStandalone && !wasDismissed && isMobileViewport) {
+            if (isIOS) {
+                setBannerContent('Di iPhone/iPad: ketuk Share lalu pilih "Add to Home Screen" untuk mode fullscreen.', false);
+                showBanner();
+            } else if (isAndroid) {
+                setBannerContent('Gunakan menu browser lalu pilih "Install app" atau "Add to Home screen".', false);
+                showBanner();
+            }
+        }
+
+        bindAutoFullscreenAttempt();
+
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function () {
+                navigator.serviceWorker.register('{{ asset('service-worker.js') }}').catch(function () {
+                    // Ignore registration error in unsupported/restricted environments.
+                });
+            });
+        }
+    })();
 </script>
 @stack('scripts')
 
