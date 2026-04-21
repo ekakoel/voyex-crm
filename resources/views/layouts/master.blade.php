@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="csrf-token" content="{{ csrf_token() }}">
+    @include('layouts.partials.page-transition-init')
     @php
         $appTitle = trim((string) ($companySettings->company_name ?? 'VOYEX CRM'));
         $logoPath = $companySettings->logo_path ?? null;
@@ -98,6 +99,15 @@
         </div>
 
         <nav class="mt-6 space-y-2 px-4">
+            @php
+                $backgroundLoadRoutes = [
+                    'dashboard.administrator',
+                    'dashboard.manager',
+                    'dashboard.reservation',
+                    'dashboard.finance',
+                    'dashboard.director',
+                ];
+            @endphp
             @isset($menuItems)
                 @foreach ($menuItems as $item)
                     @if (($item['type'] ?? null) === 'separator')
@@ -148,7 +158,11 @@
                                 <div x-show="openChildren" x-transition class="mt-1 ml-6 space-y-1">
                                     @foreach ($item['children'] as $child)
                                         @if (Route::has($child['route']))
+                                            @php
+                                                $isBackgroundLoadChildRoute = in_array((string) $child['route'], $backgroundLoadRoutes, true);
+                                            @endphp
                                             <a href="{{ route($child['route']) }}"
+                                                data-page-spinner="{{ $isBackgroundLoadChildRoute ? 'off' : 'on' }}"
                                                 class="sidebar-sub-item flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-white/85 hover:text-white transition-colors duration-200
                                                       {{ request()->routeIs($child['route']) || request()->routeIs($child['route'].'.*') ? 'bg-gray-700/80 font-semibold is-active' : 'hover:bg-gray-700/70' }}">
                                                 <span class="inline-flex h-4 w-4 items-center justify-center text-xs">
@@ -163,7 +177,11 @@
                         </div>
                     @else
                         @if (Route::has($item['route']))
+                            @php
+                                $isBackgroundLoadRoute = in_array((string) $item['route'], $backgroundLoadRoutes, true);
+                            @endphp
                             <a href="{{ route($item['route']) }}"
+                                data-page-spinner="{{ $isBackgroundLoadRoute ? 'off' : 'on' }}"
                                 class="sidebar-nav-item group flex items-center gap-3 px-4 py-2 rounded-lg transition-colors duration-200 text-white/90 hover:text-white
                                       {{ $isItemActive ? 'bg-gray-700 font-semibold is-active' : 'hover:bg-gray-700' }}"
                                :class="sidebarCollapsed ? 'md:justify-center md:px-2' : ''"
@@ -191,7 +209,7 @@
     <!-- MAIN CONTENT -->
     <div class="flex-1 flex flex-col min-h-0">
 
-        <header class="sticky top-0 z-20 bg-white/95 dark:bg-gray-800/95 backdrop-blur shadow-sm px-3 py-3 sm:px-4 sm:py-3 md:px-6 md:py-4 flex items-center justify-between gap-3">
+        <header class="app-top-nav sticky top-0 z-20 bg-white/95 dark:bg-gray-800/95 backdrop-blur shadow-sm px-3 py-3 sm:px-4 sm:py-3 md:px-6 md:py-4 flex items-center justify-between gap-3">
             <!-- mobile-only button -->
             <button @click="sidebarOpen = !sidebarOpen"  class="md:hidden inline-flex items-center justify-center h-9 w-9 rounded-lg border border-gray-200 text-gray-600 dark:border-gray-700 dark:text-gray-200">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -201,21 +219,28 @@
 
             <div class="hidden md:flex items-center gap-2 min-w-0 overflow-x-auto">
                 <span class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 whitespace-nowrap">Rates</span>
-                @forelse (($currencyOptions ?? collect())->filter(fn ($c) => strtoupper((string) ($c->code ?? '')) !== 'IDR') as $currencyRate)
-                    @php
-                        $rateValue = (float) ($currencyRate->rate_to_idr ?? 1);
-                        $rateLabel = number_format($rateValue, 0, ',', '.');
-                    @endphp
-                    <span class="inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[11px] font-medium whitespace-nowrap {{ ($currentCurrency ?? 'IDR') === $currencyRate->code ? 'border-indigo-300 bg-indigo-50 text-indigo-700 dark:border-indigo-700 dark:bg-indigo-900/20 dark:text-indigo-300' : 'border-gray-200 bg-white text-gray-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300' }}">
-                        <span class="font-semibold">{{ strtoupper((string) $currencyRate->code) }}</span>
-                        <span>=</span>
-                        <span>{{ $rateLabel }} IDR</span>
-                    </span>
-                @empty
+                @php
+                    $nonIdrCurrencyOptions = collect($currencyOptions ?? [])->filter(function ($currency) {
+                        return strtoupper((string) ($currency->code ?? '')) !== 'IDR';
+                    });
+                @endphp
+                @if($nonIdrCurrencyOptions->isNotEmpty())
+                    @foreach ($nonIdrCurrencyOptions as $currencyRate)
+                        @php
+                            $rateValue = (float) ($currencyRate->rate_to_idr ?? 1);
+                            $rateLabel = number_format($rateValue, 0, ',', '.');
+                        @endphp
+                        <span class="inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[11px] font-medium whitespace-nowrap {{ ($currentCurrency ?? 'IDR') === $currencyRate->code ? 'border-indigo-300 bg-indigo-50 text-indigo-700 dark:border-indigo-700 dark:bg-indigo-900/20 dark:text-indigo-300' : 'border-gray-200 bg-white text-gray-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300' }}">
+                            <span class="font-semibold">{{ strtoupper((string) $currencyRate->code) }}</span>
+                            <span>=</span>
+                            <span>{{ $rateLabel }} IDR</span>
+                        </span>
+                    @endforeach
+                @else
                     <span class="inline-flex items-center rounded-full border border-gray-200 bg-white px-2 py-1 text-[11px] text-gray-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300">
                         No non-IDR rates
                     </span>
-                @endforelse
+                @endif
             </div>
 
             <div class="ml-auto flex items-center gap-3 sm:gap-4 md:gap-6 min-w-0">
@@ -265,11 +290,13 @@
                                 onchange="this.form.submit()"
                                 class="nav-currency-select h-9 font-semibold uppercase tracking-wide text-gray-700 transition hover:border-indigo-300 dark:border-gray-700 dark:hover:border-indigo-600 app-input"
                             >
-                                @forelse (($currencyOptions ?? collect()) as $currencyOption)
-                                    <option value="{{ $currencyOption->code }}" @selected(($currentCurrency ?? 'IDR') === $currencyOption->code)>{{ $currencyOption->code }}</option>
-                                @empty
+                                @if(($currencyOptions ?? collect())->isNotEmpty())
+                                    @foreach (($currencyOptions ?? collect()) as $currencyOption)
+                                        <option value="{{ $currencyOption->code }}" @selected(($currentCurrency ?? 'IDR') === $currencyOption->code)>{{ $currencyOption->code }}</option>
+                                    @endforeach
+                                @else
                                     <option value="IDR" selected>IDR</option>
-                                @endforelse
+                                @endif
                             </select>
                             
                         </div>
@@ -280,6 +307,16 @@
                         </a>
                     @endcan
                 </div>
+
+                <button
+                    type="button"
+                    id="fullscreen-toggle-btn"
+                    class="inline-flex items-center justify-center h-9 w-9 rounded-lg border border-gray-200 text-gray-600 hover:border-indigo-300 hover:text-indigo-600 dark:border-gray-700 dark:text-gray-200 dark:hover:border-indigo-600 dark:hover:text-indigo-300"
+                    title="Toggle fullscreen"
+                    aria-label="Toggle fullscreen"
+                >
+                    <i class="fa-solid fa-expand" data-fullscreen-icon></i>
+                </button>
 
                 <!-- Dark Mode Toggle -->
                 <button @click="toggleTheme()"
@@ -336,7 +373,7 @@
         </header>
 
         <!-- PAGE CONTENT -->
-        <main class="app-content flex-1 min-h-0 overflow-y-auto px-3 py-3 sm:px-4 sm:py-4 lg:px-5 xl:px-6">
+        <main class="app-content flex-1 min-h-0 overflow-y-auto px-3 py-3 sm:px-4 sm:py-4 lg:px-5 xl:px-6" data-page-progressive-content>
             <div class="app-page-shell">
             @php
                 $routeName = (string) (Route::currentRouteName() ?? '');
@@ -1212,11 +1249,15 @@
 <script>
     (function () {
         const storageDismissKey = 'pwa_install_banner_dismissed';
+        const storageSeenKey = 'pwa_install_banner_seen';
+        const fullscreenPrefKey = 'mobile_fullscreen_pref';
         const banner = document.getElementById('pwa-install-banner');
         const messageNode = document.getElementById('pwa-install-message');
         const actionBtn = document.getElementById('pwa-install-action');
         const closeBtn = document.getElementById('pwa-install-close');
         const laterBtn = document.getElementById('pwa-install-later');
+        const fullscreenToggleBtn = document.getElementById('fullscreen-toggle-btn');
+        const fullscreenIconNode = document.querySelector('[data-fullscreen-icon]');
         let deferredInstallPrompt = null;
 
         const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
@@ -1230,6 +1271,44 @@
         const isIOS = /iPhone|iPad|iPod/i.test(ua);
         const isAndroid = /Android/i.test(ua);
         const wasDismissed = window.localStorage.getItem(storageDismissKey) === '1';
+        const wasSeen = window.localStorage.getItem(storageSeenKey) === '1';
+        const fullscreenSupported = !!(document.documentElement.requestFullscreen
+            || document.documentElement.webkitRequestFullscreen
+            || document.documentElement.msRequestFullscreen);
+        let fullscreenPreferenceOn = window.localStorage.getItem(fullscreenPrefKey) === 'on';
+
+        const isFullscreenNow = () => !!(
+            document.fullscreenElement
+            || document.webkitFullscreenElement
+            || document.msFullscreenElement
+        );
+
+        const exitFullscreen = async () => {
+            const fn = document.exitFullscreen || document.webkitExitFullscreen || document.msExitFullscreen;
+            if (!fn) return;
+            try {
+                await fn.call(document);
+            } catch (_) {
+                // Ignore browser-specific fullscreen exit failures.
+            }
+        };
+
+        const updateFullscreenToggleUi = () => {
+            if (!fullscreenToggleBtn || !fullscreenIconNode) {
+                return;
+            }
+
+            if (!fullscreenSupported || !isMobileViewport || isStandalone) {
+                fullscreenToggleBtn.classList.add('hidden');
+                return;
+            }
+
+            fullscreenToggleBtn.classList.remove('hidden');
+            const active = fullscreenPreferenceOn || isFullscreenNow();
+            fullscreenIconNode.className = active ? 'fa-solid fa-compress' : 'fa-solid fa-expand';
+            fullscreenToggleBtn.title = active ? 'Matikan fullscreen' : 'Aktifkan fullscreen';
+            fullscreenToggleBtn.setAttribute('aria-label', fullscreenToggleBtn.title);
+        };
 
         const hideBanner = (persist = false) => {
             if (!banner) return;
@@ -1240,7 +1319,7 @@
         };
 
         const tryEnterFullscreen = async () => {
-            if (isStandalone || !isMobileViewport || document.fullscreenElement) {
+            if (isStandalone || !isMobileViewport || isFullscreenNow() || !fullscreenPreferenceOn) {
                 return;
             }
 
@@ -1261,7 +1340,7 @@
         };
 
         const bindAutoFullscreenAttempt = () => {
-            if (isStandalone || !isMobileViewport) {
+            if (isStandalone || !isMobileViewport || !fullscreenPreferenceOn) {
                 return;
             }
 
@@ -1281,9 +1360,10 @@
         };
 
         const showBanner = () => {
-            if (!banner || !isMobileViewport || isStandalone || wasDismissed) {
+            if (!banner || !isMobileViewport || isStandalone || wasDismissed || wasSeen) {
                 return;
             }
+            window.localStorage.setItem(storageSeenKey, '1');
             banner.classList.remove('hidden');
         };
 
@@ -1315,6 +1395,37 @@
             });
         }
 
+        if (fullscreenToggleBtn) {
+            fullscreenToggleBtn.addEventListener('click', async () => {
+                if (!fullscreenSupported || !isMobileViewport || isStandalone) {
+                    return;
+                }
+
+                if (fullscreenPreferenceOn) {
+                    fullscreenPreferenceOn = false;
+                    window.localStorage.setItem(fullscreenPrefKey, 'off');
+                    if (isFullscreenNow()) {
+                        await exitFullscreen();
+                    }
+                } else {
+                    fullscreenPreferenceOn = true;
+                    window.localStorage.setItem(fullscreenPrefKey, 'on');
+                    bindAutoFullscreenAttempt();
+                    await tryEnterFullscreen();
+                }
+
+                updateFullscreenToggleUi();
+            });
+        }
+
+        document.addEventListener('fullscreenchange', () => {
+            if (!isFullscreenNow() && fullscreenPreferenceOn) {
+                fullscreenPreferenceOn = false;
+                window.localStorage.setItem(fullscreenPrefKey, 'off');
+            }
+            updateFullscreenToggleUi();
+        });
+
         window.addEventListener('beforeinstallprompt', (event) => {
             event.preventDefault();
             deferredInstallPrompt = event;
@@ -1337,6 +1448,7 @@
         }
 
         bindAutoFullscreenAttempt();
+        updateFullscreenToggleUi();
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', function () {

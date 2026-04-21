@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Director;
 use App\Http\Controllers\Controller;
 use App\Models\CompanySetting;
 use App\Models\Destination;
+use App\Support\CompanySettingsCache;
 use App\Support\LocationResolver;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -91,6 +92,7 @@ class CompanySettingController extends Controller
 
         unset($validated['favicon'], $validated['logo']);
         $settings->update($validated);
+        CompanySettingsCache::flush();
 
         return redirect()->route('company-settings.edit')->with('success', 'Company settings updated successfully.');
     }
@@ -140,5 +142,4 @@ class CompanySettingController extends Controller
         }
     }
 }
-
 

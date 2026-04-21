@@ -2,9 +2,8 @@
 
 namespace App\Http\View;
 
-use App\Models\CompanySetting;
+use App\Support\CompanySettingsCache;
 use App\Support\ImageThumbnailGenerator;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\View\View;
 
 class CompanyBrandComposer
@@ -26,67 +25,36 @@ class CompanyBrandComposer
         $authCardBorderColor = '#d7d7d7';
 
         try {
-            if (Schema::hasTable('company_settings')) {
-                $columns = ['company_name', 'footer_note', 'updated_at'];
-                if (Schema::hasColumn('company_settings', 'tagline')) {
-                    $columns[] = 'tagline';
-                }
-                if (Schema::hasColumn('company_settings', 'logo_path')) {
-                    $columns[] = 'logo_path';
-                }
-                if (Schema::hasColumn('company_settings', 'favicon_path')) {
-                    $columns[] = 'favicon_path';
-                }
-                if (Schema::hasColumn('company_settings', 'auth_primary_color')) {
-                    $columns[] = 'auth_primary_color';
-                }
-                if (Schema::hasColumn('company_settings', 'auth_primary_hover_color')) {
-                    $columns[] = 'auth_primary_hover_color';
-                }
-                if (Schema::hasColumn('company_settings', 'auth_background_from_color')) {
-                    $columns[] = 'auth_background_from_color';
-                }
-                if (Schema::hasColumn('company_settings', 'auth_background_to_color')) {
-                    $columns[] = 'auth_background_to_color';
-                }
-                if (Schema::hasColumn('company_settings', 'auth_card_background_color')) {
-                    $columns[] = 'auth_card_background_color';
-                }
-                if (Schema::hasColumn('company_settings', 'auth_card_border_color')) {
-                    $columns[] = 'auth_card_border_color';
-                }
+            $settings = CompanySettingsCache::get();
+            if ($settings) {
+                $companyName = $this->cleanHtmlEntities((string) ($settings->company_name ?: $companyName));
+                $companyTagline = $this->cleanHtmlEntities((string) ($settings->tagline ?? '')) ?: $companyTagline;
+                $companyFooterNote = $this->cleanHtmlEntities((string) ($settings->footer_note ?? ''));
 
-                $settings = CompanySetting::query()->first($columns);
-                if ($settings) {
-                    $companyName = $this->cleanHtmlEntities((string) ($settings->company_name ?: $companyName));
-                    $companyTagline = $this->cleanHtmlEntities((string) ($settings->tagline ?? '')) ?: $companyTagline;
-                    $companyFooterNote = $this->cleanHtmlEntities((string) ($settings->footer_note ?? ''));
-
-                    $version = !empty($settings->updated_at) ? $settings->updated_at->timestamp : null;
-                    $logoPath = (string) ($settings->logo_path ?? '');
-                    $faviconPath = (string) ($settings->favicon_path ?? '');
-                    if ($logoPath !== '') {
-                        $companyLogoUrl = ImageThumbnailGenerator::resolvePublicUrl($logoPath)
-                            ?? ImageThumbnailGenerator::resolveOriginalPublicUrl($logoPath);
-                        if ($companyLogoUrl !== null && $version) {
-                            $companyLogoUrl .= '?v=' . $version;
-                        }
+                $version = !empty($settings->updated_at) ? $settings->updated_at->timestamp : null;
+                $logoPath = (string) ($settings->logo_path ?? '');
+                $faviconPath = (string) ($settings->favicon_path ?? '');
+                if ($logoPath !== '') {
+                    $companyLogoUrl = ImageThumbnailGenerator::resolvePublicUrl($logoPath)
+                        ?? ImageThumbnailGenerator::resolveOriginalPublicUrl($logoPath);
+                    if ($companyLogoUrl !== null && $version) {
+                        $companyLogoUrl .= '?v=' . $version;
                     }
-                    if ($faviconPath !== '') {
-                        $companyFaviconUrl = ImageThumbnailGenerator::resolveOriginalPublicUrl($faviconPath);
-                        if ($companyFaviconUrl !== null && $version) {
-                            $companyFaviconUrl .= '?v=' . $version;
-                        }
-                        $companyFaviconMime = $this->resolveFaviconMime($faviconPath);
-                    }
-
-                    $authPrimaryColor = $this->safeHexColor((string) ($settings->auth_primary_color ?? ''), $authPrimaryColor);
-                    $authPrimaryHoverColor = $this->safeHexColor((string) ($settings->auth_primary_hover_color ?? ''), $authPrimaryHoverColor);
-                    $authBackgroundFromColor = $this->safeHexColor((string) ($settings->auth_background_from_color ?? ''), $authBackgroundFromColor);
-                    $authBackgroundToColor = $this->safeHexColor((string) ($settings->auth_background_to_color ?? ''), $authBackgroundToColor);
-                    $authCardBackgroundColor = $this->safeHexColor((string) ($settings->auth_card_background_color ?? ''), $authCardBackgroundColor);
-                    $authCardBorderColor = $this->safeHexColor((string) ($settings->auth_card_border_color ?? ''), $authCardBorderColor);
                 }
+                if ($faviconPath !== '') {
+                    $companyFaviconUrl = ImageThumbnailGenerator::resolveOriginalPublicUrl($faviconPath);
+                    if ($companyFaviconUrl !== null && $version) {
+                        $companyFaviconUrl .= '?v=' . $version;
+                    }
+                    $companyFaviconMime = $this->resolveFaviconMime($faviconPath);
+                }
+
+                $authPrimaryColor = $this->safeHexColor((string) ($settings->auth_primary_color ?? ''), $authPrimaryColor);
+                $authPrimaryHoverColor = $this->safeHexColor((string) ($settings->auth_primary_hover_color ?? ''), $authPrimaryHoverColor);
+                $authBackgroundFromColor = $this->safeHexColor((string) ($settings->auth_background_from_color ?? ''), $authBackgroundFromColor);
+                $authBackgroundToColor = $this->safeHexColor((string) ($settings->auth_background_to_color ?? ''), $authBackgroundToColor);
+                $authCardBackgroundColor = $this->safeHexColor((string) ($settings->auth_card_background_color ?? ''), $authCardBackgroundColor);
+                $authCardBorderColor = $this->safeHexColor((string) ($settings->auth_card_border_color ?? ''), $authCardBorderColor);
             }
         } catch (\Throwable $e) {
             // Fallback to app name when settings table is not ready.

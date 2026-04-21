@@ -12,20 +12,20 @@
     }
 @endphp
 
-<div class="sa-wrap rounded-3xl border border-slate-200/80 bg-slate-100/70 p-3 dark:border-slate-700 dark:bg-slate-900/60">
+<div class="sa-wrap rounded-3xl border border-slate-200/80 bg-slate-100/70 p-3 dark:border-slate-700 dark:bg-slate-900/60" data-progressive-dashboard>
     @section('page_title', 'Finance Dashboard')
     @section('page_subtitle', 'Monitor invoices and payment flow.')
     @section('page_actions')
         <span class="text-xs text-slate-500 dark:text-slate-400">Updated: {{ \App\Support\DateTimeDisplay::datetime(now()) }}</span>
     @endsection
 
-    <div class="grid grid-cols-1 gap-3 xl:grid-cols-12">
+    <div class="grid grid-cols-1 gap-3 xl:grid-cols-12" data-progressive-group>
         @if($canInvoices)
-        <section class="xl:col-span-8 space-y-3">
-            <div class="sa-card p-5">
+        <section class="xl:col-span-8 space-y-3" data-progressive-group>
+            <div class="sa-card p-5" data-progressive-item>
                 <div class="dashboard-kpi-grid">
                     @foreach($kpiCards as $card)
-                        <div class="sa-kpi">
+                        <div class="sa-kpi" data-progressive-item>
                             <div class="flex items-center justify-between">
                                 <span class="sa-dot sa-{{ $card['color'] }}"><i class="fa-solid fa-{{ $card['icon'] }}"></i></span>
                                 <span class="text-[10px] text-slate-400">live</span>
@@ -45,12 +45,12 @@
 
         </section>
 
-        <aside  class="xl:col-span-4 space-y-3">
-            <div class="sa-card p-4">
+        <aside  class="xl:col-span-4 space-y-3" data-progressive-group>
+            <div class="sa-card p-4" data-progressive-item>
                 <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100">Recent Invoices</h3>
                 <div class="mt-3 space-y-2 text-xs">
                     @forelse($recentInvoices as $invoice)
-                        <div class="rounded-lg bg-slate-50 px-3 py-2 dark:bg-slate-900">
+                        <div class="rounded-lg bg-slate-50 px-3 py-2 dark:bg-slate-900" data-progressive-item>
                             <p class="font-medium text-slate-700 dark:text-slate-200">{{ $invoice->invoice_number }}</p>
                             <p class="text-slate-500 dark:text-slate-400">{{ ucfirst($invoice->status) }} • <x-money :amount="$invoice->total_amount" currency="IDR" /></p>
                         </div>

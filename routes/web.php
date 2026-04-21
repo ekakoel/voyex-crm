@@ -375,6 +375,9 @@ Route::middleware('auth')->group(function () {
         Route::get('/administrator-dashboard', [AdministratorDashboardController::class, 'index'])
             ->name('dashboard.administrator')
             ->middleware(['permission:dashboard.administrator.view']);
+        Route::get('/administrator-dashboard/widgets/{section}', [AdministratorDashboardController::class, 'widget'])
+            ->name('dashboard.administrator.widget')
+            ->middleware(['permission:dashboard.administrator.view']);
         Route::get('/services', [AdminServiceController::class, 'index'])
             ->name('services.index')
             ->middleware([

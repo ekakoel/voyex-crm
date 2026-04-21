@@ -40,6 +40,8 @@ class ServiceController extends Controller
             'is_enabled' => ! $module->is_enabled,
         ]);
 
+        ModuleService::flushCache();
+
         $status = $module->is_enabled ? 'enabled' : 'disabled';
 
         return redirect()
@@ -47,5 +49,4 @@ class ServiceController extends Controller
             ->with('success', "Module {$module->name} was successfully {$status}.");
     }
 }
-
 

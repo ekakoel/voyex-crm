@@ -8,6 +8,15 @@ use Illuminate\Foundation\Console\Kernel as ConsoleKernel;
 class Kernel extends ConsoleKernel
 {
     /**
+     * Register the application's custom Artisan commands explicitly when needed.
+     *
+     * @var array<int, class-string>
+     */
+    protected $commands = [
+        // Add manually-registered command classes here when auto-discovery is not enough.
+    ];
+
+    /**
      * Define the application's command schedule.
      */
     protected function schedule(Schedule $schedule): void

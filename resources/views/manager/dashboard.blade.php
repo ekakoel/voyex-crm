@@ -19,7 +19,7 @@
 @endsection
 
 @section('content')
-<div class="sa-wrap rounded-3xl border border-slate-200/80 bg-slate-100/70 p-3 dark:border-slate-700 dark:bg-slate-900/60">
+<div class="sa-wrap rounded-3xl border border-slate-200/80 bg-slate-100/70 p-3 dark:border-slate-700 dark:bg-slate-900/60" data-progressive-dashboard>
     @if(($needsManagerApprovalCount ?? 0) > 0)
         <div class="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-300">
             {{ number_format((int) $needsManagerApprovalCount) }} quotation(s) are waiting for your approval.
@@ -27,12 +27,14 @@
     @endif
 
     <div class="space-y-3">
-        <x-index-stats :cards="$statsCards ?? []" class="dashboard-kpi-grid" />
+        <div data-progressive-group>
+            <x-index-stats :cards="$statsCards ?? []" class="dashboard-kpi-grid" />
+        </div>
 
         <div class="grid grid-cols-1 gap-3 xl:grid-cols-12">
-            <section class="xl:col-span-8 space-y-3">
+            <section class="xl:col-span-8 space-y-3" data-progressive-group>
                 @if($canQuotations)
-                    <div class="sa-card p-5">
+                    <div class="sa-card p-5" data-progressive-item>
                         <div class="flex items-center justify-between">
                             <h2 class="text-sm font-semibold text-slate-900 dark:text-slate-100">Approval Pipeline</h2>
                             <a href="{{ route('quotations.index', ['status' => 'pending', 'needs_my_approval' => 1]) }}" class="text-xs font-medium text-indigo-600 hover:text-indigo-700 dark:text-indigo-300">
@@ -58,14 +60,14 @@
                         </div>
                     </div>
 
-                    <div class="sa-card p-5">
+                    <div class="sa-card p-5" data-progressive-item>
                         <div class="flex items-center justify-between">
                             <h2 class="text-sm font-semibold text-slate-900 dark:text-slate-100">Manager Approval Queue</h2>
                             <span class="text-[11px] text-slate-500 dark:text-slate-400">Prioritized by validity date</span>
                         </div>
                         <div class="mt-3 space-y-2 text-xs">
                             @forelse($managerApprovalQueue as $quotation)
-                                <div class="rounded-xl border border-slate-200 bg-white px-3 py-3 dark:border-slate-700 dark:bg-slate-900">
+                                <div class="rounded-xl border border-slate-200 bg-white px-3 py-3 dark:border-slate-700 dark:bg-slate-900" data-progressive-item>
                                     <div class="flex flex-wrap items-start justify-between gap-2">
                                         <div>
                                             <p class="font-semibold text-slate-800 dark:text-slate-100">{{ $quotation->quotation_number }}</p>
@@ -90,11 +92,11 @@
                 @endif
 
                 @if($canInquiries || $canQuotations || $canItineraries || $canBookings)
-                    <div class="sa-card p-5">
+                    <div class="sa-card p-5" data-progressive-item>
                         <h2 class="text-sm font-semibold text-slate-900 dark:text-slate-100">Team Funnel</h2>
                         <div class="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
                             @forelse($funnel as $stage)
-                                <div class="app-card p-3 text-center">
+                                <div class="app-card p-3 text-center" data-progressive-item>
                                     <p class="text-[11px] uppercase tracking-wide text-slate-500 dark:text-slate-400">{{ $stage['label'] }}</p>
                                     <p class="mt-1 text-xl font-bold text-slate-800 dark:text-slate-100">
                                         @if(str_contains($stage['label'], 'Conversion'))
@@ -112,13 +114,13 @@
                 @endif
             </section>
 
-            <aside class="xl:col-span-4 space-y-3">
+            <aside class="xl:col-span-4 space-y-3" data-progressive-group>
                 @if($canQuotations)
-                    <div class="sa-card p-4">
+                    <div class="sa-card p-4" data-progressive-item>
                         <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100">Quotation Status Snapshot</h3>
                         <div class="mt-3 space-y-2 text-xs">
                             @forelse(($quotationStatusCounts ?? collect())->sortKeys() as $status => $count)
-                                <div class="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2 dark:border-slate-700 dark:bg-slate-900">
+                                <div class="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2 dark:border-slate-700 dark:bg-slate-900" data-progressive-item>
                                     <span class="font-medium text-slate-700 dark:text-slate-200">{{ \Illuminate\Support\Str::headline((string) $status) }}</span>
                                     <span class="font-semibold text-slate-900 dark:text-slate-100">{{ number_format((int) $count) }}</span>
                                 </div>
@@ -130,11 +132,11 @@
                 @endif
 
                 @if($canInquiries)
-                    <div class="sa-card p-4">
+                    <div class="sa-card p-4" data-progressive-item>
                         <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100">Inquiry Status Distribution</h3>
                         <div class="mt-3 grid grid-cols-1 gap-2 text-xs">
                             @forelse($inquiryByStatus as $status => $total)
-                                <div class="app-card px-3 py-2 flex items-center justify-between">
+                                <div class="app-card px-3 py-2 flex items-center justify-between" data-progressive-item>
                                     <x-status-badge :status="$status" :label="ucfirst(str_replace('_', ' ', $status))" size="xs" />
                                     <b class="text-slate-700 dark:text-slate-200">{{ number_format($total) }}</b>
                                 </div>
@@ -146,7 +148,7 @@
                 @endif
 
                 @if($canInquiries)
-                    <div class="sa-card p-4">
+                    <div class="sa-card p-4" data-progressive-item>
                         <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100">Action Center: Follow-ups</h3>
                         <div class="mt-3 space-y-2">
                             @forelse($upcomingFollowUps as $followUp)
@@ -154,6 +156,7 @@
                                     $isOverdue = $followUp->due_date->isPast();
                                 @endphp
                                 <a href="{{ route('inquiries.show', $followUp->inquiry_id) }}"
+                                   data-progressive-item
                                    class="block rounded-lg px-3 py-2 text-xs {{ $isOverdue ? 'bg-rose-50 dark:bg-rose-900/20' : 'bg-slate-50 dark:bg-slate-800/50' }} hover:bg-slate-100 dark:hover:bg-slate-800">
                                     <div class="flex items-center justify-between">
                                         <p class="font-bold text-slate-700 dark:text-slate-200">{{ $followUp->inquiry->inquiry_number ?? '-' }}</p>
@@ -178,14 +181,14 @@
         </div>
 
         @if($canInquiries)
-            <div class="sa-card p-5">
+            <div class="sa-card p-5" data-progressive-group>
                 <div class="flex items-center justify-between">
                     <h2 class="text-sm font-semibold text-slate-900 dark:text-slate-100">Recent Team Inquiries</h2>
                     <a href="{{ route('inquiries.index') }}" class="text-xs font-medium text-indigo-600 hover:text-indigo-500 dark:text-indigo-400">View all</a>
                 </div>
                 <div class="mt-3 space-y-2">
                     @forelse($recentInquiries as $inquiry)
-                        <a href="{{ route('inquiries.show', $inquiry) }}" class="block app-card px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                        <a href="{{ route('inquiries.show', $inquiry) }}" class="block app-card px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-800/50" data-progressive-item>
                             <div class="flex items-center justify-between text-xs">
                                 <p class="font-semibold text-slate-700 dark:text-slate-200">{{ $inquiry->inquiry_number }}</p>
                                 <x-status-badge :status="$inquiry->status" />

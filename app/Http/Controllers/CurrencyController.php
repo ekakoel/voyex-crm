@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\Currency as CurrencySupport;
 use Illuminate\Http\Request;
 
 class CurrencyController extends Controller
@@ -13,10 +14,8 @@ class CurrencyController extends Controller
         ]);
 
         $code = strtoupper((string) $validated['currency']);
-        $exists = \App\Models\Currency::query()
-            ->where('code', $code)
-            ->where('is_active', true)
-            ->exists();
+        $exists = CurrencySupport::activeOptions()
+            ->contains(fn ($currency): bool => strtoupper((string) ($currency->code ?? '')) === $code);
 
         if (! $exists) {
             return back()->withErrors(['currency' => 'Selected currency is not available.']);

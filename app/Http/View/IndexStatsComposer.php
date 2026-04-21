@@ -2,7 +2,8 @@
 
 namespace App\Http\View;
 
-use Illuminate\Support\Facades\Schema;
+use App\Support\SchemaInspector;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 
@@ -50,103 +51,109 @@ class IndexStatsComposer
 
         $model = new $modelClass();
         $table = method_exists($model, 'getTable') ? $model->getTable() : null;
-        $cards = [];
+        $cacheKey = 'index_stats:' . $module . ':v1';
 
-        if ($module === 'inquiries' && $table && Schema::hasColumn($table, 'priority')) {
-            $priorityOptions = ['low', 'normal', 'high'];
-            $counts = $modelClass::query()
-                ->select('priority', \DB::raw('COUNT(*) as total'))
-                ->groupBy('priority')
-                ->pluck('total', 'priority');
+        $cards = Cache::remember($cacheKey, now()->addSeconds(120), function () use ($module, $table, $modelClass): array {
+            $cards = [];
 
-            foreach ($priorityOptions as $priority) {
+            if ($module === 'inquiries' && $table && SchemaInspector::hasColumn($table, 'priority')) {
+                $priorityOptions = ['low', 'normal', 'high'];
+                $counts = $modelClass::query()
+                    ->select('priority', \DB::raw('COUNT(*) as total'))
+                    ->groupBy('priority')
+                    ->pluck('total', 'priority');
+
+                foreach ($priorityOptions as $priority) {
+                    $cards[] = [
+                        'key' => 'priority_' . $priority,
+                        'label' => Str::headline((string) $priority),
+                        'value' => (int) ($counts[$priority] ?? 0),
+                        'caption' => 'Priority',
+                        'tone' => $this->toneForPriority((string) $priority),
+                    ];
+                }
+            } elseif ($this->hasStatusOptions($modelClass)) {
+                $statusOptions = $modelClass::STATUS_OPTIONS;
+                $counts = $modelClass::query()
+                    ->select('status', \DB::raw('COUNT(*) as total'))
+                    ->groupBy('status')
+                    ->pluck('total', 'status');
+
+                foreach ($statusOptions as $status) {
+                    $cards[] = [
+                        'key' => (string) $status,
+                        'label' => Str::headline((string) $status),
+                        'value' => (int) ($counts[$status] ?? 0),
+                        'caption' => 'Total',
+                        'tone' => $this->toneForStatus((string) $status),
+                    ];
+                }
+            } elseif ($table && SchemaInspector::hasColumn($table, 'is_active')) {
+                $counts = $modelClass::query()
+                    ->select('is_active', \DB::raw('COUNT(*) as total'))
+                    ->groupBy('is_active')
+                    ->pluck('total', 'is_active');
+
                 $cards[] = [
-                    'key' => 'priority_' . $priority,
-                    'label' => Str::headline((string) $priority),
-                    'value' => (int) ($counts[$priority] ?? 0),
-                    'caption' => 'Priority',
-                    'tone' => $this->toneForPriority((string) $priority),
-                ];
-            }
-        } elseif ($this->hasStatusOptions($modelClass)) {
-            $statusOptions = $modelClass::STATUS_OPTIONS;
-            $counts = $modelClass::query()
-                ->select('status', \DB::raw('COUNT(*) as total'))
-                ->groupBy('status')
-                ->pluck('total', 'status');
-
-            foreach ($statusOptions as $status) {
-                $cards[] = [
-                    'key' => (string) $status,
-                    'label' => Str::headline((string) $status),
-                    'value' => (int) ($counts[$status] ?? 0),
+                    'key' => 'total',
+                    'label' => 'Total',
+                    'value' => (int) $counts->sum(),
                     'caption' => 'Total',
-                    'tone' => $this->toneForStatus((string) $status),
+                    'tone' => 'bg-slate-50 text-slate-700 border-slate-100',
+                ];
+                $cards[] = [
+                    'key' => 'active',
+                    'label' => 'Active',
+                    'value' => (int) ($counts[1] ?? 0),
+                    'caption' => 'Active',
+                    'tone' => 'bg-emerald-50 text-emerald-700 border-emerald-100',
+                ];
+                $cards[] = [
+                    'key' => 'inactive',
+                    'label' => 'Inactive',
+                    'value' => (int) ($counts[0] ?? 0),
+                    'caption' => 'Inactive',
+                    'tone' => 'bg-slate-100 text-slate-700 border-slate-200',
+                ];
+            } elseif ($table && SchemaInspector::hasColumn($table, 'is_enabled')) {
+                $counts = $modelClass::query()
+                    ->select('is_enabled', \DB::raw('COUNT(*) as total'))
+                    ->groupBy('is_enabled')
+                    ->pluck('total', 'is_enabled');
+
+                $cards[] = [
+                    'key' => 'total',
+                    'label' => 'Total',
+                    'value' => (int) $counts->sum(),
+                    'caption' => 'Total',
+                    'tone' => 'bg-slate-50 text-slate-700 border-slate-100',
+                ];
+                $cards[] = [
+                    'key' => 'enabled',
+                    'label' => 'Enabled',
+                    'value' => (int) ($counts[1] ?? 0),
+                    'caption' => 'Enabled',
+                    'tone' => 'bg-emerald-50 text-emerald-700 border-emerald-100',
+                ];
+                $cards[] = [
+                    'key' => 'disabled',
+                    'label' => 'Disabled',
+                    'value' => (int) ($counts[0] ?? 0),
+                    'caption' => 'Disabled',
+                    'tone' => 'bg-slate-100 text-slate-700 border-slate-200',
+                ];
+            } else {
+                $cards[] = [
+                    'key' => 'total',
+                    'label' => 'Total',
+                    'value' => (int) $modelClass::query()->count(),
+                    'caption' => 'Total',
+                    'tone' => 'bg-slate-50 text-slate-700 border-slate-100',
                 ];
             }
-        } elseif ($table && Schema::hasColumn($table, 'is_active')) {
-            $counts = $modelClass::query()
-                ->select('is_active', \DB::raw('COUNT(*) as total'))
-                ->groupBy('is_active')
-                ->pluck('total', 'is_active');
 
-            $cards[] = [
-                'key' => 'total',
-                'label' => 'Total',
-                'value' => (int) $counts->sum(),
-                'caption' => 'Total',
-                'tone' => 'bg-slate-50 text-slate-700 border-slate-100',
-            ];
-            $cards[] = [
-                'key' => 'active',
-                'label' => 'Active',
-                'value' => (int) ($counts[1] ?? 0),
-                'caption' => 'Active',
-                'tone' => 'bg-emerald-50 text-emerald-700 border-emerald-100',
-            ];
-            $cards[] = [
-                'key' => 'inactive',
-                'label' => 'Inactive',
-                'value' => (int) ($counts[0] ?? 0),
-                'caption' => 'Inactive',
-                'tone' => 'bg-slate-100 text-slate-700 border-slate-200',
-            ];
-        } elseif ($table && Schema::hasColumn($table, 'is_enabled')) {
-            $counts = $modelClass::query()
-                ->select('is_enabled', \DB::raw('COUNT(*) as total'))
-                ->groupBy('is_enabled')
-                ->pluck('total', 'is_enabled');
-
-            $cards[] = [
-                'key' => 'total',
-                'label' => 'Total',
-                'value' => (int) $counts->sum(),
-                'caption' => 'Total',
-                'tone' => 'bg-slate-50 text-slate-700 border-slate-100',
-            ];
-            $cards[] = [
-                'key' => 'enabled',
-                'label' => 'Enabled',
-                'value' => (int) ($counts[1] ?? 0),
-                'caption' => 'Enabled',
-                'tone' => 'bg-emerald-50 text-emerald-700 border-emerald-100',
-            ];
-            $cards[] = [
-                'key' => 'disabled',
-                'label' => 'Disabled',
-                'value' => (int) ($counts[0] ?? 0),
-                'caption' => 'Disabled',
-                'tone' => 'bg-slate-100 text-slate-700 border-slate-200',
-            ];
-        } else {
-            $cards[] = [
-                'key' => 'total',
-                'label' => 'Total',
-                'value' => (int) $modelClass::query()->count(),
-                'caption' => 'Total',
-                'tone' => 'bg-slate-50 text-slate-700 border-slate-100',
-            ];
-        }
+            return $cards;
+        });
 
         $view->with('statsCards', $cards);
     }

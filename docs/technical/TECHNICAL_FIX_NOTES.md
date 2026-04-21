@@ -594,6 +594,27 @@ Dampak:
 - User dapat memilih satu atau beberapa sesi makan dengan lebih jelas (contoh: Lunch + Dinner saja).
 - Konsistensi data meal period meningkat karena tidak lagi mengandalkan teks bebas.
 
+## 35. Artisan Command Registration Recursion Fix (2026-04-21)
+
+Masalah:
+- Semua command Artisan, termasuk `php artisan optimize:clear`, gagal saat bootstrap console dengan fatal error memory exhausted.
+
+Akar masalah:
+- Di `app/Console/Kernel.php`, method `commands()` memanggil `$this->commands([...])` dari dalam method yang sama.
+- Karena nama method sama, pemanggilan tersebut masuk ke method `commands()` lagi dan memicu rekursi tak berujung saat Laravel mendaftarkan command.
+- Referensi ke `WarmInquiryCache` juga sudah stale karena class command tersebut tidak ada di codebase aktif.
+
+Perbaikan:
+- Menghapus pemanggilan rekursif `$this->commands([...])` dari `Kernel::commands()`.
+- Menyisakan alur standar Laravel:
+  - auto-discovery via `$this->load(__DIR__.'/Commands')`,
+  - console route closure via `routes/console.php`.
+- Menambahkan property `$commands` kosong sebagai tempat registrasi manual yang benar bila nanti benar-benar dibutuhkan.
+
+Dampak:
+- Bootstrap Artisan kembali normal.
+- Command seperti `php artisan list`, `php artisan about`, dan `php artisan optimize:clear` tidak lagi crash karena loop registrasi command.
+
 
 ## Referensi Kode
 

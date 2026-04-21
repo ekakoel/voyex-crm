@@ -4,6 +4,7 @@
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="csrf-token" content="{{ csrf_token() }}">
+        @include('layouts.partials.page-transition-init')
         @php
             $appTitle = config('app.name', 'VOYEX CRM');
             $faviconUrl = null;
@@ -56,7 +57,7 @@
                 <div class="page-spinner__text">Loading...</div>
             </div>
         </div>
-        <div class="min-h-screen flex flex-col sm:justify-center items-center pt-6 sm:pt-0 bg-gray-100">
+        <div class="min-h-screen flex flex-col sm:justify-center items-center pt-6 sm:pt-0 bg-gray-100" data-page-progressive-content>
             <div>
                 <a href="/">
                     <x-application-logo class="w-20 h-20 fill-current text-gray-500" />

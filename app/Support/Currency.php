@@ -3,30 +3,36 @@
 namespace App\Support;
 
 use App\Models\Currency as CurrencyModel;
-use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 
 class Currency
 {
+    private const CACHE_KEY = 'currencies:all_meta:v1';
+    private const CACHE_TTL_SECONDS = 300;
+
+    public static function flushCache(): void
+    {
+        Cache::forget(self::CACHE_KEY);
+    }
+
     public static function current(): string
     {
-        if (Schema::hasTable('currencies')) {
+        $currencies = static::allMeta();
+
+        if ($currencies->isNotEmpty()) {
             $session = session('currency');
             if (is_string($session)) {
-                $active = CurrencyModel::query()
-                    ->where('code', strtoupper($session))
-                    ->where('is_active', true)
-                    ->exists();
+                $sessionCode = strtoupper($session);
+                $active = $currencies->first(fn (array $currency): bool => $currency['code'] === $sessionCode && $currency['is_active']);
                 if ($active) {
-                    return strtoupper($session);
+                    return $sessionCode;
                 }
             }
 
-            $default = CurrencyModel::query()
-                ->where('is_default', true)
-                ->where('is_active', true)
-                ->value('code');
-            if (is_string($default) && $default !== '') {
-                return strtoupper($default);
+            $default = $currencies->first(fn (array $currency): bool => $currency['is_default'] && $currency['is_active']);
+            if (is_array($default) && ! empty($default['code'])) {
+                return (string) $default['code'];
             }
         }
 
@@ -41,13 +47,9 @@ class Currency
             return 1.0;
         }
 
-        if (Schema::hasTable('currencies')) {
-            $fromRate = (float) CurrencyModel::query()->where('code', $from)->value('rate_to_idr');
-            $toRate = (float) CurrencyModel::query()->where('code', $to)->value('rate_to_idr');
-        } else {
-            $fromRate = 0;
-            $toRate = 0;
-        }
+        $currencies = static::allMeta()->keyBy('code');
+        $fromRate = (float) ($currencies->get($from)['rate_to_idr'] ?? 0);
+        $toRate = (float) ($currencies->get($to)['rate_to_idr'] ?? 0);
 
         if ($fromRate <= 0 || $toRate <= 0) {
             $idrPerUsd = 16000.0;
@@ -73,31 +75,8 @@ class Currency
 
     public static function meta(string $code): ?array
     {
-        if (! Schema::hasTable('currencies')) {
-            return null;
-        }
-
-        $row = CurrencyModel::query()
-            ->where('code', strtoupper($code))
-            ->first();
-
-        if (! $row) {
-            return null;
-        }
-
-        $normalizedCode = strtoupper((string) $row->code);
-        $decimalPlaces = (int) $row->decimal_places;
-        if ($normalizedCode === 'USD') {
-            $decimalPlaces = 0;
-        }
-
-        return [
-            'code' => $row->code,
-            'name' => $row->name,
-            'symbol' => $row->symbol,
-            'rate_to_idr' => (float) $row->rate_to_idr,
-            'decimal_places' => $decimalPlaces,
-        ];
+        return static::allMeta()
+            ->first(fn (array $currency): bool => $currency['code'] === strtoupper($code));
     }
 
     public static function format(?float $amount, string $fromCurrency = 'IDR', ?string $toCurrency = null): string
@@ -117,5 +96,56 @@ class Currency
         }
 
         return $symbol . ' ' . number_format($value, $decimals, ',', '.');
+    }
+
+    public static function activeOptions(): Collection
+    {
+        return static::allMeta()
+            ->filter(fn (array $currency): bool => $currency['is_active'])
+            ->values()
+            ->map(fn (array $currency) => (object) $currency);
+    }
+
+    /**
+     * @return \Illuminate\Support\Collection<int, array{
+     *     code: string,
+     *     name: string,
+     *     symbol: string|null,
+     *     rate_to_idr: float,
+     *     decimal_places: int,
+     *     is_active: bool,
+     *     is_default: bool
+     * }>
+     */
+    private static function allMeta(): Collection
+    {
+        if (! SchemaInspector::hasTable('currencies')) {
+            return collect();
+        }
+
+        return Cache::remember(self::CACHE_KEY, now()->addSeconds(self::CACHE_TTL_SECONDS), function (): Collection {
+            return CurrencyModel::query()
+                ->orderByDesc('is_default')
+                ->orderBy('code')
+                ->get(['code', 'name', 'symbol', 'rate_to_idr', 'decimal_places', 'is_active', 'is_default'])
+                ->map(function (CurrencyModel $currency): array {
+                    $code = strtoupper((string) $currency->code);
+                    $decimalPlaces = (int) $currency->decimal_places;
+                    if ($code === 'USD') {
+                        $decimalPlaces = 0;
+                    }
+
+                    return [
+                        'code' => $code,
+                        'name' => (string) $currency->name,
+                        'symbol' => $currency->symbol,
+                        'rate_to_idr' => (float) $currency->rate_to_idr,
+                        'decimal_places' => $decimalPlaces,
+                        'is_active' => (bool) $currency->is_active,
+                        'is_default' => (bool) $currency->is_default,
+                    ];
+                })
+                ->values();
+        });
     }
 }

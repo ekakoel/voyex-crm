@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Currency;
+use App\Support\Currency as CurrencySupport;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -55,6 +56,8 @@ class CurrencyController extends Controller
             Currency::query()->where('id', '!=', $currency->id)->update(['is_default' => false]);
         }
 
+        CurrencySupport::flushCache();
+
         return redirect()->route('currencies.index')->with('success', 'Currency created.');
     }
 
@@ -98,6 +101,8 @@ class CurrencyController extends Controller
         if ($currency->is_default) {
             Currency::query()->where('id', '!=', $currency->id)->update(['is_default' => false]);
         }
+
+        CurrencySupport::flushCache();
 
         return redirect()->route('currencies.index')->with('success', 'Currency updated.');
     }
@@ -151,6 +156,8 @@ class CurrencyController extends Controller
             }
         }
 
+        CurrencySupport::flushCache();
+
         return back()->with('success', 'Bulk rate update saved.');
     }
 
@@ -165,6 +172,7 @@ class CurrencyController extends Controller
         }
 
         $currency->delete();
+        CurrencySupport::flushCache();
 
         return back()->with('success', 'Currency deleted.');
     }

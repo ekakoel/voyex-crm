@@ -195,3 +195,59 @@ Agar layout tidak drift antar modul:
 2. pakai komponen style global (`app-card`, `app-table`, `app-input`, `btn-*`),
 3. untuk field nominal gunakan standar `x-money-input` dengan badge currency kiri (left affix),
 4. update dokumen ini jika baseline layout global berubah.
+
+## 8. Async Dashboard Pattern (Recommended)
+
+Untuk dashboard dengan banyak KPI/query:
+
+1. Render shell halaman terlebih dulu (header, layout grid, card container, skeleton).
+2. Load setiap section via endpoint widget terpisah (AJAX paralel), contoh:
+   - `/administrator-dashboard/widgets/system-management`
+   - `/administrator-dashboard/widgets/operational-overview`
+   - `/administrator-dashboard/widgets/master-data-catalog`
+3. Setiap widget mengembalikan JSON:
+   - `ok` (boolean)
+   - `section` (string)
+   - `html` (rendered partial)
+4. Frontend mengganti skeleton section secara independen begitu respons siap
+   (jangan menunggu seluruh widget selesai).
+5. Tambahkan cache singkat per-user/per-section (TTL 30-120 detik) untuk menurunkan latency query berat.
+
+Standar penamaan partial dashboard:
+- `resources/views/<module>/dashboard/partials/<section>.blade.php`
+- skeleton shared partial: `_skeleton.blade.php`
+
+## 9. Spinner Standard (Form-Only Overlay)
+
+Mulai rollout performa 2026-04-21, overlay `page-spinner` memakai kebijakan global berikut:
+
+1. Navigasi halaman/link tidak boleh memunculkan overlay spinner.
+2. Spinner overlay hanya dipakai saat submit form.
+3. Untuk form async/non-blocking, wajib set:
+   - `data-page-spinner="off"`
+4. Halaman async/background-load tetap wajib:
+   - `data-background-load-page="1"`
+   - skeleton lokal per-section sebagai indikator loading utama.
+5. Jangan mengandalkan overlay spinner global untuk halaman list/index/dashboard modern.
+
+## 10. Progressive Blur Transition Standard
+
+Untuk meningkatkan persepsi performa saat klik link/navigation:
+
+1. Klik link internal harus langsung mengganti konten ke shell tujuan (instant shell), lalu lanjut navigasi normal ke URL target.
+2. Shell instant wajib menampilkan placeholder data per baris (contoh: `Name: Loading...`) dengan state blur.
+3. Konten utama wajib dibungkus marker:
+   - `data-page-progressive-content`
+4. Saat pending, konten ditampilkan blur + slightly dim (`filter + opacity`), tanpa blocking interaksi global.
+5. Saat halaman target siap (`window.load` atau fallback timeout), state dihapus dan konten kembali tajam.
+6. Implementasi ini berlaku global di layout, bukan per-modul, agar konsisten lintas proyek.
+
+## 11. Progressive Data Reveal Standard
+
+Untuk halaman async (dashboard/index berat), gunakan aturan ini:
+
+1. Data tidak dimunculkan serentak penuh, tetapi bertahap (queue/batch kecil).
+2. Blok data yang sudah siap harus langsung tampil.
+3. Blok data yang belum siap tetap blur per-item (bukan blur seluruh UI).
+4. Gunakan marker `data-progressive-item` pada item data yang di-reveal.
+5. Reveal dilakukan berurutan (stagger) agar user melihat progres loading nyata.

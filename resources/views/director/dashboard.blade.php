@@ -66,16 +66,16 @@
     }
 @endphp
 
-<div class="sa-wrap rounded-3xl border border-slate-200/80 bg-slate-100/70 p-3 dark:border-slate-700 dark:bg-slate-900/60">
+<div class="sa-wrap rounded-3xl border border-slate-200/80 bg-slate-100/70 p-3 dark:border-slate-700 dark:bg-slate-900/60" data-progressive-dashboard>
     @if (($needsDirectorApprovalCount ?? 0) > 0)
         <div class="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-300">
             {{ number_format((int) $needsDirectorApprovalCount) }} quotation(s) are waiting for your approval.
         </div>
     @endif
 
-    <div class="dashboard-kpi-grid">
+    <div class="dashboard-kpi-grid" data-progressive-group>
         @foreach($kpiCards as $card)
-            <div class="sa-card p-4">
+            <div class="sa-card p-4" data-progressive-item>
                 <div class="flex items-center justify-between">
                     <span class="sa-dot sa-{{ $card['color'] }}"><i class="fa-solid fa-{{ $card['icon'] }}"></i></span>
                     <span class="text-[10px] text-slate-400 uppercase">KPI</span>
@@ -93,10 +93,10 @@
         @endforeach
     </div>
 
-    <div class="mt-3 grid grid-cols-1 gap-3 xl:grid-cols-12">
-        <section class="xl:col-span-8 space-y-3">
+    <div class="mt-3 grid grid-cols-1 gap-3 xl:grid-cols-12" data-progressive-group>
+        <section class="xl:col-span-8 space-y-3" data-progressive-group>
             @if($canQuotations)
-                <div class="sa-card p-5">
+                <div class="sa-card p-5" data-progressive-item>
                     <div class="flex items-center justify-between">
                         <h2 class="text-sm font-semibold text-slate-900 dark:text-slate-100">Approval Pipeline</h2>
                         <a href="{{ route('quotations.index', ['status' => 'pending', 'needs_my_approval' => 1]) }}" class="text-xs font-medium text-indigo-600 hover:text-indigo-700 dark:text-indigo-300">
@@ -122,14 +122,14 @@
                     </div>
                 </div>
 
-                <div class="sa-card p-5">
+                <div class="sa-card p-5" data-progressive-item>
                     <div class="flex items-center justify-between">
                         <h2 class="text-sm font-semibold text-slate-900 dark:text-slate-100">Director Approval Queue</h2>
                         <span class="text-[11px] text-slate-500 dark:text-slate-400">Prioritized by validity date</span>
                     </div>
                     <div class="mt-3 space-y-2 text-xs">
                         @forelse($pendingApprovals as $quotation)
-                            <div class="rounded-xl border border-slate-200 bg-white px-3 py-3 dark:border-slate-700 dark:bg-slate-900">
+                            <div class="rounded-xl border border-slate-200 bg-white px-3 py-3 dark:border-slate-700 dark:bg-slate-900" data-progressive-item>
                                 <div class="flex flex-wrap items-start justify-between gap-2">
                                     <div>
                                         <p class="font-semibold text-slate-800 dark:text-slate-100">{{ $quotation->quotation_number }}</p>
@@ -156,7 +156,7 @@
             @endif
 
             @if($canBookings)
-                <div class="sa-card p-5">
+                <div class="sa-card p-5" data-progressive-item>
                     <div class="flex items-center justify-between">
                         <h2 class="text-sm font-semibold text-slate-900 dark:text-slate-100">Revenue Trend ({{ now()->year }})</h2>
                         <span class="text-[11px] text-slate-500 dark:text-slate-400">Based on booking creation date</span>
@@ -167,7 +167,7 @@
                                 $value = (float) ($row['total'] ?? 0);
                                 $barHeight = ($maxMonthlyRevenue ?? 0) > 0 ? max(8, (int) round(($value / $maxMonthlyRevenue) * 70)) : 8;
                             @endphp
-                            <div class="rounded-lg border border-slate-200 bg-white px-2 py-2 dark:border-slate-700 dark:bg-slate-900">
+                            <div class="rounded-lg border border-slate-200 bg-white px-2 py-2 dark:border-slate-700 dark:bg-slate-900" data-progressive-item>
                                 <p class="text-[10px] font-semibold text-slate-600 dark:text-slate-300">{{ $row['label'] }}</p>
                                 <div class="mt-2 h-[74px] flex items-end">
                                     <div class="w-full rounded-sm bg-indigo-500/80 dark:bg-indigo-400/70" style="height: {{ $barHeight }}px"></div>
@@ -180,13 +180,13 @@
             @endif
         </section>
 
-        <aside class="xl:col-span-4 space-y-3">
+        <aside class="xl:col-span-4 space-y-3" data-progressive-group>
             @if($canQuotations)
-                <div class="sa-card p-4">
+                <div class="sa-card p-4" data-progressive-item>
                     <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100">Quotation Status Snapshot</h3>
                     <div class="mt-3 space-y-2 text-xs">
                         @forelse(($quotationStatusCounts ?? collect())->sortKeys() as $status => $count)
-                            <div class="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2 dark:border-slate-700 dark:bg-slate-900">
+                            <div class="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2 dark:border-slate-700 dark:bg-slate-900" data-progressive-item>
                                 <span class="font-medium text-slate-700 dark:text-slate-200">{{ \Illuminate\Support\Str::headline((string) $status) }}</span>
                                 <span class="font-semibold text-slate-900 dark:text-slate-100">{{ number_format((int) $count) }}</span>
                             </div>
@@ -198,11 +198,11 @@
             @endif
 
             @if($canBookings)
-                <div class="sa-card p-4">
+                <div class="sa-card p-4" data-progressive-item>
                     <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100">Upcoming Bookings</h3>
                     <div class="mt-3 space-y-2 text-xs">
                         @forelse($upcomingBookings as $booking)
-                            <div class="rounded-lg border border-slate-200 bg-white px-3 py-2 dark:border-slate-700 dark:bg-slate-900">
+                            <div class="rounded-lg border border-slate-200 bg-white px-3 py-2 dark:border-slate-700 dark:bg-slate-900" data-progressive-item>
                                 <p class="font-semibold text-slate-800 dark:text-slate-100">{{ $booking->booking_number }}</p>
                                 <p class="text-slate-500 dark:text-slate-400">{{ optional($booking->travel_date)->format('Y-m-d') ?? '-' }} • {{ \Illuminate\Support\Str::headline((string) ($booking->status ?? '-')) }}</p>
                                 <p class="text-slate-500 dark:text-slate-400">{{ $booking->quotation?->inquiry?->customer?->name ?? 'Customer not set' }}</p>
@@ -229,4 +229,3 @@
     })();
 </script>
 @endpush
-

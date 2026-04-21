@@ -202,6 +202,18 @@ Kebijakan ini wajib untuk setiap update code (penambahan, perubahan, pengurangan
 Date: 2026-04-21
 Completed in this cycle:
 
+- Artisan bootstrap memory exhaustion fix:
+  - fixed console command registration recursion in `app/Console/Kernel.php`.
+  - removed recursive `$this->commands([...])` call from inside `Kernel::commands()` that caused infinite command registration loop during Artisan bootstrap.
+  - retained standard command loading via `$this->load(__DIR__.'/Commands')` and `routes/console.php`.
+  - cleaned the stale manual registration path for missing `WarmInquiryCache` command.
+  - impact:
+    - `php artisan optimize:clear` and other Artisan commands can bootstrap normally again,
+    - prevents memory exhaustion during command discovery.
+- QA note:
+  - bootstrap isolation confirmed the failure was inside `Kernel::commands()`.
+  - `php artisan optimize:clear` passed after the fix.
+
 - Food & Beverage pricing currency canonicalization (IDR persistence):
   - fixed create/edit F&B pricing persistence so `contract_rate` and fixed `markup` are always stored in IDR regardless of active display currency.
   - backend normalization now converts submitted display-currency values to IDR using current currency rate before publish-rate computation and persistence.

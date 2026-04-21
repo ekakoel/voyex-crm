@@ -4,6 +4,7 @@
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="csrf-token" content="{{ csrf_token() }}">
+        @include('layouts.partials.page-transition-init')
 
         <title>{{ config('app.name', 'Laravel') }}</title>
 
@@ -34,7 +35,7 @@
             @endif
 
             <!-- Page Content -->
-            <main class="app-main flex-1 min-h-0 overflow-y-auto">
+            <main class="app-main flex-1 min-h-0 overflow-y-auto" data-page-progressive-content>
                 {{ $slot }}
             </main>
         </div>

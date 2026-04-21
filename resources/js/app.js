@@ -342,6 +342,10 @@ document.addEventListener('submit', (event) => {
 });
 
 const PAGE_SPINNER_SELECTOR = '[data-page-spinner]';
+const PAGE_SPINNER_MODE_ATTR = 'data-page-spinner';
+const PAGE_TRANSITION_PENDING_KEY = 'app_nav_progressive_pending';
+const PAGE_TRANSITION_PENDING_TS_KEY = `${PAGE_TRANSITION_PENDING_KEY}_ts`;
+const PAGE_TRANSITION_TTL_MS = 20000;
 
 function setPageSpinnerVisible(visible) {
     const spinner = document.querySelector(PAGE_SPINNER_SELECTOR);
@@ -352,20 +356,185 @@ function setPageSpinnerVisible(visible) {
     spinner.setAttribute('aria-hidden', visible ? 'false' : 'true');
 }
 
-function shouldSkipPageSpinner(element) {
-    if (!element) {
+function shouldShowPageSpinnerOnForm(form) {
+    if (!(form instanceof HTMLFormElement)) {
         return false;
     }
-    if (element.closest('[data-page-spinner="off"]')) {
+    const explicitModeHost = form.closest(`[${PAGE_SPINNER_MODE_ATTR}]`);
+    const explicitMode = explicitModeHost?.getAttribute(PAGE_SPINNER_MODE_ATTR)?.toLowerCase() ?? '';
+
+    if (explicitMode === 'on') {
         return true;
     }
-    if (element.dataset.skipSpinner === '1') {
-        return true;
+
+    if (explicitMode === 'off') {
+        return false;
     }
-    if (element.dataset.pageSpinner === 'off') {
-        return true;
+
+    if (form.dataset.skipSpinner === '1') {
+        return false;
     }
-    return false;
+
+    // Standard global: overlay spinner only for form submit process.
+    return true;
+}
+
+function markPageTransitionPending() {
+    try {
+        sessionStorage.setItem(PAGE_TRANSITION_PENDING_KEY, '1');
+        sessionStorage.setItem(PAGE_TRANSITION_PENDING_TS_KEY, String(Date.now()));
+    } catch (_) {
+        // Ignore storage restriction in private mode.
+    }
+}
+
+function clearPageTransitionPending() {
+    try {
+        sessionStorage.removeItem(PAGE_TRANSITION_PENDING_KEY);
+        sessionStorage.removeItem(PAGE_TRANSITION_PENDING_TS_KEY);
+    } catch (_) {
+        // Ignore storage restriction in private mode.
+    }
+}
+
+function getInternalNavigationUrl(link, event) {
+    if (!(link instanceof HTMLAnchorElement)) {
+        return null;
+    }
+    if (event.defaultPrevented || event.button !== 0) {
+        return null;
+    }
+    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+        return null;
+    }
+    if (link.target && link.target !== '_self') {
+        return null;
+    }
+    if (link.hasAttribute('download')) {
+        return null;
+    }
+    if (link.dataset.instantNav === 'off' || link.closest('[data-instant-nav="off"]')) {
+        return null;
+    }
+    const href = link.getAttribute('href');
+    if (!href || href.startsWith('#') || href.startsWith('javascript:')) {
+        return null;
+    }
+
+    let url;
+    try {
+        url = new URL(href, window.location.href);
+    } catch (_) {
+        return null;
+    }
+
+    if (url.origin !== window.location.origin) {
+        return null;
+    }
+
+    if (url.pathname === window.location.pathname && url.search === window.location.search && url.hash !== '') {
+        return null;
+    }
+
+    return url;
+}
+
+function renderInstantNavigationShell(link) {
+    const contentRoot = document.querySelector('[data-page-progressive-content]');
+    if (!contentRoot) {
+        return;
+    }
+
+    const root = document.documentElement;
+    const title = String(link?.textContent || '').trim() || 'Opening Page';
+    const safeTitle = escapeHtml(title);
+    contentRoot.innerHTML = `
+        <section class="instant-nav-shell app-card p-5 sm:p-6">
+            <div class="instant-nav-shell__header">
+                <h2 class="instant-nav-shell__title">${safeTitle}</h2>
+                <p class="instant-nav-shell__subtitle">Loading data in background...</p>
+            </div>
+            <div class="instant-nav-shell__list">
+                <div class="instant-nav-shell__row">
+                    <span class="instant-nav-shell__label">Name:</span>
+                    <span class="instant-nav-shell__value is-blur">Loading...</span>
+                </div>
+                <div class="instant-nav-shell__row">
+                    <span class="instant-nav-shell__label">Status:</span>
+                    <span class="instant-nav-shell__value is-blur">Loading...</span>
+                </div>
+                <div class="instant-nav-shell__row">
+                    <span class="instant-nav-shell__label">Summary:</span>
+                    <span class="instant-nav-shell__value is-blur">Loading...</span>
+                </div>
+            </div>
+        </section>
+    `;
+
+    root.classList.add('page-transition-pending');
+    root.classList.remove('page-transition-ready');
+    root.setAttribute('data-page-transition', 'pending');
+    document.title = `${title} · Loading...`;
+}
+
+function bindPageProgressiveTransition() {
+    const root = document.documentElement;
+    let settled = false;
+    let pendingTs = 0;
+    try {
+        pendingTs = Number(sessionStorage.getItem(PAGE_TRANSITION_PENDING_TS_KEY) || 0);
+    } catch (_) {
+        pendingTs = 0;
+    }
+
+    const settleTransition = () => {
+        if (settled) {
+            return;
+        }
+        settled = true;
+        if (root.classList.contains('page-transition-pending')) {
+            root.classList.add('page-transition-ready');
+            window.setTimeout(() => {
+                root.classList.remove('page-transition-pending', 'page-transition-ready');
+                root.removeAttribute('data-page-transition');
+            }, 240);
+        }
+        clearPageTransitionPending();
+    };
+
+    document.addEventListener('click', (event) => {
+        const link = event.target.closest('a');
+        const url = getInternalNavigationUrl(link, event);
+        if (!url) {
+            return;
+        }
+
+        event.preventDefault();
+        markPageTransitionPending();
+        renderInstantNavigationShell(link);
+        window.requestAnimationFrame(() => {
+            window.location.assign(url.toString());
+        });
+    }, true);
+
+    const stale = !Number.isFinite(pendingTs) || pendingTs <= 0 || (Date.now() - pendingTs) > PAGE_TRANSITION_TTL_MS;
+    if (stale) {
+        clearPageTransitionPending();
+        root.classList.remove('page-transition-pending', 'page-transition-ready');
+        root.removeAttribute('data-page-transition');
+        return;
+    }
+
+    if (root.classList.contains('page-transition-pending')) {
+        if (document.readyState === 'complete') {
+            window.setTimeout(settleTransition, 80);
+        } else {
+            window.addEventListener('load', () => window.setTimeout(settleTransition, 80), { once: true });
+            window.setTimeout(settleTransition, 1400);
+        }
+    } else {
+        clearPageTransitionPending();
+    }
 }
 
 function bindPageSpinner() {
@@ -376,63 +545,66 @@ function bindPageSpinner() {
 
     setPageSpinnerVisible(false);
 
-    document.addEventListener('click', (event) => {
-        const link = event.target.closest('a');
-        if (!link) {
-            return;
-        }
-        if (shouldSkipPageSpinner(link)) {
-            return;
-        }
-        if (link.target && link.target !== '_self') {
-            return;
-        }
-        if (link.hasAttribute('download')) {
-            return;
-        }
-        const href = link.getAttribute('href');
-        if (!href || href.startsWith('#') || href.startsWith('javascript:')) {
-            return;
-        }
-
-        let url;
-        try {
-            url = new URL(href, window.location.href);
-        } catch (_) {
-            return;
-        }
-        if (url.origin !== window.location.origin) {
-            return;
-        }
-        if (url.pathname === window.location.pathname && url.search === window.location.search && url.hash !== '') {
-            return;
-        }
-
-        setPageSpinnerVisible(true);
-    });
+    let spinnerRequestedByForm = false;
 
     document.addEventListener('submit', (event) => {
         const form = event.target;
-        if (!(form instanceof HTMLFormElement)) {
+        if (!shouldShowPageSpinnerOnForm(form)) {
             return;
         }
-        if (shouldSkipPageSpinner(form)) {
-            return;
-        }
+        spinnerRequestedByForm = true;
         setPageSpinnerVisible(true);
     });
 
     window.addEventListener('beforeunload', () => {
-        setPageSpinnerVisible(true);
+        if (spinnerRequestedByForm) {
+            setPageSpinnerVisible(true);
+        }
     });
 
     window.addEventListener('pageshow', () => {
+        spinnerRequestedByForm = false;
         setPageSpinnerVisible(false);
     });
 }
 
+function bindProgressiveDataReveal() {
+    const pages = document.querySelectorAll('[data-progressive-dashboard]');
+    if (!pages.length) {
+        return;
+    }
+
+    const STEP_MS = 80;
+    const GROUP_DELAY_MS = 180;
+
+    pages.forEach((page) => {
+        const groups = Array.from(page.querySelectorAll('[data-progressive-group]'));
+        if (!groups.length) {
+            groups.push(page);
+        }
+
+        groups.forEach((group, groupIndex) => {
+            const items = Array.from(group.querySelectorAll('[data-progressive-item]'));
+            if (!items.length) {
+                return;
+            }
+
+            items.forEach((item) => item.classList.add('dashboard-item-pending'));
+            items.forEach((item, itemIndex) => {
+                const delay = (groupIndex * GROUP_DELAY_MS) + (itemIndex * STEP_MS);
+                window.setTimeout(() => {
+                    item.classList.remove('dashboard-item-pending');
+                    item.classList.add('dashboard-item-ready');
+                }, delay);
+            });
+        });
+    });
+}
+
 document.addEventListener('DOMContentLoaded', () => {
+    bindPageProgressiveTransition();
     bindPageSpinner();
+    bindProgressiveDataReveal();
 });
 
 function ensureActionSpinner(target) {
@@ -2161,8 +2333,3 @@ if (window.axios) {
         }
     );
 }
-
-
-
-
-

@@ -2,12 +2,12 @@
 
 namespace App\Http\View;
 
-use App\Models\CompanySetting;
-use App\Models\Currency;
 use App\Models\Quotation;
 use App\Services\ModuleService;
+use App\Support\CompanySettingsCache;
+use App\Support\SchemaInspector;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\View\View;
 use Illuminate\Support\Facades\Auth;
 
@@ -23,25 +23,22 @@ class SidebarComposer
     {
         $menuItems = $this->getMenuItems();
         $user = Auth::user();
-        $view->with('menuItems', $this->filterMenuItems($menuItems, $user));
-        
-        $companySettings = CompanySetting::query()->first();
+        $enabledModules = ModuleService::enabledMap();
+
+        $view->with('menuItems', $this->filterMenuItems($menuItems, $user, $enabledModules));
+
+        $companySettings = CompanySettingsCache::get();
         if ($companySettings && $companySettings->company_name) {
             $companySettings->company_name = $this->cleanHtmlEntities($companySettings->company_name);
         }
         $view->with('companySettings', $companySettings);
-        
-        $view->with('currentCurrency', \App\Support\Currency::current());
-        $currencyOptions = collect();
-        if (Schema::hasTable('currencies')) {
-            $currencyOptions = Currency::query()
-                ->where('is_active', true)
-                ->orderByDesc('is_default')
-                ->orderBy('code')
-                ->get(['id', 'code', 'name', 'symbol', 'rate_to_idr', 'decimal_places']);
-        }
+
+        $currentCurrency = \App\Support\Currency::current();
+        $currencyOptions = \App\Support\Currency::activeOptions();
+
+        $view->with('currentCurrency', $currentCurrency);
         $view->with('currencyOptions', $currencyOptions);
-        $view->with('quotationApprovalNotification', $this->buildQuotationApprovalNotification($user));
+        $view->with('quotationApprovalNotification', $this->buildQuotationApprovalNotification($user, $enabledModules));
     }
 
     /**
@@ -276,9 +273,10 @@ class SidebarComposer
      *
      * @param  array<int, array<string, mixed>>  $items
      * @param  mixed  $user
+     * @param  array<string, bool>  $enabledModules
      * @return array<int, array<string, mixed>>
      */
-    private function filterMenuItems(array $items, $user): array
+    private function filterMenuItems(array $items, $user, array $enabledModules): array
     {
         $accessible = [];
 
@@ -313,7 +311,7 @@ class SidebarComposer
                 }
             }
 
-            if (! empty($item['module']) && ! ModuleService::isEnabledStatic($item['module'])) {
+            if (! empty($item['module']) && ! ($enabledModules[$item['module']] ?? (bool) config('modules.fail_open', false))) {
                 continue;
             }
 
@@ -327,7 +325,7 @@ class SidebarComposer
 
 
             if (! empty($item['children']) && is_array($item['children'])) {
-                $item['children'] = $this->filterMenuItems($item['children'], $user);
+                $item['children'] = $this->filterMenuItems($item['children'], $user, $enabledModules);
 
                 if (empty($item['children'])) {
                     // If after filtering, no children left, only skip if it's just a container
@@ -424,9 +422,10 @@ class SidebarComposer
 
     /**
      * @param mixed $user
+     * @param array<string, bool> $enabledModules
      * @return array{visible: bool, role: string|null, count: int}
      */
-    private function buildQuotationApprovalNotification($user): array
+    private function buildQuotationApprovalNotification($user, array $enabledModules): array
     {
         $empty = [
             'visible' => false,
@@ -434,11 +433,11 @@ class SidebarComposer
             'count' => 0,
         ];
 
-        if (! $user || ! Schema::hasTable('quotations') || ! Schema::hasTable('quotation_approvals')) {
+        if (! $user || ! SchemaInspector::hasTable('quotations') || ! SchemaInspector::hasTable('quotation_approvals')) {
             return $empty;
         }
 
-        if (! ModuleService::isEnabledStatic('quotations')) {
+        if (! ($enabledModules['quotations'] ?? false)) {
             return $empty;
         }
 
@@ -463,31 +462,39 @@ class SidebarComposer
             return $empty;
         }
 
-        $baseQuery = Quotation::query()->where('status', 'pending');
-        if (Schema::hasColumn('quotations', 'created_by')) {
-            $baseQuery->where(function (Builder $query) use ($user): void {
-                $query->whereNull('created_by')
-                    ->orWhere('created_by', '!=', (int) $user->id);
-            });
-        }
+        $hasCreatedBy = SchemaInspector::hasColumn('quotations', 'created_by');
 
-        $count = (clone $baseQuery)
-            ->whereDoesntHave('approvals', function (Builder $query) use ($user): void {
-                $query->where('user_id', (int) $user->id);
-            })
-            ->when(
-                Schema::hasColumn('quotations', 'created_by'),
-                fn (Builder $query) => $query->whereRaw(
-                    '(SELECT COUNT(*) FROM quotation_approvals qa'
-                    .' WHERE qa.quotation_id = quotations.id'
-                    .' AND (quotations.created_by IS NULL OR qa.user_id <> quotations.created_by)) < 2'
-                ),
-                fn (Builder $query) => $query->whereRaw(
-                    '(SELECT COUNT(*) FROM quotation_approvals qa'
-                    .' WHERE qa.quotation_id = quotations.id) < 2'
-                )
-            )
-            ->count();
+        $count = Cache::remember(
+            "sidebar:quotation_approval_notification:{$user->id}:{$role}",
+            now()->addSeconds(20),
+            function () use ($user, $hasCreatedBy): int {
+                $baseQuery = Quotation::query()->where('status', 'pending');
+                if ($hasCreatedBy) {
+                    $baseQuery->where(function (Builder $query) use ($user): void {
+                        $query->whereNull('created_by')
+                            ->orWhere('created_by', '!=', (int) $user->id);
+                    });
+                }
+
+                return (int) (clone $baseQuery)
+                    ->whereDoesntHave('approvals', function (Builder $query) use ($user): void {
+                        $query->where('user_id', (int) $user->id);
+                    })
+                    ->when(
+                        $hasCreatedBy,
+                        fn (Builder $query) => $query->whereRaw(
+                            '(SELECT COUNT(*) FROM quotation_approvals qa'
+                            .' WHERE qa.quotation_id = quotations.id'
+                            .' AND (quotations.created_by IS NULL OR qa.user_id <> quotations.created_by)) < 2'
+                        ),
+                        fn (Builder $query) => $query->whereRaw(
+                            '(SELECT COUNT(*) FROM quotation_approvals qa'
+                            .' WHERE qa.quotation_id = quotations.id) < 2'
+                        )
+                    )
+                    ->count();
+            }
+        );
 
         return [
             'visible' => true,

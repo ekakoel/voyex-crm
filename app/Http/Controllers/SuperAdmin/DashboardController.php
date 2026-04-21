@@ -25,6 +25,7 @@ use App\Services\ModuleService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Spatie\Permission\Models\Permission;
@@ -34,176 +35,202 @@ class DashboardController extends Controller
 {
     public function index()
     {
-        $today = now();
-        $bookingsModuleEnabled = ModuleService::isEnabledStatic('bookings');
+        $payload = Cache::remember('superadmin:dashboard:index:v1', now()->addSeconds(60), function (): array {
+            $today = now();
+            $bookingsModuleEnabled = ModuleService::isEnabledStatic('bookings');
 
-        $systemCounts = [
-            'users' => User::query()->count(),
-            'customers' => Customer::query()->count(),
-            'inquiries' => Inquiry::query()->count(),
-            'quotations' => Quotation::query()->count(),
-            'bookings' => $bookingsModuleEnabled ? Booking::query()->count() : 0,
-            'invoices' => Invoice::query()->count(),
-            'itineraries' => Itinerary::query()->count(),
-            'vendors' => Vendor::query()->count(),
-            'activities' => Activity::query()->count(),
-            'destinations' => Destination::query()->count(),
-            'airports' => Airport::query()->count(),
-            'tourist_attractions' => TouristAttraction::query()->count(),
-            'food_beverages' => FoodBeverage::query()->count(),
-            'hotels' => Hotel::query()->count(),
-            'transports' => Transport::query()->count(),
-            'currencies' => Currency::query()->count(),
-        ];
+            $systemCounts = [
+                'users' => User::query()->count(),
+                'customers' => Customer::query()->count(),
+                'inquiries' => Inquiry::query()->count(),
+                'quotations' => Quotation::query()->count(),
+                'bookings' => $bookingsModuleEnabled ? Booking::query()->count() : 0,
+                'invoices' => Invoice::query()->count(),
+                'itineraries' => Itinerary::query()->count(),
+                'vendors' => Vendor::query()->count(),
+                'activities' => Activity::query()->count(),
+                'destinations' => Destination::query()->count(),
+                'airports' => Airport::query()->count(),
+                'tourist_attractions' => TouristAttraction::query()->count(),
+                'food_beverages' => FoodBeverage::query()->count(),
+                'hotels' => Hotel::query()->count(),
+                'transports' => Transport::query()->count(),
+                'currencies' => Currency::query()->count(),
+            ];
 
-        $moduleStats = [
-            'enabled' => Module::query()->where('is_enabled', true)->count(),
-            'disabled' => Module::query()->where('is_enabled', false)->count(),
-            'total' => Module::query()->count(),
-        ];
+            $moduleStats = [
+                'enabled' => Module::query()->where('is_enabled', true)->count(),
+                'disabled' => Module::query()->where('is_enabled', false)->count(),
+                'total' => Module::query()->count(),
+            ];
 
-        $rolesAndPermissions = [
-            'roles' => Role::query()->count(),
-            'permissions' => Permission::query()->count(),
-        ];
+            $rolesAndPermissions = [
+                'roles' => Role::query()->count(),
+                'permissions' => Permission::query()->count(),
+            ];
 
-        $inquiryByStatus = Inquiry::query()
-            ->select('status', DB::raw('COUNT(*) as total'))
-            ->groupBy('status')
-            ->pluck('total', 'status')
-            ->toArray();
-
-        $quotationByStatus = Quotation::query()
-            ->select('status', DB::raw('COUNT(*) as total'))
-            ->groupBy('status')
-            ->pluck('total', 'status')
-            ->toArray();
-
-        $bookingByStatus = $bookingsModuleEnabled
-            ? Booking::query()
+            $inquiryByStatus = Inquiry::query()
                 ->select('status', DB::raw('COUNT(*) as total'))
                 ->groupBy('status')
                 ->pluck('total', 'status')
-                ->toArray()
-            : [];
+                ->toArray();
 
-        $recentSystemHistory = $this->buildRecentSystemHistory($bookingsModuleEnabled);
+            $quotationByStatus = Quotation::query()
+                ->select('status', DB::raw('COUNT(*) as total'))
+                ->groupBy('status')
+                ->pluck('total', 'status')
+                ->toArray();
 
-        $operationalAlerts = [
-            'pending_followups' => InquiryFollowUp::query()->where('is_done', false)->count(),
-            'followups_due_today' => InquiryFollowUp::query()
-                ->where('is_done', false)
-                ->whereDate('due_date', $today->toDateString())
-                ->count(),
-            'followups_overdue' => InquiryFollowUp::query()
-                ->where('is_done', false)
-                ->whereDate('due_date', '<', $today->toDateString())
-                ->count(),
-            'quotations_expiring_7d' => Quotation::query()
-                ->whereDate('validity_date', '>=', $today->toDateString())
-                ->whereDate('validity_date', '<=', $today->copy()->addDays(7)->toDateString())
-                ->count(),
-            'upcoming_bookings_7d' => $bookingsModuleEnabled
+            $bookingByStatus = $bookingsModuleEnabled
                 ? Booking::query()
-                    ->whereDate('travel_date', '>=', $today->toDateString())
-                    ->whereDate('travel_date', '<=', $today->copy()->addDays(7)->toDateString())
-                    ->count()
-                : 0,
-        ];
+                    ->select('status', DB::raw('COUNT(*) as total'))
+                    ->groupBy('status')
+                    ->pluck('total', 'status')
+                    ->toArray()
+                : [];
 
-        $upcomingFollowUps = InquiryFollowUp::query()
-            ->with('inquiry:id,inquiry_number')
-            ->where('is_done', false)
-            ->orderBy('due_date')
-            ->limit(8)
-            ->get(['id', 'inquiry_id', 'due_date', 'channel', 'note', 'is_done']);
+            $recentSystemHistory = $this->buildRecentSystemHistory($bookingsModuleEnabled);
 
-        $expiringQuotations = Quotation::query()
-            ->orderBy('validity_date')
-            ->limit(8)
-            ->get(['id', 'quotation_number', 'status', 'validity_date']);
-
-        $upcomingBookings = $bookingsModuleEnabled
-            ? Booking::query()
-                ->orderBy('travel_date')
-                ->limit(8)
-                ->get(['id', 'booking_number', 'status', 'travel_date'])
-            : collect();
-
-        $activityLogs = collect();
-        if (Schema::hasTable('activity_logs')) {
-            $activityLogs = DB::table('activity_logs')
-                ->select(['id', 'module', 'action', 'subject_type', 'user_id', 'created_at'])
-                ->orderByDesc('created_at')
-                ->limit(12)
-                ->get();
-        }
-
-        $failedJobs = collect();
-        $failedJobsCount = 0;
-        $queueBacklogCount = 0;
-        if (Schema::hasTable('jobs')) {
-            $queueBacklogCount = DB::table('jobs')->count();
-        }
-        if (Schema::hasTable('failed_jobs')) {
-            $failedJobs = DB::table('failed_jobs')
-                ->select(['id', 'exception', 'failed_at'])
-                ->orderByDesc('failed_at')
-                ->limit(8)
-                ->get();
-            $failedJobsCount = DB::table('failed_jobs')->count();
-        }
-
-        $healthInfo = [
-            'environment' => app()->environment(),
-            'debug' => (bool) config('app.debug'),
-            'queue_connection' => (string) config('queue.default'),
-            'cache_driver' => (string) config('cache.default'),
-            'session_driver' => (string) config('session.driver'),
-            'database_connection' => (string) config('database.default'),
-            'queue_backlog' => $queueBacklogCount,
-            'failed_jobs' => $failedJobsCount,
-        ];
-
-        $actionCenter = [
-            [
-                'label' => 'Follow-ups Overdue',
-                'value' => (int) ($operationalAlerts['followups_overdue'] ?? 0),
-                'severity' => ($operationalAlerts['followups_overdue'] ?? 0) > 0 ? 'critical' : 'ok',
-                'hint' => 'Needs immediate team follow-up.',
-            ],
-            [
-                'label' => 'Failed Jobs',
-                'value' => (int) ($healthInfo['failed_jobs'] ?? 0),
-                'severity' => ($healthInfo['failed_jobs'] ?? 0) > 0 ? 'critical' : 'ok',
-                'hint' => 'Check queue worker and logs.',
-            ],
-            [
-                'label' => 'Quotations Expiring (7D)',
-                'value' => (int) ($operationalAlerts['quotations_expiring_7d'] ?? 0),
-                'severity' => ($operationalAlerts['quotations_expiring_7d'] ?? 0) > 0 ? 'warning' : 'ok',
-                'hint' => 'Potential conversion risk window.',
-            ],
-        ];
-        if ($bookingsModuleEnabled) {
-            $actionCenter[] = [
-                'label' => 'Upcoming Bookings (7D)',
-                'value' => (int) ($operationalAlerts['upcoming_bookings_7d'] ?? 0),
-                'severity' => 'info',
-                'hint' => 'Operational readiness checkpoint.',
+            $operationalAlerts = [
+                'pending_followups' => InquiryFollowUp::query()->where('is_done', false)->count(),
+                'followups_due_today' => InquiryFollowUp::query()
+                    ->where('is_done', false)
+                    ->whereDate('due_date', $today->toDateString())
+                    ->count(),
+                'followups_overdue' => InquiryFollowUp::query()
+                    ->where('is_done', false)
+                    ->whereDate('due_date', '<', $today->toDateString())
+                    ->count(),
+                'quotations_expiring_7d' => Quotation::query()
+                    ->whereDate('validity_date', '>=', $today->toDateString())
+                    ->whereDate('validity_date', '<=', $today->copy()->addDays(7)->toDateString())
+                    ->count(),
+                'upcoming_bookings_7d' => $bookingsModuleEnabled
+                    ? Booking::query()
+                        ->whereDate('travel_date', '>=', $today->toDateString())
+                        ->whereDate('travel_date', '<=', $today->copy()->addDays(7)->toDateString())
+                        ->count()
+                    : 0,
             ];
-        }
 
-        $funnel = $this->buildBusinessFunnel($systemCounts);
-        $moduleHealthMatrix = $this->buildModuleHealthMatrix($systemCounts);
-        $moduleGroups = $this->buildModuleGroups(
-            $moduleHealthMatrix,
-            $systemCounts,
-            $operationalAlerts,
-            $moduleStats,
-            $rolesAndPermissions,
-            $healthInfo
-        );
+            $upcomingFollowUps = InquiryFollowUp::query()
+                ->with('inquiry:id,inquiry_number')
+                ->where('is_done', false)
+                ->orderBy('due_date')
+                ->limit(8)
+                ->get(['id', 'inquiry_id', 'due_date', 'channel', 'note', 'is_done']);
+
+            $expiringQuotations = Quotation::query()
+                ->orderBy('validity_date')
+                ->limit(8)
+                ->get(['id', 'quotation_number', 'status', 'validity_date']);
+
+            $upcomingBookings = $bookingsModuleEnabled
+                ? Booking::query()
+                    ->orderBy('travel_date')
+                    ->limit(8)
+                    ->get(['id', 'booking_number', 'status', 'travel_date'])
+                : collect();
+
+            $activityLogs = collect();
+            if (Schema::hasTable('activity_logs')) {
+                $activityLogs = DB::table('activity_logs')
+                    ->select(['id', 'module', 'action', 'subject_type', 'user_id', 'created_at'])
+                    ->orderByDesc('created_at')
+                    ->limit(12)
+                    ->get();
+            }
+
+            $failedJobs = collect();
+            $failedJobsCount = 0;
+            $queueBacklogCount = 0;
+            if (Schema::hasTable('jobs')) {
+                $queueBacklogCount = DB::table('jobs')->count();
+            }
+            if (Schema::hasTable('failed_jobs')) {
+                $failedJobs = DB::table('failed_jobs')
+                    ->select(['id', 'exception', 'failed_at'])
+                    ->orderByDesc('failed_at')
+                    ->limit(8)
+                    ->get();
+                $failedJobsCount = DB::table('failed_jobs')->count();
+            }
+
+            $healthInfo = [
+                'environment' => app()->environment(),
+                'debug' => (bool) config('app.debug'),
+                'queue_connection' => (string) config('queue.default'),
+                'cache_driver' => (string) config('cache.default'),
+                'session_driver' => (string) config('session.driver'),
+                'database_connection' => (string) config('database.default'),
+                'queue_backlog' => $queueBacklogCount,
+                'failed_jobs' => $failedJobsCount,
+            ];
+
+            $actionCenter = [
+                [
+                    'label' => 'Follow-ups Overdue',
+                    'value' => (int) ($operationalAlerts['followups_overdue'] ?? 0),
+                    'severity' => ($operationalAlerts['followups_overdue'] ?? 0) > 0 ? 'critical' : 'ok',
+                    'hint' => 'Needs immediate team follow-up.',
+                ],
+                [
+                    'label' => 'Failed Jobs',
+                    'value' => (int) ($healthInfo['failed_jobs'] ?? 0),
+                    'severity' => ($healthInfo['failed_jobs'] ?? 0) > 0 ? 'critical' : 'ok',
+                    'hint' => 'Check queue worker and logs.',
+                ],
+                [
+                    'label' => 'Quotations Expiring (7D)',
+                    'value' => (int) ($operationalAlerts['quotations_expiring_7d'] ?? 0),
+                    'severity' => ($operationalAlerts['quotations_expiring_7d'] ?? 0) > 0 ? 'warning' : 'ok',
+                    'hint' => 'Potential conversion risk window.',
+                ],
+            ];
+            if ($bookingsModuleEnabled) {
+                $actionCenter[] = [
+                    'label' => 'Upcoming Bookings (7D)',
+                    'value' => (int) ($operationalAlerts['upcoming_bookings_7d'] ?? 0),
+                    'severity' => 'info',
+                    'hint' => 'Operational readiness checkpoint.',
+                ];
+            }
+
+            $funnel = $this->buildBusinessFunnel($systemCounts);
+            $moduleHealthMatrix = $this->buildModuleHealthMatrix($systemCounts);
+            $moduleGroups = $this->buildModuleGroups(
+                $moduleHealthMatrix,
+                $systemCounts,
+                $operationalAlerts,
+                $moduleStats,
+                $rolesAndPermissions,
+                $healthInfo
+            );
+
+            return compact(
+                'systemCounts',
+                'moduleStats',
+                'rolesAndPermissions',
+                'inquiryByStatus',
+                'quotationByStatus',
+                'bookingByStatus',
+                'bookingsModuleEnabled',
+                'operationalAlerts',
+                'upcomingFollowUps',
+                'expiringQuotations',
+                'upcomingBookings',
+                'recentSystemHistory',
+                'activityLogs',
+                'failedJobs',
+                'healthInfo',
+                'actionCenter',
+                'funnel',
+                'moduleHealthMatrix',
+                'moduleGroups'
+            );
+        });
+
+        extract($payload, EXTR_SKIP);
 
         return view('superadmin.dashboard', compact(
             'systemCounts',
@@ -230,7 +257,6 @@ class DashboardController extends Controller
 
     public function trend(Request $request): JsonResponse
     {
-        $bookingsModuleEnabled = ModuleService::isEnabledStatic('bookings');
         $period = (int) $request->integer('period', 30);
         if (! in_array($period, [7, 30, 90], true)) {
             $period = 30;
@@ -241,60 +267,70 @@ class DashboardController extends Controller
             $refreshSeconds = 45;
         }
 
-        $endDate = now()->startOfDay();
-        $startDate = $endDate->copy()->subDays($period - 1);
+        $payload = Cache::remember("superadmin:dashboard:trend:{$period}", now()->addSeconds(45), function () use ($period): array {
+            $bookingsModuleEnabled = ModuleService::isEnabledStatic('bookings');
+            $endDate = now()->startOfDay();
+            $startDate = $endDate->copy()->subDays($period - 1);
 
-        $inquirySeries = $this->buildDailySeries(Inquiry::class, $startDate, $endDate);
-        $quotationSeries = $this->buildDailySeries(Quotation::class, $startDate, $endDate);
-        $bookingSeries = $bookingsModuleEnabled ? $this->buildDailySeries(Booking::class, $startDate, $endDate) : [];
+            $inquirySeries = $this->buildDailySeries(Inquiry::class, $startDate, $endDate);
+            $quotationSeries = $this->buildDailySeries(Quotation::class, $startDate, $endDate);
+            $bookingSeries = $bookingsModuleEnabled ? $this->buildDailySeries(Booking::class, $startDate, $endDate) : [];
 
-        $labels = [];
-        $inquiries = [];
-        $quotations = [];
-        $bookings = [];
-        $cursor = $startDate->copy();
+            $labels = [];
+            $inquiries = [];
+            $quotations = [];
+            $bookings = [];
+            $cursor = $startDate->copy();
 
-        while ($cursor->lte($endDate)) {
-            $key = $cursor->format('Y-m-d');
-            $labels[] = $cursor->format('Y-m-d');
-            $inquiries[] = (int) ($inquirySeries[$key] ?? 0);
-            $quotations[] = (int) ($quotationSeries[$key] ?? 0);
-            $bookings[] = (int) ($bookingSeries[$key] ?? 0);
-            $cursor->addDay();
-        }
+            while ($cursor->lte($endDate)) {
+                $key = $cursor->format('Y-m-d');
+                $labels[] = $cursor->format('Y-m-d');
+                $inquiries[] = (int) ($inquirySeries[$key] ?? 0);
+                $quotations[] = (int) ($quotationSeries[$key] ?? 0);
+                $bookings[] = (int) ($bookingSeries[$key] ?? 0);
+                $cursor->addDay();
+            }
 
-        $bars = [
-            Inquiry::query()->count(),
-            Quotation::query()->count(),
-            $bookingsModuleEnabled ? Booking::query()->count() : 0,
-            Itinerary::query()->count(),
-            Vendor::query()->count(),
-            Activity::query()->count(),
-            InquiryFollowUp::query()->where('is_done', false)->count(),
-            InquiryFollowUp::query()->where('is_done', false)->whereDate('due_date', '<', now()->toDateString())->count(),
-            Schema::hasTable('jobs') ? DB::table('jobs')->count() : 0,
-            Schema::hasTable('failed_jobs') ? DB::table('failed_jobs')->count() : 0,
-        ];
+            $bars = [
+                Inquiry::query()->count(),
+                Quotation::query()->count(),
+                $bookingsModuleEnabled ? Booking::query()->count() : 0,
+                Itinerary::query()->count(),
+                Vendor::query()->count(),
+                Activity::query()->count(),
+                InquiryFollowUp::query()->where('is_done', false)->count(),
+                InquiryFollowUp::query()->where('is_done', false)->whereDate('due_date', '<', now()->toDateString())->count(),
+                Schema::hasTable('jobs') ? DB::table('jobs')->count() : 0,
+                Schema::hasTable('failed_jobs') ? DB::table('failed_jobs')->count() : 0,
+            ];
+
+            return [
+                'labels' => $labels,
+                'trend' => [
+                    'inquiries' => $inquiries,
+                    'quotations' => $quotations,
+                    'bookings' => $bookings,
+                ],
+                'bars' => $bars,
+                'mix' => [
+                    'labels' => ['Inquiries', 'Quotations', 'Bookings', 'Itineraries'],
+                    'values' => [
+                        Inquiry::query()->count(),
+                        Quotation::query()->count(),
+                        $bookingsModuleEnabled ? Booking::query()->count() : 0,
+                        Itinerary::query()->count(),
+                    ],
+                ],
+            ];
+        });
 
         return response()->json([
             'period' => $period,
             'refresh_seconds' => $refreshSeconds,
-            'labels' => $labels,
-            'trend' => [
-                'inquiries' => $inquiries,
-                'quotations' => $quotations,
-                'bookings' => $bookings,
-            ],
-            'bars' => $bars,
-            'mix' => [
-                'labels' => ['Inquiries', 'Quotations', 'Bookings', 'Itineraries'],
-                'values' => [
-                    Inquiry::query()->count(),
-                    Quotation::query()->count(),
-                    $bookingsModuleEnabled ? Booking::query()->count() : 0,
-                    Itinerary::query()->count(),
-                ],
-            ],
+            'labels' => $payload['labels'],
+            'trend' => $payload['trend'],
+            'bars' => $payload['bars'],
+            'mix' => $payload['mix'],
         ]);
     }
 

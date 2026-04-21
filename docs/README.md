@@ -1,6 +1,6 @@
 # Documentation Structure
 
-Last Updated: 2026-04-20
+Last Updated: 2026-04-21
 
 ## Canonical Maintenance Rule
 - Canonical docs live in:
@@ -31,6 +31,7 @@ Last Updated: 2026-04-20
 - docs/technical/TECHNICAL_FIX_NOTES.md
 - docs/technical/I18N_TRANSLATION_STANDARD.md
 - docs/technical/IMAGE_THUMBNAIL_STANDARD.md
+- docs/technical/DASHBOARD_ASYNC_LOADING_STANDARD.md
 
 ## Archive
 - docs/archive/PROJECT_AUDIT_ARCHIVE.md

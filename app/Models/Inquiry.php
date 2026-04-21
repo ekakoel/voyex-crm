@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Models\User;
 use App\Models\ActivityLog;
 use App\Traits\LogsActivity;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 
 class Inquiry extends Model
@@ -109,6 +110,18 @@ class Inquiry extends Model
 
             $sequence = self::nextDailySequence($dateKey);
             $model->inquiry_number = "INQ-{$customerCode}{$dateKey}{$sequence}";
+        });
+
+        static::saved(function () {
+            Cache::tags(['inquiries'])->flush();
+        });
+
+        static::deleted(function () {
+            Cache::tags(['inquiries'])->flush();
+        });
+
+        static::restored(function () {
+            Cache::tags(['inquiries'])->flush();
         });
     }
 

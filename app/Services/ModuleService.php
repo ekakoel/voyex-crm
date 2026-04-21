@@ -3,15 +3,33 @@
 namespace App\Services;
 
 use App\Models\Module;
+use App\Support\SchemaInspector;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Schema;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 
 class ModuleService
 {
+    private const ENABLED_MAP_CACHE_KEY = 'modules:enabled_map:v1';
+    private const MODULE_LIST_CACHE_KEY = 'modules:list_all:v1';
+    private const BOOTSTRAP_CACHE_KEY = 'modules:bootstrap_defaults:v1';
+    private const CACHE_TTL_SECONDS = 300;
+
+    /**
+     * @var array<string, bool>|null
+     */
+    private static ?array $enabledMap = null;
+
+    /**
+     * @var \Illuminate\Support\Collection<int, \App\Models\Module>|null
+     */
+    private static ?Collection $moduleList = null;
+
     private static function ensureIslandTransferModule(): void
     {
-        if (! Schema::hasTable('modules')) {
+        if (! SchemaInspector::hasTable('modules')) {
             return;
         }
 
@@ -48,7 +66,7 @@ class ModuleService
 
     private static function ensureHotelModule(): void
     {
-        if (! Schema::hasTable('modules')) {
+        if (! SchemaInspector::hasTable('modules')) {
             return;
         }
 
@@ -88,34 +106,86 @@ class ModuleService
         return self::isEnabledStatic($key);
     }
 
+    public static function flushCache(): void
+    {
+        self::$enabledMap = null;
+        self::$moduleList = null;
+
+        Cache::forget(self::ENABLED_MAP_CACHE_KEY);
+        Cache::forget(self::MODULE_LIST_CACHE_KEY);
+        Cache::forget(self::BOOTSTRAP_CACHE_KEY);
+    }
+
+    /**
+     * @return array<string, bool>
+     */
+    public static function enabledMap(): array
+    {
+        if (self::$enabledMap !== null) {
+            return self::$enabledMap;
+        }
+
+        if (! SchemaInspector::hasTable('modules')) {
+            return self::$enabledMap = [];
+        }
+
+        self::ensureDefaultModulesBootstrapped();
+
+        return self::$enabledMap = Cache::remember(
+            self::ENABLED_MAP_CACHE_KEY,
+            now()->addSeconds(self::CACHE_TTL_SECONDS),
+            fn (): array => Module::query()
+                ->pluck('is_enabled', 'key')
+                ->map(fn ($enabled): bool => (bool) $enabled)
+                ->all()
+        );
+    }
+
     public static function isEnabledStatic(string $key): bool
     {
-        self::ensureHotelModule();
-        self::ensureIslandTransferModule();
-        if (! Schema::hasTable('modules')) {
+        if (! SchemaInspector::hasTable('modules')) {
             return (bool) config('modules.fail_open', false);
         }
 
-        $module = Module::query()
-            ->select('is_enabled')
-            ->where('key', $key)
-            ->first();
+        $map = self::enabledMap();
 
-        if (! $module) {
+        if (! array_key_exists($key, $map)) {
             return (bool) config('modules.fail_open', false);
         }
 
-        return (bool) $module->is_enabled;
+        return (bool) $map[$key];
     }
 
     public function listAll()
     {
-        self::ensureHotelModule();
-        self::ensureIslandTransferModule();
-        if (! Schema::hasTable('modules')) {
-            return collect();
+        if (self::$moduleList !== null) {
+            return self::$moduleList;
         }
 
-        return Module::query()->orderBy('name')->get();
+        if (! SchemaInspector::hasTable('modules')) {
+            return self::$moduleList = collect();
+        }
+
+        self::ensureDefaultModulesBootstrapped();
+
+        return self::$moduleList = Cache::remember(
+            self::MODULE_LIST_CACHE_KEY,
+            now()->addSeconds(self::CACHE_TTL_SECONDS),
+            fn () => Module::query()->orderBy('name')->get()
+        );
+    }
+
+    private static function ensureDefaultModulesBootstrapped(): void
+    {
+        if (! SchemaInspector::hasTable('modules')) {
+            return;
+        }
+
+        Cache::remember(self::BOOTSTRAP_CACHE_KEY, now()->addSeconds(self::CACHE_TTL_SECONDS), function (): bool {
+            self::ensureHotelModule();
+            self::ensureIslandTransferModule();
+
+            return true;
+        });
     }
 }
