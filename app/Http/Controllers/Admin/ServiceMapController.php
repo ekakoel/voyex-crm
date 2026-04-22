@@ -8,6 +8,7 @@ use App\Models\Airport;
 use App\Models\Destination;
 use App\Models\FoodBeverage;
 use App\Models\Hotel;
+use App\Models\IslandTransfer;
 use App\Models\TouristAttraction;
 use App\Models\Transport;
 use App\Models\Vendor;
@@ -18,6 +19,7 @@ class ServiceMapController extends Controller
     public function index()
     {
         $markers = collect();
+        $routes = collect();
 
         if ($this->hasMapColumns('destinations')) {
             Destination::query()
@@ -25,7 +27,7 @@ class ServiceMapController extends Controller
                 ->whereNotNull('longitude')
                 ->get(['id', 'name', 'city', 'province', 'latitude', 'longitude'])
                 ->each(function ($item) use ($markers) {
-                    $markers->push($this->markerItem(
+                    $marker = $this->markerItem(
                         type: 'destination',
                         icon: 'fa-map-location-dot',
                         name: (string) ($item->name ?? 'Destination'),
@@ -33,7 +35,9 @@ class ServiceMapController extends Controller
                         latitude: (float) $item->latitude,
                         longitude: (float) $item->longitude,
                         url: route('destinations.show', $item)
-                    ));
+                    );
+                    $marker['province'] = (string) ($item->province ?? '');
+                    $markers->push($marker);
                 });
         }
 
@@ -187,12 +191,86 @@ class ServiceMapController extends Controller
                 });
         }
 
+        if (Schema::hasTable('island_transfers')) {
+            IslandTransfer::query()
+                ->get([
+                    'id',
+                    'name',
+                    'departure_point_name',
+                    'departure_latitude',
+                    'departure_longitude',
+                    'arrival_point_name',
+                    'arrival_latitude',
+                    'arrival_longitude',
+                    'route_geojson',
+                ])
+                ->each(function ($item) use ($markers, $routes) {
+                    $departureLat = $this->toFiniteFloat($item->departure_latitude);
+                    $departureLng = $this->toFiniteFloat($item->departure_longitude);
+                    $arrivalLat = $this->toFiniteFloat($item->arrival_latitude);
+                    $arrivalLng = $this->toFiniteFloat($item->arrival_longitude);
+
+                    if ($departureLat !== null && $departureLng !== null) {
+                        $markers->push($this->markerItem(
+                            type: 'island-transfer',
+                            icon: 'fa-ship',
+                            name: (string) ($item->name ?? 'Island Transfer'),
+                            subtitle: $this->joinSubtitle([
+                                (string) ($item->departure_point_name ?? ''),
+                                'Departure',
+                            ]),
+                            latitude: $departureLat,
+                            longitude: $departureLng,
+                            url: route('island-transfers.show', $item)
+                        ));
+                    }
+
+                    if ($arrivalLat !== null && $arrivalLng !== null) {
+                        $markers->push($this->markerItem(
+                            type: 'island-transfer',
+                            icon: 'fa-anchor',
+                            name: (string) ($item->name ?? 'Island Transfer'),
+                            subtitle: $this->joinSubtitle([
+                                (string) ($item->arrival_point_name ?? ''),
+                                'Arrival',
+                            ]),
+                            latitude: $arrivalLat,
+                            longitude: $arrivalLng,
+                            url: route('island-transfers.show', $item)
+                        ));
+                    }
+
+                    $path = $this->normalizeTransferRouteCoords($item->route_geojson);
+                    $isFallback = false;
+                    if (count($path) < 2 && $departureLat !== null && $departureLng !== null && $arrivalLat !== null && $arrivalLng !== null) {
+                        $path = [
+                            [$departureLat, $departureLng],
+                            [$arrivalLat, $arrivalLng],
+                        ];
+                        $isFallback = true;
+                    }
+
+                    if (count($path) >= 2) {
+                        $routes->push([
+                            'type' => 'island-transfer',
+                            'name' => (string) ($item->name ?? 'Island Transfer'),
+                            'from' => (string) ($item->departure_point_name ?? ''),
+                            'to' => (string) ($item->arrival_point_name ?? ''),
+                            'coordinates' => $path,
+                            'url' => route('island-transfers.show', $item),
+                            'is_fallback' => $isFallback,
+                        ]);
+                    }
+                });
+        }
+
         $markers = $markers
             ->filter(fn ($marker) => is_finite((float) ($marker['latitude'] ?? 0)) && is_finite((float) ($marker['longitude'] ?? 0)))
             ->values();
 
         return view('modules.services.map', [
             'markers' => $markers,
+            'routes' => $routes->values(),
             'stats' => [
                 'total' => $markers->count(),
                 'destinations' => $markers->where('type', 'destination')->count(),
@@ -203,6 +281,7 @@ class ServiceMapController extends Controller
                 'airports' => $markers->where('type', 'airport')->count(),
                 'transports' => $markers->where('type', 'transport')->count(),
                 'attractions' => $markers->where('type', 'tourist-attraction')->count(),
+                'islandTransfers' => $routes->where('type', 'island-transfer')->count(),
             ],
         ]);
     }
@@ -223,6 +302,63 @@ class ServiceMapController extends Controller
     private function joinSubtitle(array $parts): string
     {
         return implode(' • ', array_values(array_filter(array_map(static fn ($value) => trim((string) $value), $parts))));
+    }
+
+    private function toFiniteFloat(mixed $value): ?float
+    {
+        $number = is_numeric($value) ? (float) $value : null;
+        if ($number === null || ! is_finite($number)) {
+            return null;
+        }
+
+        return $number;
+    }
+
+    private function normalizeTransferRouteCoords(mixed $routeGeoJson): array
+    {
+        $payload = $routeGeoJson;
+        if (is_string($payload) && trim($payload) !== '') {
+            $decoded = json_decode($payload, true);
+            if (json_last_error() === JSON_ERROR_NONE) {
+                $payload = $decoded;
+            }
+        }
+
+        if (! is_array($payload)) {
+            return [];
+        }
+
+        $coordinates = [];
+        if (($payload['type'] ?? null) === 'Feature') {
+            $geometry = $payload['geometry'] ?? null;
+            if (is_array($geometry) && ($geometry['type'] ?? null) === 'LineString') {
+                $coordinates = is_array($geometry['coordinates'] ?? null) ? $geometry['coordinates'] : [];
+            }
+        } elseif (($payload['type'] ?? null) === 'LineString') {
+            $coordinates = is_array($payload['coordinates'] ?? null) ? $payload['coordinates'] : [];
+        } elseif (isset($payload[0]) && is_array($payload[0])) {
+            $coordinates = $payload;
+        }
+
+        $latLng = [];
+        foreach ($coordinates as $pair) {
+            if (! is_array($pair) || count($pair) < 2) {
+                continue;
+            }
+
+            $lng = $this->toFiniteFloat($pair[0] ?? null);
+            $lat = $this->toFiniteFloat($pair[1] ?? null);
+            if ($lat === null || $lng === null) {
+                continue;
+            }
+            if ($lat < -90 || $lat > 90 || $lng < -180 || $lng > 180) {
+                continue;
+            }
+
+            $latLng[] = [$lat, $lng];
+        }
+
+        return $latLng;
     }
 
     private function hasMapColumns(string $table): bool

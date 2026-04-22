@@ -1,6 +1,6 @@
 # Technical Fix Notes
 
-Last Updated: 2026-04-20
+Last Updated: 2026-04-22
 
 Dokumen ini menggabungkan fix-report teknis lintas modul yang berdampak ke arsitektur/standar.
 
@@ -649,6 +649,52 @@ Dampak:
 - Sidebar dan module middleware tidak lagi memicu query module per item/check.
 - Dashboard berat lebih responsif tanpa mengorbankan data near-real-time.
 - Standar performa baru terdokumentasi di `docs/technical/PERFORMANCE_OPTIMIZATION_STANDARD.md`.
+
+## 37. Service Map Destination Regency Overlay (2026-04-22)
+
+Masalah:
+- Marker `Destination` di Service Map hanya menampilkan titik koordinat.
+- User membutuhkan konteks area administratif kabupaten/kota Indonesia untuk setiap destination.
+
+Perbaikan:
+- Menambahkan dataset batas administratif kabupaten/kota Indonesia sebagai aset lokal:
+  - `public/data/IDN_adm_2_kabkota.json`.
+- Memperluas map engine `resources/js/service-map.js`:
+  - load GeoJSON kabupaten dari atribut dataset map canvas,
+  - lakukan point-in-polygon untuk setiap marker `destination`,
+  - render polygon overlay kabupaten yang cocok menggunakan `L.geoJSON`.
+- Menambahkan sinkronisasi toggle:
+  - overlay kabupaten ikut tampil/sembunyi saat legend `Destinations` diaktifkan/nonaktifkan.
+- Menambahkan fit-bounds overlay:
+  - kalkulasi area map sekarang memasukkan bounds polygon overlay yang sedang visible.
+- Memperbarui template Service Map (`resources/views/modules/services/map.blade.php`) agar URL dataset kabupaten tersedia via atribut:
+  - `data-kabkota-geojson-url`.
+
+Dampak:
+- Destination di Service Map sekarang tertaut ke area kabupaten/kota Indonesia secara visual.
+- User dapat memahami konteks wilayah destination lebih cepat tanpa membuka halaman detail satu per satu.
+
+## 38. Service Map Destination Province Overlay Linkage (2026-04-22)
+
+Masalah:
+- Kebutuhan lanjutan meminta linkage Destination pada level provinsi (bukan kabupaten) agar selaras dengan model data `destinations.province`.
+- Overlay sebelumnya berbasis kabupaten point-in-polygon belum merepresentasikan relasi data provinsi sebagai source of truth.
+
+Perbaikan:
+- Menambahkan dataset batas provinsi Indonesia:
+  - `public/data/IDN_adm_1_province.json`.
+- Memperbarui canvas Service Map untuk membaca dataset provinsi:
+  - `data-province-geojson-url`.
+- Memperbarui payload marker destination di backend (`ServiceMapController`) agar menyertakan field `province`.
+- Memperbarui engine map (`resources/js/service-map.js`) agar:
+  - mengelompokkan marker destination berdasarkan `province`,
+  - melakukan matching ke feature provinsi melalui normalisasi nama + alias mapping,
+  - merender satu overlay provinsi untuk destination yang terhubung.
+- Menjaga sinkronisasi overlay dengan toggle legend `Destinations` serta kalkulasi fit-bounds.
+
+Dampak:
+- Relasi Destination -> overlay wilayah di Service Map kini konsisten dengan data provinsi pada modul Destination.
+- Pengguna mendapatkan konteks area provinsi tanpa kehilangan konsistensi terhadap source data master destination.
 
 
 ## Referensi Kode

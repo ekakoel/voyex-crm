@@ -1,6 +1,6 @@
 # Island Transfer Module
 
-Last Updated: 2026-04-20
+Last Updated: 2026-04-22
 
 ## Tujuan
 
@@ -90,6 +90,20 @@ Nilai berikut harus konsisten antara form, JS, controller, dan DB agar tidak mun
   - memastikan permission `module.island_transfers.*` tersedia,
   - memberikan permission ke role default: Administrator, Super Admin, Manager, Marketing, Reservation, Editor.
 - Tujuan: mencegah menu hilang di environment baru saat seed belum sempat dijalankan.
+
+## Integrasi Service Map
+
+- `Service Map` (`services.map`) sekarang memuat Island Transfer sebagai layer khusus:
+  - marker departure (`fa-ship`),
+  - marker arrival (`fa-anchor`),
+  - route polyline antar titik transfer.
+- Sumber route:
+  - prioritas `route_geojson` dari `island_transfers`,
+  - fallback garis departure -> arrival jika `route_geojson` belum tersedia.
+- Layer ini bisa ditoggle lewat legend type `Island Transfers` dan toggle berlaku untuk:
+  - marker transfer,
+  - polyline route transfer.
+- Payload route disuplai dari backend (`routes`) dan dirender oleh `resources/js/service-map.js`.
 
 ## UI/UX Standardisasi Modul
 

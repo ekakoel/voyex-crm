@@ -17,6 +17,7 @@
             ['type' => 'airport', 'label' => 'Airports', 'icon' => 'fa-plane-departure', 'color' => '#0f766e', 'count' => $stats['airports'] ?? 0],
             ['type' => 'transport', 'label' => 'Transports', 'icon' => 'fa-bus', 'color' => '#be123c', 'count' => $stats['transports'] ?? 0],
             ['type' => 'tourist-attraction', 'label' => 'Attractions', 'icon' => 'fa-landmark', 'color' => '#4f46e5', 'count' => $stats['attractions'] ?? 0],
+            ['type' => 'island-transfer', 'label' => 'Island Transfers', 'icon' => 'fa-ship', 'color' => '#0284c7', 'count' => $stats['islandTransfers'] ?? 0],
         ];
     @endphp
 
@@ -47,9 +48,27 @@
                 </div>
             </aside>
             <div class="module-grid-main">
-                <div class="app-card overflow-hidden p-0">
-                    <div id="service-map-canvas" class="h-[75vh] w-full"></div>
+                <div class="app-card p-4 sm:p-5">
+                    <div class="mb-3 flex items-center justify-between gap-3">
+                        <div>
+                            <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100">{{ __('Service Coverage Map') }}</h3>
+                            <p class="text-xs text-slate-500 dark:text-slate-400">{{ __('Interactive map for service points and island transfer routes.') }}</p>
+                        </div>
+                        <span class="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                            {{ number_format($stats['total'] ?? 0) }} {{ __('points') }}
+                        </span>
+                    </div>
+
+                    <div class="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700">
+                        <div
+                            id="service-map-canvas"
+                            data-province-geojson-url="{{ asset('data/IDN_adm_1_province.json') }}"
+                            class="h-[50vh] min-h-[320px] w-full sm:h-[56vh] lg:h-[64vh] xl:h-[72vh]"
+                        ></div>
+                    </div>
+
                     <script type="application/json" id="service-map-markers">@json($markers)</script>
+                    <script type="application/json" id="service-map-routes">@json($routes ?? [])</script>
                 </div>
             </div>
         </div>

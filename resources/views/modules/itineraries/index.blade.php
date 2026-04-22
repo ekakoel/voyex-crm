@@ -105,7 +105,19 @@
         </div>
         <div class="md:hidden space-y-3">
             @forelse ($itineraries as $itinerary)
-                <div class="app-card p-4">
+                @php
+                    $status = strtolower($itinerary->status ?? 'pending');
+                    $statusBg = [
+                        'pending' => 'bg-yellow-50 dark:bg-yellow-900/10',
+                        'approved' => 'bg-emerald-50 dark:bg-emerald-900/10',
+                        'draft' => 'bg-gray-50 dark:bg-gray-800/10',
+                        'sent' => 'bg-blue-50 dark:bg-blue-900/10',
+                        'rejected' => 'bg-red-50 dark:bg-red-900/10',
+                        'final' => 'bg-indigo-50 dark:bg-indigo-900/10',
+                    ];
+                    $bgClass = $statusBg[$status] ?? 'bg-gray-50 dark:bg-gray-800/10';
+                @endphp
+                <div class="app-card p-4 {{ $bgClass }}">
                     <p class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ $itinerary->title }}</p>
                     <p class="text-xs text-gray-500 dark:text-gray-400">{{ __('ui.modules.itineraries.by', ['name' => $itinerary->creator?->displayNameFor(auth()->user(), 'System') ?: '-']) }}</p>
                     <p class="text-xs text-gray-500 dark:text-gray-400">

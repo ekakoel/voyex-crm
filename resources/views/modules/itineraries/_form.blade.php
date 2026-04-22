@@ -1070,7 +1070,7 @@
     </section>
 
     <section data-wizard-step="3" class="space-y-3 hidden">
-        <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+        <div data-wizard-review-card="basic-info" class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
             <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ __('itinerary_form.wizard.include_exclude_title') }}</h3>
             <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ __('itinerary_form.wizard.include_exclude_hint') }}</p>
             <div class="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
@@ -1103,12 +1103,12 @@
     </section>
 
     <section data-wizard-step="4" class="space-y-3 hidden">
-        <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+        <div data-wizard-review-card="day-planner" class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
             <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ __('itinerary_form.review.title') }}</h3>
             <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ __('itinerary_form.review.subtitle') }}</p>
         </div>
 
-        <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+        <div data-wizard-review-card="include-exclude" class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
             <h4 class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ __('itinerary_form.review.basic_info') }}</h4>
             <dl class="mt-3 grid grid-cols-1 gap-2 text-xs sm:grid-cols-2">
                 <div class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-700 dark:bg-gray-900/50">
@@ -1919,6 +1919,21 @@
                             `);
                         }
                         reviewDaysEl.innerHTML = dayCards.join('');
+
+                    // hide review cards when their content is effectively empty
+                    try {
+                        const basicCardEl = wizardRoot.querySelector('[data-wizard-review-card="basic-info"]');
+                        const dayCardEl = wizardRoot.querySelector('[data-wizard-review-card="day-planner"]');
+                        const includeCardEl = wizardRoot.querySelector('[data-wizard-review-card="include-exclude"]');
+                        const isBlank = (v) => String(v || '').trim() === '' || String(v || '').trim() === '-';
+                        const inquiryHasValue = inquiryOptionText !== '' && inquiryOptionText !== i18n.independentItinerary;
+                        const basicEmpty = isBlank(titleText) && isBlank(orderNumberText) && !inquiryHasValue && isBlank(destinationText) && isBlank(descriptionText) && selectedItemCount === 0;
+                        if (basicCardEl) basicCardEl.classList.toggle('hidden', basicEmpty);
+                        const daysEmpty = selectedItemCount === 0;
+                        if (dayCardEl) dayCardEl.classList.toggle('hidden', daysEmpty);
+                        const includeEmpty = isBlank(includeText) && isBlank(excludeText);
+                        if (includeCardEl) includeCardEl.classList.toggle('hidden', includeEmpty);
+                    } catch (__) {}
                     }
                 };
                 const renderDayWizardTabs = () => {

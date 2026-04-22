@@ -1,7 +1,7 @@
 # VOYEX CRM -- SYSTEM ROADMAP
 
 Version: 1.4  
-Last Updated: 2026-04-20
+Last Updated: 2026-04-22
 
 Legend:  
 - DONE = Implemented  
@@ -198,6 +198,59 @@ Kebijakan ini wajib untuk setiap update code (penambahan, perubahan, pengurangan
 ----------------------------------------------------------------------------------------------------
 
 # CHANGELOG (LATEST)
+
+Date: 2026-04-22
+Completed in this cycle:
+
+- Service Map Island Transfer route rollout:
+  - extended `ServiceMapController` to include `IslandTransfer` dataset in map payload.
+  - added Island Transfer map markers for departure and arrival points:
+    - departure marker uses ship icon,
+    - arrival marker uses anchor icon.
+  - added route payload (`routes`) for map rendering:
+    - prioritizes `route_geojson` from `island_transfers`,
+    - falls back to departure->arrival line when `route_geojson` is not available.
+  - updated Service Map legend and filter with new `Island Transfers` type.
+  - updated frontend map engine (`resources/js/service-map.js`) to:
+    - parse route payload,
+    - render transfer polyline,
+    - support filter toggle for both transfer markers and route lines,
+    - include visible route segments in auto-fit bounds.
+  - impact:
+    - users can now see inter-island transfer routes directly on Service Map,
+    - Service Map now represents both service points and sea transfer paths in one page.
+
+- Service Map Destination -> Kabupaten overlay rollout (Indonesia):
+  - added local kabupaten/kota GeoJSON dataset:
+    - `public/data/IDN_adm_2_kabkota.json`.
+  - extended Service Map frontend to render regency overlays for Destination points:
+    - loads kabupaten GeoJSON from local static asset,
+    - matches Destination coordinate to kabupaten polygon (point-in-polygon),
+    - draws polygon overlay for matched kabupaten/kota area.
+  - overlay visibility is synchronized with `Destinations` legend toggle.
+  - map fit-bounds now includes visible destination overlays in addition to markers/routes.
+  - impact:
+    - destination points are now spatially linked to Indonesian regency boundaries on Service Map,
+    - users can see not only point markers, but also the destination administrative area context.
+
+- Service Map Destination -> Province overlay alignment (Indonesia):
+  - updated Service Map to use province boundary dataset (`adm1`) for destination administrative overlay:
+    - `public/data/IDN_adm_1_province.json`.
+  - destination markers now carry explicit `province` payload from backend.
+  - destination overlay matching is now province-name based (linked to `destinations.province`) instead of point-in-polygon kabupaten lookup.
+  - added province name normalization/alias mapping to bridge naming variants, including:
+    - `DKI Jakarta` <-> `Jakarta Raya`,
+    - `DI Yogyakarta` <-> `Yogyakarta`,
+    - `Kepulauan Bangka Belitung` <-> `Bangka-Belitung`,
+    - Papua split names mapped to available ADM1 boundaries in dataset.
+  - destination overlay remains synchronized with `Destinations` legend toggle and map fit-bounds.
+  - impact:
+    - destination to province linkage now follows canonical destination province data model,
+    - province overlays on Service Map are consistent with destination master data selection.
+- QA note:
+  - `php -l app/Http/Controllers/Admin/ServiceMapController.php` passed.
+  - `php artisan view:cache` passed.
+  - `npm.cmd run build` passed.
 
 Date: 2026-04-21
 Completed in this cycle:
