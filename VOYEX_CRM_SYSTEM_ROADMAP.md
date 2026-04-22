@@ -247,6 +247,18 @@ Completed in this cycle:
   - impact:
     - destination to province linkage now follows canonical destination province data model,
     - province overlays on Service Map are consistent with destination master data selection.
+
+- Destination detail Island Transfer + province map rollout:
+  - added destination-to-island-transfer linkage on destination detail page via vendor destination relation
+    (with province fallback for legacy vendor rows).
+  - destination detail now shows linked Island Transfer list with quick route/context info and status badge.
+  - added sidebar province map card on destination detail:
+    - loads province boundary from `public/data/IDN_adm_1_province.json`,
+    - highlights matched province polygon,
+    - places destination marker on map (or province center fallback when coordinate is missing).
+  - impact:
+    - destination detail now gives direct operational visibility to related island transfer services,
+    - province context is visible in-page without opening Service Map separately.
 - QA note:
   - `php -l app/Http/Controllers/Admin/ServiceMapController.php` passed.
   - `php artisan view:cache` passed.

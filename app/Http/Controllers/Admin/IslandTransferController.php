@@ -145,6 +145,7 @@ class IslandTransferController extends Controller
             'arrival_longitude' => ['required', 'numeric', 'between:-180,180'],
             'route_geojson' => ['nullable', 'string'],
             'duration_minutes' => ['required', 'integer', 'min:10', 'max:1440'],
+            'distance_km' => ['nullable', 'numeric', 'min:0'],
             'contract_rate' => ['nullable', 'numeric', 'min:0'],
             'markup_type' => ['nullable', Rule::in(['fixed', 'percent'])],
             'markup' => ['nullable', 'numeric', 'min:0'],
@@ -156,6 +157,7 @@ class IslandTransferController extends Controller
         ]);
 
         $validated['route_geojson'] = $this->normalizeRouteGeoJson((string) ($validated['route_geojson'] ?? ''));
+        $validated['distance_km'] = $this->resolveDistanceKm($validated);
         $validated['markup_type'] = (($validated['markup_type'] ?? 'fixed') === 'percent') ? 'percent' : 'fixed';
         $validated['contract_rate'] = max(0, (float) ($validated['contract_rate'] ?? 0));
         $validated['markup'] = max(0, (float) ($validated['markup'] ?? 0));
@@ -182,6 +184,70 @@ class IslandTransferController extends Controller
         $validated['is_active'] = $request->boolean('is_active');
 
         return $validated;
+    }
+
+    private function resolveDistanceKm(array $validated): ?float
+    {
+        $routeGeoJson = $validated['route_geojson'] ?? null;
+        if (is_array($routeGeoJson) && strtolower((string) ($routeGeoJson['type'] ?? '')) === 'linestring') {
+            $coordinates = $routeGeoJson['coordinates'] ?? null;
+            if (is_array($coordinates) && count($coordinates) >= 2) {
+                $distance = 0.0;
+                for ($i = 1; $i < count($coordinates); $i++) {
+                    $previous = $coordinates[$i - 1] ?? null;
+                    $current = $coordinates[$i] ?? null;
+                    if (! is_array($previous) || ! is_array($current) || count($previous) < 2 || count($current) < 2) {
+                        continue;
+                    }
+
+                    $prevLng = $this->toFiniteFloat($previous[0] ?? null);
+                    $prevLat = $this->toFiniteFloat($previous[1] ?? null);
+                    $currLng = $this->toFiniteFloat($current[0] ?? null);
+                    $currLat = $this->toFiniteFloat($current[1] ?? null);
+
+                    if ($prevLat === null || $prevLng === null || $currLat === null || $currLng === null) {
+                        continue;
+                    }
+
+                    $distance += $this->haversineKm($prevLat, $prevLng, $currLat, $currLng);
+                }
+
+                return $distance > 0 ? round($distance, 2) : null;
+            }
+        }
+
+        $departureLat = $this->toFiniteFloat($validated['departure_latitude'] ?? null);
+        $departureLng = $this->toFiniteFloat($validated['departure_longitude'] ?? null);
+        $arrivalLat = $this->toFiniteFloat($validated['arrival_latitude'] ?? null);
+        $arrivalLng = $this->toFiniteFloat($validated['arrival_longitude'] ?? null);
+
+        if ($departureLat === null || $departureLng === null || $arrivalLat === null || $arrivalLng === null) {
+            return null;
+        }
+
+        return round($this->haversineKm($departureLat, $departureLng, $arrivalLat, $arrivalLng), 2);
+    }
+
+    private function toFiniteFloat(mixed $value): ?float
+    {
+        if (! is_numeric($value)) {
+            return null;
+        }
+
+        $float = (float) $value;
+        return is_finite($float) ? $float : null;
+    }
+
+    private function haversineKm(float $lat1, float $lng1, float $lat2, float $lng2): float
+    {
+        $earthRadiusKm = 6371.0;
+        $dLat = deg2rad($lat2 - $lat1);
+        $dLng = deg2rad($lng2 - $lng1);
+        $a = sin($dLat / 2) ** 2
+            + cos(deg2rad($lat1)) * cos(deg2rad($lat2)) * sin($dLng / 2) ** 2;
+        $c = 2 * atan2(sqrt($a), sqrt(max(0.0, 1 - $a)));
+
+        return $earthRadiusKm * $c;
     }
 
     private function calculatePublishRate(float $contractRate, string $markupType, float $markup): float

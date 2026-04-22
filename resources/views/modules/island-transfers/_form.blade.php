@@ -15,6 +15,10 @@
         'route_geojson',
         $islandTransfer?->route_geojson ? json_encode($islandTransfer->route_geojson, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) : '',
     );
+    $distanceKmValue = old('distance_km', $islandTransfer?->distance_km);
+    if ($distanceKmValue !== null && $distanceKmValue !== '') {
+        $distanceKmValue = number_format((float) $distanceKmValue, 2, '.', '');
+    }
     $activeCurrencyCode = strtoupper((string) (\App\Support\Currency::current() ?: 'IDR'));
     $toDisplayMoney = static function ($amount) use ($activeCurrencyCode): float {
         return round(\App\Support\Currency::convert((float) ($amount ?? 0), 'IDR', $activeCurrencyCode), 0);
@@ -67,7 +71,7 @@
         </div>
     </div>
 
-    <div class="grid grid-cols-1 gap-4 md:grid-cols-4">
+    <div class="grid grid-cols-1 gap-4 md:grid-cols-5">
         <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('ui.modules.island_transfers.transfer_type') }}</label>
             <select name="transfer_type" class="mt-1 dark:border-gray-600 app-input" required>
@@ -85,6 +89,20 @@
                 value="{{ old('duration_minutes', $islandTransfer->duration_minutes ?? 60) }}"
                 class="mt-1 dark:border-gray-600 app-input" required>
             @error('duration_minutes') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('ui.modules.island_transfers.distance') }} (km)</label>
+            <input
+                name="distance_km"
+                type="number"
+                min="0"
+                step="0.01"
+                value="{{ $distanceKmValue }}"
+                class="mt-1 dark:border-gray-600 app-input"
+                id="island-transfer-distance-km"
+                readonly
+            >
+            @error('distance_km') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
         </div>
         <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('ui.modules.island_transfers.capacity_min') }}</label>
@@ -398,6 +416,40 @@
                     };
                 };
 
+                const distanceInput = document.getElementById('island-transfer-distance-km');
+                const departureLatInput = document.querySelector('[data-coordinate-target="departure-latitude"]');
+                const departureLngInput = document.querySelector('[data-coordinate-target="departure-longitude"]');
+                const arrivalLatInput = document.querySelector('[data-coordinate-target="arrival-latitude"]');
+                const arrivalLngInput = document.querySelector('[data-coordinate-target="arrival-longitude"]');
+
+                const toRadians = (value) => (value * Math.PI) / 180;
+                const computeHaversineKm = (lat1, lng1, lat2, lng2) => {
+                    const earthRadiusKm = 6371;
+                    const dLat = toRadians(lat2 - lat1);
+                    const dLng = toRadians(lng2 - lng1);
+                    const a = Math.sin(dLat / 2) ** 2
+                        + Math.cos(toRadians(lat1)) * Math.cos(toRadians(lat2)) * Math.sin(dLng / 2) ** 2;
+                    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(Math.max(0, 1 - a)));
+
+                    return earthRadiusKm * c;
+                };
+
+                const recalcDistanceKm = () => {
+                    if (!distanceInput) return;
+                    const depLat = parseCoordinate(departureLatInput?.value);
+                    const depLng = parseCoordinate(departureLngInput?.value);
+                    const arrLat = parseCoordinate(arrivalLatInput?.value);
+                    const arrLng = parseCoordinate(arrivalLngInput?.value);
+
+                    if (!isValidCoordinate(depLat, depLng) || !isValidCoordinate(arrLat, arrLng)) {
+                        distanceInput.value = '';
+                        return;
+                    }
+
+                    const distance = computeHaversineKm(depLat, depLng, arrLat, arrLng);
+                    distanceInput.value = String(Math.round(distance * 100) / 100);
+                };
+
                 const bindAutoFill = (prefix) => {
                     const elements = getElementsByPrefix(prefix);
                     if (!elements.source || !elements.trigger || !elements.latitude || !elements.longitude) return;
@@ -419,9 +471,14 @@
 
                 bindAutoFill('departure');
                 bindAutoFill('arrival');
+                departureLatInput?.addEventListener('input', recalcDistanceKm);
+                departureLngInput?.addEventListener('input', recalcDistanceKm);
+                arrivalLatInput?.addEventListener('input', recalcDistanceKm);
+                arrivalLngInput?.addEventListener('input', recalcDistanceKm);
                 contractRateInput?.addEventListener('input', recalcPublishRate);
                 markupInput?.addEventListener('input', recalcPublishRate);
                 markupTypeSelect?.addEventListener('change', recalcPublishRate);
+                recalcDistanceKm();
                 recalcPublishRate();
             })();
         </script>

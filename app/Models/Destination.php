@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\HasAudit;
+use App\Models\IslandTransfer;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -52,8 +53,19 @@ class Destination extends Model
         return $this->hasMany(Airport::class);
     }
 
-}
+    public function islandTransfers()
+    {
+        return $this->hasManyThrough(
+            IslandTransfer::class,
+            Vendor::class,
+            'destination_id',
+            'vendor_id',
+            'id',
+            'id'
+        );
+    }
 
+}
 
 
 

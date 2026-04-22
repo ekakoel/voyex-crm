@@ -3,7 +3,11 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Activity;
 use App\Models\Destination;
+use App\Models\FoodBeverage;
+use App\Models\IslandTransfer;
+use App\Models\Transport;
 use App\Support\LocationResolver;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -49,9 +53,143 @@ class DestinationController extends Controller
 
     public function show(Destination $destination)
     {
-        $destination->loadCount(['vendors', 'hotels', 'touristAttractions', 'airports']);
+        $destination->loadCount(['vendors', 'hotels', 'touristAttractions', 'airports', 'islandTransfers']);
 
-        return view('modules.destinations.show', compact('destination'));
+        $normalizedProvince = mb_strtolower(trim((string) ($destination->province ?? '')));
+        $islandTransfers = IslandTransfer::query()
+            ->with([
+                'vendor:id,name,destination_id,city,province',
+            ])
+            ->where(function ($query) use ($destination, $normalizedProvince) {
+                $query->whereHas('vendor', function ($vendorQuery) use ($destination) {
+                    $vendorQuery->where('destination_id', $destination->id);
+                });
+
+                if ($normalizedProvince !== '') {
+                    $query->orWhereHas('vendor', function ($vendorQuery) use ($normalizedProvince) {
+                        $vendorQuery->whereRaw('LOWER(TRIM(province)) = ?', [$normalizedProvince]);
+                    });
+                }
+            })
+            ->orderBy('name')
+            ->limit(25)
+            ->get([
+                'id',
+                'vendor_id',
+                'name',
+                'transfer_type',
+                'departure_point_name',
+                'departure_latitude',
+                'departure_longitude',
+                'arrival_point_name',
+                'arrival_latitude',
+                'arrival_longitude',
+                'duration_minutes',
+                'distance_km',
+                'is_active',
+            ]);
+
+        $vendors = $destination->vendors()
+            ->orderBy('name')
+            ->get([
+                'id',
+                'name',
+                'city',
+                'province',
+                'is_active',
+            ]);
+
+        $activities = Activity::query()
+            ->with(['vendor:id,name,destination_id'])
+            ->whereHas('vendor', function ($query) use ($destination) {
+                $query->where('destination_id', $destination->id);
+            })
+            ->orderBy('name')
+            ->get([
+                'id',
+                'vendor_id',
+                'name',
+                'activity_type',
+                'duration_minutes',
+                'is_active',
+            ]);
+
+        $hotels = $destination->hotels()
+            ->orderBy('name')
+            ->get([
+                'id',
+                'name',
+                'code',
+                'city',
+                'province',
+                'status',
+            ]);
+
+        $touristAttractions = $destination->touristAttractions()
+            ->orderBy('name')
+            ->get([
+                'id',
+                'name',
+                'city',
+                'province',
+                'ideal_visit_minutes',
+                'is_active',
+            ]);
+
+        $airports = $destination->airports()
+            ->orderBy('name')
+            ->get([
+                'id',
+                'name',
+                'code',
+                'city',
+                'province',
+                'is_active',
+            ]);
+
+        $transports = Transport::query()
+            ->with(['vendor:id,name,destination_id'])
+            ->whereHas('vendor', function ($query) use ($destination) {
+                $query->where('destination_id', $destination->id);
+            })
+            ->orderBy('name')
+            ->get([
+                'id',
+                'vendor_id',
+                'name',
+                'code',
+                'transport_type',
+                'seat_capacity',
+                'is_active',
+            ]);
+
+        $foodBeverages = FoodBeverage::query()
+            ->with(['vendor:id,name,destination_id'])
+            ->whereHas('vendor', function ($query) use ($destination) {
+                $query->where('destination_id', $destination->id);
+            })
+            ->orderBy('name')
+            ->get([
+                'id',
+                'vendor_id',
+                'name',
+                'service_type',
+                'duration_minutes',
+                'is_active',
+            ]);
+
+        return view('modules.destinations.show', [
+            'destination' => $destination,
+            'islandTransfers' => $islandTransfers,
+            'vendors' => $vendors,
+            'activities' => $activities,
+            'hotels' => $hotels,
+            'touristAttractions' => $touristAttractions,
+            'airports' => $airports,
+            'transports' => $transports,
+            'foodBeverages' => $foodBeverages,
+            'provinceGeoJsonUrl' => asset('data/IDN_adm_1_province.json'),
+        ]);
     }
 
     public function edit(Destination $destination)
@@ -140,5 +278,3 @@ class DestinationController extends Controller
         return $normalized !== '' ? $normalized : \Illuminate\Support\Str::slug($name . '-' . uniqid());
     }
 }
-
-

@@ -696,6 +696,30 @@ Dampak:
 - Relasi Destination -> overlay wilayah di Service Map kini konsisten dengan data provinsi pada modul Destination.
 - Pengguna mendapatkan konteks area provinsi tanpa kehilangan konsistensi terhadap source data master destination.
 
+## 39. Destination Detail Island Transfer Integration + Province Map Card (2026-04-22)
+
+Masalah:
+- Halaman detail Destination belum menampilkan data Island Transfer yang terkait.
+- User perlu konteks peta provinsi langsung di sidebar destination detail agar tidak harus berpindah ke Service Map.
+
+Perbaikan:
+- Menambahkan relasi `Destination::islandTransfers()` (`hasManyThrough` via `Vendor`).
+- Memperbarui `DestinationController@show`:
+  - memuat `island_transfers_count`,
+  - mengambil daftar Island Transfer terkait berdasarkan:
+    - `vendor.destination_id = destination.id`,
+    - fallback `vendor.province` match (case-insensitive) untuk data legacy.
+- Memperbarui `resources/views/modules/destinations/show.blade.php`:
+  - menambahkan section list `Island Transfers` pada area utama detail,
+  - menambahkan `Province Map` card di sidebar (di dalam `app-card`),
+  - map merender overlay polygon provinsi + marker destination.
+- Menggunakan dataset provinsi lokal:
+  - `public/data/IDN_adm_1_province.json`.
+
+Dampak:
+- Detail Destination kini menampilkan service linkage Island Transfer secara langsung.
+- Konteks wilayah provinsi destination terlihat jelas dari sidebar map card pada halaman yang sama.
+
 
 ## Referensi Kode
 

@@ -63,6 +63,7 @@
                                     <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ __('ui.modules.island_transfers.vendor') }}</th>
                                     <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ __('ui.modules.island_transfers.route') }}</th>
                                     <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ __('ui.modules.island_transfers.duration') }}</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ __('ui.modules.island_transfers.distance') }}</th>
                                     <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ __('ui.modules.island_transfers.pricing') }}</th>
                                     <th class="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ __('ui.modules.island_transfers.status') }}</th>
                                     <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300 actions-compact">{{ __('ui.modules.island_transfers.actions') }}</th>
@@ -82,6 +83,7 @@
                                             {{ $transfer->departure_point_name ?: '-' }} -> {{ $transfer->arrival_point_name ?: '-' }}
                                         </td>
                                         <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">{{ __('ui.modules.island_transfers.duration_short', ['minutes' => (int) ($transfer->duration_minutes ?? 0)]) }}</td>
+                                        <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">{{ __('ui.modules.island_transfers.distance_short', ['distance' => number_format((float) ($transfer->distance_km ?? 0), 2, '.', '')]) }}</td>
                                         <td class="px-4 py-3 text-xs text-gray-700 dark:text-gray-200">
                                             <div>{{ __('ui.modules.island_transfers.contract_rate') }}: <x-money :amount="(float) ($transfer->contract_rate ?? 0)" currency="IDR" /></div>
                                             <div>
@@ -111,7 +113,7 @@
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="8" class="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">{{ __('ui.modules.island_transfers.no_data') }}</td>
+                                        <td colspan="9" class="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">{{ __('ui.modules.island_transfers.no_data') }}</td>
                                     </tr>
                                 @endforelse
                             </tbody>
@@ -138,6 +140,8 @@
                                 <div>{{ $transfer->departure_point_name ?: '-' }} -> {{ $transfer->arrival_point_name ?: '-' }}</div>
                                 <div>{{ __('ui.modules.island_transfers.duration') }}</div>
                                 <div>{{ __('ui.modules.island_transfers.duration_short', ['minutes' => (int) ($transfer->duration_minutes ?? 0)]) }}</div>
+                                <div>{{ __('ui.modules.island_transfers.distance') }}</div>
+                                <div>{{ __('ui.modules.island_transfers.distance_short', ['distance' => number_format((float) ($transfer->distance_km ?? 0), 2, '.', '')]) }}</div>
                                 <div>{{ __('ui.modules.island_transfers.pricing') }}</div>
                                 <div>
                                     <div>{{ __('ui.modules.island_transfers.contract_rate') }}: <x-money :amount="(float) ($transfer->contract_rate ?? 0)" currency="IDR" /></div>

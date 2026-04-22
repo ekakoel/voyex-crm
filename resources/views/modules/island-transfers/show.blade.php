@@ -12,6 +12,8 @@
     <div class="module-page module-page--island-transfers">
         <div class="module-grid-8-4">
             <div class="module-grid-main">
+                @include('modules.activities.partials._vendor-info', ['vendor' => $islandTransfer->vendor])
+
                 <div class="app-card p-5">
                     <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                         <div>
@@ -25,6 +27,10 @@
                         <div>
                             <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ __('ui.modules.island_transfers.duration') }}</p>
                             <p class="mt-1 text-sm text-gray-800 dark:text-gray-100">{{ __('ui.modules.island_transfers.duration_short', ['minutes' => (int) ($islandTransfer->duration_minutes ?? 0)]) }}</p>
+                        </div>
+                        <div>
+                            <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ __('ui.modules.island_transfers.distance') }}</p>
+                            <p class="mt-1 text-sm text-gray-800 dark:text-gray-100">{{ __('ui.modules.island_transfers.distance_short', ['distance' => number_format((float) ($islandTransfer->distance_km ?? 0), 2, '.', '')]) }}</p>
                         </div>
                         <div>
                             <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ __('ui.modules.island_transfers.capacity') }}</p>
@@ -77,11 +83,6 @@
                     </div>
                 </div>
 
-                <div class="app-card p-5">
-                    <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ __('ui.modules.island_transfers.route_geojson_optional') }}</h3>
-                    <pre class="mt-3 overflow-auto rounded-md bg-gray-100 p-3 text-xs text-gray-700 dark:bg-gray-800 dark:text-gray-200">{{ $islandTransfer->route_geojson ? json_encode($islandTransfer->route_geojson, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) : '-' }}</pre>
-                </div>
-
                 @if (!empty($islandTransfer->notes))
                     <div class="app-card p-5">
                         <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ __('ui.modules.island_transfers.notes') }}</h3>
@@ -91,15 +92,8 @@
             </div>
 
             <aside class="module-grid-side">
-                @include('modules.island-transfers.partials._route-map', [
-                    'mapTitle' => 'Island Transfer Route Map (open map)',
-                    'interactive' => false,
-                    'departureLat' => $islandTransfer->departure_latitude,
-                    'departureLng' => $islandTransfer->departure_longitude,
-                    'arrivalLat' => $islandTransfer->arrival_latitude,
-                    'arrivalLng' => $islandTransfer->arrival_longitude,
-                    'routeGeoJson' => $islandTransfer->route_geojson,
-                ])
+                @include('partials._audit-info', ['record' => $islandTransfer])
+
                 <div class="app-card p-5">
                     <p class="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{{ __('ui.modules.island_transfers.quick_actions') }}</p>
                     <a href="{{ route('island-transfers.edit', $islandTransfer) }}" class="btn-primary mb-3 w-full justify-center">{{ __('ui.modules.island_transfers.edit_transfer') }}</a>
@@ -115,8 +109,16 @@
                         </button>
                     </form>
                 </div>
-                @include('modules.activities.partials._vendor-info', ['vendor' => $islandTransfer->vendor])
-                @include('partials._audit-info', ['record' => $islandTransfer])
+
+                @include('modules.island-transfers.partials._route-map', [
+                    'mapTitle' => 'Island Transfer Route Map (open map)',
+                    'interactive' => false,
+                    'departureLat' => $islandTransfer->departure_latitude,
+                    'departureLng' => $islandTransfer->departure_longitude,
+                    'arrivalLat' => $islandTransfer->arrival_latitude,
+                    'arrivalLng' => $islandTransfer->arrival_longitude,
+                    'routeGeoJson' => $islandTransfer->route_geojson,
+                ])
             </aside>
         </div>
     </div>
