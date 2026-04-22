@@ -86,6 +86,7 @@ class DestinationController extends Controller
                 'arrival_longitude',
                 'duration_minutes',
                 'distance_km',
+                'gallery_images',
                 'is_active',
             ]);
 

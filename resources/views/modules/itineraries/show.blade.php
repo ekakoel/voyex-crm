@@ -241,12 +241,14 @@
                             $transferItemsForDay = collect();
                             foreach (($islandTransferDayGroups[$day] ?? collect()) as $transferItem) {
                                 $transfer = $transferItem->islandTransfer;
+                                $transferFirstImage = is_array($transfer->gallery_images ?? null) ? ($transfer->gallery_images[0] ?? null) : null;
                                 $transferItemsForDay->push([
                                     'type' => 'transfer',
                                     'experience_id' => (int) ($transferItem->island_transfer_id ?? 0),
                                     'name' => $transfer->name ?? '-',
                                     'location' => trim((string) (($transfer->departure_point_name ?? '-') . ' -> ' . ($transfer->arrival_point_name ?? '-'))),
                                     'description' => $transfer->notes ?? null,
+                                    'thumbnail_url' => $transferFirstImage ? \App\Support\ImageThumbnailGenerator::resolvePublicUrl($transferFirstImage) : null,
                                     'pax' => $transferItem->pax,
                                     'start_time' => $transferItem->start_time,
                                     'end_time' => $transferItem->end_time,
@@ -463,6 +465,11 @@
                                                 </p>
                                                 <x-rich-text :content="$item['menu_highlights'] ?? null" class="mt-1 text-xs text-gray-600 dark:text-gray-300" />
                                             @else
+                                                @if ($item['type'] === 'transfer' && !empty($item['thumbnail_url']))
+                                                    <div class="mb-1 overflow-hidden rounded-md border border-gray-200 dark:border-gray-700">
+                                                        <img src="{{ $item['thumbnail_url'] }}" alt="Island transfer image" class="h-20 w-full object-cover">
+                                                    </div>
+                                                @endif
                                                 <span class="font-medium">{{ $item['name'] }}</span>
                                                 <span class="ml-1 text-[11px] uppercase tracking-wide {{ $item['type'] === 'activity' ? 'text-emerald-600 dark:text-emerald-400' : ($item['type'] === 'transfer' ? 'text-violet-600 dark:text-violet-400' : 'text-indigo-600 dark:text-indigo-400') }}">{{ $item['type'] }}</span>
                                                 @if ($isMainExperience)

@@ -71,9 +71,19 @@
                             </thead>
                             <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
                                 @forelse ($islandTransfers as $transfer)
-                                    @php($isActive = ! $transfer->trashed())
+                                    @php
+                                        $firstGalleryImage = is_array($transfer->gallery_images ?? null) ? ($transfer->gallery_images[0] ?? null) : null;
+                                        $transferThumb = $firstGalleryImage ? \App\Support\ImageThumbnailGenerator::resolvePublicUrl($firstGalleryImage) : null;
+                                    @endphp
                                     <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/30">
-                                        <td class="px-4 py-3 text-sm font-semibold text-gray-800 dark:text-gray-100">{{ $transfer->name }}</td>
+                                        <td class="px-4 py-3 text-sm text-gray-800 dark:text-gray-100">
+                                            <div class="flex items-center gap-2">
+                                                @if (!empty($transferThumb ?? null))
+                                                    <img src="{{ $transferThumb }}" alt="Island transfer image" class="h-10 w-14 rounded-md border border-gray-200 object-cover dark:border-gray-700">
+                                                @endif
+                                                <span class="font-semibold">{{ $transfer->name }}</span>
+                                            </div>
+                                        </td>
                                         <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">{{ __('ui.modules.island_transfers.types.' . (string) $transfer->transfer_type) }}</td>
                                         <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">
                                             <div>{{ $transfer->vendor?->name ?? '-' }}</div>
@@ -95,17 +105,23 @@
                                             <div class="text-gray-500 dark:text-gray-400">{{ __('ui.modules.island_transfers.publish_rate') }}: <x-money :amount="(float) ($transfer->publish_rate ?? 0)" currency="IDR" /></div>
                                         </td>
                                         <td class="px-4 py-3 text-center text-sm">
-                                            <x-status-badge :status="$isActive ? 'active' : 'inactive'" size="xs" />
+                                            <x-status-badge :status="! $transfer->trashed() ? 'active' : 'inactive'" size="xs" />
                                         </td>
                                         <td class="px-4 py-3 text-right text-sm actions-compact">
                                             <div class="flex items-center justify-end gap-2">
                                                 <a href="{{ route('island-transfers.show', $transfer->id) }}" class="btn-outline-sm">{{ __('ui.modules.island_transfers.view_details') }}</a>
+                                                <form action="{{ route('island-transfers.duplicate', $transfer->id) }}" method="POST" class="inline" onsubmit="if (!confirm('{{ __('ui.modules.island_transfers.confirm_duplicate') }}')) { return false; } const button = this.querySelector('button[type=submit]'); if (button) { button.disabled = true; button.classList.add('opacity-60', 'cursor-not-allowed'); } return true;">
+                                                    @csrf
+                                                    <button type="submit" class="btn-ghost-sm" title="{{ __('ui.common.duplicate') }}" aria-label="{{ __('ui.common.duplicate') }}">
+                                                        <i class="fa-solid fa-copy"></i><span class="sr-only">{{ __('ui.common.duplicate') }}</span>
+                                                    </button>
+                                                </form>
                                                 <a href="{{ route('island-transfers.edit', $transfer->id) }}" class="btn-secondary-sm" title="{{ __('ui.modules.island_transfers.edit') }}" aria-label="{{ __('ui.modules.island_transfers.edit') }}"><i class="fa-solid fa-pen"></i><span class="sr-only">{{ __('ui.modules.island_transfers.edit') }}</span></a>
                                                 <form action="{{ route('island-transfers.toggle-status', $transfer->id) }}" method="POST" class="inline">
                                                     @csrf
                                                     @method('PATCH')
-                                                    <button type="submit" onclick="return confirm('{{ $isActive ? __('ui.modules.island_transfers.confirm_deactivate') : __('ui.modules.island_transfers.confirm_activate') }}')" class="{{ $isActive ? 'btn-muted-sm' : 'btn-primary-sm' }}">
-                                                        {{ $isActive ? __('ui.modules.island_transfers.deactivate') : __('ui.modules.island_transfers.activate') }}
+                                                    <button type="submit" onclick="return confirm('{{ ! $transfer->trashed() ? __('ui.modules.island_transfers.confirm_deactivate') : __('ui.modules.island_transfers.confirm_activate') }}')" class="{{ ! $transfer->trashed() ? 'btn-muted-sm' : 'btn-primary-sm' }}">
+                                                        {{ ! $transfer->trashed() ? __('ui.modules.island_transfers.deactivate') : __('ui.modules.island_transfers.activate') }}
                                                     </button>
                                                 </form>
                                             </div>
@@ -123,8 +139,16 @@
 
                 <div class="md:hidden space-y-3">
                     @forelse ($islandTransfers as $transfer)
-                        @php($isActive = ! $transfer->trashed())
+                        @php
+                            $firstGalleryImage = is_array($transfer->gallery_images ?? null) ? ($transfer->gallery_images[0] ?? null) : null;
+                            $transferThumb = $firstGalleryImage ? \App\Support\ImageThumbnailGenerator::resolvePublicUrl($firstGalleryImage) : null;
+                        @endphp
                         <div class="app-card p-4">
+                            @if (!empty($transferThumb ?? null))
+                                <div class="mb-3 overflow-hidden rounded-md border border-gray-200 dark:border-gray-700">
+                                    <img src="{{ $transferThumb }}" alt="Island transfer image" class="h-28 w-full object-cover">
+                                </div>
+                            @endif
                             <div class="flex items-start justify-between gap-3">
                                 <div>
                                     <p class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ $transfer->name }}</p>
@@ -154,17 +178,23 @@
                                     <div>{{ __('ui.modules.island_transfers.publish_rate') }}: <x-money :amount="(float) ($transfer->publish_rate ?? 0)" currency="IDR" /></div>
                                 </div>
                                 <div>{{ __('ui.modules.island_transfers.status') }}</div>
-                                <div><x-status-badge :status="$isActive ? 'active' : 'inactive'" size="xs" /></div>
+                                <div><x-status-badge :status="! $transfer->trashed() ? 'active' : 'inactive'" size="xs" /></div>
                             </div>
 
                             <div class="mt-3 flex flex-wrap gap-2">
                                 <a href="{{ route('island-transfers.show', $transfer->id) }}" class="btn-outline-sm">{{ __('ui.modules.island_transfers.view_details') }}</a>
+                                <form action="{{ route('island-transfers.duplicate', $transfer->id) }}" method="POST" class="inline" onsubmit="if (!confirm('{{ __('ui.modules.island_transfers.confirm_duplicate') }}')) { return false; } const button = this.querySelector('button[type=submit]'); if (button) { button.disabled = true; button.classList.add('opacity-60', 'cursor-not-allowed'); } return true;">
+                                    @csrf
+                                    <button type="submit" class="btn-ghost-sm" title="{{ __('ui.common.duplicate') }}" aria-label="{{ __('ui.common.duplicate') }}">
+                                        <i class="fa-solid fa-copy"></i><span class="sr-only">{{ __('ui.common.duplicate') }}</span>
+                                    </button>
+                                </form>
                                 <a href="{{ route('island-transfers.edit', $transfer->id) }}" class="btn-secondary-sm" title="{{ __('ui.modules.island_transfers.edit') }}" aria-label="{{ __('ui.modules.island_transfers.edit') }}"><i class="fa-solid fa-pen"></i><span class="sr-only">{{ __('ui.modules.island_transfers.edit') }}</span></a>
                                 <form action="{{ route('island-transfers.toggle-status', $transfer->id) }}" method="POST" class="inline">
                                     @csrf
                                     @method('PATCH')
-                                    <button type="submit" onclick="return confirm('{{ $isActive ? __('ui.modules.island_transfers.confirm_deactivate') : __('ui.modules.island_transfers.confirm_activate') }}')" class="{{ $isActive ? 'btn-muted-sm' : 'btn-primary-sm' }}">
-                                        {{ $isActive ? __('ui.modules.island_transfers.deactivate') : __('ui.modules.island_transfers.activate') }}
+                                    <button type="submit" onclick="return confirm('{{ ! $transfer->trashed() ? __('ui.modules.island_transfers.confirm_deactivate') : __('ui.modules.island_transfers.confirm_activate') }}')" class="{{ ! $transfer->trashed() ? 'btn-muted-sm' : 'btn-primary-sm' }}">
+                                        {{ ! $transfer->trashed() ? __('ui.modules.island_transfers.deactivate') : __('ui.modules.island_transfers.activate') }}
                                     </button>
                                 </form>
                             </div>

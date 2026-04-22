@@ -586,6 +586,13 @@ Route::middleware('auth')->group(function () {
                 'permission:module.island_transfers.access',
                 'module.permission:island_transfers',
             ]);
+        Route::post('island-transfers/{island_transfer}/duplicate', [AdminIslandTransferController::class, 'duplicate'])
+            ->name('island-transfers.duplicate')
+            ->middleware([
+                'module:island_transfers',
+                'permission:module.island_transfers.access',
+                'module.permission:island_transfers',
+            ]);
         Route::get('activities/{activity}', [AdminActivityController::class, 'show'])
             ->name('activities.show')
             ->middleware([
@@ -609,6 +616,13 @@ Route::middleware('auth')->group(function () {
             ]);
         Route::patch('island-transfers/{island_transfer}/toggle-status', [AdminIslandTransferController::class, 'toggleStatus'])
             ->name('island-transfers.toggle-status')
+            ->middleware([
+                'module:island_transfers',
+                'permission:module.island_transfers.access',
+                'module.permission:island_transfers',
+            ]);
+        Route::post('island-transfers/{island_transfer}/gallery-images/remove', [AdminIslandTransferController::class, 'removeGalleryImage'])
+            ->name('island-transfers.gallery-images.remove')
             ->middleware([
                 'module:island_transfers',
                 'permission:module.island_transfers.access',

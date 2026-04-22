@@ -796,7 +796,7 @@ class QuotationController extends Controller
             'touristAttractions:id,name,location,latitude,longitude,description,gallery_images',
             'itineraryActivities.activity:id,vendor_id,name,activity_type,duration_minutes,adult_publish_rate,child_publish_rate,notes,includes,excludes,gallery_images',
             'itineraryActivities.activity.vendor:id,name,location,city,province,latitude,longitude',
-            'itineraryIslandTransfers.islandTransfer:id,vendor_id,name,transfer_type,departure_point_name,arrival_point_name,duration_minutes,notes',
+            'itineraryIslandTransfers.islandTransfer:id,vendor_id,name,transfer_type,departure_point_name,arrival_point_name,duration_minutes,notes,gallery_images',
             'itineraryIslandTransfers.islandTransfer.vendor:id,name,location,city,province,latitude,longitude',
             'itineraryFoodBeverages.foodBeverage:id,vendor_id,name,service_type,duration_minutes,publish_rate,meal_period,notes,menu_highlights,gallery_images',
             'itineraryFoodBeverages.foodBeverage.vendor:id,name,location,city,province,latitude,longitude',
@@ -851,7 +851,7 @@ class QuotationController extends Controller
                         'location' => (string) ($dayPoint->startAirport?->location ?? '-'),
                         'type' => 'Airport',
                         'label' => (string) ($dayPoint->startAirport?->name ?? 'Not set'),
-                        'thumbnail_data_uri' => null,
+                        'thumbnail_data_uri' => $this->resolveGalleryImageDataUri($transfer->gallery_images ?? []),
                     ];
                 }
                 if ($type === 'hotel') {
@@ -994,7 +994,7 @@ class QuotationController extends Controller
                         'name' => (string) ($transfer->name ?? '-'),
                         'location' => trim((string) (($transfer->departure_point_name ?? '-') . ' -> ' . ($transfer->arrival_point_name ?? '-'))),
                         'description' => (string) ($transfer->notes ?? '-'),
-                        'thumbnail_data_uri' => null,
+                        'thumbnail_data_uri' => $this->resolveGalleryImageDataUri($transfer->gallery_images ?? []),
                         'pax' => (int) ($item->pax ?? 0),
                         'start_time' => $item->start_time ? substr((string) $item->start_time, 0, 5) : '--:--',
                         'end_time' => $item->end_time ? substr((string) $item->end_time, 0, 5) : '--:--',

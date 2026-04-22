@@ -378,6 +378,7 @@ return [
             'edit_transfer' => 'Edit Island Transfer',
             'confirm_activate' => 'Activate this island transfer?',
             'confirm_deactivate' => 'Deactivate this island transfer?',
+            'confirm_duplicate' => 'Duplicate this island transfer?',
             'stats_total' => 'Total Transfers',
             'stats_active' => 'Active',
             'stats_inactive' => 'Inactive',
@@ -422,6 +423,7 @@ return [
             'messages' => [
                 'created' => 'Island Transfer created successfully.',
                 'updated' => 'Island Transfer updated successfully.',
+                'duplicated' => 'Island Transfer duplicated successfully. Please review and save your changes.',
                 'activated' => 'Island Transfer activated successfully.',
                 'deactivated' => 'Island Transfer deactivated successfully.',
             ],

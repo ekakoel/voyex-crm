@@ -163,7 +163,19 @@
                                     @else
                                         <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
                                             @foreach ($group['items'] as $item)
+                                                @php
+                                                    $transferThumb = null;
+                                                    if ($group['key'] === 'island_transfers') {
+                                                        $firstTransferImage = is_array($item->gallery_images ?? null) ? ($item->gallery_images[0] ?? null) : null;
+                                                        $transferThumb = $firstTransferImage ? \App\Support\ImageThumbnailGenerator::resolvePublicUrl($firstTransferImage) : null;
+                                                    }
+                                                @endphp
                                                 <div class="rounded-lg border border-gray-200 p-3 dark:border-gray-700">
+                                                    @if ($group['key'] === 'island_transfers' && $transferThumb)
+                                                        <div class="mb-2 overflow-hidden rounded-md border border-gray-200 dark:border-gray-700">
+                                                            <img src="{{ $transferThumb }}" alt="Island transfer image" class="h-24 w-full object-cover">
+                                                        </div>
+                                                    @endif
                                                     <div class="text-sm font-semibold text-gray-800 dark:text-gray-100 break-words">
                                                         @if ($group['key'] === 'island_transfers')
                                                             <a href="{{ route('island-transfers.show', $item) }}" class="hover:text-sky-700 dark:hover:text-sky-300">{{ $item->name ?: '-' }}</a>

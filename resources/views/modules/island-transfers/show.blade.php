@@ -8,11 +8,44 @@
 @endsection
 
 @section('content')
-    @php($isActive = ! $islandTransfer->trashed())
+    @php
+        $isActive = ! $islandTransfer->trashed();
+        $gallery = is_array($islandTransfer->gallery_images) ? array_values($islandTransfer->gallery_images) : [];
+        $galleryItems = collect($gallery)
+            ->map(function (string $path): ?array {
+                $thumbUrl = \App\Support\ImageThumbnailGenerator::resolvePublicUrl($path);
+                $fullUrl = \App\Support\ImageThumbnailGenerator::resolveOriginalPublicUrl($path);
+                if (! $thumbUrl && ! $fullUrl) {
+                    return null;
+                }
+
+                return [
+                    'thumb_url' => $thumbUrl ?: $fullUrl,
+                    'full_url' => $fullUrl ?: $thumbUrl,
+                ];
+            })
+            ->filter()
+            ->values();
+    @endphp
     <div class="module-page module-page--island-transfers">
         <div class="module-grid-8-4">
             <div class="module-grid-main">
                 @include('modules.activities.partials._vendor-info', ['vendor' => $islandTransfer->vendor])
+
+                <div class="app-card p-5">
+                    <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ __('ui.common.gallery') }}</h3>
+                    @if ($galleryItems->isNotEmpty())
+                        <div class="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+                            @foreach ($galleryItems as $item)
+                                <a href="{{ $item['full_url'] }}" target="_blank" rel="noopener" class="block overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700">
+                                    <img src="{{ $item['thumb_url'] }}" alt="Island transfer image" class="h-28 w-full object-cover">
+                                </a>
+                            @endforeach
+                        </div>
+                    @else
+                        <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">{{ __('ui.modules.hotels.no_gallery') }}</p>
+                    @endif
+                </div>
 
                 <div class="app-card p-5">
                     <div class="grid grid-cols-1 gap-4 md:grid-cols-2">

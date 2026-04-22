@@ -6,7 +6,10 @@ use App\Http\Controllers\Concerns\NormalizesDisplayCurrencyToIdr;
 use App\Http\Controllers\Controller;
 use App\Models\IslandTransfer;
 use App\Models\Vendor;
+use App\Support\ImageThumbnailGenerator;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
@@ -78,6 +81,7 @@ class IslandTransferController extends Controller
     public function store(Request $request)
     {
         $validated = $this->validatePayload($request);
+        $validated['gallery_images'] = $this->storeGalleryImages($request->file('gallery_images', []), 'island-transfers');
         IslandTransfer::query()->create($validated);
 
         return redirect()->route('island-transfers.index')->with('success', __('ui.modules.island_transfers.messages.created'));
@@ -106,9 +110,43 @@ class IslandTransferController extends Controller
     public function update(Request $request, IslandTransfer $islandTransfer)
     {
         $validated = $this->validatePayload($request);
+        $existingGallery = $this->normalizeGalleryImages($islandTransfer->gallery_images ?? []);
+        $requestedRemoved = $request->input('removed_gallery_images', []);
+        $requestedRemoved = is_array($requestedRemoved) ? $requestedRemoved : [];
+        $removedGallery = array_values(array_intersect($existingGallery, $requestedRemoved));
+        $remainingGallery = array_values(array_diff($existingGallery, $removedGallery));
+
+        if ($removedGallery !== []) {
+            $this->deleteGalleryImages($removedGallery);
+        }
+
+        $newGallery = $this->storeGalleryImages($request->file('gallery_images', []), 'island-transfers');
+        $validated['gallery_images'] = array_values(array_merge($remainingGallery, $newGallery));
+        unset($validated['removed_gallery_images']);
         $islandTransfer->update($validated);
 
         return redirect()->route('island-transfers.index')->with('success', __('ui.modules.island_transfers.messages.updated'));
+    }
+
+    public function duplicate($islandTransfer)
+    {
+        $source = IslandTransfer::query()
+            ->withTrashed()
+            ->findOrFail($islandTransfer);
+
+        $duplicated = DB::transaction(function () use ($source): IslandTransfer {
+            $copy = $source->replicate();
+            $copy->name = $this->buildDuplicatedName((string) $source->name);
+            $copy->is_active = true;
+            $copy->deleted_at = null;
+            $copy->save();
+
+            return $copy;
+        });
+
+        return redirect()
+            ->route('island-transfers.edit', $duplicated)
+            ->with('success', __('ui.modules.island_transfers.messages.duplicated'));
     }
 
     public function toggleStatus($islandTransfer)
@@ -129,6 +167,38 @@ class IslandTransferController extends Controller
         return redirect()
             ->route('island-transfers.index')
             ->with('success', __('ui.modules.island_transfers.messages.deactivated'));
+    }
+
+    public function destroy(IslandTransfer $islandTransfer)
+    {
+        $this->deleteGalleryImages($islandTransfer->gallery_images ?? []);
+        $islandTransfer->delete();
+
+        return redirect()->route('island-transfers.index')->with('success', __('ui.modules.island_transfers.messages.deactivated'));
+    }
+
+    public function removeGalleryImage(Request $request, IslandTransfer $islandTransfer)
+    {
+        $validated = $request->validate([
+            'image' => ['required', 'string'],
+        ]);
+
+        $image = (string) $validated['image'];
+        $gallery = $this->normalizeGalleryImages($islandTransfer->gallery_images ?? []);
+        if (! in_array($image, $gallery, true)) {
+            return response()->json([
+                'message' => 'Image not found in gallery.',
+            ], 404);
+        }
+
+        $remaining = array_values(array_diff($gallery, [$image]));
+        $this->deleteGalleryImages([$image]);
+        $islandTransfer->update(['gallery_images' => $remaining]);
+
+        return response()->json([
+            'message' => 'Image removed successfully.',
+            'remaining_count' => count($remaining),
+        ]);
     }
 
     private function validatePayload(Request $request): array
@@ -153,6 +223,10 @@ class IslandTransferController extends Controller
             'capacity_min' => ['nullable', 'integer', 'min:1'],
             'capacity_max' => ['nullable', 'integer', 'min:1', 'gte:capacity_min'],
             'notes' => ['nullable', 'string'],
+            'gallery_images' => ['nullable', 'array'],
+            'gallery_images.*' => ['image'],
+            'removed_gallery_images' => ['nullable', 'array'],
+            'removed_gallery_images.*' => ['string'],
             'is_active' => ['nullable', 'boolean'],
         ]);
 
@@ -384,5 +458,68 @@ class IslandTransferController extends Controller
         $withLineBreaks = preg_replace('/<\/(p|div|li|h1|h2|h3|h4|h5|h6|blockquote)>/i', "\n", $withLineBreaks) ?? $withLineBreaks;
 
         return trim(strip_tags(html_entity_decode($withLineBreaks, ENT_QUOTES | ENT_HTML5, 'UTF-8')));
+    }
+
+    /**
+     * @param  mixed  $images
+     * @return array<int, string>
+     */
+    private function normalizeGalleryImages($images): array
+    {
+        if (is_string($images)) {
+            $decoded = json_decode($images, true);
+            $images = is_array($decoded) ? $decoded : [];
+        }
+
+        if (! is_array($images)) {
+            return [];
+        }
+
+        return array_values(array_filter($images, function ($path) {
+            return is_string($path) && trim($path) !== '';
+        }));
+    }
+
+    private function storeGalleryImages(array $files, string $directory): array
+    {
+        $stored = [];
+        foreach ($files as $file) {
+            if (! $file) {
+                continue;
+            }
+
+            $originalPath = $file->store($directory, 'public');
+            $processedPath = ImageThumbnailGenerator::processAndGenerate('public', $originalPath, 3, 2, 360, 240) ?? $originalPath;
+            $stored[] = $processedPath;
+        }
+
+        return $stored;
+    }
+
+    private function deleteGalleryImages(array $paths): void
+    {
+        foreach ($paths as $path) {
+            if (is_string($path) && $path !== '') {
+                Storage::disk('public')->delete($path);
+                Storage::disk('public')->delete(ImageThumbnailGenerator::thumbnailPathFor($path));
+            }
+        }
+    }
+
+    private function buildDuplicatedName(string $name): string
+    {
+        $baseName = trim($name) !== '' ? trim($name) : 'Island Transfer';
+        $candidate = $baseName . ' (Copy)';
+
+        if (! IslandTransfer::withTrashed()->where('name', $candidate)->exists()) {
+            return $candidate;
+        }
+
+        $counter = 2;
+        while (IslandTransfer::withTrashed()->where('name', "{$candidate} {$counter}")->exists()) {
+            $counter++;
+        }
+
+        return "{$candidate} {$counter}";
     }
 }

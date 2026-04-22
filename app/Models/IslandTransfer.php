@@ -33,6 +33,7 @@ class IslandTransfer extends Model
         'capacity_min',
         'capacity_max',
         'notes',
+        'gallery_images',
         'is_active',
     ];
 
@@ -50,6 +51,7 @@ class IslandTransfer extends Model
         'publish_rate' => 'decimal:0',
         'capacity_min' => 'integer',
         'capacity_max' => 'integer',
+        'gallery_images' => 'array',
         'is_active' => 'boolean',
     ];
 

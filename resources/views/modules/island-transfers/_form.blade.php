@@ -15,6 +15,7 @@
         'route_geojson',
         $islandTransfer?->route_geojson ? json_encode($islandTransfer->route_geojson, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) : '',
     );
+    $existingGalleryImages = is_array($islandTransfer?->gallery_images ?? null) ? $islandTransfer->gallery_images : [];
     $distanceKmValue = old('distance_km', $islandTransfer?->distance_km);
     if ($distanceKmValue !== null && $distanceKmValue !== '') {
         $distanceKmValue = number_format((float) $distanceKmValue, 2, '.', '');
@@ -45,6 +46,63 @@
 @endphp
 
 <div class="space-y-4">
+    <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('ui.common.gallery') }}</label>
+            <div id="island-transfer-gallery-preview"
+                class="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3"
+                data-remove-endpoint-template="{{ isset($islandTransfer) ? route('island-transfers.gallery-images.remove', $islandTransfer) : '' }}"
+                data-csrf-token="{{ csrf_token() }}">
+                @forelse ($existingGalleryImages as $image)
+                    @php($thumbUrl = \App\Support\ImageThumbnailGenerator::resolvePublicUrl($image))
+                    @php($fullUrl = \App\Support\ImageThumbnailGenerator::resolveOriginalPublicUrl($image))
+                    <div class="island-transfer-gallery-item island-transfer-gallery-existing-item relative overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700" data-image-path="{{ $image }}">
+                        <button
+                            type="button"
+                            class="island-transfer-gallery-remove-btn absolute right-1 top-1 z-10 inline-flex h-6 w-6 items-center justify-center rounded-full bg-rose-600/95 text-xs font-bold text-white shadow hover:bg-rose-700"
+                            title="{{ __('Remove image') }}"
+                            aria-label="Remove image">
+                            X
+                        </button>
+                        <div class="room-cover-preview image-preview flex w-full items-center justify-center overflow-hidden rounded-lg border-0 bg-gray-50 dark:bg-gray-800/40">
+                            <div class="image-preview-placeholder">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <path d="M4 7h3l2-2h6l2 2h3a1 1 0 0 1 1 1v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a1 1 0 0 1 1-1z"></path>
+                                    <circle cx="12" cy="13" r="4"></circle>
+                                </svg>
+                                <span>{{ __('Select image to preview') }}</span>
+                            </div>
+                            @if ($thumbUrl)
+                                <img
+                                    src="{{ $thumbUrl }}"
+                                    onload="this.classList.add('image-loaded');var p=this.closest('.image-preview');if(p){p.classList.add('has-image');}"
+                                    onerror="if(this.dataset.fallbackApplied){var p=this.closest('.image-preview');if(p){p.classList.remove('has-image');}this.remove();}else{this.dataset.fallbackApplied='1';this.src='{{ $fullUrl ?? '' }}';}"
+                                    alt="Island transfer gallery"
+                                    class="h-full w-full object-cover">
+                            @endif
+                        </div>
+                    </div>
+                @empty
+                    <div class="island-transfer-gallery-empty">
+                        <div class="room-cover-preview image-preview flex w-full items-center justify-center overflow-hidden rounded-lg border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800/40">
+                            <div class="image-preview-placeholder">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <path d="M4 7h3l2-2h6l2 2h3a1 1 0 0 1 1 1v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a1 1 0 0 1 1-1z"></path>
+                                    <circle cx="12" cy="13" r="4"></circle>
+                                </svg>
+                                <span>{{ __('Select image to preview') }}</span>
+                            </div>
+                        </div>
+                    </div>
+                @endforelse
+            </div>
+            <input id="island-transfer-gallery-input" type="file" name="gallery_images[]" accept="image/*" multiple class="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+            @error('gallery_images') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+            @error('gallery_images.*') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+            @error('removed_gallery_images.*') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+        </div>
+    </div>
+
     <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div>
             <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ __('ui.modules.island_transfers.general_information') }}</p>
@@ -417,6 +475,8 @@
                 };
 
                 const distanceInput = document.getElementById('island-transfer-distance-km');
+                const galleryInput = document.getElementById('island-transfer-gallery-input');
+                const galleryPreview = document.getElementById('island-transfer-gallery-preview');
                 const departureLatInput = document.querySelector('[data-coordinate-target="departure-latitude"]');
                 const departureLngInput = document.querySelector('[data-coordinate-target="departure-longitude"]');
                 const arrivalLatInput = document.querySelector('[data-coordinate-target="arrival-latitude"]');
@@ -450,6 +510,73 @@
                     distanceInput.value = String(Math.round(distance * 100) / 100);
                 };
 
+                const buildPreviewPlaceholder = () => `
+                    <div class="image-preview-placeholder">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M4 7h3l2-2h6l2 2h3a1 1 0 0 1 1 1v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a1 1 0 0 1 1-1z"></path>
+                            <circle cx="12" cy="13" r="4"></circle>
+                        </svg>
+                        <span>Select image to preview</span>
+                    </div>
+                `;
+
+                const ensureGalleryEmptyState = () => {
+                    if (!galleryPreview) return;
+                    const hasItems = galleryPreview.querySelector('.island-transfer-gallery-item');
+                    const empty = galleryPreview.querySelector('.island-transfer-gallery-empty');
+                    if (!hasItems && !empty) {
+                        const node = document.createElement('div');
+                        node.className = 'island-transfer-gallery-empty';
+                        node.innerHTML = `
+                            <div class="room-cover-preview image-preview flex w-full items-center justify-center overflow-hidden rounded-lg border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800/40">
+                                ${buildPreviewPlaceholder()}
+                            </div>
+                        `;
+                        galleryPreview.appendChild(node);
+                    }
+                    if (hasItems && empty) {
+                        empty.remove();
+                    }
+                };
+
+                const renderNewUploads = () => {
+                    if (!galleryInput || !galleryPreview) return;
+                    galleryPreview.querySelectorAll('.island-transfer-gallery-new-item').forEach((node) => node.remove());
+
+                    const files = Array.from(galleryInput.files || []);
+                    files.forEach((file) => {
+                        if (!String(file.type || '').startsWith('image/')) return;
+                        const url = URL.createObjectURL(file);
+                        const wrapper = document.createElement('div');
+                        wrapper.className = 'island-transfer-gallery-item island-transfer-gallery-new-item relative overflow-hidden rounded-lg border border-indigo-200 bg-indigo-50/30 dark:border-indigo-700/60 dark:bg-indigo-900/10';
+                        const media = document.createElement('div');
+                        media.className = 'room-cover-preview image-preview flex w-full items-center justify-center overflow-hidden rounded-lg border-0 bg-gray-50 dark:bg-gray-800/40';
+                        media.innerHTML = buildPreviewPlaceholder();
+                        const image = document.createElement('img');
+                        image.alt = 'Island transfer gallery preview';
+                        image.className = 'h-full w-full object-cover';
+                        image.addEventListener('load', () => {
+                            image.classList.add('image-loaded');
+                            media.classList.add('has-image');
+                            URL.revokeObjectURL(url);
+                        }, { once: true });
+                        image.addEventListener('error', () => {
+                            media.classList.remove('has-image');
+                            image.remove();
+                        }, { once: true });
+                        image.src = url;
+                        media.appendChild(image);
+                        wrapper.appendChild(media);
+                        const badge = document.createElement('div');
+                        badge.className = 'border-t border-indigo-200 px-2 py-1 text-[11px] font-medium text-indigo-700 dark:border-indigo-700/60 dark:text-indigo-300';
+                        badge.textContent = 'New upload';
+                        wrapper.appendChild(badge);
+                        galleryPreview.appendChild(wrapper);
+                    });
+
+                    ensureGalleryEmptyState();
+                };
+
                 const bindAutoFill = (prefix) => {
                     const elements = getElementsByPrefix(prefix);
                     if (!elements.source || !elements.trigger || !elements.latitude || !elements.longitude) return;
@@ -471,6 +598,7 @@
 
                 bindAutoFill('departure');
                 bindAutoFill('arrival');
+                galleryInput?.addEventListener('change', renderNewUploads);
                 departureLatInput?.addEventListener('input', recalcDistanceKm);
                 departureLngInput?.addEventListener('input', recalcDistanceKm);
                 arrivalLatInput?.addEventListener('input', recalcDistanceKm);
@@ -478,6 +606,48 @@
                 contractRateInput?.addEventListener('input', recalcPublishRate);
                 markupInput?.addEventListener('input', recalcPublishRate);
                 markupTypeSelect?.addEventListener('change', recalcPublishRate);
+
+                galleryPreview?.addEventListener('click', async (event) => {
+                    const button = event.target.closest('.island-transfer-gallery-remove-btn');
+                    if (!button) return;
+                    const wrapper = button.closest('.island-transfer-gallery-existing-item');
+                    const imagePath = String(wrapper?.dataset.imagePath || '');
+                    if (!wrapper || imagePath === '') return;
+
+                    const endpoint = String(galleryPreview.dataset.removeEndpointTemplate || '');
+                    const csrfToken = String(galleryPreview.dataset.csrfToken || '');
+                    if (endpoint === '' || csrfToken === '') {
+                        wrapper.remove();
+                        ensureGalleryEmptyState();
+                        return;
+                    }
+
+                    button.disabled = true;
+                    button.classList.add('opacity-70');
+                    try {
+                        const response = await fetch(endpoint, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': csrfToken,
+                                'Accept': 'application/json',
+                                'X-Requested-With': 'XMLHttpRequest',
+                            },
+                            body: JSON.stringify({ image: imagePath }),
+                        });
+                        if (!response.ok) {
+                            throw new Error('Request failed');
+                        }
+                        wrapper.remove();
+                        ensureGalleryEmptyState();
+                    } catch (_) {
+                        button.disabled = false;
+                        button.classList.remove('opacity-70');
+                        window.alert('Failed to delete image. Please try again.');
+                    }
+                });
+
+                ensureGalleryEmptyState();
                 recalcDistanceKm();
                 recalcPublishRate();
             })();

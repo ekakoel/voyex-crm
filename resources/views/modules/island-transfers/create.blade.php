@@ -11,7 +11,7 @@
         <div class="module-grid-8-4">
             <div class="module-grid-main">
                 <div class="module-form-wrap">
-                    <form method="POST" action="{{ route('island-transfers.store') }}">
+                    <form method="POST" action="{{ route('island-transfers.store') }}" enctype="multipart/form-data">
                         @csrf
                         @include('modules.island-transfers._form', ['buttonLabel' => __('ui.modules.island_transfers.save_transfer')])
                     </form>

@@ -12,7 +12,7 @@
         <div class="module-grid-8-4">
             <div class="module-grid-main">
                 <div class="module-form-wrap">
-                    <form method="POST" action="{{ route('island-transfers.update', $islandTransfer) }}">
+                    <form method="POST" action="{{ route('island-transfers.update', $islandTransfer) }}" enctype="multipart/form-data">
                         @csrf
                         @method('PUT')
                         @include('modules.island-transfers._form', ['buttonLabel' => __('ui.modules.island_transfers.update_transfer')])
