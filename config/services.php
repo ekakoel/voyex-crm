@@ -37,4 +37,17 @@ return [
         'timeout' => (int) env('FX_TIMEOUT', 10),
     ],
 
+    'google_maps' => [
+        'places_api_key' => env('GOOGLE_MAPS_PLACES_API_KEY'),
+        'places_base_url' => env('GOOGLE_MAPS_PLACES_BASE_URL', 'https://places.googleapis.com/v1'),
+        'places_timeout' => (int) env('GOOGLE_MAPS_PLACES_TIMEOUT', 12),
+        'places_connect_timeout' => (int) env('GOOGLE_MAPS_PLACES_CONNECT_TIMEOUT', 5),
+        'places_retry_times' => (int) env('GOOGLE_MAPS_PLACES_RETRY_TIMES', 2),
+        'places_retry_sleep_ms' => (int) env('GOOGLE_MAPS_PLACES_RETRY_SLEEP_MS', 250),
+        'places_next_page_delay_ms' => (int) env('GOOGLE_MAPS_PLACES_NEXT_PAGE_DELAY_MS', 1500),
+        'places_default_language' => env('GOOGLE_MAPS_PLACES_DEFAULT_LANGUAGE', 'en'),
+        'places_default_region' => env('GOOGLE_MAPS_PLACES_DEFAULT_REGION', 'ID'),
+        'places_default_max_results' => (int) env('GOOGLE_MAPS_PLACES_DEFAULT_MAX_RESULTS', 60),
+    ],
+
 ];

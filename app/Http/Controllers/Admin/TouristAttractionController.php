@@ -6,6 +6,8 @@ use App\Http\Controllers\Concerns\NormalizesDisplayCurrencyToIdr;
 use App\Http\Controllers\Controller;
 use App\Models\Destination;
 use App\Models\TouristAttraction;
+use App\Services\Maps\GooglePlacesService;
+use App\Services\TouristAttractionGoogleSyncService;
 use App\Support\ImageThumbnailGenerator;
 use App\Support\LocationResolver;
 use Illuminate\Http\Request;
@@ -39,6 +41,9 @@ class TouristAttractionController extends Controller
                     ->orWhere('country', 'like', "%{$term}%");
             });
         }
+        if ($request->filled('destination_id')) {
+            $query->where('destination_id', (int) $request->input('destination_id'));
+        }
 
         $touristAttractions = $query
             ->orderBy('name')
@@ -52,7 +57,96 @@ class TouristAttractionController extends Controller
             ]);
         }
 
-        return view('modules.tourist-attractions.index', compact('touristAttractions'));
+        $destinations = Destination::query()
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'name', 'city', 'province']);
+
+        $googleImportDefaults = [
+            'max_results' => (int) config('services.google_maps.places_default_max_results', 60),
+            'language' => (string) config('services.google_maps.places_default_language', 'id'),
+            'region' => (string) config('services.google_maps.places_default_region', 'ID'),
+            'is_configured' => app(GooglePlacesService::class)->isConfigured(),
+            'can_import' => (bool) ($request->user()?->isSuperAdmin()),
+        ];
+        $importCategoryOptions = TouristAttractionGoogleSyncService::categoryOptions();
+        $importIslandOptions = TouristAttractionGoogleSyncService::islandOptions();
+
+        return view('modules.tourist-attractions.index', compact(
+            'touristAttractions',
+            'destinations',
+            'googleImportDefaults',
+            'importCategoryOptions',
+            'importIslandOptions'
+        ));
+    }
+
+    public function importFromGoogle(
+        Request $request,
+        GooglePlacesService $googlePlacesService,
+        TouristAttractionGoogleSyncService $syncService
+    ) {
+        if (! ($request->user()?->isSuperAdmin())) {
+            abort(403, 'Only super admin can use this feature.');
+        }
+
+        if (! $googlePlacesService->isConfigured()) {
+            return redirect()
+                ->route('tourist-attractions.index')
+                ->with('error', __('ui.modules.tourist_attractions.messages.google_places_not_configured'));
+        }
+
+        $validated = $request->validate([
+            'destination_id' => ['required', 'integer', 'exists:destinations,id'],
+            'query' => ['nullable', 'string', 'max:255'],
+            'max_results' => ['nullable', 'integer', 'min:1', 'max:200'],
+            'region' => ['nullable', 'string', 'min:2', 'max:5'],
+            'island_key' => ['nullable', Rule::in(array_keys(TouristAttractionGoogleSyncService::islandOptions()))],
+            'place_categories' => ['nullable', 'array'],
+            'place_categories.*' => ['string', Rule::in(array_keys(TouristAttractionGoogleSyncService::categoryOptions()))],
+            'dry_run' => ['nullable', 'boolean'],
+        ]);
+
+        $destination = Destination::query()
+            ->where('is_active', true)
+            ->find($validated['destination_id']);
+        if (! $destination) {
+            return redirect()
+                ->route('tourist-attractions.index')
+                ->with('error', __('ui.modules.tourist_attractions.messages.destination_not_found'));
+        }
+
+        try {
+            $summary = $syncService->syncDestination($destination, [
+                'query' => $validated['query'] ?? null,
+                'max_results' => (int) ($validated['max_results'] ?? 0),
+                'language_code' => 'en',
+                'region_code' => $validated['region'] ?? null,
+                'island_key' => $validated['island_key'] ?? null,
+                'category_keys' => $validated['place_categories'] ?? [],
+                'dry_run' => $request->boolean('dry_run'),
+            ]);
+
+            $message = __('ui.modules.tourist_attractions.messages.google_places_import_summary', [
+                'destination' => (string) $summary['destination_name'],
+                'fetched' => (int) $summary['fetched'],
+                'created' => (int) $summary['created'],
+                'updated' => (int) $summary['updated'],
+                'skipped' => (int) $summary['skipped'],
+                'invalid' => (int) $summary['invalid'],
+            ]);
+            if ($request->boolean('dry_run')) {
+                $message .= ' ' . __('ui.modules.tourist_attractions.messages.google_places_dry_run_note');
+            }
+
+            return redirect()
+                ->route('tourist-attractions.index')
+                ->with('success', $message);
+        } catch (\Throwable $exception) {
+            return redirect()
+                ->route('tourist-attractions.index')
+                ->with('error', __('ui.modules.tourist_attractions.messages.google_places_import_failed') . ' ' . $exception->getMessage());
+        }
     }
 
     public function create()
@@ -73,7 +167,7 @@ class TouristAttractionController extends Controller
 
         TouristAttraction::query()->create($validated);
 
-        return redirect()->route('tourist-attractions.index')->with('success', 'Tourist attraction created successfully.');
+        return redirect()->route('tourist-attractions.index')->with('success', __('ui.modules.tourist_attractions.messages.created'));
     }
 
     public function edit(TouristAttraction $touristAttraction)
@@ -107,15 +201,27 @@ class TouristAttractionController extends Controller
 
         $touristAttraction->update($validated);
 
-        return redirect()->route('tourist-attractions.index')->with('success', 'Tourist attraction updated successfully.');
+        return redirect()->route('tourist-attractions.index')->with('success', __('ui.modules.tourist_attractions.messages.updated'));
     }
 
-    public function destroy(TouristAttraction $touristAttraction)
+    public function destroy($touristAttraction)
     {
-        $this->deleteGalleryImages($touristAttraction->gallery_images ?? []);
-        $touristAttraction->delete();
+        if (! (request()->user()?->isSuperAdmin())) {
+            abort(403, 'Only super admin can delete tourist attractions.');
+        }
 
-        return redirect()->route('tourist-attractions.index')->with('success', 'Tourist attraction deactivated successfully.');
+        $touristAttraction = TouristAttraction::withTrashed()->findOrFail($touristAttraction);
+        $this->deleteGalleryImages($touristAttraction->gallery_images ?? []);
+        $touristAttraction->forceDelete();
+
+        if ($this->wantsAjaxFragment(request())) {
+            return response()->json([
+                'success' => true,
+                'message' => __('ui.modules.tourist_attractions.messages.deleted'),
+            ]);
+        }
+
+        return redirect()->route('tourist-attractions.index')->with('success', __('ui.modules.tourist_attractions.messages.deleted'));
     }
 
     public function toggleStatus($touristAttraction)
@@ -125,17 +231,33 @@ class TouristAttractionController extends Controller
             $touristAttraction->restore();
             $touristAttraction->update(['is_active' => true]);
 
+            if ($this->wantsAjaxFragment(request())) {
+                return response()->json([
+                    'success' => true,
+                    'status' => 'active',
+                    'message' => __('ui.modules.tourist_attractions.messages.activated'),
+                ]);
+            }
+
             return redirect()
                 ->route('tourist-attractions.index')
-                ->with('success', 'Tourist attraction activated successfully.');
+                ->with('success', __('ui.modules.tourist_attractions.messages.activated'));
         }
 
         $touristAttraction->update(['is_active' => false]);
         $touristAttraction->delete();
 
+        if ($this->wantsAjaxFragment(request())) {
+            return response()->json([
+                'success' => true,
+                'status' => 'inactive',
+                'message' => __('ui.modules.tourist_attractions.messages.deactivated'),
+            ]);
+        }
+
         return redirect()
             ->route('tourist-attractions.index')
-            ->with('success', 'Tourist attraction deactivated successfully.');
+            ->with('success', __('ui.modules.tourist_attractions.messages.deactivated'));
     }
 
     public function removeGalleryImage(Request $request, TouristAttraction $touristAttraction)
@@ -404,4 +526,3 @@ class TouristAttractionController extends Controller
             || $request->header('X-Tourist-Attractions-Ajax') === '1';
     }
 }
-

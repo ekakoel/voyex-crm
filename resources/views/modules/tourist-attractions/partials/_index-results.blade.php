@@ -1,7 +1,11 @@
 <div data-tourist-attractions-index-results>
     <div class="space-y-4">
+        @php($canDeleteTouristAttraction = auth()->user()?->isSuperAdmin() ?? false)
         @if (session('success'))
             <div class="rounded-lg mb-6 border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300">{{ session('success') }}</div>
+        @endif
+        @if (session('error'))
+            <div class="rounded-lg mb-6 border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-700 dark:bg-rose-900/20 dark:text-rose-300">{{ session('error') }}</div>
         @endif
         <div class="hidden md:block app-card overflow-hidden">
             <div class="overflow-x-auto">
@@ -47,11 +51,20 @@
                                 <td class="px-4 py-3 text-right text-sm actions-compact">
                                     <div class="flex items-center justify-end gap-2">
                                         <a href="{{ route('tourist-attractions.edit', $touristAttraction) }}" class="btn-secondary-sm" title="{{ __('ui.common.edit') }}" aria-label="{{ __('ui.common.edit') }}"><i class="fa-solid fa-pen"></i><span class="sr-only">{{ __('ui.common.edit') }}</span></a>
-                                        <form action="{{ route('tourist-attractions.toggle-status', $touristAttraction->id) }}" method="POST" class="inline">
+                                        <form action="{{ route('tourist-attractions.toggle-status', $touristAttraction->id) }}" method="POST" class="inline" data-tourist-attractions-toggle-form>
                                             @csrf
                                             @method('PATCH')
                                             <button type="submit" onclick="return confirm('{{ $isActive ? __('ui.modules.tourist_attractions.confirm_deactivate') : __('ui.modules.tourist_attractions.confirm_activate') }}')" class="{{ $isActive ? 'btn-muted-sm' : 'btn-primary-sm' }}">{{ $isActive ? __('ui.common.deactivate') : __('ui.common.activate') }}</button>
                                         </form>
+                                        @if ($canDeleteTouristAttraction)
+                                            <form action="{{ route('tourist-attractions.destroy', $touristAttraction) }}" method="POST" class="inline" data-tourist-attractions-delete-form>
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="btn-danger-sm">
+                                                    {{ __('ui.common.delete') }}
+                                                </button>
+                                            </form>
+                                        @endif
                                     </div>
                                 </td>
                             </tr>
@@ -83,11 +96,20 @@
                     <p class="text-xs text-gray-500 dark:text-gray-400">{{ __('ui.common.status') }}: <x-status-badge :status="$touristAttraction->trashed() ? 'inactive' : 'active'" size="xs" /></p>
                     <div class="mt-3 flex flex-wrap gap-2">
                         <a href="{{ route('tourist-attractions.edit', $touristAttraction) }}" class="btn-secondary-sm" title="{{ __('ui.common.edit') }}" aria-label="{{ __('ui.common.edit') }}"><i class="fa-solid fa-pen"></i><span class="sr-only">{{ __('ui.common.edit') }}</span></a>
-                        <form action="{{ route('tourist-attractions.toggle-status', $touristAttraction->id) }}" method="POST" class="inline">
+                        <form action="{{ route('tourist-attractions.toggle-status', $touristAttraction->id) }}" method="POST" class="inline" data-tourist-attractions-toggle-form>
                             @csrf
                             @method('PATCH')
                             <button type="submit" onclick="return confirm('{{ $touristAttraction->trashed() ? __('ui.modules.tourist_attractions.confirm_activate') : __('ui.modules.tourist_attractions.confirm_deactivate') }}')" class="{{ $touristAttraction->trashed() ? 'btn-primary-sm' : 'btn-muted-sm' }}">{{ $touristAttraction->trashed() ? __('ui.common.activate') : __('ui.common.deactivate') }}</button>
                         </form>
+                        @if ($canDeleteTouristAttraction)
+                            <form action="{{ route('tourist-attractions.destroy', $touristAttraction) }}" method="POST" class="inline" data-tourist-attractions-delete-form>
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" class="btn-danger-sm">
+                                    {{ __('ui.common.delete') }}
+                                </button>
+                            </form>
+                        @endif
                     </div>
                 </div>
             @empty

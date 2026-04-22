@@ -461,6 +461,13 @@ Route::middleware('auth')->group(function () {
                 'permission:module.tourist_attractions.access',
                 'module.permission:tourist_attractions',
             ]);
+        Route::post('tourist-attractions/import-google', [AdminTouristAttractionController::class, 'importFromGoogle'])
+            ->name('tourist-attractions.import-google')
+            ->middleware([
+                'module:tourist_attractions',
+                'permission:module.tourist_attractions.access',
+                'module.permission:tourist_attractions',
+            ]);
         Route::resource('hotels', AdminHotelController::class)
             ->middleware([
                 'module:hotels',

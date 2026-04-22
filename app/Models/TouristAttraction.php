@@ -26,6 +26,9 @@ class TouristAttraction extends Model
         'timezone',
         'address',
         'destination_id',
+        'google_place_id',
+        'source',
+        'last_synced_at',
         'google_maps_url',
         'latitude',
         'longitude',
@@ -41,6 +44,7 @@ class TouristAttraction extends Model
         'markup_type' => 'string',
         'markup' => 'decimal:0',
         'publish_rate_per_pax' => 'decimal:0',
+        'last_synced_at' => 'datetime',
         'latitude' => 'float',
         'longitude' => 'float',
     ];
@@ -132,7 +136,6 @@ class TouristAttraction extends Model
         return $this->belongsTo(Destination::class);
     }
 }
-
 
 
 
