@@ -10,6 +10,7 @@ use App\Support\ImageThumbnailGenerator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
@@ -139,6 +140,7 @@ class IslandTransferController extends Controller
             $copy->name = $this->buildDuplicatedName((string) $source->name);
             $copy->is_active = true;
             $copy->deleted_at = null;
+            $copy->gallery_images = $this->duplicateGalleryImages($source->gallery_images ?? [], 'island-transfers');
             $copy->save();
 
             return $copy;
@@ -504,6 +506,46 @@ class IslandTransferController extends Controller
                 Storage::disk('public')->delete(ImageThumbnailGenerator::thumbnailPathFor($path));
             }
         }
+    }
+
+    /**
+     * @param  mixed  $images
+     * @return array<int, string>
+     */
+    private function duplicateGalleryImages($images, string $directory): array
+    {
+        $sourceImages = $this->normalizeGalleryImages($images);
+        if ($sourceImages === []) {
+            return [];
+        }
+
+        $disk = Storage::disk('public');
+        $copied = [];
+        $directory = trim($directory, '/');
+
+        foreach ($sourceImages as $sourcePath) {
+            if (! $disk->exists($sourcePath)) {
+                continue;
+            }
+
+            try {
+                $contents = $disk->get($sourcePath);
+                $extension = strtolower((string) pathinfo($sourcePath, PATHINFO_EXTENSION));
+                if ($extension === '') {
+                    $extension = 'jpg';
+                }
+
+                $newPath = $directory . '/' . Str::uuid() . '.' . $extension;
+                $disk->put($newPath, $contents);
+
+                $processedPath = ImageThumbnailGenerator::processAndGenerate('public', $newPath, 3, 2, 360, 240) ?? $newPath;
+                $copied[] = $processedPath;
+            } catch (\Throwable) {
+                continue;
+            }
+        }
+
+        return $copied;
     }
 
     private function buildDuplicatedName(string $name): string
