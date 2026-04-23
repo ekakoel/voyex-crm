@@ -30,7 +30,7 @@
 
             <div class="vx-page-list" aria-label="Pagination">
                 @if ($paginator->onFirstPage())
-                    <span class="vx-page-icon vx-page-btn-disabled" aria-hidden="true">{{ __('&lsaquo;') }}</span>
+                    <span class="vx-page-icon vx-page-btn-disabled" aria-hidden="true">&lsaquo;</span>
                 @else
                     <a href="{{ $paginator->previousPageUrl() }}" rel="prev" class="vx-page-icon" aria-label="Previous page">&lsaquo;</a>
                 @endif
@@ -54,7 +54,7 @@
                 @if ($paginator->hasMorePages())
                     <a href="{{ $paginator->nextPageUrl() }}" rel="next" class="vx-page-icon" aria-label="Next page">&rsaquo;</a>
                 @else
-                    <span class="vx-page-icon vx-page-btn-disabled" aria-hidden="true">{{ __('&rsaquo;') }}</span>
+                    <span class="vx-page-icon vx-page-btn-disabled" aria-hidden="true">&rsaquo;</span>
                 @endif
             </div>
         </div>
