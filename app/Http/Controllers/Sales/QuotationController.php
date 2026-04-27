@@ -866,10 +866,10 @@ class QuotationController extends Controller
             'itineraryTransportUnits.transportUnit:id,name,brand_model,seat_capacity,luggage_capacity,air_conditioned,with_driver,images',
             'itineraryTransportUnits.transportUnit.transport:id,name,transport_type',
             'dayPoints',
-            'dayPoints.startAirport:id,name,location,city,province',
+            'dayPoints.startAirport:id,name,location,city,province,cover',
             'dayPoints.startHotel:id,name,address,city,province',
             'dayPoints.startHotelRoom:id,hotels_id,rooms,view,cover',
-            'dayPoints.endAirport:id,name,location,city,province',
+            'dayPoints.endAirport:id,name,location,city,province,cover',
             'dayPoints.endHotel:id,name,address,city,province',
             'dayPoints.endHotelRoom:id,hotels_id,rooms,view,cover',
             'inquiry:id,inquiry_number,customer_id,status,priority,source,deadline,notes',
@@ -914,7 +914,7 @@ class QuotationController extends Controller
                         'location' => (string) ($dayPoint->startAirport?->location ?? '-'),
                         'type' => 'Airport',
                         'label' => (string) ($dayPoint->startAirport?->name ?? 'Not set'),
-                        'thumbnail_data_uri' => null,
+                        'thumbnail_data_uri' => $this->resolveAirportCoverDataUri($dayPoint->startAirport?->cover),
                     ];
                 }
                 if ($type === 'hotel') {
@@ -943,7 +943,7 @@ class QuotationController extends Controller
                     'location' => (string) ($dayPoint->endAirport?->location ?? '-'),
                     'type' => 'Airport',
                     'label' => (string) ($dayPoint->endAirport?->name ?? 'Not set'),
-                    'thumbnail_data_uri' => null,
+                    'thumbnail_data_uri' => $this->resolveAirportCoverDataUri($dayPoint->endAirport?->cover),
                 ];
             }
             if ($type === 'hotel') {
@@ -1199,6 +1199,51 @@ class QuotationController extends Controller
             }
 
             $originalDataUri = $this->resolveStorageImageDataUri($normalizedPath);
+            if ($originalDataUri) {
+                return $originalDataUri;
+            }
+        }
+
+        return null;
+    }
+
+    private function resolveAirportCoverDataUri(?string $coverPath): ?string
+    {
+        $rawPath = trim(str_replace('\\', '/', (string) $coverPath), '/');
+        if ($rawPath === '') {
+            return null;
+        }
+
+        if (Str::startsWith($rawPath, ['http://', 'https://'])) {
+            return null;
+        }
+
+        if (Str::startsWith($rawPath, 'storage/')) {
+            $rawPath = Str::after($rawPath, 'storage/');
+        }
+
+        $candidates = [$rawPath];
+        if (! Str::contains($rawPath, '/')) {
+            $candidates[] = 'airports/covers/' . $rawPath;
+            $candidates[] = 'airports/cover/' . $rawPath;
+        }
+
+        foreach (array_values(array_unique($candidates)) as $candidate) {
+            $thumbnailPath = ImageThumbnailGenerator::thumbnailPathFor($candidate);
+            $thumbnailDataUri = $this->resolveStorageImageDataUri($thumbnailPath);
+            if ($thumbnailDataUri) {
+                return $thumbnailDataUri;
+            }
+
+            if (Storage::disk('public')->exists($candidate)) {
+                ImageThumbnailGenerator::generate('public', $candidate, 360, 240);
+                $thumbnailDataUri = $this->resolveStorageImageDataUri($thumbnailPath);
+                if ($thumbnailDataUri) {
+                    return $thumbnailDataUri;
+                }
+            }
+
+            $originalDataUri = $this->resolveStorageImageDataUri($candidate);
             if ($originalDataUri) {
                 return $originalDataUri;
             }
