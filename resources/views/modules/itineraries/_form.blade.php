@@ -455,7 +455,7 @@
         <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Order Number') }}</label>
         <input name="order_number" value="{{ old('order_number', $itinerary->order_number ?? '') }}"
             class="mt-1 dark:border-gray-600 app-input"
-            placeholder="{{ __('Example: ORD260424A') }}">
+            placeholder="{{ __('Example: CODE260424A') }}">
         @error('order_number')
             <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
         @enderror
