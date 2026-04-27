@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Concerns\HandlesActivityTimelineAjax;
 use App\Http\Controllers\Controller;
 use App\Models\Activity;
+use App\Models\ActivityType;
 use App\Models\Airport;
 use App\Models\ActivityLog;
 use App\Models\Destination;
@@ -102,11 +103,15 @@ class ItineraryController extends Controller
     public function create(Request $request)
     {
         $touristAttractions = TouristAttraction::query()
+            ->with('destination:id,name')
             ->where('is_active', true)
             ->orderBy('name')
-            ->get(['id', 'name', 'location', 'city', 'province', 'destination_id', 'latitude', 'longitude', 'ideal_visit_minutes']);
+            ->get(['id', 'name', 'location', 'city', 'province', 'source', 'destination_id', 'latitude', 'longitude', 'ideal_visit_minutes']);
         $activities = Activity::query()
-            ->with('vendor:id,name,city,province,location,latitude,longitude')
+            ->with([
+                'vendor:id,name,city,province,location,latitude,longitude,destination_id',
+                'vendor.destination:id,name,city,province',
+            ])
             ->where('is_active', true)
             ->orderBy('name')
             ->get(['id', 'vendor_id', 'name', 'activity_type', 'duration_minutes', 'adult_publish_rate', 'child_publish_rate']);
@@ -577,7 +582,7 @@ class ItineraryController extends Controller
 
             return redirect()
                 ->route('itineraries.edit', $duplicated)
-                ->with('success', 'Itinerary duplicated successfully. Silakan sesuaikan data lalu simpan.');
+                ->with('success', 'Itinerary duplicated successfully. Please review and save the updated data.');
         } catch (\Throwable $e) {
             Cache::forget($duplicateLockKey);
             throw $e;
@@ -593,7 +598,7 @@ class ItineraryController extends Controller
         if ($itinerary->isFinal()) {
             return redirect()
                 ->route('itineraries.show', $itinerary)
-                ->with('error', 'Itinerary sudah final dan tidak dapat diubah.');
+                ->with('error', 'This itinerary is final and cannot be edited.');
         }
         if ($this->isItineraryLockedByQuotation($itinerary)) {
             return redirect()
@@ -608,19 +613,23 @@ class ItineraryController extends Controller
             'itineraryIslandTransfers.islandTransfer.vendor:id,name,location,city,province,latitude,longitude',
             'itineraryFoodBeverages.foodBeverage:id,vendor_id,name,service_type,duration_minutes,publish_rate,meal_period,notes,menu_highlights,gallery_images',
             'itineraryFoodBeverages.foodBeverage.vendor:id,name,location,city,province,latitude,longitude',
-            'itineraryTransportUnits.transportUnit:id,name,seat_capacity',
-            'itineraryTransportUnits.transportUnit.transport:id,name,transport_type',
+            'itineraryTransportUnits.transportUnit:id,name,transport_type,brand_model,seat_capacity,luggage_capacity,air_conditioned,with_driver,images',
+            'itineraryTransportUnits.transportUnit.transport:id,name,transport_type,images,brand_model,seat_capacity,luggage_capacity,air_conditioned,with_driver',
             'dayPoints',
             'inquiry:id,inquiry_number,customer_id',
                         'arrivalTransport:id,name,transport_type',
             'departureTransport:id,name,transport_type',
         ]);
         $touristAttractions = TouristAttraction::query()
+            ->with('destination:id,name')
             ->where('is_active', true)
             ->orderBy('name')
-            ->get(['id', 'name', 'location', 'city', 'province', 'destination_id', 'latitude', 'longitude', 'ideal_visit_minutes']);
+            ->get(['id', 'name', 'location', 'city', 'province', 'source', 'destination_id', 'latitude', 'longitude', 'ideal_visit_minutes']);
         $activities = Activity::query()
-            ->with('vendor:id,name,city,province,location,latitude,longitude')
+            ->with([
+                'vendor:id,name,city,province,location,latitude,longitude,destination_id',
+                'vendor.destination:id,name,city,province',
+            ])
             ->where('is_active', true)
             ->orderBy('name')
             ->get(['id', 'vendor_id', 'name', 'activity_type', 'duration_minutes', 'adult_publish_rate', 'child_publish_rate']);
@@ -726,25 +735,196 @@ class ItineraryController extends Controller
         ]);
     }
 
+    public function activitySuggestions(Request $request)
+    {
+        $validated = $request->validate([
+            'q' => ['nullable', 'string', 'max:100'],
+            'destination' => ['nullable', 'string', 'max:100'],
+            'region' => ['nullable', 'string', 'max:100'],
+            'limit' => ['nullable', 'integer', 'min:5', 'max:50'],
+        ]);
+
+        $keyword = trim((string) ($validated['q'] ?? ''));
+        $destination = trim((string) ($validated['destination'] ?? ''));
+        $region = trim((string) ($validated['region'] ?? ''));
+        $limit = (int) ($validated['limit'] ?? 12);
+
+        return response()->json([
+            'data' => $this->buildActivitySuggestionOptions($keyword, $destination, $region, $limit),
+        ]);
+    }
+
+    public function storeActivitySuggestion(Request $request)
+    {
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'duration_minutes' => ['nullable', 'integer', 'min:15', 'max:1440'],
+        ]);
+
+        ['activity_name' => $activityName, 'region' => $regionName, 'vendor' => $vendorName] =
+            $this->parseManualActivityInputFormat((string) ($validated['name'] ?? ''));
+
+        $existing = Activity::query()
+            ->with('vendor:id,name,city,province,latitude,longitude')
+            ->whereRaw('LOWER(name) = ?', [mb_strtolower($activityName)])
+            ->where('is_active', true)
+            ->whereHas('vendor', function ($query) use ($vendorName) {
+                $query->whereRaw('LOWER(name) = ?', [mb_strtolower($vendorName)]);
+            })
+            ->latest('id')
+            ->first();
+        if ($existing) {
+            return response()->json([
+                'created' => false,
+                'data' => $this->formatActivitySuggestionItem($existing),
+            ]);
+        }
+
+        $vendor = $this->resolveOrCreateVendorForManualActivity($vendorName, $regionName);
+
+        $activityType = $this->resolveOrCreateActivityType('Manual Input');
+        $durationMinutes = (int) ($validated['duration_minutes'] ?? 60);
+        $durationMinutes = max(15, min(1440, $durationMinutes));
+
+        $activity = Activity::query()->create([
+            'vendor_id' => (int) $vendor->id,
+            'name' => $activityName,
+            'activity_type' => (string) $activityType->name,
+            'activity_type_id' => (int) $activityType->id,
+            'duration_minutes' => $durationMinutes,
+            'adult_contract_rate' => 0,
+            'child_contract_rate' => 0,
+            'adult_markup_type' => 'fixed',
+            'adult_markup' => 0,
+            'child_markup_type' => 'fixed',
+            'child_markup' => 0,
+            'adult_publish_rate' => 0,
+            'child_publish_rate' => 0,
+            'contract_price' => 0,
+            'notes' => 'Draft created from Itinerary Day Planner quick add. Format source: Activity, Region, Vendor. Please complete details and verify pricing.',
+            'is_active' => true,
+        ]);
+        $activity->load([
+            'vendor:id,name,city,province,latitude,longitude,destination_id',
+            'vendor.destination:id,name,city,province',
+        ]);
+
+        return response()->json([
+            'created' => true,
+            'data' => $this->formatActivitySuggestionItem($activity),
+        ], 201);
+    }
+
+    public function touristAttractionSuggestions(Request $request)
+    {
+        $validated = $request->validate([
+            'q' => ['nullable', 'string', 'max:100'],
+            'destination' => ['nullable', 'string', 'max:100'],
+            'region' => ['nullable', 'string', 'max:100'],
+            'limit' => ['nullable', 'integer', 'min:5', 'max:50'],
+        ]);
+
+        $keyword = trim((string) ($validated['q'] ?? ''));
+        $destination = trim((string) ($validated['destination'] ?? ''));
+        $region = trim((string) ($validated['region'] ?? ''));
+        $limit = (int) ($validated['limit'] ?? 12);
+
+        return response()->json([
+            'data' => $this->buildTouristAttractionSuggestionOptions($keyword, $destination, $region, $limit),
+        ]);
+    }
+
+    public function storeTouristAttractionSuggestion(Request $request)
+    {
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'ideal_visit_minutes' => ['nullable', 'integer', 'min:15', 'max:1440'],
+        ]);
+
+        ['name' => $attractionName, 'region' => $regionName, 'destination' => $destinationName] =
+            $this->parseManualTouristAttractionInputFormat((string) ($validated['name'] ?? ''));
+
+        $existing = TouristAttraction::query()
+            ->with('destination:id,name,city,province')
+            ->whereRaw('LOWER(name) = ?', [mb_strtolower($attractionName)])
+            ->where('is_active', true)
+            ->where(function ($query) use ($regionName) {
+                $query->where('city', 'like', '%' . $regionName . '%')
+                    ->orWhere('province', 'like', '%' . $regionName . '%')
+                    ->orWhere('location', 'like', '%' . $regionName . '%');
+            });
+        if ($destinationName !== '') {
+            $existing->where(function ($query) use ($destinationName) {
+                $query->whereHas('destination', function ($destinationQuery) use ($destinationName) {
+                    $destinationQuery->where('name', 'like', '%' . $destinationName . '%')
+                        ->orWhere('city', 'like', '%' . $destinationName . '%')
+                        ->orWhere('province', 'like', '%' . $destinationName . '%');
+                })
+                    ->orWhere('city', 'like', '%' . $destinationName . '%')
+                    ->orWhere('province', 'like', '%' . $destinationName . '%')
+                    ->orWhere('location', 'like', '%' . $destinationName . '%');
+            });
+        }
+        $existing = $existing
+            ->latest('id')
+            ->first();
+        if ($existing) {
+            return response()->json([
+                'created' => false,
+                'data' => $this->formatTouristAttractionSuggestionItem($existing),
+            ]);
+        }
+
+        $idealVisitMinutes = (int) ($validated['ideal_visit_minutes'] ?? 120);
+        $idealVisitMinutes = max(15, min(1440, $idealVisitMinutes));
+        $destinationId = $this->resolveDestinationId($destinationName);
+
+        $attraction = TouristAttraction::query()->create([
+            'name' => $attractionName,
+            'ideal_visit_minutes' => $idealVisitMinutes,
+            'contract_rate_per_pax' => 0,
+            'markup_type' => 'fixed',
+            'markup' => 0,
+            'publish_rate_per_pax' => 0,
+            'location' => $regionName,
+            'city' => $regionName,
+            'province' => $regionName,
+            'destination_id' => $destinationId,
+            'source' => 'Manual Input',
+            'description' => 'Draft created from Itinerary Day Planner quick add. Format source: Attraction, Region, Destination. Please complete details and verify pricing.',
+            'is_active' => true,
+        ]);
+        $attraction->load('destination:id,name,city,province');
+
+        return response()->json([
+            'created' => true,
+            'data' => $this->formatTouristAttractionSuggestionItem($attraction),
+        ], 201);
+    }
+
     public function show(Request $request, Itinerary $itinerary)
     {
         $itinerary->load([
-            'touristAttractions:id,name,location,latitude,longitude,description',
-            'itineraryActivities.activity:id,vendor_id,name,activity_type,duration_minutes,adult_publish_rate,child_publish_rate,includes,excludes,benefits,notes',
-            'itineraryActivities.activity.vendor:id,name,location,city,province,latitude,longitude',
+            'touristAttractions:id,name,location,city,province,destination_id,latitude,longitude,description,gallery_images',
+            'touristAttractions.destination:id,name',
+            'itineraryActivities.activity:id,vendor_id,name,activity_type,duration_minutes,adult_publish_rate,child_publish_rate,includes,excludes,benefits,notes,gallery_images',
+            'itineraryActivities.activity.vendor:id,name,location,city,province,destination_id,latitude,longitude',
+            'itineraryActivities.activity.vendor.destination:id,name',
             'itineraryIslandTransfers.islandTransfer:id,vendor_id,name,transfer_type,departure_point_name,departure_latitude,departure_longitude,arrival_point_name,arrival_latitude,arrival_longitude,route_geojson,duration_minutes,notes,gallery_images',
-            'itineraryIslandTransfers.islandTransfer.vendor:id,name,location,city,province,latitude,longitude',
+            'itineraryIslandTransfers.islandTransfer.vendor:id,name,location,city,province,destination_id,latitude,longitude',
+            'itineraryIslandTransfers.islandTransfer.vendor.destination:id,name',
             'itineraryFoodBeverages.foodBeverage:id,vendor_id,name,service_type,duration_minutes,publish_rate,meal_period,notes,menu_highlights,gallery_images',
-            'itineraryFoodBeverages.foodBeverage.vendor:id,name,location,city,province,latitude,longitude',
-            'itineraryTransportUnits.transportUnit:id,name,seat_capacity',
-            'itineraryTransportUnits.transportUnit.transport:id,name,transport_type',
+            'itineraryFoodBeverages.foodBeverage.vendor:id,name,location,city,province,destination_id,latitude,longitude',
+            'itineraryFoodBeverages.foodBeverage.vendor.destination:id,name',
+            'itineraryTransportUnits.transportUnit:id,name,transport_type,brand_model,seat_capacity,luggage_capacity,air_conditioned,with_driver,images',
+            'itineraryTransportUnits.transportUnit.transport:id,name,transport_type,images,brand_model,seat_capacity,luggage_capacity,air_conditioned,with_driver',
             'dayPoints',
-            'dayPoints.startAirport:id,name,location,city,province,latitude,longitude',
-            'dayPoints.startHotel:id,name,address,city,province,latitude,longitude',
-            'dayPoints.startHotelRoom:id,hotels_id,rooms,view',
-            'dayPoints.endAirport:id,name,location,city,province,latitude,longitude',
-            'dayPoints.endHotel:id,name,address,city,province,latitude,longitude',
-            'dayPoints.endHotelRoom:id,hotels_id,rooms,view',
+            'dayPoints.startAirport:id,name,location,city,province,latitude,longitude,cover',
+            'dayPoints.startHotel:id,name,address,city,province,latitude,longitude,cover',
+            'dayPoints.startHotelRoom:id,hotels_id,rooms,view,cover',
+            'dayPoints.endAirport:id,name,location,city,province,latitude,longitude,cover',
+            'dayPoints.endHotel:id,name,address,city,province,latitude,longitude,cover',
+            'dayPoints.endHotelRoom:id,hotels_id,rooms,view,cover',
             'inquiry:id,inquiry_number,customer_id',
             'inquiry.customer:id,name',
             'quotation:id,itinerary_id,status',
@@ -755,7 +935,8 @@ class ItineraryController extends Controller
         $activityDayGroups = $itinerary->itineraryActivities->groupBy(fn ($item) => (int) $item->day_number);
         $islandTransferDayGroups = $itinerary->itineraryIslandTransfers->groupBy(fn ($item) => (int) $item->day_number);
         $foodBeverageDayGroups = $itinerary->itineraryFoodBeverages->groupBy(fn ($item) => (int) $item->day_number);
-        $transportUnitByDay = $itinerary->itineraryTransportUnits->keyBy(fn ($item) => (int) $item->day_number);
+        $transportUnitsByDay = $itinerary->itineraryTransportUnits
+            ->groupBy(fn ($item) => (int) $item->day_number);
 
         $activities = $itinerary->activities()
             ->with('user:id,name')
@@ -767,7 +948,7 @@ class ItineraryController extends Controller
             return $this->activityTimelineFragmentResponse($activities);
         }
 
-        return view('modules.itineraries.show', compact('itinerary', 'dayGroups', 'activityDayGroups', 'islandTransferDayGroups', 'foodBeverageDayGroups', 'transportUnitByDay', 'activities'));
+        return view('modules.itineraries.show', compact('itinerary', 'dayGroups', 'activityDayGroups', 'islandTransferDayGroups', 'foodBeverageDayGroups', 'transportUnitsByDay', 'activities'));
     }
 
     public function generatePdf(Request $request, Itinerary $itinerary)
@@ -795,7 +976,7 @@ class ItineraryController extends Controller
 
         $scheduleByDay = [];
         $dayPointByDay = $itinerary->dayPoints->keyBy(fn ($point) => (int) $point->day_number);
-        $transportUnitByDay = $itinerary->itineraryTransportUnits->keyBy(fn ($item) => (int) $item->day_number);
+        $transportUnitsByDay = $itinerary->itineraryTransportUnits->groupBy(fn ($item) => (int) $item->day_number);
         $toMinutes = static function (?string $time): ?int {
             $value = substr((string) $time, 0, 5);
             if (!preg_match('/^\d{2}:\d{2}$/', $value)) {
@@ -829,7 +1010,7 @@ class ItineraryController extends Controller
                         'location' => (string) ($dayPoint->startAirport?->location ?? '-'),
                         'type' => 'Airport',
                         'label' => (string) ($dayPoint->startAirport?->name ?? 'Not set'),
-                        'thumbnail_data_uri' => $this->resolveGalleryImageDataUri($transfer->gallery_images ?? []),
+                        'thumbnail_data_uri' => null,
                     ];
                 }
                 if ($type === 'hotel') {
@@ -1003,30 +1184,34 @@ class ItineraryController extends Controller
                 : ($startBaseMinutes !== null
                     ? ($fromMinutes($startBaseMinutes + max(0, (int) ($startTravelMinutes ?? 0))) ?? '--:--')
                     : '--:--');
-            $dayTransportItem = $transportUnitByDay[$day] ?? null;
-            $dayTransportUnit = $dayTransportItem?->transportUnit;
-            $transportMaster = $dayTransportUnit?->transport;
-            $transportUnitImage = $dayTransportUnit
-                ? $this->resolveGalleryImageDataUri($dayTransportUnit->images ?? [])
-                : null;
-            $transportImage = $transportUnitImage;
-            $dayTransport = [
-                'assigned' => (bool) $dayTransportUnit,
-                'unit_name' => (string) ($dayTransportUnit?->name ?? '-'),
-                'brand_model' => (string) ($dayTransportUnit?->brand_model ?? '-'),
-                'seat_capacity' => $dayTransportUnit?->seat_capacity !== null ? (int) $dayTransportUnit->seat_capacity : null,
-                'luggage_capacity' => $dayTransportUnit?->luggage_capacity !== null ? (int) $dayTransportUnit->luggage_capacity : null,
-                'currency' => 'IDR',
-                'with_driver' => (bool) ($dayTransportUnit?->with_driver ?? false),
-                'air_conditioned' => (bool) ($dayTransportUnit?->air_conditioned ?? false),
-                'transport_name' => (string) ($transportMaster?->name ?? '-'),
-                'transport_type' => (string) ($transportMaster?->transport_type ?? '-'),
-                'provider_name' => '-',
-                'location' => '-',
-                'city' => '-',
-                'province' => '-',
-                'thumbnail_data_uri' => $transportImage,
-            ];
+            $dayTransportItems = $transportUnitsByDay->get($day, collect());
+            $dayTransports = $dayTransportItems
+                ->map(function ($transportItem) {
+                    $dayTransportUnit = $transportItem?->transportUnit;
+                    $transportMaster = $dayTransportUnit?->transport;
+
+                    return [
+                        'assigned' => (bool) $dayTransportUnit,
+                        'unit_name' => (string) ($dayTransportUnit?->name ?? '-'),
+                        'brand_model' => (string) ($dayTransportUnit?->brand_model ?? '-'),
+                        'seat_capacity' => $dayTransportUnit?->seat_capacity !== null ? (int) $dayTransportUnit->seat_capacity : null,
+                        'luggage_capacity' => $dayTransportUnit?->luggage_capacity !== null ? (int) $dayTransportUnit->luggage_capacity : null,
+                        'currency' => 'IDR',
+                        'with_driver' => (bool) ($dayTransportUnit?->with_driver ?? false),
+                        'air_conditioned' => (bool) ($dayTransportUnit?->air_conditioned ?? false),
+                        'transport_name' => (string) ($transportMaster?->name ?? '-'),
+                        'transport_type' => (string) ($transportMaster?->transport_type ?? '-'),
+                        'provider_name' => '-',
+                        'location' => '-',
+                        'city' => '-',
+                        'province' => '-',
+                        'thumbnail_data_uri' => $dayTransportUnit
+                            ? $this->resolveGalleryImageDataUri($dayTransportUnit->images ?? [])
+                            : null,
+                    ];
+                })
+                ->values()
+                ->all();
             $timelineItems = collect([
                 [
                     'type' => 'Start Point',
@@ -1066,7 +1251,7 @@ class ItineraryController extends Controller
                 'start_travel_minutes' => $startTravelMinutes,
                 'start_point_type_label' => $startPoint['label'] ?? ($startPoint['type'] ?? 'Unknown'),
                 'end_point_type_label' => $endPoint['label'] ?? ($endPoint['type'] ?? 'Unknown'),
-                'transport_unit' => $dayTransport,
+                'transport_units' => $dayTransports,
                 'items' => $timelineItems,
             ];
             $previousEndPoint = $endPoint;
@@ -1236,7 +1421,7 @@ SVG;
         if ($itinerary->isFinal()) {
             return redirect()
                 ->route('itineraries.show', $itinerary)
-                ->with('error', 'Itinerary sudah final dan tidak dapat diubah.');
+                ->with('error', 'This itinerary is final and cannot be edited.');
         }
         if ($this->isItineraryLockedByQuotation($itinerary)) {
             return redirect()
@@ -1424,7 +1609,7 @@ SVG;
         if ($itinerary->isFinal()) {
             return redirect()
                 ->route('itineraries.show', $itinerary)
-                ->with('error', 'Itinerary sudah final dan tidak dapat dihapus.');
+                ->with('error', 'This itinerary is final and cannot be deleted.');
         }
 
         if ($itinerary->quotation) {
@@ -1441,7 +1626,7 @@ SVG;
 
             return redirect()
                 ->route('itineraries.show', $itinerary)
-                ->with('error', 'Itinerary tidak bisa dihapus karena sudah terhubung ke ' . implode(', ', $reasons) . '. Hapus data terkait terlebih dahulu.');
+                ->with('error', 'This itinerary cannot be deleted because it is linked to ' . implode(', ', $reasons) . '. Please remove related data first.');
         }
 
         $itinerary->update(['is_active' => false]);
@@ -1460,7 +1645,7 @@ SVG;
         if ($itinerary->isFinal()) {
             return redirect()
                 ->route('itineraries.show', $itinerary)
-                ->with('error', 'Itinerary sudah final dan tidak dapat diubah statusnya.');
+                ->with('error', 'This itinerary is final and its status cannot be changed.');
         }
 
         if ($itinerary->trashed()) {
@@ -1491,7 +1676,7 @@ SVG;
 
             return redirect()
                 ->route('itineraries.show', $itinerary)
-                ->with('error', 'Itinerary tidak bisa dinonaktifkan karena sudah terhubung ke ' . implode(', ', $reasons) . '. Hapus data terkait terlebih dahulu.');
+                ->with('error', 'This itinerary cannot be deactivated because it is linked to ' . implode(', ', $reasons) . '. Please remove related data first.');
         }
 
         $itinerary->update(['is_active' => false]);
@@ -2185,6 +2370,8 @@ SVG;
     private function normalizeDailyTransportUnits(array $rows, int $durationDays): array
     {
         $normalized = [];
+        $seen = [];
+        $countByDay = [];
         foreach ($rows as $row) {
             $day = (int) ($row['day_number'] ?? 0);
             if ($day < 1 || $day > $durationDays) {
@@ -2194,20 +2381,32 @@ SVG;
             if ($transportUnitId <= 0) {
                 continue;
             }
+            $key = $day . '-' . $transportUnitId;
+            if (isset($seen[$key])) {
+                continue;
+            }
+            $seen[$key] = true;
+            $countByDay[$day] = (int) ($countByDay[$day] ?? 0) + 1;
+            if ($countByDay[$day] > 10) {
+                throw ValidationException::withMessages([
+                    'daily_transport_units' => "Day {$day} can contain maximum 10 transport units.",
+                ]);
+            }
             $normalized[] = [
                 'day_number' => $day,
                 'transport_unit_id' => $transportUnitId,
             ];
         }
 
-        usort($normalized, fn ($a, $b) => $a['day_number'] <=> $b['day_number']);
+        usort($normalized, function (array $left, array $right): int {
+            if ($left['day_number'] !== $right['day_number']) {
+                return $left['day_number'] <=> $right['day_number'];
+            }
 
-        $byDay = [];
-        foreach ($normalized as $row) {
-            $byDay[$row['day_number']] = $row;
-        }
+            return $left['transport_unit_id'] <=> $right['transport_unit_id'];
+        });
 
-        return array_values($byDay);
+        return array_values($normalized);
     }
 
     private function syncDailyTransportUnits(Itinerary $itinerary, array $rows): void
@@ -2495,6 +2694,314 @@ SVG;
         }
 
         return "{$candidate} {$counter}";
+    }
+
+    /**
+     * @return array{activity_name:string,region:string,vendor:string}
+     */
+    private function parseManualActivityInputFormat(string $rawInput): array
+    {
+        $normalized = trim(preg_replace('/\s+/', ' ', $rawInput) ?? '');
+        if ($normalized === '') {
+            throw ValidationException::withMessages([
+                'name' => 'Manual format is required: "Activity Name, Region, Vendor".',
+            ]);
+        }
+
+        $parts = preg_split('/\s*,\s*/', $normalized) ?: [];
+        $parts = array_values(array_filter(array_map(
+            static fn ($value) => trim((string) $value),
+            $parts
+        ), static fn ($value) => $value !== ''));
+
+        if (count($parts) < 3) {
+            throw ValidationException::withMessages([
+                'name' => 'Manual format is required: "Activity Name, Region, Vendor". Example: ATV Ride, Ubud, Bali Adventure.',
+            ]);
+        }
+
+        $activityName = (string) ($parts[0] ?? '');
+        $regionName = (string) ($parts[1] ?? '');
+        $vendorName = trim(implode(', ', array_slice($parts, 2)));
+        if ($activityName === '' || $regionName === '' || $vendorName === '') {
+            throw ValidationException::withMessages([
+                'name' => 'Manual format is required: "Activity Name, Region, Vendor".',
+            ]);
+        }
+
+        return [
+            'activity_name' => $activityName,
+            'region' => $regionName,
+            'vendor' => $vendorName,
+        ];
+    }
+
+    private function resolveOrCreateVendorForManualActivity(string $vendorName, string $regionName): Vendor
+    {
+        $vendor = Vendor::query()
+            ->whereRaw('LOWER(name) = ?', [mb_strtolower(trim($vendorName))])
+            ->first();
+
+        if ($vendor) {
+            if (! $vendor->is_active) {
+                $vendor->is_active = true;
+                $vendor->save();
+            }
+
+            return $vendor;
+        }
+
+        return Vendor::query()->create([
+            'name' => trim($vendorName),
+            'location' => trim($regionName),
+            'city' => trim($regionName),
+            'province' => trim($regionName),
+            'is_active' => true,
+        ]);
+    }
+
+    /**
+     * @return array{ name:string, region:string, destination:string }
+     */
+    private function parseManualTouristAttractionInputFormat(string $rawInput): array
+    {
+        $normalized = trim(preg_replace('/\s+/', ' ', $rawInput) ?? '');
+        if ($normalized === '') {
+            throw ValidationException::withMessages([
+                'name' => 'Manual format is required: "Attraction Name, Region, Destination".',
+            ]);
+        }
+
+        $parts = preg_split('/\s*,\s*/', $normalized) ?: [];
+        $parts = array_values(array_filter(array_map(
+            static fn ($value) => trim((string) $value),
+            $parts
+        ), static fn ($value) => $value !== ''));
+
+        if (count($parts) < 3) {
+            throw ValidationException::withMessages([
+                'name' => 'Manual format is required: "Attraction Name, Region, Destination". Example: Tanah Lot, Tabanan, Bali.',
+            ]);
+        }
+
+        $name = (string) ($parts[0] ?? '');
+        $region = (string) ($parts[1] ?? '');
+        $destination = trim(implode(', ', array_slice($parts, 2)));
+        if ($name === '' || $region === '' || $destination === '') {
+            throw ValidationException::withMessages([
+                'name' => 'Manual format is required: "Attraction Name, Region, Destination".',
+            ]);
+        }
+
+        return [
+            'name' => $name,
+            'region' => $region,
+            'destination' => $destination,
+        ];
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function buildActivitySuggestionOptions(string $keyword = '', string $destination = '', string $region = '', int $limit = 12): array
+    {
+        $keyword = trim((string) $keyword);
+        $destination = trim((string) $destination);
+        $region = trim((string) $region);
+        $query = Activity::query()
+            ->with([
+                'vendor:id,name,city,province,location,latitude,longitude,destination_id',
+                'vendor.destination:id,name,city,province',
+            ])
+            ->where('is_active', true);
+
+        if ($keyword !== '') {
+            $query->where(function ($builder) use ($keyword) {
+                $builder->where('name', 'like', '%' . $keyword . '%')
+                    ->orWhereHas('vendor', function ($vendorQuery) use ($keyword) {
+                        $vendorQuery->where('name', 'like', '%' . $keyword . '%')
+                            ->orWhere('city', 'like', '%' . $keyword . '%')
+                            ->orWhere('province', 'like', '%' . $keyword . '%');
+                });
+            });
+        }
+        if ($destination !== '') {
+            $query->whereHas('vendor', function ($vendorQuery) use ($destination) {
+                $vendorQuery->where(function ($nested) use ($destination) {
+                    $nested->where('city', 'like', '%' . $destination . '%')
+                        ->orWhere('province', 'like', '%' . $destination . '%')
+                        ->orWhere('location', 'like', '%' . $destination . '%')
+                        ->orWhereHas('destination', function ($destinationQuery) use ($destination) {
+                            $destinationQuery->where('name', 'like', '%' . $destination . '%')
+                                ->orWhere('city', 'like', '%' . $destination . '%')
+                                ->orWhere('province', 'like', '%' . $destination . '%');
+                        });
+                });
+            });
+        }
+        if ($region !== '') {
+            $query->whereHas('vendor', function ($vendorQuery) use ($region) {
+                $vendorQuery->where('city', 'like', '%' . $region . '%')
+                    ->orWhere('province', 'like', '%' . $region . '%')
+                    ->orWhere('location', 'like', '%' . $region . '%');
+            });
+        }
+
+        return $query
+            ->orderBy('name')
+            ->limit(max(5, min(50, $limit)))
+            ->get(['id', 'vendor_id', 'name', 'duration_minutes'])
+            ->map(fn (Activity $activity) => $this->formatActivitySuggestionItem($activity))
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function buildTouristAttractionSuggestionOptions(string $keyword = '', string $destination = '', string $region = '', int $limit = 12): array
+    {
+        $keyword = trim((string) $keyword);
+        $destination = trim((string) $destination);
+        $region = trim((string) $region);
+
+        $query = TouristAttraction::query()
+            ->with('destination:id,name,city,province')
+            ->where('is_active', true);
+
+        if ($keyword !== '') {
+            $query->where(function ($builder) use ($keyword) {
+                $builder->where('name', 'like', '%' . $keyword . '%')
+                    ->orWhere('city', 'like', '%' . $keyword . '%')
+                    ->orWhere('province', 'like', '%' . $keyword . '%')
+                    ->orWhere('location', 'like', '%' . $keyword . '%')
+                    ->orWhere('source', 'like', '%' . $keyword . '%');
+            });
+        }
+        if ($destination !== '') {
+            $query->where(function ($builder) use ($destination) {
+                $builder->where('city', 'like', '%' . $destination . '%')
+                    ->orWhere('province', 'like', '%' . $destination . '%')
+                    ->orWhere('location', 'like', '%' . $destination . '%')
+                    ->orWhereHas('destination', function ($destinationQuery) use ($destination) {
+                        $destinationQuery->where('name', 'like', '%' . $destination . '%')
+                            ->orWhere('city', 'like', '%' . $destination . '%')
+                            ->orWhere('province', 'like', '%' . $destination . '%');
+                    });
+            });
+        }
+        if ($region !== '') {
+            $query->where(function ($builder) use ($region) {
+                $builder->where('city', 'like', '%' . $region . '%')
+                    ->orWhere('province', 'like', '%' . $region . '%')
+                    ->orWhere('location', 'like', '%' . $region . '%');
+            });
+        }
+
+        return $query
+            ->orderBy('name')
+            ->limit(max(5, min(50, $limit)))
+            ->get(['id', 'name', 'destination_id', 'city', 'province', 'location', 'source', 'latitude', 'longitude', 'ideal_visit_minutes'])
+            ->map(fn (TouristAttraction $attraction) => $this->formatTouristAttractionSuggestionItem($attraction))
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function formatTouristAttractionSuggestionItem(TouristAttraction $attraction): array
+    {
+        $region = trim((string) ($attraction->city ?? '')) !== ''
+            ? trim((string) $attraction->city)
+            : (trim((string) ($attraction->province ?? '')) !== ''
+                ? trim((string) $attraction->province)
+                : (trim((string) ($attraction->location ?? '')) !== ''
+                    ? trim((string) $attraction->location)
+                    : '-'));
+        $destinationName = trim((string) ($attraction->destination?->name ?? '')) !== ''
+            ? trim((string) $attraction->destination?->name)
+            : '-';
+        $label = trim((string) $attraction->name) . ', ' . $region . ', ' . $destinationName;
+
+        return [
+            'id' => (int) $attraction->id,
+            'name' => (string) $attraction->name,
+            'label' => $label,
+            'destination' => $destinationName,
+            'region' => $region,
+            'provider' => trim((string) ($attraction->source ?? '')),
+            'city' => trim((string) ($attraction->city ?? '')),
+            'location' => trim((string) ($attraction->location ?? '')),
+            'province' => trim((string) ($attraction->province ?? '')),
+            'latitude' => $attraction->latitude,
+            'longitude' => $attraction->longitude,
+            'ideal_visit_minutes' => max(1, (int) ($attraction->ideal_visit_minutes ?? 120)),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function formatActivitySuggestionItem(Activity $activity): array
+    {
+        $vendorName = trim((string) ($activity->vendor?->name ?? ''));
+        $city = trim((string) ($activity->vendor?->city ?? ''));
+        $province = trim((string) ($activity->vendor?->province ?? ''));
+        $region = $city !== '' ? $city : ($province !== '' ? $province : '-');
+        $safeVendorName = $vendorName !== '' ? $vendorName : '-';
+        $label = trim((string) $activity->name) . ', ' . $region . ', ' . $safeVendorName;
+
+        return [
+            'id' => (int) $activity->id,
+            'name' => (string) $activity->name,
+            'label' => $label,
+            'vendor_name' => $vendorName,
+            'destination' => (string) ($activity->vendor?->destination?->name ?? ''),
+            'city' => $city,
+            'province' => $province,
+            'location' => trim((string) ($activity->vendor?->location ?? '')),
+            'latitude' => $activity->vendor?->latitude,
+            'longitude' => $activity->vendor?->longitude,
+            'duration_minutes' => max(1, (int) ($activity->duration_minutes ?? 60)),
+        ];
+    }
+
+    private function resolveOrCreateActivityType(string $name): ActivityType
+    {
+        $normalizedName = trim(preg_replace('/\s+/', ' ', $name) ?? '');
+        if ($normalizedName === '') {
+            $normalizedName = 'General';
+        }
+
+        $existing = ActivityType::query()
+            ->whereRaw('LOWER(name) = ?', [mb_strtolower($normalizedName)])
+            ->first();
+        if ($existing) {
+            if (! $existing->is_active) {
+                $existing->is_active = true;
+                $existing->save();
+            }
+
+            return $existing;
+        }
+
+        $baseSlug = Str::slug($normalizedName);
+        if ($baseSlug === '') {
+            $baseSlug = 'activity-type';
+        }
+        $slug = $baseSlug;
+        $counter = 2;
+        while (ActivityType::query()->where('slug', $slug)->exists()) {
+            $slug = $baseSlug . '-' . $counter;
+            $counter++;
+        }
+
+        return ActivityType::query()->create([
+            'name' => $normalizedName,
+            'slug' => $slug,
+            'is_active' => true,
+        ]);
     }
 
 }

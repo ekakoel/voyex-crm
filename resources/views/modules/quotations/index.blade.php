@@ -81,6 +81,9 @@
                                 <div>
                                     <p class="text-sm font-semibold text-gray-800 dark:text-gray-100">
                                         {{ $quotation->quotation_number }}</p>
+                                    @if (!empty($quotation->order_number))
+                                        <p class="text-xs text-gray-500 dark:text-gray-400">{{ $quotation->order_number }}</p>
+                                    @endif
                                     @if ($showNeedsMyApproval && (bool) ($quotation->needs_my_approval_badge ?? false))
                                         <span
                                             class="mt-1 inline-flex items-center rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-300">
@@ -173,6 +176,9 @@
                                         <td class="px-4 py-3 text-sm text-gray-800 dark:text-gray-100">
                                             <div class="flex flex-col items-start">
                                                 <span>{{ $quotation->quotation_number }}</span>
+                                                @if (!empty($quotation->order_number))
+                                                    <span class="text-xs text-gray-500 dark:text-gray-400">{{ $quotation->order_number }}</span>
+                                                @endif
                                                 @if ($showNeedsMyApproval && (bool) ($quotation->needs_my_approval_badge ?? false))
                                                     <span
                                                         class="mt-1 inline-flex items-center rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-300">

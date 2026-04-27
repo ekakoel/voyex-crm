@@ -113,16 +113,26 @@ class Inquiry extends Model
         });
 
         static::saved(function () {
-            Cache::tags(['inquiries'])->flush();
+            self::flushInquiryCacheTag();
         });
 
         static::deleted(function () {
-            Cache::tags(['inquiries'])->flush();
+            self::flushInquiryCacheTag();
         });
 
         static::restored(function () {
-            Cache::tags(['inquiries'])->flush();
+            self::flushInquiryCacheTag();
         });
+    }
+
+    private static function flushInquiryCacheTag(): void
+    {
+        try {
+            Cache::tags(['inquiries'])->flush();
+        } catch (\BadMethodCallException $exception) {
+            // Some cache stores (e.g. file/database) do not support tags.
+            // Skip tagged flush to avoid breaking inquiry create/update flows.
+        }
     }
 
     private static function nextDailySequence(string $dateKey): string
@@ -154,7 +164,6 @@ class Inquiry extends Model
         return $letters;
     }
 }
-
 
 
 

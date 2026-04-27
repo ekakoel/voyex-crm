@@ -1,7 +1,7 @@
 # VOYEX CRM -- SYSTEM ROADMAP
 
 Version: 1.4  
-Last Updated: 2026-04-22
+Last Updated: 2026-04-23
 
 Legend:  
 - DONE = Implemented  
@@ -198,6 +198,91 @@ Kebijakan ini wajib untuk setiap update code (penambahan, perubahan, pengurangan
 ----------------------------------------------------------------------------------------------------
 
 # CHANGELOG (LATEST)
+
+Date: 2026-04-23
+Completed in this cycle:
+
+- Itinerary PDF multi-transport alignment (preview/download):
+  - updated itinerary PDF payload builder in `ItineraryController::generatePdf()` to group daily transport units per day (`groupBy(day_number)`) instead of single-row `keyBy(day_number)`.
+  - updated daily payload contract from single `transport_unit` to array-based `transport_units` for each day.
+  - updated `resources/views/pdf/itinerary.blade.php` to render all assigned transport units per day (with indexed card/table blocks) and keep empty-state fallback when no transport is assigned.
+  - impact:
+    - PDF preview/download now shows complete transport data for days that contain multiple transport units.
+    - removes data-loss behavior where only one transport unit was previously visible in PDF per day.
+  - layout refinement:
+    - compacted transport section card/table spacing, image size, and typography for high-volume days (5-10 transport units).
+    - added pagination guard (`page-break-inside: avoid`) so header `Transport Unit Day N` stays attached to the first transport block and does not orphan at page bottom.
+  - impact tambahan:
+    - transport section remains readable on dense day payloads.
+    - PDF output is cleaner and more informative across automatic page breaks.
+
+- Itinerary PDF layout simplification (table-only for overview/day transport):
+  - removed card/border wrapper specifically on `Overview` and `Day N` blocks in itinerary PDF sections.
+  - transport section now renders table-only blocks (no extra card container styling), while preserving compact spacing.
+  - strengthened transport pagination behavior:
+    - header block `Transport Unit Day N` + first transport row is wrapped in an unbreakable block (`display: table; page-break-inside: avoid`) so it moves together to next page when remaining space is insufficient.
+  - same layout + pagination behavior applied to:
+    - `resources/views/pdf/itinerary.blade.php`
+    - `resources/views/pdf/quotation_with_itinerary.blade.php`
+
+- Itinerary Include/Exclude transparency alignment:
+  - removed card/border wrapper on `Itinerary Include & Exclude` section in itinerary PDF blocks.
+  - set include/exclude table cells to transparent background and borderless style.
+  - impact:
+    - section now appears clean/plain without colored background cards and border boxes.
+    - visual style stays consistent with requested no-card PDF layout.
+
+- Itinerary Include/Exclude visual separation refinement:
+  - reintroduced subtle border on both `ITINERARY INCLUDE` and `ITINERARY EXCLUDE` blocks while keeping transparent background.
+  - impact:
+    - include/exclude sections remain clean (no card background) but are visually separated more clearly.
+
+- Transport unit block border refinement:
+  - added explicit border on each transport unit block (`.transport-item`) in itinerary PDF sections.
+  - applied consistently to:
+    - `resources/views/pdf/itinerary.blade.php`
+    - `resources/views/pdf/quotation_with_itinerary.blade.php`
+  - impact:
+    - each transport unit is now visually separated with a clear outline.
+
+- Itinerary detail schedule card visual unification:
+  - updated itinerary detail (`resources/views/modules/itineraries/show.blade.php`) so all schedule item cards use a unified visual model aligned with Island Transfer card style.
+  - each item card now consistently shows:
+    - image (when available),
+    - item name + item type label (`Attraction/Activity/Transfer/F&B`),
+    - `Region/City, Destination | Time` meta line.
+  - expanded show-page eager loading in `ItineraryController@show` to provide required metadata for all item types:
+    - attraction destination + gallery,
+    - activity gallery + vendor destination,
+    - island transfer vendor destination,
+    - F&B vendor destination.
+  - impact:
+    - schedule-by-day list is visually consistent across all item types,
+    - item cards are cleaner and easier to scan on itinerary detail page.
+
+- Quotation-with-itinerary PDF consistency:
+  - applied the same grouped transport payload strategy in `QuotationController::buildItineraryPdfPayload()`.
+  - updated `resources/views/pdf/quotation_with_itinerary.blade.php` to render `transport_units` as a list per day.
+  - impact:
+    - itinerary section inside quotation PDF remains consistent with itinerary module PDF behavior for multi transport.
+
+- Itinerary day-point PDF error hardening:
+  - fixed undefined-variable risk in start-point airport resolver (`$transfer` reference) by removing invalid thumbnail source and using safe `null` thumbnail fallback.
+  - impact:
+    - prevents runtime warning/error risk on itinerary PDF generation when day start point is airport.
+
+- Daily transport validation hardening:
+  - corrected validation rule in itinerary create/update from:
+    - `exists:transports,id`
+    to:
+    - `exists:transport_units,id`
+  - impact:
+    - aligns validation with actual persisted relation (`itinerary_transport_units.transport_unit_id -> transport_units.id`) and avoids false validation mismatch.
+
+- QA note:
+  - `php -l app/Http/Controllers/Admin/ItineraryController.php` passed.
+  - `php -l app/Http/Controllers/Sales/QuotationController.php` passed.
+  - `php artisan view:cache` passed.
 
 Date: 2026-04-22
 Completed in this cycle:

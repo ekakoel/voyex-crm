@@ -16,6 +16,7 @@ use App\Models\QuotationComment;
 use App\Models\QuotationItem;
 use App\Models\TouristAttraction;
 use App\Models\TransportUnit;
+use App\Models\User;
 use App\Services\ActivityAuditLogger;
 use App\Services\ItineraryQuotationService;
 use App\Services\InvoiceService;
@@ -178,13 +179,16 @@ class QuotationController extends Controller
     {
         $prefillItineraryId = request()->integer('itinerary_id') ?: null;
         $itineraries = $this->availableItinerariesQuery()
-            ->whereNotIn('id', Quotation::withTrashed()
+            ->whereNotIn('id', Quotation::query()
                 ->select('itinerary_id')
                 ->whereNotNull('itinerary_id'))
             ->orderByDesc('id')
-            ->get(['id', 'title', 'inquiry_id', 'destination', 'duration_days', 'duration_nights', 'is_active', 'status']);
+            ->get(['id', 'title', 'order_number', 'inquiry_id', 'destination', 'duration_days', 'duration_nights', 'is_active', 'status']);
         $itineraryInquiryMap = $itineraries->mapWithKeys(function ($itinerary): array {
             $inquiry = $itinerary->inquiry;
+            if (! $inquiry) {
+                return [];
+            }
 
             return [
                 (string) $itinerary->id => [
@@ -200,12 +204,15 @@ class QuotationController extends Controller
                 ],
             ];
         })->all();
+        $inquiries = $this->availableInquiriesQuery()
+            ->orderByDesc('id')
+            ->get(['id', 'inquiry_number', 'customer_id', 'status', 'priority', 'source', 'assigned_to', 'deadline', 'notes']);
 
         if ($prefillItineraryId && ! $itineraries->firstWhere('id', $prefillItineraryId)) {
             $prefillItineraryId = null;
         }
 
-        return view('modules.quotations.create', compact('itineraries', 'prefillItineraryId', 'itineraryInquiryMap'));
+        return view('modules.quotations.create', compact('itineraries', 'inquiries', 'prefillItineraryId', 'itineraryInquiryMap'));
     }
 
     /**
@@ -226,6 +233,7 @@ class QuotationController extends Controller
                 'exists:itineraries,id',
                 Rule::unique('quotations', 'itinerary_id'),
             ],
+            'order_number' => ['nullable', 'string', 'max:100', 'regex:/^[A-Za-z0-9]+$/'],
             'validity_date' => ['required', 'date'],
             'discount_type' => ['nullable', Rule::in(['percent', 'fixed'])],
             'discount_value' => ['nullable', 'numeric', 'min:0'],
@@ -263,7 +271,9 @@ class QuotationController extends Controller
             }
         }
 
-        $inquiryId = $this->resolveInquiryIdFromItinerary((int) $validated['itinerary_id']);
+        $selectedItineraryId = (int) ($validated['itinerary_id'] ?? 0);
+        $normalizedOrderNumber = $this->resolveOrderNumberFromInputOrItinerary($validated['order_number'] ?? null, $selectedItineraryId);
+        $inquiryId = $this->resolveInquiryIdFromItinerary($selectedItineraryId);
         if (! $this->canApplyGlobalDiscount()) {
             $validated['discount_type'] = null;
             $validated['discount_value'] = 0;
@@ -272,22 +282,26 @@ class QuotationController extends Controller
         }
 
         $validated['quotation_number'] = $this->generateQuotationNumber();
+        $creator = auth()->user();
 
         DB::beginTransaction();
         try {
             $totals = $this->computeTotals($validated['items'], $validated['discount_type'] ?? null, (float) ($validated['discount_value'] ?? 0));
 
-            $quotation = Quotation::withoutActivityLogging(function () use ($validated, $inquiryId, $totals) {
+            $quotation = Quotation::withoutActivityLogging(function () use ($validated, $inquiryId, $selectedItineraryId, $totals, $normalizedOrderNumber) {
                 return Quotation::query()->create([
                     'quotation_number' => $validated['quotation_number'],
+                    'order_number' => $normalizedOrderNumber,
                     'inquiry_id' => $inquiryId,
-                    'itinerary_id' => $validated['itinerary_id'],
+                    'itinerary_id' => $selectedItineraryId,
                     'status' => 'pending',
                     'validity_date' => $validated['validity_date'],
                     'sub_total' => $totals['sub_total'],
                     'discount_type' => $validated['discount_type'] ?? null,
                     'discount_value' => (float) ($validated['discount_value'] ?? 0),
                     'final_amount' => $totals['final_amount'],
+                    'approved_by' => null,
+                    'approved_at' => null,
                 ]);
             });
 
@@ -295,6 +309,10 @@ class QuotationController extends Controller
                 $quotation->items()->create($item);
             }
             $this->quotationValidationService->syncValidationRequirementsAndMasterRates($quotation);
+            if ($this->quotationUsesApprovalBypass($quotation)) {
+                $quotation->approvals()->delete();
+                $this->applyPrivilegedCreatorApprovalStatus($quotation);
+            }
             $this->syncLinkedLifecycleStatusesForQuotation($quotation);
 
             $quotation->load('items');
@@ -303,6 +321,7 @@ class QuotationController extends Controller
             DB::commit();
         } catch (\Throwable $e) {
             DB::rollBack();
+            report($e);
             return back()
                 ->withInput()
                 ->with('error', 'Failed to save quotation. Please check the data.');
@@ -339,7 +358,7 @@ class QuotationController extends Controller
         $validationProgress = $this->quotationValidationService->getProgress($quotation);
         $kpiSummary = $this->computeQuotationKpiSummary($quotation);
         $canValidateQuotation = $this->quotationValidationService->isValidationActor($request->user())
-            && ! in_array((string) ($quotation->status ?? ''), ['approved', Quotation::FINAL_STATUS], true)
+            && ! in_array((string) ($quotation->status ?? ''), [Quotation::FINAL_STATUS], true)
             && (bool) ($validationProgress['requires_validation'] ?? false);
 
         $activities = $quotation->activities()
@@ -371,7 +390,18 @@ class QuotationController extends Controller
         if (! $this->canManageQuotation($quotation, 'update')) {
             return $this->denyQuotationMutation($quotation);
         }
-        $quotation->load(['items', 'itinerary.inquiry.customer', 'itinerary.inquiry.assignedUser', 'itinerary.creator', 'comments.user', 'approvedBy', 'approvalNoteBy', 'approvals.user']);
+        $quotation->load([
+            'items',
+            'inquiry.customer',
+            'inquiry.assignedUser',
+            'itinerary.inquiry.customer',
+            'itinerary.inquiry.assignedUser',
+            'itinerary.creator',
+            'comments.user',
+            'approvedBy',
+            'approvalNoteBy',
+            'approvals.user',
+        ]);
         $this->quotationValidationService->syncValidationRequirements($quotation);
 
         $itineraries = $this->availableItinerariesQuery((int) ($quotation->itinerary_id ?? 0))
@@ -382,12 +412,34 @@ class QuotationController extends Controller
                     ->orWhere('id', $quotation->itinerary_id);
             })
             ->orderByDesc('id')
-            ->get(['id', 'title', 'inquiry_id', 'destination', 'duration_days', 'duration_nights', 'is_active', 'status']);
+            ->get(['id', 'title', 'order_number', 'inquiry_id', 'destination', 'duration_days', 'duration_nights', 'is_active', 'status']);
+        $inquiries = $this->availableInquiriesQuery((int) ($quotation->inquiry_id ?? 0))
+            ->orderByDesc('id')
+            ->get(['id', 'inquiry_number', 'customer_id', 'status', 'priority', 'source', 'assigned_to', 'deadline', 'notes']);
+        $itineraryInquiryMap = $itineraries->mapWithKeys(function ($itinerary): array {
+            $inquiry = $itinerary->inquiry;
+            if (! $inquiry) {
+                return [];
+            }
 
+            return [
+                (string) $itinerary->id => [
+                    'inquiry_number' => (string) ($inquiry?->inquiry_number ?? '-'),
+                    'customer_name' => (string) ($inquiry?->customer?->name ?? '-'),
+                    'status' => (string) ($inquiry?->status ?? '-'),
+                    'priority' => (string) ($inquiry?->priority ?? '-'),
+                    'source' => (string) ($inquiry?->source ?? '-'),
+                    'assigned_user_name' => (string) ($inquiry?->assignedUser?->name ?? '-'),
+                    'deadline' => optional($inquiry?->deadline)->format('Y-m-d') ?? '-',
+                    'notes' => trim((string) ($inquiry?->notes ?? '')) !== '' ? (string) ($inquiry?->notes ?? '') : '-',
+                    'notes_html' => \App\Support\SafeRichText::sanitize((string) ($inquiry?->notes ?? '')),
+                ],
+            ];
+        })->all();
         $approvalProgress = $this->buildApprovalProgress($quotation);
         $validationProgress = $this->quotationValidationService->getProgress($quotation);
         $canValidateQuotation = $this->quotationValidationService->isValidationActor($request->user())
-            && ! in_array((string) ($quotation->status ?? ''), ['approved', Quotation::FINAL_STATUS], true)
+            && ! in_array((string) ($quotation->status ?? ''), [Quotation::FINAL_STATUS], true)
             && (bool) ($validationProgress['requires_validation'] ?? false);
         $activities = $quotation->activities()
             ->with('user:id,name')
@@ -399,7 +451,7 @@ class QuotationController extends Controller
             return $this->activityTimelineFragmentResponse($activities);
         }
 
-        return view('modules.quotations.edit', compact('quotation', 'itineraries', 'approvalProgress', 'validationProgress', 'canValidateQuotation', 'activities'));
+        return view('modules.quotations.edit', compact('quotation', 'itineraries', 'inquiries', 'approvalProgress', 'validationProgress', 'canValidateQuotation', 'activities', 'itineraryInquiryMap'));
     }
 
     /**
@@ -432,6 +484,7 @@ class QuotationController extends Controller
                 'exists:itineraries,id',
                 Rule::unique('quotations', 'itinerary_id')->ignore($quotation->id),
             ],
+            'order_number' => ['nullable', 'string', 'max:100', 'regex:/^[A-Za-z0-9]+$/'],
             'validity_date' => ['required', 'date'],
             'discount_type' => ['nullable', Rule::in(['percent', 'fixed'])],
             'discount_value' => ['nullable', 'numeric', 'min:0'],
@@ -469,7 +522,9 @@ class QuotationController extends Controller
             }
         }
 
-        $inquiryId = $this->resolveInquiryIdFromItinerary((int) $validated['itinerary_id']);
+        $selectedItineraryId = (int) ($validated['itinerary_id'] ?? 0);
+        $normalizedOrderNumber = $this->resolveOrderNumberFromInputOrItinerary($validated['order_number'] ?? null, $selectedItineraryId);
+        $inquiryId = $this->resolveInquiryIdFromItinerary($selectedItineraryId);
         if (! $this->canApplyGlobalDiscount()) {
             $validated['discount_type'] = $quotation->discount_type;
             $validated['discount_value'] = (float) ($quotation->discount_value ?? 0);
@@ -492,10 +547,11 @@ class QuotationController extends Controller
             $quotation->loadMissing('items');
             $beforeAudit = $this->buildQuotationAuditSnapshot($quotation);
 
-            Quotation::withoutActivityLogging(function () use ($quotation, $inquiryId, $validated, $totals): void {
+            Quotation::withoutActivityLogging(function () use ($quotation, $inquiryId, $selectedItineraryId, $validated, $totals, $normalizedOrderNumber): void {
                 $quotation->update([
+                    'order_number' => $normalizedOrderNumber,
                     'inquiry_id' => $inquiryId,
-                    'itinerary_id' => $validated['itinerary_id'],
+                    'itinerary_id' => $selectedItineraryId,
                     'validity_date' => $validated['validity_date'],
                     'sub_total' => $totals['sub_total'],
                     'discount_type' => $validated['discount_type'] ?? null,
@@ -509,7 +565,11 @@ class QuotationController extends Controller
                 $quotation->items()->create($item);
             }
             $this->quotationValidationService->syncValidationRequirementsAndMasterRates($quotation);
-            if ($wasApprovedBeforeUpdate) {
+            $skipApprovalWorkflow = $this->quotationUsesApprovalBypass($quotation);
+            if ($skipApprovalWorkflow) {
+                $quotation->approvals()->delete();
+                $this->applyPrivilegedCreatorApprovalStatus($quotation);
+            } elseif ($wasApprovedBeforeUpdate) {
                 $quotation->approvals()->delete();
                 Quotation::withoutActivityLogging(function () use ($quotation): void {
                     $quotation->update([
@@ -528,6 +588,7 @@ class QuotationController extends Controller
             DB::commit();
         } catch (\Throwable $e) {
             DB::rollBack();
+            report($e);
             return back()
                 ->withInput()
                 ->with('error', 'Failed to save quotation. Please check the data.');
@@ -768,6 +829,7 @@ class QuotationController extends Controller
             $handle = fopen('php://output', 'w');
             fputcsv($handle, [
                 'quotation_number',
+                'order_number',
                 'inquiry_number',
                 'customer_name',
                 'status',
@@ -777,6 +839,7 @@ class QuotationController extends Controller
             foreach ($quotations as $quotation) {
                 fputcsv($handle, [
                     $quotation->quotation_number,
+                    $quotation->order_number ?? '',
                     $quotation->inquiry?->inquiry_number ?? '',
                     $quotation->inquiry?->customer?->name ?? '',
                     $quotation->status,
@@ -815,7 +878,7 @@ class QuotationController extends Controller
 
         $scheduleByDay = [];
         $dayPointByDay = $itinerary->dayPoints->keyBy(fn ($point) => (int) $point->day_number);
-        $transportUnitByDay = $itinerary->itineraryTransportUnits->keyBy(fn ($item) => (int) $item->day_number);
+        $transportUnitsByDay = $itinerary->itineraryTransportUnits->groupBy(fn ($item) => (int) $item->day_number);
         $toMinutes = static function (?string $time): ?int {
             $value = substr((string) $time, 0, 5);
             if (! preg_match('/^\d{2}:\d{2}$/', $value)) {
@@ -851,7 +914,7 @@ class QuotationController extends Controller
                         'location' => (string) ($dayPoint->startAirport?->location ?? '-'),
                         'type' => 'Airport',
                         'label' => (string) ($dayPoint->startAirport?->name ?? 'Not set'),
-                        'thumbnail_data_uri' => $this->resolveGalleryImageDataUri($transfer->gallery_images ?? []),
+                        'thumbnail_data_uri' => null,
                     ];
                 }
                 if ($type === 'hotel') {
@@ -1031,29 +1094,34 @@ class QuotationController extends Controller
                 : ($startBaseMinutes !== null
                     ? ($fromMinutes($startBaseMinutes + max(0, (int) ($startTravelMinutes ?? 0))) ?? '--:--')
                     : '--:--');
-            $dayTransportItem = $transportUnitByDay[$day] ?? null;
-            $dayTransportUnit = $dayTransportItem?->transportUnit;
-            $transportMaster = $dayTransportUnit?->transport;
-            $transportUnitImage = $dayTransportUnit
-                ? $this->resolveGalleryImageDataUri($dayTransportUnit->images ?? [])
-                : null;
-            $dayTransport = [
-                'assigned' => (bool) $dayTransportUnit,
-                'unit_name' => (string) ($dayTransportUnit?->name ?? '-'),
-                'brand_model' => (string) ($dayTransportUnit?->brand_model ?? '-'),
-                'seat_capacity' => $dayTransportUnit?->seat_capacity !== null ? (int) $dayTransportUnit->seat_capacity : null,
-                'luggage_capacity' => $dayTransportUnit?->luggage_capacity !== null ? (int) $dayTransportUnit->luggage_capacity : null,
-                'currency' => 'IDR',
-                'with_driver' => (bool) ($dayTransportUnit?->with_driver ?? false),
-                'air_conditioned' => (bool) ($dayTransportUnit?->air_conditioned ?? false),
-                'transport_name' => (string) ($transportMaster?->name ?? '-'),
-                'transport_type' => (string) ($transportMaster?->transport_type ?? '-'),
-                'provider_name' => '-',
-                'location' => '-',
-                'city' => '-',
-                'province' => '-',
-                'thumbnail_data_uri' => $transportUnitImage,
-            ];
+            $dayTransportItems = $transportUnitsByDay->get($day, collect());
+            $dayTransports = $dayTransportItems
+                ->map(function ($transportItem) {
+                    $dayTransportUnit = $transportItem?->transportUnit;
+                    $transportMaster = $dayTransportUnit?->transport;
+
+                    return [
+                        'assigned' => (bool) $dayTransportUnit,
+                        'unit_name' => (string) ($dayTransportUnit?->name ?? '-'),
+                        'brand_model' => (string) ($dayTransportUnit?->brand_model ?? '-'),
+                        'seat_capacity' => $dayTransportUnit?->seat_capacity !== null ? (int) $dayTransportUnit->seat_capacity : null,
+                        'luggage_capacity' => $dayTransportUnit?->luggage_capacity !== null ? (int) $dayTransportUnit->luggage_capacity : null,
+                        'currency' => 'IDR',
+                        'with_driver' => (bool) ($dayTransportUnit?->with_driver ?? false),
+                        'air_conditioned' => (bool) ($dayTransportUnit?->air_conditioned ?? false),
+                        'transport_name' => (string) ($transportMaster?->name ?? '-'),
+                        'transport_type' => (string) ($transportMaster?->transport_type ?? '-'),
+                        'provider_name' => '-',
+                        'location' => '-',
+                        'city' => '-',
+                        'province' => '-',
+                        'thumbnail_data_uri' => $dayTransportUnit
+                            ? $this->resolveGalleryImageDataUri($dayTransportUnit->images ?? [])
+                            : null,
+                    ];
+                })
+                ->values()
+                ->all();
             $timelineItems = collect([
                 [
                     'type' => 'Start Point',
@@ -1093,7 +1161,7 @@ class QuotationController extends Controller
                 'start_travel_minutes' => $startTravelMinutes,
                 'start_point_type_label' => $startPoint['label'] ?? ($startPoint['type'] ?? 'Unknown'),
                 'end_point_type_label' => $endPoint['label'] ?? ($endPoint['type'] ?? 'Unknown'),
-                'transport_unit' => $dayTransport,
+                'transport_units' => $dayTransports,
                 'items' => $timelineItems,
             ];
             $previousEndPoint = $endPoint;
@@ -1371,16 +1439,13 @@ SVG;
     public function setPending(Request $request, Quotation $quotation)
     {
         $this->autoFinalizeApprovedQuotationIfExpired($quotation);
-        if ($quotation->isFinal()) {
-            return redirect()->back()->with('error', 'Final quotation cannot be modified.');
-        }
         $user = $request->user();
         if (! $user || ! $this->canSetQuotationPending($user)) {
             return redirect()->back()->with('error', 'You do not have permission to set quotation to pending.');
         }
 
-        if (($quotation->status ?? '') !== 'approved') {
-            return redirect()->back()->with('error', 'Only approved quotation can be set to pending.');
+        if (! in_array((string) ($quotation->status ?? ''), ['approved', Quotation::FINAL_STATUS], true)) {
+            return redirect()->back()->with('error', 'Only approved or final quotation can be set to pending.');
         }
 
         $payload = [
@@ -1730,8 +1795,12 @@ SVG;
         return $user->can('quotations.global_discount');
     }
 
-    private function resolveInquiryIdFromItinerary(int $itineraryId): ?int
+    private function resolveInquiryIdFromItinerary(?int $itineraryId): ?int
     {
+        if (! $itineraryId || $itineraryId <= 0) {
+            return null;
+        }
+
         $itinerary = Itinerary::query()->select(['id', 'inquiry_id'])->find($itineraryId);
         if (! $itinerary) {
             throw ValidationException::withMessages([
@@ -1742,33 +1811,87 @@ SVG;
         return $itinerary->inquiry_id ? (int) $itinerary->inquiry_id : null;
     }
 
-    private function availableItinerariesQuery(?int $includeItineraryId = null): Builder
+    private function assertInquiryCanLinkToItinerary(int $inquiryId, ?int $itineraryId = null): void
     {
-        $query = Itinerary::query()->with(['inquiry.customer', 'inquiry.assignedUser']);
-        $hasIncludedItinerary = $includeItineraryId && $includeItineraryId > 0;
-
-        if (Schema::hasColumn('itineraries', 'is_active')) {
-            if ($hasIncludedItinerary) {
-                $query->where(function (Builder $builder) use ($includeItineraryId): void {
-                    $builder->where(function (Builder $activeBuilder): void {
-                        $activeBuilder->where('is_active', true)->orWhereNull('is_active');
-                    })->orWhere('id', $includeItineraryId);
-                });
-            } else {
-                $query->where(function (Builder $builder): void {
-                    $builder->where('is_active', true)->orWhereNull('is_active');
-                });
-            }
+        if ($inquiryId <= 0) {
+            return;
         }
 
-        if (Schema::hasColumn('itineraries', 'status')) {
-            if ($hasIncludedItinerary) {
-                $query->where(function (Builder $builder) use ($includeItineraryId): void {
-                    $builder->where('status', '!=', Itinerary::FINAL_STATUS)
-                        ->orWhere('id', $includeItineraryId);
+        $linkedItineraryId = Itinerary::query()
+            ->where('inquiry_id', $inquiryId)
+            ->when($itineraryId && $itineraryId > 0, function (Builder $query) use ($itineraryId): void {
+                $query->where('id', '!=', $itineraryId);
+            })
+            ->value('id');
+
+        if ($linkedItineraryId) {
+            throw ValidationException::withMessages([
+                'inquiry_id' => 'Selected inquiry is already linked to another itinerary.',
+            ]);
+        }
+    }
+
+    private function normalizeOrderNumber(?string $value): ?string
+    {
+        $trimmed = trim((string) $value);
+        if ($trimmed === '') {
+            return null;
+        }
+
+        return strtoupper($trimmed);
+    }
+
+    private function resolveOrderNumberFromInputOrItinerary(?string $manualOrderNumber, ?int $itineraryId): ?string
+    {
+        $normalizedManual = $this->normalizeOrderNumber($manualOrderNumber);
+        if ($normalizedManual !== null) {
+            return $normalizedManual;
+        }
+
+        if (! $itineraryId || $itineraryId <= 0) {
+            return null;
+        }
+
+        $itineraryOrderNumber = Itinerary::query()
+            ->whereKey($itineraryId)
+            ->value('order_number');
+        $normalizedItineraryOrderNumber = $this->normalizeOrderNumber(
+            is_string($itineraryOrderNumber) ? $itineraryOrderNumber : null
+        );
+        if ($normalizedItineraryOrderNumber === null) {
+            return null;
+        }
+
+        return preg_match('/^[A-Z0-9]+$/', $normalizedItineraryOrderNumber) === 1
+            ? $normalizedItineraryOrderNumber
+            : null;
+    }
+
+    private function availableItinerariesQuery(?int $includeItineraryId = null): Builder
+    {
+        return Itinerary::query()->with(['inquiry.customer', 'inquiry.assignedUser']);
+    }
+
+    private function availableInquiriesQuery(?int $includeInquiryId = null): Builder
+    {
+        $query = Inquiry::query()->with([
+            'customer',
+            'assignedUser',
+            'itineraries' => function ($query): void {
+                $query->select(['id', 'inquiry_id'])
+                    ->orderByDesc('id');
+            },
+        ]);
+        $hasIncludedInquiry = $includeInquiryId && $includeInquiryId > 0;
+
+        if (Schema::hasColumn('inquiries', 'status')) {
+            if ($hasIncludedInquiry) {
+                $query->where(function (Builder $builder) use ($includeInquiryId): void {
+                    $builder->where('status', '!=', Inquiry::FINAL_STATUS)
+                        ->orWhere('id', $includeInquiryId);
                 });
             } else {
-                $query->where('status', '!=', Itinerary::FINAL_STATUS);
+                $query->where('status', '!=', Inquiry::FINAL_STATUS);
             }
         }
 
@@ -2124,6 +2247,7 @@ SVG;
 
         $query->where(function (Builder $builder) use ($term): void {
             $builder->where('quotation_number', 'like', "%{$term}%")
+                ->orWhere('order_number', 'like', "%{$term}%")
                 ->orWhereHas('inquiry', function ($inquiryQuery) use ($term) {
                     $inquiryQuery->where('inquiry_number', 'like', "%{$term}%")
                         ->orWhereHas('customer', function ($customerQuery) use ($term) {
@@ -2163,6 +2287,23 @@ SVG;
      */
     private function buildApprovalProgress(Quotation $quotation): array
     {
+        if ($this->quotationUsesApprovalBypass($quotation)) {
+            $validationPassed = $this->quotationValidationService->canBeApproved($quotation);
+            return [
+                'required_non_creator_approvals' => 0,
+                'non_creator_approval_count' => 0,
+                'remaining_non_creator_approvals' => 0,
+                'manager_approved' => false,
+                'director_approved' => $validationPassed,
+                'reservation_other_approved' => false,
+                'reservation_count' => 0,
+                'is_ready' => $validationPassed,
+                'missing_labels' => $validationPassed ? [] : ['Validation is not completed'],
+                'latest_non_creator_approver_id' => null,
+                'director_approver_id' => null,
+            ];
+        }
+
         $approvals = $quotation->relationLoaded('approvals')
             ? $quotation->approvals
             : $quotation->approvals()->get();
@@ -2256,6 +2397,13 @@ SVG;
      */
     private function syncQuotationApprovalStatus(Quotation $quotation): array
     {
+        if ($this->quotationUsesApprovalBypass($quotation)) {
+            $this->applyPrivilegedCreatorApprovalStatus($quotation);
+            $this->syncLinkedLifecycleStatusesForQuotation($quotation);
+
+            return $this->buildApprovalProgress($quotation);
+        }
+
         $quotation->loadMissing('approvals');
         $quotation->unsetRelation('approvals');
         $quotation->load('approvals');
@@ -2278,6 +2426,58 @@ SVG;
         $this->syncLinkedLifecycleStatusesForQuotation($quotation);
 
         return $progress;
+    }
+
+    private function shouldAutoApproveQuotationForCreator($user): bool
+    {
+        if (! $user) {
+            return false;
+        }
+
+        return $user->can('dashboard.superadmin.view')
+            || $user->can('dashboard.director.view');
+    }
+
+    private function quotationUsesApprovalBypass(Quotation $quotation): bool
+    {
+        $creator = $quotation->relationLoaded('creator')
+            ? $quotation->creator
+            : null;
+
+        if (! $creator && Schema::hasColumn('quotations', 'created_by')) {
+            $creatorId = (int) ($quotation->created_by ?? 0);
+            if ($creatorId > 0) {
+                $creator = User::query()->find($creatorId);
+            }
+        }
+
+        return $this->shouldAutoApproveQuotationForCreator($creator);
+    }
+
+    private function applyPrivilegedCreatorApprovalStatus(Quotation $quotation): void
+    {
+        $canAutoApprove = $this->quotationValidationService->canBeApproved($quotation);
+        $approvedBy = (int) ($quotation->created_by ?? auth()->id() ?? 0);
+
+        Quotation::withoutActivityLogging(function () use ($quotation, $canAutoApprove, $approvedBy): void {
+            if ($canAutoApprove) {
+                $quotation->update([
+                    'status' => 'approved',
+                    'approved_by' => $approvedBy > 0 ? $approvedBy : null,
+                    'approved_at' => now(),
+                    'approval_note' => null,
+                    'approval_note_by' => null,
+                    'approval_note_at' => null,
+                ]);
+                return;
+            }
+
+            $quotation->update([
+                'status' => 'pending',
+                'approved_by' => null,
+                'approved_at' => null,
+            ]);
+        });
     }
 
     private function buildQuotationAuditSnapshot(Quotation $quotation): array
@@ -2309,6 +2509,7 @@ SVG;
 
         return [
             'quotation_number' => (string) ($quotation->quotation_number ?? ''),
+            'order_number' => (string) ($quotation->order_number ?? ''),
             'inquiry_id' => (int) ($quotation->inquiry_id ?? 0),
             'itinerary_id' => (int) ($quotation->itinerary_id ?? 0),
             'status' => (string) ($quotation->status ?? ''),

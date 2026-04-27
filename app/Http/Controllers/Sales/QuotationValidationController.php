@@ -24,10 +24,10 @@ class QuotationValidationController extends Controller
     public function show(Request $request, Quotation $quotation)
     {
         $this->authorizeValidation($request, $quotation);
-        if (in_array((string) ($quotation->status ?? ''), ['approved', 'final'], true)) {
+        if (in_array((string) ($quotation->status ?? ''), ['final'], true)) {
             return redirect()
                 ->route('quotations.show', $quotation)
-                ->with('error', 'Validated quotation cannot be edited after approval/finalization.');
+                ->with('error', 'Validation changes are locked for final quotation.');
         }
 
         $data = $this->quotationValidationService->prepareValidationPageData($quotation);
@@ -44,8 +44,8 @@ class QuotationValidationController extends Controller
     public function saveProgress(SaveQuotationValidationProgressRequest $request, Quotation $quotation): RedirectResponse
     {
         $this->authorizeValidation($request, $quotation);
-        if (in_array((string) ($quotation->status ?? ''), ['approved', 'final'], true)) {
-            return redirect()->route('quotations.show', $quotation)->with('error', 'Validation changes are locked for approved/final quotation.');
+        if (in_array((string) ($quotation->status ?? ''), ['final'], true)) {
+            return redirect()->route('quotations.show', $quotation)->with('error', 'Validation changes are locked for final quotation.');
         }
 
         $payload = (array) ($request->validated('items') ?? []);
@@ -59,14 +59,14 @@ class QuotationValidationController extends Controller
     public function saveItem(SaveQuotationValidationItemRequest $request, Quotation $quotation, QuotationItem $item): RedirectResponse|JsonResponse
     {
         $this->authorizeValidation($request, $quotation);
-        if (in_array((string) ($quotation->status ?? ''), ['approved', 'final'], true)) {
+        if (in_array((string) ($quotation->status ?? ''), ['final'], true)) {
             if ($request->expectsJson() || $request->ajax()) {
                 return response()->json([
-                    'message' => 'Validation changes are locked for approved/final quotation.',
+                    'message' => 'Validation changes are locked for final quotation.',
                 ], 422);
             }
 
-            return redirect()->route('quotations.show', $quotation)->with('error', 'Validation changes are locked for approved/final quotation.');
+            return redirect()->route('quotations.show', $quotation)->with('error', 'Validation changes are locked for final quotation.');
         }
 
         $validated = $request->validated();
@@ -101,8 +101,8 @@ class QuotationValidationController extends Controller
     public function validateSelected(ValidateSelectedQuotationItemsRequest $request, Quotation $quotation): RedirectResponse
     {
         $this->authorizeValidation($request, $quotation);
-        if (in_array((string) ($quotation->status ?? ''), ['approved', 'final'], true)) {
-            return redirect()->route('quotations.show', $quotation)->with('error', 'Validation changes are locked for approved/final quotation.');
+        if (in_array((string) ($quotation->status ?? ''), ['final'], true)) {
+            return redirect()->route('quotations.show', $quotation)->with('error', 'Validation changes are locked for final quotation.');
         }
 
         $itemIds = array_map('intval', (array) ($request->validated('selected_item_ids') ?? []));
@@ -116,8 +116,8 @@ class QuotationValidationController extends Controller
     public function finalize(Request $request, Quotation $quotation): RedirectResponse
     {
         $this->authorizeValidation($request, $quotation);
-        if (in_array((string) ($quotation->status ?? ''), ['approved', 'final'], true)) {
-            return redirect()->route('quotations.show', $quotation)->with('error', 'Validation changes are locked for approved/final quotation.');
+        if (in_array((string) ($quotation->status ?? ''), ['final'], true)) {
+            return redirect()->route('quotations.show', $quotation)->with('error', 'Validation changes are locked for final quotation.');
         }
 
         $this->quotationValidationService->finalize($quotation, (int) $request->user()->id);
@@ -139,14 +139,14 @@ class QuotationValidationController extends Controller
     public function updateItemContact(UpdateQuotationValidationItemContactRequest $request, Quotation $quotation, QuotationItem $item): JsonResponse|RedirectResponse
     {
         $this->authorizeValidation($request, $quotation);
-        if (in_array((string) ($quotation->status ?? ''), ['approved', 'final'], true)) {
+        if (in_array((string) ($quotation->status ?? ''), ['final'], true)) {
             if ($request->expectsJson() || $request->ajax()) {
                 return response()->json([
-                    'message' => 'Validation changes are locked for approved/final quotation.',
+                    'message' => 'Validation changes are locked for final quotation.',
                 ], 422);
             }
 
-            return redirect()->route('quotations.show', $quotation)->with('error', 'Validation changes are locked for approved/final quotation.');
+            return redirect()->route('quotations.show', $quotation)->with('error', 'Validation changes are locked for final quotation.');
         }
 
         $payload = $this->quotationValidationService->updateItemContact(

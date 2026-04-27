@@ -420,6 +420,34 @@ Route::middleware('auth')->group(function () {
                 'permission:module.itineraries.access',
                 'module.permission:itineraries',
             ]);
+        Route::get('itineraries/activity-suggestions', [AdminItineraryController::class, 'activitySuggestions'])
+            ->name('itineraries.activity-suggestions')
+            ->middleware([
+                'module:itineraries',
+                'permission:module.itineraries.access',
+                'module.permission:itineraries',
+            ]);
+        Route::post('itineraries/activity-suggestions', [AdminItineraryController::class, 'storeActivitySuggestion'])
+            ->name('itineraries.activity-suggestions.store')
+            ->middleware([
+                'module:itineraries',
+                'permission:module.itineraries.access',
+                'module.permission:itineraries',
+            ]);
+        Route::get('itineraries/tourist-attraction-suggestions', [AdminItineraryController::class, 'touristAttractionSuggestions'])
+            ->name('itineraries.tourist-attraction-suggestions')
+            ->middleware([
+                'module:itineraries',
+                'permission:module.itineraries.access',
+                'module.permission:itineraries',
+            ]);
+        Route::post('itineraries/tourist-attraction-suggestions', [AdminItineraryController::class, 'storeTouristAttractionSuggestion'])
+            ->name('itineraries.tourist-attraction-suggestions.store')
+            ->middleware([
+                'module:itineraries',
+                'permission:module.itineraries.access',
+                'module.permission:itineraries',
+            ]);
         Route::resource('itineraries', AdminItineraryController::class)->except(['destroy'])
             ->middleware([
                 'module:itineraries',

@@ -22,9 +22,8 @@ class ItineraryTransportUnit extends Model
 
     public function transportUnit()
     {
-        return $this->belongsTo(TransportUnit::class);
+        return $this->belongsTo(TransportUnit::class)->withTrashed();
     }
 }
-
 
 

@@ -449,6 +449,7 @@ class QuotationValidationService
                 ]);
             }
 
+            $this->syncPrivilegedCreatorApprovalStatus($quotation->fresh());
             $this->logQuotationFinalValidation($quotation, $actorId);
 
             return $this->getProgress($quotation->fresh());
@@ -1085,7 +1086,60 @@ class QuotationValidationService
             $progress = $this->getProgress($quotation);
         }
 
+        $this->syncPrivilegedCreatorApprovalStatus($quotation);
+
         return $progress;
+    }
+
+    private function syncPrivilegedCreatorApprovalStatus(Quotation $quotation): void
+    {
+        if (! $this->isPrivilegedCreatorQuotation($quotation)) {
+            return;
+        }
+
+        $canAutoApprove = $this->canBeApproved($quotation);
+        $creatorId = (int) ($quotation->created_by ?? 0);
+
+        if ($canAutoApprove) {
+            $patch = [];
+            if ((string) ($quotation->status ?? '') !== 'approved') {
+                $patch['status'] = 'approved';
+            }
+            if ((int) ($quotation->approved_by ?? 0) !== $creatorId) {
+                $patch['approved_by'] = $creatorId > 0 ? $creatorId : null;
+            }
+            if (! $quotation->approved_at) {
+                $patch['approved_at'] = now();
+            }
+
+            if ($patch !== []) {
+                $quotation->update($patch);
+                $quotation->refresh();
+            }
+
+            return;
+        }
+
+        if ((string) ($quotation->status ?? '') === 'approved') {
+            $quotation->update([
+                'status' => 'pending',
+                'approved_by' => null,
+                'approved_at' => null,
+            ]);
+            $quotation->refresh();
+        }
+    }
+
+    private function isPrivilegedCreatorQuotation(Quotation $quotation): bool
+    {
+        $quotation->loadMissing('creator:id');
+        $creator = $quotation->creator;
+        if (! $creator) {
+            return false;
+        }
+
+        return $creator->can('dashboard.superadmin.view')
+            || $creator->can('dashboard.director.view');
     }
 
     private function syncValidationRequirementForItem(QuotationItem $item): void

@@ -232,15 +232,15 @@
         <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Air Conditioned') }}</label>
             <select name="air_conditioned" class="mt-1 dark:border-gray-600 app-input">
-                <option value="1" @selected((string) old('air_conditioned', (int) ($transport->{{ __('air_conditioned ?? true)) === \'1\')>Yes') }}</option>
-                <option value="0" @selected((string) old('air_conditioned', (int) ($transport->{{ __('air_conditioned ?? true)) === \'0\')>No') }}</option>
+                <option value="1" @selected((string) old('air_conditioned', (int) ($transport->air_conditioned ?? true)) === '1')>{{ __('Yes') }}</option>
+                <option value="0" @selected((string) old('air_conditioned', (int) ($transport->air_conditioned ?? true)) === '0')>{{ __('No') }}</option>
             </select>
         </div>
         <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('With Driver') }}</label>
             <select name="with_driver" class="mt-1 dark:border-gray-600 app-input">
-                <option value="1" @selected((string) old('with_driver', (int) ($transport->{{ __('with_driver ?? true)) === \'1\')>Yes') }}</option>
-                <option value="0" @selected((string) old('with_driver', (int) ($transport->{{ __('with_driver ?? true)) === \'0\')>No') }}</option>
+                <option value="1" @selected((string) old('with_driver', (int) ($transport->with_driver ?? true)) === '1')>{{ __('Yes') }}</option>
+                <option value="0" @selected((string) old('with_driver', (int) ($transport->with_driver ?? true)) === '0')>{{ __('No') }}</option>
             </select>
         </div>
     </div>

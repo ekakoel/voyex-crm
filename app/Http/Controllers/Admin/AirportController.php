@@ -5,9 +5,12 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Airport;
 use App\Models\Destination;
+use App\Support\ImageThumbnailGenerator;
 use App\Support\LocationResolver;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 class AirportController extends Controller
@@ -84,6 +87,9 @@ class AirportController extends Controller
     public function store(Request $request)
     {
         $validated = $this->validatePayload($request, null);
+        $coverResult = $this->resolveAirportCover($request, null);
+        $validated['cover'] = $coverResult['cover'];
+        unset($validated['cover_file'], $validated['existing_cover']);
         Airport::query()->create($validated);
 
         return redirect()->route('airports.index')->with('success', 'Airport created successfully.');
@@ -122,7 +128,13 @@ class AirportController extends Controller
     public function update(Request $request, Airport $airport)
     {
         $validated = $this->validatePayload($request, $airport);
+        $coverResult = $this->resolveAirportCover($request, $airport->cover);
+        $validated['cover'] = $coverResult['cover'];
+        unset($validated['cover_file'], $validated['existing_cover']);
         $airport->update($validated);
+        if ($coverResult['delete'] !== '') {
+            $this->deleteAirportCovers([$coverResult['delete']]);
+        }
 
         return redirect()->route('airports.index')->with('success', 'Airport updated successfully.');
     }
@@ -170,6 +182,8 @@ class AirportController extends Controller
             'latitude' => ['nullable', 'numeric', 'between:-90,90', 'required_with:longitude'],
             'longitude' => ['nullable', 'numeric', 'between:-180,180', 'required_with:latitude'],
             'notes' => ['nullable', 'string'],
+            'cover_file' => ['nullable', 'image'],
+            'existing_cover' => ['nullable', 'string', 'max:255'],
             'is_active' => ['nullable', 'boolean'],
         ]);
 
@@ -190,6 +204,77 @@ class AirportController extends Controller
         }
 
         return $validated;
+    }
+
+    private function resolveAirportCover(Request $request, ?string $currentCover): array
+    {
+        $uploaded = $request->file('cover_file');
+        $currentNormalized = $this->normalizeAirportCoverPath((string) $currentCover);
+
+        if ($uploaded) {
+            $originalPath = $uploaded->store('airports/covers', 'public');
+            $processedPath = ImageThumbnailGenerator::processAndGenerate('public', $originalPath, 16, 9, 360, 240) ?? $originalPath;
+            $deletePath = $currentNormalized !== '' && ! Str::startsWith($currentNormalized, ['http://', 'https://']) && $currentNormalized !== $processedPath
+                ? $currentNormalized
+                : '';
+
+            return [
+                'cover' => $processedPath,
+                'delete' => $deletePath,
+            ];
+        }
+
+        $existing = $this->normalizeAirportCoverPath((string) $request->input('existing_cover', ''));
+        if ($existing !== '') {
+            return ['cover' => $existing, 'delete' => ''];
+        }
+
+        if ($currentNormalized !== '') {
+            return ['cover' => $currentNormalized, 'delete' => ''];
+        }
+
+        return ['cover' => '', 'delete' => ''];
+    }
+
+    private function normalizeAirportCoverPath(string $path): string
+    {
+        $path = trim($path);
+        if ($path === '') {
+            return '';
+        }
+
+        if (Str::startsWith($path, ['http://', 'https://'])) {
+            return $path;
+        }
+
+        $path = str_replace('\\', '/', $path);
+        $path = ltrim($path, '/');
+        if (Str::startsWith($path, 'storage/')) {
+            $path = Str::after($path, 'storage/');
+        }
+
+        if (! Str::startsWith($path, ['airports/covers/', 'airports/cover/'])) {
+            if (! Str::contains($path, '/')) {
+                $coversCandidate = 'airports/covers/' . $path;
+                $coverCandidate = 'airports/cover/' . $path;
+                $path = Storage::disk('public')->exists($coversCandidate)
+                    ? $coversCandidate
+                    : (Storage::disk('public')->exists($coverCandidate) ? $coverCandidate : $coversCandidate);
+            }
+        }
+
+        return trim($path);
+    }
+
+    private function deleteAirportCovers(array $paths): void
+    {
+        foreach ($paths as $path) {
+            if (! is_string($path) || $path === '') {
+                continue;
+            }
+            Storage::disk('public')->delete($path);
+            Storage::disk('public')->delete(ImageThumbnailGenerator::thumbnailPathFor($path));
+        }
     }
 
     private function applyDestinationContext(array &$validated): void
@@ -218,5 +303,3 @@ class AirportController extends Controller
         }
     }
 }
-
-

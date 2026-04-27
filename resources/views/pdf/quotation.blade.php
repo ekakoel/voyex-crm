@@ -21,6 +21,9 @@
         <div>
             <div class="title">Quotation</div>
             <div class="muted">No: {{ $quotation->quotation_number }}</div>
+            @if (!empty($quotation->order_number))
+                <div class="muted">Order No: {{ $quotation->order_number }}</div>
+            @endif
         </div>
         <div class="muted">
             @if ($quotation->created_at)

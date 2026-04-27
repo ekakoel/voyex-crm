@@ -1,6 +1,7 @@
 @php
     $buttonLabel = $buttonLabel ?? 'Save';
     $itineraries = $itineraries ?? collect();
+    $inquiries = $inquiries ?? collect();
     $prefillItineraryId = $prefillItineraryId ?? null;
     $isEditQuotation = isset($quotation) && $quotation instanceof \App\Models\Quotation;
 @endphp
@@ -186,7 +187,7 @@
         </div>
     @endif
 
-    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+    <div class="grid grid-cols-1 gap-4">
         <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Itinerary') }}</label>
             <div class="mt-1 flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -197,12 +198,13 @@
                     data-endpoint="{{ url('quotations/itinerary-items') }}"
                     required
                 >
-                    <option value="">{{ __('Select itinerary') }}</option>
+                    <option value="">{{ __('Select itinerary (required)') }}</option>
                     @foreach ($itineraries as $itinerary)
                         <option
                             value="{{ $itinerary->id }}"
                             data-inquiry-id="{{ $itinerary->inquiry_id ?? '' }}"
                             data-inquiry-number="{{ $itinerary->inquiry?->inquiry_number ?? '' }}"
+                            data-order-number="{{ $itinerary->order_number ?? '' }}"
                             @selected((string) old('itinerary_id', $quotation->itinerary_id ?? $prefillItineraryId ?? '') === (string) $itinerary->id)
                         >
                             {{ $itinerary->title }}
@@ -236,20 +238,36 @@
                 @endif
             </div>
             <p id="itinerary-generate-status" class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                Click Generate to fill items from itinerary.@if ($isEditQuotation) Use "Update Contract Rate" to sync the latest rates without replacing the item structure.@endif
+                Use Generate to fill items from the selected itinerary.@if ($isEditQuotation) Use "Update Contract Rate" to sync the latest rates without replacing the item structure.@endif
             </p>
             @error('itinerary_id')
                 <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
             @enderror
             @if ($itineraries->isEmpty())
                 <p class="mt-1 text-xs text-amber-600 dark:text-amber-400">
-                    No active itinerary is ready to use for this quotation yet.
+                    No active itinerary is ready to use for this quotation yet. Please create or activate an itinerary first.
                 </p>
             @endif
         </div>
     </div>
 
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Order Number') }}</label>
+            <input
+                id="quotation-order-number"
+                name="order_number"
+                value="{{ old('order_number', $quotation->order_number ?? '') }}"
+                class="mt-1 app-input"
+                placeholder="{{ __('Example: ABC260423A') }}"
+            >
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                Use alphanumeric format without spaces.
+            </p>
+            @error('order_number')
+                <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
+            @enderror
+        </div>
         <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Validity Date') }}</label>
             <input
@@ -505,6 +523,13 @@
         </div>
 
         <div id="quotation-manual-items" class="mt-3 divide-y divide-gray-200 dark:divide-gray-700">
+            <div class="hidden sm:grid sm:grid-cols-12 sm:gap-2 sticky top-0 z-10 mb-2 rounded-md border border-slate-800 px-2 py-2 text-[11px] font-semibold uppercase tracking-wide text-white bg-slate-900">
+                <div class="sm:col-span-5">Description</div>
+                <div class="sm:col-span-2">Qty</div>
+                <div class="sm:col-span-2">Rate</div>
+                <div class="sm:col-span-2">Unit Price</div>
+                <div class="sm:col-span-1"></div>
+            </div>
             @for ($j = 0; $j < count($manualItems); $j++)
                 @php
                     $row = $manualItems[$j] ?? ['description' => '', 'qty' => 1, 'contract_rate' => 0, 'markup_type' => 'fixed', 'markup' => 0, 'discount_type' => 'fixed', 'discount' => 0, 'unit_price' => 0];
@@ -537,7 +562,7 @@
                     </div>
                     <div class="sm:col-span-2">
                         <x-money-input
-                            label="Total Rate"
+                            label="Unit Price"
                             label-class="block text-xs text-gray-500 sm:hidden"
                             wrapper-class="quotation-item-money-field w-full"
                             name="items[{{ $idx }}][unit_price]"
@@ -596,7 +621,7 @@
                 </div>
                 <div class="sm:col-span-2">
                     <x-money-input
-                        label="Total Rate"
+                        label="Unit Price"
                         label-class="block text-xs text-gray-500 sm:hidden"
                         wrapper-class="quotation-item-money-field w-full"
                         data-field="unit_price"
@@ -717,6 +742,8 @@
                 if (!itemsContainer || !itemsTemplate || !manualItemsContainer || !manualItemsTemplate) return;
 
                 const itinerarySelect = document.getElementById('itinerary-select');
+                const orderNumberInput = document.getElementById('quotation-order-number');
+                const inquirySelect = document.getElementById('inquiry-select');
                 const generateBtn = document.getElementById('itinerary-generate-btn');
                 const updateContractRateBtn = document.getElementById('itinerary-update-contract-rate-btn');
                 const statusEl = document.getElementById('itinerary-generate-status');
@@ -857,10 +884,7 @@
 
                 const convertDiscountValue = (row, fromType, toType) => {
                     if (!row || fromType === toType) return;
-                    const isManualRow = (row?.dataset?.rowMode || '') === 'manual';
-                    const total = isManualRow
-                        ? Math.max(0, parseInteger(row.querySelector('[data-field="unit_price"]')?.value))
-                        : Math.max(0, computeRowBaseAmount(row));
+                    const total = Math.max(0, computeRowBaseAmount(row));
                     const discountInput = row.querySelector('[data-field="discount"]');
                     if (!discountInput) return;
                     let value = fromType === 'percent'
@@ -1296,8 +1320,6 @@
                             const qty = Math.max(1, parseInteger(row.querySelector('[data-field="qty"]')?.value) || 1);
                             const rateInput = row.querySelector('[data-field="rate"]');
                             const unitPriceInput = row.querySelector('[data-field="unit_price"]');
-                            // Manual item source of truth is per-unit rate.
-                            // Fallback to legacy payload where unit_price may still contain row total.
                             let perUnitDisplay = idrToDisplay(parseInteger(rateInput?.value));
                             if (perUnitDisplay <= 0) {
                                 const fallbackTotalDisplay = idrToDisplay(parseInteger(unitPriceInput?.value));
@@ -1354,12 +1376,134 @@
 
                 const emitItinerarySelection = () => {
                     const selectedOption = itinerarySelect?.options[itinerarySelect.selectedIndex];
+                    const selectedItineraryId = itinerarySelect?.value || '';
+                    const itineraryInquiryId = selectedOption?.dataset?.inquiryId || '';
+                    const selectedInquiryId = inquirySelect?.value || '';
                     const detail = {
-                        itineraryId: itinerarySelect?.value || '',
-                        inquiryId: selectedOption?.dataset?.inquiryId || '',
+                        itineraryId: selectedItineraryId,
+                        inquiryId: selectedItineraryId !== '' ? itineraryInquiryId : selectedInquiryId,
                         inquiryNumber: selectedOption?.dataset?.inquiryNumber || '',
                     };
                     window.dispatchEvent(new CustomEvent('quotation:itinerary-selected', { detail }));
+                };
+
+                const normalizeOrderNumberText = (value) => String(value || '').trim();
+                let lastAutoFilledOrderNumber = '';
+
+                const applyOrderNumberFromSelectedItinerary = () => {
+                    if (!itinerarySelect || !orderNumberInput) return;
+                    const selectedOption = itinerarySelect.options[itinerarySelect.selectedIndex];
+                    const itineraryOrderNumber = normalizeOrderNumberText(selectedOption?.dataset?.orderNumber || '');
+                    const currentOrderNumber = normalizeOrderNumberText(orderNumberInput.value);
+                    const isCurrentManualValue = currentOrderNumber !== '' && currentOrderNumber !== lastAutoFilledOrderNumber;
+
+                    if (itineraryOrderNumber !== '') {
+                        if (!isCurrentManualValue) {
+                            orderNumberInput.value = itineraryOrderNumber;
+                            lastAutoFilledOrderNumber = itineraryOrderNumber;
+                        }
+                        return;
+                    }
+
+                    if (currentOrderNumber === lastAutoFilledOrderNumber) {
+                        orderNumberInput.value = '';
+                    }
+                    lastAutoFilledOrderNumber = '';
+                };
+
+                const emitInquirySelection = () => {
+                    const detail = {
+                        inquiryId: inquirySelect?.value || '',
+                    };
+                    window.dispatchEvent(new CustomEvent('quotation:inquiry-selected', { detail }));
+                };
+
+                const setOptionVisibility = (optionEl, isVisible) => {
+                    if (!optionEl) return;
+                    optionEl.hidden = !isVisible;
+                };
+
+                const resetOptionVisibility = (selectEl) => {
+                    if (!selectEl) return;
+                    Array.from(selectEl.options).forEach((option, index) => {
+                        if (index === 0) {
+                            option.hidden = false;
+                            return;
+                        }
+                        option.hidden = false;
+                    });
+                };
+
+                const getSelectedItineraryInquiryId = () => {
+                    const option = itinerarySelect?.options?.[itinerarySelect.selectedIndex];
+                    return String(option?.dataset?.inquiryId || '').trim();
+                };
+
+                const getSelectedInquiryLinkedItineraryId = () => {
+                    const option = inquirySelect?.options?.[inquirySelect.selectedIndex];
+                    return String(option?.dataset?.linkedItineraryId || '').trim();
+                };
+
+                const hasSelectedInquiryLinkedItinerary = () => {
+                    const option = inquirySelect?.options?.[inquirySelect.selectedIndex];
+                    return String(option?.dataset?.hasLinkedItinerary || '0') === '1';
+                };
+
+                const applyItineraryInquiryLinkRules = (source = '') => {
+                    if (!itinerarySelect) return;
+                    if (!inquirySelect) {
+                        emitItinerarySelection();
+                        return;
+                    }
+
+                    resetOptionVisibility(itinerarySelect);
+                    resetOptionVisibility(inquirySelect);
+
+                    const selectedItineraryId = String(itinerarySelect.value || '').trim();
+                    let selectedInquiryId = String(inquirySelect.value || '').trim();
+
+                    if (selectedItineraryId !== '') {
+                        const linkedInquiryId = getSelectedItineraryInquiryId();
+                        if (linkedInquiryId !== '') {
+                            inquirySelect.value = linkedInquiryId;
+                            selectedInquiryId = linkedInquiryId;
+                        } else {
+                            Array.from(inquirySelect.options).forEach((option, index) => {
+                                if (index === 0) return;
+                                const hasLinked = String(option.dataset.hasLinkedItinerary || '0') === '1';
+                                const isSelected = option.value === selectedInquiryId;
+                                setOptionVisibility(option, !hasLinked || isSelected);
+                            });
+
+                            if (selectedInquiryId !== '' && hasSelectedInquiryLinkedItinerary()) {
+                                inquirySelect.value = '';
+                                selectedInquiryId = '';
+                            }
+                        }
+                    }
+
+                    if (selectedInquiryId !== '') {
+                        const linkedItineraryId = getSelectedInquiryLinkedItineraryId();
+                        if (linkedItineraryId !== '' && source !== 'itinerary') {
+                            const hasMatchingItinerary = Array.from(itinerarySelect.options).some((option) => option.value === linkedItineraryId);
+                            if (hasMatchingItinerary) {
+                                itinerarySelect.value = linkedItineraryId;
+                            }
+                        }
+                    }
+
+                    const selectedInquiryLinkedItineraryId = getSelectedInquiryLinkedItineraryId();
+                    if (selectedInquiryId !== '' && selectedInquiryLinkedItineraryId === '' && selectedItineraryId === '') {
+                        Array.from(itinerarySelect.options).forEach((option, index) => {
+                            if (index === 0) return;
+                            const itineraryInquiryId = String(option.dataset.inquiryId || '').trim();
+                            const isSelected = option.value === String(itinerarySelect.value || '');
+                            setOptionVisibility(option, itineraryInquiryId === '' || isSelected);
+                        });
+                    }
+
+                    emitInquirySelection();
+                    emitItinerarySelection();
                 };
 
                 const fetchItems = async () => {
@@ -1488,15 +1632,28 @@
                     generateBtn.addEventListener('click', fetchItems);
                     updateContractRateBtn?.addEventListener('click', updateContractRatesOnly);
                     itinerarySelect.addEventListener('change', () => {
+                        applyItineraryInquiryLinkRules('itinerary');
+                        applyOrderNumberFromSelectedItinerary();
                         updateGenerateButtonState();
                         if (itinerarySelect.value === '') {
                             updateSummary('');
                         }
-                        emitItinerarySelection();
                     });
+                    applyItineraryInquiryLinkRules('init');
+                    applyOrderNumberFromSelectedItinerary();
                     updateGenerateButtonState();
-                    emitItinerarySelection();
                 }
+                orderNumberInput?.addEventListener('input', () => {
+                    const currentOrderNumber = normalizeOrderNumberText(orderNumberInput.value);
+                    if (currentOrderNumber === '' || currentOrderNumber === lastAutoFilledOrderNumber) {
+                        return;
+                    }
+                    lastAutoFilledOrderNumber = '';
+                });
+                inquirySelect?.addEventListener('change', () => {
+                    applyItineraryInquiryLinkRules('inquiry');
+                    updateGenerateButtonState();
+                });
 
                 const addManualItem = () => {
                     const node = manualItemsTemplate.content.firstElementChild.cloneNode(true);
@@ -1557,7 +1714,6 @@
                                 row.querySelector('[data-field="markup"]').value = '0';
                                 row.querySelector('[data-field="discount"]').value = '0';
                                 convertFieldDisplayToIdr(row.querySelector('[data-field="rate"]'));
-                                // For manual rows: persist rate-per-unit as unit_price.
                                 const rateIdr = parseInteger(row.querySelector('[data-field="rate"]')?.value);
                                 unitPriceInput.value = String(rateIdr);
                             } else {

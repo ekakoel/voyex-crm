@@ -9,7 +9,7 @@
 @push('scripts')
     <script>
         (function () {
-            const map = @json($itineraryInquiryMap ?? []);
+            const itineraryMap = @json($itineraryInquiryMap ?? []);
             const card = document.getElementById('quotation-create-inquiry-card');
             if (!card) return;
 
@@ -26,13 +26,12 @@
                 el.innerHTML = html !== '' ? html : '-';
             };
 
-            const renderByItineraryId = (itineraryId) => {
-                if (!itineraryId || !map[itineraryId]) {
+            const renderInquiryCard = (data) => {
+                if (!data) {
                     card.classList.add('hidden');
                     return;
                 }
 
-                const data = map[itineraryId];
                 setField('inquiry_number', data.inquiry_number);
                 setField('customer_name', data.customer_name);
                 setField('status', data.status);
@@ -44,6 +43,16 @@
                 card.classList.remove('hidden');
             };
 
+            const renderByItineraryId = (itineraryId) => {
+                if (!itineraryId || !itineraryMap[itineraryId]) {
+                    renderInquiryCard(null);
+                    return false;
+                }
+
+                renderInquiryCard(itineraryMap[itineraryId]);
+                return true;
+            };
+
             const itinerarySelect = document.getElementById('itinerary-select');
             if (itinerarySelect) {
                 renderByItineraryId(itinerarySelect.value || '');
@@ -53,7 +62,8 @@
             }
 
             window.addEventListener('quotation:itinerary-selected', (event) => {
-                renderByItineraryId(event?.detail?.itineraryId || '');
+                const itineraryId = event?.detail?.itineraryId || '';
+                renderByItineraryId(itineraryId);
             });
         })();
     </script>
@@ -61,57 +71,53 @@
 
 @section('content')
     <div class="space-y-6 module-page module-page--quotations">
-        <div class="module-grid-9-3">
-            <div class="module-grid-main">
-                <div class="module-form-wrap">
-                    <form method="POST" action="{{ route('quotations.store') }}">
-                        @csrf
-                        @include('modules.quotations._form', [
-                            'buttonLabel' => __('ui.modules.quotations.save_quotation'),
-                        ])
-                    </form>
+        <div id="quotation-create-inquiry-card" class="module-card p-6 hidden">
+            <div class="mb-3">
+                <p class="text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300">{{ __('ui.modules.quotations.inquiry_detail') }}</p>
+            </div>
+            <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+                <div class="rounded-lg border border-gray-200 p-3 dark:border-gray-700">
+                    <p class="text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ __('ui.common.inquiry_no') }}</p>
+                    <p class="mt-1 text-sm font-semibold text-gray-800 dark:text-gray-100" data-inquiry-field="inquiry_number">-</p>
+                </div>
+                <div class="rounded-lg border border-gray-200 p-3 dark:border-gray-700">
+                    <p class="text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ __('ui.common.customer') }}</p>
+                    <p class="mt-1 text-sm font-semibold text-gray-800 dark:text-gray-100" data-inquiry-field="customer_name">-</p>
+                </div>
+                <div class="rounded-lg border border-gray-200 p-3 dark:border-gray-700">
+                    <p class="text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ __('ui.common.status') }}</p>
+                    <p class="mt-1 text-sm font-semibold text-gray-800 dark:text-gray-100" data-inquiry-field="status">-</p>
+                </div>
+                <div class="rounded-lg border border-gray-200 p-3 dark:border-gray-700">
+                    <p class="text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ __('ui.common.priority') }}</p>
+                    <p class="mt-1 text-sm font-semibold text-gray-800 dark:text-gray-100" data-inquiry-field="priority">-</p>
+                </div>
+                <div class="rounded-lg border border-gray-200 p-3 dark:border-gray-700">
+                    <p class="text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ __('ui.modules.inquiries.source') }}</p>
+                    <p class="mt-1 text-sm font-semibold text-gray-800 dark:text-gray-100" data-inquiry-field="source">-</p>
+                </div>
+                <div class="rounded-lg border border-gray-200 p-3 dark:border-gray-700">
+                    <p class="text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ __('ui.common.assigned') }}</p>
+                    <p class="mt-1 text-sm font-semibold text-gray-800 dark:text-gray-100" data-inquiry-field="assigned_user_name">-</p>
+                </div>
+                <div class="rounded-lg border border-gray-200 p-3 dark:border-gray-700 md:col-span-2">
+                    <p class="text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ __('ui.common.deadline') }}</p>
+                    <p class="mt-1 text-sm font-semibold text-gray-800 dark:text-gray-100" data-inquiry-field="deadline">-</p>
+                </div>
+                <div class="rounded-lg border border-gray-200 p-3 dark:border-gray-700 md:col-span-2">
+                    <p class="text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ __('ui.common.notes') }}</p>
+                    <div class="prose prose-sm mt-1 max-w-none text-gray-700 dark:prose-invert dark:text-gray-200" data-inquiry-field="notes">-</div>
                 </div>
             </div>
+        </div>
 
-            <aside class="module-grid-side space-y-4">
-                <div id="quotation-create-inquiry-card" class="module-card p-6 space-y-3 hidden">
-                    <p class="text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300">{{ __('ui.modules.quotations.inquiry_detail') }}</p>
-                    <dl class="space-y-1 text-xs text-gray-700 dark:text-gray-200">
-                        <div class="flex justify-between gap-3">
-                            <dt class="text-gray-500 dark:text-gray-400">{{ __('ui.common.inquiry_no') }}</dt>
-                            <dd class="font-medium text-right" data-inquiry-field="inquiry_number">-</dd>
-                        </div>
-                        <div class="flex justify-between gap-3">
-                            <dt class="text-gray-500 dark:text-gray-400">{{ __('ui.common.customer') }}</dt>
-                            <dd class="font-medium text-right" data-inquiry-field="customer_name">-</dd>
-                        </div>
-                        <div class="flex justify-between gap-3">
-                            <dt class="text-gray-500 dark:text-gray-400">{{ __('ui.common.status') }}</dt>
-                            <dd class="font-medium text-right" data-inquiry-field="status">-</dd>
-                        </div>
-                        <div class="flex justify-between gap-3">
-                            <dt class="text-gray-500 dark:text-gray-400">{{ __('ui.common.priority') }}</dt>
-                            <dd class="font-medium text-right" data-inquiry-field="priority">-</dd>
-                        </div>
-                        <div class="flex justify-between gap-3">
-                            <dt class="text-gray-500 dark:text-gray-400">{{ __('ui.modules.inquiries.source') }}</dt>
-                            <dd class="font-medium text-right" data-inquiry-field="source">-</dd>
-                        </div>
-                        <div class="flex justify-between gap-3">
-                            <dt class="text-gray-500 dark:text-gray-400">{{ __('ui.common.assigned') }}</dt>
-                            <dd class="font-medium text-right" data-inquiry-field="assigned_user_name">-</dd>
-                        </div>
-                        <div class="flex justify-between gap-3">
-                            <dt class="text-gray-500 dark:text-gray-400">{{ __('ui.common.deadline') }}</dt>
-                            <dd class="font-medium text-right" data-inquiry-field="deadline">-</dd>
-                        </div>
-                        <div class="border-t border-gray-200 pt-2 dark:border-gray-700">
-                            <dt class="text-gray-500 dark:text-gray-400">{{ __('ui.common.notes') }}</dt>
-                            <dd class="mt-1 text-gray-700 dark:text-gray-200 prose prose-sm max-w-none dark:prose-invert" data-inquiry-field="notes">-</dd>
-                        </div>
-                    </dl>
-                </div>
-            </aside>
+        <div class="module-form-wrap">
+            <form method="POST" action="{{ route('quotations.store') }}">
+                @csrf
+                @include('modules.quotations._form', [
+                    'buttonLabel' => __('ui.modules.quotations.save_quotation'),
+                ])
+            </form>
         </div>
     </div>
 @endsection

@@ -24,6 +24,7 @@ class Airport extends Model
         'latitude',
         'longitude',
         'notes',
+        'cover',
         'is_active',
         'created_by',
         'updated_by',
@@ -40,7 +41,6 @@ class Airport extends Model
         return $this->belongsTo(Destination::class);
     }
 }
-
 
 
 

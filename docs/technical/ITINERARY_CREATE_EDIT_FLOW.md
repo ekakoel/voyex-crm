@@ -1,42 +1,42 @@
 # Itinerary Create/Edit Flow
 
-Last Updated: 2026-04-20
+Last Updated: 2026-04-23
 
 
-Dokumen ini menjelaskan flow create/edit itinerary secara end-to-end tanpa mengulang detail map show-page.
+This document explains the end-to-end itinerary create/edit flow without repeating show-page map details.
 
-Referensi kode utama:
+Main code references:
 - `resources/views/modules/itineraries/create.blade.php`
 - `resources/views/modules/itineraries/edit.blade.php`
 - `resources/views/modules/itineraries/_form.blade.php`
 - `app/Http/Controllers/Admin/ItineraryController.php`
 
-Scope dokumen ini:
+Document scope:
 - create/edit form,
-- normalisasi payload,
-- aturan bisnis utama,
-- area risiko saat refactor.
+- payload normalization,
+- core business rules,
+- risk areas during refactor.
 
-Di luar scope:
-- arsitektur map pada halaman detail (`show`) -> lihat `ITINERARY_DETAIL_MAP_ARCHITECTURE.md`.
+Out of scope:
+- map architecture on the detail page (`show`) -> see `ITINERARY_DETAIL_MAP_ARCHITECTURE.md`.
 
 ## 1. Struktur Halaman
 
-`create.blade.php` dan `edit.blade.php` berfungsi sebagai wrapper layout.
+`create.blade.php` and `edit.blade.php` act as wrapper layouts.
 
-- Kolom kiri: form utama itinerary (`_form.blade.php`).
-- Kolom kanan: panel pendukung seperti Inquiry Detail, Route Preview, dan Audit Info (edit).
+- Left column: main itinerary form (`_form.blade.php`).
+- Right column: supporting panels such as Inquiry Detail, Route Preview, and Audit Info (edit).
 
-Perbedaan create vs edit:
+Create vs edit differences:
 - Create submit ke `itineraries.store`.
 - Edit submit ke `itineraries.update` (`PUT`).
-- Edit membawa existing itinerary + relasi untuk prefill.
+- Edit loads existing itinerary + relations for prefill.
 
-## 2. Tanggung Jawab Controller
+## 2. Controller Responsibilities
 
 ### `create(Request $request)`
 
-Controller memuat seluruh master data untuk form, termasuk:
+The controller loads all master data for the form, including:
 - attractions,
 - activities (+ vendor location),
 - food & beverage (+ vendor location),
@@ -48,12 +48,12 @@ Controller memuat seluruh master data untuk form, termasuk:
 
 ### `edit(Itinerary $itinerary)`
 
-Sebelum render edit, controller melakukan guard:
+Before rendering edit, the controller applies guard checks:
 - authorization update,
-- lock untuk itinerary `final`,
-- lock saat quotation terkait sudah `approved`.
+- lock for `final` itineraries,
+- lock when the related quotation is already `approved`.
 
-Lalu memuat relasi itinerary existing:
+Then it loads existing itinerary relations:
 - itinerary items,
 - activity items,
 - food-beverage items,
@@ -61,35 +61,35 @@ Lalu memuat relasi itinerary existing:
 - transport units,
 - inquiry link.
 
-### `store()` dan `update()`
+### `store()` and `update()`
 
-Pola umum keduanya:
-- validasi field itinerary utama,
-- validasi array day-level dan schedule item,
-- normalisasi day points,
-- normalisasi daily transport units,
-- sync relasi itinerary ke tabel terkait.
+Common flow for both:
+- validate core itinerary fields,
+- validate day-level arrays and schedule items,
+- normalize day points,
+- normalize daily transport units,
+- sync itinerary relations to related tables.
 
-Tambahan flow penting:
-- create memaksa `status = draft` dan isi `created_by`.
-- destination dapat di-resolve ke `destination_id`.
-- inquiry terkait bisa auto-transisi `draft -> processed` (sesuai rule status).
+Additional important flow:
+- create enforces `status = draft` and sets `created_by`.
+- destination can be resolved to `destination_id`.
+- related inquiry can auto-transition `draft -> processed` (based on status rules).
 
-## 3. Persiapan Data di `_form.blade.php`
+## 3. Data Preparation in `_form.blade.php`
 
-Form membuat state awal dari dua sumber:
-1. `old(...)` saat validasi gagal,
-2. data itinerary existing saat edit.
+The form builds initial state from two sources:
+1. `old(...)` when validation fails,
+2. existing itinerary data on edit.
 
-Schedule item dari 4 sumber digabung dulu menjadi satu state row:
+Schedule items from 4 sources are merged first into a single row state:
 - `itinerary_items` (attraction),
 - `itinerary_activity_items` (activity),
-- `itinerary_island_transfer_items` (island transfer dari modul khusus),
+- `itinerary_island_transfer_items` (island transfer from the dedicated module),
 - `itinerary_food_beverage_items`.
 
-Setelah itu row diurutkan dan dikelompokkan per hari (`rowsByDay`) untuk render DOM dinamis.
+After that, rows are sorted and grouped per day (`rowsByDay`) for dynamic DOM rendering.
 
-Day-level state juga dipersiapkan:
+Day-level state is also prepared:
 - start/end point + room,
 - daily transport unit,
 - include/exclude,
@@ -98,89 +98,95 @@ Day-level state juga dipersiapkan:
 
 ## 4. Anatomy Day Section
 
-Setiap day section minimal berisi:
+Each day section minimally contains:
 - header day,
-- `Start Tour` dan `End Tour` (auto kalkulasi),
-- tombol `Add Item`,
+- `Start Tour` and `End Tour` (auto-calculated),
+- `Add Item` button,
 - start point,
 - list `schedule-row`,
 - end point,
 - daily transport unit,
 - include/exclude,
-- hidden fields untuk payload.
+- hidden fields for payload.
 
-Point harian memakai domain:
+Daily point types:
 - `hotel`,
 - `airport`,
-- `previous_day_end` (khusus start point day > 1).
+- `previous_day_end` (only for start point day > 1).
 
-Jika type = `hotel`, selector room aktif sesuai hotel terpilih.
+If type = `hotel`, room selector is enabled based on the selected hotel.
 
 ## 5. Anatomy `schedule-row`
 
-Setiap row schedule mewakili satu item itinerary di satu hari.
+Each schedule row represents one itinerary item for a specific day.
 
-Komponen inti row:
+Core row components:
 - drag handle,
 - sequence badge,
 - item type,
 - region/city filter,
 - selector item (attraction/activity/island transfer/fnb),
-- start-end time (hasil kalkulasi),
+- start-end time (calculated result),
 - main-experience toggle,
 - remove action,
 - hidden travel minutes + hidden day/order.
-- hint otomatis antar-pulau jika ada perpindahan lintas area tanpa item transfer.
 
-Catatan penting:
-- row tidak selalu punya `name` input sejak awal,
-- `name` final dibangun ulang oleh JS (`reindex()`) sebelum submit.
+Important notes:
+- a row does not always have `name` inputs from the beginning,
+- final `name` attributes are rebuilt by JS (`reindex()`) before submit.
 
-## 6. Pipeline JavaScript Utama
+## 6. Main JavaScript Pipeline
 
-### 6.1 Selection dan mode row
+### 6.1 Selection and row mode
 
-- `getRowSelection(row)`: menentukan selector aktif berdasarkan type + value.
-- `toggleType(row, type)`: switch mode attraction/activity/transfer/fnb dan reset state terkait.
+- `getRowSelection(row)`: determines the active selector based on type + value.
+- `toggleType(row, type)`: switches attraction/activity/transfer/fnb mode and resets related state.
+- For type `attraction` and `activity`, the primary selector in Day Planner now uses autocomplete input.
+  - Existing data is still stored as IDs through hidden selects (`item-attraction` / `item-activity`).
+  - Users can quick-add new data directly from Day Planner if not available yet.
+  - Required manual format:
+    - Attraction: `Attraction Name, Region, Destination`
+    - Activity: `Activity Name, Region, Vendor`
+  - When quick-add succeeds, data is saved into the related master module and still logged via model hooks.
 
-### 6.2 Kalkulasi waktu
+### 6.2 Time calculation
 
-- `recalcDay(section)`: hitung urutan, start/end time item, dan end-time harian.
-- `recalcAll()`: jalankan kalkulasi untuk semua hari secara berurutan.
+- `recalcDay(section)`: calculates sequence, item start/end times, and daily end-time.
+- `recalcAll()`: runs calculations for all days sequentially.
 
-### 6.3 Pembentukan payload submit
+### 6.3 Submit payload building
 
-- `reindex()` adalah fungsi kritis.
-- Fungsi ini memberi nama field final untuk 3 kelompok payload:
+- `reindex()` is a critical function.
+- This function assigns final field names for 3 payload groups:
   - `itinerary_items[...]`,
   - `itinerary_activity_items[...]`,
   - `itinerary_island_transfer_items[...]`,
   - `itinerary_food_beverage_items[...]`.
 
-Tanpa `reindex()` yang benar, payload backend akan tidak sinkron.
+Without correct `reindex()`, backend payload will be out of sync.
 
-### 6.4 Aturan day point dan visibility
+### 6.4 Day point and visibility rules
 
-- `syncDayPointOptionRules()`: aturan day-dependent (`previous_day_end`, naming per-day).
-- `syncPointItemVisibility()`: filter option berdasarkan type + destination + room availability.
-- `syncMainExperienceSelection()`: hanya satu main experience per day.
-- Item type `transfer` tidak boleh dijadikan main experience (highlight otomatis dinonaktifkan).
-- Untuk `transfer`, sumber data bukan dari modul Activities, melainkan modul `Island Transfers` terpisah.
+- `syncDayPointOptionRules()`: day-dependent rules (`previous_day_end`, per-day naming).
+- `syncPointItemVisibility()`: filters options by type + destination + room availability.
+- `syncMainExperienceSelection()`: only one main experience per day.
+- Item type `transfer` cannot be set as main experience (highlight auto-disabled).
+- For `transfer`, data source is not the Activities module, but the separate `Island Transfers` module.
 
-### 6.5 Clone, sorting, dan submit
+### 6.5 Clone, sorting, and submit
 
-- `cloneRow()` + `bindRow()`: menambahkan row baru dengan listener lengkap.
+- `cloneRow()` + `bindRow()`: adds a new row with complete listeners.
 - `initSortable()`: drag-drop reorder row.
-- Submit pipeline standar:
+- Standard submit pipeline:
   1. `recalcAll()`
   2. `reindex()`
   3. sync hidden payload (hotel stays)
-  4. validasi frontend
+  4. frontend validation
   5. submit form.
 
-## 7. Payload ke Backend
+## 7. Payload to Backend
 
-### Layer utama itinerary
+### Main itinerary layer
 - title,
 - destination/destination_id,
 - inquiry_id,
@@ -194,7 +200,7 @@ Tanpa `reindex()` yang benar, payload backend akan tidak sinkron.
 - `itinerary_island_transfer_items`
 - `itinerary_food_beverage_items`
 
-### Layer day-level
+### Day-level layer
 - start/end point arrays,
 - start time + travel minute,
 - includes/excludes,
@@ -202,52 +208,52 @@ Tanpa `reindex()` yang benar, payload backend akan tidak sinkron.
 - daily transport units,
 - hotel stays hidden payload.
 
-## 8. Persistensi dan Normalisasi
+## 8. Persistence and Normalization
 
-Di controller, payload diproses dengan pola:
-1. validasi,
+In the controller, payload is processed with this pattern:
+1. validation,
 2. `normalizeDayPoints()`,
 3. `normalizeDailyTransportUnits()`,
-4. sync relasi itinerary.
+4. sync itinerary relations.
 
-Hasil akhirnya disimpan ke struktur relasional terpisah (bukan satu tabel flat).
+The final result is stored in separate relational structures (not a single flat table).
 
-## 9. Aturan Bisnis Kritis
+## 9. Critical Business Rules
 
-- `duration_nights` tidak boleh melebihi `duration_days`.
-- end point wajib valid untuk setiap hari.
-- itinerary `final` tidak boleh dimutasi.
-- itinerary dengan quotation `approved` tidak boleh diedit.
-- inquiry terkait dapat berubah dari `draft` ke `processed` setelah save.
-- item F&B menyimpan `meal_type` otomatis dari `start_time`:
+- `duration_nights` cannot exceed `duration_days`.
+- end point must be valid for each day.
+- `final` itineraries cannot be mutated.
+- itineraries with `approved` quotations cannot be edited.
+- related inquiry can change from `draft` to `processed` after save.
+- F&B items auto-fill `meal_type` from `start_time`:
   - `< 11:00` => `Breakfast`
   - `11:00 - 15:59` => `Lunch`
   - `>= 16:00` => `Dinner`
 
-## 10. Known Risk Saat Refactor
+## 10. Known Risks During Refactor
 
-1. Ketergantungan tinggi pada DOM-state + `reindex()`.
-2. Mismatch validasi transport unit (`transport_unit_id` vs rule tabel) harus diverifikasi sebelum refactor besar.
-3. Clone/sort day-row dapat memicu drift jika listener atau naming tidak ikut terpasang.
+1. High dependency on DOM-state + `reindex()`.
+2. Transport unit validation mismatch (`transport_unit_id` vs table rule) must be verified before major refactors.
+3. Clone/sort day-row can trigger drift if listeners or naming are not attached correctly.
 
-## 11. Hubungan dengan Map
+## 11. Map Integration
 
-- Create/edit map adalah preview berbasis DOM state form.
-- Untuk segment transfer antar pulau:
-  - preview memprioritaskan `route_geojson` dari master `island_transfers`,
-  - jika tidak ada `route_geojson`, barulah fallback ke route darat (OSRM) per segmen.
-- Show-page map adalah renderer berbasis data tersimpan.
+- Create/edit map is a preview based on form DOM state.
+- For inter-island transfer segments:
+  - preview prioritizes `route_geojson` from master `island_transfers`,
+  - if `route_geojson` is unavailable, it falls back to land route (OSRM) per segment.
+- Show-page map is a renderer based on persisted data.
 
-Karena itu detail map show-page dipisah di:
+Therefore, show-page map details are separated in:
 - `ITINERARY_DETAIL_MAP_ARCHITECTURE.md`.
 
-## 12. QA Checklist Cepat
+## 12. Quick QA Checklist
 
-1. Buat itinerary baru multi-day dan submit.
-2. Edit itinerary existing, cek prefill dan submit ulang.
-3. Uji type switch item (`attraction/activity/fnb`) + reordering.
-4. Uji skenario lintas area dan pastikan warning inter-island muncul jika transfer belum ditambahkan.
-5. Uji start/end point airport-hotel termasuk room filtering.
-6. Uji perubahan duration days (clone/remove section).
-7. Pastikan tidak ada JS error saat map preview, reindex, dan submit.
-8. Pastikan payload tersimpan konsisten di detail itinerary setelah redirect.
+1. Create a new multi-day itinerary and submit.
+2. Edit an existing itinerary, verify prefill, and resubmit.
+3. Test item type switching (`attraction/activity/fnb`) + reordering.
+4. Test cross-area scenarios and ensure itinerary flow remains consistent when transfer items are not used.
+5. Test airport-hotel start/end points including room filtering.
+6. Test duration day changes (clone/remove section).
+7. Ensure there are no JS errors during map preview, reindex, and submit.
+8. Ensure payload is saved consistently on itinerary detail after redirect.

@@ -11,7 +11,7 @@
         <div class="module-grid-8-4">
             <div class="module-grid-main">
                 <div class="module-form-wrap">
-                    <form method="POST" action="{{ route('airports.store') }}">
+                    <form method="POST" action="{{ route('airports.store') }}" enctype="multipart/form-data">
                         @csrf
                         @include('modules.airports._form', ['buttonLabel' => __('ui.modules.airports.save_airport')])
                     </form>

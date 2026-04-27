@@ -89,6 +89,10 @@
 
                     <dl class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                         <div>
+                            <dt class="text-xs text-gray-500 dark:text-gray-400">{{ __('Order Number') }}</dt>
+                            <dd class="text-sm font-medium text-gray-800 dark:text-gray-100">{{ $quotation->order_number ?? '-' }}</dd>
+                        </div>
+                        <div>
                             <dt class="text-xs text-gray-500 dark:text-gray-400">{{ __('ui.common.validity_date') }}</dt>
                             <dd class="text-sm font-medium text-gray-800 dark:text-gray-100">{{ $quotation->validity_date?->format('Y-m-d') ?? '-' }}</dd>
                         </div>
@@ -392,7 +396,7 @@
                         </div>
                     @endif
 
-                    @if (auth()->check() && ($quotation->status ?? '') !== 'final' && (auth()->user()?->can('quotations.approve') || $quotation->isCreator(auth()->user()) || auth()->user()?->can('quotations.reject') || auth()->user()?->can('quotations.set_pending')))
+                    @if (auth()->check() && (auth()->user()?->can('quotations.approve') || $quotation->isCreator(auth()->user()) || auth()->user()?->can('quotations.reject') || auth()->user()?->can('quotations.set_pending')))
                         <div class="space-y-3">
                             @php
                                 $authUser = auth()->user();
@@ -412,17 +416,7 @@
                                 $canApproveWithValidation = $canApproveByRole && (! $requiresValidation || $isValidationComplete);
                             @endphp
                             <div class="flex flex-wrap items-center gap-2">
-                                @if (($quotation->status ?? '') !== 'approved')
-                                    @if ($canApproveWithValidation)
-                                        <form method="POST" action="{{ route('quotations.approve', $quotation) }}">
-                                            @csrf
-                                            <button type="submit" class="btn-primary-sm">{{ __('ui.common.approve') }}</button>
-                                        </form>
-                                    @endif
-                                    @can('quotations.reject')
-                                        <button type="button" class="btn-danger-sm" data-open-reject-modal="show-reject-modal">{{ __('ui.common.reject') }}</button>
-                                    @endcan
-                                @else
+                                @if (($quotation->status ?? '') === 'approved')
                                     @if ($quotation->isCreator(auth()->user()))
                                         <form method="POST" action="{{ route('quotations.set-final', $quotation) }}">
                                             @csrf
@@ -435,9 +429,26 @@
                                             <button type="submit" class="btn-warning-sm">{{ __('ui.common.set_pending') }}</button>
                                         </form>
                                     @endif
+                                @elseif (($quotation->status ?? '') === 'final')
+                                    @if (auth()->user()?->can('quotations.set_pending'))
+                                        <form method="POST" action="{{ route('quotations.set-pending', $quotation) }}">
+                                            @csrf
+                                            <button type="submit" class="btn-warning-sm">{{ __('ui.common.set_pending') }}</button>
+                                        </form>
+                                    @endif
+                                @else
+                                    @if ($canApproveWithValidation)
+                                        <form method="POST" action="{{ route('quotations.approve', $quotation) }}">
+                                            @csrf
+                                            <button type="submit" class="btn-primary-sm">{{ __('ui.common.approve') }}</button>
+                                        </form>
+                                    @endif
+                                    @can('quotations.reject')
+                                        <button type="button" class="btn-danger-sm" data-open-reject-modal="show-reject-modal">{{ __('ui.common.reject') }}</button>
+                                    @endcan
                                 @endif
                             </div>
-                            @if (! $canApproveByRole && ($quotation->status ?? '') !== 'approved')
+                            @if (! $canApproveByRole && ! in_array((string) ($quotation->status ?? ''), ['approved', 'final'], true))
                                 <p class="text-xs text-amber-700 dark:text-amber-300">
                                     @if ($alreadyApprovedByUser)
                                         {{ __('ui.modules.quotations.approval_already_done') }}
@@ -446,7 +457,7 @@
                                     @endif
                                 </p>
                             @endif
-                            @if ($canApproveByRole && ! $canApproveWithValidation && ($quotation->status ?? '') !== 'approved')
+                            @if ($canApproveByRole && ! $canApproveWithValidation && ! in_array((string) ($quotation->status ?? ''), ['approved', 'final'], true))
                                 <p class="text-xs text-rose-600 dark:text-rose-300">
                                     {{ __('ui.modules.quotations.approval_requires_validation') }}
                                 </p>

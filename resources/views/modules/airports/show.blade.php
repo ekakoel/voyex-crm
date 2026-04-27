@@ -9,10 +9,19 @@
 
 @section('content')
     @php($isActive = ! $airport->trashed())
+    @php($airportCoverUrl = \App\Support\ImageThumbnailGenerator::resolvePublicUrl($airport->cover ?? null, ['airports/covers', 'airports/cover'], 'public', 360, 240, false))
 
     <div class="space-y-6 module-page module-page--airports">
         <div class="module-grid-8-4 airport-detail-print-grid">
             <div class="module-grid-main space-y-4">
+                @if (filled($airportCoverUrl))
+                    <div class="app-card p-5">
+                        <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ __('Cover Image') }}</h3>
+                        <div class="mt-3 overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700">
+                            <img src="{{ $airportCoverUrl }}" alt="{{ __('Airport cover image') }}" class="aspect-[16/9] w-full object-cover">
+                        </div>
+                    </div>
+                @endif
                 <div class="app-card p-5">
                     <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ __('ui.modules.airports.airport_information') }}</h3>
                     <div class="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2">

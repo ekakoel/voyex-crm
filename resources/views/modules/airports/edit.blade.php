@@ -12,7 +12,7 @@
         <div class="module-grid-8-4">
             <div class="module-grid-main">
                 <div class="module-form-wrap">
-                    <form method="POST" action="{{ route('airports.update', $airport) }}">
+                    <form method="POST" action="{{ route('airports.update', $airport) }}" enctype="multipart/form-data">
                         @csrf
                         @method('PUT')
                         @include('modules.airports._form', ['airport' => $airport, 'buttonLabel' => __('ui.modules.airports.update_airport')])

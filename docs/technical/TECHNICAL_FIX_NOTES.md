@@ -1,8 +1,58 @@
 # Technical Fix Notes
 
-Last Updated: 2026-04-22
+Last Updated: 2026-04-23
 
 Dokumen ini menggabungkan fix-report teknis lintas modul yang berdampak ke arsitektur/standar.
+
+## 40. Itinerary PDF Multi-Transport + Validation Guard Alignment (2026-04-23)
+
+Masalah:
+- PDF itinerary sebelumnya hanya menampilkan satu transport unit per hari meskipun create/edit itinerary sudah mendukung multi transport (`daily_transport_units`).
+- Resolver start-point airport di payload PDF memakai variabel yang tidak terdefinisi (`$transfer`) dan berpotensi memicu warning/error.
+- Validasi create/update itinerary untuk `daily_transport_units.*.transport_unit_id` masih mengarah ke tabel `transports`, bukan `transport_units`.
+
+Perbaikan:
+- Mengubah payload builder itinerary PDF (`ItineraryController::generatePdf`) dari `keyBy(day_number)` menjadi `groupBy(day_number)` untuk transport unit.
+- Mengubah kontrak data hari pada PDF dari `transport_unit` menjadi `transport_units` (array).
+- Memperbarui template:
+  - `resources/views/pdf/itinerary.blade.php`
+  - `resources/views/pdf/quotation_with_itinerary.blade.php`
+  agar merender seluruh transport unit per hari (dengan fallback empty-state bila tidak ada unit).
+- Menyamakan implementasi quotation-with-itinerary PDF melalui `QuotationController::buildItineraryPdfPayload`.
+- Mengganti thumbnail airport start-point menjadi fallback aman `null` untuk menghilangkan referensi variabel tak terdefinisi.
+- Mengoreksi validasi create/update itinerary:
+  - dari `exists:transports,id`
+  - menjadi `exists:transport_units,id`.
+
+Dampak:
+- PDF preview/download kini menampilkan data transport harian secara lengkap pada skenario multi transport.
+- Risiko error runtime pada payload resolver start-point airport berkurang.
+- Validasi input transport harian selaras dengan relasi data aktual.
+
+## 41. Itinerary Detail Schedule Card UI Unification (2026-04-23)
+
+Masalah:
+- Pada halaman itinerary detail, tampilan card Schedule by Day belum konsisten antar item type.
+- Item Island Transfer sudah memiliki pola visual yang lebih jelas, tetapi Attraction/Activity/F&B belum mengikuti pola yang sama.
+
+Perbaikan:
+- Menyamakan model card item Schedule by Day agar konsisten untuk semua type (`attraction`, `activity`, `transfer`, `fnb`):
+  - image (jika tersedia),
+  - nama item + badge jenis item,
+  - metadata `Region/City, Destination | Time`.
+- Memperluas eager-load di `ItineraryController@show` untuk memastikan data pendukung card tersedia:
+  - attraction destination + gallery,
+  - activity gallery + vendor destination,
+  - island transfer vendor destination,
+  - F&B vendor destination.
+- Menyesuaikan payload builder item di `resources/views/modules/itineraries/show.blade.php`:
+  - `region_city`,
+  - `destination_label`,
+  - `thumbnail_url`.
+
+Dampak:
+- Semua item card pada Schedule by Day kini tampak rapi dan konsisten secara visual.
+- Informasi lokasi dan waktu menjadi lebih seragam, sehingga lebih cepat dipindai user saat review itinerary detail.
 
 ## 1. Activity Log Timeline Fix (2026-04-06)
 

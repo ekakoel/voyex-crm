@@ -200,20 +200,45 @@
     $dailyStartPointTypes = old('daily_start_point_types');
     $dailyStartPointItems = old('daily_start_point_items');
     $dailyTransportUnitItems = old('daily_transport_units');
-    if (!is_array($dailyTransportUnitItems)) {
-        $dailyTransportUnitItems = [];
-        if (isset($itinerary)) {
-            foreach ($itinerary->itineraryTransportUnits as $transportItem) {
-                $day = (int) ($transportItem->day_number ?? 0);
-                if ($day <= 0) {
-                    continue;
-                }
-                $dailyTransportUnitItems[$day] = [
-                    'day_number' => $day,
-                    'transport_unit_id' => (string) ($transportItem->transport_unit_id ?? ''),
-                ];
+    $dailyTransportUnitItemsByDay = [];
+    if (is_array($dailyTransportUnitItems)) {
+        foreach ($dailyTransportUnitItems as $transportRow) {
+            if (!is_array($transportRow)) {
+                continue;
             }
+            $day = (int) ($transportRow['day_number'] ?? 0);
+            if ($day <= 0) {
+                continue;
+            }
+            $dailyTransportUnitItemsByDay[$day] = $dailyTransportUnitItemsByDay[$day] ?? [];
+            $dailyTransportUnitItemsByDay[$day][] = [
+                'day_number' => $day,
+                'transport_unit_id' => (string) ($transportRow['transport_unit_id'] ?? ''),
+            ];
         }
+    } elseif (isset($itinerary)) {
+        foreach ($itinerary->itineraryTransportUnits as $transportItem) {
+            $day = (int) ($transportItem->day_number ?? 0);
+            if ($day <= 0) {
+                continue;
+            }
+            $dailyTransportUnitItemsByDay[$day] = $dailyTransportUnitItemsByDay[$day] ?? [];
+            $dailyTransportUnitItemsByDay[$day][] = [
+                'day_number' => $day,
+                'transport_unit_id' => (string) ($transportItem->transport_unit_id ?? ''),
+            ];
+        }
+    }
+    $dailyTransportUnitItems = [];
+    for ($day = 1; $day <= $durationDays; $day++) {
+        $rowsForDay = $dailyTransportUnitItemsByDay[$day] ?? [];
+        if (!is_array($rowsForDay) || count($rowsForDay) === 0) {
+            $rowsForDay = [[
+                'day_number' => $day,
+                'transport_unit_id' => '',
+            ]];
+        }
+        $dailyTransportUnitItems[$day] = array_values(array_slice($rowsForDay, 0, 10));
     }
     if (!is_array($dailyStartPointTypes) || !is_array($dailyStartPointItems)) {
         $dailyStartPointTypes = [];
@@ -581,33 +606,58 @@
                                 class="day-end-time text-gray-700 dark:border-gray-600 app-input w-full sm:w-36"
                                 readonly>
                         </div>
-                        <div class="ml-auto flex flex-wrap items-center gap-2">
-                            <button type="button"
-                                 class="add-item rounded-lg border px-3 py-1 text-xs font-medium text-white-700">Add
-                                Item</button>
-                        </div>
                     </div>
-                    <div class="mb-3 grid grid-cols-1 gap-3 md:grid-cols-2">
+                    <div class="mb-3">
+                        @php
+                            $dayTransportRows = $dailyTransportUnitItems[$day] ?? [];
+                            if (!is_array($dayTransportRows) || count($dayTransportRows) === 0) {
+                                $dayTransportRows = [[
+                                    'day_number' => $day,
+                                    'transport_unit_id' => '',
+                                ]];
+                            }
+                        @endphp
                         <div>
                             <label
                                 class="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300">
-                                Day {{ $day }} Transport Unit
+                                Day {{ $day }} Transport Units
                             </label>
-                            <select
-                                class="day-transport-unit dark:border-gray-600 app-input">
-                                <option value="">{{ __('Select transport unit') }}</option>
-                                @foreach ($transportUnits ?? collect() as $unit)
-                                    <option value="{{ $unit->id }}"
-                                        data-city="{{ $unit->transport?->vendor?->city ?? '' }}"
-                                        data-province="{{ $unit->transport?->vendor?->province ?? '' }}"
-                                        data-location="{{ $unit->transport?->vendor?->location ?? '' }}"
-                                        data-destination="{{ $unit->transport?->vendor?->destination?->name ?? '' }}"
-                                        @selected((string) ($dailyTransportUnitItems[$day]['transport_unit_id'] ?? '') === (string) $unit->id)>
-                                        {{ $unit->transport?->name ?? $unit->name }}{{ !empty($unit->seat_capacity) ? ' (' . $unit->seat_capacity . ')' : '' }}
-                                    </option>
-                                @endforeach
-                            </select>
-                            <input type="hidden" class="day-transport-day app-input" value="{{ $day }}">
+                            <div class="grid grid-cols-1 gap-2 md:grid-cols-12">
+                                <div class="day-transport-units space-y-2 md:col-span-9">
+                                    @foreach ($dayTransportRows as $transportRowIndex => $transportRow)
+                                        <div class="day-transport-row flex items-center gap-2">
+                                            <select
+                                                class="day-transport-unit dark:border-gray-600 app-input flex-1">
+                                                <option value="">{{ __('Select transport unit') }}</option>
+                                                @foreach ($transportUnits ?? collect() as $unit)
+                                                    <option value="{{ $unit->id }}"
+                                                        data-city="{{ $unit->transport?->vendor?->city ?? '' }}"
+                                                        data-province="{{ $unit->transport?->vendor?->province ?? '' }}"
+                                                        data-location="{{ $unit->transport?->vendor?->location ?? '' }}"
+                                                        data-destination="{{ $unit->transport?->vendor?->destination?->name ?? '' }}"
+                                                        @selected((string) ($transportRow['transport_unit_id'] ?? '') === (string) $unit->id)>
+                                                        {{ $unit->transport?->name ?? $unit->name }}{{ !empty($unit->seat_capacity) ? ' (' . $unit->seat_capacity . ')' : '' }}
+                                                    </option>
+                                                @endforeach
+                                            </select>
+                                            <input type="hidden" class="day-transport-day app-input" value="{{ $day }}">
+                                            <button
+                                                type="button"
+                                                class="btn-ghost-sm day-transport-remove-btn {{ count($dayTransportRows) > 1 ? '' : 'hidden' }}"
+                                                data-remove-transport="1"
+                                                title="{{ __('Remove transport') }}"
+                                            >
+                                                <i class="fa-solid fa-trash"></i>
+                                            </button>
+                                        </div>
+                                    @endforeach
+                                </div>
+                                <div class="md:col-span-3 md:justify-self-end md:sticky md:top-2 self-start">
+                                    <button type="button" class="btn-outline-sm min-h-[42px] h-[42px] w-full md:w-auto" data-add-transport="1">
+                                        + Transport
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     <div
@@ -750,7 +800,7 @@
                                             title="{{ __('Remove item') }}" aria-label="Remove item">&times;</button>
                                     </div>
                                 </div>
-                                <div class="grid grid-cols-1 gap-2 lg:grid-cols-12 lg:items-center">
+                                <div class="grid grid-cols-1 gap-2 lg:grid-cols-12 lg:items-end">
                                     <div class="lg:col-span-1">
                                         <span
                                             class="item-seq-badge inline-flex h-7 w-7 items-center justify-center rounded-full bg-slate-700 text-xs font-semibold text-white">-</span>
@@ -760,7 +810,7 @@
                                             class="item-type dark:border-gray-600 app-input">
                                             <option value="attraction" @selected($r['item_type'] === 'attraction')>{{ __('Attraction') }}</option>
                                             <option value="activity" @selected($r['item_type'] === 'activity')>{{ __('Activity') }}</option>
-                                            <option value="transfer" @selected($r['item_type'] === 'transfer')>{{ __('Inter-Island Transfer') }}</option>
+                                            <option value="transfer" @selected($r['item_type'] === 'transfer')>{{ __('Inter Island Transfer') }}</option>
                                             <option value="fnb" @selected($r['item_type'] === 'fnb')>{{ __('F&B') }}</option>
                                         </select>
                                     </div>
@@ -773,35 +823,64 @@
                                         </select>
                                     </div>
                                     <div class="min-w-0 lg:col-span-6">
-                                        <select
-                                            class="item-attraction {{ $r['item_type'] !== 'attraction' ? 'hidden' : '' }} dark:border-gray-600 app-input">
-                                            <option value="">{{ __('Select attraction') }}</option>
-                                            @foreach ($touristAttractionsSorted as $a)
-                                                <option value="{{ $a->id }}"
-                                                    data-duration="{{ $a->ideal_visit_minutes ?? 120 }}"
-                                                    data-city="{{ $a->city ?? '' }}"
-                                                    data-province="{{ $a->province ?? '' }}"
-                                                    data-latitude="{{ $a->latitude }}"
-                                                    data-longitude="{{ $a->longitude }}" @selected((string) ($r['tourist_attraction_id'] ?? '') === (string) $a->id)>
-                                                    {{ $a->name }}</option>
-                                            @endforeach
-                                        </select>
-                                        <select
-                                            class="item-activity {{ $r['item_type'] !== 'activity' ? 'hidden' : '' }} dark:border-gray-600 app-input">
-                                            <option value="">{{ __('Select activity') }}</option>
-                                            @foreach ($activitiesSorted as $a)
-                                                <option value="{{ $a->id }}"
-                                                    data-duration="{{ $a->duration_minutes ?? 60 }}"
-                                                    data-city="{{ $a->vendor?->city ?? '' }}"
-                                                    data-province="{{ $a->vendor?->province ?? '' }}"
-                                                    data-latitude="{{ $a->vendor?->latitude ?? '' }}"
-                                                    data-longitude="{{ $a->vendor?->longitude ?? '' }}"
-                                                    @selected((string) ($r['activity_id'] ?? '') === (string) $a->id)>{{ $a->name }} - {{ !empty($a->vendor?->name) ? $a->vendor->name : '-' }}</option>
-                                            @endforeach
-                                        </select>
+                                        <div class="item-attraction-wrap relative {{ $r['item_type'] !== 'attraction' ? 'hidden' : '' }}">
+                                            <p class="item-attraction-notice mb-1 text-[11px] text-gray-500 dark:text-gray-400">
+                                                {{ __('Example: Attraction Name, Region, Destination') }}
+                                            </p>
+                                            <input type="text"
+                                                class="item-attraction-search dark:border-gray-600 app-input"
+                                                placeholder="{{ __('Type: Attraction, Region, Destination') }}"
+                                                autocomplete="off">
+                                            <div
+                                                class="item-attraction-dropdown absolute z-30 mt-1 hidden max-h-56 w-full overflow-auto rounded-lg border border-gray-300 bg-white p-1 shadow-lg dark:border-gray-700 dark:bg-gray-900"></div>
+                                            <select
+                                                class="item-attraction hidden dark:border-gray-600 app-input">
+                                                <option value="">{{ __('Select attraction') }}</option>
+                                                @foreach ($touristAttractionsSorted as $a)
+                                                    @php
+                                                        $attractionDestination = trim((string) ($a->destination?->name ?? ($destinationNameById[$a->destination_id] ?? '')));
+                                                    @endphp
+                                                    <option value="{{ $a->id }}"
+                                                        data-duration="{{ $a->ideal_visit_minutes ?? 120 }}"
+                                                        data-destination="{{ $attractionDestination }}"
+                                                        data-location="{{ $a->location ?? '' }}"
+                                                        data-city="{{ $a->city ?? '' }}"
+                                                        data-province="{{ $a->province ?? '' }}"
+                                                        data-latitude="{{ $a->latitude }}"
+                                                        data-longitude="{{ $a->longitude }}" @selected((string) ($r['tourist_attraction_id'] ?? '') === (string) $a->id)>
+                                                        {{ $a->name }}, {{ !empty($a->city) ? $a->city : (!empty($a->province) ? $a->province : '-') }}, {{ $attractionDestination !== '' ? $attractionDestination : '-' }}</option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+                                        <div class="item-activity-wrap relative {{ $r['item_type'] !== 'activity' ? 'hidden' : '' }}">
+                                            <p class="item-activity-notice mb-1 text-[11px] text-gray-500 dark:text-gray-400">
+                                                {{ __('Example: Activity Name, Region, Vendor') }}
+                                            </p>
+                                            <input type="text"
+                                                class="item-activity-search dark:border-gray-600 app-input"
+                                                placeholder="{{ __('Type: Activity, Region, Vendor') }}"
+                                                autocomplete="off">
+                                            <div
+                                                class="item-activity-dropdown absolute z-30 mt-1 hidden max-h-56 w-full overflow-auto rounded-lg border border-gray-300 bg-white p-1 shadow-lg dark:border-gray-700 dark:bg-gray-900"></div>
+                                            <select
+                                                class="item-activity hidden dark:border-gray-600 app-input">
+                                                <option value="">{{ __('Select activity') }}</option>
+                                                @foreach ($activitiesSorted as $a)
+                                                    <option value="{{ $a->id }}"
+                                                        data-duration="{{ $a->duration_minutes ?? 60 }}"
+                                                        data-destination="{{ $a->vendor?->destination?->name ?? '' }}"
+                                                        data-location="{{ $a->vendor?->location ?? '' }}"
+                                                        data-city="{{ $a->vendor?->city ?? '' }}"
+                                                        data-province="{{ $a->vendor?->province ?? '' }}"
+                                                        data-latitude="{{ $a->vendor?->latitude ?? '' }}"
+                                                        data-longitude="{{ $a->vendor?->longitude ?? '' }}"
+                                                        @selected((string) ($r['activity_id'] ?? '') === (string) $a->id)>{{ $a->name }}, {{ !empty($a->vendor?->city) ? $a->vendor->city : (!empty($a->vendor?->province) ? $a->vendor->province : '-') }}, {{ !empty($a->vendor?->name) ? $a->vendor->name : '-' }}</option>
+                                                @endforeach
+                                            </select>
+                                        </div>
                                         <select
                                             class="item-transfer {{ $r['item_type'] !== 'transfer' ? 'hidden' : '' }} dark:border-gray-600 app-input">
-                                            <option value="">{{ __('Select inter-island transfer') }}</option>
+                                            <option value="">{{ __('Select inter island transfer') }}</option>
                                             @foreach ($islandTransfersSorted as $t)
                                                 <option value="{{ $t->id }}"
                                                     data-duration="{{ $t->duration_minutes ?? 60 }}"
@@ -867,7 +946,7 @@
                                             title="{{ __('Remove item') }}" aria-label="Remove item">&times;</button>
                                     </div>
                                 </div>
-                                <div class="grid grid-cols-1 gap-2 lg:grid-cols-12 lg:items-center">
+                                <div class="grid grid-cols-1 gap-2 lg:grid-cols-12 lg:items-end">
                                     <div class="lg:col-span-1">
                                         <span
                                             class="item-seq-badge inline-flex h-7 w-7 items-center justify-center rounded-full bg-slate-700 text-xs font-semibold text-white">-</span>
@@ -877,7 +956,7 @@
                                             class="item-type dark:border-gray-600 app-input">
                                             <option value="attraction">{{ __('Attraction') }}</option>
                                             <option value="activity">{{ __('Activity') }}</option>
-                                            <option value="transfer">{{ __('Inter-Island Transfer') }}</option>
+                                            <option value="transfer">{{ __('Inter Island Transfer') }}</option>
                                             <option value="fnb">{{ __('F&B') }}</option>
                                         </select>
                                     </div>
@@ -890,34 +969,63 @@
                                         </select>
                                     </div>
                                     <div class="min-w-0 lg:col-span-6">
-                                        <select
-                                            class="item-attraction dark:border-gray-600 app-input">
-                                            <option value="">{{ __('Select attraction') }}</option>
-                                            @foreach ($touristAttractionsSorted as $a)
-                                                <option value="{{ $a->id }}"
-                                                    data-duration="{{ $a->ideal_visit_minutes ?? 120 }}"
-                                                    data-city="{{ $a->city ?? '' }}"
-                                                    data-province="{{ $a->province ?? '' }}"
-                                                    data-latitude="{{ $a->latitude }}"
-                                                    data-longitude="{{ $a->longitude }}">{{ $a->name }}</option>
-                                            @endforeach
-                                        </select>
-                                        <select
-                                            class="item-activity hidden dark:border-gray-600 app-input">
-                                            <option value="">{{ __('Select activity') }}</option>
-                                            @foreach ($activitiesSorted as $a)
-                                                <option value="{{ $a->id }}"
-                                                    data-duration="{{ $a->duration_minutes ?? 60 }}"
-                                                    data-city="{{ $a->vendor?->city ?? '' }}"
-                                                    data-province="{{ $a->vendor?->province ?? '' }}"
-                                                    data-latitude="{{ $a->vendor?->latitude ?? '' }}"
-                                                    data-longitude="{{ $a->vendor?->longitude ?? '' }}">
-                                                    {{ $a->name }} - {{ !empty($a->vendor?->name) ? $a->vendor->name : '-' }}</option>
-                                            @endforeach
-                                        </select>
+                                        <div class="item-attraction-wrap relative">
+                                            <p class="item-attraction-notice mb-1 text-[11px] text-gray-500 dark:text-gray-400">
+                                                {{ __('Example: Attraction Name, Region, Destination') }}
+                                            </p>
+                                            <input type="text"
+                                                class="item-attraction-search dark:border-gray-600 app-input"
+                                                placeholder="{{ __('Type: Attraction, Region, Destination') }}"
+                                                autocomplete="off">
+                                            <div
+                                                class="item-attraction-dropdown absolute z-30 mt-1 hidden max-h-56 w-full overflow-auto rounded-lg border border-gray-300 bg-white p-1 shadow-lg dark:border-gray-700 dark:bg-gray-900"></div>
+                                            <select
+                                                class="item-attraction hidden dark:border-gray-600 app-input">
+                                                <option value="">{{ __('Select attraction') }}</option>
+                                                @foreach ($touristAttractionsSorted as $a)
+                                                    @php
+                                                        $attractionDestination = trim((string) ($a->destination?->name ?? ($destinationNameById[$a->destination_id] ?? '')));
+                                                    @endphp
+                                                    <option value="{{ $a->id }}"
+                                                        data-duration="{{ $a->ideal_visit_minutes ?? 120 }}"
+                                                        data-destination="{{ $attractionDestination }}"
+                                                        data-location="{{ $a->location ?? '' }}"
+                                                        data-city="{{ $a->city ?? '' }}"
+                                                        data-province="{{ $a->province ?? '' }}"
+                                                        data-latitude="{{ $a->latitude }}"
+                                                        data-longitude="{{ $a->longitude }}">{{ $a->name }}, {{ !empty($a->city) ? $a->city : (!empty($a->province) ? $a->province : '-') }}, {{ $attractionDestination !== '' ? $attractionDestination : '-' }}</option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+                                        <div class="item-activity-wrap relative hidden">
+                                            <p class="item-activity-notice mb-1 text-[11px] text-gray-500 dark:text-gray-400">
+                                                {{ __('Example: Activity Name, Region, Vendor') }}
+                                            </p>
+                                            <input type="text"
+                                                class="item-activity-search dark:border-gray-600 app-input"
+                                                placeholder="{{ __('Type: Activity, Region, Vendor') }}"
+                                                autocomplete="off">
+                                            <div
+                                                class="item-activity-dropdown absolute z-30 mt-1 hidden max-h-56 w-full overflow-auto rounded-lg border border-gray-300 bg-white p-1 shadow-lg dark:border-gray-700 dark:bg-gray-900"></div>
+                                            <select
+                                                class="item-activity hidden dark:border-gray-600 app-input">
+                                                <option value="">{{ __('Select activity') }}</option>
+                                                @foreach ($activitiesSorted as $a)
+                                                    <option value="{{ $a->id }}"
+                                                        data-duration="{{ $a->duration_minutes ?? 60 }}"
+                                                        data-destination="{{ $a->vendor?->destination?->name ?? '' }}"
+                                                        data-location="{{ $a->vendor?->location ?? '' }}"
+                                                        data-city="{{ $a->vendor?->city ?? '' }}"
+                                                        data-province="{{ $a->vendor?->province ?? '' }}"
+                                                        data-latitude="{{ $a->vendor?->latitude ?? '' }}"
+                                                        data-longitude="{{ $a->vendor?->longitude ?? '' }}">
+                                                        {{ $a->name }}, {{ !empty($a->vendor?->city) ? $a->vendor->city : (!empty($a->vendor?->province) ? $a->vendor->province : '-') }}, {{ !empty($a->vendor?->name) ? $a->vendor->name : '-' }}</option>
+                                                @endforeach
+                                            </select>
+                                        </div>
                                         <select
                                             class="item-transfer hidden dark:border-gray-600 app-input">
-                                            <option value="">{{ __('Select inter-island transfer') }}</option>
+                                            <option value="">{{ __('Select inter island transfer') }}</option>
                                             @foreach ($islandTransfersSorted as $t)
                                                 <option value="{{ $t->id }}"
                                                     data-duration="{{ $t->duration_minutes ?? 60 }}"
@@ -956,8 +1064,18 @@
                             </div>
                         @endforelse
                     </div>
-                    <div class="inter-island-hint mb-2 hidden rounded-md border border-amber-200 bg-amber-50 px-2.5 py-2 text-xs text-amber-700 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-300"></div>
 
+                    <div class="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                        <div class="rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-800 dark:border-sky-800 dark:bg-sky-900/20 dark:text-sky-200">
+                            You can add new items (Attraction, Activity, Inter Island Transfer, or F&amp;B) to this itinerary.
+                        </div>
+                        <button
+                            type="button"
+                            class="add-item btn-outline-sm min-h-[42px] h-[42px] px-4"
+                        >
+                            + Add Item
+                        </button>
+                    </div>
                     <div
                         class="mt-3 mb-3 rounded-lg border border-slate-200 bg-slate-50/60 p-3 day-end-point-card dark:border-slate-600 dark:bg-slate-900/25">
                         <div class="space-y-2">
@@ -1570,6 +1688,13 @@
                 const mapDayTabsEl = document.getElementById('itinerary-map-day-tabs');
                 const mapLegendEl = document.getElementById('itinerary-map-legend');
                 const form = daySections?.closest('form');
+                const activitySuggestionEndpoint = @json(route('itineraries.activity-suggestions'));
+                const activityCreateEndpoint = @json(route('itineraries.activity-suggestions.store'));
+                const attractionSuggestionEndpoint = @json(route('itineraries.tourist-attraction-suggestions'));
+                const attractionCreateEndpoint = @json(route('itineraries.tourist-attraction-suggestions.store'));
+                const csrfToken = form?.querySelector('input[name=\"_token\"]')?.value
+                    || document.querySelector('meta[name=\"csrf-token\"]')?.getAttribute('content')
+                    || '';
                 if (!daySections || !durationInput) return;
                 const wizardRoot = document.querySelector('[data-itinerary-wizard]');
                 const wizardStepPanels = wizardRoot ? [...wizardRoot.querySelectorAll('[data-wizard-step]')] : [];
@@ -1854,7 +1979,10 @@
                                 section.querySelector('.day-end-time')?.value || section.querySelector('.day-end-time-endpoint-text')?.textContent,
                                 '--:--',
                             );
-                            const transportText = reviewText(section.querySelector('.day-transport-unit')?.selectedOptions?.[0]?.textContent, i18n.notSet);
+                            const transportTexts = [...section.querySelectorAll('.day-transport-unit')]
+                                .map((input) => String(input?.selectedOptions?.[0]?.textContent || '').trim())
+                                .filter((text) => text !== '' && !text.toLowerCase().includes('select transport unit'));
+                            const transportText = transportTexts.length > 0 ? transportTexts.join(', ') : i18n.notSet;
                             const startPointText = reviewPointLabel(section, 'start');
                             const endPointText = reviewPointLabel(section, 'end');
                             const selectedRows = [...section.querySelectorAll('.schedule-row')]
@@ -1953,15 +2081,19 @@
                 const setWizardDay = (day) => {
                     if (!wizardRoot) return;
                     wizardActiveDay = clampWizardDay(day);
+                    const totalDays = clampDurationDays(durationInput.value || MIN_DURATION_DAYS);
+                    const showDayNavButtons = totalDays > 1;
                     normalizeWizardDaySections().forEach((section) => {
                         const dayNumber = Number(section.dataset.day || '0');
                         section.dataset.dayHidden = wizardStep === 2 && dayNumber !== wizardActiveDay ? '1' : '0';
                     });
                     if (dayWizardPrevButton) {
+                        dayWizardPrevButton.classList.toggle('hidden', !showDayNavButtons);
                         dayWizardPrevButton.disabled = wizardActiveDay <= 1;
                     }
                     if (dayWizardNextButton) {
-                        dayWizardNextButton.disabled = wizardActiveDay >= clampDurationDays(durationInput.value || MIN_DURATION_DAYS);
+                        dayWizardNextButton.classList.toggle('hidden', !showDayNavButtons);
+                        dayWizardNextButton.disabled = wizardActiveDay >= totalDays;
                     }
                     renderDayWizardTabs();
                 };
@@ -2100,54 +2232,787 @@
                 const rowType = (r) => getRowSelection(r).type;
                 const activeSelect = (r) => getRowSelection(r).select;
                 const selected = (r) => getRowSelection(r).option !== null;
+                const getAttractionElements = (row) => ({
+                    wrap: row?.querySelector('.item-attraction-wrap') || null,
+                    input: row?.querySelector('.item-attraction-search') || null,
+                    dropdown: row?.querySelector('.item-attraction-dropdown') || null,
+                    notice: row?.querySelector('.item-attraction-notice') || null,
+                    select: row?.querySelector('.item-attraction') || null,
+                });
+                const setAttractionNotice = (row, message = '', tone = 'info') => {
+                    const { notice, input } = getAttractionElements(row);
+                    if (!notice) return;
+                    if (String(message || '').trim() === '') {
+                        notice.textContent = 'Example: Attraction Name, Region, Destination';
+                        notice.classList.remove('text-rose-600', 'dark:text-rose-300', 'text-emerald-700', 'dark:text-emerald-300');
+                        notice.classList.add('text-gray-500', 'dark:text-gray-400');
+                        if (input) input.classList.remove('border-rose-500', 'focus:border-rose-500', 'focus:ring-rose-500');
+                        return;
+                    }
+                    notice.textContent = String(message);
+                    notice.classList.remove('text-gray-500', 'dark:text-gray-400', 'text-rose-600', 'dark:text-rose-300', 'text-emerald-700', 'dark:text-emerald-300');
+                    if (tone === 'error') {
+                        notice.classList.add('text-rose-600', 'dark:text-rose-300');
+                        if (input) input.classList.add('border-rose-500', 'focus:border-rose-500', 'focus:ring-rose-500');
+                        return;
+                    }
+                    if (tone === 'success') {
+                        notice.classList.add('text-emerald-700', 'dark:text-emerald-300');
+                        if (input) input.classList.remove('border-rose-500', 'focus:border-rose-500', 'focus:ring-rose-500');
+                        return;
+                    }
+                    notice.classList.add('text-gray-500', 'dark:text-gray-400');
+                    if (input) input.classList.remove('border-rose-500', 'focus:border-rose-500', 'focus:ring-rose-500');
+                };
+                const normalizeAttractionKeyword = (value) =>
+                    String(value || '')
+                        .toLowerCase()
+                        .trim()
+                        .replace(/\s+/g, ' ');
+                const upsertAttractionOption = (select, item, preserveSelection = true) => {
+                    if (!select || !item) return null;
+                    const itemId = String(item.id ?? '').trim();
+                    if (itemId === '') return null;
+                    let option = [...select.options].find((candidate) => String(candidate.value) === itemId) || null;
+                    if (!option) {
+                        option = document.createElement('option');
+                        option.value = itemId;
+                        select.appendChild(option);
+                    }
+                    option.textContent = String(item.label || item.name || '').trim();
+                    option.dataset.duration = String(Math.max(1, parseInt(String(item.ideal_visit_minutes || '120'), 10) || 120));
+                    option.dataset.destination = String(item.destination || '');
+                    option.dataset.location = String(item.location || '');
+                    option.dataset.city = String(item.city || '');
+                    option.dataset.province = String(item.province || '');
+                    option.dataset.latitude = String(item.latitude ?? '');
+                    option.dataset.longitude = String(item.longitude ?? '');
+                    if (preserveSelection) {
+                        select.value = itemId;
+                    }
+                    return option;
+                };
+                const syncAttractionInputFromSelect = (row) => {
+                    const { input, select } = getAttractionElements(row);
+                    if (!input || !select) return;
+                    const selectedOption = select.selectedOptions?.[0] || null;
+                    const selectedValue = String(select.value || '').trim();
+                    if (selectedValue === '' || !selectedOption) {
+                        input.value = '';
+                        return;
+                    }
+                    input.value = String(selectedOption.textContent || '').trim();
+                };
+                const readAttractionSuggestionItems = (row) => {
+                    try {
+                        const parsed = JSON.parse(String(row?.dataset?.attractionSuggestionItems || '[]'));
+                        return Array.isArray(parsed) ? parsed : [];
+                    } catch (_) {
+                        return [];
+                    }
+                };
+                const hideAttractionDropdown = (row) => {
+                    const { dropdown } = getAttractionElements(row);
+                    if (!dropdown) return;
+                    dropdown.classList.add('hidden');
+                    dropdown.innerHTML = '';
+                    delete row.dataset.attractionActiveIndex;
+                };
+                const setAttractionDropdownActiveItem = (row, index) => {
+                    const { dropdown } = getAttractionElements(row);
+                    if (!dropdown) return;
+                    const options = [...dropdown.querySelectorAll('[data-attraction-option]')];
+                    if (!options.length) {
+                        delete row.dataset.attractionActiveIndex;
+                        return;
+                    }
+                    let safeIndex = Number.isFinite(index) ? index : -1;
+                    if (safeIndex < 0) safeIndex = options.length - 1;
+                    if (safeIndex >= options.length) safeIndex = 0;
+                    row.dataset.attractionActiveIndex = String(safeIndex);
+                    options.forEach((option, optionIndex) => {
+                        const isActive = optionIndex === safeIndex;
+                        option.classList.toggle('bg-blue-50', isActive);
+                        option.classList.toggle('dark:bg-blue-900/30', isActive);
+                        option.classList.toggle('text-blue-700', isActive);
+                        option.classList.toggle('dark:text-blue-200', isActive);
+                    });
+                };
+                const fetchAttractionSuggestions = async (keyword, region = '', limit = 12) => {
+                    const trimmed = String(keyword || '').trim();
+                    const trimmedRegion = String(region || '').trim();
+                    const destinationKeyword = String(itineraryDestinationInput?.value || '').trim();
+                    const params = new URLSearchParams({
+                        q: trimmed,
+                        destination: destinationKeyword,
+                        region: trimmedRegion,
+                        limit: String(limit),
+                    });
+                    const response = await fetch(`${attractionSuggestionEndpoint}?${params.toString()}`, {
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                            Accept: 'application/json',
+                        },
+                    });
+                    if (!response.ok) {
+                        throw new Error('Failed to fetch attraction suggestions');
+                    }
+                    const payload = await response.json();
+                    return Array.isArray(payload?.data) ? payload.data : [];
+                };
+                const createAttractionFromKeyword = async (keyword) => {
+                    const trimmed = String(keyword || '').trim();
+                    if (trimmed === '') return null;
+                    const response = await fetch(attractionCreateEndpoint, {
+                        method: 'POST',
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                            Accept: 'application/json',
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': csrfToken,
+                        },
+                        body: JSON.stringify({
+                            name: trimmed,
+                            ideal_visit_minutes: 120,
+                        }),
+                    });
+                    if (!response.ok) {
+                        let message = 'Failed to create attraction';
+                        try {
+                            const errorPayload = await response.json();
+                            const nameErrors = Array.isArray(errorPayload?.errors?.name) ? errorPayload.errors.name : [];
+                            const firstNameError = String(nameErrors[0] || '').trim();
+                            const fallbackMessage = String(errorPayload?.message || '').trim();
+                            message = firstNameError || fallbackMessage || message;
+                        } catch (_) {}
+                        throw new Error(message);
+                    }
+                    const payload = await response.json();
+                    return payload?.data || null;
+                };
+                const renderAttractionDropdown = (row, suggestions, keyword) => {
+                    const { dropdown, select } = getAttractionElements(row);
+                    if (!dropdown || !select) return;
+                    const escapeHtml = (value) =>
+                        String(value || '')
+                            .replace(/&/g, '&amp;')
+                            .replace(/</g, '&lt;')
+                            .replace(/>/g, '&gt;')
+                            .replace(/"/g, '&quot;')
+                            .replace(/'/g, '&#039;');
+                    const items = Array.isArray(suggestions) ? suggestions : [];
+                    const normalizedKeyword = normalizeAttractionKeyword(keyword);
+                    const hasExact = items.some((item) => normalizeAttractionKeyword(item?.name || item?.label || '') === normalizedKeyword);
+                    let html = '';
+                    items.forEach((item, index) => {
+                        const label = String(item?.label || item?.name || '').trim();
+                        if (!label) return;
+                        html += `
+                            <button type="button" data-attraction-option="existing" data-attraction-index="${index}" data-attraction-id="${String(item.id || '')}"
+                                class="flex w-full items-start rounded-md px-2 py-1.5 text-left text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 dark:text-gray-200 dark:hover:bg-blue-900/30 dark:hover:text-blue-200">
+                                <span class="truncate">${label}</span>
+                            </button>
+                        `;
+                    });
+                    if (normalizedKeyword !== '' && !hasExact) {
+                        const safeKeyword = escapeHtml(String(keyword || '').trim());
+                        html += `
+                            <button type="button" data-attraction-option="create" data-attraction-keyword="${safeKeyword}"
+                                class="mt-1 flex w-full items-start rounded-md border border-dashed border-emerald-300 px-2 py-1.5 text-left text-sm text-emerald-700 hover:bg-emerald-50 dark:border-emerald-700 dark:text-emerald-300 dark:hover:bg-emerald-900/20">
+                                <span class="truncate">+ Add new attraction "${safeKeyword}"</span>
+                            </button>
+                        `;
+                    }
+                    dropdown.innerHTML = html;
+                    if (html === '') {
+                        hideAttractionDropdown(row);
+                        return;
+                    }
+                    dropdown.classList.remove('hidden');
+                    row.dataset.attractionSuggestionItems = JSON.stringify(items);
+                    setAttractionDropdownActiveItem(row, 0);
+                };
+                const applyAttractionSelection = (row, item) => {
+                    const { select, input } = getAttractionElements(row);
+                    if (!select || !item) return;
+                    const selectedOption = upsertAttractionOption(select, item, true);
+                    const itemId = String(item.id ?? '').trim();
+                    if (itemId !== '') {
+                        select.value = itemId;
+                        if (String(select.value || '').trim() !== itemId && selectedOption) {
+                            selectedOption.selected = true;
+                        }
+                    }
+                    select.dispatchEvent(new Event('change', { bubbles: true }));
+                    if (input) {
+                        input.value = String(selectedOption?.textContent || item?.label || item?.name || '').trim();
+                    }
+                    syncAttractionInputFromSelect(row);
+                    setAttractionNotice(row, '', 'info');
+                    hideAttractionDropdown(row);
+                    syncRegionFromSelectedItem(row, true);
+                    recalc();
+                };
+                const attractionAutocompleteBoundRows = new WeakSet();
+                const bindAttractionAutocomplete = (row) => {
+                    if (!row || attractionAutocompleteBoundRows.has(row)) return;
+                    attractionAutocompleteBoundRows.add(row);
+                    const { input, select, dropdown } = getAttractionElements(row);
+                    if (!input || !select || !dropdown) return;
+                    let debounceTimer = null;
+                    let fetchToken = 0;
+                    let creating = false;
+                    syncAttractionInputFromSelect(row);
+                    setAttractionNotice(row, '', 'info');
+
+                    const runSearch = async (keyword) => {
+                        const token = ++fetchToken;
+                        const selectedRegion = String(row.querySelector('.item-region')?.value || '').trim();
+                        try {
+                            const suggestions = await fetchAttractionSuggestions(keyword, selectedRegion, 12);
+                            if (token !== fetchToken) return;
+                            renderAttractionDropdown(row, suggestions, keyword);
+                        } catch (_) {
+                            hideAttractionDropdown(row);
+                        }
+                    };
+
+                    input.addEventListener('focus', () => {
+                        setAttractionNotice(row, '', 'info');
+                        runSearch(input.value || '');
+                    });
+                    input.addEventListener('input', () => {
+                        select.value = '';
+                        setAttractionNotice(row, '', 'info');
+                        if (debounceTimer) clearTimeout(debounceTimer);
+                        debounceTimer = setTimeout(() => runSearch(input.value || ''), 250);
+                    });
+                    input.addEventListener('keydown', async (event) => {
+                        const options = [...dropdown.querySelectorAll('[data-attraction-option]')];
+                        if (!options.length) return;
+                        const currentIndex = parseInt(String(row.dataset.attractionActiveIndex || '-1'), 10);
+                        if (event.key === 'ArrowDown') {
+                            event.preventDefault();
+                            setAttractionDropdownActiveItem(row, currentIndex + 1);
+                            return;
+                        }
+                        if (event.key === 'ArrowUp') {
+                            event.preventDefault();
+                            setAttractionDropdownActiveItem(row, currentIndex - 1);
+                            return;
+                        }
+                        if (event.key === 'Escape') {
+                            hideAttractionDropdown(row);
+                            return;
+                        }
+                        if (event.key !== 'Enter') return;
+                        event.preventDefault();
+                        const safeIndex = Number.isFinite(currentIndex) && currentIndex >= 0 ? currentIndex : 0;
+                        const activeOption = options[safeIndex];
+                        if (!activeOption) return;
+                        if (activeOption.dataset.attractionOption === 'existing') {
+                            const items = readAttractionSuggestionItems(row);
+                            const itemIndex = parseInt(String(activeOption.dataset.attractionIndex || '-1'), 10);
+                            const chosen = Number.isFinite(itemIndex) && itemIndex >= 0 ? items[itemIndex] : null;
+                            if (chosen) applyAttractionSelection(row, chosen);
+                            return;
+                        }
+                        if (activeOption.dataset.attractionOption === 'create' && !creating) {
+                            creating = true;
+                            try {
+                                const created = await createAttractionFromKeyword(activeOption.dataset.attractionKeyword || input.value || '');
+                                if (created) {
+                                    applyAttractionSelection(row, created);
+                                    setAttractionNotice(row, 'New attraction saved successfully.', 'success');
+                                }
+                            } catch (error) {
+                                setAttractionNotice(row, String(error?.message || 'Invalid manual format.'), 'error');
+                            } finally {
+                                creating = false;
+                            }
+                        }
+                    });
+
+                    const handleAttractionDropdownPick = async (target) => {
+                        if (!target) return;
+                        if (target.dataset.attractionOption === 'existing') {
+                            const items = readAttractionSuggestionItems(row);
+                            const itemIndex = parseInt(String(target.dataset.attractionIndex || '-1'), 10);
+                            const chosen = Number.isFinite(itemIndex) && itemIndex >= 0 ? items[itemIndex] : null;
+                            if (chosen) applyAttractionSelection(row, chosen);
+                            return;
+                        }
+                        if (target.dataset.attractionOption === 'create' && !creating) {
+                            creating = true;
+                            try {
+                                const created = await createAttractionFromKeyword(target.dataset.attractionKeyword || input.value || '');
+                                if (created) {
+                                    applyAttractionSelection(row, created);
+                                    setAttractionNotice(row, 'New attraction saved successfully.', 'success');
+                                }
+                            } catch (error) {
+                                setAttractionNotice(row, String(error?.message || 'Invalid manual format.'), 'error');
+                            } finally {
+                                creating = false;
+                            }
+                        }
+                    };
+                    dropdown.addEventListener('pointerdown', async (event) => {
+                        const target = event.target instanceof HTMLElement
+                            ? event.target.closest('[data-attraction-option]')
+                            : null;
+                        if (!target) return;
+                        event.preventDefault();
+                        event.stopPropagation();
+                        await handleAttractionDropdownPick(target);
+                    });
+                    input.addEventListener('blur', () => {
+                        setTimeout(() => {
+                            const currentInputValue = normalizeAttractionKeyword(input.value || '');
+                            const selectedOption = select.selectedOptions?.[0] || null;
+                            const selectedText = normalizeAttractionKeyword(selectedOption?.textContent || '');
+                            if (String(select.value || '').trim() !== '') {
+                                syncAttractionInputFromSelect(row);
+                                setAttractionNotice(row, '', 'info');
+                            } else if (currentInputValue === '') {
+                                select.value = '';
+                                syncAttractionInputFromSelect(row);
+                                setAttractionNotice(row, '', 'info');
+                            }
+                            hideAttractionDropdown(row);
+                        }, 120);
+                    });
+
+                    select.addEventListener('change', () => {
+                        syncAttractionInputFromSelect(row);
+                    });
+                };
+                const getActivityElements = (row) => ({
+                    wrap: row?.querySelector('.item-activity-wrap') || null,
+                    input: row?.querySelector('.item-activity-search') || null,
+                    dropdown: row?.querySelector('.item-activity-dropdown') || null,
+                    notice: row?.querySelector('.item-activity-notice') || null,
+                    select: row?.querySelector('.item-activity') || null,
+                });
+                const setActivityNotice = (row, message = '', tone = 'info') => {
+                    const { notice, input } = getActivityElements(row);
+                    if (!notice) return;
+                    if (String(message || '').trim() === '') {
+                        notice.textContent = 'Example: Aktivity Name, Region, Vendor';
+                        notice.classList.remove('text-rose-600', 'dark:text-rose-300', 'text-emerald-700', 'dark:text-emerald-300');
+                        notice.classList.add('text-gray-500', 'dark:text-gray-400');
+                        if (input) input.classList.remove('border-rose-500', 'focus:border-rose-500', 'focus:ring-rose-500');
+                        return;
+                    }
+                    notice.textContent = String(message);
+                    notice.classList.remove('text-gray-500', 'dark:text-gray-400', 'text-rose-600', 'dark:text-rose-300', 'text-emerald-700', 'dark:text-emerald-300');
+                    if (tone === 'error') {
+                        notice.classList.add('text-rose-600', 'dark:text-rose-300');
+                        if (input) input.classList.add('border-rose-500', 'focus:border-rose-500', 'focus:ring-rose-500');
+                        return;
+                    }
+                    if (tone === 'success') {
+                        notice.classList.add('text-emerald-700', 'dark:text-emerald-300');
+                        if (input) input.classList.remove('border-rose-500', 'focus:border-rose-500', 'focus:ring-rose-500');
+                        return;
+                    }
+                    notice.classList.add('text-gray-500', 'dark:text-gray-400');
+                    if (input) input.classList.remove('border-rose-500', 'focus:border-rose-500', 'focus:ring-rose-500');
+                };
+                const normalizeActivityKeyword = (value) =>
+                    String(value || '')
+                        .toLowerCase()
+                        .trim()
+                        .replace(/\s+/g, ' ');
+                const upsertActivityOption = (select, activityItem, preserveSelection = true) => {
+                    if (!select || !activityItem) return null;
+                    const activityId = String(activityItem.id ?? '').trim();
+                    if (activityId === '') return null;
+                    let option = [...select.options].find((candidate) => String(candidate.value) === activityId) || null;
+                    if (!option) {
+                        option = document.createElement('option');
+                        option.value = activityId;
+                        select.appendChild(option);
+                    }
+                    option.textContent = String(activityItem.label || activityItem.name || '').trim();
+                    option.dataset.duration = String(Math.max(1, parseInt(String(activityItem.duration_minutes || '60'), 10) || 60));
+                    option.dataset.destination = String(activityItem.destination || '');
+                    option.dataset.location = String(activityItem.location || '');
+                    option.dataset.city = String(activityItem.city || '');
+                    option.dataset.province = String(activityItem.province || '');
+                    option.dataset.latitude = String(activityItem.latitude ?? '');
+                    option.dataset.longitude = String(activityItem.longitude ?? '');
+                    if (preserveSelection) {
+                        select.value = activityId;
+                    }
+                    return option;
+                };
+                const syncActivityInputFromSelect = (row) => {
+                    const { input, select } = getActivityElements(row);
+                    if (!input || !select) return;
+                    const selectedOption = select.selectedOptions?.[0] || null;
+                    const selectedValue = String(select.value || '').trim();
+                    if (selectedValue === '' || !selectedOption) {
+                        input.value = '';
+                        return;
+                    }
+                    input.value = String(selectedOption.textContent || '').trim();
+                };
+                const readActivitySuggestionItems = (row) => {
+                    try {
+                        const parsed = JSON.parse(String(row?.dataset?.activitySuggestionItems || '[]'));
+                        return Array.isArray(parsed) ? parsed : [];
+                    } catch (_) {
+                        return [];
+                    }
+                };
+                const hideActivityDropdown = (row) => {
+                    const { dropdown } = getActivityElements(row);
+                    if (!dropdown) return;
+                    dropdown.classList.add('hidden');
+                    dropdown.innerHTML = '';
+                    delete row.dataset.activityActiveIndex;
+                };
+                const setActivityDropdownActiveItem = (row, index) => {
+                    const { dropdown } = getActivityElements(row);
+                    if (!dropdown) return;
+                    const options = [...dropdown.querySelectorAll('[data-activity-option]')];
+                    if (!options.length) {
+                        delete row.dataset.activityActiveIndex;
+                        return;
+                    }
+                    let safeIndex = Number.isFinite(index) ? index : -1;
+                    if (safeIndex < 0) safeIndex = options.length - 1;
+                    if (safeIndex >= options.length) safeIndex = 0;
+                    row.dataset.activityActiveIndex = String(safeIndex);
+                    options.forEach((option, optionIndex) => {
+                        const isActive = optionIndex === safeIndex;
+                        option.classList.toggle('bg-blue-50', isActive);
+                        option.classList.toggle('dark:bg-blue-900/30', isActive);
+                        option.classList.toggle('text-blue-700', isActive);
+                        option.classList.toggle('dark:text-blue-200', isActive);
+                    });
+                };
+                const fetchActivitySuggestions = async (keyword, region = '', limit = 12) => {
+                    const trimmed = String(keyword || '').trim();
+                    const trimmedRegion = String(region || '').trim();
+                    const destinationKeyword = String(itineraryDestinationInput?.value || '').trim();
+                    const params = new URLSearchParams({
+                        q: trimmed,
+                        destination: destinationKeyword,
+                        region: trimmedRegion,
+                        limit: String(limit),
+                    });
+                    const response = await fetch(`${activitySuggestionEndpoint}?${params.toString()}`, {
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                            Accept: 'application/json',
+                        },
+                    });
+                    if (!response.ok) {
+                        throw new Error('Failed to fetch activity suggestions');
+                    }
+                    const payload = await response.json();
+                    return Array.isArray(payload?.data) ? payload.data : [];
+                };
+                const createActivityFromKeyword = async (keyword) => {
+                    const trimmed = String(keyword || '').trim();
+                    if (trimmed === '') return null;
+                    const response = await fetch(activityCreateEndpoint, {
+                        method: 'POST',
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                            Accept: 'application/json',
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': csrfToken,
+                        },
+                        body: JSON.stringify({
+                            name: trimmed,
+                            duration_minutes: 60,
+                        }),
+                    });
+                    if (!response.ok) {
+                        let message = 'Failed to create activity';
+                        try {
+                            const errorPayload = await response.json();
+                            const nameErrors = Array.isArray(errorPayload?.errors?.name) ? errorPayload.errors.name : [];
+                            const firstNameError = String(nameErrors[0] || '').trim();
+                            const fallbackMessage = String(errorPayload?.message || '').trim();
+                            message = firstNameError || fallbackMessage || message;
+                        } catch (_) {}
+                        throw new Error(message);
+                    }
+                    const payload = await response.json();
+                    return payload?.data || null;
+                };
+                const renderActivityDropdown = (row, suggestions, keyword) => {
+                    const { dropdown, select } = getActivityElements(row);
+                    if (!dropdown || !select) return;
+                    const escapeHtml = (value) =>
+                        String(value || '')
+                            .replace(/&/g, '&amp;')
+                            .replace(/</g, '&lt;')
+                            .replace(/>/g, '&gt;')
+                            .replace(/"/g, '&quot;')
+                            .replace(/'/g, '&#039;');
+                    const items = Array.isArray(suggestions) ? suggestions : [];
+                    const normalizedKeyword = normalizeActivityKeyword(keyword);
+                    const hasExact = items.some((item) => normalizeActivityKeyword(item?.name || item?.label || '') === normalizedKeyword);
+                    let html = '';
+                    items.forEach((item, index) => {
+                        const label = String(item?.label || item?.name || '').trim();
+                        if (!label) return;
+                        html += `
+                            <button type="button" data-activity-option="existing" data-activity-index="${index}" data-activity-id="${String(item.id || '')}"
+                                class="flex w-full items-start rounded-md px-2 py-1.5 text-left text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 dark:text-gray-200 dark:hover:bg-blue-900/30 dark:hover:text-blue-200">
+                                <span class="truncate">${label}</span>
+                            </button>
+                        `;
+                    });
+                    if (normalizedKeyword !== '' && !hasExact) {
+                        const safeKeyword = escapeHtml(String(keyword || '').trim());
+                        html += `
+                            <button type="button" data-activity-option="create" data-activity-keyword="${safeKeyword}"
+                                class="mt-1 flex w-full items-start rounded-md border border-dashed border-emerald-300 px-2 py-1.5 text-left text-sm text-emerald-700 hover:bg-emerald-50 dark:border-emerald-700 dark:text-emerald-300 dark:hover:bg-emerald-900/20">
+                                <span class="truncate">+ Add new activity "${safeKeyword}"</span>
+                            </button>
+                        `;
+                    }
+                    dropdown.innerHTML = html;
+                    if (html === '') {
+                        hideActivityDropdown(row);
+                        return;
+                    }
+                    dropdown.classList.remove('hidden');
+                    row.dataset.activitySuggestionItems = JSON.stringify(items);
+                    setActivityDropdownActiveItem(row, 0);
+                };
+                const applyActivitySelection = (row, activityItem) => {
+                    const { select, input } = getActivityElements(row);
+                    if (!select || !activityItem) return;
+                    const selectedOption = upsertActivityOption(select, activityItem, true);
+                    const activityId = String(activityItem.id ?? '').trim();
+                    if (activityId !== '') {
+                        select.value = activityId;
+                        if (String(select.value || '').trim() !== activityId && selectedOption) {
+                            selectedOption.selected = true;
+                        }
+                    }
+                    select.dispatchEvent(new Event('change', { bubbles: true }));
+                    if (input) {
+                        input.value = String(selectedOption?.textContent || activityItem?.label || activityItem?.name || '').trim();
+                    }
+                    syncActivityInputFromSelect(row);
+                    setActivityNotice(row, '', 'info');
+                    hideActivityDropdown(row);
+                    syncRegionFromSelectedItem(row, true);
+                    recalc();
+                };
+                const activityAutocompleteBoundRows = new WeakSet();
+                const bindActivityAutocomplete = (row) => {
+                    if (!row || activityAutocompleteBoundRows.has(row)) return;
+                    activityAutocompleteBoundRows.add(row);
+                    const { input, select, dropdown } = getActivityElements(row);
+                    if (!input || !select || !dropdown) return;
+                    let debounceTimer = null;
+                    let fetchToken = 0;
+                    let creating = false;
+                    syncActivityInputFromSelect(row);
+                    setActivityNotice(row, '', 'info');
+
+                    const runSearch = async (keyword) => {
+                        const token = ++fetchToken;
+                        const selectedRegion = String(row.querySelector('.item-region')?.value || '').trim();
+                        try {
+                            const suggestions = await fetchActivitySuggestions(keyword, selectedRegion, 12);
+                            if (token !== fetchToken) return;
+                            renderActivityDropdown(row, suggestions, keyword);
+                        } catch (_) {
+                            hideActivityDropdown(row);
+                        }
+                    };
+
+                    input.addEventListener('focus', () => {
+                        setActivityNotice(row, '', 'info');
+                        runSearch(input.value || '');
+                    });
+                    input.addEventListener('input', () => {
+                        select.value = '';
+                        setActivityNotice(row, '', 'info');
+                        if (debounceTimer) clearTimeout(debounceTimer);
+                        debounceTimer = setTimeout(() => runSearch(input.value || ''), 250);
+                    });
+                    input.addEventListener('keydown', async (event) => {
+                        const options = [...dropdown.querySelectorAll('[data-activity-option]')];
+                        if (!options.length) return;
+                        const currentIndex = parseInt(String(row.dataset.activityActiveIndex || '-1'), 10);
+                        if (event.key === 'ArrowDown') {
+                            event.preventDefault();
+                            setActivityDropdownActiveItem(row, currentIndex + 1);
+                            return;
+                        }
+                        if (event.key === 'ArrowUp') {
+                            event.preventDefault();
+                            setActivityDropdownActiveItem(row, currentIndex - 1);
+                            return;
+                        }
+                        if (event.key === 'Escape') {
+                            hideActivityDropdown(row);
+                            return;
+                        }
+                        if (event.key !== 'Enter') return;
+                        event.preventDefault();
+                        const safeIndex = Number.isFinite(currentIndex) && currentIndex >= 0 ? currentIndex : 0;
+                        const activeOption = options[safeIndex];
+                        if (!activeOption) return;
+                        if (activeOption.dataset.activityOption === 'existing') {
+                            const items = readActivitySuggestionItems(row);
+                            const itemIndex = parseInt(String(activeOption.dataset.activityIndex || '-1'), 10);
+                            const chosen = Number.isFinite(itemIndex) && itemIndex >= 0 ? items[itemIndex] : null;
+                            if (chosen) applyActivitySelection(row, chosen);
+                            return;
+                        }
+                        if (activeOption.dataset.activityOption === 'create' && !creating) {
+                            creating = true;
+                            try {
+                                const created = await createActivityFromKeyword(activeOption.dataset.activityKeyword || input.value || '');
+                                if (created) {
+                                    applyActivitySelection(row, created);
+                                    setActivityNotice(row, 'New activity saved successfully.', 'success');
+                                }
+                            } catch (error) {
+                                setActivityNotice(row, String(error?.message || 'Invalid manual format.'), 'error');
+                            } finally {
+                                creating = false;
+                            }
+                        }
+                    });
+
+                    const handleActivityDropdownPick = async (target) => {
+                        if (!target) return;
+                        if (target.dataset.activityOption === 'existing') {
+                            const items = readActivitySuggestionItems(row);
+                            const itemIndex = parseInt(String(target.dataset.activityIndex || '-1'), 10);
+                            const chosen = Number.isFinite(itemIndex) && itemIndex >= 0 ? items[itemIndex] : null;
+                            if (chosen) applyActivitySelection(row, chosen);
+                            return;
+                        }
+                        if (target.dataset.activityOption === 'create' && !creating) {
+                            creating = true;
+                            try {
+                                const created = await createActivityFromKeyword(target.dataset.activityKeyword || input.value || '');
+                                if (created) {
+                                    applyActivitySelection(row, created);
+                                    setActivityNotice(row, 'New activity saved successfully.', 'success');
+                                }
+                            } catch (error) {
+                                setActivityNotice(row, String(error?.message || 'Invalid manual format.'), 'error');
+                            } finally {
+                                creating = false;
+                            }
+                        }
+                    };
+                    dropdown.addEventListener('pointerdown', async (event) => {
+                        const target = event.target instanceof HTMLElement
+                            ? event.target.closest('[data-activity-option]')
+                            : null;
+                        if (!target) return;
+                        event.preventDefault();
+                        event.stopPropagation();
+                        await handleActivityDropdownPick(target);
+                    });
+                    input.addEventListener('blur', () => {
+                        setTimeout(() => {
+                            const currentInputValue = normalizeActivityKeyword(input.value || '');
+                            const selectedOption = select.selectedOptions?.[0] || null;
+                            const selectedText = normalizeActivityKeyword(selectedOption?.textContent || '');
+                            if (String(select.value || '').trim() !== '') {
+                                syncActivityInputFromSelect(row);
+                                setActivityNotice(row, '', 'info');
+                            } else if (currentInputValue === '') {
+                                select.value = '';
+                                syncActivityInputFromSelect(row);
+                                setActivityNotice(row, '', 'info');
+                            }
+                            hideActivityDropdown(row);
+                        }, 120);
+                    });
+
+                    select.addEventListener('change', () => {
+                        syncActivityInputFromSelect(row);
+                    });
+                };
                 const toggleType = (r, t, reset = true) => {
                     const type = t === 'activity' || t === 'transfer' || t === 'fnb' ? t : 'attraction';
                     r.dataset.itemType = type;
                     r.querySelector('.item-type').value = type;
                     const a = r.querySelector('.item-attraction');
+                    const aWrap = r.querySelector('.item-attraction-wrap');
+                    const aSearch = r.querySelector('.item-attraction-search');
+                    const aDropdown = r.querySelector('.item-attraction-dropdown');
                     const b = r.querySelector('.item-activity');
+                    const bWrap = r.querySelector('.item-activity-wrap');
+                    const bSearch = r.querySelector('.item-activity-search');
+                    const bDropdown = r.querySelector('.item-activity-dropdown');
                     const tr = r.querySelector('.item-transfer');
                     const f = r.querySelector('.item-fnb');
                     if (type === 'activity') {
-                        a.classList.add('hidden');
-                        b.classList.remove('hidden');
+                        aWrap?.classList.add('hidden');
+                        aDropdown?.classList.add('hidden');
+                        bWrap?.classList.remove('hidden');
                         tr.classList.add('hidden');
                         f.classList.add('hidden');
                         if (reset) {
                             a.value = '';
+                            if (aSearch) aSearch.value = '';
                             tr.value = '';
                             f.value = '';
                         }
+                        setAttractionNotice(r, '', 'info');
+                        syncActivityInputFromSelect(r);
                     } else if (type === 'transfer') {
-                        a.classList.add('hidden');
-                        b.classList.add('hidden');
+                        aWrap?.classList.add('hidden');
+                        aDropdown?.classList.add('hidden');
+                        bWrap?.classList.add('hidden');
+                        bDropdown?.classList.add('hidden');
                         tr.classList.remove('hidden');
                         f.classList.add('hidden');
                         if (reset) {
                             a.value = '';
+                            if (aSearch) aSearch.value = '';
                             b.value = '';
+                            if (bSearch) bSearch.value = '';
                             f.value = '';
                         }
+                        setAttractionNotice(r, '', 'info');
                     } else if (type === 'fnb') {
-                        a.classList.add('hidden');
-                        b.classList.add('hidden');
+                        aWrap?.classList.add('hidden');
+                        aDropdown?.classList.add('hidden');
+                        bWrap?.classList.add('hidden');
+                        bDropdown?.classList.add('hidden');
                         tr.classList.add('hidden');
                         f.classList.remove('hidden');
                         if (reset) {
                             a.value = '';
+                            if (aSearch) aSearch.value = '';
                             b.value = '';
+                            if (bSearch) bSearch.value = '';
                             tr.value = '';
                         }
+                        setAttractionNotice(r, '', 'info');
                     } else {
-                        a.classList.remove('hidden');
-                        b.classList.add('hidden');
+                        aWrap?.classList.remove('hidden');
+                        bWrap?.classList.add('hidden');
+                        bDropdown?.classList.add('hidden');
                         tr.classList.add('hidden');
                         f.classList.add('hidden');
                         if (reset) {
                             b.value = '';
+                            if (bSearch) bSearch.value = '';
                             tr.value = '';
                             f.value = '';
                         }
+                        syncAttractionInputFromSelect(r);
                     }
                 };
                 const markRegionManualState = (row, isManual) => {
@@ -2189,6 +3054,7 @@
                 let hardResetInProgress = false;
                 let mapRenderSeq = 0;
                 let activeRouteFetchController = null;
+                let activeAutoTravelFetchController = null;
                 let mapSelectedDay = null;
                 const initItineraryMap = () => {
                     if (!mapEl || typeof L === 'undefined') return null;
@@ -2440,8 +3306,37 @@
                     }
                     return segmentCoords;
                 };
-                const fetchRoadRouteGeometry = async (latLngPoints, signal) => {
+                const routeDurationCache = new Map();
+                const roundUpTravelMinutesToStep = (minutes, step = 30) => {
+                    const safeStep = Number.isFinite(step) && step > 0 ? step : 30;
+                    const safeMinutes = Number.isFinite(minutes) ? Math.max(0, minutes) : 0;
+                    if (safeMinutes <= 0) return 0;
+                    return Math.ceil(safeMinutes / safeStep) * safeStep;
+                };
+                const buildRouteDurationCacheKey = (latLngPoints) => {
+                    if (!Array.isArray(latLngPoints) || latLngPoints.length < 2) return '';
+                    const first = latLngPoints[0];
+                    const second = latLngPoints[1];
+                    if (!first || !second) return '';
+                    return [
+                        Number(first.lat).toFixed(6),
+                        Number(first.lng).toFixed(6),
+                        Number(second.lat).toFixed(6),
+                        Number(second.lng).toFixed(6),
+                    ].join('|');
+                };
+                const fetchRoadRouteData = async (latLngPoints, signal) => {
                     if (!Array.isArray(latLngPoints) || latLngPoints.length < 2) return null;
+                    const cacheKey = buildRouteDurationCacheKey(latLngPoints);
+                    if (cacheKey && routeDurationCache.has(cacheKey)) {
+                        const cached = routeDurationCache.get(cacheKey);
+                        if (cached) {
+                            return {
+                                routePoints: Array.isArray(cached.routePoints) ? cached.routePoints.slice() : null,
+                                durationMinutes: Number.isFinite(cached.durationMinutes) ? cached.durationMinutes : null,
+                            };
+                        }
+                    }
                     const coordinateString = latLngPoints
                         .map((point) => `${point.lng},${point.lat}`)
                         .join(';');
@@ -2456,7 +3351,8 @@
                     });
                     if (!response.ok) return null;
                     const payload = await response.json();
-                    const coordinates = payload?.routes?.[0]?.geometry?.coordinates;
+                    const primaryRoute = payload?.routes?.[0];
+                    const coordinates = primaryRoute?.geometry?.coordinates;
                     if (!Array.isArray(coordinates) || coordinates.length < 2) return null;
                     const routePoints = [];
                     coordinates.forEach((coord) => {
@@ -2464,7 +3360,23 @@
                         const latLng = toLeafletLatLng(coord[1], coord[0]);
                         if (latLng) routePoints.push(latLng);
                     });
-                    return routePoints.length >= 2 ? routePoints : null;
+                    if (routePoints.length < 2) return null;
+                    const durationSeconds = Number(primaryRoute?.duration ?? Number.NaN);
+                    const durationMinutes = Number.isFinite(durationSeconds)
+                        ? roundUpTravelMinutesToStep(durationSeconds / 60, 30)
+                        : null;
+                    const routeData = {
+                        routePoints,
+                        durationMinutes,
+                    };
+                    if (cacheKey) {
+                        routeDurationCache.set(cacheKey, routeData);
+                    }
+                    return routeData;
+                };
+                const fetchRoadRouteGeometry = async (latLngPoints, signal) => {
+                    const routeData = await fetchRoadRouteData(latLngPoints, signal);
+                    return Array.isArray(routeData?.routePoints) ? routeData.routePoints : null;
                 };
                 const getDayEndPoint = (day) => {
                     const section = daySections.querySelector(`.day-section[data-day="${day}"]`);
@@ -2495,6 +3407,7 @@
                             lng: startPoint.lng,
                             name: startPoint.name,
                             travelMinutes: Math.max(0, parseInt(section.querySelector('.day-start-travel')?.value || '0', 10) || 0),
+                            travelInputEl: section.querySelector('.day-start-travel') || null,
                         });
                     } else if (startType === 'previous_day_end' && startPoint) {
                         points.push({
@@ -2506,6 +3419,7 @@
                             lng: startPoint.lng,
                             name: startPoint.name,
                             travelMinutes: Math.max(0, parseInt(section.querySelector('.day-start-travel')?.value || '0', 10) || 0),
+                            travelInputEl: section.querySelector('.day-start-travel') || null,
                         });
                     }
                     const rows = [...section.querySelectorAll('.schedule-row')];
@@ -2542,6 +3456,7 @@
                                     lng: departure.lng,
                                     name: `${String(option.textContent || '').trim()} (Departure)`,
                                     travelMinutes: 0,
+                                    travelInputEl: null,
                                     routeToNextCoords,
                                     transferRole: 'departure',
                                     transferPairKey,
@@ -2558,6 +3473,7 @@
                                     lng: arrival.lng,
                                     name: `${String(option.textContent || '').trim()} (Arrival)`,
                                     travelMinutes: Math.max(0, parseInt(row.querySelector('.item-travel')?.value || '0', 10) || 0),
+                                    travelInputEl: row.querySelector('.item-travel') || null,
                                     transferRole: 'arrival',
                                     transferPairKey,
                                 });
@@ -2578,6 +3494,7 @@
                             lng: point.lng,
                             name: point.name,
                             travelMinutes: Math.max(0, parseInt(row.querySelector('.item-travel')?.value || '0', 10) || 0),
+                            travelInputEl: row.querySelector('.item-travel') || null,
                         });
                     });
                     points.sort((a, b) => {
@@ -2602,9 +3519,82 @@
                             lng: endPoint.lng,
                             name: endPoint.name,
                             travelMinutes: 0,
+                            travelInputEl: null,
                         });
                     }
                     return points;
+                };
+                const syncTravelConnectorInputsFromHidden = (section) => {
+                    if (!section) return;
+                    const rows = [...section.querySelectorAll('.day-items .schedule-row')]
+                        .filter((row) =>
+                            !row.classList.contains('schedule-row-template') &&
+                            !row.classList.contains('hidden')
+                        );
+                    rows.forEach((row) => {
+                        const hiddenTravel = row.querySelector('.item-travel');
+                        if (!hiddenTravel) return;
+                        const connectorInput = row.nextElementSibling?.classList?.contains('travel-connector')
+                            ? row.nextElementSibling.querySelector('.travel-connector-input')
+                            : null;
+                        if (!connectorInput || document.activeElement === connectorInput) return;
+                        connectorInput.value = hiddenTravel.value || '';
+                    });
+                };
+                const autoFillDayTravelMinutesFromMap = async (section, signal) => {
+                    if (!section) return false;
+                    const day = Number(section.dataset.day || '0');
+                    if (!Number.isFinite(day) || day <= 0) return false;
+                    const dayRoutePoints = collectDayRoutePoints(day).filter(isFiniteLatLng);
+                    if (dayRoutePoints.length < 2) return false;
+                    let hasChanges = false;
+                    for (let i = 0; i < dayRoutePoints.length - 1; i++) {
+                        const from = dayRoutePoints[i];
+                        const to = dayRoutePoints[i + 1];
+                        const targetInput = from?.travelInputEl;
+                        if (!(targetInput instanceof HTMLInputElement)) continue;
+                        if (document.activeElement === targetInput) continue;
+                        const fromLatLng = toLeafletLatLng(from.lat, from.lng);
+                        const toLatLng = toLeafletLatLng(to.lat, to.lng);
+                        if (!fromLatLng || !toLatLng) continue;
+                        try {
+                            const routeData = await fetchRoadRouteData([fromLatLng, toLatLng], signal);
+                            const minutes = Number(routeData?.durationMinutes ?? Number.NaN);
+                            if (!Number.isFinite(minutes)) continue;
+                            const normalizedValue = String(Math.max(0, Math.round(minutes)));
+                            if (String(targetInput.value || '').trim() !== normalizedValue) {
+                                targetInput.value = normalizedValue;
+                                hasChanges = true;
+                            }
+                        } catch (fetchError) {
+                            if (fetchError?.name === 'AbortError') {
+                                throw fetchError;
+                            }
+                            console.warn('Auto travel-time route fetch failed.', fetchError);
+                        }
+                    }
+                    if (hasChanges) {
+                        syncTravelConnectorInputsFromHidden(section);
+                    }
+                    return hasChanges;
+                };
+                const autoFillAllTravelMinutesFromMap = async () => {
+                    const sections = [...daySections.querySelectorAll('.day-section')]
+                        .sort((a, b) => Number(a.dataset.day || 0) - Number(b.dataset.day || 0));
+                    if (!sections.length) return false;
+                    try {
+                        activeAutoTravelFetchController?.abort();
+                    } catch (_) {}
+                    activeAutoTravelFetchController = typeof AbortController !== 'undefined'
+                        ? new AbortController()
+                        : null;
+                    const signal = activeAutoTravelFetchController?.signal;
+                    let changed = false;
+                    for (const section of sections) {
+                        const sectionChanged = await autoFillDayTravelMinutesFromMap(section, signal);
+                        changed = changed || sectionChanged;
+                    }
+                    return changed;
                 };
                 const refreshMapDayOptions = () => {
                     if (!mapDayTabsEl) return;
@@ -2848,7 +3838,7 @@
                             const parsed = parseInt(input.value || '', 10);
                             hiddenTravel.value = Number.isFinite(parsed) ? String(Math.max(0, parsed)) :
                                 '';
-                            recalcNoConnectorRebuild();
+                            recalcNoConnectorRebuildSkipAuto();
                         });
                         row.insertAdjacentElement('afterend', connector);
                     });
@@ -2907,7 +3897,11 @@
                     const typeSelect = row.querySelector('.item-type');
                     const regionSelect = row.querySelector('.item-region');
                     const attractionSelect = row.querySelector('.item-attraction');
+                    const attractionSearchInput = row.querySelector('.item-attraction-search');
+                    const attractionDropdown = row.querySelector('.item-attraction-dropdown');
                     const activitySelect = row.querySelector('.item-activity');
+                    const activitySearchInput = row.querySelector('.item-activity-search');
+                    const activityDropdown = row.querySelector('.item-activity-dropdown');
                     const transferSelect = row.querySelector('.item-transfer');
                     const fnbSelect = row.querySelector('.item-fnb');
                     const paxInput = row.querySelector('.item-pax');
@@ -2921,7 +3915,19 @@
                     if (typeSelect) typeSelect.value = 'attraction';
                     if (regionSelect) regionSelect.value = '';
                     if (attractionSelect) attractionSelect.value = '';
+                    if (attractionSearchInput) attractionSearchInput.value = '';
+                    if (attractionDropdown) {
+                        attractionDropdown.classList.add('hidden');
+                        attractionDropdown.innerHTML = '';
+                    }
+                    setAttractionNotice(row, '', 'info');
                     if (activitySelect) activitySelect.value = '';
+                    if (activitySearchInput) activitySearchInput.value = '';
+                    if (activityDropdown) {
+                        activityDropdown.classList.add('hidden');
+                        activityDropdown.innerHTML = '';
+                    }
+                    setActivityNotice(row, '', 'info');
                     if (transferSelect) transferSelect.value = '';
                     if (fnbSelect) fnbSelect.value = '';
                     if (paxInput) paxInput.value = '1';
@@ -3037,47 +4043,6 @@
                     for (const sec of [...daySections.querySelectorAll('.day-section')].sort((a, b) => Number(a
                             .dataset.day) - Number(b.dataset.day))) await recalcDay(sec);
                 };
-                const updateInterIslandHints = () => {
-                    daySections.querySelectorAll('.day-section').forEach((section) => {
-                        const hint = section.querySelector('.inter-island-hint');
-                        if (!hint) return;
-                        const rows = [...section.querySelectorAll('.schedule-row')]
-                            .filter((row) => !row.classList.contains('schedule-row-template') && selected(row));
-                        const warnings = [];
-                        for (let i = 0; i < rows.length - 1; i++) {
-                            const current = rows[i];
-                            const next = rows[i + 1];
-                            const currentType = rowType(current);
-                            const nextType = rowType(next);
-                            if (currentType === 'transfer' || nextType === 'transfer') continue;
-                            const currentArea = getSelectedItemArea(current);
-                            const nextArea = getSelectedItemArea(next);
-                            const currentLabel = String(activeSelect(current)?.selectedOptions?.[0]?.textContent || '')
-                                .trim();
-                            const nextLabel = String(activeSelect(next)?.selectedOptions?.[0]?.textContent || '')
-                                .trim();
-                            const hasProvinceDiff = currentArea.province && nextArea.province && currentArea.province !==
-                                nextArea.province;
-                            const hasCityDiffFallback = !hasProvinceDiff &&
-                                (!currentArea.province || !nextArea.province) &&
-                                currentArea.city &&
-                                nextArea.city &&
-                                currentArea.city !== nextArea.city;
-                            if (!hasProvinceDiff && !hasCityDiffFallback) continue;
-                            warnings.push(`${currentLabel || 'Item ' + (i + 1)} -> ${nextLabel || 'Item ' + (i + 2)}`);
-                        }
-                        if (!warnings.length) {
-                            hint.classList.add('hidden');
-                            hint.textContent = '';
-                            return;
-                        }
-                        const warningText = warnings.length > 2 ? `${warnings.slice(0, 2).join('; ')}; ...` : warnings
-                            .join('; ');
-                        hint.classList.remove('hidden');
-                        hint.textContent =
-                            `Potential inter-island move detected (${warningText}). Add an "Inter-Island Transfer" item between those points.`;
-                    });
-                };
                 const reindex = () => {
                     let ai = 0,
                         bi = 0,
@@ -3142,6 +4107,89 @@
                         });
                     });
                 };
+                const MAX_TRANSPORT_UNITS_PER_DAY = 10;
+                const getTransportRows = (section) => [...section.querySelectorAll('.day-transport-row')];
+                const toggleTransportButtonsState = (section) => {
+                    const rows = getTransportRows(section);
+                    const removeButtons = section.querySelectorAll('[data-remove-transport="1"]');
+                    removeButtons.forEach((button) => {
+                        button.classList.toggle('hidden', rows.length <= 1);
+                    });
+                    const addButton = section.querySelector('[data-add-transport="1"]');
+                    if (addButton) {
+                        const reachedMax = rows.length >= MAX_TRANSPORT_UNITS_PER_DAY;
+                        addButton.disabled = reachedMax;
+                        addButton.classList.toggle('opacity-60', reachedMax);
+                        addButton.classList.toggle('cursor-not-allowed', reachedMax);
+                    }
+                };
+                const reindexTransportRows = () => {
+                    const sections = [...daySections.querySelectorAll('.day-section')].sort((a, b) => Number(a.dataset.day) - Number(b.dataset.day));
+                    let transportIndex = 0;
+                    sections.forEach((section) => {
+                        const day = Number(section.dataset.day || 0);
+                        getTransportRows(section).forEach((row) => {
+                            const transportUnit = row.querySelector('.day-transport-unit');
+                            const transportDay = row.querySelector('.day-transport-day');
+                            if (transportUnit) {
+                                transportUnit.name = `daily_transport_units[${transportIndex}][transport_unit_id]`;
+                            }
+                            if (transportDay) {
+                                transportDay.name = `daily_transport_units[${transportIndex}][day_number]`;
+                                transportDay.value = String(day);
+                            }
+                            transportIndex += 1;
+                        });
+                        toggleTransportButtonsState(section);
+                    });
+                };
+                const addTransportRow = (section) => {
+                    if (!section) return;
+                    const rows = getTransportRows(section);
+                    if (rows.length >= MAX_TRANSPORT_UNITS_PER_DAY) return;
+                    const firstRow = rows[0];
+                    if (!firstRow) return;
+                    const clone = firstRow.cloneNode(true);
+                    const transportUnit = clone.querySelector('.day-transport-unit');
+                    const transportDay = clone.querySelector('.day-transport-day');
+                    if (transportUnit) {
+                        transportUnit.value = '';
+                    }
+                    if (transportDay) {
+                        transportDay.value = section.dataset.day || '';
+                    }
+                    const container = section.querySelector('.day-transport-units');
+                    container?.appendChild(clone);
+                    reindexTransportRows();
+                    recalcNoConnectorRebuild();
+                };
+                const bindTransportEvents = (section) => {
+                    if (!section || section.dataset.transportBound === '1') return;
+                    section.dataset.transportBound = '1';
+                    const addButton = section.querySelector('[data-add-transport="1"]');
+                    addButton?.addEventListener('click', () => addTransportRow(section));
+                    section.addEventListener('click', (event) => {
+                        const button = event.target instanceof HTMLElement
+                            ? event.target.closest('[data-remove-transport="1"]')
+                            : null;
+                        if (!button) return;
+                        const row = button.closest('.day-transport-row');
+                        if (!row) return;
+                        const rows = getTransportRows(section);
+                        if (rows.length <= 1) return;
+                        row.remove();
+                        reindexTransportRows();
+                        recalcNoConnectorRebuild();
+                    });
+                    section.addEventListener('change', (event) => {
+                        const input = event.target instanceof HTMLElement
+                            ? event.target.closest('.day-transport-unit')
+                            : null;
+                        if (!input) return;
+                        recalcNoConnectorRebuild();
+                    });
+                    toggleTransportButtonsState(section);
+                };
                 const syncDayPointOptionRules = () => {
                     const sections = [...daySections.querySelectorAll('.day-section')].sort((a, b) => Number(a.dataset
                         .day) - Number(b.dataset.day));
@@ -3165,8 +4213,6 @@
                         const endRoomSelect = section.querySelector('.day-end-room-select');
                         const endBookingSelect = section.querySelector('.day-end-booking-mode');
                         const endRoom = section.querySelector('.day-end-room-count');
-                        const transportUnit = section.querySelector('.day-transport-unit');
-                        const transportDay = section.querySelector('.day-transport-day');
                         const dayStartTimeInput = section.querySelector('.day-start-time');
                         const startTravelInput = section.querySelector('.day-start-travel');
                         const mainExperienceTypeInput = section.querySelector('.day-main-experience-type');
@@ -3183,12 +4229,6 @@
                         if (endRoomSelect) endRoomSelect.name = `daily_end_point_room_ids[${day}]`;
                         if (endBookingSelect) endBookingSelect.name = `daily_end_hotel_booking_modes[${day}]`;
                         if (endRoom) endRoom.name = `daily_end_point_room_counts[${day}]`;
-                        if (transportUnit) transportUnit.name =
-                            `daily_transport_units[${day}][transport_unit_id]`;
-                        if (transportDay) {
-                            transportDay.name = `daily_transport_units[${day}][day_number]`;
-                            transportDay.value = String(day);
-                        }
                         if (dayStartTimeInput) dayStartTimeInput.name = `day_start_times[${day}]`;
                         if (startTravelInput) startTravelInput.name = `day_start_travel_minutes[${day}]`;
                         if (mainExperienceTypeInput) mainExperienceTypeInput.name =
@@ -3219,6 +4259,7 @@
                             }
                         }
                     });
+                    reindexTransportRows();
                 };
                 const updateDayPointTheme = (section) => {
                     if (!section) return;
@@ -3250,6 +4291,7 @@
                         '.day-start-point-card',
                         '.day-end-point-card',
                         '.add-item',
+                        '[data-add-transport="1"]',
                         '.day-start-time',
                         '.day-end-time',
                         '.day-transport-unit',
@@ -3717,11 +4759,21 @@
                         previousEndLabel = endLabel;
                     });
                 };
-                const recalcNoConnectorRebuild = async () => {
+                const recalcNoConnectorRebuild = async ({
+                    skipAutoTravel = false
+                } = {}) => {
                     syncDayPointOptionRules();
                     syncPointItemVisibility();
+                    if (!skipAutoTravel) {
+                        try {
+                            await autoFillAllTravelMinutesFromMap();
+                        } catch (error) {
+                            if (error?.name !== 'AbortError') {
+                                console.warn('Auto travel-time recalculation failed.', error);
+                            }
+                        }
+                    }
                     await recalcAll();
-                    updateInterIslandHints();
                     reindex();
                     syncHotelStaysHidden();
                     updateDayEndpointBadges();
@@ -3729,6 +4781,9 @@
                     renderDayWizardTabs();
                     requestRenderItineraryMap();
                 };
+                const recalcNoConnectorRebuildSkipAuto = () => recalcNoConnectorRebuild({
+                    skipAutoTravel: true
+                });
                 const recalc = async () => {
                     daySections.querySelectorAll('.day-section').forEach(rebuildTravelConnectors);
                     await recalcNoConnectorRebuild();
@@ -3760,6 +4815,8 @@
                     container.dataset.sortableInit = '1';
                 };
                 const bindRow = (r) => {
+                    bindAttractionAutocomplete(r);
+                    bindActivityAutocomplete(r);
                     updateScheduleRowTheme(r);
                     r.querySelector('.item-type')?.addEventListener('change', (e) => {
                         toggleType(r, e.target.value, true);
@@ -3772,16 +4829,33 @@
                         const value = String(event.target.value || '').trim();
                         markRegionManualState(r, value !== '');
                         const attractionSelect = r.querySelector('.item-attraction');
+                        const attractionSearchInput = r.querySelector('.item-attraction-search');
+                        const attractionDropdown = r.querySelector('.item-attraction-dropdown');
                         const activitySelect = r.querySelector('.item-activity');
+                        const activitySearchInput = r.querySelector('.item-activity-search');
+                        const activityDropdown = r.querySelector('.item-activity-dropdown');
                         const transferSelect = r.querySelector('.item-transfer');
                         const fnbSelect = r.querySelector('.item-fnb');
                         if (attractionSelect) attractionSelect.value = '';
+                        if (attractionSearchInput) attractionSearchInput.value = '';
+                        if (attractionDropdown) {
+                            attractionDropdown.classList.add('hidden');
+                            attractionDropdown.innerHTML = '';
+                        }
+                        setAttractionNotice(r, '', 'info');
                         if (activitySelect) activitySelect.value = '';
+                        if (activitySearchInput) activitySearchInput.value = '';
+                        if (activityDropdown) {
+                            activityDropdown.classList.add('hidden');
+                            activityDropdown.innerHTML = '';
+                        }
+                        setActivityNotice(r, '', 'info');
                         if (transferSelect) transferSelect.value = '';
                         if (fnbSelect) fnbSelect.value = '';
                         recalcNoConnectorRebuild();
                     });
                     r.querySelector('.item-attraction')?.addEventListener('change', () => {
+                        syncAttractionInputFromSelect(r);
                         syncRegionFromSelectedItem(r);
                         recalc();
                     });
@@ -3833,7 +4907,23 @@
                     r.querySelector('.item-region').value = '';
                     markRegionManualState(r, false);
                     r.querySelector('.item-attraction').value = '';
+                    const attractionSearchInput = r.querySelector('.item-attraction-search');
+                    if (attractionSearchInput) attractionSearchInput.value = '';
+                    const attractionDropdown = r.querySelector('.item-attraction-dropdown');
+                    if (attractionDropdown) {
+                        attractionDropdown.classList.add('hidden');
+                        attractionDropdown.innerHTML = '';
+                    }
+                    setAttractionNotice(r, '', 'info');
                     r.querySelector('.item-activity').value = '';
+                    const activitySearchInput = r.querySelector('.item-activity-search');
+                    if (activitySearchInput) activitySearchInput.value = '';
+                    const activityDropdown = r.querySelector('.item-activity-dropdown');
+                    if (activityDropdown) {
+                        activityDropdown.classList.add('hidden');
+                        activityDropdown.innerHTML = '';
+                    }
+                    setActivityNotice(r, '', 'info');
                     const transferSelect = r.querySelector('.item-transfer');
                     if (transferSelect) transferSelect.value = '';
                     r.querySelector('.item-fnb').value = '';
@@ -3875,6 +4965,7 @@
                 daySections.querySelectorAll('.day-section').forEach((sec) => {
                     sec.querySelectorAll('.schedule-row').forEach(bindRow);
                     sec.querySelector('.add-item')?.addEventListener('click', () => cloneRow(sec, getNextItemType(sec)));
+                    bindTransportEvents(sec);
                     sec.querySelector('.day-start-point-type')?.addEventListener('change', () => {
                         updateDayPointTheme(sec);
                         syncPointItemVisibility();
@@ -3907,12 +4998,32 @@
                         recalcNoConnectorRebuild();
                     });
                     sec.querySelector('.day-end-room-count')?.addEventListener('input', recalcNoConnectorRebuild);
-                    sec.querySelector('.day-start-travel')?.addEventListener('input', recalcNoConnectorRebuild);
+                    sec.querySelector('.day-start-travel')?.addEventListener('input', recalcNoConnectorRebuildSkipAuto);
                     sec.querySelector('.day-start-time')?.addEventListener('change', recalc);
-                    sec.querySelector('.day-transport-unit')?.addEventListener('change', recalcNoConnectorRebuild);
                     initSortable(sec);
                     updateDayPointTheme(sec);
                 });
+                document.addEventListener('click', (event) => {
+                    const target = event.target instanceof HTMLElement ? event.target : null;
+                    daySections.querySelectorAll('.schedule-row').forEach((row) => {
+                        const { wrap: attractionWrap } = getAttractionElements(row);
+                        if (attractionWrap && !(target && (target === attractionWrap || attractionWrap.contains(target)))) {
+                            hideAttractionDropdown(row);
+                        }
+                        const { wrap } = getActivityElements(row);
+                        if (!wrap) return;
+                        if (target && (target === wrap || wrap.contains(target))) return;
+                        hideActivityDropdown(row);
+                    });
+                });
+                const closePlannerAutocompleteDropdowns = () => {
+                    daySections.querySelectorAll('.schedule-row').forEach((row) => {
+                        hideAttractionDropdown(row);
+                        hideActivityDropdown(row);
+                    });
+                };
+                itineraryDestinationInput?.addEventListener('input', closePlannerAutocompleteDropdowns);
+                itineraryDestinationInput?.addEventListener('change', closePlannerAutocompleteDropdowns);
                 standardizeAllDaySectionVisuals();
                 wizardStepChips.forEach((chip) => {
                     chip.addEventListener('click', () => {
@@ -4067,15 +5178,18 @@
                                 dayMainExperienceItem.name = `daily_main_experience_items[${i}]`;
                                 dayMainExperienceItem.value = '';
                             }
-                            const dayTransportUnit = c.querySelector('.day-transport-unit');
-                            const dayTransportDay = c.querySelector('.day-transport-day');
-                            if (dayTransportUnit) {
-                                dayTransportUnit.name = `daily_transport_units[${i}][transport_unit_id]`;
-                                dayTransportUnit.value = '';
-                            }
-                            if (dayTransportDay) {
-                                dayTransportDay.name = `daily_transport_units[${i}][day_number]`;
-                                dayTransportDay.value = String(i);
+                            const dayTransportRows = [...c.querySelectorAll('.day-transport-row')];
+                            dayTransportRows.slice(1).forEach((row) => row.remove());
+                            const firstTransportRow = c.querySelector('.day-transport-row');
+                            if (firstTransportRow) {
+                                const firstTransportUnit = firstTransportRow.querySelector('.day-transport-unit');
+                                const firstTransportDay = firstTransportRow.querySelector('.day-transport-day');
+                                if (firstTransportUnit) {
+                                    firstTransportUnit.value = '';
+                                }
+                                if (firstTransportDay) {
+                                    firstTransportDay.value = String(i);
+                                }
                             }
                             // Keep "Day Start Point -> first item" connector.
                             // Only remove connectors inside schedule rows so they can be rebuilt safely.
@@ -4092,6 +5206,7 @@
                             daySections.appendChild(c);
                             c.querySelectorAll('.schedule-row').forEach(bindRow);
                             c.querySelector('.add-item')?.addEventListener('click', () => cloneRow(c, getNextItemType(c)));
+                            bindTransportEvents(c);
                             c.querySelector('.day-start-point-type')?.addEventListener('change', () => {
                                 syncPointItemVisibility();
                                 recalcNoConnectorRebuild();
@@ -4122,10 +5237,8 @@
                             c.querySelector('.day-end-room-count')?.addEventListener('input',
                                 recalcNoConnectorRebuild);
                             c.querySelector('.day-start-travel')?.addEventListener('input',
-                                recalcNoConnectorRebuild);
+                                recalcNoConnectorRebuildSkipAuto);
                             c.querySelector('.day-start-time')?.addEventListener('change', recalc);
-                            c.querySelector('.day-transport-unit')?.addEventListener('change',
-                                recalcNoConnectorRebuild);
                             initSortable(c);
                             standardizeDaySectionVisual(c);
                         }
@@ -4133,6 +5246,7 @@
                         if (Number(s.dataset.day) > d) s.remove();
                     });
                     standardizeAllDaySectionVisuals();
+                    reindexTransportRows();
                     recalc();
                     syncWizardAfterDurationChange();
                 });
@@ -4149,6 +5263,13 @@
                 refreshRequiredAsterisks();
                 form?.addEventListener('submit', async (e) => {
                     e.preventDefault();
+                    try {
+                        await autoFillAllTravelMinutesFromMap();
+                    } catch (error) {
+                        if (error?.name !== 'AbortError') {
+                            console.warn('Auto travel-time recalculation failed before submit.', error);
+                        }
+                    }
                     await recalcAll();
                     reindex();
                     syncHotelStaysHidden();
@@ -4272,7 +5393,11 @@
                 const matchesRegion = (option, regionKeyword) => {
                     if (!regionKeyword) return true;
                     const city = normalize(option.dataset.city);
-                    return city.includes(regionKeyword);
+                    const province = normalize(option.dataset.province);
+                    const location = normalize(option.dataset.location);
+                    return city.includes(regionKeyword)
+                        || province.includes(regionKeyword)
+                        || location.includes(regionKeyword);
                 };
 
                 const applyFilterToSelect = (select) => {

@@ -130,6 +130,14 @@
 
                             return $labels;
                         };
+                        $composeRegionCity = static function ($city, $province): string {
+                            $segments = array_values(array_filter([
+                                trim((string) ($city ?? '')),
+                                trim((string) ($province ?? '')),
+                            ], static fn ($value) => $value !== ''));
+
+                            return $segments !== [] ? implode(', ', $segments) : '-';
+                        };
                         $resolvePointLabel = function ($dayPoint, string $scope, string $previousDayEndLabel = null) {
                             $defaultNotSet = __('ui.modules.itineraries.not_set');
                             if (!$dayPoint) {
@@ -199,17 +207,78 @@
                             }
                             return null;
                         };
+                        $resolveAirportCoverUrl = static function ($airport): ?string {
+                            if (! $airport) {
+                                return null;
+                            }
+                            return \App\Support\ImageThumbnailGenerator::resolvePublicUrl(
+                                (string) ($airport->cover ?? ''),
+                                ['airports/covers', 'airports/cover'],
+                                'public',
+                                360,
+                                240
+                            );
+                        };
+                        $resolveHotelCoverUrl = static function ($hotel): ?string {
+                            if (! $hotel) {
+                                return null;
+                            }
+                            if (! filled($hotel->cover ?? null)) {
+                                return null;
+                            }
+                            $coverPath = (string) ($hotel->cover ?? '');
+                            $originalUrl = \App\Support\ImageThumbnailGenerator::resolveOriginalPublicUrl(
+                                $coverPath,
+                                ['hotels/covers', 'hotels/cover'],
+                                'public'
+                            );
+                            if (filled($originalUrl)) {
+                                return $originalUrl;
+                            }
+
+                            return \App\Support\ImageThumbnailGenerator::resolvePublicUrl(
+                                $coverPath,
+                                ['hotels/covers', 'hotels/cover'],
+                                'public',
+                                360,
+                                240
+                            );
+                        };
                     @endphp
+                    @if ((int) $itinerary->duration_days > 1)
+                        <div class="mb-3">
+                            <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ __('ui.common.display_by_day') }}</p>
+                            <div id="itinerary-schedule-day-tabs" class="mt-2 flex flex-wrap gap-2" role="tablist" aria-label="{{ __('ui.common.schedule_by_day') }}">
+                                @for ($day = 1; $day <= $itinerary->duration_days; $day++)
+                                    <button
+                                        type="button"
+                                        id="itinerary-schedule-day-tab-{{ $day }}"
+                                        data-day="{{ $day }}"
+                                        class="itinerary-schedule-day-tab {{ $day === 1 ? 'btn-primary-sm' : 'btn-outline-sm' }}"
+                                        role="tab"
+                                        aria-selected="{{ $day === 1 ? 'true' : 'false' }}"
+                                        aria-controls="itinerary-schedule-day-panel-{{ $day }}"
+                                        tabindex="{{ $day === 1 ? '0' : '-1' }}">
+                                        {{ __('ui.modules.itineraries.day_label', ['day' => $day]) }}
+                                    </button>
+                                @endfor
+                            </div>
+                        </div>
+                    @endif
                     @for ($day = 1; $day <= $itinerary->duration_days; $day++)
                         @php
                             $attractions = collect();
                             foreach (($dayGroups[$day] ?? collect()) as $attraction) {
+                                $attractionFirstImage = is_array($attraction->gallery_images ?? null) ? ($attraction->gallery_images[0] ?? null) : null;
                                 $attractions->push([
                                     'type' => 'attraction',
                                     'experience_id' => (int) $attraction->id,
                                     'name' => $attraction->name,
+                                    'region_city' => $composeRegionCity($attraction->city ?? null, $attraction->province ?? null),
+                                    'destination_label' => (string) ($attraction->destination?->name ?? ''),
                                     'location' => $attraction->location,
                                     'description' => $attraction->description,
+                                    'thumbnail_url' => $attractionFirstImage ? \App\Support\ImageThumbnailGenerator::resolvePublicUrl($attractionFirstImage) : null,
                                     'pax' => null,
                                     'start_time' => $attraction->pivot->start_time,
                                     'end_time' => $attraction->pivot->end_time,
@@ -220,12 +289,17 @@
                             $activityItemsForDay = collect();
                             foreach (($activityDayGroups[$day] ?? collect()) as $activityItem) {
                                 $activity = $activityItem->activity;
+                                $activityVendor = $activity?->vendor;
+                                $activityFirstImage = is_array($activity?->gallery_images ?? null) ? ($activity->gallery_images[0] ?? null) : null;
                                 $activityItemsForDay->push([
                                     'type' => 'activity',
                                     'experience_id' => (int) ($activityItem->activity_id ?? 0),
                                     'name' => $activity->name ?? '-',
-                                    'location' => $activity->vendor->location ?? null,
+                                    'region_city' => $composeRegionCity($activityVendor?->city ?? null, $activityVendor?->province ?? null),
+                                    'destination_label' => (string) ($activityVendor?->destination?->name ?? ''),
+                                    'location' => $activityVendor?->location ?? null,
                                     'description' => $activity->notes ?? null,
+                                    'thumbnail_url' => $activityFirstImage ? \App\Support\ImageThumbnailGenerator::resolvePublicUrl($activityFirstImage) : null,
                                     'includes' => $activity->includes ?? null,
                                     'excludes' => $activity->excludes ?? null,
                                     'benefits' => $activity->benefits ?? null,
@@ -241,11 +315,14 @@
                             $transferItemsForDay = collect();
                             foreach (($islandTransferDayGroups[$day] ?? collect()) as $transferItem) {
                                 $transfer = $transferItem->islandTransfer;
+                                $transferVendor = $transfer?->vendor;
                                 $transferFirstImage = is_array($transfer->gallery_images ?? null) ? ($transfer->gallery_images[0] ?? null) : null;
                                 $transferItemsForDay->push([
                                     'type' => 'transfer',
                                     'experience_id' => (int) ($transferItem->island_transfer_id ?? 0),
                                     'name' => $transfer->name ?? '-',
+                                    'region_city' => $composeRegionCity($transferVendor?->city ?? null, $transferVendor?->province ?? null),
+                                    'destination_label' => (string) ($transferVendor?->destination?->name ?? ''),
                                     'location' => trim((string) (($transfer->departure_point_name ?? '-') . ' -> ' . ($transfer->arrival_point_name ?? '-'))),
                                     'description' => $transfer->notes ?? null,
                                     'thumbnail_url' => $transferFirstImage ? \App\Support\ImageThumbnailGenerator::resolvePublicUrl($transferFirstImage) : null,
@@ -259,15 +336,19 @@
                             $foodBeverages = collect();
                             foreach (($foodBeverageDayGroups[$day] ?? collect()) as $foodBeverageItem) {
                                 $foodBeverage = $foodBeverageItem->foodBeverage;
+                                $foodBeverageVendor = $foodBeverage?->vendor;
+                                $foodBeverageFirstImage = is_array($foodBeverage?->gallery_images ?? null) ? ($foodBeverage->gallery_images[0] ?? null) : null;
                                 $mealType = $foodBeverageItem->meal_type ?? null;
                                 $mealPeriod = $foodBeverage->meal_period ?? null;
                                 $foodBeverages->push([
                                     'type' => 'fnb',
                                     'experience_id' => (int) ($foodBeverageItem->food_beverage_id ?? 0),
                                     'name' => $foodBeverage->name ?? '-',
-                                    'vendor_name' => $foodBeverage->vendor->name ?? '-',
-                                    'region' => trim((string) (($foodBeverage->vendor->city ?? '-') . (!empty($foodBeverage->vendor->province) ? ', ' . $foodBeverage->vendor->province : ''))),
-                                    'location' => $foodBeverage->vendor->location ?? null,
+                                    'vendor_name' => $foodBeverageVendor?->name ?? '-',
+                                    'region_city' => $composeRegionCity($foodBeverageVendor?->city ?? null, $foodBeverageVendor?->province ?? null),
+                                    'destination_label' => (string) ($foodBeverageVendor?->destination?->name ?? ''),
+                                    'location' => $foodBeverageVendor?->location ?? null,
+                                    'thumbnail_url' => $foodBeverageFirstImage ? \App\Support\ImageThumbnailGenerator::resolvePublicUrl($foodBeverageFirstImage) : null,
                                     'description' => $foodBeverage->notes ?? $foodBeverage->menu_highlights ?? null,
                                     'menu_highlights' => $foodBeverage->menu_highlights ?? null,
                                     'meal_type' => $mealType ?: $mealPeriod,
@@ -284,7 +365,7 @@
                                 ]);
                             }
                             $dayItems = $attractions->merge($activityItemsForDay)->merge($transferItemsForDay)->merge($foodBeverages)->sortBy('visit_order')->values();
-                            $dayTransport = $transportUnitByDay[$day] ?? null;
+                            $dayTransports = $transportUnitsByDay[$day] ?? collect();
                             $dayPoint = $dayPointByDay[$day] ?? null;
                             $previousDayPoint = $dayPointByDay[$day - 1] ?? null;
                             $previousEndLabel = $resolvePointLabel($previousDayPoint, 'end');
@@ -308,6 +389,14 @@
                                 ? $resolvePointLocation($dayPoint, 'start', $previousEndLocation)
                                 : ($day > 1 ? $previousEndLocation : null);
                             $endPointLocation = $resolvePointLocation($dayPoint, 'end');
+                            $startPointImageUrl = $startPointTypeRaw === 'airport'
+                                ? $resolveAirportCoverUrl($dayPoint?->startAirport)
+                                : ($startPointType === 'hotel' ? $resolveHotelCoverUrl($dayPoint?->startHotel) : null);
+                            $endPointImageUrl = $endPointType === 'airport'
+                                ? $resolveAirportCoverUrl($dayPoint?->endAirport)
+                                : ($endPointType === 'hotel' ? $resolveHotelCoverUrl($dayPoint?->endHotel) : null);
+                            $startPointTypeLabel = $startPointType === 'airport' ? 'Airport' : 'Hotel';
+                            $endPointTypeLabel = $endPointType === 'airport' ? 'Airport' : 'Hotel';
                             $firstItem = $dayItems->first();
                             $lastItem = $dayItems->last();
                             $dayStartTime = $dayPoint && !empty($dayPoint->day_start_time)
@@ -357,7 +446,14 @@
                                     ? $fromMinutes($startBaseMinutes + max(0, (int) ($dayStartTravelMinutes ?? 0)))
                                     : null);
                         @endphp
-                        <div>
+                        <div
+                            id="itinerary-schedule-day-panel-{{ $day }}"
+                            data-itinerary-schedule-day-panel="{{ $day }}"
+                            @if ((int) $itinerary->duration_days > 1)
+                                role="tabpanel"
+                                aria-labelledby="itinerary-schedule-day-tab-{{ $day }}"
+                            @endif
+                            @if ((int) $itinerary->duration_days > 1 && $day !== 1) hidden @endif>
                             <div class="app-day-header">
                                 <p class="app-day-header-title">{{ __('ui.modules.itineraries.day_label', ['day' => $day]) }}</p>
                                 <p class="app-day-header-meta">
@@ -368,17 +464,95 @@
                             <p class="mt-1 text-[11px] text-gray-500 dark:text-gray-400">
                                 {{ __('ui.modules.itineraries.starts_at') }}: {{ $startPointLabel ?: __('ui.modules.itineraries.not_set') }} | {{ __('ui.modules.itineraries.ends_at') }}: {{ $endPointLabel ?: __('ui.modules.itineraries.not_set') }}
                             </p>
-                            <p class="mt-1 text-[11px] text-gray-500 dark:text-gray-400">
-                                {{ __('ui.modules.itineraries.transport_unit') }}:
-                                @if ($dayTransport && $dayTransport->transportUnit)
-                                    {{ $dayTransport->transportUnit->name }}
-                                    @if (!empty($dayTransport->transportUnit->transport?->name))
-                                        ({{ $dayTransport->transportUnit->transport->name }})
-                                    @endif
+                            <div class="mt-2 rounded-lg border border-gray-200 bg-gray-50/70 px-2.5 py-2 dark:border-gray-700 dark:bg-gray-900/30">
+                                <p class="text-[11px] font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300">{{ __('ui.modules.itineraries.transport_unit') }}</p>
+                                @if ($dayTransports->isNotEmpty())
+                                    <div class="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                                        @foreach ($dayTransports as $transportRow)
+                                            @php
+                                                $transportUnit = $transportRow->transportUnit;
+                                                $transportSource = $transportUnit;
+                                                $transportImages = $transportSource?->images ?? [];
+                                                if ((!is_array($transportImages) || $transportImages === []) && $transportUnit?->transport) {
+                                                    $transportSource = $transportUnit->transport;
+                                                    $transportImages = $transportSource?->images ?? [];
+                                                }
+                                                if (is_string($transportImages)) {
+                                                    $decodedTransportImages = json_decode($transportImages, true);
+                                                    $transportImages = is_array($decodedTransportImages) ? $decodedTransportImages : [];
+                                                }
+                                                if (! is_array($transportImages)) {
+                                                    $transportImages = [];
+                                                }
+                                                $transportImages = array_values(array_filter($transportImages, fn ($path) => is_string($path) && trim($path) !== ''));
+                                                $transportImageUrl = null;
+                                                $transportImageOriginalUrl = null;
+                                                foreach ($transportImages as $transportImagePath) {
+                                                    $normalizedTransportImagePath = ltrim(str_replace('\\', '/', (string) $transportImagePath), '/');
+                                                    if (\Illuminate\Support\Str::startsWith($normalizedTransportImagePath, 'storage/')) {
+                                                        $normalizedTransportImagePath = \Illuminate\Support\Str::after($normalizedTransportImagePath, 'storage/');
+                                                    }
+                                                    $thumbnailPath = \App\Support\ImageThumbnailGenerator::thumbnailPathFor($normalizedTransportImagePath);
+                                                    $thumbnailUrl = \App\Support\ImageThumbnailGenerator::resolvePublicUrl($normalizedTransportImagePath);
+                                                    if (! filled($thumbnailUrl) && \Illuminate\Support\Facades\Storage::disk('public')->exists($thumbnailPath)) {
+                                                        $thumbnailUrl = '/storage/' . ltrim($thumbnailPath, '/');
+                                                    }
+                                                    $fullUrl = \App\Support\ImageThumbnailGenerator::resolveOriginalPublicUrl($normalizedTransportImagePath) ?: (filled($normalizedTransportImagePath) ? '/storage/' . ltrim($normalizedTransportImagePath, '/') : null);
+                                                    $transportImageUrl = $thumbnailUrl ?: $fullUrl;
+                                                    $transportImageOriginalUrl = $fullUrl ?: $thumbnailUrl;
+                                                    if (filled($transportImageUrl)) {
+                                                        break;
+                                                    }
+                                                }
+                                                $transportTypeLabel = trim((string) ($transportSource?->transport_type ?? 'Transport'));
+                                                $transportName = trim((string) ($transportSource?->name ?? $transportUnit?->name ?? '-'));
+                                                $transportModel = trim((string) ($transportSource?->brand_model ?? ''));
+                                                $seatCapacity = $transportSource?->seat_capacity !== null ? (int) $transportSource->seat_capacity : null;
+                                                $luggageCapacity = $transportSource?->luggage_capacity !== null ? (int) $transportSource->luggage_capacity : null;
+                                                $airConditioned = $transportSource?->air_conditioned === null ? null : (bool) $transportSource->air_conditioned;
+                                                $withDriver = $transportSource?->with_driver === null ? null : (bool) $transportSource->with_driver;
+                                            @endphp
+                                            <div class="rounded-md border border-gray-200 bg-white px-2 py-1.5 dark:border-gray-700 dark:bg-gray-900/50">
+                                                <div class="grid grid-cols-1 gap-2 sm:grid-cols-[7rem_minmax(0,1fr)]">
+                                                    <div class="overflow-hidden rounded-md border border-gray-200 bg-gray-100 dark:border-gray-700 dark:bg-gray-800/60">
+                                                        <div class="relative aspect-[16/9] h-full overflow-hidden">
+                                                            @if (filled($transportImageUrl))
+                                                                <img
+                                                                    src="{{ $transportImageUrl }}"
+                                                                    alt="{{ $transportName }} image"
+                                                                    class="absolute inset-0 block h-full w-full object-cover object-center"
+                                                                    @if (filled($transportImageOriginalUrl))
+                                                                        onerror="if(this.dataset.fallbackApplied){this.onerror=null;}else{this.dataset.fallbackApplied='1';this.src='{{ $transportImageOriginalUrl }}';}"
+                                                                    @endif
+                                                                >
+                                                            @else
+                                                                <div class="flex h-full w-full items-center justify-center text-gray-400 dark:text-gray-500">
+                                                                    <i class="fa-solid fa-car-side"></i>
+                                                                </div>
+                                                            @endif
+                                                        </div>
+                                                    </div>
+                                                    <div class="min-w-0">
+                                                        <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">{{ $transportTypeLabel !== '' ? $transportTypeLabel : 'Transport' }}</p>
+                                                        <p class="mt-0.5 text-xs font-medium text-gray-800 dark:text-gray-100">{{ $transportName !== '' ? $transportName : '-' }}</p>
+                                                        @if ($transportModel !== '')
+                                                            <p class="mt-0.5 text-[11px] text-gray-500 dark:text-gray-400">{{ $transportModel }}</p>
+                                                        @endif
+                                                        <div class="mt-1 flex flex-wrap gap-1 text-[11px] text-gray-500 dark:text-gray-400">
+                                                            <span>Seat: {{ $seatCapacity !== null ? $seatCapacity : '-' }}</span>
+                                                            <span>| Luggage: {{ $luggageCapacity !== null ? $luggageCapacity : '-' }}</span>
+                                                            <span>| AC: {{ $airConditioned === null ? '-' : ($airConditioned ? 'Yes' : 'No') }}</span>
+                                                            <span>| Driver: {{ $withDriver === null ? '-' : ($withDriver ? 'Yes' : 'No') }}</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        @endforeach
+                                    </div>
                                 @else
-                                    -
+                                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">-</p>
                                 @endif
-                            </p>
+                            </div>
                             <ul class="itinerary-timeline-list relative mt-2 space-y-2">
                                 <li class="flex items-start gap-0">
                                     <div class="timeline-node-col has-travel w-10 flex flex-col items-center">
@@ -399,18 +573,31 @@
                                         <span class="timeline-travel-spacer"></span>
                                     </div>
                                     <span class="mt-3 h-px w-5 shrink-0 bg-gray-300 dark:bg-gray-600"></span>
-                                    <div class="ml-2 flex-1 rounded-lg border border-gray-200 px-2 py-1 dark:border-gray-700">
-                                        <span class="font-medium">{{ $startPointLabel ?: __('ui.modules.itineraries.not_set') }}</span>
-                                        <span class="ml-1 text-[11px] uppercase tracking-wide text-slate-600 dark:text-slate-300">{{ __('ui.common.start_point') }}</span>
-                                        <div class="text-xs text-gray-500 dark:text-gray-400">
-                                            {{ $startPointLocation ?: '-' }}
-                                            | {{ __('ui.modules.itineraries.start_tour') }}: {{ $dayStartTime ?? '--:--' }}
+                                    <div class="ml-2 flex-1 rounded-lg border border-gray-200 px-2 py-2 dark:border-gray-700">
+                                        <div class="grid grid-cols-1 gap-2.5 sm:grid-cols-[9rem_minmax(0,1fr)]">
+                                                <div class="overflow-hidden rounded-md border border-gray-200 bg-gray-100 dark:border-gray-700 dark:bg-gray-800/60">
+                                                    <div class="relative aspect-[16/9] h-full overflow-hidden">
+                                                    @if (filled($startPointImageUrl))
+                                                        <img src="{{ $startPointImageUrl }}" alt="{{ __('ui.common.start_point') }}" class="absolute inset-0 block h-full w-full object-cover object-center">
+                                                    @else
+                                                        <div class="flex h-full w-full flex-col items-center justify-center gap-1 text-gray-500 dark:text-gray-300">
+                                                            <i class="{{ $startPointType === 'airport' ? 'fa-solid fa-plane' : 'fa-solid fa-bed' }} text-sm"></i>
+                                                            <span class="text-[10px] font-semibold uppercase tracking-wide">{{ __('ui.common.start_point') }}</span>
+                                                        </div>
+                                                    @endif
+                                                </div>
+                                            </div>
+                                            <div class="min-w-0">
+                                                <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">{{ $startPointTypeLabel }}</p>
+                                                <div class="mt-0.5 flex flex-wrap items-center gap-1">
+                                                    <span class="font-medium text-gray-800 dark:text-gray-100">{{ $startPointLabel ?: __('ui.modules.itineraries.not_set') }}</span>
+                                                </div>
+                                                <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                                    {{ $startPointLocation ?: '-' }}
+                                                    | {{ __('ui.modules.itineraries.start_tour') }}: {{ $dayStartTime ?? '--:--' }}
+                                                </div>
+                                            </div>
                                         </div>
-                                        @if ($startPointType === 'hotel')
-                                            <p class="text-xs text-gray-500 dark:text-gray-400">
-                                                {{ __('ui.modules.itineraries.booking_mode') }}: {{ $startBookingModeLabel }}
-                                            </p>
-                                        @endif
                                     </div>
                                 </li>
                                 @forelse ($dayItems as $index => $item)
@@ -440,70 +627,56 @@
                                             <span class="timeline-travel-spacer"></span>
                                         </div>
                                             <span class="mt-3 h-px w-5 shrink-0 bg-gray-300 dark:bg-gray-600"></span>
-                                        <div class="ml-2 flex-1 rounded-lg border px-2 py-1 {{ $isMainExperience ? 'border-amber-400 bg-amber-50/70 dark:border-amber-500 dark:bg-amber-900/10' : 'border-gray-200 dark:border-gray-700' }}">
-                                            @if ($item['type'] === 'fnb')
-                                                <p class="font-medium text-gray-800 dark:text-gray-100">
-                                                    {{ $item['vendor_name'] ?: '-' }} - {{ $item['name'] ?: '-' }} - {{ $item['service_type'] ?: 'F&B' }}
-                                                    <span class="text-xs font-semibold text-amber-600 dark:text-amber-400">
-                                                        |
-                                                        @if (!empty($item['meal_sessions']))
-                                                            {{ implode(', ', $item['meal_sessions']) }}
+                                        @php
+                                            $itemType = (string) ($item['type'] ?? '');
+                                            $itemTypeLabel = $itemType === 'fnb'
+                                                ? 'F&B'
+                                                : ($itemType === 'transfer' ? "Island's Transfer" : ucfirst($itemType));
+                                            $itemTypeClass = $itemType === 'activity'
+                                                ? 'text-emerald-600 dark:text-emerald-400'
+                                                : ($itemType === 'transfer'
+                                                    ? 'text-violet-600 dark:text-violet-400'
+                                                    : ($itemType === 'fnb'
+                                                        ? 'text-amber-600 dark:text-amber-400'
+                                                        : 'text-indigo-600 dark:text-indigo-400'));
+                                            $itemStartTime = $item['start_time'] ? substr((string) $item['start_time'], 0, 5) : '--:--';
+                                            $itemEndTime = $item['end_time'] ? substr((string) $item['end_time'], 0, 5) : '--:--';
+                                            $itemRegionCity = trim((string) ($item['region_city'] ?? ''));
+                                            $itemDestination = trim((string) ($item['destination_label'] ?? ''));
+                                            $itemLocationFallback = trim((string) ($item['location'] ?? ''));
+                                            $itemMetaLocation = $itemRegionCity !== '' && $itemRegionCity !== '-'
+                                                ? $itemRegionCity
+                                                : ($itemLocationFallback !== '' ? $itemLocationFallback : '-');
+                                            if ($itemDestination !== '') {
+                                                $itemMetaLocation .= ', ' . $itemDestination;
+                                            }
+                                        @endphp
+                                        <div class="ml-2 flex-1 rounded-lg border px-2 py-2 {{ $isMainExperience ? 'border-amber-400 bg-amber-50/70 dark:border-amber-500 dark:bg-amber-900/10' : 'border-gray-200 dark:border-gray-700' }}">
+                                            <div class="grid grid-cols-1 gap-2.5 sm:grid-cols-[9rem_minmax(0,1fr)]">
+                                                <div class="overflow-hidden rounded-md border border-gray-200 bg-gray-100 dark:border-gray-700 dark:bg-gray-800/60">
+                                                    <div class="relative aspect-[16/9] h-full overflow-hidden">
+                                                        @if (!empty($item['thumbnail_url']))
+                                                            <img src="{{ $item['thumbnail_url'] }}" alt="{{ ($item['name'] ?: $itemTypeLabel) . ' thumbnail' }}" class="absolute inset-0 block h-full w-full object-cover object-center">
                                                         @else
-                                                            {{ $item['meal_type'] ?: ($item['meal_period'] ?: '-') }}
+                                                            <div class="flex h-full w-full items-center justify-center text-gray-400 dark:text-gray-500">
+                                                                <i class="fa-regular fa-image"></i>
+                                                            </div>
                                                         @endif
-                                                    </span>
-                                                </p>
-                                                @if ($isMainExperience)
-                                                    <span class="mt-1 inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700 dark:bg-amber-500/20 dark:text-amber-300">{{ __('ui.common.main_experience') }}</span>
-                                                @endif
-                                                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                                    {{ $item['region'] ?: '-' }}
-                                                    |
-                                                    {{ $item['start_time'] ? substr((string) $item['start_time'], 0, 5) : '--:--' }}
-                                                    -
-                                                    {{ $item['end_time'] ? substr((string) $item['end_time'], 0, 5) : '--:--' }}
-                                                </p>
-                                                <x-rich-text :content="$item['menu_highlights'] ?? null" class="mt-1 text-xs text-gray-600 dark:text-gray-300" />
-                                            @else
-                                                @if ($item['type'] === 'transfer' && !empty($item['thumbnail_url']))
-                                                    <div class="mb-1 overflow-hidden rounded-md border border-gray-200 dark:border-gray-700">
-                                                        <img src="{{ $item['thumbnail_url'] }}" alt="Island transfer image" class="h-20 w-full object-cover">
                                                     </div>
-                                                @endif
-                                                <span class="font-medium">{{ $item['name'] }}</span>
-                                                <span class="ml-1 text-[11px] uppercase tracking-wide {{ $item['type'] === 'activity' ? 'text-emerald-600 dark:text-emerald-400' : ($item['type'] === 'transfer' ? 'text-violet-600 dark:text-violet-400' : 'text-indigo-600 dark:text-indigo-400') }}">{{ $item['type'] }}</span>
-                                                @if ($isMainExperience)
-                                                    <span class="ml-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700 dark:bg-amber-500/20 dark:text-amber-300">{{ __('ui.common.main_experience') }}</span>
-                                                @endif
-                                                <div class="text-xs text-gray-500 dark:text-gray-400">
-                                                    {{ $item['location'] ?? '-' }}
-                                                    |
-                                                    {{ $item['start_time'] ? substr((string) $item['start_time'], 0, 5) : '--:--' }}
-                                                    -
-                                                    {{ $item['end_time'] ? substr((string) $item['end_time'], 0, 5) : '--:--' }}
                                                 </div>
-                                                <x-rich-text :content="$item['description'] ?? null" class="mt-1 text-xs text-gray-600 dark:text-gray-300" />
-                                            @endif
-                                            @if ($item['type'] === 'activity')
-                                                @php
-                                                    $itemIncludeText = \App\Support\SafeRichText::plainText($item['includes'] ?? null);
-                                                    $itemExcludeText = \App\Support\SafeRichText::plainText($item['excludes'] ?? null);
-                                                @endphp
-                                                <div class="mt-1 space-y-0.5 text-[11px] text-gray-600 dark:text-gray-300">
-                                                    @if (filled($itemIncludeText))
-                                                        <p><span class="font-semibold">{{ __('ui.common.includes') }}:</span></p>
-                                                        <x-rich-text :content="$item['includes'] ?? null" class="text-[11px]" />
-                                                    @endif
-                                                    @if (filled($itemExcludeText))
-                                                        <p><span class="font-semibold">{{ __('ui.common.excludes') }}:</span></p>
-                                                        <x-rich-text :content="$item['excludes'] ?? null" class="text-[11px]" />
-                                                    @endif
-                                                    <p>
-                                                        <span class="font-semibold">{{ __('ui.common.benefits') }}:</span>
-                                                        {{ \App\Support\SafeRichText::plainText($item['benefits'] ?? null) ?: '-' }}
-                                                    </p>
+                                                <div class="min-w-0">
+                                                    <p class="text-[11px] font-semibold uppercase tracking-wide {{ $itemTypeClass }}">{{ $itemTypeLabel }}</p>
+                                                    <div class="mt-0.5 flex flex-wrap items-center gap-1">
+                                                        <span class="font-medium text-gray-800 dark:text-gray-100">{{ $item['name'] ?: '-' }}</span>
+                                                        @if ($isMainExperience)
+                                                            <span class="ml-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700 dark:bg-amber-500/20 dark:text-amber-300">{{ __('ui.common.main_experience') }}</span>
+                                                        @endif
+                                                    </div>
+                                                    <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                                        {{ $itemMetaLocation }} | {{ $itemStartTime }} - {{ $itemEndTime }}
+                                                    </div>
                                                 </div>
-                                            @endif
+                                            </div>
                                         </div>
                                     </li>
                                 @empty
@@ -516,21 +689,34 @@
                                         </span>
                                     </div>
                                     <span class="mt-3 h-px w-5 shrink-0 bg-gray-300 dark:bg-gray-600"></span>
-                                    <div class="ml-2 flex-1 rounded-lg border border-gray-200 px-2 py-1 dark:border-gray-700">
-                                        <span class="font-medium">{{ $endPointLabel ?: __('ui.modules.itineraries.not_set') }}</span>
-                                        <span class="ml-1 text-[11px] uppercase tracking-wide text-slate-600 dark:text-slate-300">{{ __('ui.common.end_point') }}</span>
-                                        <div class="text-xs text-gray-500 dark:text-gray-400">
-                                            {{ $endPointLocation ?: '-' }}
-                                            | {{ __('ui.modules.itineraries.end_tour') }}: {{ $dayEndTime ?? '--:--' }}
+                                    <div class="ml-2 flex-1 rounded-lg border border-gray-200 px-2 py-2 dark:border-gray-700">
+                                        <div class="grid grid-cols-1 gap-2.5 sm:grid-cols-[9rem_minmax(0,1fr)]">
+                                            <div class="overflow-hidden rounded-md border border-gray-200 bg-gray-100 dark:border-gray-700 dark:bg-gray-800/60">
+                                                <div class="relative aspect-[16/9] h-full overflow-hidden">
+                                                    @if (filled($endPointImageUrl))
+                                                        <img src="{{ $endPointImageUrl }}" alt="{{ __('ui.common.end_point') }}" class="absolute inset-0 block h-full w-full object-cover object-center">
+                                                    @else
+                                                        <div class="flex h-full w-full flex-col items-center justify-center gap-1 text-gray-500 dark:text-gray-300">
+                                                            <i class="{{ $endPointType === 'airport' ? 'fa-solid fa-plane-arrival' : 'fa-solid fa-bed' }} text-sm"></i>
+                                                            <span class="text-[10px] font-semibold uppercase tracking-wide">{{ __('ui.common.end_point') }}</span>
+                                                        </div>
+                                                    @endif
+                                                </div>
+                                            </div>
+                                            <div class="min-w-0">
+                                                <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">{{ $endPointTypeLabel }}</p>
+                                                <div class="mt-0.5 flex flex-wrap items-center gap-1">
+                                                    <span class="font-medium text-gray-800 dark:text-gray-100">{{ $endPointLabel ?: __('ui.modules.itineraries.not_set') }}</span>
+                                                </div>
+                                                <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                                    {{ $endPointLocation ?: '-' }}
+                                                    | {{ __('ui.modules.itineraries.end_tour') }}: {{ $dayEndTime ?? '--:--' }}
+                                                </div>
+                                                @if ($dayItems->isEmpty())
+                                                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ __('ui.modules.itineraries.no_schedule_item') }}</p>
+                                                @endif
+                                            </div>
                                         </div>
-                                        @if ($endPointType === 'hotel')
-                                            <p class="text-xs text-gray-500 dark:text-gray-400">
-                                                {{ __('ui.modules.itineraries.booking_mode') }}: {{ $endBookingModeLabel }}
-                                            </p>
-                                        @endif
-                                        @if ($dayItems->isEmpty())
-                                            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ __('ui.modules.itineraries.no_schedule_item') }}</p>
-                                        @endif
                                     </div>
                                 </li>
                             </ul>
@@ -569,15 +755,6 @@
                 <div class="app-card min-w-0 h-fit p-4 lg:self-start xl:sticky xl:top-6">
                     <h2 class="text-sm font-semibold uppercase tracking-wide text-gray-700 dark:text-gray-200">{{ __('ui.common.itinerary_map') }}</h2>
                     <div id="itinerary-show-map" class="mt-3 h-[520px] md:h-[640px] w-full rounded-lg border border-gray-300 dark:border-gray-700"></div>
-                    <div class="mt-3">
-                        <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ __('ui.common.display_by_day') }}</p>
-                        <div id="itinerary-day-controls" class="mt-2 flex flex-wrap gap-2">
-                            <button type="button" data-day="" class="itinerary-day-filter-btn btn-primary-sm">{{ __('ui.common.all_days') }}</button>
-                            @for ($day = 1; $day <= $itinerary->duration_days; $day++)
-                                <button type="button" data-day="{{ $day }}" class="itinerary-day-filter-btn btn-outline-sm">{{ __('ui.modules.itineraries.day_label', ['day' => $day]) }}</button>
-                            @endfor
-                        </div>
-                    </div>
                 </div>
             </div>
         </div>
@@ -899,6 +1076,42 @@
     </style>
     <script>
         (function () {
+            let activeScheduleDay = null;
+            let onScheduleDayChange = null;
+            const scheduleDayTabs = Array.from(document.querySelectorAll('.itinerary-schedule-day-tab'));
+            const scheduleDayPanels = Array.from(document.querySelectorAll('[data-itinerary-schedule-day-panel]'));
+            const setActiveScheduleDay = (dayNumber) => {
+                activeScheduleDay = dayNumber;
+                scheduleDayTabs.forEach((tab) => {
+                    const tabDay = Number(tab.dataset.day || 0);
+                    const active = tabDay === dayNumber;
+                    tab.classList.toggle('btn-primary-sm', active);
+                    tab.classList.toggle('btn-outline-sm', !active);
+                    tab.setAttribute('aria-selected', active ? 'true' : 'false');
+                    tab.setAttribute('tabindex', active ? '0' : '-1');
+                });
+                scheduleDayPanels.forEach((panel) => {
+                    const panelDay = Number(panel.dataset.itineraryScheduleDayPanel || 0);
+                    panel.hidden = panelDay !== dayNumber;
+                });
+                if (typeof onScheduleDayChange === 'function') {
+                    onScheduleDayChange(dayNumber);
+                }
+            };
+            if (scheduleDayTabs.length > 0 && scheduleDayPanels.length > 0) {
+                scheduleDayTabs.forEach((tab) => {
+                    tab.addEventListener('click', () => {
+                        const parsed = Number(tab.dataset.day || 1);
+                        if (!Number.isFinite(parsed) || parsed < 1) return;
+                        setActiveScheduleDay(parsed);
+                    });
+                });
+                const firstDay = Number(scheduleDayTabs[0]?.dataset.day || 1);
+                if (Number.isFinite(firstDay) && firstDay > 0) {
+                    setActiveScheduleDay(firstDay);
+                }
+            }
+
             const points = @json($mapPoints->sortBy(fn ($point) => ((int) $point['day_number'] * 10000000) + (int) ($point['map_order'] ?? $point['visit_order']))->values());
             let isInitialized = false;
             let leafletFallbackRequested = false;
@@ -1040,9 +1253,10 @@
             const mapDataLayer = L.featureGroup().addTo(map);
             const routePalette = ['#2563eb', '#16a34a', '#ea580c', '#db2777', '#7c3aed', '#0891b2'];
 
-            const dayButtons = Array.from(document.querySelectorAll('.itinerary-day-filter-btn'));
             const allDays = [...new Set(validPoints.map((point) => Number(point.day_number)))].sort((a, b) => a - b);
-            let selectedDay = null;
+            let selectedDay = Number.isFinite(activeScheduleDay) && activeScheduleDay > 0
+                ? activeScheduleDay
+                : (allDays.length === 1 ? allDays[0] : null);
             let routeRenderToken = 0;
             let activeRouteFetchController = null;
             let mapBusy = false;
@@ -1306,26 +1520,11 @@
                 map.invalidateSize(false);
                 await renderMarkers(day);
             };
-
-            const setActiveButton = (day = null) => {
-                dayButtons.forEach((button) => {
-                    const raw = String(button.dataset.day || '').trim();
-                    const current = raw === '' ? null : Number(raw);
-                    const active = day === null ? current === null : current === day;
-                    button.classList.toggle('btn-primary-sm', active);
-                    button.classList.toggle('btn-outline-sm', !active);
-                });
+            onScheduleDayChange = async (dayNumber) => {
+                if (!Number.isFinite(dayNumber) || dayNumber < 1) return;
+                selectedDay = dayNumber;
+                await requestSafeRender(selectedDay);
             };
-
-            dayButtons.forEach((button) => {
-                button.addEventListener('click', async () => {
-                    const raw = String(button.dataset.day || '').trim();
-                    const parsed = Number(raw);
-                    selectedDay = raw === '' || !Number.isFinite(parsed) || parsed < 1 ? null : parsed;
-                    setActiveButton(selectedDay);
-                    await requestSafeRender(selectedDay);
-                });
-            });
 
             if (!allDays.length) {
                 map.invalidateSize(false);
@@ -1333,7 +1532,6 @@
                     isInitialized = true;
                     return true;
             }
-            setActiveButton(selectedDay);
             window.setTimeout(() => {
                 requestSafeRender(selectedDay);
             }, 0);

@@ -2,6 +2,8 @@
     $buttonLabel = $buttonLabel ?? 'Save';
     $airport = $airport ?? null;
     $destinations = $destinations ?? collect();
+    $airportCoverPath = old('existing_cover', $airport->cover ?? '');
+    $airportCoverUrl = \App\Support\ImageThumbnailGenerator::resolvePublicUrl($airportCoverPath, ['airports/covers', 'airports/cover'], 'public', 360, 240, false);
 @endphp
 
 <div class="space-y-4" data-location-autofill data-location-resolve-url="{{ route('location.resolve-google-map') }}">
@@ -48,6 +50,17 @@
         <p class="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{{ __('Additional Notes') }}</p>
     </div>
     <div>
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Cover Image') }}</label>
+        @if (filled($airportCoverUrl))
+            <div class="mt-2 w-full max-w-xs overflow-hidden rounded-md border border-gray-200 dark:border-gray-700">
+                <img src="{{ $airportCoverUrl }}" alt="{{ __('Airport cover image') }}" class="aspect-[16/9] w-full object-cover">
+            </div>
+        @endif
+        <input type="hidden" name="existing_cover" value="{{ $airportCoverPath }}">
+        <input type="file" name="cover_file" accept="image/*" class="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+        @error('cover_file') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+    </div>
+    <div>
         <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Notes') }}</label>
         <textarea name="notes" rows="3"
             class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">{{ old('notes', $airport->notes ?? '') }}</textarea>
@@ -65,6 +78,4 @@
              class="btn-secondary">Cancel</a>
     </div>
 </div>
-
-
 

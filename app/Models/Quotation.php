@@ -36,6 +36,7 @@ class Quotation extends Model
     public const FINAL_STATUS = 'final';
     protected $fillable = [
         'quotation_number',
+        'order_number',
         'inquiry_id',
         'itinerary_id',
         'status',
@@ -121,7 +122,6 @@ class Quotation extends Model
     }
 
 }
-
 
 
 

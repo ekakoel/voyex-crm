@@ -10,6 +10,7 @@
         .subtitle { font-size: 11px; color: #6b7280; margin-top: 4px; }
         .chip { display: inline-block; margin-right: 6px; margin-top: 6px; border: 1px solid #d1d5db; border-radius: 999px; padding: 3px 8px; font-size: 10px; color: #374151; }
         .panel { border: 1px solid #e5e7eb; border-radius: 8px; padding: 10px 12px; margin-bottom: 10px; }
+        .panel-plain { border: none; border-radius: 0; padding: 0; background: transparent; }
         .panel-title { font-size: 10px; text-transform: uppercase; letter-spacing: .08em; color: #4b5563; font-weight: 700; margin-bottom: 6px; }
         .info-table { width: 100%; border-collapse: collapse; }
         .info-table td { padding: 2px 0; vertical-align: top; }
@@ -30,20 +31,23 @@
         .richtext ul { list-style: disc; }
         .richtext ol { list-style: decimal; }
         .richtext blockquote { border-left: 2px solid #94a3b8; padding-left: 6px; margin: 2px 0; color: #475569; }
-        .transport-box { margin-top: 8px; border: 1px solid #e5e7eb; border-radius: 8px; padding: 8px; background: #f8fafc; }
-        .transport-title { font-size: 10px; text-transform: uppercase; letter-spacing: .06em; color: #334155; font-weight: 700; margin-bottom: 6px; }
+        .transport-box { margin-top: 8px; }
+        .transport-head-block { display: table; width: 100%; page-break-inside: avoid; break-inside: avoid; page-break-before: auto; }
+        .transport-title { font-size: 10px; text-transform: uppercase; letter-spacing: .06em; color: #334155; font-weight: 700; margin-bottom: 4px; }
+        .transport-item { page-break-inside: avoid; break-inside: avoid; margin-top: 6px; border: 1px solid #cbd5e1; }
         table.transport-table { width: 100%; border-collapse: collapse; }
-        table.transport-table td { vertical-align: top; padding: 4px 6px; }
-        .transport-thumb { width: 190px; }
-        .transport-thumb .thumb-box img { height: 130px; }
-        .transport-detail { font-size: 10px; color: #374151; }
+        table.transport-table td { vertical-align: top; padding: 3px 5px; }
+        .transport-thumb { width: 120px; }
+        .transport-thumb .thumb-box img { height: 82px; }
+        .transport-detail { font-size: 9.5px; color: #374151; line-height: 1.35; }
         .transport-detail strong { color: #111827; }
         .day-panel { page-break-before: always; }
         .day-panel.first { page-break-before: auto; }
-        .itinerary-inc-exc { margin-top: 6px; width: 100%; border-collapse: collapse; }
-        .itinerary-inc-exc td { border: 1px solid #e5e7eb; padding: 6px; vertical-align: top; }
-        .itinerary-inc-exc .inc { background: #ecfdf5; border-color: #a7f3d0; }
-        .itinerary-inc-exc .exc { background: #fff1f2; border-color: #fecdd3; }
+        .itinerary-inc-exc { margin-top: 6px; width: 100%; border-collapse: separate; border-spacing: 0; background: transparent; }
+        .itinerary-inc-exc td { border: none; padding: 0 8px 0 0; vertical-align: top; background: transparent; }
+        .itinerary-inc-exc td:last-child { padding-right: 0; }
+        .itinerary-inc-exc .inc { background: transparent; border: 1px solid #cbd5e1; border-radius: 4px; padding: 6px; }
+        .itinerary-inc-exc .exc { background: transparent; border: 1px solid #cbd5e1; border-radius: 4px; padding: 6px; }
         .itinerary-inc-exc .title { display: block; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 3px; color: #374151; }
 
         .quotation-page-break { page-break-before: always; }
@@ -66,7 +70,7 @@
         <span>Duration: {{ $itinerary->duration_days."D" }}{{ $itinerary->duration_nights > 0 ? "/".$itinerary->duration_nights."N":"";  }}</span>
     </div>
 
-    <div class="panel">
+    <div class="panel panel-plain">
         <div class="panel-title">Overview</div>
         <table class="info-table">
             <tr>
@@ -81,7 +85,7 @@
     </div>
 
     @foreach ($scheduleByDay as $day)
-        <div class="panel day-panel {{ $loop->first ? 'first' : '' }}">
+        <div class="panel panel-plain day-panel {{ $loop->first ? 'first' : '' }}">
             <div style="display: flex; justify-content: space-between; align-items: center;">
                 <div class="day-title">Day {{ $day['day'] }}</div>
                 <div class="day-time">Start Tour: {{ $day['start_time'] }} | End Tour: {{ $day['end_time'] }}</div>
@@ -173,34 +177,69 @@
                 </tbody>
             </table>
             @php
-                $dayTransport = $day['transport_unit'] ?? null;
+                $dayTransports = $day['transport_units'] ?? [];
+                if (!is_array($dayTransports)) {
+                    $dayTransports = [];
+                }
             @endphp
             <div class="transport-box">
-                <div class="transport-title">Transport Unit Day {{ $day['day'] }}</div>
-                <table class="transport-table">
-                    <tr>
-                        <td class="transport-thumb">
-                            @if (!empty($dayTransport['thumbnail_data_uri']))
-                                <div class="thumb-box">
-                                    <img src="{{ $dayTransport['thumbnail_data_uri'] }}" alt="Transport Unit Thumbnail">
-                                </div>
-                            @else
-                                <span class="muted">{{ __('No transport image.') }}</span>
-                            @endif
-                        </td>
-                        <td class="transport-detail">
-                            @if (empty($dayTransport['assigned']))
-                                <div class="muted">No transport unit assigned for this day.</div>
-                            @else
-                                <div><strong>Unit:</strong> {{ $dayTransport['unit_name'] ?? '-' }}</div>
-                                <div><strong>Transport:</strong> {{ $dayTransport['transport_name'] ?? '-' }} ({{ $dayTransport['transport_type'] ?? '-' }})</div>
-                                <div><strong>Vehicle:</strong> {{ $dayTransport['brand_model'] ?? '-' }}</div>
-                                <div><strong>Capacity:</strong> Seat {{ $dayTransport['seat_capacity'] ?? '-' }} | Luggage {{ $dayTransport['luggage_capacity'] ?? '-' }}</div>
-                                <div><strong>Driver:</strong> {{ !empty($dayTransport['with_driver']) ? 'With driver' : 'Without driver' }} | <strong>AC:</strong> {{ !empty($dayTransport['air_conditioned']) ? 'Yes' : 'No' }}</div>
-                            @endif
-                        </td>
-                    </tr>
-                </table>
+                @if (count($dayTransports) === 0)
+                    <div class="transport-head-block">
+                        <div class="transport-title">Transport Unit Day {{ $day['day'] }}</div>
+                        <div class="muted">No transport unit assigned for this day.</div>
+                    </div>
+                @else
+                    @foreach ($dayTransports as $transportIndex => $dayTransport)
+                        @if ($transportIndex === 0)
+                            <div class="transport-head-block">
+                                <div class="transport-title">Transport Unit Day {{ $day['day'] }}</div>
+                                <table class="transport-table transport-item">
+                                    <tr>
+                                        <td class="transport-thumb">
+                                            @if (!empty($dayTransport['thumbnail_data_uri']))
+                                                <div class="thumb-box">
+                                                    <img src="{{ $dayTransport['thumbnail_data_uri'] }}" alt="Transport Unit Thumbnail">
+                                                </div>
+                                            @else
+                                                <span class="muted">{{ __('No transport image.') }}</span>
+                                            @endif
+                                        </td>
+                                        <td class="transport-detail">
+                                            <div><strong>Transport #{{ $transportIndex + 1 }}</strong></div>
+                                            <div><strong>Unit:</strong> {{ $dayTransport['unit_name'] ?? '-' }}</div>
+                                            <div><strong>Transport:</strong> {{ $dayTransport['transport_name'] ?? '-' }} ({{ $dayTransport['transport_type'] ?? '-' }})</div>
+                                            <div><strong>Vehicle:</strong> {{ $dayTransport['brand_model'] ?? '-' }}</div>
+                                            <div><strong>Capacity:</strong> Seat {{ $dayTransport['seat_capacity'] ?? '-' }} | Luggage {{ $dayTransport['luggage_capacity'] ?? '-' }}</div>
+                                            <div><strong>Driver:</strong> {{ !empty($dayTransport['with_driver']) ? 'With driver' : 'Without driver' }} | <strong>AC:</strong> {{ !empty($dayTransport['air_conditioned']) ? 'Yes' : 'No' }}</div>
+                                        </td>
+                                    </tr>
+                                </table>
+                            </div>
+                        @else
+                            <table class="transport-table transport-item">
+                                <tr>
+                                    <td class="transport-thumb">
+                                        @if (!empty($dayTransport['thumbnail_data_uri']))
+                                            <div class="thumb-box">
+                                                <img src="{{ $dayTransport['thumbnail_data_uri'] }}" alt="Transport Unit Thumbnail">
+                                            </div>
+                                        @else
+                                            <span class="muted">{{ __('No transport image.') }}</span>
+                                        @endif
+                                    </td>
+                                    <td class="transport-detail">
+                                        <div><strong>Transport #{{ $transportIndex + 1 }}</strong></div>
+                                        <div><strong>Unit:</strong> {{ $dayTransport['unit_name'] ?? '-' }}</div>
+                                        <div><strong>Transport:</strong> {{ $dayTransport['transport_name'] ?? '-' }} ({{ $dayTransport['transport_type'] ?? '-' }})</div>
+                                        <div><strong>Vehicle:</strong> {{ $dayTransport['brand_model'] ?? '-' }}</div>
+                                        <div><strong>Capacity:</strong> Seat {{ $dayTransport['seat_capacity'] ?? '-' }} | Luggage {{ $dayTransport['luggage_capacity'] ?? '-' }}</div>
+                                        <div><strong>Driver:</strong> {{ !empty($dayTransport['with_driver']) ? 'With driver' : 'Without driver' }} | <strong>AC:</strong> {{ !empty($dayTransport['air_conditioned']) ? 'Yes' : 'No' }}</div>
+                                    </td>
+                                </tr>
+                            </table>
+                        @endif
+                    @endforeach
+                @endif
             </div>
         </div>
     @endforeach
@@ -212,7 +251,7 @@
         $itineraryExcludeHtml = \App\Support\SafeRichText::sanitize((string) ($itinerary->itinerary_exclude ?? ''));
     @endphp
     @if (filled($itineraryIncludeText) || filled($itineraryExcludeText))
-        <div class="panel">
+        <div class="panel panel-plain">
             <div class="panel-title">Itinerary Include & Exclude</div>
             <table class="itinerary-inc-exc">
                 <tr>
@@ -239,6 +278,9 @@
         <div>
             <div class="q-title">Quotation</div>
             <div class="q-muted">No: {{ $quotation->quotation_number }}</div>
+            @if (!empty($quotation->order_number))
+                <div class="q-muted">Order No: {{ $quotation->order_number }}</div>
+            @endif
         </div>
         <div class="q-muted">
             @if ($quotation->created_at)
