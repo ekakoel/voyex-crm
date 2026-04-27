@@ -1123,6 +1123,12 @@ class ItineraryController extends Controller
 
     public function generatePdf(Request $request, Itinerary $itinerary)
     {
+        $pdfLocale = $this->normalizePdfLocale((string) $request->query('locale', app()->getLocale()));
+        $previousLocale = app()->getLocale();
+        app()->setLocale($pdfLocale);
+        $pdfFontConfig = $this->resolvePdfFontConfig($pdfLocale);
+
+        try {
         $itinerary->load([
             'touristAttractions:id,name,location,latitude,longitude,description,gallery_images',
             'itineraryActivities.activity:id,vendor_id,name,activity_type,duration_minutes,adult_publish_rate,child_publish_rate,notes,includes,excludes,gallery_images',
@@ -1433,6 +1439,9 @@ class ItineraryController extends Controller
             'companyName' => (string) config('app.name', 'Voyex CRM'),
             'companyTagline' => (string) env('COMPANY_TAGLINE', 'Travel Itinerary & Experience Planner'),
             'companyLogoDataUri' => $this->resolveCompanyLogoDataUri(),
+            'pdfFontFamilyCss' => $pdfFontConfig['family_css'],
+            'pdfFontFaceCss' => $pdfFontConfig['font_face_css'],
+            'pdfLocale' => $pdfLocale,
         ])->setPaper('a4', 'portrait');
 
         $filename = 'itinerary-' . Str::slug($itinerary->title ?: 'untitled') . '.pdf';
@@ -1442,6 +1451,9 @@ class ItineraryController extends Controller
         }
 
         return $pdf->download($filename);
+        } finally {
+            app()->setLocale($previousLocale);
+        }
     }
 
     private function resolveGalleryImageDataUri($galleryImages): ?string
@@ -1625,6 +1637,97 @@ class ItineraryController extends Controller
 SVG;
 
         return 'data:image/svg+xml;base64,' . base64_encode($svg);
+    }
+
+    private function normalizePdfLocale(string $locale): string
+    {
+        $normalized = str_replace('-', '_', trim($locale));
+        $supported = array_keys((array) config('app.supported_locales', []));
+        if (in_array($normalized, $supported, true)) {
+            return $normalized;
+        }
+
+        return (string) config('app.locale', 'en');
+    }
+
+    /**
+     * @return array{family_css:string,font_face_css:string}
+     */
+    private function resolvePdfFontConfig(string $locale): array
+    {
+        $fallback = [
+            'family_css' => "'DejaVu Sans', Arial, sans-serif",
+            'font_face_css' => '',
+        ];
+
+        if (! in_array($locale, ['zh_Hant', 'zh_Hans'], true)) {
+            return $fallback;
+        }
+
+        $fontPath = $this->resolvePdfCjkFontPath($locale);
+        if (! $fontPath) {
+            return $fallback;
+        }
+
+        $extension = strtolower((string) pathinfo($fontPath, PATHINFO_EXTENSION));
+        $format = $extension === 'otf' ? 'opentype' : 'truetype';
+        $fontUrl = $this->toFileUrl($fontPath);
+
+        return [
+            'family_css' => "'VoyexPdfCjk', 'DejaVu Sans', Arial, sans-serif",
+            'font_face_css' => "@font-face { font-family: 'VoyexPdfCjk'; font-style: normal; font-weight: 400; src: url('{$fontUrl}') format('{$format}'); }",
+        ];
+    }
+
+    private function resolvePdfCjkFontPath(string $locale): ?string
+    {
+        $byLocale = [
+            'zh_Hant' => [
+                'NotoSansTC-Regular.ttf',
+                'NotoSerifTC-Regular.ttf',
+                'SourceHanSansTC-Regular.otf',
+                'SourceHanSerifTC-Regular.otf',
+            ],
+            'zh_Hans' => [
+                'NotoSansSC-Regular.ttf',
+                'NotoSerifSC-Regular.ttf',
+                'SourceHanSansSC-Regular.otf',
+                'SourceHanSerifSC-Regular.otf',
+            ],
+        ];
+        $fileNames = $byLocale[$locale] ?? [];
+        if ($fileNames === []) {
+            return null;
+        }
+
+        $basePaths = [
+            resource_path('fonts/cjk'),
+            storage_path('fonts/cjk'),
+            storage_path('fonts'),
+            public_path('fonts/cjk'),
+            public_path('fonts'),
+        ];
+
+        foreach ($fileNames as $fileName) {
+            foreach ($basePaths as $basePath) {
+                $fullPath = rtrim($basePath, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . $fileName;
+                if (File::exists($fullPath)) {
+                    return $fullPath;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private function toFileUrl(string $path): string
+    {
+        $normalized = str_replace('\\', '/', $path);
+        if (preg_match('/^[A-Za-z]:\//', $normalized) === 1) {
+            return 'file:///' . $normalized;
+        }
+
+        return 'file://' . $normalized;
     }
 
     public function update(Request $request, Itinerary $itinerary)

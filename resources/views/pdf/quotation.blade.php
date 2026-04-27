@@ -4,7 +4,8 @@
     <meta charset="utf-8">
     <title>Quotation {{ $quotation->quotation_number }}</title>
     <style>
-        body { font-family: DejaVu Sans, Arial, sans-serif; color: #111827; font-size: 12px; }
+        {!! $pdfFontFaceCss ?? '' !!}
+        body { font-family: {!! $pdfFontFamilyCss ?? "'DejaVu Sans', Arial, sans-serif" !!}; color: #111827; font-size: 12px; }
         .header { display: flex; justify-content: space-between; margin-bottom: 16px; }
         .title { font-size: 20px; font-weight: 700; }
         .muted { color: #6b7280; }

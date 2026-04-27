@@ -769,8 +769,14 @@ class QuotationController extends Controller
             ->with('success', 'Quotation deactivated successfully.');
     }
 
-    public function generatePDF(Quotation $quotation)
+    public function generatePDF(Request $request, Quotation $quotation)
     {
+        $pdfLocale = $this->normalizePdfLocale((string) $request->query('locale', app()->getLocale()));
+        $previousLocale = app()->getLocale();
+        app()->setLocale($pdfLocale);
+        $pdfFontConfig = $this->resolvePdfFontConfig($pdfLocale);
+
+        try {
         $this->autoFinalizeApprovedQuotationIfExpired($quotation);
         if (! in_array((string) ($quotation->status ?? ''), ['approved', Quotation::FINAL_STATUS], true)) {
             return redirect()
@@ -782,15 +788,28 @@ class QuotationController extends Controller
         if ($quotation->itinerary) {
             $itineraryPdfPayload = $this->buildItineraryPdfPayload($quotation->itinerary);
             $pdf = PDF::loadView('pdf.quotation_with_itinerary', array_merge(
-                ['quotation' => $quotation],
+                [
+                    'quotation' => $quotation,
+                    'pdfFontFamilyCss' => $pdfFontConfig['family_css'],
+                    'pdfFontFaceCss' => $pdfFontConfig['font_face_css'],
+                    'pdfLocale' => $pdfLocale,
+                ],
                 $itineraryPdfPayload
             ))->setPaper('a4', 'portrait');
 
             return $pdf->stream('quotation-' . Str::slug((string) ($quotation->quotation_number ?: 'document')) . '.pdf');
         }
 
-        $pdf = PDF::loadView('pdf.quotation', compact('quotation'))->setPaper('a4', 'portrait');
+        $pdf = PDF::loadView('pdf.quotation', [
+            'quotation' => $quotation,
+            'pdfFontFamilyCss' => $pdfFontConfig['family_css'],
+            'pdfFontFaceCss' => $pdfFontConfig['font_face_css'],
+            'pdfLocale' => $pdfLocale,
+        ])->setPaper('a4', 'portrait');
         return $pdf->stream('quotation-' . Str::slug((string) ($quotation->quotation_number ?: 'document')) . '.pdf');
+        } finally {
+            app()->setLocale($previousLocale);
+        }
     }
 
     public function exportCsv()
@@ -1357,6 +1376,97 @@ class QuotationController extends Controller
 SVG;
 
         return 'data:image/svg+xml;base64,' . base64_encode($svg);
+    }
+
+    private function normalizePdfLocale(string $locale): string
+    {
+        $normalized = str_replace('-', '_', trim($locale));
+        $supported = array_keys((array) config('app.supported_locales', []));
+        if (in_array($normalized, $supported, true)) {
+            return $normalized;
+        }
+
+        return (string) config('app.locale', 'en');
+    }
+
+    /**
+     * @return array{family_css:string,font_face_css:string}
+     */
+    private function resolvePdfFontConfig(string $locale): array
+    {
+        $fallback = [
+            'family_css' => "'DejaVu Sans', Arial, sans-serif",
+            'font_face_css' => '',
+        ];
+
+        if (! in_array($locale, ['zh_Hant', 'zh_Hans'], true)) {
+            return $fallback;
+        }
+
+        $fontPath = $this->resolvePdfCjkFontPath($locale);
+        if (! $fontPath) {
+            return $fallback;
+        }
+
+        $extension = strtolower((string) pathinfo($fontPath, PATHINFO_EXTENSION));
+        $format = $extension === 'otf' ? 'opentype' : 'truetype';
+        $fontUrl = $this->toFileUrl($fontPath);
+
+        return [
+            'family_css' => "'VoyexPdfCjk', 'DejaVu Sans', Arial, sans-serif",
+            'font_face_css' => "@font-face { font-family: 'VoyexPdfCjk'; font-style: normal; font-weight: 400; src: url('{$fontUrl}') format('{$format}'); }",
+        ];
+    }
+
+    private function resolvePdfCjkFontPath(string $locale): ?string
+    {
+        $byLocale = [
+            'zh_Hant' => [
+                'NotoSansTC-Regular.ttf',
+                'NotoSerifTC-Regular.ttf',
+                'SourceHanSansTC-Regular.otf',
+                'SourceHanSerifTC-Regular.otf',
+            ],
+            'zh_Hans' => [
+                'NotoSansSC-Regular.ttf',
+                'NotoSerifSC-Regular.ttf',
+                'SourceHanSansSC-Regular.otf',
+                'SourceHanSerifSC-Regular.otf',
+            ],
+        ];
+        $fileNames = $byLocale[$locale] ?? [];
+        if ($fileNames === []) {
+            return null;
+        }
+
+        $basePaths = [
+            resource_path('fonts/cjk'),
+            storage_path('fonts/cjk'),
+            storage_path('fonts'),
+            public_path('fonts/cjk'),
+            public_path('fonts'),
+        ];
+
+        foreach ($fileNames as $fileName) {
+            foreach ($basePaths as $basePath) {
+                $fullPath = rtrim($basePath, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . $fileName;
+                if (File::exists($fullPath)) {
+                    return $fullPath;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private function toFileUrl(string $path): string
+    {
+        $normalized = str_replace('\\', '/', $path);
+        if (preg_match('/^[A-Za-z]:\//', $normalized) === 1) {
+            return 'file:///' . $normalized;
+        }
+
+        return 'file://' . $normalized;
     }
 
     private function generateQuotationNumber(): string

@@ -4,7 +4,8 @@
     <meta charset="utf-8">
     <title>Itinerary {{ $itinerary->title }}</title>
     <style>
-        body { font-family: DejaVu Sans, Arial, sans-serif; color: #111827; font-size: 11px; line-height: 1.45; }
+        {!! $pdfFontFaceCss ?? '' !!}
+        body { font-family: {!! $pdfFontFamilyCss ?? "'DejaVu Sans', Arial, sans-serif" !!}; color: #111827; font-size: 11px; line-height: 1.45; }
         .header { margin-bottom: 14px; }
         .title { font-size: 22px; font-weight: 700; letter-spacing: .2px; color: #111827; }
         .subtitle { font-size: 11px; color: #6b7280; margin-top: 4px; }

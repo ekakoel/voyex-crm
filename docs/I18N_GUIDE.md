@@ -38,3 +38,31 @@ Configured in: `config/app.php` under `supported_locales`.
 3. Sync keys to `zh_Hant` and `zh_Hans` files.
 4. Keep wording concise and consistent with existing tone.
 
+## PDF Chinese Support (Traditional / Simplified)
+
+PDF rendering uses DOMPDF and requires a CJK-compatible font to display Chinese characters correctly.
+
+### Supported PDF Locales
+
+- `en`
+- `zh_Hant`
+- `zh_Hans`
+
+### How to Activate Chinese PDF
+
+1. Place one of these font files into `resources/fonts/cjk/` (recommended):
+   - Traditional: `NotoSansTC-Regular.ttf` or `NotoSerifTC-Regular.ttf`
+   - Simplified: `NotoSansSC-Regular.ttf` or `NotoSerifSC-Regular.ttf`
+2. Open PDF route with locale query:
+   - Itinerary PDF: `...?locale=zh_Hant` or `...?locale=zh_Hans`
+   - Quotation PDF: `...?locale=zh_Hant` or `...?locale=zh_Hans`
+3. If CJK font file is missing, PDF falls back to `DejaVu Sans`.
+
+### Implementation Notes
+
+- Locale-aware font loading is handled in:
+  - `App\Http\Controllers\Admin\ItineraryController`
+  - `App\Http\Controllers\Sales\QuotationController`
+- PDF templates consume injected variables:
+  - `$pdfFontFaceCss`
+  - `$pdfFontFamilyCss`
