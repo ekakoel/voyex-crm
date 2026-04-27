@@ -449,6 +449,7 @@
         <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Title') }}</label>
         <input name="title" value="{{ old('title', $itinerary->title ?? '') }}"
             class="mt-1 dark:border-gray-600 app-input"
+            placeholder="{{ __('Example: 3D2N Tour Package') }}"
             required>
     </div>
     <div>
@@ -1675,13 +1676,17 @@
                     if (!Number.isFinite(parsed)) return MIN_DURATION_DAYS;
                     return Math.max(MIN_DURATION_DAYS, Math.min(MAX_DURATION_DAYS, parsed));
                 };
+                const deriveDurationNightsFromDays = (daysValue) => {
+                    const days = clampDurationDays(daysValue);
+                    return Math.max(MIN_DURATION_NIGHTS, Math.min(MAX_DURATION_NIGHTS, days - 1));
+                };
                 const clampDurationNights = (value, daysValue) => {
                     const parsed = parseInt(String(value ?? ''), 10);
-                    const days = clampDurationDays(daysValue);
+                    const maxNightsByDays = deriveDurationNightsFromDays(daysValue);
                     if (!Number.isFinite(parsed)) {
-                        return MIN_DURATION_NIGHTS;
+                        return maxNightsByDays;
                     }
-                    return Math.max(MIN_DURATION_NIGHTS, Math.min(MAX_DURATION_NIGHTS, days, parsed));
+                    return Math.max(MIN_DURATION_NIGHTS, Math.min(maxNightsByDays, parsed));
                 };
                 const hotelStaysHidden = document.getElementById('hotel-stays-hidden');
                 const mapEl = document.getElementById('itinerary-map');
@@ -4959,7 +4964,7 @@
                     if (commitDays) {
                         durationInput.value = String(days);
                     }
-                    const nights = clampDurationNights(durationNightsInput.value || MIN_DURATION_NIGHTS, days);
+                    const nights = deriveDurationNightsFromDays(days);
                     durationNightsInput.value = String(nights);
                 };
                 daySections.querySelectorAll('.day-section').forEach((sec) => {
@@ -5251,6 +5256,11 @@
                     syncWizardAfterDurationChange();
                 });
                 durationInput.addEventListener('blur', () => {
+                    syncDurationNights({
+                        commitDays: true
+                    });
+                });
+                durationInput.addEventListener('input', () => {
                     syncDurationNights({
                         commitDays: true
                     });
