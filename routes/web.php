@@ -20,6 +20,7 @@ use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\Admin\VendorController as AdminVendorController;
 use App\Http\Controllers\DashboardRedirectController;
 use App\Http\Controllers\CurrencyController;
+use App\Http\Controllers\LocaleController;
 use App\Http\Controllers\Director\DashboardController as DirectorDashboardController;
 use App\Http\Controllers\Editor\DashboardController as EditorDashboardController;
 use App\Http\Controllers\Director\CompanySettingController as DirectorCompanySettingController;
@@ -47,6 +48,10 @@ Route::get('/', function () {
 
 Route::post('/currency', [CurrencyController::class, 'set'])
     ->name('currency.set')
+    ->middleware('auth');
+
+Route::post('/locale', [LocaleController::class, 'set'])
+    ->name('locale.set')
     ->middleware('auth');
 
 // Debug route for menu filtering with detailed output

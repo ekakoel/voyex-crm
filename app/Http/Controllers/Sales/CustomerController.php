@@ -202,7 +202,7 @@ class CustomerController extends Controller
         if ($code === '') {
             return response()->json([
                 'available' => false,
-                'message' => 'Code wajib diisi.',
+                'message' => __('Code is required.'),
             ]);
         }
 
@@ -213,7 +213,7 @@ class CustomerController extends Controller
 
         return response()->json([
             'available' => ! $exists,
-            'message' => $exists ? 'Code sudah terpakai.' : 'Code tersedia.',
+            'message' => $exists ? __('Code is already in use.') : __('Code is available.'),
         ]);
     }
 
@@ -227,5 +227,4 @@ class CustomerController extends Controller
         return $countries;
     }
 }
-
 

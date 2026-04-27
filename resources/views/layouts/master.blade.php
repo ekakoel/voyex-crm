@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" x-data="siteData()" :class="dark ? 'dark' : ''">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" x-data="siteData()" :class="dark ? 'dark' : ''">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">

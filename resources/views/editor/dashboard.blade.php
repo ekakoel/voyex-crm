@@ -1,10 +1,10 @@
 @extends('layouts.master')
 
 @section('page_title', 'Editor Dashboard')
-@section('page_subtitle', 'Fokus pada item yang perlu divalidasi dan update data konten.')
+@section('page_subtitle', __('Focus on items requiring validation and key content updates.'))
 @section('page_actions')
     @if ($canManualQueue)
-        <a href="{{ route('itineraries.manual-item-validation-queue') }}" class="btn-primary">Open Item Validation Queue</a>
+        <a href="{{ route('itineraries.manual-item-validation-queue') }}" class="btn-primary">{{ __('Open Item Validation Queue') }}</a>
     @endif
 @endsection
 
@@ -35,7 +35,7 @@
                 <p class="mt-2 text-2xl font-semibold text-gray-900 dark:text-gray-100">
                     {{ number_format((int) ($pendingManualItemsCount ?? 0)) }}
                 </p>
-                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Manual item queue yang masih pending.</p>
+                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ __('Pending manual items in the validation queue.') }}</p>
             </div>
 
             <div class="app-card p-5">
@@ -43,18 +43,18 @@
                 <p class="mt-2 text-2xl font-semibold text-gray-900 dark:text-gray-100">
                     {{ number_format((int) ($myValidatedTodayCount ?? 0)) }}
                 </p>
-                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Item yang sudah kamu validasi hari ini.</p>
+                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ __('Items you have validated today.') }}</p>
             </div>
 
             <div class="app-card p-5 md:col-span-2 xl:col-span-2">
                 <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Priority</p>
                 @if (($pendingManualItemsCount ?? 0) > 0)
                     <p class="mt-2 text-sm font-medium text-amber-700 dark:text-amber-300">
-                        Ada {{ number_format((int) $pendingManualItemsCount) }} item menunggu validasi. Prioritaskan item terbaru lebih dulu.
+                        {{ __(':count items are waiting for validation. Prioritize the newest items first.', ['count' => number_format((int) $pendingManualItemsCount)]) }}
                     </p>
                 @else
                     <p class="mt-2 text-sm font-medium text-emerald-700 dark:text-emerald-300">
-                        Tidak ada antrean validasi saat ini.
+                        {{ __('There is no validation queue right now.') }}
                     </p>
                 @endif
             </div>
@@ -66,16 +66,16 @@
                     <div class="flex items-center justify-between gap-3">
                         <div>
                             <h2 class="text-base font-semibold text-gray-800 dark:text-gray-100">Recent Pending Items</h2>
-                            <p class="text-sm text-gray-500 dark:text-gray-400">Item manual dari day planner yang perlu dilengkapi dan divalidasi.</p>
+                            <p class="text-sm text-gray-500 dark:text-gray-400">{{ __('Manual day planner items that need completion and validation.') }}</p>
                         </div>
                         @if ($canManualQueue)
-                            <a href="{{ route('itineraries.manual-item-validation-queue') }}" class="btn-outline-sm">View Queue</a>
+                            <a href="{{ route('itineraries.manual-item-validation-queue') }}" class="btn-outline-sm">{{ __('View Queue') }}</a>
                         @endif
                     </div>
 
                     @if (($recentPendingManualItems ?? collect())->isEmpty())
                         <div class="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm text-gray-600 dark:border-gray-700 dark:bg-gray-900/30 dark:text-gray-300">
-                            Tidak ada pending item saat ini.
+                            {{ __('There are no pending items right now.') }}
                         </div>
                     @else
                         <div class="mt-4 space-y-3">
@@ -112,7 +112,7 @@
                 <div class="app-card p-5">
                     <h2 class="text-base font-semibold text-gray-800 dark:text-gray-100">Recently Validated by You</h2>
                     @if (($recentlyValidatedByMe ?? collect())->isEmpty())
-                        <p class="mt-3 text-sm text-gray-500 dark:text-gray-400">Belum ada item yang kamu validasi hari ini.</p>
+                        <p class="mt-3 text-sm text-gray-500 dark:text-gray-400">{{ __('You have not validated any item today yet.') }}</p>
                     @else
                         <div class="mt-3 space-y-2">
                             @foreach ($recentlyValidatedByMe as $log)
@@ -135,7 +135,7 @@
             <aside class="min-w-0 space-y-4 xl:col-span-4">
                 <div class="app-card p-5">
                     <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">Content Scope</h3>
-                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Ringkasan data master yang biasanya perlu editor jaga kualitasnya.</p>
+                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ __('Master-data summary that editors usually monitor for quality.') }}</p>
 
                     <div class="mt-4 space-y-2">
                         @forelse ($catalogSummary as $item)
@@ -144,7 +144,7 @@
                                 <span class="font-semibold text-gray-800 dark:text-gray-100">{{ number_format((int) $item['value']) }}</span>
                             </div>
                         @empty
-                            <p class="text-sm text-gray-500 dark:text-gray-400">Tidak ada modul konten yang bisa diakses.</p>
+                            <p class="text-sm text-gray-500 dark:text-gray-400">{{ __('No content modules are accessible.') }}</p>
                         @endforelse
                     </div>
                 </div>

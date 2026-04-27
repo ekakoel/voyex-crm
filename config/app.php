@@ -85,7 +85,7 @@ return [
     |
     */
 
-    'locale' => 'en',
+    'locale' => env('APP_LOCALE', 'en'),
 
     /*
     |--------------------------------------------------------------------------
@@ -99,6 +99,12 @@ return [
     */
 
     'fallback_locale' => 'en',
+
+    'supported_locales' => [
+        'en' => 'English',
+        'zh_Hant' => 'Chinese (Traditional)',
+        'zh_Hans' => 'Chinese (Simplified)',
+    ],
 
     /*
     |--------------------------------------------------------------------------

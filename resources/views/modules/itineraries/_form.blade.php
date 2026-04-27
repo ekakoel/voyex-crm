@@ -1319,50 +1319,50 @@
             <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800"
                 data-wizard-sidebar-panel="1"
                 id="inquiry-detail-card">
-                <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">Inquiry Detail</h3>
-                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Informasi inquiry tertaut untuk membantu validasi brief itinerary.</p>
+                <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ __('itinerary_form.sidebar.inquiry_detail.title') }}</h3>
+                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ __('itinerary_form.sidebar.inquiry_detail.subtitle') }}</p>
                 <div id="inquiry-detail-empty" class="mt-3 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-500 dark:border-gray-700 dark:bg-gray-900/50 dark:text-gray-300">
-                    Pilih inquiry untuk melihat detail.
+                    {{ __('itinerary_form.sidebar.inquiry_detail.empty') }}
                 </div>
                 <div id="inquiry-detail-content" class="mt-3 hidden space-y-2 text-xs">
                     <div class="grid grid-cols-2 gap-2">
                         <div class="rounded-md border border-gray-200 bg-gray-50 px-2 py-1 dark:border-gray-700 dark:bg-gray-900/50">
-                            <p class="text-[11px] text-gray-500 dark:text-gray-400">Inquiry</p>
+                            <p class="text-[11px] text-gray-500 dark:text-gray-400">{{ __('ui.common.inquiry') }}</p>
                             <p id="inq-detail-number" class="font-semibold text-gray-800 dark:text-gray-100">-</p>
                         </div>
                         <div class="rounded-md border border-gray-200 bg-gray-50 px-2 py-1 dark:border-gray-700 dark:bg-gray-900/50">
-                            <p class="text-[11px] text-gray-500 dark:text-gray-400">Customer</p>
+                            <p class="text-[11px] text-gray-500 dark:text-gray-400">{{ __('ui.common.customer') }}</p>
                             <p id="inq-detail-customer" class="font-semibold text-gray-800 dark:text-gray-100">-</p>
                         </div>
                     </div>
                     <div class="grid grid-cols-2 gap-2">
                         <div class="rounded-md border border-gray-200 bg-gray-50 px-2 py-1 dark:border-gray-700 dark:bg-gray-900/50">
-                            <p class="text-[11px] text-gray-500 dark:text-gray-400">Status</p>
+                            <p class="text-[11px] text-gray-500 dark:text-gray-400">{{ __('ui.common.status') }}</p>
                             <p id="inq-detail-status" class="font-semibold text-gray-800 dark:text-gray-100">-</p>
                         </div>
                         <div class="rounded-md border border-gray-200 bg-gray-50 px-2 py-1 dark:border-gray-700 dark:bg-gray-900/50">
-                            <p class="text-[11px] text-gray-500 dark:text-gray-400">Priority</p>
+                            <p class="text-[11px] text-gray-500 dark:text-gray-400">{{ __('ui.common.priority') }}</p>
                             <p id="inq-detail-priority" class="font-semibold text-gray-800 dark:text-gray-100">-</p>
                         </div>
                     </div>
                     <div class="rounded-md border border-gray-200 bg-gray-50 px-2 py-1 dark:border-gray-700 dark:bg-gray-900/50">
-                        <p class="text-[11px] text-gray-500 dark:text-gray-400">Source / Assigned / Deadline</p>
+                        <p class="text-[11px] text-gray-500 dark:text-gray-400">{{ __('itinerary_form.sidebar.inquiry_detail.source_assigned_deadline') }}</p>
                         <p class="font-semibold text-gray-800 dark:text-gray-100">
-                            <span id="inq-detail-source">-</span> •
-                            <span id="inq-detail-assigned">-</span> •
+                            <span id="inq-detail-source">-</span> &bull;
+                            <span id="inq-detail-assigned">-</span> &bull;
                             <span id="inq-detail-deadline">-</span>
                         </p>
                     </div>
                     <div class="rounded-md border border-gray-200 bg-gray-50 px-2 py-1 dark:border-gray-700 dark:bg-gray-900/50">
-                        <p class="text-[11px] text-gray-500 dark:text-gray-400">Created</p>
+                        <p class="text-[11px] text-gray-500 dark:text-gray-400">{{ __('ui.common.created') }}</p>
                         <p id="inq-detail-created" class="font-semibold text-gray-800 dark:text-gray-100">-</p>
                     </div>
                     <div class="rounded-md border border-gray-200 bg-gray-50 px-2 py-1 dark:border-gray-700 dark:bg-gray-900/50">
-                        <p class="text-[11px] text-gray-500 dark:text-gray-400">Notes</p>
+                        <p class="text-[11px] text-gray-500 dark:text-gray-400">{{ __('ui.common.notes') }}</p>
                         <div id="inq-detail-notes" class="text-gray-700 dark:text-gray-200">-</div>
                     </div>
                     <div class="rounded-md border border-gray-200 bg-gray-50 px-2 py-1 dark:border-gray-700 dark:bg-gray-900/50">
-                        <p class="text-[11px] text-gray-500 dark:text-gray-400">Reminder</p>
+                        <p class="text-[11px] text-gray-500 dark:text-gray-400">{{ __('itinerary_form.sidebar.inquiry_detail.reminder') }}</p>
                         <div id="inq-detail-reminder-note" class="text-gray-700 dark:text-gray-200">-</div>
                         <div id="inq-detail-reminder-reason" class="mt-1 text-gray-600 dark:text-gray-300">-</div>
                     </div>
@@ -1372,32 +1372,32 @@
             <div class="day-planner-map-sticky rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800"
                 data-wizard-sidebar-panel="2">
                 <div class="mb-2 flex items-center justify-between gap-2">
-                    <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">Day Planner Map</h3>
-                    <span class="text-[11px] text-gray-500 dark:text-gray-400">Step 2</span>
+                    <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ __('itinerary_form.sidebar.map_card.title') }}</h3>
+                    <span class="text-[11px] text-gray-500 dark:text-gray-400">{{ __('itinerary_form.sidebar.map_card.step') }}</span>
                 </div>
-                <p class="mb-3 text-xs text-gray-500 dark:text-gray-400">Rute dan urutan point per hari akan ditampilkan otomatis berdasarkan item Day Planner.</p>
+                <p class="mb-3 text-xs text-gray-500 dark:text-gray-400">{{ __('itinerary_form.sidebar.map_card.subtitle') }}</p>
                 <div id="itinerary-map" class="h-80 w-full overflow-hidden rounded-lg border border-gray-200 bg-gray-100 dark:border-gray-700 dark:bg-gray-900/40"></div>
                 <div id="itinerary-map-legend" class="mt-2 space-y-1 text-xs text-gray-600 dark:text-gray-300"></div>
             </div>
 
             <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800"
                 data-wizard-sidebar-panel="3">
-                <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">Include / Exclude Tips</h3>
+                <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ __('itinerary_form.sidebar.include_exclude_tips.title') }}</h3>
                 <ul class="mt-2 list-disc space-y-1 pl-4 text-xs text-gray-600 dark:text-gray-300">
-                    <li>Tulis item yang benar-benar diterima customer secara jelas.</li>
-                    <li>Hindari istilah ambigu untuk mengurangi revisi quotation.</li>
-                    <li>Pisahkan item optional, surcharge, dan kondisi khusus.</li>
+                    <li>{{ __('itinerary_form.sidebar.include_exclude_tips.item_1') }}</li>
+                    <li>{{ __('itinerary_form.sidebar.include_exclude_tips.item_2') }}</li>
+                    <li>{{ __('itinerary_form.sidebar.include_exclude_tips.item_3') }}</li>
                 </ul>
             </div>
 
             <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800"
                 data-wizard-sidebar-panel="4">
-                <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">Final Check</h3>
+                <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ __('itinerary_form.sidebar.final_check.title') }}</h3>
                 <ul class="mt-2 list-disc space-y-1 pl-4 text-xs text-gray-600 dark:text-gray-300">
-                    <li>Pastikan Duration Days/Nights sudah sesuai.</li>
-                    <li>Cek start-end point tiap hari sudah valid.</li>
-                    <li>Verifikasi schedule item tidak ada yang kosong.</li>
-                    <li>Konfirmasi Include/Exclude sudah final.</li>
+                    <li>{{ __('itinerary_form.sidebar.final_check.item_1') }}</li>
+                    <li>{{ __('itinerary_form.sidebar.final_check.item_2') }}</li>
+                    <li>{{ __('itinerary_form.sidebar.final_check.item_3') }}</li>
+                    <li>{{ __('itinerary_form.sidebar.final_check.item_4') }}</li>
                 </ul>
             </div>
         </aside>
@@ -6059,3 +6059,4 @@
         </script>
     @endpush
 @endonce
+

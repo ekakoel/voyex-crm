@@ -121,7 +121,7 @@
                     </option>
                 @endforeach
             </select>
-            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ __('Filter-only, tidak disimpan ke database service.') }}</p>
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ __('Filter only, not stored in service database.') }}</p>
         </div>
         <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Vendor') }}</label>
