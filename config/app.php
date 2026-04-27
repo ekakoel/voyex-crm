@@ -102,8 +102,8 @@ return [
 
     'supported_locales' => [
         'en' => 'English',
-        'zh_Hant' => 'Chinese (Traditional)',
-        'zh_Hans' => 'Chinese (Simplified)',
+        'zh_Hant' => '繁體中文',
+        'zh_Hans' => '简体中文',
     ],
 
     /*

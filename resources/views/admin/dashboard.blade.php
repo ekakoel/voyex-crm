@@ -2,8 +2,12 @@
 
 @section('content')
     @php
+        $t = 'ui.admin_dashboard';
         // Prepare chart and display data
-        $monthNames = [1 => 'Jan', 2 => 'Feb', 3 => 'Mar', 4 => 'Apr', 5 => 'May', 6 => 'Jun', 7 => 'Jul', 8 => 'Aug', 9 => 'Sep', 10 => 'Oct', 11 => 'Nov', 12 => 'Dec'];
+        $monthNames = [];
+        for ($i = 1; $i <= 12; $i++) {
+            $monthNames[$i] = now()->copy()->month($i)->translatedFormat('M');
+        }
         $monthlyMap = $monthlyData->toArray();
         $chartLabels = [];
         $chartValues = [];
@@ -14,8 +18,8 @@
     @endphp
 
     <!-- Header Dashboard -->
-    @section('page_title', $dashboardTitle ?? 'Administrator Dashboard')
-    @section('page_subtitle', $dashboardSubtitle ?? "Welcome back, ".auth()->user()->name.". Here's your performance overview.")
+    @section('page_title', $dashboardTitle ?? __('ui.admin_dashboard.page_title'))
+    @section('page_subtitle', $dashboardSubtitle ?? __('ui.admin_dashboard.page_subtitle', ['name' => auth()->user()->name]))
     @section('page_actions')
         <span class="text-sm font-medium text-gray-600 dark:text-gray-300">{{ \App\Support\DateTimeDisplay::date(now()) }}</span>
     @endsection
@@ -26,29 +30,29 @@
             <div class="xl:col-span-7 bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-md border border-gray-200 dark:border-gray-700">
                 <div class="flex items-start justify-between">
                     <div>
-                        <h2 class="text-xl font-semibold text-gray-800 dark:text-gray-100">{{ __('Company Governance') }}</h2>
-                        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">{{ __('Control internal users and operational module statuses.') }}</p>
+                        <h2 class="text-xl font-semibold text-gray-800 dark:text-gray-100">{{ __("$t.company_governance.title") }}</h2>
+                        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">{{ __("$t.company_governance.subtitle") }}</p>
                     </div>
                     <span class="px-3 py-1 rounded-full text-xs font-semibold {{ ($companyProfileReady ?? false) ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300' : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' }}">
-                        {{ ($companyProfileReady ?? false) ? 'Company Profile Ready' : 'Company Profile Incomplete' }}
+                        {{ ($companyProfileReady ?? false) ? __("$t.company_governance.profile_ready") : __("$t.company_governance.profile_incomplete") }}
                     </span>
                 </div>
                 @if($canUsers)
                 <div class="mt-4 grid grid-cols-2 lg:grid-cols-4 gap-3">
                     <div class="rounded-xl bg-gray-50 dark:bg-gray-900 p-3">
-                        <p class="text-xs text-gray-500 dark:text-gray-400">{{ __('Total Users') }}</p>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">{{ __("$t.company_governance.total_users") }}</p>
                         <p class="text-xl font-bold text-gray-800 dark:text-gray-100">{{ number_format($teamStats['total_users'] ?? 0) }}</p>
                     </div>
                     <div class="rounded-xl bg-gray-50 dark:bg-gray-900 p-3">
-                        <p class="text-xs text-gray-500 dark:text-gray-400">{{ __('Sales Team') }}</p>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">{{ __("$t.company_governance.sales_team") }}</p>
                         <p class="text-xl font-bold text-gray-800 dark:text-gray-100">{{ number_format($teamStats['sales_team'] ?? 0) }}</p>
                     </div>
                     <div class="rounded-xl bg-gray-50 dark:bg-gray-900 p-3">
-                        <p class="text-xs text-gray-500 dark:text-gray-400">{{ __('Reservation') }}</p>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">{{ __("$t.company_governance.reservation") }}</p>
                         <p class="text-xl font-bold text-gray-800 dark:text-gray-100">{{ number_format($teamStats['operations'] ?? 0) }}</p>
                     </div>
                     <div class="rounded-xl bg-gray-50 dark:bg-gray-900 p-3">
-                        <p class="text-xs text-gray-500 dark:text-gray-400">{{ __('Finance') }}</p>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">{{ __("$t.company_governance.finance") }}</p>
                         <p class="text-xl font-bold text-gray-800 dark:text-gray-100">{{ number_format($teamStats['finance'] ?? 0) }}</p>
                     </div>
                 </div>
@@ -56,15 +60,15 @@
                 @if($canServices)
                 <div class="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div class="rounded-xl border border-gray-200 dark:border-gray-700 p-3">
-                        <p class="text-xs text-gray-500 dark:text-gray-400">{{ __('Managed Modules') }}</p>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">{{ __("$t.company_governance.managed_modules") }}</p>
                         <p class="text-lg font-semibold text-gray-800 dark:text-gray-100">{{ number_format($moduleGovernance['visible'] ?? 0) }}</p>
                     </div>
                     <div class="rounded-xl border border-gray-200 dark:border-gray-700 p-3">
-                        <p class="text-xs text-gray-500 dark:text-gray-400">{{ __('Enabled') }}</p>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">{{ __("$t.company_governance.enabled") }}</p>
                         <p class="text-lg font-semibold text-emerald-600 dark:text-emerald-400">{{ number_format($moduleGovernance['enabled'] ?? 0) }}</p>
                     </div>
                     <div class="rounded-xl border border-gray-200 dark:border-gray-700 p-3">
-                        <p class="text-xs text-gray-500 dark:text-gray-400">{{ __('Disabled') }}</p>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">{{ __('ui.admin_dashboard.company_governance.disabled') }}</p>
                         <p class="text-lg font-semibold text-rose-600 dark:text-rose-400">{{ number_format($moduleGovernance['disabled'] ?? 0) }}</p>
                     </div>
                 </div>
@@ -72,20 +76,20 @@
             @endif
 
             <div class="xl:col-span-5 bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-md border border-gray-200 dark:border-gray-700">
-                <h2 class="text-xl font-semibold text-gray-800 dark:text-gray-100">{{ __('Quick Actions') }}</h2>
-                <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">{{ __('Quick access for company administration activities.') }}</p>
+                <h2 class="text-xl font-semibold text-gray-800 dark:text-gray-100">{{ __("$t.quick_actions.title") }}</h2>
+                <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">{{ __("$t.quick_actions.subtitle") }}</p>
                 <div class="mt-4 grid grid-cols-1 gap-2 text-sm">
                     @if(auth()->user()->can('company_settings.manage'))
-                        <a href="{{ route('company-settings.edit') }}"  class="btn-primary">{{ __('Company Settings') }}</a>
+                        <a href="{{ route('company-settings.edit') }}"  class="btn-primary">{{ ui_term('company_settings') }}</a>
                     @endif
                     @if(auth()->user()->can('module.user_manager.access') && Route::has('users.index'))
-                        <a href="{{ route('users.index') }}"  class="btn-primary">{{ __('Manage Users') }}</a>
+                        <a href="{{ route('users.index') }}"  class="btn-primary">{{ __("$t.quick_actions.manage_users") }}</a>
                     @endif
                     @if(auth()->user()->can('module.service_manager.access') && Route::has('services.index'))
-                        <a href="{{ route('services.index') }}"  class="btn-primary">{{ __('Module Management') }}</a>
+                        <a href="{{ route('services.index') }}"  class="btn-primary">{{ __("$t.quick_actions.module_management") }}</a>
                     @endif
                     @if(auth()->user()->can('module.role_manager.access') && Route::has('roles.index'))
-                        <a href="{{ route('roles.index') }}"  class="btn-primary">{{ __('Role & Permissions') }}</a>
+                        <a href="{{ route('roles.index') }}"  class="btn-primary">{{ __('ui.sidebar.role_permissions') }}</a>
                     @endif
                 </div>
             </div>
@@ -110,7 +114,7 @@
                     'user_manager' => 'users.index',
                 ];
             @endphp
-            <h3 class="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-4">{{ __('Accessible Modules') }}</h3>
+            <h3 class="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-4">{{ __("$t.accessible_modules.title") }}</h3>
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
                 @forelse(($managedModules ?? []) as $module)
                     @if($module['can_access'])
@@ -130,10 +134,10 @@
                                         <p class="font-semibold text-gray-800 dark:text-gray-100 text-sm">{{ $module['name'] }}</p>
                                         <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">{{ $module['key'] }}</p>
                                     </div>
-                                    <span class="text-xs text-gray-400">{{ ($module['is_enabled'] ?? false) ? 'Open' : 'Fix' }}</span>
+                                    <span class="text-xs text-gray-400">{{ ($module['is_enabled'] ?? false) ? __("$t.common.open") : __("$t.common.fix") }}</span>
                                 </div>
                                 <span class="inline-flex mt-2 rounded-full px-2.5 py-1 text-xs font-semibold {{ $module['is_enabled'] ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300' : 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300' }}">
-                                    {{ $module['is_enabled'] ? 'Enabled' : 'Disabled' }}
+                                    {{ $module['is_enabled'] ? __("$t.common.enabled") : __("$t.common.disabled") }}
                                 </span>
                             </a>
                         @else
@@ -141,13 +145,13 @@
                                 <p class="font-semibold text-gray-800 dark:text-gray-100 text-sm">{{ $module['name'] }}</p>
                                 <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">{{ $module['key'] }}</p>
                                 <span class="inline-flex mt-2 rounded-full px-2.5 py-1 text-xs font-semibold {{ $module['is_enabled'] ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300' : 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300' }}">
-                                    {{ $module['is_enabled'] ? 'Enabled' : 'Disabled' }}
+                                    {{ $module['is_enabled'] ? __("$t.common.enabled") : __("$t.common.disabled") }}
                                 </span>
                             </div>
                         @endif
                     @endif
                 @empty
-                    <div class="text-sm text-gray-500 dark:text-gray-400">No accessible modules.</div>
+                    <div class="text-sm text-gray-500 dark:text-gray-400">{{ __("$t.accessible_modules.empty") }}</div>
                 @endforelse
             </div>
         </div>
@@ -161,7 +165,7 @@
         <div class="app-card app-kpi-card p-4">
             <div class="flex items-center justify-between h-full relative">
                 <div class="data-card">
-                    <p class="text-xs font-semibold uppercase tracking-wide text-gray-400">{{ __('Monthly Revenue') }}</p>
+                    <p class="text-xs font-semibold uppercase tracking-wide text-gray-400">{{ __("$t.cards.monthly_revenue") }}</p>
                     <p class="mt-2 text-2xl font-semibold text-gray-900"><x-money :amount="$monthlyRevenue ?? 0" currency="IDR" /></p>
                 </div>
                 <div class="icon-kpi icon-kpi--emerald">
@@ -176,7 +180,7 @@
         <div class="app-card app-kpi-card p-4">
             <div class="flex items-center justify-between h-full relative">
                 <div class="data-card">
-                    <p class="text-xs font-semibold uppercase tracking-wide text-gray-400">{{ __('Conversion Rate') }}</p>
+                    <p class="text-xs font-semibold uppercase tracking-wide text-gray-400">{{ __("$t.cards.conversion_rate") }}</p>
                     <p class="mt-2 text-2xl font-semibold text-gray-900">{{ number_format((float) $conversionRate, 2) }}%</p>
                 </div>
                 <div class="icon-kpi icon-kpi--indigo">
@@ -194,8 +198,8 @@
         @if($canBookings)
         <div class="lg:col-span-2 bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-md border border-gray-200 dark:border-gray-700">
             <div class="flex items-center justify-between mb-4">
-                <h2 class="text-xl font-semibold text-gray-800 dark:text-gray-100">{{ __('Revenue Trend') }}</h2>
-                <span class="bg-blue-100 text-primary text-xs font-medium px-3 py-1 rounded-full">{{ __('This Year') }}</span>
+                <h2 class="text-xl font-semibold text-gray-800 dark:text-gray-100">{{ __("$t.revenue_trend.title") }}</h2>
+                <span class="bg-blue-100 text-primary text-xs font-medium px-3 py-1 rounded-full">{{ __("$t.revenue_trend.this_year") }}</span>
             </div>
             <canvas id="revenueChart" class="max-h-80"></canvas>
         </div>
@@ -204,7 +208,7 @@
         <!-- Deadline Quotations -->
         @if($canQuotations)
         <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-md border border-gray-200 dark:border-gray-700">
-            <h3 class="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-4">{{ __('Expiring Quotations') }}</h3>
+            <h3 class="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-4">{{ __("$t.expiring_quotations.title") }}</h3>
             <div class="space-y-4 max-h-80 overflow-y-auto">
                 @forelse ($deadlineQuotations as $q)
                     <div class="flex items-center">
@@ -213,12 +217,12 @@
                         </div>
                         <div>
                             <p class="font-semibold text-gray-700 dark:text-gray-200">{{ $q->quotation_number }}</p>
-                            <p class="text-sm text-red-500">Expires: {{ \App\Support\DateTimeDisplay::date($q->validity_date) }}</p>
+                            <p class="text-sm text-red-500">{{ __("$t.expiring_quotations.expires") }} {{ \App\Support\DateTimeDisplay::date($q->validity_date) }}</p>
                         </div>
                     </div>
                 @empty
                     <div class="text-center py-8">
-                        <p class="text-gray-500">{{ __('No expiring quotations.') }}</p>
+                        <p class="text-gray-500">{{ __("$t.expiring_quotations.empty") }}</p>
                     </div>
                 @endforelse
             </div>
@@ -229,14 +233,14 @@
     <!-- Upcoming Bookings -->
     @if($canBookings)
     <div class="mt-8 app-card p-6">
-        <h3 class="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-4">{{ __('Upcoming Bookings') }}</h3>
+        <h3 class="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-4">{{ __("$t.upcoming_bookings.title") }}</h3>
         <div class="overflow-x-auto">
             <table class="app-table w-full text-sm text-left text-gray-500 dark:text-gray-400">
                 <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
                     <tr>
-                        <th scope="col" class="px-6 py-3">{{ __('Booking ID') }}</th>
-                        <th scope="col" class="px-6 py-3">{{ __('Travel Date') }}</th>
-                        <th scope="col" class="px-6 py-3">{{ __('Status') }}</th>
+                        <th scope="col" class="px-6 py-3">{{ __("$t.upcoming_bookings.columns.booking_id") }}</th>
+                        <th scope="col" class="px-6 py-3">{{ __("$t.upcoming_bookings.columns.travel_date") }}</th>
+                        <th scope="col" class="px-6 py-3">{{ __("$t.upcoming_bookings.columns.status") }}</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -250,14 +254,14 @@
                         </td>
                         <td class="px-6 py-4">
                             <span class="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300">
-                                {{ ucfirst($b->status) }}
+                                {{ ui_term((string) $b->status) }}
                             </span>
                         </td>
                     </tr>
                 @empty
                     <tr>
                         <td colspan="3" class="text-center py-8 text-gray-500">
-                            No upcoming bookings found.
+                            {{ __("$t.upcoming_bookings.empty") }}
                         </td>
                     </tr>
                 @endforelse
@@ -284,7 +288,7 @@
             data: {
                 labels,
                 datasets: [{
-                    label: 'Revenue',
+                    label: @json(__("$t.revenue_trend.revenue")),
                     data: values,
                     borderColor: '#2563eb', // primary color
                     backgroundColor: gradient,
@@ -309,7 +313,7 @@
                             label: function(context) {
                                 let label = context.dataset.label || '';
                                 if (label) {
-                                    label += ': ';
+                                    label += @json(': ');
                                 }
                                 if (context.parsed.y !== null) {
                                     const currency = window.appCurrency || 'IDR';
@@ -360,9 +364,4 @@
     @endif
     @endpush
 @endsection
-
-
-
-
-
 

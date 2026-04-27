@@ -131,9 +131,9 @@ class DashboardController extends Controller
         if ($canBookings) {
             $statsCards[] = [
                 'key' => 'revenue',
-                'label' => 'Team Revenue (MTD)',
+                'label' => __('ui.manager_dashboard.cards.team_revenue_mtd'),
                 'value' => (int) round($kpis['monthly_revenue']),
-                'caption' => $now->format('Y-m-d').' bookings',
+                'caption' => __('ui.manager_dashboard.captions.date_bookings', ['date' => $now->format('Y-m-d')]),
                 'tone' => 'bg-emerald-50 text-emerald-700 border-emerald-100',
             ];
         }
@@ -141,9 +141,9 @@ class DashboardController extends Controller
         if ($canInquiries) {
             $statsCards[] = [
                 'key' => 'inquiries',
-                'label' => 'Team Inquiries',
+                'label' => __('ui.manager_dashboard.cards.team_term', ['term' => ui_term('inquiries')]),
                 'value' => $totalInquiries,
-                'caption' => number_format($inquiriesThisMonth).' this month',
+                'caption' => __('ui.manager_dashboard.captions.count_this_month', ['count' => number_format($inquiriesThisMonth)]),
                 'tone' => 'bg-slate-50 text-slate-700 border-slate-100',
             ];
         }
@@ -151,9 +151,9 @@ class DashboardController extends Controller
         if ($canQuotations) {
             $statsCards[] = [
                 'key' => 'quotations',
-                'label' => 'Team Quotations',
+                'label' => __('ui.manager_dashboard.cards.team_term', ['term' => ui_term('quotations')]),
                 'value' => $totalQuotations,
-                'caption' => number_format($quotationsThisMonth).' this month',
+                'caption' => __('ui.manager_dashboard.captions.count_this_month', ['count' => number_format($quotationsThisMonth)]),
                 'tone' => 'bg-sky-50 text-sky-700 border-sky-100',
             ];
         }
@@ -161,9 +161,9 @@ class DashboardController extends Controller
         if ($canBookings) {
             $statsCards[] = [
                 'key' => 'bookings',
-                'label' => 'Team Bookings',
+                'label' => __('ui.manager_dashboard.cards.team_term', ['term' => ui_term('bookings')]),
                 'value' => $totalBookings,
-                'caption' => number_format($bookingsThisMonth).' this month',
+                'caption' => __('ui.manager_dashboard.captions.count_this_month', ['count' => number_format($bookingsThisMonth)]),
                 'tone' => 'bg-indigo-50 text-indigo-700 border-indigo-100',
             ];
         }
@@ -171,9 +171,9 @@ class DashboardController extends Controller
         if ($canQuotations) {
             $statsCards[] = [
                 'key' => 'manager_action_queue',
-                'label' => 'Manager Action Queue',
+                'label' => __('ui.manager_dashboard.cards.manager_action_queue'),
                 'value' => $needsManagerApprovalCount,
-                'caption' => 'Need your approval',
+                'caption' => __('ui.manager_dashboard.captions.need_your_approval'),
                 'tone' => 'bg-amber-50 text-amber-700 border-amber-100',
             ];
         }
@@ -181,9 +181,9 @@ class DashboardController extends Controller
         if ($canInquiries) {
             $statsCards[] = [
                 'key' => 'overdue',
-                'label' => 'Overdue Follow-ups',
+                'label' => __('ui.manager_dashboard.cards.overdue_followups'),
                 'value' => $kpis['overdue_followups'],
-                'caption' => 'Past due follow-ups',
+                'caption' => __('ui.manager_dashboard.captions.past_due_followups'),
                 'tone' => 'bg-rose-50 text-rose-700 border-rose-100',
             ];
         }
@@ -193,19 +193,19 @@ class DashboardController extends Controller
 
         $funnel = [];
         if ($canInquiries) {
-            $funnel[] = ['label' => 'Inquiries', 'value' => $totalInquiries];
+            $funnel[] = ['label' => ui_term('inquiries'), 'value' => $totalInquiries, 'is_percent' => false];
         }
         if ($canQuotations) {
-            $funnel[] = ['label' => 'Quotations', 'value' => $totalQuotations];
+            $funnel[] = ['label' => ui_term('quotations'), 'value' => $totalQuotations, 'is_percent' => false];
         }
         if ($canItineraries) {
-            $funnel[] = ['label' => 'Itineraries', 'value' => $totalItineraries];
+            $funnel[] = ['label' => ui_term('itineraries'), 'value' => $totalItineraries, 'is_percent' => false];
         }
         if ($canBookings) {
-            $funnel[] = ['label' => 'Bookings', 'value' => $totalBookings];
+            $funnel[] = ['label' => ui_term('bookings'), 'value' => $totalBookings, 'is_percent' => false];
         }
         if ($canBookings && $canInquiries) {
-            $funnel[] = ['label' => 'Conversion (%)', 'value' => $kpis['conversion_rate']];
+            $funnel[] = ['label' => __('ui.manager_dashboard.funnel.conversion_pct'), 'value' => $kpis['conversion_rate'], 'is_percent' => true];
         }
 
         $inquiryByStatus = $canInquiries

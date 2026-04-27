@@ -1,12 +1,12 @@
 @extends('layouts.master')
 
-@section('page_title', 'Administrator Dashboard')
-@section('page_subtitle', 'Overview of system management, operations, and master data.')
+@section('page_title', __('ui.administrator_dashboard.page_title'))
+@section('page_subtitle', __('ui.administrator_dashboard.page_subtitle'))
 @section('page_actions')
     <div class="flex items-center gap-2">
         @if($canUsers)
             <a href="{{ route('users.create') }}" class="btn-primary">
-                <i class="fa-solid fa-plus-circle mr-2"></i>New User
+                <i class="fa-solid fa-plus-circle mr-2"></i>{{ __('ui.administrator_dashboard.actions.new_user') }}
             </a>
         @endif
     </div>
@@ -18,51 +18,51 @@
         <section class="xl:col-span-9 space-y-3">
             <section class="sa-card p-5 dashboard-widget" data-dashboard-widget="system-management" data-endpoint="{{ $widgetEndpoints['system-management'] ?? '' }}">
                 <div class="dashboard-widget-body">
-                    @include('administrator.dashboard.partials._skeleton', ['title' => 'System Management'])
+                    @include('administrator.dashboard.partials._skeleton', ['title' => __('ui.administrator_dashboard.sections.system_management')])
                 </div>
             </section>
 
             <section class="sa-card p-5 dashboard-widget" data-dashboard-widget="operational-overview" data-endpoint="{{ $widgetEndpoints['operational-overview'] ?? '' }}">
                 <div class="dashboard-widget-body">
-                    @include('administrator.dashboard.partials._skeleton', ['title' => 'Operational Overview'])
+                    @include('administrator.dashboard.partials._skeleton', ['title' => __('ui.administrator_dashboard.sections.operational_overview')])
                 </div>
             </section>
 
             <section class="sa-card p-5 dashboard-widget" data-dashboard-widget="master-data-catalog" data-endpoint="{{ $widgetEndpoints['master-data-catalog'] ?? '' }}">
                 <div class="dashboard-widget-body">
-                    @include('administrator.dashboard.partials._skeleton', ['title' => 'Master Data Catalog'])
+                    @include('administrator.dashboard.partials._skeleton', ['title' => __('ui.administrator_dashboard.sections.master_data_catalog')])
                 </div>
             </section>
         </section>
 
         <aside class="xl:col-span-3 space-y-3">
             <div class="sa-card p-4">
-                <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100">{{ __('Quick Actions') }}</h3>
+                <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100">{{ __('ui.administrator_dashboard.sections.quick_actions') }}</h3>
                 <div class="mt-3 grid grid-cols-2 gap-2">
                     @if($canUsers)
-                    <a href="{{ route('users.index') }}" class="btn-secondary-sm text-center"><i class="fa-solid fa-user-gear mr-2"></i>Users</a>
+                    <a href="{{ route('users.index') }}" class="btn-secondary-sm text-center"><i class="fa-solid fa-user-gear mr-2"></i>{{ ui_term('users') }}</a>
                     @endif
                     @if($canRoles)
-                    <a href="{{ route('roles.index') }}" class="btn-secondary-sm text-center"><i class="fa-solid fa-user-shield mr-2"></i>Roles</a>
+                    <a href="{{ route('roles.index') }}" class="btn-secondary-sm text-center"><i class="fa-solid fa-user-shield mr-2"></i>{{ ui_term('roles') }}</a>
                     @endif
                     @if($canServices)
-                    <a href="{{ route('services.index') }}" class="btn-secondary-sm text-center"><i class="fa-solid fa-cubes mr-2"></i>Modules</a>
+                    <a href="{{ route('services.index') }}" class="btn-secondary-sm text-center"><i class="fa-solid fa-cubes mr-2"></i>{{ ui_term('modules') }}</a>
                     @endif
                     @if($canVendors)
-                    <a href="{{ route('vendors.index') }}" class="btn-secondary-sm text-center"><i class="fa-solid fa-handshake mr-2"></i>Vendors</a>
+                    <a href="{{ route('vendors.index') }}" class="btn-secondary-sm text-center"><i class="fa-solid fa-handshake mr-2"></i>{{ ui_term('vendors') }}</a>
                     @endif
                 </div>
             </div>
 
             <section class="sa-card p-4 dashboard-widget" data-dashboard-widget="pending-quotations" data-endpoint="{{ $widgetEndpoints['pending-quotations'] ?? '' }}">
                 <div class="dashboard-widget-body">
-                    @include('administrator.dashboard.partials._skeleton', ['title' => 'Pending Quotations', 'compact' => true])
+                    @include('administrator.dashboard.partials._skeleton', ['title' => __('ui.administrator_dashboard.sections.pending_quotations'), 'compact' => true])
                 </div>
             </section>
 
             <section class="sa-card p-4 dashboard-widget" data-dashboard-widget="recent-users" data-endpoint="{{ $widgetEndpoints['recent-users'] ?? '' }}">
                 <div class="dashboard-widget-body">
-                    @include('administrator.dashboard.partials._skeleton', ['title' => 'Recently Updated Users', 'compact' => true])
+                    @include('administrator.dashboard.partials._skeleton', ['title' => __('ui.administrator_dashboard.sections.recently_updated_users'), 'compact' => true])
                 </div>
             </section>
         </aside>
@@ -73,6 +73,10 @@
 @push('scripts')
 <script>
     (function () {
+        const i18n = {
+            retry: @json(__('ui.administrator_dashboard.js.retry')),
+            failed_to_load: @json(__('ui.administrator_dashboard.js.failed_to_load')),
+        };
         const widgets = document.querySelectorAll('[data-dashboard-widget]');
         if (!widgets.length) return;
         const WIDGET_BATCH_DELAY = 180;
@@ -83,7 +87,7 @@
                 <div class="rounded-xl border border-rose-200 bg-rose-50/70 p-3 text-xs text-rose-700 dark:border-rose-700 dark:bg-rose-900/20 dark:text-rose-200">
                     <p>${message}</p>
                     <button type="button" class="btn-secondary-sm mt-2" data-dashboard-widget-retry="${endpoint}">
-                        Retry
+                        ${i18n.retry}
                     </button>
                 </div>
             `;
@@ -129,7 +133,7 @@
                 body.classList.add('is-loaded');
                 stageWidgetItems(body);
             } catch (_) {
-                renderError(body, 'Failed to load this section.', endpoint);
+                renderError(body, i18n.failed_to_load, endpoint);
             }
         };
 

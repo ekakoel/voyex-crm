@@ -35,7 +35,7 @@ class DashboardController extends Controller
 {
     public function index()
     {
-        $payload = Cache::remember('superadmin:dashboard:index:v1', now()->addSeconds(60), function (): array {
+        $payload = Cache::remember('superadmin:dashboard:index:v2', now()->addSeconds(60), function (): array {
             $today = now();
             $bookingsModuleEnabled = ModuleService::isEnabledStatic('bookings');
 
@@ -169,30 +169,30 @@ class DashboardController extends Controller
 
             $actionCenter = [
                 [
-                    'label' => 'Follow-ups Overdue',
+                    'label_key' => 'ui.superadmin.action_center.followups_overdue.label',
                     'value' => (int) ($operationalAlerts['followups_overdue'] ?? 0),
                     'severity' => ($operationalAlerts['followups_overdue'] ?? 0) > 0 ? 'critical' : 'ok',
-                    'hint' => 'Needs immediate team follow-up.',
+                    'hint_key' => 'ui.superadmin.action_center.followups_overdue.hint',
                 ],
                 [
-                    'label' => 'Failed Jobs',
+                    'label_key' => 'ui.superadmin.action_center.failed_jobs.label',
                     'value' => (int) ($healthInfo['failed_jobs'] ?? 0),
                     'severity' => ($healthInfo['failed_jobs'] ?? 0) > 0 ? 'critical' : 'ok',
-                    'hint' => 'Check queue worker and logs.',
+                    'hint_key' => 'ui.superadmin.action_center.failed_jobs.hint',
                 ],
                 [
-                    'label' => 'Quotations Expiring (7D)',
+                    'label_key' => 'ui.superadmin.action_center.quotations_expiring_7d.label',
                     'value' => (int) ($operationalAlerts['quotations_expiring_7d'] ?? 0),
                     'severity' => ($operationalAlerts['quotations_expiring_7d'] ?? 0) > 0 ? 'warning' : 'ok',
-                    'hint' => 'Potential conversion risk window.',
+                    'hint_key' => 'ui.superadmin.action_center.quotations_expiring_7d.hint',
                 ],
             ];
             if ($bookingsModuleEnabled) {
                 $actionCenter[] = [
-                    'label' => 'Upcoming Bookings (7D)',
+                    'label_key' => 'ui.superadmin.action_center.upcoming_bookings_7d.label',
                     'value' => (int) ($operationalAlerts['upcoming_bookings_7d'] ?? 0),
                     'severity' => 'info',
-                    'hint' => 'Operational readiness checkpoint.',
+                    'hint_key' => 'ui.superadmin.action_center.upcoming_bookings_7d.hint',
                 ];
             }
 
@@ -347,39 +347,45 @@ class DashboardController extends Controller
 
         return collect()
             ->merge($users->map(fn ($item) => [
-                'type' => 'User',
+                'type_key' => 'ui.superadmin.history.types.user',
                 'title' => $item->name,
-                'meta' => 'Profile updated',
+                'meta_key' => 'ui.superadmin.history.meta.profile_updated',
+                'meta_params' => [],
                 'updated_at' => $item->updated_at,
             ]))
             ->merge($customers->map(fn ($item) => [
-                'type' => 'Customer',
+                'type_key' => 'ui.superadmin.history.types.customer',
                 'title' => $item->name,
-                'meta' => 'Customer data changed',
+                'meta_key' => 'ui.superadmin.history.meta.customer_data_changed',
+                'meta_params' => [],
                 'updated_at' => $item->updated_at,
             ]))
             ->merge($inquiries->map(fn ($item) => [
-                'type' => 'Inquiry',
+                'type_key' => 'ui.superadmin.history.types.inquiry',
                 'title' => $item->inquiry_number,
-                'meta' => 'Status: '.(string) $item->status,
+                'meta_key' => 'ui.superadmin.history.meta.status',
+                'meta_params' => ['status' => (string) $item->status],
                 'updated_at' => $item->updated_at,
             ]))
             ->merge($quotations->map(fn ($item) => [
-                'type' => 'Quotation',
+                'type_key' => 'ui.superadmin.history.types.quotation',
                 'title' => $item->quotation_number,
-                'meta' => 'Status: '.(string) $item->status,
+                'meta_key' => 'ui.superadmin.history.meta.status',
+                'meta_params' => ['status' => (string) $item->status],
                 'updated_at' => $item->updated_at,
             ]))
             ->merge($bookings->map(fn ($item) => [
-                'type' => 'Booking',
+                'type_key' => 'ui.superadmin.history.types.booking',
                 'title' => $item->booking_number,
-                'meta' => 'Status: '.(string) $item->status,
+                'meta_key' => 'ui.superadmin.history.meta.status',
+                'meta_params' => ['status' => (string) $item->status],
                 'updated_at' => $item->updated_at,
             ]))
             ->merge($itineraries->map(fn ($item) => [
-                'type' => 'Itinerary',
+                'type_key' => 'ui.superadmin.history.types.itinerary',
                 'title' => $item->title,
-                'meta' => 'Schedule changed',
+                'meta_key' => 'ui.superadmin.history.meta.schedule_changed',
+                'meta_params' => [],
                 'updated_at' => $item->updated_at,
             ]))
             ->sortByDesc('updated_at')
@@ -422,11 +428,11 @@ class DashboardController extends Controller
 
         // Tambahkan Itinerary ke dalam array
         return [
-            ['label' => 'Inquiries', 'value' => $inquiries, 'conversion' => null],
-            ['label' => 'Itineraries', 'value' => $itineraries, 'conversion' => $inqToItinerary],
-            ['label' => 'Quotations', 'value' => $quotations, 'conversion' => $itineraryToQuote],
-            ['label' => 'Bookings', 'value' => $bookings, 'conversion' => $quoteToBooking],
-            ['label' => 'Invoices', 'value' => $invoices, 'conversion' => $bookingToInvoice],
+            ['label_key' => 'ui.superadmin.funnel.labels.inquiries', 'value' => $inquiries, 'conversion' => null],
+            ['label_key' => 'ui.superadmin.funnel.labels.itineraries', 'value' => $itineraries, 'conversion' => $inqToItinerary],
+            ['label_key' => 'ui.superadmin.funnel.labels.quotations', 'value' => $quotations, 'conversion' => $itineraryToQuote],
+            ['label_key' => 'ui.superadmin.funnel.labels.bookings', 'value' => $bookings, 'conversion' => $quoteToBooking],
+            ['label_key' => 'ui.superadmin.funnel.labels.invoices', 'value' => $invoices, 'conversion' => $bookingToInvoice],
         ];
     }
 
@@ -498,51 +504,51 @@ class DashboardController extends Controller
         array $healthInfo
     ): array {
         $definitions = [
-            'CRM & Sales' => [
-                ['key' => 'customer_management', 'icon' => 'address-book', 'route' => 'customers.index'],
-                ['key' => 'inquiries', 'icon' => 'circle-question', 'route' => 'inquiries.index'],
-                ['key' => 'itineraries', 'icon' => 'route', 'route' => 'itineraries.index'],
-                ['key' => 'quotations', 'icon' => 'file-lines', 'route' => 'quotations.index'],
-                ['key' => 'bookings', 'icon' => 'calendar-check', 'route' => 'bookings.index'],
-                ['key' => 'invoices', 'icon' => 'file-invoice-dollar', 'route' => 'invoices.index'],
+            'ui.superadmin.group.crm_sales' => [
+                ['key' => 'customer_management', 'icon' => 'address-book', 'route' => 'customers.index', 'name_key' => 'ui.superadmin.module_names.customer_management'],
+                ['key' => 'inquiries', 'icon' => 'circle-question', 'route' => 'inquiries.index', 'name_key' => 'ui.superadmin.module_names.inquiries'],
+                ['key' => 'itineraries', 'icon' => 'route', 'route' => 'itineraries.index', 'name_key' => 'ui.superadmin.module_names.itineraries'],
+                ['key' => 'quotations', 'icon' => 'file-lines', 'route' => 'quotations.index', 'name_key' => 'ui.superadmin.module_names.quotations'],
+                ['key' => 'bookings', 'icon' => 'calendar-check', 'route' => 'bookings.index', 'name_key' => 'ui.superadmin.module_names.bookings'],
+                ['key' => 'invoices', 'icon' => 'file-invoice-dollar', 'route' => 'invoices.index', 'name_key' => 'ui.superadmin.module_names.invoices'],
             ],
-            'Product & Reservation' => [
-                ['key' => 'destinations', 'icon' => 'map-location-dot', 'route' => 'destinations.index'],
-                ['key' => 'vendor_management', 'icon' => 'handshake', 'route' => 'vendors.index'],
-                ['key' => 'activities', 'icon' => 'person-hiking', 'route' => 'activities.index'],
-                ['key' => 'food_beverages', 'icon' => 'utensils', 'route' => 'food-beverages.index'],
-                ['key' => 'hotels', 'icon' => 'bed', 'route' => 'hotels.index'],
-                ['key' => 'airports', 'icon' => 'plane-departure', 'route' => 'airports.index'],
-                ['key' => 'transports', 'icon' => 'bus', 'route' => 'transports.index'],
-                ['key' => 'tourist_attractions', 'icon' => 'landmark', 'route' => 'tourist-attractions.index'],
+            'ui.superadmin.group.product_reservation' => [
+                ['key' => 'destinations', 'icon' => 'map-location-dot', 'route' => 'destinations.index', 'name_key' => 'ui.superadmin.module_names.destinations'],
+                ['key' => 'vendor_management', 'icon' => 'handshake', 'route' => 'vendors.index', 'name_key' => 'ui.superadmin.module_names.vendor_management'],
+                ['key' => 'activities', 'icon' => 'person-hiking', 'route' => 'activities.index', 'name_key' => 'ui.superadmin.module_names.activities'],
+                ['key' => 'food_beverages', 'icon' => 'utensils', 'route' => 'food-beverages.index', 'name_key' => 'ui.superadmin.module_names.food_beverages'],
+                ['key' => 'hotels', 'icon' => 'bed', 'route' => 'hotels.index', 'name_key' => 'ui.superadmin.module_names.hotels'],
+                ['key' => 'airports', 'icon' => 'plane-departure', 'route' => 'airports.index', 'name_key' => 'ui.superadmin.module_names.airports'],
+                ['key' => 'transports', 'icon' => 'bus', 'route' => 'transports.index', 'name_key' => 'ui.superadmin.module_names.transports'],
+                ['key' => 'tourist_attractions', 'icon' => 'landmark', 'route' => 'tourist-attractions.index', 'name_key' => 'ui.superadmin.module_names.tourist_attractions'],
             ],
-            'System Administration' => [
-                ['key' => 'service_manager', 'icon' => 'cubes', 'route' => 'services.index'],
-                ['key' => 'role_manager', 'icon' => 'user-shield', 'route' => 'roles.index'],
-                ['key' => 'user_manager', 'icon' => 'user-gear', 'route' => 'users.index'],
-                ['key' => 'currencies', 'icon' => 'coins', 'route' => 'currencies.index'],
+            'ui.superadmin.group.system_administration' => [
+                ['key' => 'service_manager', 'icon' => 'cubes', 'route' => 'services.index', 'name_key' => 'ui.superadmin.module_names.service_manager'],
+                ['key' => 'role_manager', 'icon' => 'user-shield', 'route' => 'roles.index', 'name_key' => 'ui.superadmin.module_names.role_manager'],
+                ['key' => 'user_manager', 'icon' => 'user-gear', 'route' => 'users.index', 'name_key' => 'ui.superadmin.module_names.user_manager'],
+                ['key' => 'currencies', 'icon' => 'coins', 'route' => 'currencies.index', 'name_key' => 'ui.superadmin.module_names.currencies'],
             ],
         ];
 
         $metrics = [
-            'customer_management' => ['label' => 'Customers', 'value' => (int) ($systemCounts['customers'] ?? 0)],
-            'inquiries' => ['label' => 'Pending Follow-ups', 'value' => (int) ($operationalAlerts['pending_followups'] ?? 0)],
-            'itineraries' => ['label' => 'Itineraries', 'value' => (int) ($systemCounts['itineraries'] ?? 0)],
-            'quotations' => ['label' => 'Expiring (7D)', 'value' => (int) ($operationalAlerts['quotations_expiring_7d'] ?? 0)],
-            'bookings' => ['label' => 'Upcoming (7D)', 'value' => (int) ($operationalAlerts['upcoming_bookings_7d'] ?? 0)],
-            'invoices' => ['label' => 'Invoices', 'value' => (int) ($systemCounts['invoices'] ?? 0)],
-            'vendor_management' => ['label' => 'Vendors', 'value' => (int) ($systemCounts['vendors'] ?? 0)],
-            'destinations' => ['label' => 'Destinations', 'value' => (int) ($systemCounts['destinations'] ?? 0)],
-            'activities' => ['label' => 'Activities', 'value' => (int) ($systemCounts['activities'] ?? 0)],
-            'food_beverages' => ['label' => 'Food & Beverage', 'value' => (int) ($systemCounts['food_beverages'] ?? 0)],
-            'hotels' => ['label' => 'Hotels', 'value' => (int) ($systemCounts['hotels'] ?? 0)],
-            'airports' => ['label' => 'Airports', 'value' => (int) ($systemCounts['airports'] ?? 0)],
-            'transports' => ['label' => 'Transports', 'value' => (int) ($systemCounts['transports'] ?? 0)],
-            'tourist_attractions' => ['label' => 'Attractions', 'value' => (int) ($systemCounts['tourist_attractions'] ?? 0)],
-            'service_manager' => ['label' => 'Disabled Modules', 'value' => (int) ($moduleStats['disabled'] ?? 0)],
-            'role_manager' => ['label' => 'Roles', 'value' => (int) ($rolesAndPermissions['roles'] ?? 0)],
-            'user_manager' => ['label' => 'Users', 'value' => (int) ($systemCounts['users'] ?? 0)],
-            'currencies' => ['label' => 'Currencies', 'value' => (int) ($systemCounts['currencies'] ?? 0)],
+            'customer_management' => ['label_key' => 'ui.superadmin.metric.customers', 'value' => (int) ($systemCounts['customers'] ?? 0)],
+            'inquiries' => ['label_key' => 'ui.superadmin.metric.pending_followups', 'value' => (int) ($operationalAlerts['pending_followups'] ?? 0)],
+            'itineraries' => ['label_key' => 'ui.superadmin.metric.itineraries', 'value' => (int) ($systemCounts['itineraries'] ?? 0)],
+            'quotations' => ['label_key' => 'ui.superadmin.metric.expiring_7d', 'value' => (int) ($operationalAlerts['quotations_expiring_7d'] ?? 0)],
+            'bookings' => ['label_key' => 'ui.superadmin.metric.upcoming_7d', 'value' => (int) ($operationalAlerts['upcoming_bookings_7d'] ?? 0)],
+            'invoices' => ['label_key' => 'ui.superadmin.metric.invoices', 'value' => (int) ($systemCounts['invoices'] ?? 0)],
+            'vendor_management' => ['label_key' => 'ui.superadmin.metric.vendors', 'value' => (int) ($systemCounts['vendors'] ?? 0)],
+            'destinations' => ['label_key' => 'ui.superadmin.metric.destinations', 'value' => (int) ($systemCounts['destinations'] ?? 0)],
+            'activities' => ['label_key' => 'ui.superadmin.metric.activities', 'value' => (int) ($systemCounts['activities'] ?? 0)],
+            'food_beverages' => ['label_key' => 'ui.superadmin.metric.food_beverage', 'value' => (int) ($systemCounts['food_beverages'] ?? 0)],
+            'hotels' => ['label_key' => 'ui.superadmin.metric.hotels', 'value' => (int) ($systemCounts['hotels'] ?? 0)],
+            'airports' => ['label_key' => 'ui.superadmin.metric.airports', 'value' => (int) ($systemCounts['airports'] ?? 0)],
+            'transports' => ['label_key' => 'ui.superadmin.metric.transports', 'value' => (int) ($systemCounts['transports'] ?? 0)],
+            'tourist_attractions' => ['label_key' => 'ui.superadmin.metric.attractions', 'value' => (int) ($systemCounts['tourist_attractions'] ?? 0)],
+            'service_manager' => ['label_key' => 'ui.superadmin.metric.disabled_modules', 'value' => (int) ($moduleStats['disabled'] ?? 0)],
+            'role_manager' => ['label_key' => 'ui.superadmin.metric.roles', 'value' => (int) ($rolesAndPermissions['roles'] ?? 0)],
+            'user_manager' => ['label_key' => 'ui.superadmin.metric.users', 'value' => (int) ($systemCounts['users'] ?? 0)],
+            'currencies' => ['label_key' => 'ui.superadmin.metric.currencies', 'value' => (int) ($systemCounts['currencies'] ?? 0)],
         ];
 
         $matrixByKey = $moduleHealthMatrix->keyBy('key');
@@ -572,14 +578,15 @@ class DashboardController extends Controller
                     ...$row,
                     'icon' => $item['icon'],
                     'route' => $item['route'],
+                    'name_key' => $item['name_key'] ?? null,
                     'health' => $health,
-                    'metric' => $metrics[$item['key']] ?? ['label' => 'Data Volume', 'value' => (int) ($row['volume'] ?? 0)],
+                    'metric' => $metrics[$item['key']] ?? ['label_key' => 'ui.superadmin.metric.data_volume', 'value' => (int) ($row['volume'] ?? 0)],
                 ];
             }
 
             if ($modules !== []) {
                 $groups[] = [
-                    'name' => $groupName,
+                    'name_key' => $groupName,
                     'modules' => $modules,
                 ];
             }
@@ -592,10 +599,11 @@ class DashboardController extends Controller
                     ...$row,
                     'icon' => 'puzzle-piece',
                     'route' => 'services.index',
+                    'name_key' => null,
                     'health' => ! ($row['permission_exists'] ?? false)
                         ? 'critical'
                         : (! ($row['is_enabled'] ?? false) ? 'inactive' : 'healthy'),
-                    'metric' => ['label' => 'Data Volume', 'value' => (int) ($row['volume'] ?? 0)],
+                    'metric' => ['label_key' => 'ui.superadmin.metric.data_volume', 'value' => (int) ($row['volume'] ?? 0)],
                 ];
             })
             ->values()
@@ -603,7 +611,7 @@ class DashboardController extends Controller
 
         if ($otherModules !== []) {
             $groups[] = [
-                'name' => 'Other Modules',
+                'name_key' => 'ui.superadmin.group.other_modules',
                 'modules' => $otherModules,
             ];
         }

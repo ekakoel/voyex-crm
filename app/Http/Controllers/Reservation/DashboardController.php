@@ -149,9 +149,9 @@ class DashboardController extends Controller
                 + (int) ($bookingStatusCounts['processed'] ?? 0);
 
             $bookingStatusBreakdown = [
-                ['label' => 'Pending', 'count' => (int) ($bookingStatusCounts['pending'] ?? 0), 'bg' => 'bg-amber-100', 'text' => 'text-amber-700'],
-                ['label' => 'Confirmed', 'count' => $confirmedCount, 'bg' => 'bg-emerald-100', 'text' => 'text-emerald-700'],
-                ['label' => 'Cancelled', 'count' => (int) ($bookingStatusCounts['rejected'] ?? 0), 'bg' => 'bg-rose-100', 'text' => 'text-rose-700'],
+                ['label' => ui_term('pending'), 'count' => (int) ($bookingStatusCounts['pending'] ?? 0), 'bg' => 'bg-amber-100', 'text' => 'text-amber-700'],
+                ['label' => ui_term('confirmed'), 'count' => $confirmedCount, 'bg' => 'bg-emerald-100', 'text' => 'text-emerald-700'],
+                ['label' => ui_term('cancelled'), 'count' => (int) ($bookingStatusCounts['rejected'] ?? 0), 'bg' => 'bg-rose-100', 'text' => 'text-rose-700'],
             ];
 
             $topDestinationSummary = Cache::remember("reservation:top_destination:{$startOfMonth->toDateString()}", 120, function () use ($startOfMonth, $now) {
@@ -160,7 +160,7 @@ class DashboardController extends Controller
                     ->join('itineraries', 'quotations.itinerary_id', '=', 'itineraries.id')
                     ->leftJoin('destinations', 'itineraries.destination_id', '=', 'destinations.id')
                     ->whereBetween('bookings.created_at', [$startOfMonth, $now])
-                    ->selectRaw("COALESCE(destinations.name, itineraries.destination, 'Unknown') as destination_name, COUNT(*) as total")
+                    ->selectRaw("COALESCE(destinations.name, itineraries.destination, '".ui_term('unknown')."') as destination_name, COUNT(*) as total")
                     ->groupBy('destination_name')
                     ->orderByDesc('total')
                     ->first();

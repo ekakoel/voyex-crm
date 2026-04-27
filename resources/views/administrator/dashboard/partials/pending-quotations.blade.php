@@ -1,17 +1,18 @@
 @if($canQuotations)
     <div>
-        <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100">{{ __('Pending Quotations') }}</h3>
+        <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100">{{ __('ui.administrator_dashboard.sections.pending_quotations') }}</h3>
         <div class="mt-3 space-y-2">
             @forelse($pendingQuotations as $quotation)
                 <a href="{{ route('quotations.show', $quotation) }}" class="block rounded-lg bg-slate-50 px-3 py-2 text-xs hover:bg-slate-100 dark:bg-slate-800/50 dark:hover:bg-slate-800" data-progressive-item>
                     <p class="font-bold text-slate-700 dark:text-slate-200">{{ $quotation->quotation_number }}</p>
                     <p class="text-slate-500 dark:text-slate-400">
-                        Customer: {{ $quotation->inquiry?->customer?->name ?? 'N/A' }}
+                        {{ __('ui.administrator_dashboard.common.customer_label') }} {{ $quotation->inquiry?->customer?->name ?? __('ui.administrator_dashboard.common.na') }}
                     </p>
                 </a>
             @empty
-                <p class="text-xs text-slate-500 dark:text-slate-400" data-progressive-item>{{ __('No pending quotations.') }}</p>
+                <p class="text-xs text-slate-500 dark:text-slate-400" data-progressive-item>{{ __('ui.administrator_dashboard.pending_quotations.empty') }}</p>
             @endforelse
         </div>
     </div>
 @endif
+

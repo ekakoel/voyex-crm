@@ -18,8 +18,18 @@
                 </div>
             </div>
 
-            <!-- Settings Dropdown -->
-            <div class="hidden sm:flex sm:items-center sm:ms-6">
+            <!-- Language Switcher & Settings Dropdown -->
+            <div class="hidden sm:flex sm:items-center sm:ms-6 gap-4">
+                <!-- Language Switcher -->
+                <form method="POST" action="{{ route('locale.set') }}" class="flex items-center">
+                    @csrf
+                    <select name="locale" onchange="this.form.submit()" class="border-gray-300 rounded-md text-sm px-2 py-1 focus:ring focus:ring-indigo-200">
+                        @foreach(config('app.supported_locales') as $key => $label)
+                            <option value="{{ $key }}" @if(app()->getLocale() === $key) selected @endif>{{ $label }}</option>
+                        @endforeach
+                    </select>
+                </form>
+                <!-- Settings Dropdown -->
                 <x-dropdown align="right" width="48">
                     <x-slot name="trigger">
                         <button  class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-gray-500 bg-white hover:text-gray-700 focus:outline-none transition ease-in-out duration-150">

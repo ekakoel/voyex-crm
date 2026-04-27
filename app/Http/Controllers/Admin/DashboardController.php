@@ -95,10 +95,12 @@ class DashboardController extends Controller
             : collect();
 
         $isEditor = (bool) ($user?->can('dashboard.editor.view') && ! $user?->can('dashboard.administrator.view'));
-        $dashboardTitle = $isEditor ? 'Editor Dashboard' : 'Administrator Dashboard';
+        $dashboardTitle = $isEditor
+            ? __('ui.editor_dashboard.page_title')
+            : __('ui.admin_dashboard.page_title');
         $dashboardSubtitle = $isEditor
-            ? "Fokus pengelolaan konten dan katalog layanan."
-            : "Welcome back, {$user?->name}. Here's your performance overview.";
+            ? __('ui.admin_dashboard.editor_subtitle')
+            : __('ui.admin_dashboard.page_subtitle', ['name' => $user?->name]);
 
         $userBaseQuery = User::query()->withoutSuperAdmin();
 

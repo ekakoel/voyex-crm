@@ -17,16 +17,32 @@ Configured in: `config/app.php` under `supported_locales`.
 3. `App\Http\Middleware\SetLocale` applies locale for every web request.
 4. Missing keys automatically fall back to English (`fallback_locale = en`).
 
+## Top Navbar Language Switch
+
+- Main app top navbar (`resources/views/layouts/master.blade.php`) provides a language switch dropdown.
+- The switch posts to `locale.set` and keeps user on the same page (`back()` redirect).
+- Current locale is shown as compact label:
+  - `EN`
+  - `繁` (Traditional Chinese / `zh_Hant`)
+  - `简` (Simplified Chinese / `zh_Hans`)
+- Locale labels come from `config/app.php` (`supported_locales`).
+
 ## Translation Files
 
 - Main UI dictionary: `lang/<locale>/ui.php`
 - Itinerary form dictionary: `lang/<locale>/itinerary_form.php`
+- Core Laravel messages:
+  - `lang/<locale>/auth.php`
+  - `lang/<locale>/passwords.php`
+  - `lang/<locale>/pagination.php`
+  - `lang/<locale>/validation.php`
 - JSON strings (optional): `lang/<locale>.json`
 
 ## Standardization Rules
 
 - Use English source copy in `lang/en/*`.
 - Do not hardcode user-facing strings in Blade or Controller.
+- For inline JavaScript inside Blade, keep strings translatable by injecting via `@json(__('...'))`.
 - Use translation keys:
   - Blade: `{{ __('ui.common.save') }}`
   - PHP: `__('ui.modules.bookings.final_locked_edit')`

@@ -2,10 +2,11 @@
 
 @section('content')
 @php
+    $t = 'ui.reservation_dashboard';
     $kpiCards = [];
     if ($canBookings) {
         $kpiCards[] = [
-            'label' => 'Bookings (This Month)',
+            'label' => __("$t.cards.bookings_this_month"),
             'value' => $bookingCountMonth ?? 0,
             'icon' => 'calendar-check',
             'color' => 'emerald',
@@ -13,15 +14,15 @@
         ];
     }
     if ($canQuotations && $canBookings) {
-        $kpiCards[] = ['label' => 'Quotations Ready to Book', 'value' => $kpis['ready_to_book'] ?? 0, 'icon' => 'file-circle-check', 'color' => 'amber'];
+        $kpiCards[] = ['label' => __("$t.cards.quotations_ready_to_book"), 'value' => $kpis['ready_to_book'] ?? 0, 'icon' => 'file-circle-check', 'color' => 'amber'];
     }
     if ($canBookings) {
-        $kpiCards[] = ['label' => 'Upcoming Trips', 'value' => $kpis['upcoming_trips'] ?? 0, 'icon' => 'plane-departure', 'color' => 'sky'];
-        $kpiCards[] = ['label' => 'Trips Pending Closure', 'value' => $kpis['pending_closure'] ?? 0, 'icon' => 'calendar-times', 'color' => 'rose'];
+        $kpiCards[] = ['label' => __("$t.cards.upcoming_trips"), 'value' => $kpis['upcoming_trips'] ?? 0, 'icon' => 'plane-departure', 'color' => 'sky'];
+        $kpiCards[] = ['label' => __("$t.cards.trips_pending_closure"), 'value' => $kpis['pending_closure'] ?? 0, 'icon' => 'calendar-times', 'color' => 'rose'];
     }
     if ($canInquiries) {
         $kpiCards[] = [
-            'label' => 'Inquiries',
+            'label' => ui_term('inquiries'),
             'value' => $inquiryCount ?? 0,
             'icon' => 'circle-question',
             'color' => 'sky',
@@ -30,7 +31,7 @@
     }
     if ($canItineraries) {
         $kpiCards[] = [
-            'label' => 'Itineraries',
+            'label' => ui_term('itineraries'),
             'value' => $itineraryCount ?? 0,
             'icon' => 'route',
             'color' => 'indigo',
@@ -39,7 +40,7 @@
     }
     if ($canQuotations) {
         $kpiCards[] = [
-            'label' => 'Quotations',
+            'label' => ui_term('quotations'),
             'value' => $quotationCount ?? 0,
             'icon' => 'file-invoice-dollar',
             'color' => 'teal',
@@ -48,22 +49,22 @@
     }
 
     $statusBadges = [
-        'draft' => ['label' => 'D', 'bg' => 'bg-slate-100', 'text' => 'text-slate-700'],
-        'processed' => ['label' => 'PR', 'bg' => 'bg-sky-100', 'text' => 'text-sky-700'],
-        'pending' => ['label' => 'P', 'bg' => 'bg-amber-100', 'text' => 'text-amber-700'],
-        'approved' => ['label' => 'A', 'bg' => 'bg-emerald-100', 'text' => 'text-emerald-700'],
-        'rejected' => ['label' => 'R', 'bg' => 'bg-rose-100', 'text' => 'text-rose-700'],
-        'final' => ['label' => 'F', 'bg' => 'bg-violet-100', 'text' => 'text-violet-700'],
+        'draft' => ['label' => __("$t.status_badges.draft"), 'bg' => 'bg-slate-100', 'text' => 'text-slate-700'],
+        'processed' => ['label' => __("$t.status_badges.processed"), 'bg' => 'bg-sky-100', 'text' => 'text-sky-700'],
+        'pending' => ['label' => __("$t.status_badges.pending"), 'bg' => 'bg-amber-100', 'text' => 'text-amber-700'],
+        'approved' => ['label' => __("$t.status_badges.approved"), 'bg' => 'bg-emerald-100', 'text' => 'text-emerald-700'],
+        'rejected' => ['label' => __("$t.status_badges.rejected"), 'bg' => 'bg-rose-100', 'text' => 'text-rose-700'],
+        'final' => ['label' => __("$t.status_badges.final"), 'bg' => 'bg-violet-100', 'text' => 'text-violet-700'],
     ];
 @endphp
 
 <div class="sa-wrap rounded-3xl border border-slate-200/80 bg-slate-100/70 p-3 dark:border-slate-700 dark:bg-slate-900/60" data-progressive-dashboard>
-    @section('page_title', 'Reservation Dashboard')
-    @section('page_subtitle', 'Manage approved quotations and monitor upcoming travel schedules.')
+    @section('page_title', __('ui.reservation_dashboard.page_title'))
+    @section('page_subtitle', __('ui.reservation_dashboard.page_subtitle'))
     @section('page_actions')
         @if($canBookings)
              <a href="{{ route('bookings.index') }}"  class="btn-primary-sm">
-                <i class="fa-solid fa-calendar-check mr-2"></i>View All Bookings
+                <i class="fa-solid fa-calendar-check mr-2"></i>{{ __('ui.reservation_dashboard.actions.view_all_bookings') }}
             </a>
         @endif
     @endsection
@@ -122,27 +123,27 @@
         @if($canBookings)
             <div class="grid grid-cols-1 gap-3 lg:grid-cols-3" data-progressive-group>
                 <div class="app-card p-4" data-progressive-item>
-                    <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100">{{ __('Booking Insights (This Month)') }}</h3>
+                    <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100">{{ __("$t.insights.title") }}</h3>
                     <div class="mt-3 space-y-2 text-xs text-slate-600 dark:text-slate-300">
                         <div class="flex items-center justify-between">
-                            <span>{{ __('Top Destination') }}</span>
+                            <span>{{ __("$t.insights.top_destination") }}</span>
                             <span class="font-semibold text-slate-700 dark:text-slate-100">{{ $topDestinationSummary ?? '?' }}</span>
                         </div>
                         <div class="flex items-center justify-between">
-                            <span>{{ __('Avg SLA (Approval ? Booking)') }}</span>
+                            <span>{{ __("$t.insights.avg_sla") }}</span>
                             <span class="font-semibold text-slate-700 dark:text-slate-100">
-                                {{ $slaDaysAvg !== null ? number_format($slaDaysAvg, 1) . ' days' : '?' }}
+                                {{ $slaDaysAvg !== null ? __("$t.insights.days_value", ['value' => number_format($slaDaysAvg, 1)]) : '?' }}
                             </span>
                         </div>
                         <div class="flex items-center justify-between">
-                            <span>{{ __('Overdue to Close') }}</span>
+                            <span>{{ __("$t.insights.overdue_to_close") }}</span>
                             <span class="font-semibold text-rose-600 dark:text-rose-300">{{ number_format($overdueCloseCount ?? 0) }}</span>
                         </div>
                     </div>
                 </div>
 
                 <div class="app-card p-4" data-progressive-item>
-                    <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100">{{ __('Weekly Booking Trend') }}</h3>
+                    <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100">{{ __("$t.weekly_trend.title") }}</h3>
                     @php($maxWeekly = max(array_column($weeklyBookingTrend ?? [], 'count') ?: [0]))
                     <div class="mt-3 space-y-2">
                         @if(! empty($weeklyBookingTrend ?? []))
@@ -159,16 +160,16 @@
                                 </div>
                             @endforeach
                         @else
-                            <p class="text-xs text-slate-500 dark:text-slate-400">{{ __('No booking data this period.') }}</p>
+                            <p class="text-xs text-slate-500 dark:text-slate-400">{{ __("$t.weekly_trend.empty") }}</p>
                         @endif
                     </div>
                 </div>
 
                 <div class="app-card p-4" data-progressive-item>
-                    <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100">{{ __('Booking Performance (This Month)') }}</h3>
+                    <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100">{{ __("$t.performance.title") }}</h3>
                     <div class="mt-3 space-y-3">
                         <div>
-                            <p class="text-[11px] font-semibold uppercase text-slate-500 dark:text-slate-400">{{ __('By Staff') }}</p>
+                            <p class="text-[11px] font-semibold uppercase text-slate-500 dark:text-slate-400">{{ __("$t.performance.by_staff") }}</p>
                             <div class="mt-2 space-y-1">
                                 @if(! empty($bookingByStaff ?? []))
                                     @foreach($bookingByStaff as $row)
@@ -178,12 +179,12 @@
                                         </div>
                                     @endforeach
                                 @else
-                                    <p class="text-xs text-slate-500 dark:text-slate-400">{{ __('No booking data.') }}</p>
+                                    <p class="text-xs text-slate-500 dark:text-slate-400">{{ __("$t.performance.empty") }}</p>
                                 @endif
                             </div>
                         </div>
                         <div>
-                            <p class="text-[11px] font-semibold uppercase text-slate-500 dark:text-slate-400">{{ __('Top Customers') }}</p>
+                            <p class="text-[11px] font-semibold uppercase text-slate-500 dark:text-slate-400">{{ __("$t.performance.top_customers") }}</p>
                             <div class="mt-2 space-y-1">
                                 @if(! empty($topCustomers ?? []))
                                     @foreach($topCustomers as $row)
@@ -193,7 +194,7 @@
                                         </div>
                                     @endforeach
                                 @else
-                                    <p class="text-xs text-slate-500 dark:text-slate-400">{{ __('No booking data.') }}</p>
+                                    <p class="text-xs text-slate-500 dark:text-slate-400">{{ __("$t.performance.empty") }}</p>
                                 @endif
                             </div>
                         </div>
@@ -205,8 +206,8 @@
         @if($canQuotations && $canBookings)
             <div class="sa-card p-5" data-progressive-group>
                 <div class="flex items-center justify-between">
-                    <h2 class="text-sm font-semibold text-slate-900 dark:text-slate-100">{{ __('Action Center: Approved Quotations to Book') }}</h2>
-                     <a href="{{ route('quotations.index', ['status' => 'approved']) }}" class="text-xs font-medium text-indigo-600 hover:text-indigo-500 dark:text-indigo-400">View all</a>
+                    <h2 class="text-sm font-semibold text-slate-900 dark:text-slate-100">{{ __("$t.action_center.title") }}</h2>
+                     <a href="{{ route('quotations.index', ['status' => 'approved']) }}" class="text-xs font-medium text-indigo-600 hover:text-indigo-500 dark:text-indigo-400">{{ __("$t.common.view_all") }}</a>
                 </div>
                 <div class="mt-3 flow-root">
                     <div class="-my-2 overflow-x-auto">
@@ -222,20 +223,20 @@
                                                         {{ $quotation->quotation_number }}
                                                     </a>
                                                     <p class="text-xs text-slate-500 dark:text-slate-400">
-                                                        {{ $quotation->inquiry?->customer?->name ?? 'N/A' }}
+                                                        {{ $quotation->inquiry?->customer?->name ?? __("$t.common.na") }}
                                                     </p>
                                                 </td>
                                                 <td class="whitespace-nowrap px-3 py-2 text-sm text-slate-500 dark:text-slate-300">
                                                     <p class="font-semibold text-slate-700 dark:text-slate-200"><x-money :amount="$quotation->final_amount" /></p>
-                                                    <p class="text-xs">{{ __('Final Amount') }}</p>
+                                                    <p class="text-xs">{{ __("$t.action_center.final_amount") }}</p>
                                                 </td>
                                                 <td class="whitespace-nowrap px-3 py-2 text-sm text-slate-500 dark:text-slate-300">
                                                      <p class="font-semibold text-slate-700 dark:text-slate-200">{{ \App\Support\DateTimeDisplay::date($quotation->updated_at) }}</p>
-                                                     <p class="text-xs">{{ __('Approved Date') }}</p>
+                                                     <p class="text-xs">{{ __("$t.action_center.approved_date") }}</p>
                                                 </td>
                                                 <td class="whitespace-nowrap px-3 py-2 text-right text-sm">
                                                     <a href="{{ route('bookings.create', ['quotation_id' => $quotation->id]) }}" class="btn-primary-sm">
-                                                        <i class="fa-solid fa-plus-circle mr-2"></i>Create Booking
+                                                        <i class="fa-solid fa-plus-circle mr-2"></i>{{ __("$t.action_center.create_booking") }}
                                                     </a>
                                                 </td>
                                             </tr>
@@ -243,7 +244,7 @@
                                         @else
                                             <tr>
                                                 <td colspan="4" class="py-8 text-center text-sm text-slate-500 dark:text-slate-400">
-                                                    No approved quotations ready for booking.
+                                                    {{ __("$t.action_center.empty") }}
                                                 </td>
                                             </tr>
                                         @endif
@@ -259,7 +260,7 @@
         @if($canBookings)
             <div class="grid grid-cols-1 gap-3 lg:grid-cols-2" data-progressive-group>
                 <div class="sa-card p-4" data-progressive-item>
-                    <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100">{{ __('Upcoming Trips (Next 30 Days)') }}</h3>
+                    <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100">{{ __("$t.upcoming.title") }}</h3>
                     <div class="mt-3 space-y-2">
                         @if(! empty($upcomingTrips ?? []))
                             @foreach($upcomingTrips as $booking)
@@ -269,17 +270,17 @@
                                         <span class="font-semibold text-slate-600 dark:text-slate-300">{{ \App\Support\DateTimeDisplay::date($booking->travel_date) }}</span>
                                     </div>
                                     <p class="text-slate-500 dark:text-slate-400">
-                                        Customer: {{ $booking->quotation?->inquiry?->customer?->name ?? 'N/A' }}
+                                        {{ __("$t.upcoming.customer_label") }} {{ $booking->quotation?->inquiry?->customer?->name ?? __("$t.common.na") }}
                                     </p>
                                 </a>
                             @endforeach
                         @else
-                            <p class="py-4 text-center text-xs text-slate-500 dark:text-slate-400">{{ __('No upcoming trips.') }}</p>
+                            <p class="py-4 text-center text-xs text-slate-500 dark:text-slate-400">{{ __("$t.upcoming.empty") }}</p>
                         @endif
                     </div>
                 </div>
                 <div class="sa-card p-4" data-progressive-item>
-                    <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100">{{ __('Recent Active Bookings') }}</h3>
+                    <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100">{{ __("$t.recent.title") }}</h3>
                     <div class="mt-3 space-y-2">
                         @if(! empty($recentBookings ?? []))
                             @foreach($recentBookings as $booking)
@@ -289,12 +290,12 @@
                                         <x-status-badge :status="$booking->status" />
                                     </div>
                                     <p class="text-slate-500 dark:text-slate-400">
-                                        Confirmed on {{ \App\Support\DateTimeDisplay::date($booking->created_at) }}
+                                        {{ __("$t.recent.confirmed_on") }} {{ \App\Support\DateTimeDisplay::date($booking->created_at) }}
                                     </p>
                                 </a>
                             @endforeach
                         @else
-                            <p class="py-4 text-center text-xs text-slate-500 dark:text-slate-400">{{ __('No recent bookings.') }}</p>
+                            <p class="py-4 text-center text-xs text-slate-500 dark:text-slate-400">{{ __("$t.recent.empty") }}</p>
                         @endif
                     </div>
                 </div>
@@ -316,6 +317,3 @@
     })();
 </script>
 @endpush
-
-
-

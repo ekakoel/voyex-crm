@@ -77,7 +77,7 @@ class DashboardController extends Controller
         $monthlyData = collect(range(1, 12))->map(function (int $month) use ($monthlyDataRaw) {
             return [
                 'month' => $month,
-                'label' => Carbon::create()->month($month)->format('M'),
+                'label' => Carbon::create()->locale((string) app()->getLocale())->month($month)->translatedFormat('M'),
                 'total' => (float) ($monthlyDataRaw[$month] ?? 0),
             ];
         });

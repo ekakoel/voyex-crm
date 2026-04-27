@@ -4155,7 +4155,7 @@
                 const renderMapLegend = (dayList) => {
                     if (!mapLegendEl) return;
                     if (!Array.isArray(dayList) || dayList.length === 0) {
-                        mapLegendEl.innerHTML = '<span class="text-[11px] text-gray-500 dark:text-gray-400">No day route selected.</span>';
+                        mapLegendEl.innerHTML = `<span class="text-[11px] text-gray-500 dark:text-gray-400">${@json(__('No day route selected.'))}</span>`;
                         return;
                     }
                     let html = '';
@@ -4773,7 +4773,7 @@
                             } else {
                                 if (!previousOption) {
                                     startType.insertAdjacentHTML('afterbegin',
-                                        '<option value="previous_day_end">Previous Day Endpoint (Auto)</option>'
+                                        '<option value="previous_day_end">' + @json(__('Previous Day Endpoint (Auto)')) + '</option>'
                                         );
                                 }
                             }
@@ -4782,7 +4782,7 @@
                         if (endType) {
                             const airportOption = endType.querySelector('option[value="airport"]');
                             if (!airportOption) {
-                                endType.insertAdjacentHTML('beforeend', '<option value="airport">Airport</option>');
+                                endType.insertAdjacentHTML('beforeend', '<option value="airport">' + @json(__('Airport')) + '</option>');
                             }
                         }
                     });

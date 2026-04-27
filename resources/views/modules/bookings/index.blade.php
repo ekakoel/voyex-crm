@@ -2,7 +2,7 @@
 @section('page_title', __('ui.modules.bookings.page_title'))
 @section('page_subtitle', __('ui.modules.bookings.page_subtitle'))
 @section('page_actions')
-    <a href="{{ route('bookings.export', request()->query()) }}" class="btn-secondary">Export CSV</a>
+    <a href="{{ route('bookings.export', request()->query()) }}" class="btn-secondary">{{ __('Export CSV') }}</a>
     <a href="{{ route('bookings.create') }}" class="btn-primary">{{ __('ui.modules.bookings.add_booking') }}</a>
 @endsection
 @section('content')
@@ -157,7 +157,6 @@
         </div>
 </div>
 @endsection
-
 
 
 

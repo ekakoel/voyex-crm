@@ -88,7 +88,7 @@
             <button type="button"
                      class="hidden md:inline-flex items-center justify-center h-9 w-9 rounded-lg hover:bg-gray-700 transition"
                     @click="toggleSidebar()"
-                     :title="sidebarCollapsed ? '{{ __('Show icons + labels') }}' : '{{ __('Show icons only') }}'">
+                     :title="sidebarCollapsed ? '{{ __('ui.sidebar.show_icons_labels') }}' : '{{ __('ui.sidebar.show_icons_only') }}'">
                 <svg x-show="sidebarCollapsed" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                     <path fill-rule="evenodd" d="M12.293 15.707a1 1 0 010-1.414L15.586 11H4a1 1 0 110-2h11.586l-3.293-3.293a1 1 0 111.414-1.414l5 5a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0z" clip-rule="evenodd" />
                 </svg>
@@ -107,6 +107,22 @@
                     'dashboard.finance',
                     'dashboard.director',
                 ];
+                $translateMenuTitle = function (array $entry): string {
+                    $titleKey = trim((string) ($entry['title_key'] ?? ''));
+                    if ($titleKey !== '') {
+                        $translated = __($titleKey);
+                        if ($translated !== $titleKey) {
+                            return $translated;
+                        }
+                    }
+
+                    $rawTitle = (string) ($entry['title'] ?? '');
+                    if (function_exists('ui_term')) {
+                        return ui_term($rawTitle);
+                    }
+
+                    return $rawTitle;
+                };
             @endphp
             @isset($menuItems)
                 @foreach ($menuItems as $item)
@@ -115,11 +131,12 @@
                         @continue
                     @endif
                     @if (($item['type'] ?? null) === 'label')
-                        <div class="px-4 pt-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-white/55 sidebar-label">{{ $item['title'] }}</div>
+                        <div class="px-4 pt-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-white/55 sidebar-label">{{ $translateMenuTitle($item) }}</div>
                         @continue
                     @endif
 
                     @php
+                        $itemTitle = $translateMenuTitle($item);
                         $hasChildren = ! empty($item['children']) && is_array($item['children']);
                         $isDashboardShortcut = ($item['route'] ?? '') === 'dashboard' && request()->routeIs('dashboard.*');
                         $isItemActive = $isDashboardShortcut || request()->routeIs($item['route']) || request()->routeIs($item['route'].'.*');
@@ -140,15 +157,15 @@
                         <div x-data="{ openChildren: {{ $isChildActive ? 'true' : 'false' }} }" 
                              @keydown.escape="openChildren = false">
                             <button type="button"
-                                     class="sidebar-nav-item w-full group flex items-center gap-3 px-4 py-2 rounded-lg transition-colors duration-200 text-left text-white/90 hover:text-white
+                                    class="sidebar-nav-item w-full group flex items-center gap-3 px-4 py-2 rounded-lg transition-colors duration-200 text-left text-white/90 hover:text-white
                                            {{ $isChildActive ? 'bg-gray-700 font-semibold is-active' : 'hover:bg-gray-700' }}"
                                     :class="sidebarCollapsed ? 'md:justify-center md:px-2' : ''"
-                                    :title="sidebarCollapsed ? '{{ $item['title'] }}' : ''"
+                                    :title="sidebarCollapsed ? '{{ $itemTitle }}' : ''"
                                     @click="openChildren = !openChildren">
                                 <span class="inline-flex h-5 w-5 items-center justify-center">
                                     <i class="fa-solid fa-{{ $icon }}"></i>
                                 </span>
-                                <span class="flex-1 truncate sidebar-label">{{ $item['title'] }}</span>
+                                <span class="flex-1 truncate sidebar-label">{{ $itemTitle }}</span>
                                 <span class="text-xs transition-transform duration-200 sidebar-arrow" :class="openChildren ? 'rotate-90' : ''">
                                     <i class="fa-solid fa-caret-right"></i>
                                 </span>
@@ -160,6 +177,7 @@
                                         @if (Route::has($child['route']))
                                             @php
                                                 $isBackgroundLoadChildRoute = in_array((string) $child['route'], $backgroundLoadRoutes, true);
+                                                $childTitle = $translateMenuTitle($child);
                                             @endphp
                                             <a href="{{ route($child['route']) }}"
                                                 data-page-spinner="{{ $isBackgroundLoadChildRoute ? 'off' : 'on' }}"
@@ -168,7 +186,7 @@
                                                 <span class="inline-flex h-4 w-4 items-center justify-center text-xs">
                                                     <i class="fa-solid fa-{{ $child['icon'] ?? 'list' }}"></i>
                                                 </span>
-                                                <span>{{ $child['title'] }}</span>
+                                                <span>{{ $childTitle }}</span>
                                             </a>
                                         @endif
                                     @endforeach
@@ -185,11 +203,11 @@
                                 class="sidebar-nav-item group flex items-center gap-3 px-4 py-2 rounded-lg transition-colors duration-200 text-white/90 hover:text-white
                                       {{ $isItemActive ? 'bg-gray-700 font-semibold is-active' : 'hover:bg-gray-700' }}"
                                :class="sidebarCollapsed ? 'md:justify-center md:px-2' : ''"
-                               :title="sidebarCollapsed ? '{{ $item['title'] }}' : ''">
+                               :title="sidebarCollapsed ? '{{ $itemTitle }}' : ''">
                                 <span class="inline-flex h-5 w-5 items-center justify-center">
                                     <i class="fa-solid fa-{{ $icon }}"></i>
                                 </span>
-                                <span class="truncate sidebar-label">{{ $item['title'] }}</span>
+                                <span class="truncate sidebar-label">{{ $itemTitle }}</span>
                             </a>
                         @endif
                     @endif
@@ -243,7 +261,7 @@
                 @endif
             </div>
 
-            <div class="ml-auto flex items-center gap-3 sm:gap-4 md:gap-6 min-w-0">
+            <div class="ml-auto flex items-center gap-2 min-w-0">
                 @php
                     $approvalNotif = is_array($quotationApprovalNotification ?? null) ? $quotationApprovalNotification : ['visible' => false, 'count' => 0, 'role' => null];
                     $notifCount = (int) ($approvalNotif['count'] ?? 0);
@@ -302,6 +320,55 @@
                         data-user-id="{{ auth()->id() }}"
                     ></span>
                 @endif
+
+                @php
+                    $supportedLocales = (array) config('app.supported_locales', []);
+                    $activeLocale = (string) app()->getLocale();
+                    $localeShortLabels = [
+                        'en' => 'EN',
+                        'zh_Hant' => '繁',
+                        'zh_Hans' => '简',
+                    ];
+                    $activeLocaleShort = $localeShortLabels[$activeLocale] ?? strtoupper(substr($activeLocale, 0, 2));
+                @endphp
+
+                <!-- Language Switch -->
+                {{-- <div x-data="{ open: false }" class="relative shrink-0">
+                    <button
+                        type="button"
+                        @click="open = !open"
+                        class="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-2.5 py-1.5 text-gray-700 dark:border-gray-700 dark:text-gray-200"
+                        title="{{ __('ui.common.switch_language') }}"
+                        aria-label="{{ __('ui.common.switch_language') }}"
+                    >
+                        <i class="fa-solid fa-language"></i>
+                        <span class="hidden sm:inline truncate max-w-[140px] md:max-w-[180px]">{{ $activeLocaleShort }}</span>
+                        <i class="fa-solid fa-chevron-down text-[10px] transition-transform" :class="open ? 'rotate-180' : ''"></i>
+                    </button>
+
+                    <div
+                        x-show="open"
+                        @click.outside="open = false"
+                        x-cloak
+                        class="absolute right-0 mt-2 w-44 rounded-lg border bg-white py-1 shadow-lg dark:border-gray-700 dark:bg-gray-800 z-10"
+                    >
+                        @foreach ($supportedLocales as $localeKey => $localeLabel)
+                            <form method="POST" action="{{ route('locale.set') }}">
+                                @csrf
+                                <input type="hidden" name="locale" value="{{ $localeKey }}">
+                                <button
+                                    type="submit"
+                                    class="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 {{ $activeLocale === $localeKey ? 'font-semibold text-indigo-600 dark:text-indigo-300' : 'text-gray-700 dark:text-gray-200' }}"
+                                >
+                                    <span>{{ $localeLabel }}</span>
+                                    @if ($activeLocale === $localeKey)
+                                        <i class="fa-solid fa-check text-xs"></i>
+                                    @endif
+                                </button>
+                            </form>
+                        @endforeach
+                    </div>
+                </div> --}}
 
                 <!-- Currency Switch -->
                 <div class="hidden sm:flex items-center gap-2">
@@ -371,12 +438,12 @@
                          x-cloak class="absolute right-0 mt-2 w-44 sm:w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border dark:border-gray-700 py-1 z-10">
 
                         <a href="{{ route('profile.edit') }}"  class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">
-                            Profile
+                            {{ __('Profile') }}
                         </a>
                         @can('module.quotations.access')
                             @if (Route::has('quotations.my'))
                                 <a href="{{ route('quotations.my') }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">
-                                    My Quotations
+                                    {{ __('My Quotations') }}
                                 </a>
                             @endif
                         @endcan
@@ -384,7 +451,7 @@
                         <form method="POST" action="{{ route('logout') }}">
                             @csrf
                             <button type="submit"  class="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">
-                                Logout
+                                {{ __('Logout') }}
                             </button>
                         </form>
 
@@ -418,17 +485,43 @@
                     ? trim((string) $__env->yieldContent('page_subtitle'))
                     : $defaultSubtitle;
                 $hidePageHeader = trim((string) $__env->yieldContent('page_header_hidden')) === '1';
-                $actionLabel = match ($routeAction) {
-                    'index' => 'List',
-                    'create', 'store' => 'Create',
-                    'edit', 'update' => 'Edit',
-                    'show' => 'Detail',
-                    default => \Illuminate\Support\Str::headline(str_replace('-', ' ', $routeAction)),
+                $normalizeBreadcrumbToken = function (string $value): string {
+                    $value = \Illuminate\Support\Str::replace('-', '_', trim($value));
+                    $value = \Illuminate\Support\Str::snake($value);
+                    $value = preg_replace('/[^a-z0-9_]+/', '_', (string) $value) ?? '';
+                    $value = preg_replace('/_+/', '_', (string) $value) ?? '';
+
+                    return trim((string) $value, '_');
                 };
-                $resourceLabel = \Illuminate\Support\Str::headline(str_replace('-', ' ', $routeResource));
+                $actionLabel = (function () use ($routeAction, $normalizeBreadcrumbToken): string {
+                    $normalized = $normalizeBreadcrumbToken($routeAction);
+                    $actionAlias = match ($normalized) {
+                        'store' => 'create',
+                        'update' => 'edit',
+                        default => $normalized,
+                    };
+                    $actionKey = 'ui.breadcrumb.actions.'.$actionAlias;
+                    if (\Illuminate\Support\Facades\Lang::has($actionKey)) {
+                        return __($actionKey);
+                    }
+
+                    return __(\Illuminate\Support\Str::headline(str_replace('_', ' ', $actionAlias)));
+                })();
+                $resourceLabel = (function () use ($routeResource, $normalizeBreadcrumbToken): string {
+                    $normalized = $normalizeBreadcrumbToken($routeResource);
+                    $resourceKey = 'ui.breadcrumb.resources.'.$normalized;
+                    if (\Illuminate\Support\Facades\Lang::has($resourceKey)) {
+                        return __($resourceKey);
+                    }
+                    if (function_exists('ui_term')) {
+                        return ui_term($routeResource);
+                    }
+
+                    return __(\Illuminate\Support\Str::headline(str_replace('-', ' ', $routeResource)));
+                })();
                 $breadcrumbs = [
                     [
-                        'label' => 'Dashboard',
+                        'label' => __('ui.breadcrumb.dashboard'),
                         'url' => \Illuminate\Support\Facades\Route::has('dashboard') ? route('dashboard') : url('/'),
                     ],
                 ];
@@ -1185,10 +1278,11 @@
                 return;
             }
 
-            const title = 'New quotation needs approval';
+            const title = @json(__('New quotation needs approval'));
+            const bodyWithNumberTemplate = @json(__('Quotation :number requires your approval.'));
             const body = quotationNumber
-                ? `Quotation ${quotationNumber} requires your approval.`
-                : 'A new quotation requires your approval.';
+                ? bodyWithNumberTemplate.replace(':number', quotationNumber)
+                : @json(__('A new quotation requires your approval.'));
 
             const trigger = () => {
                 try {
@@ -1330,10 +1424,17 @@
             const safeType = String(itemType || '').trim() || 'item';
             const safeName = String(itemName || '').trim() || 'manual item';
             const safeCreator = String(creatorName || '').trim();
-            const title = 'Manual item needs validation';
+            const title = @json(__('Manual item needs validation'));
+            const bodyWithCreatorTemplate = @json(__(':type: :name was created by :creator.'));
+            const bodyWithoutCreatorTemplate = @json(__(':type: :name was created and needs validation.'));
             const body = safeCreator !== ''
-                ? `${safeType.toUpperCase()}: ${safeName} was created by ${safeCreator}.`
-                : `${safeType.toUpperCase()}: ${safeName} was created and needs validation.`;
+                ? bodyWithCreatorTemplate
+                    .replace(':type', safeType.toUpperCase())
+                    .replace(':name', safeName)
+                    .replace(':creator', safeCreator)
+                : bodyWithoutCreatorTemplate
+                    .replace(':type', safeType.toUpperCase())
+                    .replace(':name', safeName);
 
             if (!('Notification' in window)) {
                 playNotificationTone();
@@ -1481,7 +1582,7 @@
             fullscreenToggleBtn.classList.remove('hidden');
             const active = fullscreenPreferenceOn || isFullscreenNow();
             fullscreenIconNode.className = active ? 'fa-solid fa-compress' : 'fa-solid fa-expand';
-            fullscreenToggleBtn.title = active ? 'Matikan fullscreen' : 'Aktifkan fullscreen';
+            fullscreenToggleBtn.title = active ? @json(__('Disable fullscreen')) : @json(__('Enable fullscreen'));
             fullscreenToggleBtn.setAttribute('aria-label', fullscreenToggleBtn.title);
         };
 

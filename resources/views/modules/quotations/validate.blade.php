@@ -115,7 +115,7 @@
                     })();
 
                     currentEl.innerHTML = `
-                        <p class="mb-2 text-[11px] text-gray-500 dark:text-gray-400">This section shows the rate currently used by this quotation item.</p>
+                        <p class="mb-2 text-[11px] text-gray-500 dark:text-gray-400">{{ __('This section shows the rate currently used by this quotation item.') }}</p>
                         <div><span class="font-semibold">{{ __('ui.modules.quotations.active_contract_rate') }}:</span> ${formatMoneyFromIdr(item.contract_rate)}</div>
                         <div class="mt-1"><span class="font-semibold">{{ __('ui.modules.quotations.active_markup_type') }}:</span> ${normalizedMarkupType}</div>
                         <div class="mt-1"><span class="font-semibold">{{ __('ui.modules.quotations.active_markup') }}:</span> ${markupDisplay}</div>

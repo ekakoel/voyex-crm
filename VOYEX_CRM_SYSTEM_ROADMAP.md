@@ -199,6 +199,73 @@ Kebijakan ini wajib untuk setiap update code (penambahan, perubahan, pengurangan
 
 # CHANGELOG (LATEST)
 
+Date: 2026-04-27
+Completed in this cycle:
+
+- Chinese locale readiness + top navbar language switch:
+  - confirmed locale infrastructure is active for:
+    - `en`
+    - `zh_Hant`
+    - `zh_Hans`
+    via `config/app.php` (`supported_locales`), `SetLocale` middleware, and `POST /locale` endpoint.
+  - updated locale labels in `config/app.php` to native naming:
+    - `zh_Hant` -> `繁體中文`
+    - `zh_Hans` -> `简体中文`
+  - added top navbar language switcher in `resources/views/layouts/master.blade.php`:
+    - globe button with current locale short label (`EN` / `繁` / `简`),
+    - dropdown with all supported locales,
+    - per-locale submit to `locale.set`,
+    - active locale indicator (check icon).
+  - added language-related UI keys:
+    - `ui.common.language`
+    - `ui.common.switch_language`
+    in:
+    - `lang/en/ui.php`
+    - `lang/zh_Hant/ui.php`
+    - `lang/zh_Hans/ui.php`
+  - impact:
+    - authenticated users can change app language directly from the main top navbar without leaving current page.
+    - Chinese locale options are clearer and easier to recognize in UI.
+  - locale coverage expansion:
+    - translated itinerary wizard dictionary for:
+      - `lang/zh_Hans/itinerary_form.php`
+      - `lang/zh_Hant/itinerary_form.php`
+    - added core Laravel locale files for both Chinese variants:
+      - `auth.php`
+      - `passwords.php`
+      - `pagination.php`
+      - `validation.php`
+    - translated high-frequency shared labels in:
+      - `lang/zh_Hans/ui.php`
+      - `lang/zh_Hant/ui.php`
+    - improved JSON fallback translations for top-navbar/common literals in:
+      - `lang/zh_Hans.json`
+      - `lang/zh_Hant.json`
+    - ran bulk Chinese localization pass on shared `ui.php` dictionaries to reduce untranslated values significantly (tracked via key-value comparison against `lang/en/ui.php`).
+  - top navbar i18n completeness:
+    - converted user dropdown literals (`Profile`, `My Quotations`, `Logout`) to translatable strings via `__()`.
+    - converted topbar JS notification/fullscreen literals to translatable strings via Blade-injected localization (`@json(__('...'))`).
+  - parser safety hardening:
+    - fixed potential Blade parser conflict (`Unclosed '[' does not match ')'`) in `resources/views/layouts/master.blade.php` by removing nested array-literal usage inside `@json(__('...'))` and switching to placeholder-safe `str_replace(...)` pattern before JSON injection.
+  - chinese coverage result (batch progression):
+    - baseline unresolved (same as `lang/en/ui.php`): `699` keys.
+    - after batch rollout: `177` keys.
+    - current unresolved: `2` keys (`WhatsApp`, `Asia/Jakarta` as intentional proper-value literals).
+  - QA sweep runtime i18n (target pages):
+    - performed focused i18n runtime sweep on:
+      - dashboards (administrator, superadmin, manager, director, marketing, reservation, editor, admin),
+      - itinerary (`_form`),
+      - quotation validation page,
+      - bookings index.
+    - converted remaining hardcoded literals on those pages to translation calls (`__()`), including:
+      - action/button labels (`Export CSV`, `Users`, `Roles`, `Modules`, `Vendors`, `Open Item`),
+      - status/metadata labels (`Updated:`, `Validity:`, `Assigned to:`, `Customer:`, `Customer not set`, `Overdue`),
+      - dashboard cards/headers (`Need Validation`, `Validated Today`, `Recent Pending Items`, `Content Scope`, `Inquiry -> Invoice`, `Failed Jobs`, `Queue`),
+      - quotation validation helper copy and itinerary form JS dynamic labels.
+    - synced new literals into:
+      - `lang/zh_Hans.json`
+      - `lang/zh_Hant.json`
+
 Date: 2026-04-23
 Completed in this cycle:
 
