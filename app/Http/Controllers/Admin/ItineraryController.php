@@ -735,6 +735,84 @@ class ItineraryController extends Controller
         ]);
     }
 
+    public function manualItemValidationNotifications(Request $request)
+    {
+        $user = $request->user();
+        if (! $user) {
+            return response()->json([
+                'enabled' => false,
+                'count' => 0,
+                'latest' => null,
+            ], 401);
+        }
+
+        if (! $user->can('itineraries.manual_item_queue.view')) {
+            return response()->json([
+                'enabled' => false,
+                'count' => 0,
+                'latest' => null,
+            ]);
+        }
+
+        $baseQuery = $this->pendingManualItemValidationQuery($user);
+
+        $count = (clone $baseQuery)->count();
+        $latest = (clone $baseQuery)->latest('id')->first();
+        $latestProperties = is_array($latest?->properties) ? $latest->properties : [];
+
+        return response()->json([
+            'enabled' => true,
+            'count' => (int) $count,
+            'latest' => $latest ? [
+                'id' => (int) $latest->id,
+                'item_type' => (string) ($latestProperties['item_type'] ?? ''),
+                'item_name' => (string) ($latestProperties['item_name'] ?? ''),
+                'creator_name' => (string) ($latestProperties['creator_name'] ?? ''),
+                'edit_url' => (string) ($latestProperties['edit_url'] ?? ''),
+                'created_at' => optional($latest->created_at)->toIso8601String(),
+            ] : null,
+        ]);
+    }
+
+    public function manualItemValidationQueue(Request $request)
+    {
+        $user = $request->user();
+        abort_unless($user && $user->can('itineraries.manual_item_queue.view'), 403);
+
+        $logs = $this->pendingManualItemValidationQuery($user)
+            ->latest('id')
+            ->paginate(20)
+            ->withQueryString();
+
+        return view('editor.manual-item-queue', compact('logs'));
+    }
+
+    public function markManualItemValidated(Request $request, ActivityLog $activityLog)
+    {
+        $user = $request->user();
+        abort_unless($user && $user->can('itineraries.manual_item_queue.validate'), 403);
+
+        $isManualCreatedLog = (string) ($activityLog->module ?? '') === 'itinerary_day_planner'
+            && (string) ($activityLog->action ?? '') === 'manual_item_created';
+        if (! $isManualCreatedLog) {
+            return back()->with('error', 'Selected item is not part of manual item validation queue.');
+        }
+
+        $properties = is_array($activityLog->properties) ? $activityLog->properties : [];
+        if (! empty($properties['validated_at'])) {
+            return back()->with('success', 'Item is already marked as validated.');
+        }
+
+        $properties['validated_at'] = now()->toIso8601String();
+        $properties['validated_by'] = (int) ($user->id ?? 0);
+        $properties['validated_by_name'] = (string) ($user->name ?? 'Editor');
+        $properties['requires_validation'] = false;
+        $activityLog->properties = $properties;
+        $activityLog->save();
+
+        return back()->with('success', 'Manual item marked as validated.');
+    }
+
     public function activitySuggestions(Request $request)
     {
         $validated = $request->validate([
@@ -808,6 +886,12 @@ class ItineraryController extends Controller
             'vendor:id,name,city,province,latitude,longitude,destination_id',
             'vendor.destination:id,name,city,province',
         ]);
+        $this->logManualItemCreatedForEditorValidation(
+            'activity',
+            (int) $activity->id,
+            (string) $activity->name,
+            route('activities.edit', $activity)
+        );
 
         return response()->json([
             'created' => true,
@@ -895,10 +979,96 @@ class ItineraryController extends Controller
             'is_active' => true,
         ]);
         $attraction->load('destination:id,name,city,province');
+        $this->logManualItemCreatedForEditorValidation(
+            'attraction',
+            (int) $attraction->id,
+            (string) $attraction->name,
+            route('tourist-attractions.edit', $attraction)
+        );
 
         return response()->json([
             'created' => true,
             'data' => $this->formatTouristAttractionSuggestionItem($attraction),
+        ], 201);
+    }
+
+    public function foodBeverageSuggestions(Request $request)
+    {
+        $validated = $request->validate([
+            'q' => ['nullable', 'string', 'max:100'],
+            'destination' => ['nullable', 'string', 'max:100'],
+            'region' => ['nullable', 'string', 'max:100'],
+            'limit' => ['nullable', 'integer', 'min:5', 'max:50'],
+        ]);
+
+        $keyword = trim((string) ($validated['q'] ?? ''));
+        $destination = trim((string) ($validated['destination'] ?? ''));
+        $region = trim((string) ($validated['region'] ?? ''));
+        $limit = (int) ($validated['limit'] ?? 12);
+
+        return response()->json([
+            'data' => $this->buildFoodBeverageSuggestionOptions($keyword, $destination, $region, $limit),
+        ]);
+    }
+
+    public function storeFoodBeverageSuggestion(Request $request)
+    {
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'duration_minutes' => ['nullable', 'integer', 'min:15', 'max:1440'],
+        ]);
+
+        ['name' => $fnbName, 'region' => $regionName, 'vendor' => $vendorName] =
+            $this->parseManualFoodBeverageInputFormat((string) ($validated['name'] ?? ''));
+
+        $existing = FoodBeverage::query()
+            ->with('vendor:id,name,city,province,location,latitude,longitude,destination_id')
+            ->whereRaw('LOWER(name) = ?', [mb_strtolower($fnbName)])
+            ->where('is_active', true)
+            ->whereHas('vendor', function ($query) use ($vendorName) {
+                $query->whereRaw('LOWER(name) = ?', [mb_strtolower($vendorName)]);
+            })
+            ->latest('id')
+            ->first();
+        if ($existing) {
+            return response()->json([
+                'created' => false,
+                'data' => $this->formatFoodBeverageSuggestionItem($existing),
+            ]);
+        }
+
+        $vendor = $this->resolveOrCreateVendorForManualActivity($vendorName, $regionName);
+        $durationMinutes = (int) ($validated['duration_minutes'] ?? 60);
+        $durationMinutes = max(15, min(1440, $durationMinutes));
+
+        $foodBeverage = FoodBeverage::query()->create([
+            'vendor_id' => (int) $vendor->id,
+            'name' => $fnbName,
+            'service_type' => 'Restaurant',
+            'duration_minutes' => $durationMinutes,
+            'contract_rate' => 0,
+            'markup_type' => 'fixed',
+            'markup' => 0,
+            'publish_rate' => 0,
+            'meal_period' => '',
+            'menu_highlights' => '',
+            'notes' => 'Draft created from Itinerary Day Planner quick add. Format source: F&B Name, Region, Vendor. Please complete details and verify pricing.',
+            'is_active' => true,
+        ]);
+        $foodBeverage->load([
+            'vendor:id,name,city,province,location,latitude,longitude,destination_id',
+            'vendor.destination:id,name,city,province',
+        ]);
+        $this->logManualItemCreatedForEditorValidation(
+            'fnb',
+            (int) $foodBeverage->id,
+            (string) $foodBeverage->name,
+            route('food-beverages.edit', $foodBeverage)
+        );
+
+        return response()->json([
+            'created' => true,
+            'data' => $this->formatFoodBeverageSuggestionItem($foodBeverage),
         ], 201);
     }
 
@@ -2801,6 +2971,46 @@ SVG;
     }
 
     /**
+     * @return array{name:string,region:string,vendor:string}
+     */
+    private function parseManualFoodBeverageInputFormat(string $rawInput): array
+    {
+        $normalized = trim(preg_replace('/\s+/', ' ', $rawInput) ?? '');
+        if ($normalized === '') {
+            throw ValidationException::withMessages([
+                'name' => 'Manual format is required: "F&B Name, Region, Vendor".',
+            ]);
+        }
+
+        $parts = preg_split('/\s*,\s*/', $normalized) ?: [];
+        $parts = array_values(array_filter(array_map(
+            static fn ($value) => trim((string) $value),
+            $parts
+        ), static fn ($value) => $value !== ''));
+
+        if (count($parts) < 3) {
+            throw ValidationException::withMessages([
+                'name' => 'Manual format is required: "F&B Name, Region, Vendor". Example: Seafood Dinner, Jimbaran, Ocean Grill.',
+            ]);
+        }
+
+        $name = (string) ($parts[0] ?? '');
+        $region = (string) ($parts[1] ?? '');
+        $vendor = trim(implode(', ', array_slice($parts, 2)));
+        if ($name === '' || $region === '' || $vendor === '') {
+            throw ValidationException::withMessages([
+                'name' => 'Manual format is required: "F&B Name, Region, Vendor".',
+            ]);
+        }
+
+        return [
+            'name' => $name,
+            'region' => $region,
+            'vendor' => $vendor,
+        ];
+    }
+
+    /**
      * @return array<int, array<string, mixed>>
      */
     private function buildActivitySuggestionOptions(string $keyword = '', string $destination = '', string $region = '', int $limit = 12): array
@@ -2908,6 +3118,63 @@ SVG;
     }
 
     /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function buildFoodBeverageSuggestionOptions(string $keyword = '', string $destination = '', string $region = '', int $limit = 12): array
+    {
+        $keyword = trim((string) $keyword);
+        $destination = trim((string) $destination);
+        $region = trim((string) $region);
+
+        $query = FoodBeverage::query()
+            ->with([
+                'vendor:id,name,city,province,location,latitude,longitude,destination_id',
+                'vendor.destination:id,name,city,province',
+            ])
+            ->where('is_active', true);
+
+        if ($keyword !== '') {
+            $query->where(function ($builder) use ($keyword) {
+                $builder->where('name', 'like', '%' . $keyword . '%')
+                    ->orWhereHas('vendor', function ($vendorQuery) use ($keyword) {
+                        $vendorQuery->where('name', 'like', '%' . $keyword . '%')
+                            ->orWhere('city', 'like', '%' . $keyword . '%')
+                            ->orWhere('province', 'like', '%' . $keyword . '%');
+                    });
+            });
+        }
+        if ($destination !== '') {
+            $query->whereHas('vendor', function ($vendorQuery) use ($destination) {
+                $vendorQuery->where(function ($nested) use ($destination) {
+                    $nested->where('city', 'like', '%' . $destination . '%')
+                        ->orWhere('province', 'like', '%' . $destination . '%')
+                        ->orWhere('location', 'like', '%' . $destination . '%')
+                        ->orWhereHas('destination', function ($destinationQuery) use ($destination) {
+                            $destinationQuery->where('name', 'like', '%' . $destination . '%')
+                                ->orWhere('city', 'like', '%' . $destination . '%')
+                                ->orWhere('province', 'like', '%' . $destination . '%');
+                        });
+                });
+            });
+        }
+        if ($region !== '') {
+            $query->whereHas('vendor', function ($vendorQuery) use ($region) {
+                $vendorQuery->where('city', 'like', '%' . $region . '%')
+                    ->orWhere('province', 'like', '%' . $region . '%')
+                    ->orWhere('location', 'like', '%' . $region . '%');
+            });
+        }
+
+        return $query
+            ->orderBy('name')
+            ->limit(max(5, min(50, $limit)))
+            ->get(['id', 'vendor_id', 'name', 'duration_minutes'])
+            ->map(fn (FoodBeverage $foodBeverage) => $this->formatFoodBeverageSuggestionItem($foodBeverage))
+            ->values()
+            ->all();
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function formatTouristAttractionSuggestionItem(TouristAttraction $attraction): array
@@ -2967,6 +3234,34 @@ SVG;
         ];
     }
 
+    /**
+     * @return array<string,mixed>
+     */
+    private function formatFoodBeverageSuggestionItem(FoodBeverage $foodBeverage): array
+    {
+        $vendorName = trim((string) ($foodBeverage->vendor?->name ?? ''));
+        $city = trim((string) ($foodBeverage->vendor?->city ?? ''));
+        $province = trim((string) ($foodBeverage->vendor?->province ?? ''));
+        $region = $city !== '' ? $city : ($province !== '' ? $province : '-');
+        $safeVendorName = $vendorName !== '' ? $vendorName : '-';
+        $label = trim((string) $foodBeverage->name) . ' - ' . $safeVendorName;
+
+        return [
+            'id' => (int) $foodBeverage->id,
+            'name' => (string) $foodBeverage->name,
+            'label' => $label,
+            'vendor_name' => $vendorName,
+            'destination' => (string) ($foodBeverage->vendor?->destination?->name ?? ''),
+            'city' => $city,
+            'province' => $province,
+            'location' => trim((string) ($foodBeverage->vendor?->location ?? '')),
+            'latitude' => $foodBeverage->vendor?->latitude,
+            'longitude' => $foodBeverage->vendor?->longitude,
+            'duration_minutes' => max(1, (int) ($foodBeverage->duration_minutes ?? 60)),
+            'region' => $region,
+        ];
+    }
+
     private function resolveOrCreateActivityType(string $name): ActivityType
     {
         $normalizedName = trim(preg_replace('/\s+/', ' ', $name) ?? '');
@@ -3002,6 +3297,57 @@ SVG;
             'slug' => $slug,
             'is_active' => true,
         ]);
+    }
+
+    private function logManualItemCreatedForEditorValidation(
+        string $itemType,
+        int $itemId,
+        string $itemName,
+        string $editUrl
+    ): void {
+        if ($itemId <= 0) {
+            return;
+        }
+
+        $actor = auth()->user();
+        $normalizedType = strtolower(trim($itemType));
+        $subjectType = match ($normalizedType) {
+            'activity' => Activity::class,
+            'attraction' => TouristAttraction::class,
+            'fnb' => FoodBeverage::class,
+            default => Activity::class,
+        };
+
+        ActivityLog::query()->create([
+            'user_id' => $actor?->id,
+            'module' => 'itinerary_day_planner',
+            'action' => 'manual_item_created',
+            'subject_id' => $itemId,
+            'subject_type' => $subjectType,
+            'properties' => [
+                'item_type' => $normalizedType,
+                'item_name' => trim((string) $itemName),
+                'creator_name' => trim((string) ($actor?->name ?? 'Unknown')),
+                'edit_url' => trim((string) $editUrl),
+                'source' => 'itinerary_day_planner',
+                'requires_validation' => true,
+            ],
+        ]);
+    }
+
+    private function pendingManualItemValidationQuery($user)
+    {
+        return ActivityLog::query()
+            ->where('module', 'itinerary_day_planner')
+            ->where('action', 'manual_item_created')
+            ->where(function ($query) use ($user): void {
+                $query->whereNull('user_id')
+                    ->orWhere('user_id', '!=', (int) ($user?->id ?? 0));
+            })
+            ->where(function ($query): void {
+                $query->whereNull('properties')
+                    ->orWhereRaw("JSON_EXTRACT(properties, '$.validated_at') IS NULL");
+            });
     }
 
 }

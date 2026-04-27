@@ -355,6 +355,24 @@ Route::middleware('auth')->group(function () {
             'permission:module.quotations.access',
             'module.permission:quotations',
         ]);
+    Route::get('itineraries/manual-item-notifications/poll', [AdminItineraryController::class, 'manualItemValidationNotifications'])
+        ->name('itineraries.manual-item-notifications.poll')
+        ->middleware([
+            'module:itineraries',
+            'permission:itineraries.manual_item_queue.view',
+        ]);
+    Route::get('itineraries/manual-item-validation-queue', [AdminItineraryController::class, 'manualItemValidationQueue'])
+        ->name('itineraries.manual-item-validation-queue')
+        ->middleware([
+            'module:itineraries',
+            'permission:itineraries.manual_item_queue.view',
+        ]);
+    Route::patch('itineraries/manual-item-validation-queue/{activityLog}/validate', [AdminItineraryController::class, 'markManualItemValidated'])
+        ->name('itineraries.manual-item-validation-queue.validate')
+        ->middleware([
+            'module:itineraries',
+            'permission:itineraries.manual_item_queue.validate',
+        ]);
     Route::put('quotations/{quotation}/comments/{comment}', [SalesQuotationController::class, 'updateComment'])
         ->name('quotations.comments.update')
         ->middleware([
@@ -443,6 +461,20 @@ Route::middleware('auth')->group(function () {
             ]);
         Route::post('itineraries/tourist-attraction-suggestions', [AdminItineraryController::class, 'storeTouristAttractionSuggestion'])
             ->name('itineraries.tourist-attraction-suggestions.store')
+            ->middleware([
+                'module:itineraries',
+                'permission:module.itineraries.access',
+                'module.permission:itineraries',
+            ]);
+        Route::get('itineraries/food-beverage-suggestions', [AdminItineraryController::class, 'foodBeverageSuggestions'])
+            ->name('itineraries.food-beverage-suggestions')
+            ->middleware([
+                'module:itineraries',
+                'permission:module.itineraries.access',
+                'module.permission:itineraries',
+            ]);
+        Route::post('itineraries/food-beverage-suggestions', [AdminItineraryController::class, 'storeFoodBeverageSuggestion'])
+            ->name('itineraries.food-beverage-suggestions.store')
             ->middleware([
                 'module:itineraries',
                 'permission:module.itineraries.access',

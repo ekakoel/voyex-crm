@@ -3,6 +3,7 @@
 namespace App\Http\View;
 
 use App\Models\Quotation;
+use App\Models\ActivityLog;
 use App\Services\ModuleService;
 use App\Support\CompanySettingsCache;
 use App\Support\SchemaInspector;
@@ -39,6 +40,7 @@ class SidebarComposer
         $view->with('currentCurrency', $currentCurrency);
         $view->with('currencyOptions', $currencyOptions);
         $view->with('quotationApprovalNotification', $this->buildQuotationApprovalNotification($user, $enabledModules));
+        $view->with('editorManualItemNotification', $this->buildEditorManualItemNotification($user, $enabledModules));
     }
 
     /**
@@ -153,6 +155,13 @@ class SidebarComposer
                 'icon'  => 'handshake',
                 'module' => 'vendor_management',
                 'roles' => ['Administrator', 'Super Admin', 'Reservation', 'Manager', 'Marketing', 'Editor'],
+            ],
+            [
+                'title' => 'Item Validation',
+                'route' => 'itineraries.manual-item-validation-queue',
+                'icon'  => 'clipboard-check',
+                'module' => 'itineraries',
+                'permission' => 'itineraries.manual_item_queue.view',
             ],
             [
                 'title' => 'Service Items',
@@ -522,6 +531,55 @@ class SidebarComposer
         }
         
         return trim($cleaned);
+    }
+
+    /**
+     * @param mixed $user
+     * @param array<string, bool> $enabledModules
+     * @return array{visible: bool, count: int}
+     */
+    private function buildEditorManualItemNotification($user, array $enabledModules): array
+    {
+        $empty = [
+            'visible' => false,
+            'count' => 0,
+        ];
+
+        if (! $user || ! SchemaInspector::hasTable('activity_logs')) {
+            return $empty;
+        }
+
+        if (! ($enabledModules['itineraries'] ?? false)) {
+            return $empty;
+        }
+
+        if (! $user->can('itineraries.manual_item_queue.view')) {
+            return $empty;
+        }
+
+        $count = Cache::remember(
+            "sidebar:editor_manual_item_notification:{$user->id}",
+            now()->addSeconds(20),
+            function () use ($user): int {
+                return (int) ActivityLog::query()
+                    ->where('module', 'itinerary_day_planner')
+                    ->where('action', 'manual_item_created')
+                    ->where(function (Builder $query) use ($user): void {
+                        $query->whereNull('user_id')
+                            ->orWhere('user_id', '!=', (int) $user->id);
+                    })
+                    ->where(function (Builder $query): void {
+                        $query->whereNull('properties')
+                            ->orWhereRaw("JSON_EXTRACT(properties, '$.validated_at') IS NULL");
+                    })
+                    ->count();
+            }
+        );
+
+        return [
+            'visible' => true,
+            'count' => max(0, (int) $count),
+        ];
     }
 
 }

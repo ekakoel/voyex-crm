@@ -24,6 +24,8 @@ class PermissionSeeder extends Seeder
         'dashboard.finance.view',
         'dashboard.director.view',
         'dashboard.editor.view',
+        'itineraries.manual_item_queue.view',
+        'itineraries.manual_item_queue.validate',
         'company_settings.manage',
         'quotations.approve',
         'quotations.reject',

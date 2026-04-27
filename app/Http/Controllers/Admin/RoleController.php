@@ -320,6 +320,8 @@ class RoleController extends Controller
         $customLabels = [
             'services.map.view' => 'View Service Map',
             'superadmin.access_matrix.view' => 'View Access Matrix',
+            'itineraries.manual_item_queue.view' => 'View Manual Item Validation Queue',
+            'itineraries.manual_item_queue.validate' => 'Validate Manual Itinerary Items',
         ];
 
         return $customLabels[$name] ?? $this->humanizePermission($name);

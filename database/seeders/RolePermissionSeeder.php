@@ -110,6 +110,9 @@ class RolePermissionSeeder extends Seeder
             ],
             'Editor' => [
                 'dashboard.editor.view',
+                'module.itineraries.access',
+                'itineraries.manual_item_queue.view',
+                'itineraries.manual_item_queue.validate',
                 'module.vendor_management.access',
                 'module.destinations.access',
                 'module.activities.access',

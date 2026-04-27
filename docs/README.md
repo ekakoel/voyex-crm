@@ -1,6 +1,6 @@
 # Documentation Structure
 
-Last Updated: 2026-04-21
+Last Updated: 2026-04-27
 
 ## Canonical Maintenance Rule
 - Canonical docs live in:
@@ -33,6 +33,7 @@ Last Updated: 2026-04-21
 - docs/technical/IMAGE_THUMBNAIL_STANDARD.md
 - docs/technical/DASHBOARD_ASYNC_LOADING_STANDARD.md
 - docs/technical/PERFORMANCE_OPTIMIZATION_STANDARD.md
+- docs/technical/EDITOR_MANUAL_ITEM_VALIDATION_QUEUE.md
 
 ## Archive
 - docs/archive/PROJECT_AUDIT_ARCHIVE.md

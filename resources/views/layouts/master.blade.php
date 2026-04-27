@@ -256,6 +256,8 @@
                         'manager' => 'border-sky-300 bg-sky-50 text-sky-700 hover:bg-sky-100 dark:border-sky-700 dark:bg-sky-900/20 dark:text-sky-300 dark:hover:bg-sky-900/30',
                         default => 'border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-300 dark:hover:bg-amber-900/30',
                     };
+                    $editorManualNotif = is_array($editorManualItemNotification ?? null) ? $editorManualItemNotification : ['visible' => false, 'count' => 0];
+                    $editorManualCount = (int) ($editorManualNotif['count'] ?? 0);
                 @endphp
 
                 @if (($approvalNotif['visible'] ?? false))
@@ -276,6 +278,27 @@
                         data-quotation-approval-notifier="1"
                         data-endpoint="{{ route('quotations.approval-notifications.poll') }}"
                         data-role="{{ $notifRole }}"
+                        data-user-id="{{ auth()->id() }}"
+                    ></span>
+                @endif
+
+                @if (($editorManualNotif['visible'] ?? false))
+                    <a
+                        href="{{ route('itineraries.manual-item-validation-queue') }}"
+                        class="relative inline-flex h-9 w-9 items-center justify-center rounded-lg border border-cyan-300 bg-cyan-50 text-cyan-700 hover:bg-cyan-100 dark:border-cyan-700 dark:bg-cyan-900/20 dark:text-cyan-300 dark:hover:bg-cyan-900/30 {{ $editorManualCount > 0 ? '' : 'hidden' }}"
+                        title="{{ __('Manual itinerary items need editor validation') }}"
+                        aria-label="{{ __('Manual itinerary items need editor validation') }}"
+                        data-editor-manual-item-bell="1"
+                    >
+                        <i class="fa-solid fa-clipboard-check"></i>
+                        <span class="absolute -right-1.5 -top-1.5 inline-flex min-w-[18px] items-center justify-center rounded-full bg-rose-600 px-1.5 py-0.5 text-[10px] font-bold leading-none text-white" data-editor-manual-item-count="1">
+                            {{ $editorManualCount > 99 ? '99+' : $editorManualCount }}
+                        </span>
+                    </a>
+                    <span
+                        class="hidden"
+                        data-editor-manual-item-notifier="1"
+                        data-endpoint="{{ route('itineraries.manual-item-notifications.poll') }}"
                         data-user-id="{{ auth()->id() }}"
                     ></span>
                 @endif
@@ -899,6 +922,7 @@
         enhanceRemoveButtons(document);
         localizeTimes(document);
         initQuotationApprovalNotifier();
+        initEditorManualItemNotifier();
 
         const observer = new MutationObserver((mutations) => {
             mutations.forEach((mutation) => {
@@ -1236,6 +1260,157 @@
                 if (latestId && latestId !== previousLatestId) {
                     sessionStorage.setItem(storageKey, latestId);
                     showPopupNotification(latestNumber);
+                }
+            } catch (_) {
+                // Ignore polling network error.
+            }
+        };
+
+        poll();
+        window.setInterval(poll, 20000);
+    }
+
+    function initEditorManualItemNotifier() {
+        const configNode = document.querySelector('[data-editor-manual-item-notifier="1"]');
+        if (!configNode || configNode.dataset.bound === '1') {
+            return;
+        }
+        configNode.dataset.bound = '1';
+
+        const endpoint = configNode.getAttribute('data-endpoint');
+        const userId = configNode.getAttribute('data-user-id') || '0';
+        const bellNode = document.querySelector('[data-editor-manual-item-bell="1"]');
+        const countNode = bellNode ? bellNode.querySelector('[data-editor-manual-item-count="1"]') : null;
+        const listUrl = `{{ route('itineraries.manual-item-validation-queue') }}`;
+        const storageKey = `editor_manual_item_latest_${userId}`;
+
+        if (!endpoint || !bellNode || !countNode) {
+            return;
+        }
+
+        let bootstrapped = false;
+
+        const setBellCount = (count) => {
+            const safeCount = Number.isFinite(Number(count)) ? Math.max(0, Number(count)) : 0;
+            if (safeCount > 0) {
+                bellNode.classList.remove('hidden');
+                countNode.textContent = safeCount > 99 ? '99+' : String(safeCount);
+            } else {
+                bellNode.classList.add('hidden');
+                countNode.textContent = '0';
+            }
+        };
+
+        const showPopupNotification = (itemType = '', itemName = '', creatorName = '', editUrl = '') => {
+            const playNotificationTone = () => {
+                try {
+                    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                    if (!AudioCtx) {
+                        return;
+                    }
+                    const context = new AudioCtx();
+                    const oscillator = context.createOscillator();
+                    const gainNode = context.createGain();
+
+                    oscillator.type = 'triangle';
+                    oscillator.frequency.setValueAtTime(740, context.currentTime);
+                    gainNode.gain.setValueAtTime(0.0001, context.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.1, context.currentTime + 0.02);
+                    gainNode.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + 0.3);
+
+                    oscillator.connect(gainNode);
+                    gainNode.connect(context.destination);
+                    oscillator.start();
+                    oscillator.stop(context.currentTime + 0.31);
+                } catch (_) {
+                    // Ignore audio runtime error.
+                }
+            };
+
+            const safeType = String(itemType || '').trim() || 'item';
+            const safeName = String(itemName || '').trim() || 'manual item';
+            const safeCreator = String(creatorName || '').trim();
+            const title = 'Manual item needs validation';
+            const body = safeCreator !== ''
+                ? `${safeType.toUpperCase()}: ${safeName} was created by ${safeCreator}.`
+                : `${safeType.toUpperCase()}: ${safeName} was created and needs validation.`;
+
+            if (!('Notification' in window)) {
+                playNotificationTone();
+                return;
+            }
+
+            const trigger = () => {
+                try {
+                    const notification = new Notification(title, {
+                        body,
+                        icon: '/favicon.ico',
+                    });
+                    notification.onclick = () => {
+                        window.focus();
+                        window.location.href = editUrl || listUrl;
+                    };
+                } catch (_) {
+                    // Ignore notification API runtime error.
+                }
+            };
+
+            if (Notification.permission === 'granted') {
+                playNotificationTone();
+                trigger();
+                return;
+            }
+
+            if (Notification.permission === 'default') {
+                Notification.requestPermission().then((permission) => {
+                    if (permission === 'granted') {
+                        playNotificationTone();
+                        trigger();
+                    }
+                }).catch(() => {});
+            }
+        };
+
+        const poll = async () => {
+            try {
+                const response = await fetch(endpoint, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    credentials: 'same-origin',
+                });
+                if (!response.ok) {
+                    return;
+                }
+                const payload = await response.json();
+                if (!payload || payload.enabled !== true) {
+                    setBellCount(0);
+                    return;
+                }
+
+                const count = Number(payload.count || 0);
+                setBellCount(count);
+
+                const latestId = payload.latest && payload.latest.id ? String(payload.latest.id) : '';
+                const latestItemType = payload.latest && payload.latest.item_type ? String(payload.latest.item_type) : '';
+                const latestItemName = payload.latest && payload.latest.item_name ? String(payload.latest.item_name) : '';
+                const latestCreatorName = payload.latest && payload.latest.creator_name ? String(payload.latest.creator_name) : '';
+                const latestEditUrl = payload.latest && payload.latest.edit_url ? String(payload.latest.edit_url) : '';
+                const previousLatestId = sessionStorage.getItem(storageKey) || '';
+
+                if (!bootstrapped) {
+                    if (latestId) {
+                        sessionStorage.setItem(storageKey, latestId);
+                    }
+                    bootstrapped = true;
+                    return;
+                }
+
+                if (latestId && latestId !== previousLatestId) {
+                    sessionStorage.setItem(storageKey, latestId);
+                    showPopupNotification(latestItemType, latestItemName, latestCreatorName, latestEditUrl);
                 }
             } catch (_) {
                 // Ignore polling network error.

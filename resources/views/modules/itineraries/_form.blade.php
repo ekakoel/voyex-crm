@@ -424,9 +424,11 @@
         </div>
     </div>
 
+    <div class="grid grid-cols-1 gap-4 xl:grid-cols-12">
+        <div class="space-y-4 xl:col-span-9">
     <section data-wizard-step="1" class="space-y-4">
     <div>
-        <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Inquiry (Optional)') }}</label>
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Inquiry') }} <span><i>{{ __('(Optional)') }}</i></span></label>
         <select id="inquiry-select" name="inquiry_id"
             class="mt-1 dark:border-gray-600 app-input">
             <option value="">{{ __('Independent itinerary (no inquiry)') }}</option>
@@ -453,7 +455,7 @@
             required>
     </div>
     <div>
-        <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Order Number') }}</label>
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Order Number') }} <span><i>{{ __('(Optional)') }}</i></span></label>
         <input name="order_number" value="{{ old('order_number', $itinerary->order_number ?? '') }}"
             class="mt-1 dark:border-gray-600 app-input"
             placeholder="{{ __('Example: CODE260424A') }}">
@@ -481,7 +483,7 @@
         </div>
         <div class="md:col-span-3">
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Duration (Days)') }}</label>
-            <input id="duration-days" name="duration_days" type="number" min="1" max="7" step="1" inputmode="numeric"
+            <input id="duration-days" name="duration_days" type="number" min="1" max="10" step="1" inputmode="numeric"
                 value="{{ $durationDays }}"
                 class="mt-1 dark:border-gray-600 app-input"
                 required>
@@ -498,7 +500,7 @@
         </div>
     </div>
     <div>
-        <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Description') }}</label>
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Description') }} <span><i>{{ __('(Optional)') }}</i></span></label>
         <textarea name="description" rows="4"
             class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">{{ old('description', $itinerary->description ?? '') }}</textarea>
     </div>
@@ -897,19 +899,30 @@
                                                     @selected((string) ($r['island_transfer_id'] ?? '') === (string) $t->id)>{{ $t->name }} - {{ !empty($t->vendor?->name) ? $t->vendor->name : '-' }}</option>
                                             @endforeach
                                         </select>
-                                        <select
-                                            class="item-fnb {{ $r['item_type'] !== 'fnb' ? 'hidden' : '' }} dark:border-gray-600 app-input">
-                                            <option value="">{{ __('Select F&B') }}</option>
-                                            @foreach ($foodBeveragesSorted as $f)
-                                                <option value="{{ $f->id }}"
-                                                    data-duration="{{ $f->duration_minutes ?? 60 }}"
-                                                    data-city="{{ $f->vendor?->city ?? '' }}"
-                                                    data-province="{{ $f->vendor?->province ?? '' }}"
-                                                    data-latitude="{{ $f->vendor?->latitude ?? '' }}"
-                                                    data-longitude="{{ $f->vendor?->longitude ?? '' }}"
-                                                    @selected((string) ($r['food_beverage_id'] ?? '') === (string) $f->id)>{{ $f->name }} - {{ !empty($f->vendor?->name) ? $f->vendor->name : '-' }}</option>
-                                            @endforeach
-                                        </select>
+                                        <div class="item-fnb-wrap relative {{ $r['item_type'] !== 'fnb' ? 'hidden' : '' }}">
+                                            <p class="item-fnb-notice mb-1 text-[11px] text-gray-500 dark:text-gray-400">
+                                                {{ __('Example: F&B Name, Region, Vendor') }}
+                                            </p>
+                                            <input type="text"
+                                                class="item-fnb-search dark:border-gray-600 app-input"
+                                                placeholder="{{ __('Type: F&B Name, Region, Vendor') }}"
+                                                autocomplete="off">
+                                            <div
+                                                class="item-fnb-dropdown absolute z-30 mt-1 hidden max-h-56 w-full overflow-auto rounded-lg border border-gray-300 bg-white p-1 shadow-lg dark:border-gray-700 dark:bg-gray-900"></div>
+                                            <select
+                                                class="item-fnb hidden dark:border-gray-600 app-input">
+                                                <option value="">{{ __('Select F&B') }}</option>
+                                                @foreach ($foodBeveragesSorted as $f)
+                                                    <option value="{{ $f->id }}"
+                                                        data-duration="{{ $f->duration_minutes ?? 60 }}"
+                                                        data-city="{{ $f->vendor?->city ?? '' }}"
+                                                        data-province="{{ $f->vendor?->province ?? '' }}"
+                                                        data-latitude="{{ $f->vendor?->latitude ?? '' }}"
+                                                        data-longitude="{{ $f->vendor?->longitude ?? '' }}"
+                                                        @selected((string) ($r['food_beverage_id'] ?? '') === (string) $f->id)>{{ $f->name }} - {{ !empty($f->vendor?->name) ? $f->vendor->name : '-' }}</option>
+                                                @endforeach
+                                            </select>
+                                        </div>
                                         <input type="hidden" value="{{ $r['pax'] ?? 1 }}" class="item-pax app-input">
                                     </div>
                                 </div>
@@ -1042,19 +1055,30 @@
                                                     {{ $t->name }} - {{ !empty($t->vendor?->name) ? $t->vendor->name : '-' }}</option>
                                             @endforeach
                                         </select>
-                                        <select
-                                            class="item-fnb hidden dark:border-gray-600 app-input">
-                                            <option value="">{{ __('Select F&B') }}</option>
-                                            @foreach ($foodBeveragesSorted as $f)
-                                                <option value="{{ $f->id }}"
-                                                    data-duration="{{ $f->duration_minutes ?? 60 }}"
-                                                    data-city="{{ $f->vendor?->city ?? '' }}"
-                                                    data-province="{{ $f->vendor?->province ?? '' }}"
-                                                    data-latitude="{{ $f->vendor?->latitude ?? '' }}"
-                                                    data-longitude="{{ $f->vendor?->longitude ?? '' }}">
-                                                    {{ $f->name }} - {{ !empty($f->vendor?->name) ? $f->vendor->name : '-' }}</option>
-                                            @endforeach
-                                        </select>
+                                        <div class="item-fnb-wrap relative hidden">
+                                            <p class="item-fnb-notice mb-1 text-[11px] text-gray-500 dark:text-gray-400">
+                                                {{ __('Example: F&B Name, Region, Vendor') }}
+                                            </p>
+                                            <input type="text"
+                                                class="item-fnb-search dark:border-gray-600 app-input"
+                                                placeholder="{{ __('Type: F&B Name, Region, Vendor') }}"
+                                                autocomplete="off">
+                                            <div
+                                                class="item-fnb-dropdown absolute z-30 mt-1 hidden max-h-56 w-full overflow-auto rounded-lg border border-gray-300 bg-white p-1 shadow-lg dark:border-gray-700 dark:bg-gray-900"></div>
+                                            <select
+                                                class="item-fnb hidden dark:border-gray-600 app-input">
+                                                <option value="">{{ __('Select F&B') }}</option>
+                                                @foreach ($foodBeveragesSorted as $f)
+                                                    <option value="{{ $f->id }}"
+                                                        data-duration="{{ $f->duration_minutes ?? 60 }}"
+                                                        data-city="{{ $f->vendor?->city ?? '' }}"
+                                                        data-province="{{ $f->vendor?->province ?? '' }}"
+                                                        data-latitude="{{ $f->vendor?->latitude ?? '' }}"
+                                                        data-longitude="{{ $f->vendor?->longitude ?? '' }}">
+                                                        {{ $f->name }} - {{ !empty($f->vendor?->name) ? $f->vendor->name : '-' }}</option>
+                                                @endforeach
+                                            </select>
+                                        </div>
                                         <input type="hidden" value="1" class="item-pax app-input">
                                     </div>
                                 </div>
@@ -1289,6 +1313,95 @@
         <a href="{{ route('itineraries.index') }}"
              class="btn-secondary">{{ __('itinerary_form.buttons.cancel') }}</a>
     </div>
+        </div>
+
+        <aside class="space-y-4 xl:col-span-3">
+            <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800"
+                data-wizard-sidebar-panel="1"
+                id="inquiry-detail-card">
+                <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">Inquiry Detail</h3>
+                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Informasi inquiry tertaut untuk membantu validasi brief itinerary.</p>
+                <div id="inquiry-detail-empty" class="mt-3 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-500 dark:border-gray-700 dark:bg-gray-900/50 dark:text-gray-300">
+                    Pilih inquiry untuk melihat detail.
+                </div>
+                <div id="inquiry-detail-content" class="mt-3 hidden space-y-2 text-xs">
+                    <div class="grid grid-cols-2 gap-2">
+                        <div class="rounded-md border border-gray-200 bg-gray-50 px-2 py-1 dark:border-gray-700 dark:bg-gray-900/50">
+                            <p class="text-[11px] text-gray-500 dark:text-gray-400">Inquiry</p>
+                            <p id="inq-detail-number" class="font-semibold text-gray-800 dark:text-gray-100">-</p>
+                        </div>
+                        <div class="rounded-md border border-gray-200 bg-gray-50 px-2 py-1 dark:border-gray-700 dark:bg-gray-900/50">
+                            <p class="text-[11px] text-gray-500 dark:text-gray-400">Customer</p>
+                            <p id="inq-detail-customer" class="font-semibold text-gray-800 dark:text-gray-100">-</p>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div class="rounded-md border border-gray-200 bg-gray-50 px-2 py-1 dark:border-gray-700 dark:bg-gray-900/50">
+                            <p class="text-[11px] text-gray-500 dark:text-gray-400">Status</p>
+                            <p id="inq-detail-status" class="font-semibold text-gray-800 dark:text-gray-100">-</p>
+                        </div>
+                        <div class="rounded-md border border-gray-200 bg-gray-50 px-2 py-1 dark:border-gray-700 dark:bg-gray-900/50">
+                            <p class="text-[11px] text-gray-500 dark:text-gray-400">Priority</p>
+                            <p id="inq-detail-priority" class="font-semibold text-gray-800 dark:text-gray-100">-</p>
+                        </div>
+                    </div>
+                    <div class="rounded-md border border-gray-200 bg-gray-50 px-2 py-1 dark:border-gray-700 dark:bg-gray-900/50">
+                        <p class="text-[11px] text-gray-500 dark:text-gray-400">Source / Assigned / Deadline</p>
+                        <p class="font-semibold text-gray-800 dark:text-gray-100">
+                            <span id="inq-detail-source">-</span> •
+                            <span id="inq-detail-assigned">-</span> •
+                            <span id="inq-detail-deadline">-</span>
+                        </p>
+                    </div>
+                    <div class="rounded-md border border-gray-200 bg-gray-50 px-2 py-1 dark:border-gray-700 dark:bg-gray-900/50">
+                        <p class="text-[11px] text-gray-500 dark:text-gray-400">Created</p>
+                        <p id="inq-detail-created" class="font-semibold text-gray-800 dark:text-gray-100">-</p>
+                    </div>
+                    <div class="rounded-md border border-gray-200 bg-gray-50 px-2 py-1 dark:border-gray-700 dark:bg-gray-900/50">
+                        <p class="text-[11px] text-gray-500 dark:text-gray-400">Notes</p>
+                        <div id="inq-detail-notes" class="text-gray-700 dark:text-gray-200">-</div>
+                    </div>
+                    <div class="rounded-md border border-gray-200 bg-gray-50 px-2 py-1 dark:border-gray-700 dark:bg-gray-900/50">
+                        <p class="text-[11px] text-gray-500 dark:text-gray-400">Reminder</p>
+                        <div id="inq-detail-reminder-note" class="text-gray-700 dark:text-gray-200">-</div>
+                        <div id="inq-detail-reminder-reason" class="mt-1 text-gray-600 dark:text-gray-300">-</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="day-planner-map-sticky rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800"
+                data-wizard-sidebar-panel="2">
+                <div class="mb-2 flex items-center justify-between gap-2">
+                    <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">Day Planner Map</h3>
+                    <span class="text-[11px] text-gray-500 dark:text-gray-400">Step 2</span>
+                </div>
+                <p class="mb-3 text-xs text-gray-500 dark:text-gray-400">Rute dan urutan point per hari akan ditampilkan otomatis berdasarkan item Day Planner.</p>
+                <div id="itinerary-map" class="h-80 w-full overflow-hidden rounded-lg border border-gray-200 bg-gray-100 dark:border-gray-700 dark:bg-gray-900/40"></div>
+                <div id="itinerary-map-legend" class="mt-2 space-y-1 text-xs text-gray-600 dark:text-gray-300"></div>
+            </div>
+
+            <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800"
+                data-wizard-sidebar-panel="3">
+                <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">Include / Exclude Tips</h3>
+                <ul class="mt-2 list-disc space-y-1 pl-4 text-xs text-gray-600 dark:text-gray-300">
+                    <li>Tulis item yang benar-benar diterima customer secara jelas.</li>
+                    <li>Hindari istilah ambigu untuk mengurangi revisi quotation.</li>
+                    <li>Pisahkan item optional, surcharge, dan kondisi khusus.</li>
+                </ul>
+            </div>
+
+            <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800"
+                data-wizard-sidebar-panel="4">
+                <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">Final Check</h3>
+                <ul class="mt-2 list-disc space-y-1 pl-4 text-xs text-gray-600 dark:text-gray-300">
+                    <li>Pastikan Duration Days/Nights sudah sesuai.</li>
+                    <li>Cek start-end point tiap hari sudah valid.</li>
+                    <li>Verifikasi schedule item tidak ada yang kosong.</li>
+                    <li>Konfirmasi Include/Exclude sudah final.</li>
+                </ul>
+            </div>
+        </aside>
+    </div>
 </div>
 
 @once
@@ -1482,6 +1595,25 @@
                 border-color: #fde68a !important;
                 background-color: rgba(245, 158, 11, 0.12) !important;
             }
+            .day-items {
+                position: relative;
+            }
+            .schedule-row-ghost {
+                opacity: 0.28 !important;
+                border-style: dashed !important;
+            }
+            .schedule-row-chosen {
+                cursor: grabbing !important;
+            }
+            .schedule-row-fallback {
+                opacity: 0 !important;
+                transform: none !important;
+                box-shadow: none !important;
+                border-color: transparent !important;
+                background: transparent !important;
+                pointer-events: none !important;
+                z-index: 9999 !important;
+            }
             .dark .schedule-row.item-theme-attraction {
                 border-color: rgba(59, 130, 246, 0.45) !important;
                 background-color: rgba(30, 64, 175, 0.25) !important;
@@ -1605,6 +1737,33 @@
             .dark .input-left-affix {
                 color: #cbd5e1;
             }
+            @media (min-width: 1280px) {
+                .day-planner-map-sticky {
+                    position: sticky;
+                    top: 18px;
+                    align-self: flex-start;
+                }
+            }
+            [data-wizard-step="4"] [data-wizard-review-description] ul,
+            [data-wizard-step="4"] [data-wizard-review-description] ol,
+            [data-wizard-step="4"] [data-wizard-review-include] ul,
+            [data-wizard-step="4"] [data-wizard-review-include] ol,
+            [data-wizard-step="4"] [data-wizard-review-exclude] ul,
+            [data-wizard-step="4"] [data-wizard-review-exclude] ol {
+                list-style-position: inside;
+                padding-left: 0.5rem;
+                margin-left: 0;
+            }
+            [data-wizard-step="4"] [data-wizard-review-description] li::marker,
+            [data-wizard-step="4"] [data-wizard-review-include] li::marker,
+            [data-wizard-step="4"] [data-wizard-review-exclude] li::marker {
+                color: #9ca3af;
+            }
+            .dark [data-wizard-step="4"] [data-wizard-review-description] li::marker,
+            .dark [data-wizard-step="4"] [data-wizard-review-include] li::marker,
+            .dark [data-wizard-step="4"] [data-wizard-review-exclude] li::marker {
+                color: #94a3b8;
+            }
         </style>
         <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
     @endpush
@@ -1641,7 +1800,7 @@
                     const key = String(inquirySelect.value || '');
                     const detail = inquiryPreviewData[key] || null;
                     if (!detail) {
-                        detailCard?.classList.add('hidden');
+                        detailCard?.classList.remove('hidden');
                         detailEmpty.classList.remove('hidden');
                         detailContent.classList.add('hidden');
                         return;
@@ -1697,6 +1856,8 @@
                 const activityCreateEndpoint = @json(route('itineraries.activity-suggestions.store'));
                 const attractionSuggestionEndpoint = @json(route('itineraries.tourist-attraction-suggestions'));
                 const attractionCreateEndpoint = @json(route('itineraries.tourist-attraction-suggestions.store'));
+                const fnbSuggestionEndpoint = @json(route('itineraries.food-beverage-suggestions'));
+                const fnbCreateEndpoint = @json(route('itineraries.food-beverage-suggestions.store'));
                 const csrfToken = form?.querySelector('input[name=\"_token\"]')?.value
                     || document.querySelector('meta[name=\"csrf-token\"]')?.getAttribute('content')
                     || '';
@@ -1704,6 +1865,7 @@
                 const wizardRoot = document.querySelector('[data-itinerary-wizard]');
                 const wizardStepPanels = wizardRoot ? [...wizardRoot.querySelectorAll('[data-wizard-step]')] : [];
                 const wizardStepChips = wizardRoot ? [...wizardRoot.querySelectorAll('[data-wizard-step-chip]')] : [];
+                const wizardSidebarPanels = wizardRoot ? [...wizardRoot.querySelectorAll('[data-wizard-sidebar-panel]')] : [];
                 const wizardProgressFill = wizardRoot?.querySelector('[data-wizard-progress-fill]') || null;
                 const wizardPrevButton = wizardRoot?.querySelector('[data-wizard-prev]') || null;
                 const wizardNextButton = wizardRoot?.querySelector('[data-wizard-next]') || null;
@@ -1745,7 +1907,6 @@
                     selfBookedSuffix: @json(__('itinerary_form.points.self_booked_suffix')),
                     notSet: @json(__('itinerary_form.points.not_set')),
                     unnamedItem: @json(__('itinerary_form.review.unnamed_item')),
-                    pax: @json(__('itinerary_form.labels.pax')),
                     rowTypeAttraction: @json(__('itinerary_form.row_types.attraction')),
                     rowTypeActivity: @json(__('itinerary_form.row_types.activity')),
                     rowTypeTransfer: @json(__('itinerary_form.row_types.transfer')),
@@ -1920,6 +2081,9 @@
                     }
                     if (pointType === 'hotel') {
                         if (isSelfBookedHotelMode(bookingSelect?.value || 'arranged')) {
+                            if (isStart) {
+                                return i18n.selfBookedHotel;
+                            }
                             return pointItemText !== '' ? `${pointItemText} (${i18n.selfBookedSuffix})` : i18n.selfBookedHotel;
                         }
                         return pointItemText !== '' ? pointItemText : i18n.hotelNotSet;
@@ -2004,10 +2168,8 @@
                                     const itemName = reviewText(selection.option?.textContent, i18n.unnamedItem);
                                     const itemStart = reviewText(row.querySelector('.item-start')?.value, '--:--');
                                     const itemEnd = reviewText(row.querySelector('.item-end')?.value, '--:--');
-                                    const paxText = String(row.querySelector('.item-pax')?.value || '').trim();
                                     const travelText = String(row.querySelector('.item-travel')?.value || '').trim();
                                     const extras = [];
-                                    if (paxText !== '') extras.push(`${i18n.pax} ${escapeHtml(paxText)}`);
                                     if (travelText !== '') extras.push(i18n.travelMinutesPattern.replace(':minutes', escapeHtml(travelText)));
                                     const extraMeta = extras.length ? `<p class="mt-1 text-[11px] text-gray-500 dark:text-gray-400">${extras.join(' | ')}</p>` : '';
                                     return `
@@ -2086,6 +2248,7 @@
                 const setWizardDay = (day) => {
                     if (!wizardRoot) return;
                     wizardActiveDay = clampWizardDay(day);
+                    mapSelectedDay = wizardActiveDay;
                     const totalDays = clampDurationDays(durationInput.value || MIN_DURATION_DAYS);
                     const showDayNavButtons = totalDays > 1;
                     normalizeWizardDaySections().forEach((section) => {
@@ -2101,6 +2264,13 @@
                         dayWizardNextButton.disabled = wizardActiveDay >= totalDays;
                     }
                     renderDayWizardTabs();
+                    setTimeout(() => {
+                        try {
+                            requestRenderItineraryMap();
+                        } catch (_) {
+                            // Ignore render queue call before map renderer is initialized.
+                        }
+                    }, 0);
                 };
                 const validateWizardStepOne = () => {
                     const panel = wizardRoot?.querySelector('[data-wizard-step="1"]');
@@ -2126,6 +2296,10 @@
                     wizardStepChips.forEach((chip) => {
                         const chipStep = clampWizardStep(chip.dataset.wizardStepChip || WIZARD_STEP_MIN);
                         chip.classList.toggle('is-active', chipStep === wizardStep);
+                    });
+                    wizardSidebarPanels.forEach((panel) => {
+                        const panelStep = clampWizardStep(panel.dataset.wizardSidebarPanel || WIZARD_STEP_MIN);
+                        panel.classList.toggle('hidden', panelStep !== wizardStep);
                     });
                     if (wizardProgressFill) {
                         wizardProgressFill.style.width = `${(wizardStep / WIZARD_STEP_MAX) * 100}%`;
@@ -2947,6 +3121,358 @@
                         syncActivityInputFromSelect(row);
                     });
                 };
+                const getFnbElements = (row) => ({
+                    wrap: row?.querySelector('.item-fnb-wrap') || null,
+                    input: row?.querySelector('.item-fnb-search') || null,
+                    dropdown: row?.querySelector('.item-fnb-dropdown') || null,
+                    notice: row?.querySelector('.item-fnb-notice') || null,
+                    select: row?.querySelector('.item-fnb') || null,
+                });
+                const setFnbNotice = (row, message = '', tone = 'info') => {
+                    const { notice, input } = getFnbElements(row);
+                    if (!notice) return;
+                    if (String(message || '').trim() === '') {
+                        notice.textContent = 'Example: F&B Name, Region, Vendor';
+                        notice.classList.remove('text-rose-600', 'dark:text-rose-300', 'text-emerald-700', 'dark:text-emerald-300');
+                        notice.classList.add('text-gray-500', 'dark:text-gray-400');
+                        if (input) input.classList.remove('border-rose-500', 'focus:border-rose-500', 'focus:ring-rose-500');
+                        return;
+                    }
+                    notice.textContent = String(message);
+                    notice.classList.remove('text-gray-500', 'dark:text-gray-400', 'text-rose-600', 'dark:text-rose-300', 'text-emerald-700', 'dark:text-emerald-300');
+                    if (tone === 'error') {
+                        notice.classList.add('text-rose-600', 'dark:text-rose-300');
+                        if (input) input.classList.add('border-rose-500', 'focus:border-rose-500', 'focus:ring-rose-500');
+                        return;
+                    }
+                    if (tone === 'success') {
+                        notice.classList.add('text-emerald-700', 'dark:text-emerald-300');
+                        if (input) input.classList.remove('border-rose-500', 'focus:border-rose-500', 'focus:ring-rose-500');
+                        return;
+                    }
+                    notice.classList.add('text-gray-500', 'dark:text-gray-400');
+                    if (input) input.classList.remove('border-rose-500', 'focus:border-rose-500', 'focus:ring-rose-500');
+                };
+                const normalizeFnbKeyword = (value) =>
+                    String(value || '')
+                        .toLowerCase()
+                        .trim()
+                        .replace(/\s+/g, ' ');
+                const upsertFnbOption = (select, fnbItem, preserveSelection = true) => {
+                    if (!select || !fnbItem) return null;
+                    const fnbId = String(fnbItem.id ?? '').trim();
+                    if (fnbId === '') return null;
+                    let option = [...select.options].find((candidate) => String(candidate.value) === fnbId) || null;
+                    if (!option) {
+                        option = document.createElement('option');
+                        option.value = fnbId;
+                        select.appendChild(option);
+                    }
+                    option.textContent = String(fnbItem.label || fnbItem.name || '').trim();
+                    option.dataset.duration = String(Math.max(1, parseInt(String(fnbItem.duration_minutes || '60'), 10) || 60));
+                    option.dataset.destination = String(fnbItem.destination || '');
+                    option.dataset.location = String(fnbItem.location || '');
+                    option.dataset.city = String(fnbItem.city || '');
+                    option.dataset.province = String(fnbItem.province || '');
+                    option.dataset.latitude = String(fnbItem.latitude ?? '');
+                    option.dataset.longitude = String(fnbItem.longitude ?? '');
+                    if (preserveSelection) {
+                        select.value = fnbId;
+                    }
+                    return option;
+                };
+                const syncFnbInputFromSelect = (row) => {
+                    const { input, select } = getFnbElements(row);
+                    if (!input || !select) return;
+                    const selectedOption = select.selectedOptions?.[0] || null;
+                    const selectedValue = String(select.value || '').trim();
+                    if (selectedValue === '' || !selectedOption) {
+                        input.value = '';
+                        return;
+                    }
+                    input.value = String(selectedOption.textContent || '').trim();
+                };
+                const readFnbSuggestionItems = (row) => {
+                    try {
+                        const parsed = JSON.parse(String(row?.dataset?.fnbSuggestionItems || '[]'));
+                        return Array.isArray(parsed) ? parsed : [];
+                    } catch (_) {
+                        return [];
+                    }
+                };
+                const hideFnbDropdown = (row) => {
+                    const { dropdown } = getFnbElements(row);
+                    if (!dropdown) return;
+                    dropdown.classList.add('hidden');
+                    dropdown.innerHTML = '';
+                    delete row.dataset.fnbActiveIndex;
+                };
+                const setFnbDropdownActiveItem = (row, index) => {
+                    const { dropdown } = getFnbElements(row);
+                    if (!dropdown) return;
+                    const options = [...dropdown.querySelectorAll('[data-fnb-option]')];
+                    if (!options.length) {
+                        delete row.dataset.fnbActiveIndex;
+                        return;
+                    }
+                    let safeIndex = Number.isFinite(index) ? index : -1;
+                    if (safeIndex < 0) safeIndex = options.length - 1;
+                    if (safeIndex >= options.length) safeIndex = 0;
+                    row.dataset.fnbActiveIndex = String(safeIndex);
+                    options.forEach((option, optionIndex) => {
+                        const isActive = optionIndex === safeIndex;
+                        option.classList.toggle('bg-blue-50', isActive);
+                        option.classList.toggle('dark:bg-blue-900/30', isActive);
+                        option.classList.toggle('text-blue-700', isActive);
+                        option.classList.toggle('dark:text-blue-200', isActive);
+                    });
+                };
+                const fetchFnbSuggestions = async (keyword, region = '', limit = 12) => {
+                    const trimmed = String(keyword || '').trim();
+                    const trimmedRegion = String(region || '').trim();
+                    const destinationKeyword = String(itineraryDestinationInput?.value || '').trim();
+                    const params = new URLSearchParams({
+                        q: trimmed,
+                        destination: destinationKeyword,
+                        region: trimmedRegion,
+                        limit: String(limit),
+                    });
+                    const response = await fetch(`${fnbSuggestionEndpoint}?${params.toString()}`, {
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                            Accept: 'application/json',
+                        },
+                    });
+                    if (!response.ok) {
+                        throw new Error('Failed to fetch F&B suggestions');
+                    }
+                    const payload = await response.json();
+                    return Array.isArray(payload?.data) ? payload.data : [];
+                };
+                const createFnbFromKeyword = async (keyword) => {
+                    const trimmed = String(keyword || '').trim();
+                    if (trimmed === '') return null;
+                    const response = await fetch(fnbCreateEndpoint, {
+                        method: 'POST',
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                            Accept: 'application/json',
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': csrfToken,
+                        },
+                        body: JSON.stringify({
+                            name: trimmed,
+                            duration_minutes: 60,
+                        }),
+                    });
+                    if (!response.ok) {
+                        let message = 'Failed to create F&B';
+                        try {
+                            const errorPayload = await response.json();
+                            const nameErrors = Array.isArray(errorPayload?.errors?.name) ? errorPayload.errors.name : [];
+                            const firstNameError = String(nameErrors[0] || '').trim();
+                            const fallbackMessage = String(errorPayload?.message || '').trim();
+                            message = firstNameError || fallbackMessage || message;
+                        } catch (_) {}
+                        throw new Error(message);
+                    }
+                    const payload = await response.json();
+                    return payload?.data || null;
+                };
+                const renderFnbDropdown = (row, suggestions, keyword) => {
+                    const { dropdown, select } = getFnbElements(row);
+                    if (!dropdown || !select) return;
+                    const escapeHtml = (value) =>
+                        String(value || '')
+                            .replace(/&/g, '&amp;')
+                            .replace(/</g, '&lt;')
+                            .replace(/>/g, '&gt;')
+                            .replace(/"/g, '&quot;')
+                            .replace(/'/g, '&#039;');
+                    const items = Array.isArray(suggestions) ? suggestions : [];
+                    const normalizedKeyword = normalizeFnbKeyword(keyword);
+                    const hasExact = items.some((item) => normalizeFnbKeyword(item?.name || item?.label || '') === normalizedKeyword);
+                    let html = '';
+                    items.forEach((item, index) => {
+                        const label = String(item?.label || item?.name || '').trim();
+                        if (!label) return;
+                        html += `
+                            <button type="button" data-fnb-option="existing" data-fnb-index="${index}" data-fnb-id="${String(item.id || '')}"
+                                class="flex w-full items-start rounded-md px-2 py-1.5 text-left text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 dark:text-gray-200 dark:hover:bg-blue-900/30 dark:hover:text-blue-200">
+                                <span class="truncate">${label}</span>
+                            </button>
+                        `;
+                    });
+                    if (normalizedKeyword !== '' && !hasExact) {
+                        const safeKeyword = escapeHtml(String(keyword || '').trim());
+                        html += `
+                            <button type="button" data-fnb-option="create" data-fnb-keyword="${safeKeyword}"
+                                class="mt-1 flex w-full items-start rounded-md border border-dashed border-emerald-300 px-2 py-1.5 text-left text-sm text-emerald-700 hover:bg-emerald-50 dark:border-emerald-700 dark:text-emerald-300 dark:hover:bg-emerald-900/20">
+                                <span class="truncate">+ Add new F&B "${safeKeyword}"</span>
+                            </button>
+                        `;
+                    }
+                    dropdown.innerHTML = html;
+                    if (html === '') {
+                        hideFnbDropdown(row);
+                        return;
+                    }
+                    dropdown.classList.remove('hidden');
+                    row.dataset.fnbSuggestionItems = JSON.stringify(items);
+                    setFnbDropdownActiveItem(row, 0);
+                };
+                const applyFnbSelection = (row, fnbItem) => {
+                    const { select, input } = getFnbElements(row);
+                    if (!select || !fnbItem) return;
+                    const selectedOption = upsertFnbOption(select, fnbItem, true);
+                    const fnbId = String(fnbItem.id ?? '').trim();
+                    if (fnbId !== '') {
+                        select.value = fnbId;
+                        if (String(select.value || '').trim() !== fnbId && selectedOption) {
+                            selectedOption.selected = true;
+                        }
+                    }
+                    select.dispatchEvent(new Event('change', { bubbles: true }));
+                    if (input) {
+                        input.value = String(selectedOption?.textContent || fnbItem?.label || fnbItem?.name || '').trim();
+                    }
+                    syncFnbInputFromSelect(row);
+                    setFnbNotice(row, '', 'info');
+                    hideFnbDropdown(row);
+                    syncRegionFromSelectedItem(row, true);
+                    recalc();
+                };
+                const fnbAutocompleteBoundRows = new WeakSet();
+                const bindFnbAutocomplete = (row) => {
+                    if (!row || fnbAutocompleteBoundRows.has(row)) return;
+                    fnbAutocompleteBoundRows.add(row);
+                    const { input, select, dropdown } = getFnbElements(row);
+                    if (!input || !select || !dropdown) return;
+                    let debounceTimer = null;
+                    let fetchToken = 0;
+                    let creating = false;
+                    syncFnbInputFromSelect(row);
+                    setFnbNotice(row, '', 'info');
+
+                    const runSearch = async (keyword) => {
+                        const token = ++fetchToken;
+                        const selectedRegion = String(row.querySelector('.item-region')?.value || '').trim();
+                        try {
+                            const suggestions = await fetchFnbSuggestions(keyword, selectedRegion, 12);
+                            if (token !== fetchToken) return;
+                            renderFnbDropdown(row, suggestions, keyword);
+                        } catch (_) {
+                            hideFnbDropdown(row);
+                        }
+                    };
+
+                    input.addEventListener('focus', () => {
+                        setFnbNotice(row, '', 'info');
+                        runSearch(input.value || '');
+                    });
+                    input.addEventListener('input', () => {
+                        select.value = '';
+                        setFnbNotice(row, '', 'info');
+                        if (debounceTimer) clearTimeout(debounceTimer);
+                        debounceTimer = setTimeout(() => runSearch(input.value || ''), 250);
+                    });
+                    input.addEventListener('keydown', async (event) => {
+                        const options = [...dropdown.querySelectorAll('[data-fnb-option]')];
+                        if (!options.length) return;
+                        const currentIndex = parseInt(String(row.dataset.fnbActiveIndex || '-1'), 10);
+                        if (event.key === 'ArrowDown') {
+                            event.preventDefault();
+                            setFnbDropdownActiveItem(row, currentIndex + 1);
+                            return;
+                        }
+                        if (event.key === 'ArrowUp') {
+                            event.preventDefault();
+                            setFnbDropdownActiveItem(row, currentIndex - 1);
+                            return;
+                        }
+                        if (event.key === 'Escape') {
+                            hideFnbDropdown(row);
+                            return;
+                        }
+                        if (event.key !== 'Enter') return;
+                        event.preventDefault();
+                        const safeIndex = Number.isFinite(currentIndex) && currentIndex >= 0 ? currentIndex : 0;
+                        const activeOption = options[safeIndex];
+                        if (!activeOption) return;
+                        if (activeOption.dataset.fnbOption === 'existing') {
+                            const items = readFnbSuggestionItems(row);
+                            const itemIndex = parseInt(String(activeOption.dataset.fnbIndex || '-1'), 10);
+                            const chosen = Number.isFinite(itemIndex) && itemIndex >= 0 ? items[itemIndex] : null;
+                            if (chosen) applyFnbSelection(row, chosen);
+                            return;
+                        }
+                        if (activeOption.dataset.fnbOption === 'create' && !creating) {
+                            creating = true;
+                            try {
+                                const created = await createFnbFromKeyword(activeOption.dataset.fnbKeyword || input.value || '');
+                                if (created) {
+                                    applyFnbSelection(row, created);
+                                    setFnbNotice(row, 'New F&B saved successfully.', 'success');
+                                }
+                            } catch (error) {
+                                setFnbNotice(row, String(error?.message || 'Invalid manual format.'), 'error');
+                            } finally {
+                                creating = false;
+                            }
+                        }
+                    });
+
+                    const handleFnbDropdownPick = async (target) => {
+                        if (!target) return;
+                        if (target.dataset.fnbOption === 'existing') {
+                            const items = readFnbSuggestionItems(row);
+                            const itemIndex = parseInt(String(target.dataset.fnbIndex || '-1'), 10);
+                            const chosen = Number.isFinite(itemIndex) && itemIndex >= 0 ? items[itemIndex] : null;
+                            if (chosen) applyFnbSelection(row, chosen);
+                            return;
+                        }
+                        if (target.dataset.fnbOption === 'create' && !creating) {
+                            creating = true;
+                            try {
+                                const created = await createFnbFromKeyword(target.dataset.fnbKeyword || input.value || '');
+                                if (created) {
+                                    applyFnbSelection(row, created);
+                                    setFnbNotice(row, 'New F&B saved successfully.', 'success');
+                                }
+                            } catch (error) {
+                                setFnbNotice(row, String(error?.message || 'Invalid manual format.'), 'error');
+                            } finally {
+                                creating = false;
+                            }
+                        }
+                    };
+                    dropdown.addEventListener('pointerdown', async (event) => {
+                        const target = event.target instanceof HTMLElement
+                            ? event.target.closest('[data-fnb-option]')
+                            : null;
+                        if (!target) return;
+                        event.preventDefault();
+                        event.stopPropagation();
+                        await handleFnbDropdownPick(target);
+                    });
+                    input.addEventListener('blur', () => {
+                        setTimeout(() => {
+                            const currentInputValue = normalizeFnbKeyword(input.value || '');
+                            if (String(select.value || '').trim() !== '') {
+                                syncFnbInputFromSelect(row);
+                                setFnbNotice(row, '', 'info');
+                            } else if (currentInputValue === '') {
+                                select.value = '';
+                                syncFnbInputFromSelect(row);
+                                setFnbNotice(row, '', 'info');
+                            }
+                            hideFnbDropdown(row);
+                        }, 120);
+                    });
+                    select.addEventListener('change', () => {
+                        syncFnbInputFromSelect(row);
+                    });
+                };
                 const toggleType = (r, t, reset = true) => {
                     const type = t === 'activity' || t === 'transfer' || t === 'fnb' ? t : 'attraction';
                     r.dataset.itemType = type;
@@ -2961,19 +3487,26 @@
                     const bDropdown = r.querySelector('.item-activity-dropdown');
                     const tr = r.querySelector('.item-transfer');
                     const f = r.querySelector('.item-fnb');
+                    const fWrap = r.querySelector('.item-fnb-wrap');
+                    const fSearch = r.querySelector('.item-fnb-search');
+                    const fDropdown = r.querySelector('.item-fnb-dropdown');
                     if (type === 'activity') {
                         aWrap?.classList.add('hidden');
                         aDropdown?.classList.add('hidden');
                         bWrap?.classList.remove('hidden');
                         tr.classList.add('hidden');
+                        fWrap?.classList.add('hidden');
+                        fDropdown?.classList.add('hidden');
                         f.classList.add('hidden');
                         if (reset) {
                             a.value = '';
                             if (aSearch) aSearch.value = '';
                             tr.value = '';
                             f.value = '';
+                            if (fSearch) fSearch.value = '';
                         }
                         setAttractionNotice(r, '', 'info');
+                        setFnbNotice(r, '', 'info');
                         syncActivityInputFromSelect(r);
                     } else if (type === 'transfer') {
                         aWrap?.classList.add('hidden');
@@ -2981,6 +3514,8 @@
                         bWrap?.classList.add('hidden');
                         bDropdown?.classList.add('hidden');
                         tr.classList.remove('hidden');
+                        fWrap?.classList.add('hidden');
+                        fDropdown?.classList.add('hidden');
                         f.classList.add('hidden');
                         if (reset) {
                             a.value = '';
@@ -2988,36 +3523,45 @@
                             b.value = '';
                             if (bSearch) bSearch.value = '';
                             f.value = '';
+                            if (fSearch) fSearch.value = '';
                         }
                         setAttractionNotice(r, '', 'info');
+                        setFnbNotice(r, '', 'info');
                     } else if (type === 'fnb') {
                         aWrap?.classList.add('hidden');
                         aDropdown?.classList.add('hidden');
                         bWrap?.classList.add('hidden');
                         bDropdown?.classList.add('hidden');
                         tr.classList.add('hidden');
-                        f.classList.remove('hidden');
+                        fWrap?.classList.remove('hidden');
+                        f.classList.add('hidden');
                         if (reset) {
                             a.value = '';
                             if (aSearch) aSearch.value = '';
                             b.value = '';
                             if (bSearch) bSearch.value = '';
                             tr.value = '';
+                            if (fSearch) fSearch.value = '';
                         }
                         setAttractionNotice(r, '', 'info');
+                        syncFnbInputFromSelect(r);
                     } else {
                         aWrap?.classList.remove('hidden');
                         bWrap?.classList.add('hidden');
                         bDropdown?.classList.add('hidden');
                         tr.classList.add('hidden');
+                        fWrap?.classList.add('hidden');
+                        fDropdown?.classList.add('hidden');
                         f.classList.add('hidden');
                         if (reset) {
                             b.value = '';
                             if (bSearch) bSearch.value = '';
                             tr.value = '';
                             f.value = '';
+                            if (fSearch) fSearch.value = '';
                         }
                         syncAttractionInputFromSelect(r);
+                        setFnbNotice(r, '', 'info');
                     }
                 };
                 const markRegionManualState = (row, isManual) => {
@@ -3060,7 +3604,7 @@
                 let mapRenderSeq = 0;
                 let activeRouteFetchController = null;
                 let activeAutoTravelFetchController = null;
-                let mapSelectedDay = null;
+                let mapSelectedDay = clampWizardDay(wizardActiveDay);
                 const initItineraryMap = () => {
                     if (!mapEl || typeof L === 'undefined') return null;
                     if (itineraryMap) return itineraryMap;
@@ -3602,25 +4146,11 @@
                     return changed;
                 };
                 const refreshMapDayOptions = () => {
-                    if (!mapDayTabsEl) return;
                     const totalDays = clampDurationDays(durationInput.value || MIN_DURATION_DAYS);
-                    if (mapSelectedDay !== null && (mapSelectedDay < 1 || mapSelectedDay > totalDays)) {
-                        mapSelectedDay = null;
+                    mapSelectedDay = Math.max(1, Math.min(totalDays, clampWizardDay(wizardActiveDay)));
+                    if (mapDayTabsEl) {
+                        mapDayTabsEl.innerHTML = '';
                     }
-                    let html = `
-                        <button type="button" data-map-day=""
-                            class="itinerary-map-day-tab inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold transition ${mapSelectedDay === null ? 'border-blue-300 bg-blue-50 text-blue-700 dark:border-blue-700 dark:bg-blue-900/30 dark:text-blue-200' : 'border-gray-300 bg-white text-gray-700 hover:border-blue-300 hover:text-blue-700 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:border-blue-600 dark:hover:text-blue-300'}"
-                            aria-pressed="${mapSelectedDay === null ? 'true' : 'false'}">All Days</button>
-                    `;
-                    for (let day = 1; day <= totalDays; day++) {
-                        const active = mapSelectedDay === day;
-                        html += `
-                            <button type="button" data-map-day="${day}"
-                                class="itinerary-map-day-tab inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold transition ${active ? 'border-blue-300 bg-blue-50 text-blue-700 dark:border-blue-700 dark:bg-blue-900/30 dark:text-blue-200' : 'border-gray-300 bg-white text-gray-700 hover:border-blue-300 hover:text-blue-700 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:border-blue-600 dark:hover:text-blue-300'}"
-                                aria-pressed="${active ? 'true' : 'false'}">Day ${day}</button>
-                        `;
-                    }
-                    mapDayTabsEl.innerHTML = html;
                 };
                 const renderMapLegend = (dayList) => {
                     if (!mapLegendEl) return;
@@ -3804,14 +4334,6 @@
                         setTimeout(runner, 0);
                     }
                 };
-                mapDayTabsEl?.addEventListener('click', (event) => {
-                    const target = event.target instanceof HTMLElement ? event.target.closest('button[data-map-day]') : null;
-                    if (!target) return;
-                    const dayRaw = String(target.dataset.mapDay ?? '').trim();
-                    const parsedDay = Number(dayRaw);
-                    mapSelectedDay = dayRaw === '' || !Number.isFinite(parsedDay) || parsedDay < 1 ? null : parsedDay;
-                    requestRenderItineraryMap();
-                });
                 const rebuildTravelConnectors = (sec) => {
                     const container = sec.querySelector('.day-items');
                     if (!container) return;
@@ -4810,11 +5332,21 @@
                         },
                         animation: 200,
                         forceFallback: true,
-                        fallbackTolerance: 3,
+                        fallbackOnBody: true,
+                        fallbackTolerance: 8,
+                        fallbackClass: 'schedule-row-fallback',
                         draggable: '.schedule-row:not(.schedule-row-template)',
                         handle: '.drag-handle',
                         ghostClass: 'schedule-row-ghost',
                         chosenClass: 'schedule-row-chosen',
+                        onClone: (event) => {
+                            const clone = event?.clone;
+                            const item = event?.item;
+                            if (!clone || !item) return;
+                            const rect = item.getBoundingClientRect();
+                            clone.style.width = `${Math.round(rect.width)}px`;
+                            clone.style.height = `${Math.round(rect.height)}px`;
+                        },
                         onEnd: () => recalc(),
                     });
                     container.dataset.sortableInit = '1';
@@ -4822,6 +5354,7 @@
                 const bindRow = (r) => {
                     bindAttractionAutocomplete(r);
                     bindActivityAutocomplete(r);
+                    bindFnbAutocomplete(r);
                     updateScheduleRowTheme(r);
                     r.querySelector('.item-type')?.addEventListener('change', (e) => {
                         toggleType(r, e.target.value, true);
@@ -4841,6 +5374,8 @@
                         const activityDropdown = r.querySelector('.item-activity-dropdown');
                         const transferSelect = r.querySelector('.item-transfer');
                         const fnbSelect = r.querySelector('.item-fnb');
+                        const fnbSearchInput = r.querySelector('.item-fnb-search');
+                        const fnbDropdown = r.querySelector('.item-fnb-dropdown');
                         if (attractionSelect) attractionSelect.value = '';
                         if (attractionSearchInput) attractionSearchInput.value = '';
                         if (attractionDropdown) {
@@ -4857,6 +5392,12 @@
                         setActivityNotice(r, '', 'info');
                         if (transferSelect) transferSelect.value = '';
                         if (fnbSelect) fnbSelect.value = '';
+                        if (fnbSearchInput) fnbSearchInput.value = '';
+                        if (fnbDropdown) {
+                            fnbDropdown.classList.add('hidden');
+                            fnbDropdown.innerHTML = '';
+                        }
+                        setFnbNotice(r, '', 'info');
                         recalcNoConnectorRebuild();
                     });
                     r.querySelector('.item-attraction')?.addEventListener('change', () => {
@@ -4873,6 +5414,7 @@
                         recalc();
                     });
                     r.querySelector('.item-fnb')?.addEventListener('change', () => {
+                        syncFnbInputFromSelect(r);
                         syncRegionFromSelectedItem(r);
                         recalc();
                     });
@@ -4931,7 +5473,16 @@
                     setActivityNotice(r, '', 'info');
                     const transferSelect = r.querySelector('.item-transfer');
                     if (transferSelect) transferSelect.value = '';
-                    r.querySelector('.item-fnb').value = '';
+                    const fnbSelect = r.querySelector('.item-fnb');
+                    if (fnbSelect) fnbSelect.value = '';
+                    const fnbSearchInput = r.querySelector('.item-fnb-search');
+                    if (fnbSearchInput) fnbSearchInput.value = '';
+                    const fnbDropdown = r.querySelector('.item-fnb-dropdown');
+                    if (fnbDropdown) {
+                        fnbDropdown.classList.add('hidden');
+                        fnbDropdown.innerHTML = '';
+                    }
+                    setFnbNotice(r, '', 'info');
                     r.querySelector('.item-pax').value = '1';
                     r.querySelector('.item-start').value = '';
                     r.querySelector('.item-end').value = '';
@@ -5025,6 +5576,7 @@
                     daySections.querySelectorAll('.schedule-row').forEach((row) => {
                         hideAttractionDropdown(row);
                         hideActivityDropdown(row);
+                        hideFnbDropdown(row);
                     });
                 };
                 itineraryDestinationInput?.addEventListener('input', closePlannerAutocompleteDropdowns);

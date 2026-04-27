@@ -1,6 +1,6 @@
 # Roadmap Changelog Archive
 
-Last Updated: 2026-04-17
+Last Updated: 2026-04-27
 
 
 Historical roadmap changelog entries were moved here during documentation consolidation on 2026-04-09.
@@ -11,16 +11,36 @@ Use this file for detailed historical records.
 
 ## Entry Index
 
-1. 2026-04-06
-2. 2026-04-01
-3. 2026-03-30
-4. 2026-03-23
-5. 2026-03-13
-6. 2026-03-17 (Entry 1)
-7. 2026-03-16
-8. 2026-03-17 (Entry 2)
+1. 2026-04-27
+2. 2026-04-06
+3. 2026-04-01
+4. 2026-03-30
+5. 2026-03-23
+6. 2026-03-13
+7. 2026-03-17 (Entry 1)
+8. 2026-03-16
+9. 2026-03-17 (Entry 2)
 
 ## Entries
+
+## 2026-04-27
+
+- Added **Editor Manual Item Validation Queue** for manual items created from Itinerary Day Planner (`Attraction`, `Activity`, `F&B`).
+- New routes:
+  - `GET itineraries/manual-item-notifications/poll`
+  - `GET itineraries/manual-item-validation-queue`
+  - `PATCH itineraries/manual-item-validation-queue/{activityLog}/validate`
+- Added dedicated queue page:
+  - `resources/views/editor/manual-item-queue.blade.php`
+  - includes `Open Item` and `Mark as Validated` actions.
+- Validation state is persisted in `activity_logs.properties`:
+  - `validated_at`, `validated_by`, `validated_by_name`, `requires_validation`.
+- Notification bell in topbar is now wired to Editor queue and shows pending count only (not yet validated).
+- Sidebar now includes `Manual Item Queue` menu entry for editor workflow.
+- Role mapping fix:
+  - default `Editor` permission set now includes `module.itineraries.access` (required by queue + notification endpoints).
+- Added technical documentation:
+  - `docs/technical/EDITOR_MANUAL_ITEM_VALIDATION_QUEUE.md`
 
 ## 2026-04-06
 
