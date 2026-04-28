@@ -3410,7 +3410,7 @@ SVG;
         $province = trim((string) ($foodBeverage->vendor?->province ?? ''));
         $region = $city !== '' ? $city : ($province !== '' ? $province : '-');
         $safeVendorName = $vendorName !== '' ? $vendorName : '-';
-        $label = trim((string) $foodBeverage->name) . ' - ' . $safeVendorName;
+        $label = trim((string) $foodBeverage->name) . ', ' . $region . ', ' . $safeVendorName;
 
         return [
             'id' => (int) $foodBeverage->id,

@@ -919,7 +919,7 @@
                                                         data-province="{{ $f->vendor?->province ?? '' }}"
                                                         data-latitude="{{ $f->vendor?->latitude ?? '' }}"
                                                         data-longitude="{{ $f->vendor?->longitude ?? '' }}"
-                                                        @selected((string) ($r['food_beverage_id'] ?? '') === (string) $f->id)>{{ $f->name }} - {{ !empty($f->vendor?->name) ? $f->vendor->name : '-' }}</option>
+                                                        @selected((string) ($r['food_beverage_id'] ?? '') === (string) $f->id)>{{ $f->name }}, {{ !empty($f->vendor?->city) ? $f->vendor->city : (!empty($f->vendor?->province) ? $f->vendor->province : '-') }}, {{ !empty($f->vendor?->name) ? $f->vendor->name : '-' }}</option>
                                                 @endforeach
                                             </select>
                                         </div>
@@ -1075,7 +1075,7 @@
                                                         data-province="{{ $f->vendor?->province ?? '' }}"
                                                         data-latitude="{{ $f->vendor?->latitude ?? '' }}"
                                                         data-longitude="{{ $f->vendor?->longitude ?? '' }}">
-                                                        {{ $f->name }} - {{ !empty($f->vendor?->name) ? $f->vendor->name : '-' }}</option>
+                                                        {{ $f->name }}, {{ !empty($f->vendor?->city) ? $f->vendor->city : (!empty($f->vendor?->province) ? $f->vendor->province : '-') }}, {{ !empty($f->vendor?->name) ? $f->vendor->name : '-' }}</option>
                                                 @endforeach
                                             </select>
                                         </div>
@@ -1292,15 +1292,15 @@
         </div>
 
         <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
-            <h4 class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ __('itinerary_form.review.include_exclude') }}</h4>
+            <h4 class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ __('Inclusions & Exclusions') }}</h4>
             <div class="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
                 <div class="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 dark:border-emerald-700/60 dark:bg-emerald-900/20">
-                    <p class="text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">{{ ui_phrase('common_includes') }}</p>
-                    <p class="mt-1 whitespace-pre-line text-sm text-gray-800 dark:text-gray-100" data-wizard-review-include>-</p>
+                    <p class="text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">{{ __('Inclusions') }}</p>
+                    <div class="prose prose-sm mt-1 max-w-none text-sm text-gray-800 dark:prose-invert dark:text-gray-100" data-wizard-review-include>-</div>
                 </div>
                 <div class="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 dark:border-rose-700/60 dark:bg-rose-900/20">
-                    <p class="text-xs font-semibold uppercase tracking-wide text-rose-700 dark:text-rose-300">{{ ui_phrase('common_excludes') }}</p>
-                    <p class="mt-1 whitespace-pre-line text-sm text-gray-800 dark:text-gray-100" data-wizard-review-exclude>-</p>
+                    <p class="text-xs font-semibold uppercase tracking-wide text-rose-700 dark:text-rose-300">{{ __('Exclusions') }}</p>
+                    <div class="prose prose-sm mt-1 max-w-none text-sm text-gray-800 dark:prose-invert dark:text-gray-100" data-wizard-review-exclude>-</div>
                 </div>
             </div>
         </div>
@@ -1981,11 +1981,8 @@
                     } else if (endType === 'hotel') {
                         endConfigured = endSelfBooked ? true : (endItemSet && endRoomSet);
                     }
-                    const activeRows = [...(section?.querySelectorAll('.schedule-row') || [])]
-                        .filter((row) => !row.classList.contains('schedule-row-template') && !row.classList.contains('hidden'));
-                    const hasPlannedItem = activeRows.some((row) => getRowSelectedValue(row) !== '');
                     return {
-                        complete: startTimeSet && startConfigured && endConfigured && hasPlannedItem,
+                        complete: startTimeSet && startConfigured && endConfigured,
                     };
                 };
                 let dayCompletionStatusByDay = {};
