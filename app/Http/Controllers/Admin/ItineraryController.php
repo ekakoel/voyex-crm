@@ -198,7 +198,7 @@ class ItineraryController extends Controller
     {
         $validated = $request->validate([
             'title' => ['required', 'string', 'max:255'],
-            'order_number' => ['nullable', 'string', 'max:100'],
+            'order_number' => ['nullable', 'string', 'max:100', 'regex:/^[A-Za-z0-9]+$/'],
             'destination' => ['required', 'string', 'max:255'],
             'arrival_transport_id' => ['nullable', 'integer', 'exists:transports,id'],
             'departure_transport_id' => ['nullable', 'integer', 'exists:transports,id'],
@@ -1748,7 +1748,7 @@ SVG;
         }
         $validated = $request->validate([
             'title' => ['required', 'string', 'max:255'],
-            'order_number' => ['nullable', 'string', 'max:100'],
+            'order_number' => ['nullable', 'string', 'max:100', 'regex:/^[A-Za-z0-9]+$/'],
             'destination' => ['required', 'string', 'max:255'],
             'arrival_transport_id' => ['nullable', 'integer', 'exists:transports,id'],
             'departure_transport_id' => ['nullable', 'integer', 'exists:transports,id'],
@@ -1904,6 +1904,7 @@ SVG;
         $this->activityAuditLogger->logUpdated($itinerary, $beforeAudit, $this->buildItineraryAuditSnapshot($itinerary), 'Itinerary');
 
         $this->syncInquiryProcessedStatus($itinerary->inquiry_id);
+        $this->syncLinkedQuotationOrderNumber($itinerary);
         $quotationSynced = $this->quotationItinerarySyncService->syncLinkedQuotationFromItinerary($itinerary);
 
         $successMessage = $quotationSynced
@@ -1951,6 +1952,23 @@ SVG;
         $itinerary->delete();
 
         return redirect()->route('itineraries.index')->with('success', 'Itinerary deactivated successfully.');
+    }
+
+    private function syncLinkedQuotationOrderNumber(Itinerary $itinerary): void
+    {
+        $itineraryId = (int) ($itinerary->id ?? 0);
+        if ($itineraryId <= 0) {
+            return;
+        }
+
+        $normalizedOrderNumber = trim((string) ($itinerary->order_number ?? ''));
+        $orderNumber = $normalizedOrderNumber !== '' ? $normalizedOrderNumber : null;
+
+        Quotation::query()
+            ->where('itinerary_id', $itineraryId)
+            ->update([
+                'order_number' => $orderNumber,
+            ]);
     }
 
     public function toggleStatus($itinerary)

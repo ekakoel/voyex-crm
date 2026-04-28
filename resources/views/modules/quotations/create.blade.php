@@ -75,37 +75,37 @@
             <div class="mb-3">
                 <p class="text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300">{{ ui_phrase('modules_quotations_inquiry_detail') }}</p>
             </div>
-            <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
-                <div class="rounded-lg border border-gray-200 p-3 dark:border-gray-700">
-                    <p class="text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ ui_phrase('common_inquiry_no') }}</p>
-                    <p class="mt-1 text-sm font-semibold text-gray-800 dark:text-gray-100" data-inquiry-field="inquiry_number">-</p>
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div>
+                    <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ ui_phrase('common_inquiry_no') }}:</p>
+                    <p class="mt-1 text-sm font-medium text-gray-800 dark:text-gray-100" data-inquiry-field="inquiry_number">-</p>
                 </div>
-                <div class="rounded-lg border border-gray-200 p-3 dark:border-gray-700">
-                    <p class="text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ ui_phrase('common_customer') }}</p>
-                    <p class="mt-1 text-sm font-semibold text-gray-800 dark:text-gray-100" data-inquiry-field="customer_name">-</p>
+                <div>
+                    <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ ui_phrase('common_customer') }}:</p>
+                    <p class="mt-1 text-sm font-medium text-gray-800 dark:text-gray-100" data-inquiry-field="customer_name">-</p>
                 </div>
-                <div class="rounded-lg border border-gray-200 p-3 dark:border-gray-700">
-                    <p class="text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ ui_phrase('common_status') }}</p>
-                    <p class="mt-1 text-sm font-semibold text-gray-800 dark:text-gray-100" data-inquiry-field="status">-</p>
+                <div>
+                    <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ ui_phrase('common_status') }}:</p>
+                    <p class="mt-1 text-sm font-medium text-gray-800 dark:text-gray-100" data-inquiry-field="status">-</p>
                 </div>
-                <div class="rounded-lg border border-gray-200 p-3 dark:border-gray-700">
-                    <p class="text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ ui_phrase('common_priority') }}</p>
-                    <p class="mt-1 text-sm font-semibold text-gray-800 dark:text-gray-100" data-inquiry-field="priority">-</p>
+                <div>
+                    <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ ui_phrase('common_priority') }}:</p>
+                    <p class="mt-1 text-sm font-medium text-gray-800 dark:text-gray-100" data-inquiry-field="priority">-</p>
                 </div>
-                <div class="rounded-lg border border-gray-200 p-3 dark:border-gray-700">
-                    <p class="text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ ui_phrase('modules_inquiries_source') }}</p>
-                    <p class="mt-1 text-sm font-semibold text-gray-800 dark:text-gray-100" data-inquiry-field="source">-</p>
+                <div>
+                    <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ ui_phrase('modules_inquiries_source') }}:</p>
+                    <p class="mt-1 text-sm font-medium text-gray-800 dark:text-gray-100" data-inquiry-field="source">-</p>
                 </div>
-                <div class="rounded-lg border border-gray-200 p-3 dark:border-gray-700">
-                    <p class="text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ ui_phrase('common_assigned') }}</p>
-                    <p class="mt-1 text-sm font-semibold text-gray-800 dark:text-gray-100" data-inquiry-field="assigned_user_name">-</p>
+                <div>
+                    <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ ui_phrase('common_assigned') }}:</p>
+                    <p class="mt-1 text-sm font-medium text-gray-800 dark:text-gray-100" data-inquiry-field="assigned_user_name">-</p>
                 </div>
-                <div class="rounded-lg border border-gray-200 p-3 dark:border-gray-700 md:col-span-2">
-                    <p class="text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ ui_phrase('common_deadline') }}</p>
-                    <p class="mt-1 text-sm font-semibold text-gray-800 dark:text-gray-100" data-inquiry-field="deadline">-</p>
+                <div>
+                    <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ ui_phrase('common_deadline') }}:</p>
+                    <p class="mt-1 text-sm font-medium text-gray-800 dark:text-gray-100" data-inquiry-field="deadline">-</p>
                 </div>
-                <div class="rounded-lg border border-gray-200 p-3 dark:border-gray-700 md:col-span-2">
-                    <p class="text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ ui_phrase('common_notes') }}</p>
+                <div class="md:col-span-2">
+                    <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ ui_phrase('common_notes') }}:</p>
                     <div class="prose prose-sm mt-1 max-w-none text-gray-700 dark:prose-invert dark:text-gray-200" data-inquiry-field="notes">-</div>
                 </div>
             </div>

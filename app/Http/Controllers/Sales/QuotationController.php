@@ -318,6 +318,7 @@ class QuotationController extends Controller
                     'approved_at' => null,
                 ]);
             });
+            $this->syncItineraryOrderNumber($selectedItineraryId, $normalizedOrderNumber);
 
             foreach ($totals['items'] as $item) {
                 $quotation->items()->create($item);
@@ -573,6 +574,7 @@ class QuotationController extends Controller
                     'final_amount' => $totals['final_amount'],
                 ]);
             });
+            $this->syncItineraryOrderNumber($selectedItineraryId, $normalizedOrderNumber);
 
             $quotation->items()->delete();
             foreach ($totals['items'] as $item) {
@@ -2045,6 +2047,21 @@ SVG;
         return preg_match('/^[A-Z0-9]+$/', $normalizedItineraryOrderNumber) === 1
             ? $normalizedItineraryOrderNumber
             : null;
+    }
+
+    private function syncItineraryOrderNumber(?int $itineraryId, ?string $orderNumber): void
+    {
+        $itineraryId = (int) ($itineraryId ?? 0);
+        if ($itineraryId <= 0) {
+            return;
+        }
+
+        $normalizedOrderNumber = $this->normalizeOrderNumber($orderNumber);
+        Itinerary::query()
+            ->whereKey($itineraryId)
+            ->update([
+                'order_number' => $normalizedOrderNumber,
+            ]);
     }
 
     private function availableItinerariesQuery(?int $includeItineraryId = null): Builder
