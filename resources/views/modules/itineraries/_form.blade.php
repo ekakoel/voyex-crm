@@ -5760,6 +5760,8 @@
                             }
                             const dayItems = c.querySelector('.day-items');
                             if (dayItems) delete dayItems.dataset.sortableInit;
+                            // Reset per-section binding flags copied from cloned day section.
+                            delete c.dataset.transportBound;
                             daySections.appendChild(c);
                             c.querySelectorAll('.schedule-row').forEach(bindRow);
                             c.querySelector('.add-item')?.addEventListener('click', () => cloneRow(c, getNextItemType(c)));
