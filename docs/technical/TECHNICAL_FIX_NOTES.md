@@ -1,8 +1,64 @@
 # Technical Fix Notes
 
-Last Updated: 2026-04-23
+Last Updated: 2026-04-28
 
 Dokumen ini menggabungkan fix-report teknis lintas modul yang berdampak ke arsitektur/standar.
+
+## 42. Itinerary + Quotation Consistency & Service Item Validation Highlight (2026-04-28)
+
+Masalah:
+- Preview PDF itinerary error `Call to a member function getKey() on array` saat merge koleksi item harian.
+- Nilai `Amount` index quotation tidak konsisten dengan detail quotation, dan `Final Amount` di PDF berbeda dari index.
+- Sinkronisasi `order_number` antara itinerary dan quotation belum dua arah.
+- UI `Inquiry Detail` pada create/edit quotation terlalu kompleks (multi-card), dan diminta disederhanakan jadi single-card grid 2.
+- Day Planner `+ Transport` pada Day 2+ tidak berfungsi.
+- Format item F&B di itinerary belum sesuai (`F&B Name, Region, Vendor`).
+- Status Day N belum bisa `Complete` ketika hanya berisi `Start Point` dan `End Point`.
+- Label/tab review diminta berubah `Include & Exclude` menjadi `Inclusions & Exclusions`, dengan render HTML tersimpan apa adanya.
+- Diperlukan visual marker (background berbeda) untuk data service item yang belum lengkap.
+- Muncul error Blade parsing `syntax error, unexpected token "endforeach", expecting end of file`.
+
+Perbaikan:
+- Menormalkan agregasi item itinerary untuk PDF agar seluruh sumber item diperlakukan sebagai `Collection` Eloquent yang valid sebelum `merge`.
+- Menyamakan sumber dan rumus perhitungan `Amount`/`Final Amount` di:
+  - index quotation,
+  - detail quotation,
+  - PDF quotation,
+  sehingga hasil angka konsisten lintas halaman/output.
+- Menambahkan sinkronisasi dua arah `order_number`:
+  - saat quotation dibuat dari itinerary, otomatis mewarisi `order_number` itinerary jika ada,
+  - jika kosong, user bisa isi dari quotation form,
+  - perubahan `order_number` pada itinerary atau quotation saling memperbarui agar nilainya tetap sama.
+- Menyederhanakan `Inquiry Detail` di create/edit quotation:
+  - menjadi satu card,
+  - layout grid 2 kolom,
+  - format label/value list ringkas (contoh: `Inquiry No`, `Customer`, dst).
+- Memperbaiki Day Planner transport handler agar tombol `+ Transport` berfungsi pada Day 2 dan seterusnya.
+- Menyesuaikan format tampilan item F&B menjadi:
+  - `F&B Name, Region, Vendor`.
+- Menyesuaikan rule status Day completion:
+  - Day tetap dianggap `Complete` walau hanya memiliki `Day Start Point` dan `Day End Point`.
+- Mengubah terminologi review:
+  - `Include & Exclude` -> `Inclusions & Exclusions`,
+  - konten `Inclusions/Exclusions` dirender mempertahankan format HTML yang tersimpan.
+- Menambahkan highlight background untuk data belum lengkap (fase awal), lalu disesuaikan per modul:
+  - `Vendor/Provider`: highlight jika `google_maps_url` kosong atau `destination` belum dipilih.
+  - `Activities`: highlight jika `gallery_images`, `destination`, atau `activity type` belum terisi.
+  - `F&B`: highlight jika `gallery_images`, `destination`, `service name`, atau `activity/service type` belum terisi.
+  - `Tourist Attraction`: highlight jika `gallery_images` atau `google_maps_url` belum terisi.
+  - `Island Transfer`: highlight dinonaktifkan kembali sesuai keputusan final.
+  - `Hotel` dan `Transport`: tidak diberi highlight.
+- Memperbaiki error Blade `unexpected token endforeach`:
+  - mengganti penggunaan directive singkat `@php(...)` menjadi blok aman `@php ... @endphp` pada view terkait,
+  - membersihkan cache kompilasi view (`view:clear`, `optimize:clear`) agar compiled blade lama tidak dipakai.
+
+Dampak:
+- PDF itinerary kembali stabil tanpa error merge koleksi.
+- Angka quotation konsisten di index, detail, dan PDF sehingga mengurangi potensi miskomunikasi ke user.
+- `order_number` itinerary-quotation sinkron dua arah sesuai proses operasional.
+- UX create/edit quotation lebih ringkas dan cepat dipindai.
+- Validasi visual kelengkapan data service item lebih terarah sesuai kebutuhan operasional.
+- Error parsing Blade yang mengganggu akses halaman index service item terselesaikan.
 
 ## 40. Itinerary PDF Multi-Transport + Validation Guard Alignment (2026-04-23)
 

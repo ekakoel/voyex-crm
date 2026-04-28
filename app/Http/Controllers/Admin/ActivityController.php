@@ -21,7 +21,7 @@ class ActivityController extends Controller
 
     public function index(Request $request)
     {
-        $query = Activity::query()->withTrashed()->with(['vendor:id,name', 'activityType:id,name'])->latest('id');
+        $query = Activity::query()->withTrashed()->with(['vendor:id,name,latitude,longitude,destination_id', 'activityType:id,name'])->latest('id');
 
         if ($request->filled('vendor_id')) {
             $query->where('vendor_id', (int) $request->integer('vendor_id'));
@@ -401,5 +401,3 @@ class ActivityController extends Controller
         }
     }
 }
-
-

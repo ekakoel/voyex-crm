@@ -50,7 +50,12 @@
                             </thead>
                             <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
                                 @forelse ($vendors as $index => $vendor)
-                                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/30">
+                                    @php
+                                        $hasGoogleMapsUrl = trim((string) ($vendor->google_maps_url ?? '')) !== '';
+                                        $hasDestination = (int) ($vendor->destination_id ?? 0) > 0;
+                                        $needsDataAttention = ! $hasGoogleMapsUrl || ! $hasDestination;
+                                    @endphp
+                                    <tr class="{{ $needsDataAttention ? 'bg-amber-50/70 dark:bg-amber-900/15' : '' }} hover:bg-gray-50 dark:hover:bg-gray-700/30">
                                         <td class="px-4 py-3 text-sm font-medium text-gray-800 dark:text-gray-100">{{ $vendors->firstItem() + $index }}</td>
                                         <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">
                                             <div>{{ $vendor->name }}</div>
@@ -88,7 +93,12 @@
 
                 <div class="md:hidden space-y-3">
                     @forelse ($vendors as $vendor)
-                        <div class="app-card p-4">
+                        @php
+                            $hasGoogleMapsUrl = trim((string) ($vendor->google_maps_url ?? '')) !== '';
+                            $hasDestination = (int) ($vendor->destination_id ?? 0) > 0;
+                            $needsDataAttention = ! $hasGoogleMapsUrl || ! $hasDestination;
+                        @endphp
+                        <div class="app-card p-4 {{ $needsDataAttention ? 'bg-amber-50/70 dark:bg-amber-900/15' : '' }}">
                             <div class="flex items-start justify-between gap-3">
                                 <div>
                                     <p class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ $vendor->name }}</p>
@@ -129,7 +139,6 @@
         </div>
     </div>
 @endsection
-
 
 
 

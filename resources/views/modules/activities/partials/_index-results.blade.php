@@ -1,5 +1,8 @@
 <div data-activities-index-results>
     <div class="space-y-4">
+        @php
+            $manualSeedMarker = 'draft created from itinerary day planner quick add';
+        @endphp
         @if (session('success'))
             <div class="rounded-lg mb-6 border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300">{{ session('success') }}</div>
         @endif
@@ -19,8 +22,16 @@
                     </thead>
                     <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
                         @forelse ($activities as $index => $activity)
-                            <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/30">
-                                @php($isActive = ! $activity->trashed())
+                            @php
+                                $isActive = ! $activity->trashed();
+                                $galleryImages = is_array($activity->gallery_images ?? null) ? $activity->gallery_images : [];
+                                $hasGalleryImages = count($galleryImages) > 0;
+                                $hasDestination = (int) ($activity->vendor?->destination_id ?? 0) > 0;
+                                $hasActivityType = (int) ($activity->activity_type_id ?? 0) > 0
+                                    || trim((string) ($activity->activity_type ?? '')) !== '';
+                                $needsDataAttention = ! $hasGalleryImages || ! $hasDestination || ! $hasActivityType;
+                            @endphp
+                            <tr class="{{ $needsDataAttention ? 'bg-amber-50/70 dark:bg-amber-900/15' : '' }} hover:bg-gray-50 dark:hover:bg-gray-700/30">
                                 <td class="px-4 py-3 text-sm font-medium text-gray-800 dark:text-gray-100">{{ ++$index }}</td>
                                 <td class="px-4 py-3 text-sm text-gray-800 dark:text-gray-100">
                                     <div>{{ $activity->name }}</div>
@@ -80,7 +91,15 @@
         </div>
         <div class="md:hidden space-y-3">
             @forelse ($activities as $activity)
-                <div class="app-card p-4">
+                @php
+                    $galleryImages = is_array($activity->gallery_images ?? null) ? $activity->gallery_images : [];
+                    $hasGalleryImages = count($galleryImages) > 0;
+                    $hasDestination = (int) ($activity->vendor?->destination_id ?? 0) > 0;
+                    $hasActivityType = (int) ($activity->activity_type_id ?? 0) > 0
+                        || trim((string) ($activity->activity_type ?? '')) !== '';
+                    $needsDataAttention = ! $hasGalleryImages || ! $hasDestination || ! $hasActivityType;
+                @endphp
+                <div class="app-card p-4 {{ $needsDataAttention ? 'bg-amber-50/70 dark:bg-amber-900/15' : '' }}">
                     <div class="flex items-start justify-between gap-3">
                         <div>
                             <p class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ $activity->name }}</p>

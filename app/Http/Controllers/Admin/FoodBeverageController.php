@@ -20,7 +20,7 @@ class FoodBeverageController extends Controller
 
     public function index(Request $request)
     {
-        $query = FoodBeverage::query()->withTrashed()->with('vendor:id,name')->latest('id');
+        $query = FoodBeverage::query()->withTrashed()->with('vendor:id,name,latitude,longitude,destination_id')->latest('id');
 
         if ($request->filled('vendor_id')) {
             $query->where('vendor_id', (int) $request->integer('vendor_id'));

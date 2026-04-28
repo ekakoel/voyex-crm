@@ -29,7 +29,7 @@ class IslandTransferController extends Controller
 
         $query = IslandTransfer::query()
             ->withTrashed()
-            ->with('vendor:id,name,city,province')
+            ->with('vendor:id,name,city,province,latitude,longitude')
             ->latest('id');
 
         if ($request->filled('vendor_id')) {

@@ -1,6 +1,6 @@
 # Roadmap Changelog Archive
 
-Last Updated: 2026-04-27
+Last Updated: 2026-04-28
 
 
 Historical roadmap changelog entries were moved here during documentation consolidation on 2026-04-09.
@@ -12,16 +12,44 @@ Use this file for detailed historical records.
 ## Entry Index
 
 1. 2026-04-27
-2. 2026-04-06
-3. 2026-04-01
-4. 2026-03-30
-5. 2026-03-23
-6. 2026-03-13
-7. 2026-03-17 (Entry 1)
-8. 2026-03-16
-9. 2026-03-17 (Entry 2)
+2. 2026-04-28
+3. 2026-04-06
+4. 2026-04-01
+5. 2026-03-30
+6. 2026-03-23
+7. 2026-03-13
+8. 2026-03-17 (Entry 1)
+9. 2026-03-16
+10. 2026-03-17 (Entry 2)
 
 ## Entries
+
+## 2026-04-28
+
+- Fixed Itinerary PDF runtime error `Call to a member function getKey() on array` by normalizing merged day-item datasets into valid collections before rendering.
+- Aligned quotation monetary outputs so `Amount`/`Final Amount` are consistent across:
+  - quotation index,
+  - quotation detail,
+  - quotation PDF.
+- Implemented two-way `order_number` synchronization between Itinerary and Quotation:
+  - quotation generated from itinerary inherits itinerary order number,
+  - if missing, order number can be entered in quotation create/edit,
+  - updates from either side keep both records synchronized.
+- Simplified quotation create/edit `Inquiry Detail` presentation into a single card with compact 2-column grid list format.
+- Fixed Day Planner behavior so `+ Transport` works for Day 2 and subsequent days in itinerary create/edit.
+- Updated itinerary F&B item display format to `F&B Name, Region, Vendor`.
+- Updated day-completion rule so a day can be `Complete` when only start and end points are present.
+- Renamed review labels and preserved HTML formatting:
+  - `Include & Exclude` -> `Inclusions & Exclusions`,
+  - inclusion/exclusion content now follows stored HTML format output.
+- Implemented service-item completeness visual highlight policy and final scope:
+  - `Vendor`: highlight when map URL/destination is missing,
+  - `Activities`: highlight when gallery/destination/activity type is missing,
+  - `F&B`: highlight when gallery/destination/service name/activity or service type is missing,
+  - `Tourist Attraction`: highlight when gallery/map URL is missing,
+  - `Island Transfer`: highlight disabled per final decision,
+  - `Hotel` and `Transport`: no highlight changes.
+- Resolved Blade parse regression `syntax error, unexpected token "endforeach"` in service item index pages by replacing short `@php(...)` directives with safe block `@php ... @endphp` and clearing compiled view cache.
 
 ## 2026-04-27
 

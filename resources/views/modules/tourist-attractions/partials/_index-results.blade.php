@@ -1,6 +1,8 @@
 <div data-tourist-attractions-index-results>
     <div class="space-y-4">
-        @php($canDeleteTouristAttraction = auth()->user()?->isSuperAdmin() ?? false)
+        @php
+            $canDeleteTouristAttraction = auth()->user()?->isSuperAdmin() ?? false;
+        @endphp
         @if (session('success'))
             <div class="rounded-lg mb-6 border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300">{{ session('success') }}</div>
         @endif
@@ -23,8 +25,14 @@
                     </thead>
                     <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
                         @forelse ($touristAttractions as $index => $touristAttraction)
-                            <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/30">
-                                @php($isActive = ! $touristAttraction->trashed())
+                            @php
+                                $isActive = ! $touristAttraction->trashed();
+                                $galleryImages = is_array($touristAttraction->gallery_images ?? null) ? $touristAttraction->gallery_images : [];
+                                $hasGalleryImages = count($galleryImages) > 0;
+                                $hasGoogleMapsUrl = trim((string) ($touristAttraction->google_maps_url ?? '')) !== '';
+                                $needsDataAttention = ! $hasGalleryImages || ! $hasGoogleMapsUrl;
+                            @endphp
+                            <tr class="{{ $needsDataAttention ? 'bg-amber-50/70 dark:bg-amber-900/15' : '' }} hover:bg-gray-50 dark:hover:bg-gray-700/30">
                                 <td class="px-4 py-3 text-sm font-medium text-gray-800 dark:text-gray-100">{{ ++$index }}</td>
                                 <td class="px-4 py-3 text-sm text-gray-800 dark:text-gray-100">
                                     <div>{{ $touristAttraction->name }}</div>
@@ -79,7 +87,13 @@
         </div>
         <div class="md:hidden space-y-3">
             @forelse ($touristAttractions as $touristAttraction)
-                <div class="app-card p-4">
+                @php
+                    $galleryImages = is_array($touristAttraction->gallery_images ?? null) ? $touristAttraction->gallery_images : [];
+                    $hasGalleryImages = count($galleryImages) > 0;
+                    $hasGoogleMapsUrl = trim((string) ($touristAttraction->google_maps_url ?? '')) !== '';
+                    $needsDataAttention = ! $hasGalleryImages || ! $hasGoogleMapsUrl;
+                @endphp
+                <div class="app-card p-4 {{ $needsDataAttention ? 'bg-amber-50/70 dark:bg-amber-900/15' : '' }}">
                     <p class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ $touristAttraction->name }}</p>
                     <p class="text-xs text-indigo-600 dark:text-indigo-300">{{ $touristAttraction->destination?->name ?? '-' }}</p>
                     <p class="text-xs text-gray-500 dark:text-gray-400">{{ ui_phrase('modules_tourist_attractions_ideal') }}: {{ $touristAttraction->ideal_visit_minutes }} min</p>

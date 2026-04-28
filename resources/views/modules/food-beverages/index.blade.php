@@ -75,8 +75,17 @@
                 </thead>
                 <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
                     @forelse ($foodBeverages as $index => $foodBeverage)
-                        <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/30">
-                            @php($isActive = ! $foodBeverage->trashed())
+                        @php
+                            $isActive = ! $foodBeverage->trashed();
+                            $galleryImages = is_array($foodBeverage->gallery_images ?? null) ? $foodBeverage->gallery_images : [];
+                            $hasGalleryImages = count($galleryImages) > 0;
+                            $hasDestination = (int) ($foodBeverage->vendor?->destination_id ?? 0) > 0;
+                            $hasServiceName = trim((string) ($foodBeverage->name ?? '')) !== '';
+                            $hasServiceType = trim((string) ($foodBeverage->service_type ?? '')) !== '';
+                            $hasActivityType = trim((string) ($foodBeverage->activity_type ?? $foodBeverage->service_type ?? '')) !== '';
+                            $needsDataAttention = ! $hasGalleryImages || ! $hasDestination || ! $hasServiceName || ! $hasServiceType || ! $hasActivityType;
+                        @endphp
+                        <tr class="{{ $needsDataAttention ? 'bg-amber-50/70 dark:bg-amber-900/15' : '' }} hover:bg-gray-50 dark:hover:bg-gray-700/30">
                             <td class="px-4 py-3 text-sm font-medium text-gray-800 dark:text-gray-100">{{ ++$index }}</td>
                             <td class="px-4 py-3 text-sm text-gray-800 dark:text-gray-100">
                                 <div>{{ $foodBeverage->name }}</div>
@@ -97,7 +106,9 @@
                                 <div class="text-xs text-gray-500 dark:text-gray-400">
                                     Publish: <x-money :amount="(float) ($foodBeverage->publish_rate ?? 0)" currency="IDR" />
                                 </div>
-                                @php($mealSessions = $resolveMealSessionBadges($foodBeverage->meal_period))
+                                @php
+                                    $mealSessions = $resolveMealSessionBadges($foodBeverage->meal_period);
+                                @endphp
                                 <div class="mt-1 flex flex-wrap gap-1">
                                     @forelse ($mealSessions as $session)
                                         <span class="inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium
@@ -137,7 +148,16 @@
         </div>
         <div class="md:hidden space-y-3">
             @forelse ($foodBeverages as $foodBeverage)
-                <div class="app-card p-4">
+                @php
+                    $galleryImages = is_array($foodBeverage->gallery_images ?? null) ? $foodBeverage->gallery_images : [];
+                    $hasGalleryImages = count($galleryImages) > 0;
+                    $hasDestination = (int) ($foodBeverage->vendor?->destination_id ?? 0) > 0;
+                    $hasServiceName = trim((string) ($foodBeverage->name ?? '')) !== '';
+                    $hasServiceType = trim((string) ($foodBeverage->service_type ?? '')) !== '';
+                    $hasActivityType = trim((string) ($foodBeverage->activity_type ?? $foodBeverage->service_type ?? '')) !== '';
+                    $needsDataAttention = ! $hasGalleryImages || ! $hasDestination || ! $hasServiceName || ! $hasServiceType || ! $hasActivityType;
+                @endphp
+                <div class="app-card p-4 {{ $needsDataAttention ? 'bg-amber-50/70 dark:bg-amber-900/15' : '' }}">
                     <div class="flex items-start justify-between gap-3">
                         <div>
                             <p class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ $foodBeverage->name }}</p>
@@ -158,7 +178,9 @@
                                     : \App\Support\Currency::format((float) ($foodBeverage->markup ?? 0), 'IDR') }}
                             </div>
                             <div class="text-gray-500 dark:text-gray-400">Publish: <x-money :amount="(float) ($foodBeverage->publish_rate ?? 0)" currency="IDR" /></div>
-                            @php($mealSessions = $resolveMealSessionBadges($foodBeverage->meal_period))
+                            @php
+                                $mealSessions = $resolveMealSessionBadges($foodBeverage->meal_period);
+                            @endphp
                             <div class="mt-1 flex flex-wrap gap-1">
                                 @forelse ($mealSessions as $session)
                                     <span class="inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium
@@ -194,7 +216,4 @@
         </div>
 </div>
 @endsection
-
-
-
 
