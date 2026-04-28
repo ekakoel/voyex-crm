@@ -48,19 +48,19 @@ class CustomerImportController extends Controller
 
         $handle = fopen($validated['file']->getRealPath(), 'r');
         if (! $handle) {
-            return back()->with('error', 'Failed to read CSV file.');
+            return back()->with('error', ui_phrase('modules_customers_import_messages_failed_read_csv'));
         }
 
         $headers = fgetcsv($handle);
         if (! $headers) {
             fclose($handle);
-            return back()->with('error', 'CSV is empty or has an invalid format.');
+            return back()->with('error', ui_phrase('modules_customers_import_messages_invalid_csv'));
         }
 
         $headers = array_map(fn ($h) => strtolower(trim($h)), $headers);
         if (! in_array('name', $headers, true)) {
             fclose($handle);
-            return back()->with('error', 'Required column not found: name');
+            return back()->with('error', ui_phrase('modules_customers_import_messages_required_column_name'));
         }
 
         $rows = [];
@@ -100,7 +100,7 @@ class CustomerImportController extends Controller
     {
         $payload = Session::get(self::SESSION_KEY);
         if (! $payload) {
-            return redirect()->route('customers.import')->with('error', 'Preview not found. Please upload the file again.');
+            return redirect()->route('customers.import')->with('error', ui_phrase('modules_customers_import_messages_preview_not_found'));
         }
 
         $rows = $payload['rows'] ?? [];
@@ -130,14 +130,18 @@ class CustomerImportController extends Controller
             DB::commit();
         } catch (\Throwable $e) {
             DB::rollBack();
-            return redirect()->route('customers.import')->with('error', 'Import failed. Please check the CSV data.');
+            return redirect()->route('customers.import')->with('error', ui_phrase('modules_customers_import_messages_failed'));
         } finally {
             Session::forget(self::SESSION_KEY);
         }
 
         return redirect()
             ->route('customers.index')
-            ->with('success', "Import selesai. Created: {$created}, Updated: {$updated}, Skipped: {$skipped}.");
+            ->with('success', ui_phrase('modules_customers_import_messages_done', [
+                'created' => $created,
+                'updated' => $updated,
+                'skipped' => $skipped,
+            ]));
     }
 
     private function normalizeRow(array $data): array
@@ -194,6 +198,5 @@ class CustomerImportController extends Controller
         return $trimmed === '' ? null : $trimmed;
     }
 }
-
 
 

@@ -2,7 +2,7 @@
 @section('page_title', ui_phrase('modules_customers_page_title'))
 @section('page_subtitle', ui_phrase('modules_customers_page_subtitle'))
 @section('page_actions')
-    <a href="{{ route('customers.import') }}" class="btn-outline">{{ __('Import CSV') }}</a>
+    <a href="{{ route('customers.import') }}" class="btn-outline">{{ ui_phrase('modules_customers_import_csv') }}</a>
     <a href="{{ route('customers.create') }}" class="btn-primary">
         {{ ui_phrase('modules_customers_add_customer') }}
     </a>
@@ -22,13 +22,13 @@
                             placeholder="{{ ui_phrase('modules_customers_search') }}" class="app-input" data-service-filter-input>
                         <select name="customer_type" class="app-input" data-service-filter-input>
                             <option value="">{{ ui_phrase('modules_customers_type') }}</option>
-                            @foreach (['individual' => 'Individual', 'company' => 'Company'] as $value => $label)
+                            @foreach (['individual' => ui_phrase('modules_customers_type_individual'), 'company' => ui_phrase('modules_customers_type_company')] as $value => $label)
                                 <option value="{{ $value }}" @selected(request('customer_type') === $value)>{{ $label }}
                                 </option>
                             @endforeach
                         </select>
                         <x-forms.searchable-select name="country" :options="$countries" :value="request('country')"
-                            list-id="country-filter-options" placeholder="{{ __('Country') }}" />
+                            list-id="country-filter-options" placeholder="{{ ui_phrase('modules_customers_country') }}" />
                         <select name="created_by" class="app-input" data-service-filter-input>
                             <option value="">{{ ui_phrase('modules_customers_creator') }}</option>
                             @foreach ($creators as $creator)
@@ -71,16 +71,16 @@
                                         #</th>
                                     <th
                                         class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">
-                                        Code</th>
+                                        {{ ui_phrase('common_code') }}</th>
                                     <th
                                         class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">
-                                        Name</th>
+                                        {{ ui_phrase('common_name') }}</th>
                                     <th
                                         class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">
                                         {{ ui_phrase('modules_customers_email_phone') }}</th>
                                     <th
                                         class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">
-                                        Country</th>
+                                        {{ ui_phrase('modules_customers_country') }}</th>
                                     <th
                                         class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">
                                         {{ ui_phrase('modules_customers_company') }}</th>
@@ -126,8 +126,7 @@
                                 @empty
                                     <tr>
                                         <td colspan="8"
-                                            class="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">No
-                                            {{ ui_phrase('index_no_data_available', ['entity' => ui_phrase('entities_customers')]) }}</td>
+                                            class="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">{{ ui_phrase('index_no_data_available', ['entity' => ui_phrase('entities_customers')]) }}</td>
                                     </tr>
                                 @endforelse
                             </tbody>
@@ -145,7 +144,7 @@
                                         {{ $customer->email ?? '-' }}</p>
                                 </div>
                                 <span
-                                    class="text-xs font-medium rounded-full bg-gray-100 px-2 py-0.5 text-gray-700 dark:bg-gray-900/40 dark:text-gray-300">{{ $customer->customer_type }}</span>
+                                    class="text-xs font-medium rounded-full bg-gray-100 px-2 py-0.5 text-gray-700 dark:bg-gray-900/40 dark:text-gray-300">{{ ui_term((string) $customer->customer_type) }}</span>
                             </div>
                             <div class="mt-3 grid grid-cols-2 gap-2 text-xs text-gray-600 dark:text-gray-300">
                                 <div>{{ ui_phrase('modules_customers_phone') }}</div>
@@ -177,7 +176,6 @@
         </div>
     </div>
 @endsection
-
 
 
 
