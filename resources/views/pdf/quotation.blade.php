@@ -84,24 +84,17 @@
     </table>
 
         @php
-            $subTotalValue = $quotation->sub_total;
-            $discountType = $quotation->discount_type;
-            $discountValue = $quotation->discount_value;
-            $finalAmountValue = $quotation->final_amount;
-            $hasTotals = $subTotalValue !== null || $discountType || $discountValue !== null || $finalAmountValue !== null;
+            $subTotalValue = (float) ($kpiSummary['sub_total'] ?? 0);
+            $discountType = (string) ($kpiSummary['global_discount_type'] ?? $quotation->discount_type ?? '');
+            $discountValue = (float) ($kpiSummary['global_discount_value'] ?? $quotation->discount_value ?? 0);
+            $globalDiscountAmount = (float) ($kpiSummary['global_discount_amount'] ?? 0);
+            $finalAmountValue = (float) ($kpiSummary['final_amount'] ?? 0);
+            $hasTotals = $quotation->items->isNotEmpty() || $subTotalValue > 0 || $globalDiscountAmount > 0 || $finalAmountValue > 0;
         @endphp
         @if ($hasTotals)
-            @php
-                $globalDiscountAmount = 0;
-                if ($discountType === 'percent') {
-                    $globalDiscountAmount = (float) $subTotalValue * ((float) $discountValue / 100);
-                } elseif ($discountType === 'fixed') {
-                    $globalDiscountAmount = (float) $discountValue;
-                }
-            @endphp
             <table style="margin-top: 12px;">
                 <tbody>
-                @if ($subTotalValue !== null)
+                @if ($quotation->items->isNotEmpty() || $subTotalValue > 0)
                     <tr>
                         <td class="right"><strong>Sub Total</strong></td>
                         <td class="right" style="width: 30%"><x-money :amount="$subTotalValue" currency="IDR" /></td>
@@ -120,7 +113,7 @@
                         <x-money :amount="$globalDiscountAmount" currency="IDR" />
                     </td>
                 </tr>
-                @if ($finalAmountValue !== null)
+                @if ($quotation->items->isNotEmpty() || $finalAmountValue > 0)
                     <tr>
                         <td class="right total">Final Amount</td>
                         <td class="right total"><x-money :amount="$finalAmountValue" currency="IDR" /></td>

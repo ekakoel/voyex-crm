@@ -799,11 +799,13 @@ class QuotationController extends Controller
         }
 
         $quotation->load(['inquiry.customer', 'items', 'itinerary']);
+        $kpiSummary = $this->computeQuotationKpiSummary($quotation);
         if ($quotation->itinerary) {
             $itineraryPdfPayload = $this->buildItineraryPdfPayload($quotation->itinerary);
             $pdf = PDF::loadView('pdf.quotation_with_itinerary', array_merge(
                 [
                     'quotation' => $quotation,
+                    'kpiSummary' => $kpiSummary,
                     'pdfFontFamilyCss' => $pdfFontConfig['family_css'],
                     'pdfFontFaceCss' => $pdfFontConfig['font_face_css'],
                     'pdfLocale' => $pdfLocale,
@@ -816,6 +818,7 @@ class QuotationController extends Controller
 
         $pdf = PDF::loadView('pdf.quotation', [
             'quotation' => $quotation,
+            'kpiSummary' => $kpiSummary,
             'pdfFontFamilyCss' => $pdfFontConfig['family_css'],
             'pdfFontFaceCss' => $pdfFontConfig['font_face_css'],
             'pdfLocale' => $pdfLocale,
