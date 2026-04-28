@@ -333,7 +333,7 @@
                 @endphp
 
                 <!-- Language Switch -->
-                <div x-data="{ open: false }" class="relative shrink-0">
+                {{-- <div x-data="{ open: false }" class="relative shrink-0">
                     <button
                         type="button"
                         @click="open = !open"
@@ -368,7 +368,7 @@
                             </form>
                         @endforeach
                     </div>
-                </div>
+                </div> --}}
 
                 <!-- Currency Switch -->
                 <div class="hidden sm:flex items-center gap-2">
