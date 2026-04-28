@@ -7,6 +7,18 @@ use Illuminate\Support\Str;
 
 class UiTranslator
 {
+    public static function coreKey(string $value): string
+    {
+        $key = trim($value);
+        $key = str_replace(['-', ' '], '_', $key);
+        $key = trim($key, '.');
+        if (str_starts_with($key, 'ui.')) {
+            $key = substr($key, 3);
+        }
+
+        return str_replace('.', '_', $key);
+    }
+
     /**
      * Normalize free-form token into a reusable dictionary key.
      * Examples:
@@ -33,31 +45,28 @@ class UiTranslator
     }
 
     /**
-     * Translate a token from the shared dictionary.
+     * Translate a token from the unified core dictionary.
      *
      * @param  array<int, string>  $groups
-     * @param  array<int, string>  $prefixes
      */
     public static function token(
         ?string $value,
-        array $groups = ['terms'],
-        array $prefixes = ['ui.shared', 'ui.superadmin.shared']
+        array $groups = ['terms']
     ): string {
         $normalized = self::normalizeToken($value);
         if ($normalized === '') {
-            return __('ui.common.unknown');
+            if (Lang::has('ui_core.na')) {
+                return __('ui_core.na');
+            }
+
+            return ui_phrase('common_unknown');
         }
 
-        foreach ($prefixes as $prefix) {
-            foreach ($groups as $group) {
-                $key = trim($prefix).'.'.trim($group).'.'.$normalized;
-                if (Lang::has($key)) {
-                    return __($key);
-                }
-            }
+        $coreKey = "ui_core.{$normalized}";
+        if (Lang::has($coreKey)) {
+            return __($coreKey);
         }
 
         return __(Str::headline($normalized));
     }
 }
-

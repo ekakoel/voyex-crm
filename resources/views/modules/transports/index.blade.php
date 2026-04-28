@@ -1,8 +1,8 @@
 @extends('layouts.master')
-@section('page_title', __('ui.modules.transports.page_title'))
-@section('page_subtitle', __('ui.modules.transports.page_subtitle'))
+@section('page_title', ui_phrase('modules_transports_page_title'))
+@section('page_subtitle', ui_phrase('modules_transports_page_subtitle'))
 @section('page_actions')
-    <a href="{{ route('transports.create') }}" class="btn-primary">{{ __('ui.modules.transports.add_transport') }}</a>
+    <a href="{{ route('transports.create') }}" class="btn-primary">{{ ui_phrase('modules_transports_add_transport') }}</a>
 @endsection
 @section('content')
     <div class="space-y-6 module-page module-page--transports" data-service-filter-page data-page-spinner="off">
@@ -11,30 +11,30 @@
             <aside class="module-grid-side space-y-4">
                 <div class="app-card p-5 space-y-4">
                     <div>
-                        <h2 class="text-base font-semibold text-gray-800 dark:text-gray-100">{{ __('ui.common.filters') }}</h2>
-                        <p class="text-sm text-gray-500 dark:text-gray-400">{{ __('ui.index.refine_list_quickly') }}</p>
+                        <h2 class="text-base font-semibold text-gray-800 dark:text-gray-100">{{ ui_phrase('common_filters') }}</h2>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">{{ ui_phrase('index_refine_list_quickly') }}</p>
                     </div>
                     <form method="GET" action="{{ route('transports.index') }}" class="grid grid-cols-1 gap-3 sm:grid-cols-2" data-service-filter-form data-disable-submit-lock="1" data-page-spinner="off">
-                        <input name="q" value="{{ request('q') }}" placeholder="{{ __('ui.modules.transports.search') }}" class="app-input sm:col-span-2" data-service-filter-input>
+                        <input name="q" value="{{ request('q') }}" placeholder="{{ ui_phrase('modules_transports_search') }}" class="app-input sm:col-span-2" data-service-filter-input>
                         <select name="vendor_id" class="app-input" data-service-filter-input>
-                            <option value="">{{ __('ui.common.all_vendors') }}</option>
+                            <option value="">{{ ui_phrase('common_all_vendors') }}</option>
                             @foreach ($vendors as $vendor)
                                 <option value="{{ $vendor->id }}" @selected((string) request('vendor_id') === (string) $vendor->id)>{{ $vendor->name }}</option>
                             @endforeach
                         </select>
                         <select name="transport_type" class="app-input" data-service-filter-input>
-                            <option value="">{{ __('ui.common.all_types') }}</option>
+                            <option value="">{{ ui_phrase('common_all_types') }}</option>
                             @foreach ($types as $type)
                                 <option value="{{ $type }}" @selected((string) request('transport_type') === (string) $type)>{{ ucfirst(str_replace('_', ' ', $type)) }}</option>
                             @endforeach
                         </select>
                         <select name="per_page" class="app-input" data-service-filter-input>
                             @foreach ([10,25,50,100] as $size)
-                                <option value="{{ $size }}" @selected((string) request('per_page', 10) === (string) $size)>{{ __('ui.index.per_page_option', ['size' => $size]) }}</option>
+                                <option value="{{ $size }}" @selected((string) request('per_page', 10) === (string) $size)>{{ ui_phrase('index_per_page_option', ['size' => $size]) }}</option>
                             @endforeach
                         </select>
                         <div class="flex items-center gap-2 sm:col-span-2 filter-actions">
-                            <a href="{{ route('transports.index') }}" class="btn-ghost" data-service-filter-reset>{{ __('ui.common.reset') }}</a>
+                            <a href="{{ route('transports.index') }}" class="btn-ghost" data-service-filter-reset>{{ ui_phrase('common_reset') }}</a>
                         </div>
                     </form>
                 </div>
@@ -49,12 +49,12 @@
                 <thead>
                     <tr>
                         <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">#</th>
-                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ __('ui.common.service') }}</th>
-                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ __('ui.common.type') }}</th>
-                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ __('ui.modules.transports.unit_spec') }}</th>
-                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ __('ui.modules.transports.rate_per_day') }}</th>
-                        <th class="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ __('ui.common.status') }}</th>
-                        <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300 actions-compact">{{ __('ui.common.actions') }}</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('common_service') }}</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('common_type') }}</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('modules_transports_unit_spec') }}</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('modules_transports_rate_per_day') }}</th>
+                        <th class="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('common_status') }}</th>
+                        <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300 actions-compact">{{ ui_phrase('common_actions') }}</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
@@ -91,19 +91,19 @@
                             </td>
                             <td class="px-4 py-3 text-right text-sm actions-compact">
     <div class="flex items-center justify-end gap-2">
-        <a href="{{ route('transports.show', $transport) }}" class="btn-outline-sm" title="{{ __('ui.common.view') }}" aria-label="{{ __('ui.common.view') }}"><i class="fa-solid fa-eye"></i><span class="sr-only">{{ __('ui.common.view') }}</span></a>
-                                <a href="{{ route('transports.edit', $transport) }}"  class="btn-secondary-sm" title="{{ __('ui.common.edit') }}" aria-label="{{ __('ui.common.edit') }}"><i class="fa-solid fa-pen"></i><span class="sr-only">{{ __('ui.common.edit') }}</span></a>
+        <a href="{{ route('transports.show', $transport) }}" class="btn-outline-sm" title="{{ ui_phrase('common_view') }}" aria-label="{{ ui_phrase('common_view') }}"><i class="fa-solid fa-eye"></i><span class="sr-only">{{ ui_phrase('common_view') }}</span></a>
+                                <a href="{{ route('transports.edit', $transport) }}"  class="btn-secondary-sm" title="{{ ui_phrase('common_edit') }}" aria-label="{{ ui_phrase('common_edit') }}"><i class="fa-solid fa-pen"></i><span class="sr-only">{{ ui_phrase('common_edit') }}</span></a>
                                 <form action="{{ route('transports.toggle-status', $transport->id) }}" method="POST" class="inline">
                                     @csrf
                                     @method('PATCH')
-                                    <button type="submit" onclick="return confirm('{{ $isActive ? __('ui.modules.transports.confirm_deactivate') : __('ui.modules.transports.confirm_activate') }}')" class="{{ $isActive ? 'btn-muted-sm' : 'btn-primary-sm' }}">{{ $isActive ? __('ui.common.deactivate') : __('ui.common.activate') }}</button>
+                                    <button type="submit" onclick="return confirm('{{ $isActive ? ui_phrase('modules_transports_confirm_deactivate') : ui_phrase('modules_transports_confirm_activate') }}')" class="{{ $isActive ? 'btn-muted-sm' : 'btn-primary-sm' }}">{{ $isActive ? ui_phrase('common_deactivate') : ui_phrase('common_activate') }}</button>
                                 </form>
     </div>
 </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7" class="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">{{ __('ui.index.no_data_available', ['entity' => __('ui.entities.transport_services')]) }}</td>
+                            <td colspan="7" class="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">{{ ui_phrase('index_no_data_available', ['entity' => ui_phrase('entities_transport_services')]) }}</td>
                         </tr>
                     @endforelse
                 </tbody>
@@ -121,11 +121,11 @@
                         <span class="text-xs font-medium rounded-full bg-gray-100 px-2 py-0.5 text-gray-700 dark:bg-gray-900/40 dark:text-gray-300">{{ ucfirst(str_replace('_', ' ', $transport->transport_type)) }}</span>
                     </div>
                     <div class="mt-3 grid grid-cols-2 gap-2 text-xs text-gray-600 dark:text-gray-300">
-                        <div>{{ __('ui.common.provider') }}</div>
+                        <div>{{ ui_phrase('common_provider') }}</div>
                         <div>{{ $transport->vendor?->name ?? '-' }}</div>
-                        <div>{{ __('ui.common.unit') }}</div>
+                        <div>{{ ui_phrase('common_unit') }}</div>
                         <div>{{ $transport->brand_model ?: '-' }}</div>
-                        <div>{{ __('ui.common.rate') }}</div>
+                        <div>{{ ui_phrase('common_rate') }}</div>
                         <div>
                             @if ($transport->contract_rate !== null)
                                 <div><x-money :amount="(float) $transport->contract_rate" currency="IDR" /></div>
@@ -136,21 +136,21 @@
                                 -
                             @endif
                         </div>
-                        <div>{{ __('ui.common.status') }}</div>
+                        <div>{{ ui_phrase('common_status') }}</div>
                         <div><x-status-badge :status="$transport->trashed() ? 'inactive' : 'active'" size="xs" /></div>
                     </div>
                     <div class="mt-3 flex flex-wrap gap-2">
-                        <a href="{{ route('transports.show', $transport) }}" class="btn-outline-sm" title="{{ __('ui.common.view') }}" aria-label="{{ __('ui.common.view') }}"><i class="fa-solid fa-eye"></i><span class="sr-only">{{ __('ui.common.view') }}</span></a>
-                        <a href="{{ route('transports.edit', $transport) }}" class="btn-secondary-sm" title="{{ __('ui.common.edit') }}" aria-label="{{ __('ui.common.edit') }}"><i class="fa-solid fa-pen"></i><span class="sr-only">{{ __('ui.common.edit') }}</span></a>
+                        <a href="{{ route('transports.show', $transport) }}" class="btn-outline-sm" title="{{ ui_phrase('common_view') }}" aria-label="{{ ui_phrase('common_view') }}"><i class="fa-solid fa-eye"></i><span class="sr-only">{{ ui_phrase('common_view') }}</span></a>
+                        <a href="{{ route('transports.edit', $transport) }}" class="btn-secondary-sm" title="{{ ui_phrase('common_edit') }}" aria-label="{{ ui_phrase('common_edit') }}"><i class="fa-solid fa-pen"></i><span class="sr-only">{{ ui_phrase('common_edit') }}</span></a>
                         <form action="{{ route('transports.toggle-status', $transport->id) }}" method="POST" class="inline">
                             @csrf
                             @method('PATCH')
-                            <button type="submit" onclick="return confirm('{{ $transport->trashed() ? __('ui.modules.transports.confirm_activate_mobile') : __('ui.modules.transports.confirm_deactivate_mobile') }}')" class="{{ $transport->trashed() ? 'btn-primary-sm' : 'btn-muted-sm' }}">{{ $transport->trashed() ? __('ui.common.activate') : __('ui.common.deactivate') }}</button>
+                            <button type="submit" onclick="return confirm('{{ $transport->trashed() ? ui_phrase('modules_transports_confirm_activate_mobile') : ui_phrase('modules_transports_confirm_deactivate_mobile') }}')" class="{{ $transport->trashed() ? 'btn-primary-sm' : 'btn-muted-sm' }}">{{ $transport->trashed() ? ui_phrase('common_activate') : ui_phrase('common_deactivate') }}</button>
                         </form>
                     </div>
                 </div>
             @empty
-                <div class="app-card p-6 text-center text-sm text-gray-500 dark:text-gray-400">{{ __('ui.index.no_data_available', ['entity' => __('ui.entities.transport_services')]) }}</div>
+                <div class="app-card p-6 text-center text-sm text-gray-500 dark:text-gray-400">{{ ui_phrase('index_no_data_available', ['entity' => ui_phrase('entities_transport_services')]) }}</div>
             @endforelse
         </div>
         <div>{{ $transports->links() }}</div>

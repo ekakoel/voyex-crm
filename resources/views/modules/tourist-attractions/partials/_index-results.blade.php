@@ -13,12 +13,12 @@
                     <thead>
                         <tr>
                             <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">#</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ __('ui.common.name') }}</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ __('ui.modules.tourist_attractions.ideal_duration') }}</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ __('ui.modules.tourist_attractions.rates_per_pax') }}</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ __('ui.common.location') }}</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ __('ui.common.status') }}</th>
-                            <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300 actions-compact">{{ __('ui.common.actions') }}</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('common_name') }}</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('modules_tourist_attractions_ideal_duration') }}</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('modules_tourist_attractions_rates_per_pax') }}</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('common_location') }}</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('common_status') }}</th>
+                            <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300 actions-compact">{{ ui_phrase('common_actions') }}</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
@@ -32,15 +32,15 @@
                                 </td>
                                 <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">{{ $touristAttraction->ideal_visit_minutes }} min</td>
                                 <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">
-                                    <div>{{ __('ui.modules.tourist_attractions.contract') }}: {{ $touristAttraction->contract_rate_per_pax !== null ? \App\Support\Currency::format((float) $touristAttraction->contract_rate_per_pax, 'IDR') : '-' }}</div>
+                                    <div>{{ ui_phrase('modules_tourist_attractions_contract') }}: {{ $touristAttraction->contract_rate_per_pax !== null ? \App\Support\Currency::format((float) $touristAttraction->contract_rate_per_pax, 'IDR') : '-' }}</div>
                                     <div class="text-xs text-gray-500 dark:text-gray-400">
-                                        {{ __('ui.modules.tourist_attractions.markup') }}:
+                                        {{ ui_phrase('modules_tourist_attractions_markup') }}:
                                         {{ ($touristAttraction->markup_type ?? 'fixed') === 'percent'
                                             ? rtrim(rtrim(number_format((float) ($touristAttraction->markup ?? 0), 2, '.', ''), '0'), '.') . '%'
                                             : \App\Support\Currency::format((float) ($touristAttraction->markup ?? 0), 'IDR') }}
                                     </div>
                                     <div class="text-xs text-gray-500 dark:text-gray-400">
-                                        {{ __('ui.modules.tourist_attractions.publish') }}:
+                                        {{ ui_phrase('modules_tourist_attractions_publish') }}:
                                         {{ $touristAttraction->publish_rate_per_pax !== null ? \App\Support\Currency::format((float) $touristAttraction->publish_rate_per_pax, 'IDR') : '-' }}
                                     </div>
                                 </td>
@@ -50,18 +50,18 @@
                                 </td>
                                 <td class="px-4 py-3 text-right text-sm actions-compact">
                                     <div class="flex items-center justify-end gap-2">
-                                        <a href="{{ route('tourist-attractions.edit', $touristAttraction) }}" class="btn-secondary-sm" title="{{ __('ui.common.edit') }}" aria-label="{{ __('ui.common.edit') }}"><i class="fa-solid fa-pen"></i><span class="sr-only">{{ __('ui.common.edit') }}</span></a>
+                                        <a href="{{ route('tourist-attractions.edit', $touristAttraction) }}" class="btn-secondary-sm" title="{{ ui_phrase('common_edit') }}" aria-label="{{ ui_phrase('common_edit') }}"><i class="fa-solid fa-pen"></i><span class="sr-only">{{ ui_phrase('common_edit') }}</span></a>
                                         <form action="{{ route('tourist-attractions.toggle-status', $touristAttraction->id) }}" method="POST" class="inline" data-tourist-attractions-toggle-form>
                                             @csrf
                                             @method('PATCH')
-                                            <button type="submit" onclick="return confirm('{{ $isActive ? __('ui.modules.tourist_attractions.confirm_deactivate') : __('ui.modules.tourist_attractions.confirm_activate') }}')" class="{{ $isActive ? 'btn-muted-sm' : 'btn-primary-sm' }}">{{ $isActive ? __('ui.common.deactivate') : __('ui.common.activate') }}</button>
+                                            <button type="submit" onclick="return confirm('{{ $isActive ? ui_phrase('modules_tourist_attractions_confirm_deactivate') : ui_phrase('modules_tourist_attractions_confirm_activate') }}')" class="{{ $isActive ? 'btn-muted-sm' : 'btn-primary-sm' }}">{{ $isActive ? ui_phrase('common_deactivate') : ui_phrase('common_activate') }}</button>
                                         </form>
                                         @if ($canDeleteTouristAttraction)
                                             <form action="{{ route('tourist-attractions.destroy', $touristAttraction) }}" method="POST" class="inline" data-tourist-attractions-delete-form>
                                                 @csrf
                                                 @method('DELETE')
                                                 <button type="submit" class="btn-danger-sm">
-                                                    {{ __('ui.common.delete') }}
+                                                    {{ ui_phrase('common_delete') }}
                                                 </button>
                                             </form>
                                         @endif
@@ -70,7 +70,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="7" class="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">{{ __('ui.index.no_data_available', ['entity' => __('ui.entities.tourist_attractions')]) }}</td>
+                                <td colspan="7" class="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">{{ ui_phrase('index_no_data_available', ['entity' => ui_phrase('entities_tourist_attractions')]) }}</td>
                             </tr>
                         @endforelse
                     </tbody>
@@ -82,38 +82,38 @@
                 <div class="app-card p-4">
                     <p class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ $touristAttraction->name }}</p>
                     <p class="text-xs text-indigo-600 dark:text-indigo-300">{{ $touristAttraction->destination?->name ?? '-' }}</p>
-                    <p class="text-xs text-gray-500 dark:text-gray-400">{{ __('ui.modules.tourist_attractions.ideal') }}: {{ $touristAttraction->ideal_visit_minutes }} min</p>
-                    <p class="text-xs text-gray-500 dark:text-gray-400">{{ __('ui.modules.tourist_attractions.contract') }}: {{ $touristAttraction->contract_rate_per_pax !== null ? \App\Support\Currency::format((float) $touristAttraction->contract_rate_per_pax, 'IDR') : '-' }} / pax</p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">{{ ui_phrase('modules_tourist_attractions_ideal') }}: {{ $touristAttraction->ideal_visit_minutes }} min</p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">{{ ui_phrase('modules_tourist_attractions_contract') }}: {{ $touristAttraction->contract_rate_per_pax !== null ? \App\Support\Currency::format((float) $touristAttraction->contract_rate_per_pax, 'IDR') : '-' }} / pax</p>
                     <p class="text-xs text-gray-500 dark:text-gray-400">
-                        {{ __('ui.modules.tourist_attractions.markup') }}:
+                        {{ ui_phrase('modules_tourist_attractions_markup') }}:
                         {{ ($touristAttraction->markup_type ?? 'fixed') === 'percent'
                             ? rtrim(rtrim(number_format((float) ($touristAttraction->markup ?? 0), 2, '.', ''), '0'), '.') . '%'
                             : \App\Support\Currency::format((float) ($touristAttraction->markup ?? 0), 'IDR') }}
                     </p>
-                    <p class="text-xs text-gray-500 dark:text-gray-400">{{ __('ui.modules.tourist_attractions.publish') }}: {{ $touristAttraction->publish_rate_per_pax !== null ? \App\Support\Currency::format((float) $touristAttraction->publish_rate_per_pax, 'IDR') : '-' }} / pax</p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">{{ ui_phrase('modules_tourist_attractions_publish') }}: {{ $touristAttraction->publish_rate_per_pax !== null ? \App\Support\Currency::format((float) $touristAttraction->publish_rate_per_pax, 'IDR') : '-' }} / pax</p>
                     <p class="text-xs text-gray-500 dark:text-gray-400">{{ trim(($touristAttraction->city ?? '') . (($touristAttraction->city && $touristAttraction->province) ? ', ' : '') . ($touristAttraction->province ?? '')) ?: '-' }}</p>
                     <p class="text-xs text-gray-500 dark:text-gray-400">{{ $touristAttraction->country ?? '-' }}</p>
-                    <p class="text-xs text-gray-500 dark:text-gray-400">{{ __('ui.common.status') }}: <x-status-badge :status="$touristAttraction->trashed() ? 'inactive' : 'active'" size="xs" /></p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">{{ ui_phrase('common_status') }}: <x-status-badge :status="$touristAttraction->trashed() ? 'inactive' : 'active'" size="xs" /></p>
                     <div class="mt-3 flex flex-wrap gap-2">
-                        <a href="{{ route('tourist-attractions.edit', $touristAttraction) }}" class="btn-secondary-sm" title="{{ __('ui.common.edit') }}" aria-label="{{ __('ui.common.edit') }}"><i class="fa-solid fa-pen"></i><span class="sr-only">{{ __('ui.common.edit') }}</span></a>
+                        <a href="{{ route('tourist-attractions.edit', $touristAttraction) }}" class="btn-secondary-sm" title="{{ ui_phrase('common_edit') }}" aria-label="{{ ui_phrase('common_edit') }}"><i class="fa-solid fa-pen"></i><span class="sr-only">{{ ui_phrase('common_edit') }}</span></a>
                         <form action="{{ route('tourist-attractions.toggle-status', $touristAttraction->id) }}" method="POST" class="inline" data-tourist-attractions-toggle-form>
                             @csrf
                             @method('PATCH')
-                            <button type="submit" onclick="return confirm('{{ $touristAttraction->trashed() ? __('ui.modules.tourist_attractions.confirm_activate') : __('ui.modules.tourist_attractions.confirm_deactivate') }}')" class="{{ $touristAttraction->trashed() ? 'btn-primary-sm' : 'btn-muted-sm' }}">{{ $touristAttraction->trashed() ? __('ui.common.activate') : __('ui.common.deactivate') }}</button>
+                            <button type="submit" onclick="return confirm('{{ $touristAttraction->trashed() ? ui_phrase('modules_tourist_attractions_confirm_activate') : ui_phrase('modules_tourist_attractions_confirm_deactivate') }}')" class="{{ $touristAttraction->trashed() ? 'btn-primary-sm' : 'btn-muted-sm' }}">{{ $touristAttraction->trashed() ? ui_phrase('common_activate') : ui_phrase('common_deactivate') }}</button>
                         </form>
                         @if ($canDeleteTouristAttraction)
                             <form action="{{ route('tourist-attractions.destroy', $touristAttraction) }}" method="POST" class="inline" data-tourist-attractions-delete-form>
                                 @csrf
                                 @method('DELETE')
                                 <button type="submit" class="btn-danger-sm">
-                                    {{ __('ui.common.delete') }}
+                                    {{ ui_phrase('common_delete') }}
                                 </button>
                             </form>
                         @endif
                     </div>
                 </div>
             @empty
-                <div class="app-card p-6 text-center text-sm text-gray-500 dark:text-gray-400">{{ __('ui.index.no_data_available', ['entity' => __('ui.entities.tourist_attractions')]) }}</div>
+                <div class="app-card p-6 text-center text-sm text-gray-500 dark:text-gray-400">{{ ui_phrase('index_no_data_available', ['entity' => ui_phrase('entities_tourist_attractions')]) }}</div>
             @endforelse
         </div>
         <div>{{ $touristAttractions->links() }}</div>

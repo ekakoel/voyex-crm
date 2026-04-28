@@ -57,7 +57,7 @@ class SidebarComposer
             // ],
             [
                 'title' => 'Dashboard',
-                'title_key' => 'ui.sidebar.dashboard',
+                'title_key' => 'sidebar_dashboard',
                 'route' => 'dashboard',
                 'icon'  => 'dashboard',
                 'any_permissions' => [
@@ -76,17 +76,17 @@ class SidebarComposer
             [
                 'type' => 'label',
                 'title' => 'CRM & Sales',
-                'title_key' => 'ui.sidebar.labels.crm_sales',
+                'title_key' => 'sidebar_labels_crm_sales',
             ],
             [
                 'title' => 'Customers',
-                'title_key' => 'ui.sidebar.customers',
+                'title_key' => 'sidebar_customers',
                 'route' => '#',
                 'icon'  => 'chalkboard-user',
                 'children' => [
                     [
                         'title' => 'Customers / Agents',
-                        'title_key' => 'ui.sidebar.customers_agents',
+                        'title_key' => 'sidebar_customers_agents',
                         'route' => 'customers.index',
                         'icon'  => 'users',
                         'module' => 'customer_management',
@@ -95,34 +95,34 @@ class SidebarComposer
             ],
             [
                 'title' => 'Reservations',
-                'title_key' => 'ui.sidebar.reservations',
+                'title_key' => 'sidebar_reservations',
                 'route' => '#',
                 'icon'  => 'cart-flatbed-suitcase',
                 'children' => [
                     [
                         'title' => 'Inquiries',
-                        'title_key' => 'ui.sidebar.inquiries',
+                        'title_key' => 'sidebar_inquiries',
                         'route' => 'inquiries.index',
                         'icon'  => 'file-lines',
                         'module' => 'inquiries',
                     ],
                     [
                         'title' => 'Itineraries',
-                        'title_key' => 'ui.sidebar.itineraries',
+                        'title_key' => 'sidebar_itineraries',
                         'route' => 'itineraries.index',
                         'icon'  => 'route',
                         'module' => 'itineraries',
                     ],
                     [
                         'title' => 'Quotations',
-                        'title_key' => 'ui.sidebar.quotations',
+                        'title_key' => 'sidebar_quotations',
                         'route' => 'quotations.index',
                         'icon'  => 'file-circle-plus',
                         'module' => 'quotations',
                     ],
                     [
                         'title' => 'Bookings',
-                        'title_key' => 'ui.sidebar.bookings',
+                        'title_key' => 'sidebar_bookings',
                         'route' => 'bookings.index',
                         'icon'  => 'tags',
                         'module' => 'bookings',
@@ -130,7 +130,7 @@ class SidebarComposer
                     ],
                     [
                         'title' => 'Invoices',
-                        'title_key' => 'ui.sidebar.invoices',
+                        'title_key' => 'sidebar_invoices',
                         'route' => 'invoices.index',
                         'icon'  => 'file-invoice-dollar',
                         'module' => 'invoices',
@@ -144,11 +144,11 @@ class SidebarComposer
             [
                 'type' => 'label',
                 'title' => 'Product & Reservation',
-                'title_key' => 'ui.sidebar.labels.product_reservation',
+                'title_key' => 'sidebar_labels_product_reservation',
             ],
             [
                 'title' => 'Airports',
-                'title_key' => 'ui.sidebar.airports',
+                'title_key' => 'sidebar_airports',
                 'route' => 'airports.index',
                 'icon'  => 'plane-departure',
                 'module' => 'airports',
@@ -156,7 +156,7 @@ class SidebarComposer
             ],
             [
                 'title' => 'Destinations',
-                'title_key' => 'ui.sidebar.destinations',
+                'title_key' => 'sidebar_destinations',
                 'route' => 'destinations.index',
                 'icon'  => 'map-location-dot',
                 'module' => 'destinations',
@@ -164,7 +164,7 @@ class SidebarComposer
             ],
             [
                 'title' => 'Vendors / Providers',
-                'title_key' => 'ui.sidebar.vendors_providers',
+                'title_key' => 'sidebar_vendors_providers',
                 'route' => 'vendors.index',
                 'icon'  => 'handshake',
                 'module' => 'vendor_management',
@@ -172,7 +172,7 @@ class SidebarComposer
             ],
             [
                 'title' => 'Item Validation',
-                'title_key' => 'ui.sidebar.item_validation',
+                'title_key' => 'sidebar_item_validation',
                 'route' => 'itineraries.manual-item-validation-queue',
                 'icon'  => 'clipboard-check',
                 'module' => 'itineraries',
@@ -180,13 +180,13 @@ class SidebarComposer
             ],
             [
                 'title' => 'Service Items',
-                'title_key' => 'ui.sidebar.service_items',
+                'title_key' => 'sidebar_service_items',
                 'route' => '#',
                 'icon'  => 'briefcase',
                 'children' => [
                     [
                         'title' => 'Activities',
-                        'title_key' => 'ui.sidebar.activities',
+                        'title_key' => 'sidebar_activities',
                         'route' => 'activities.index',
                         'icon'  => 'person-hiking',
                         'module' => 'activities',
@@ -194,7 +194,7 @@ class SidebarComposer
                     ],
                     [
                         'title' => 'Island Transfers',
-                        'title_key' => 'ui.sidebar.island_transfers',
+                        'title_key' => 'sidebar_island_transfers',
                         'route' => 'island-transfers.index',
                         'icon'  => 'ship',
                         'module' => 'island_transfers',
@@ -202,7 +202,7 @@ class SidebarComposer
                     ],
                     [
                         'title' => 'F&B',
-                        'title_key' => 'ui.sidebar.food_beverage',
+                        'title_key' => 'sidebar_food_beverage',
                         'route' => 'food-beverages.index',
                         'icon'  => 'utensils',
                         'module' => 'food_beverages',
@@ -210,7 +210,7 @@ class SidebarComposer
                     ],
                     [
                         'title' => 'Hotels',
-                        'title_key' => 'ui.sidebar.hotels',
+                        'title_key' => 'sidebar_hotels',
                         'route' => 'hotels.index',
                         'icon'  => 'bed',
                         'module' => 'hotels',
@@ -218,7 +218,7 @@ class SidebarComposer
                     ],
                     [
                         'title' => 'Transports',
-                        'title_key' => 'ui.sidebar.transports',
+                        'title_key' => 'sidebar_transports',
                         'route' => 'transports.index',
                         'icon'  => 'bus',
                         'module' => 'transports',
@@ -226,7 +226,7 @@ class SidebarComposer
                     ],
                     [
                         'title' => 'Tourist Attractions',
-                        'title_key' => 'ui.sidebar.tourist_attractions',
+                        'title_key' => 'sidebar_tourist_attractions',
                         'route' => 'tourist-attractions.index',
                         'icon'  => 'landmark',
                         'module' => 'tourist_attractions',
@@ -239,18 +239,18 @@ class SidebarComposer
             [
                 'type' => 'label',
                 'title' => 'Administration',
-                'title_key' => 'ui.sidebar.labels.administration',
+                'title_key' => 'sidebar_labels_administration',
             ],
             [
                 'title' => 'Company Settings',
-                'title_key' => 'ui.sidebar.company_settings',
+                'title_key' => 'sidebar_company_settings',
                 'route' => 'company-settings.edit',
                 'icon'  => 'building',
                 'permission' => 'company_settings.manage',
             ],
             [
                 'title' => 'Currencies',
-                'title_key' => 'ui.sidebar.currencies',
+                'title_key' => 'sidebar_currencies',
                 'route' => 'currencies.index',
                 'icon'  => 'coins',
                 'module' => 'currencies',
@@ -258,14 +258,14 @@ class SidebarComposer
             ],
             [
                 'title' => 'System Admin',
-                'title_key' => 'ui.sidebar.system_admin',
+                'title_key' => 'sidebar_system_admin',
                 'route' => '#',
                 'icon'  => 'shield-halved',
                 'roles' => ['Administrator', 'Super Admin'],
                 'children' => [
                     [
                         'title' => 'Modules',
-                        'title_key' => 'ui.sidebar.modules',
+                        'title_key' => 'sidebar_modules',
                         'route' => 'services.index',
                         'icon'  => 'cubes',
                         'module' => 'service_manager',
@@ -273,7 +273,7 @@ class SidebarComposer
                     ],
                     [
                         'title' => 'Service Map',
-                        'title_key' => 'ui.sidebar.service_map',
+                        'title_key' => 'sidebar_service_map',
                         'route' => 'services.map',
                         'icon'  => 'earth-asia',
                         'module' => 'service_manager',
@@ -282,7 +282,7 @@ class SidebarComposer
                     ],
                     [
                         'title' => 'Role & Permissions',
-                        'title_key' => 'ui.sidebar.role_permissions',
+                        'title_key' => 'sidebar_role_permissions',
                         'route' => 'roles.index',
                         'icon'  => 'user-shield',
                         'module' => 'role_manager',
@@ -290,14 +290,14 @@ class SidebarComposer
                     ],
                     [
                         'title' => 'Access Matrix',
-                        'title_key' => 'ui.sidebar.access_matrix',
+                        'title_key' => 'sidebar_access_matrix',
                         'route' => 'superadmin.access-matrix',
                         'icon'  => 'table-cells',
                         'permission' => 'superadmin.access_matrix.view',
                     ],
                     [
                         'title' => 'User Manager',
-                        'title_key' => 'ui.sidebar.user_manager',
+                        'title_key' => 'sidebar_user_manager',
                         'route' => 'users.index',
                         'icon'  => 'user-gear',
                         'module' => 'user_manager',
@@ -614,3 +614,4 @@ class SidebarComposer
     }
 
 }
+

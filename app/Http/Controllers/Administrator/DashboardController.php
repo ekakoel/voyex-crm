@@ -145,8 +145,8 @@ class DashboardController extends Controller
                 $items[] = ['label' => ui_term('roles'), 'value' => $systemManagementStats['roles'] ?? 0, 'icon' => 'user-shield', 'color' => 'violet', 'route' => 'roles.index'];
             }
             if ($canServices) {
-                $items[] = ['label' => __('ui.administrator_dashboard.system_kpis.modules_on'), 'value' => $systemManagementStats['modules_enabled'] ?? 0, 'icon' => 'toggle-on', 'color' => 'emerald', 'route' => 'services.index'];
-                $items[] = ['label' => __('ui.administrator_dashboard.system_kpis.modules_off'), 'value' => $systemManagementStats['modules_disabled'] ?? 0, 'icon' => 'toggle-off', 'color' => 'rose', 'route' => 'services.index'];
+                $items[] = ['label' => ui_phrase('administrator_dashboard_system_kpis_modules_on'), 'value' => $systemManagementStats['modules_enabled'] ?? 0, 'icon' => 'toggle-on', 'color' => 'emerald', 'route' => 'services.index'];
+                $items[] = ['label' => ui_phrase('administrator_dashboard_system_kpis_modules_off'), 'value' => $systemManagementStats['modules_disabled'] ?? 0, 'icon' => 'toggle-off', 'color' => 'rose', 'route' => 'services.index'];
             }
 
             return $items;
@@ -258,6 +258,7 @@ class DashboardController extends Controller
             return $canUsers
                 ? User::query()
                     ->withoutSuperAdmin()
+                    ->with('roles:id,name')
                     ->latest('updated_at')
                     ->limit(5)
                     ->get()

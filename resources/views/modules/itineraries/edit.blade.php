@@ -1,10 +1,10 @@
 @extends('layouts.master')
 
-@section('page_title', __('ui.common.edit') . ' ' . __('ui.modules.itineraries.page_title'))
-@section('page_subtitle', __('ui.modules.itineraries.edit_page_subtitle'))
+@section('page_title', ui_phrase('common_edit') . ' ' . ui_phrase('modules_itineraries_page_title'))
+@section('page_subtitle', ui_phrase('modules_itineraries_edit_page_subtitle'))
 @section('page_actions')
-    <a href="{{ route('itineraries.show', $itinerary) }}" class="btn-secondary">{{ __('ui.common.view_detail') }}</a>
-    <a href="{{ route('itineraries.index') }}" class="btn-ghost">{{ __('ui.common.back') }}</a>
+    <a href="{{ route('itineraries.show', $itinerary) }}" class="btn-secondary">{{ ui_phrase('common_view_detail') }}</a>
+    <a href="{{ route('itineraries.index') }}" class="btn-ghost">{{ ui_phrase('common_back') }}</a>
 @endsection
 
 
@@ -16,7 +16,7 @@
                 @method('PUT')
                 @include('modules.itineraries._form', [
                     'itinerary' => $itinerary,
-                    'buttonLabel' => __('ui.modules.itineraries.update_itinerary'),
+                    'buttonLabel' => ui_phrase('modules_itineraries_update_itinerary'),
                 ])
             </form>
         </div>

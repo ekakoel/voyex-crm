@@ -1,8 +1,8 @@
 @if(!empty($masterDataKpis))
     <div>
         <div class="flex items-center justify-between">
-            <h2 class="text-sm font-semibold text-slate-900 dark:text-slate-100">{{ __('ui.administrator_dashboard.sections.master_data_catalog') }}</h2>
-            <span class="text-[11px] text-slate-500 dark:text-slate-400">{{ __('ui.administrator_dashboard.master_data_kpis.total_records_each_catalog') }}</span>
+            <h2 class="text-sm font-semibold text-slate-900 dark:text-slate-100">{{ ui_phrase('administrator_dashboard_sections_master_data_catalog') }}</h2>
+            <span class="text-[11px] text-slate-500 dark:text-slate-400">{{ ui_phrase('administrator_dashboard_master_data_kpis_total_records_each_catalog') }}</span>
         </div>
         <div class="dashboard-kpi-grid mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
             @foreach($masterDataKpis as $card)
@@ -17,5 +17,6 @@
         </div>
     </div>
 @else
-    <p class="text-sm text-slate-500 dark:text-slate-400" data-progressive-item>{{ __('ui.administrator_dashboard.master_data_kpis.no_access') }}</p>
+    <p class="text-sm text-slate-500 dark:text-slate-400" data-progressive-item>{{ ui_phrase('administrator_dashboard_master_data_kpis_no_access') }}</p>
 @endif
+

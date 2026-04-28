@@ -1,13 +1,13 @@
 @extends('layouts.master')
 
-@section('page_title', __('ui.modules.quotations.edit_page_title'))
-@section('page_subtitle', __('ui.modules.quotations.edit_page_subtitle'))
+@section('page_title', ui_phrase('modules_quotations_edit_page_title'))
+@section('page_subtitle', ui_phrase('modules_quotations_edit_page_subtitle'))
 @section('page_actions')
     @if (($canValidateQuotation ?? false) === true)
-        <a href="{{ route('quotations.validate.show', $quotation) }}" class="btn-outline">{{ __('ui.modules.quotations.validate_quotation') }}</a>
+        <a href="{{ route('quotations.validate.show', $quotation) }}" class="btn-outline">{{ ui_phrase('modules_quotations_validate_quotation') }}</a>
     @endif
-    <a href="{{ route('quotations.show', $quotation) }}" class="btn-secondary">{{ __('ui.common.view_detail') }}</a>
-    <a href="{{ route('quotations.index') }}" class="btn-ghost">{{ __('ui.common.back') }}</a>
+    <a href="{{ route('quotations.show', $quotation) }}" class="btn-secondary">{{ ui_phrase('common_view_detail') }}</a>
+    <a href="{{ route('quotations.index') }}" class="btn-ghost">{{ ui_phrase('common_back') }}</a>
 @endsection
 
 @push('scripts')
@@ -77,39 +77,39 @@
     <div class="space-y-6 module-page module-page--quotations">
         <div id="quotation-create-inquiry-card" class="module-card p-6 hidden">
             <div class="mb-3">
-                <p class="text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300">{{ __('ui.modules.quotations.inquiry_detail') }}</p>
+                <p class="text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300">{{ ui_phrase('modules_quotations_inquiry_detail') }}</p>
             </div>
             <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
                 <div class="rounded-lg border border-gray-200 p-3 dark:border-gray-700">
-                    <p class="text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ __('ui.common.inquiry_no') }}</p>
+                    <p class="text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ ui_phrase('common_inquiry_no') }}</p>
                     <p class="mt-1 text-sm font-semibold text-gray-800 dark:text-gray-100" data-inquiry-field="inquiry_number">-</p>
                 </div>
                 <div class="rounded-lg border border-gray-200 p-3 dark:border-gray-700">
-                    <p class="text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ __('ui.common.customer') }}</p>
+                    <p class="text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ ui_phrase('common_customer') }}</p>
                     <p class="mt-1 text-sm font-semibold text-gray-800 dark:text-gray-100" data-inquiry-field="customer_name">-</p>
                 </div>
                 <div class="rounded-lg border border-gray-200 p-3 dark:border-gray-700">
-                    <p class="text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ __('ui.common.status') }}</p>
+                    <p class="text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ ui_phrase('common_status') }}</p>
                     <p class="mt-1 text-sm font-semibold text-gray-800 dark:text-gray-100" data-inquiry-field="status">-</p>
                 </div>
                 <div class="rounded-lg border border-gray-200 p-3 dark:border-gray-700">
-                    <p class="text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ __('ui.common.priority') }}</p>
+                    <p class="text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ ui_phrase('common_priority') }}</p>
                     <p class="mt-1 text-sm font-semibold text-gray-800 dark:text-gray-100" data-inquiry-field="priority">-</p>
                 </div>
                 <div class="rounded-lg border border-gray-200 p-3 dark:border-gray-700">
-                    <p class="text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ __('ui.modules.inquiries.source') }}</p>
+                    <p class="text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ ui_phrase('modules_inquiries_source') }}</p>
                     <p class="mt-1 text-sm font-semibold text-gray-800 dark:text-gray-100" data-inquiry-field="source">-</p>
                 </div>
                 <div class="rounded-lg border border-gray-200 p-3 dark:border-gray-700">
-                    <p class="text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ __('ui.common.assigned') }}</p>
+                    <p class="text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ ui_phrase('common_assigned') }}</p>
                     <p class="mt-1 text-sm font-semibold text-gray-800 dark:text-gray-100" data-inquiry-field="assigned_user_name">-</p>
                 </div>
                 <div class="rounded-lg border border-gray-200 p-3 dark:border-gray-700 md:col-span-2">
-                    <p class="text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ __('ui.common.deadline') }}</p>
+                    <p class="text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ ui_phrase('common_deadline') }}</p>
                     <p class="mt-1 text-sm font-semibold text-gray-800 dark:text-gray-100" data-inquiry-field="deadline">-</p>
                 </div>
                 <div class="rounded-lg border border-gray-200 p-3 dark:border-gray-700 md:col-span-2">
-                    <p class="text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ __('ui.common.notes') }}</p>
+                    <p class="text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ ui_phrase('common_notes') }}</p>
                     <div class="prose prose-sm mt-1 max-w-none text-gray-700 dark:prose-invert dark:text-gray-200" data-inquiry-field="notes">-</div>
                 </div>
             </div>
@@ -121,7 +121,7 @@
                 @method('PUT')
                 @include('modules.quotations._form', [
                     'quotation' => $quotation,
-                    'buttonLabel' => __('ui.modules.quotations.update_quotation'),
+                    'buttonLabel' => ui_phrase('modules_quotations_update_quotation'),
                 ])
             </form>
         </div>

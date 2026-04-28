@@ -21,10 +21,10 @@ class IslandTransferController extends Controller
     public function index(Request $request)
     {
         $transferTypeOptions = [
-            ['value' => 'fastboat', 'label' => __('ui.modules.island_transfers.types.fastboat')],
-            ['value' => 'ferry', 'label' => __('ui.modules.island_transfers.types.ferry')],
-            ['value' => 'speedboat', 'label' => __('ui.modules.island_transfers.types.speedboat')],
-            ['value' => 'boat', 'label' => __('ui.modules.island_transfers.types.boat')],
+            ['value' => 'fastboat', 'label' => ui_phrase('modules_island_transfers_types_fastboat')],
+            ['value' => 'ferry', 'label' => ui_phrase('modules_island_transfers_types_ferry')],
+            ['value' => 'speedboat', 'label' => ui_phrase('modules_island_transfers_types_speedboat')],
+            ['value' => 'boat', 'label' => ui_phrase('modules_island_transfers_types_boat')],
         ];
 
         $query = IslandTransfer::query()
@@ -49,19 +49,19 @@ class IslandTransferController extends Controller
             ->get(['id', 'name', 'city', 'province']);
         $statsCards = [
             [
-                'label' => __('ui.modules.island_transfers.stats_total'),
+                'label' => ui_phrase('modules_island_transfers_stats_total'),
                 'value' => (string) IslandTransfer::withTrashed()->count(),
             ],
             [
-                'label' => __('ui.modules.island_transfers.stats_active'),
+                'label' => ui_phrase('modules_island_transfers_stats_active'),
                 'value' => (string) IslandTransfer::query()->count(),
             ],
             [
-                'label' => __('ui.modules.island_transfers.stats_inactive'),
+                'label' => ui_phrase('modules_island_transfers_stats_inactive'),
                 'value' => (string) IslandTransfer::onlyTrashed()->count(),
             ],
             [
-                'label' => __('ui.modules.island_transfers.stats_fast_boat'),
+                'label' => ui_phrase('modules_island_transfers_stats_fast_boat'),
                 'value' => (string) IslandTransfer::withTrashed()->where('transfer_type', 'fastboat')->count(),
             ],
         ];
@@ -85,7 +85,7 @@ class IslandTransferController extends Controller
         $validated['gallery_images'] = $this->storeGalleryImages($request->file('gallery_images', []), 'island-transfers');
         IslandTransfer::query()->create($validated);
 
-        return redirect()->route('island-transfers.index')->with('success', __('ui.modules.island_transfers.messages.created'));
+        return redirect()->route('island-transfers.index')->with('success', ui_phrase('modules_island_transfers_messages_created'));
     }
 
     public function show($islandTransfer)
@@ -126,7 +126,7 @@ class IslandTransferController extends Controller
         unset($validated['removed_gallery_images']);
         $islandTransfer->update($validated);
 
-        return redirect()->route('island-transfers.index')->with('success', __('ui.modules.island_transfers.messages.updated'));
+        return redirect()->route('island-transfers.index')->with('success', ui_phrase('modules_island_transfers_messages_updated'));
     }
 
     public function duplicate($islandTransfer)
@@ -148,7 +148,7 @@ class IslandTransferController extends Controller
 
         return redirect()
             ->route('island-transfers.edit', $duplicated)
-            ->with('success', __('ui.modules.island_transfers.messages.duplicated'));
+            ->with('success', ui_phrase('modules_island_transfers_messages_duplicated'));
     }
 
     public function toggleStatus($islandTransfer)
@@ -160,7 +160,7 @@ class IslandTransferController extends Controller
 
             return redirect()
                 ->route('island-transfers.index')
-                ->with('success', __('ui.modules.island_transfers.messages.activated'));
+                ->with('success', ui_phrase('modules_island_transfers_messages_activated'));
         }
 
         $islandTransfer->update(['is_active' => false]);
@@ -168,7 +168,7 @@ class IslandTransferController extends Controller
 
         return redirect()
             ->route('island-transfers.index')
-            ->with('success', __('ui.modules.island_transfers.messages.deactivated'));
+            ->with('success', ui_phrase('modules_island_transfers_messages_deactivated'));
     }
 
     public function destroy(IslandTransfer $islandTransfer)
@@ -176,7 +176,7 @@ class IslandTransferController extends Controller
         $this->deleteGalleryImages($islandTransfer->gallery_images ?? []);
         $islandTransfer->delete();
 
-        return redirect()->route('island-transfers.index')->with('success', __('ui.modules.island_transfers.messages.deactivated'));
+        return redirect()->route('island-transfers.index')->with('success', ui_phrase('modules_island_transfers_messages_deactivated'));
     }
 
     public function removeGalleryImage(Request $request, IslandTransfer $islandTransfer)

@@ -1,9 +1,9 @@
 @extends('layouts.master')
 
-@section('page_title', __('ui.modules.tourist_attractions.edit_page_title'))
-@section('page_subtitle', __('ui.modules.tourist_attractions.edit_page_subtitle'))
+@section('page_title', ui_phrase('modules_tourist_attractions_edit_page_title'))
+@section('page_subtitle', ui_phrase('modules_tourist_attractions_edit_page_subtitle'))
 @section('page_actions')
-    <a href="{{ route('tourist-attractions.index') }}" class="btn-ghost">{{ __('ui.common.back') }}</a>
+    <a href="{{ route('tourist-attractions.index') }}" class="btn-ghost">{{ ui_phrase('common_back') }}</a>
 @endsection
 
 @section('content')
@@ -14,7 +14,7 @@
                     <form method="POST" action="{{ route('tourist-attractions.update', $touristAttraction) }}" enctype="multipart/form-data">
                         @csrf
                         @method('PUT')
-                        @include('modules.tourist-attractions._form', ['touristAttraction' => $touristAttraction, 'buttonLabel' => __('ui.modules.tourist_attractions.update_attraction')])
+                        @include('modules.tourist-attractions._form', ['touristAttraction' => $touristAttraction, 'buttonLabel' => ui_phrase('modules_tourist_attractions_update_attraction')])
                     </form>
                 </div>
             </div>

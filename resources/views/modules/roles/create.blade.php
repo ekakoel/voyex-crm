@@ -1,10 +1,10 @@
 @extends('layouts.master')
 
-@section('page_title', __('ui.modules.roles.create_page_title'))
-@section('page_subtitle', __('ui.modules.roles.create_page_subtitle'))
+@section('page_title', ui_phrase('modules_roles_create_page_title'))
+@section('page_subtitle', ui_phrase('modules_roles_create_page_subtitle'))
 @section('page_actions')
     <a href="{{ route('roles.index') }}" class="btn-secondary">
-        {{ __('ui.modules.roles.back_to_roles') }}
+        {{ ui_phrase('modules_roles_back_to_roles') }}
     </a>
 @endsection
 
@@ -16,7 +16,7 @@
                     <form method="POST" action="{{ route('roles.store') }}">
                         @csrf
                         @include('modules.roles._form', [
-                            'buttonLabel' => __('ui.modules.roles.save_role'),
+                            'buttonLabel' => ui_phrase('modules_roles_save_role'),
                             'selectedPermissions' => old('permissions', []),
                             'selectedTemplateRoleId' => $selectedTemplateRoleId ?? null,
                             'selectedTemplateRoleName' => $selectedTemplateRoleName ?? null,
@@ -27,11 +27,11 @@
 
             <aside class="module-grid-side">
                 <div class="app-card p-6 space-y-3">
-                    <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ __('ui.common.quick_guide') }}</p>
+                    <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ ui_phrase('common_quick_guide') }}</p>
                     <ul class="space-y-2 text-sm text-gray-600 dark:text-gray-300">
-                        <li>{{ __('ui.modules.roles.guide_1') }}</li>
-                        <li>{{ __('ui.modules.roles.guide_2') }}</li>
-                        <li>{{ __('ui.modules.roles.guide_3') }}</li>
+                        <li>{{ ui_phrase('modules_roles_guide_1') }}</li>
+                        <li>{{ ui_phrase('modules_roles_guide_2') }}</li>
+                        <li>{{ ui_phrase('modules_roles_guide_3') }}</li>
                     </ul>
                 </div>
             </aside>

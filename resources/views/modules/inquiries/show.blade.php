@@ -2,9 +2,9 @@
 
 
 
-@section('page_title', __('ui.modules.inquiries.show_page_title'))
+@section('page_title', ui_phrase('modules_inquiries_show_page_title'))
 
-@section('page_subtitle', __('ui.modules.inquiries.show_page_subtitle'))
+@section('page_subtitle', ui_phrase('modules_inquiries_show_page_subtitle'))
 
 @section('page_actions')
 
@@ -14,7 +14,7 @@
 
             <a href="{{ route('inquiries.edit', $inquiry) }}"  class="btn-secondary">
 
-                {{ __('ui.modules.inquiries.edit_page_title') }}
+                {{ ui_phrase('modules_inquiries_edit_page_title') }}
             </a>
         @endif
 
@@ -67,13 +67,13 @@
             <div class="module-grid-side lg:order-2">
                 <div class="app-card p-5">
 
-                    <h2 class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ __('ui.modules.inquiries.inquiry_overview') }}</h2>
+                    <h2 class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ ui_phrase('modules_inquiries_inquiry_overview') }}</h2>
 
                     <dl class="app-dl" class="mt-4 space-y-3 text-sm">
 
                     <div class="flex items-start items-center justify-between gap-3">
 
-                        <dt class="text-gray-500 dark:text-gray-400">{{ __('ui.common.customer') }}</dt>
+                        <dt class="text-gray-500 dark:text-gray-400">{{ ui_phrase('common_customer') }}</dt>
 
                         <dd class="text-right font-medium text-gray-800 dark:text-gray-100">({{ $inquiry->customer->code ?? '-' }}) {{ $inquiry->customer->name ?? '-' }}</dd>
 
@@ -81,7 +81,7 @@
 
                     <div class="flex items-start items-center justify-between gap-3">
 
-                        <dt class="text-gray-500 dark:text-gray-400">{{ __('ui.common.status') }}</dt>
+                        <dt class="text-gray-500 dark:text-gray-400">{{ ui_phrase('common_status') }}</dt>
 
                         <dd><x-status-badge :status="$inquiry->status" size="xs" /></dd>
 
@@ -89,7 +89,7 @@
 
                     <div class="flex items-start items-center justify-between gap-3">
 
-                        <dt class="text-gray-500 dark:text-gray-400">{{ __('ui.common.priority') }}</dt>
+                        <dt class="text-gray-500 dark:text-gray-400">{{ ui_phrase('common_priority') }}</dt>
 
                         <dd class="font-medium text-gray-800 dark:text-gray-100">{{ $inquiry->priority }}</dd>
 
@@ -97,7 +97,7 @@
 
                     <div class="flex items-start items-center justify-between gap-3">
 
-                        <dt class="text-gray-500 dark:text-gray-400">{{ __('ui.modules.inquiries.source') }}</dt>
+                        <dt class="text-gray-500 dark:text-gray-400">{{ ui_phrase('modules_inquiries_source') }}</dt>
 
                         <dd class="font-medium text-gray-800 dark:text-gray-100">{{ $sourceLabels[$inquiry->source] ?? '-' }}</dd>
 
@@ -105,7 +105,7 @@
 
                     <div class="flex items-start items-center justify-between gap-3">
 
-                        <dt class="text-gray-500 dark:text-gray-400">{{ __('ui.modules.inquiries.assigned_to') }}</dt>
+                        <dt class="text-gray-500 dark:text-gray-400">{{ ui_phrase('modules_inquiries_assigned_to') }}</dt>
 
                         <dd class="font-medium text-gray-800 dark:text-gray-100">{{ $inquiry->assignedUser->name ?? '-' }}</dd>
 
@@ -113,7 +113,7 @@
 
                     <div class="flex items-start items-center justify-between gap-3">
 
-                        <dt class="text-gray-500 dark:text-gray-400">{{ __('ui.common.deadline') }}</dt>
+                        <dt class="text-gray-500 dark:text-gray-400">{{ ui_phrase('common_deadline') }}</dt>
 
                         <dd class="font-medium text-gray-800 dark:text-gray-100">{{ $inquiry->deadline?->format('Y-m-d') ?? '-' }}</dd>
 
@@ -121,15 +121,15 @@
 
                     <div class="flex items-start items-center justify-between gap-3">
 
-                        <dt class="text-gray-500 dark:text-gray-400">{{ __('ui.modules.inquiries.reminder_email') }}</dt>
+                        <dt class="text-gray-500 dark:text-gray-400">{{ ui_phrase('modules_inquiries_reminder_email') }}</dt>
 
-                        <dd class="font-medium text-gray-800 dark:text-gray-100">{{ $inquiry->reminder_enabled ? __('ui.common.enabled') : __('ui.common.disabled') }}</dd>
+                        <dd class="font-medium text-gray-800 dark:text-gray-100">{{ $inquiry->reminder_enabled ? ui_phrase('common_enabled') : ui_phrase('common_disabled') }}</dd>
 
                     </div>
 
                     <div>
 
-                        <div class="text-gray-500 dark:text-gray-400">{{ __('ui.common.notes') }}:</div>
+                        <div class="text-gray-500 dark:text-gray-400">{{ ui_phrase('common_notes') }}:</div>
 
                         <dd class="text-left font-medium text-gray-800 dark:text-gray-100">{!! $inquiry->notes ?: '-' !!}</dd>
 
@@ -141,12 +141,12 @@
 
                 <div class="app-card p-5">
                     <div>
-                        <h2 class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ __('ui.modules.inquiries.related_records') }}</h2>
+                        <h2 class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ ui_phrase('modules_inquiries_related_records') }}</h2>
                     </div>
 
                     <div class="mt-4 space-y-4">
                         <div>
-                            <h3 class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ __('ui.modules.inquiries.related_itineraries') }}</h3>
+                            <h3 class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ ui_phrase('modules_inquiries_related_itineraries') }}</h3>
                             <div class="mt-2 space-y-2">
                                 @forelse (($itineraries ?? collect()) as $itinerary)
                                     <a href="{{ route('itineraries.show', $itinerary) }}" class="block rounded-lg border border-gray-200 px-3 py-2 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-900/30">
@@ -156,13 +156,13 @@
                                         </div>
                                     </a>
                                 @empty
-                                    <p class="text-sm text-gray-500 dark:text-gray-400">{{ __('ui.modules.inquiries.no_related_itineraries') }}</p>
+                                    <p class="text-sm text-gray-500 dark:text-gray-400">{{ ui_phrase('modules_inquiries_no_related_itineraries') }}</p>
                                 @endforelse
                             </div>
                         </div>
 
                         <div>
-                            <h3 class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ __('ui.modules.inquiries.related_quotations') }}</h3>
+                            <h3 class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ ui_phrase('modules_inquiries_related_quotations') }}</h3>
                             <div class="mt-2 space-y-2">
                                 @forelse (($quotations ?? collect()) as $quotation)
                                     <a href="{{ route('quotations.show', $quotation) }}" class="block rounded-lg border border-gray-200 px-3 py-2 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-900/30">
@@ -172,7 +172,7 @@
                                         </div>
                                     </a>
                                 @empty
-                                    <p class="text-sm text-gray-500 dark:text-gray-400">{{ __('ui.modules.inquiries.no_related_quotations') }}</p>
+                                    <p class="text-sm text-gray-500 dark:text-gray-400">{{ ui_phrase('modules_inquiries_no_related_quotations') }}</p>
                                 @endforelse
                             </div>
                         </div>
@@ -181,8 +181,8 @@
 
                 <div class="app-card p-5">
                     <div>
-                        <h2 class="text-lg font-semibold text-gray-800 dark:text-gray-100">{{ __('ui.common.activity_timeline') }}</h2>
-                        <p class="text-sm text-gray-600 dark:text-gray-300">{{ __('ui.modules.inquiries.tracking_changes') }}</p>
+                        <h2 class="text-lg font-semibold text-gray-800 dark:text-gray-100">{{ ui_phrase('common_activity_timeline') }}</h2>
+                        <p class="text-sm text-gray-600 dark:text-gray-300">{{ ui_phrase('modules_inquiries_tracking_changes') }}</p>
                     </div>
                     <x-activity-timeline :activities="$activities" />
                 </div>
@@ -198,7 +198,7 @@
 
                         <div>
 
-                            <h2 class="text-lg font-semibold text-gray-800 dark:text-gray-100">{{ __('ui.common.reminder_follow_up') }}</h2>
+                            <h2 class="text-lg font-semibold text-gray-800 dark:text-gray-100">{{ ui_phrase('common_reminder_follow_up') }}</h2>
 
                         </div>
 
@@ -212,13 +212,13 @@
 
                                 <tr>
 
-                                    <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ __('ui.modules.inquiries.due_date') }}</th>
+                                    <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('modules_inquiries_due_date') }}</th>
 
-                                    <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ __('ui.common.channel') }}</th>
+                                    <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('common_channel') }}</th>
 
-                                    <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ __('ui.modules.inquiries.note') }}</th>
+                                    <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('modules_inquiries_note') }}</th>
 
-                                    <th class="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ __('ui.common.status') }}</th>
+                                    <th class="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('common_status') }}</th>
 
                                 </tr>
 
@@ -236,7 +236,7 @@
 
                                             @if (! $followUp->is_done && $followUp->due_date && $followUp->due_date->isPast())
 
-                                                <span class="ml-2 inline-flex rounded-full bg-rose-100 px-2 py-0.5 text-xs font-medium text-rose-700 dark:bg-rose-900/40 dark:text-rose-300">{{ __('ui.common.overdue') }}</span>
+                                                <span class="ml-2 inline-flex rounded-full bg-rose-100 px-2 py-0.5 text-xs font-medium text-rose-700 dark:bg-rose-900/40 dark:text-rose-300">{{ ui_phrase('common_overdue') }}</span>
 
                                             @endif
 
@@ -246,7 +246,7 @@
 
                                         <td class="px-3 py-2 text-sm text-gray-700 dark:text-gray-200">
                                             <div class="text-xs text-gray-500 dark:text-gray-400">
-                                                {{ $followUp->creator?->name ? __('ui.modules.inquiries.by_label', ['name' => $followUp->creator->displayNameFor(auth()->user(), 'System')]) : __('ui.modules.inquiries.by_fallback') }}
+                                                {{ $followUp->creator?->name ? ui_phrase('modules_inquiries_by_label', ['name' => $followUp->creator->displayNameFor(auth()->user(), 'System')]) : ui_phrase('modules_inquiries_by_fallback') }}
                                             </div>
                                             <div class="text-sm text-gray-700 dark:text-gray-200">
                                                 {{ $followUp->note ?? '-' }}
@@ -258,9 +258,9 @@
                                             @if ($followUp->is_done)
 
                                                 <div class="inline-flex items-center gap-2">
-                                                    <span class="inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">{{ __('ui.common.done') }}</span>
+                                                    <span class="inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">{{ ui_phrase('common_done') }}</span>
                                                     @if (! empty($followUp->done_reason))
-                                                        <button type="button" class="btn-outline-sm" aria-label="{{ __('ui.modules.inquiries.view_done_reason') }}"
+                                                        <button type="button" class="btn-outline-sm" aria-label="{{ ui_phrase('modules_inquiries_view_done_reason') }}"
                                                             x-data x-on:click.prevent="$dispatch('open-modal', 'followup-reason-{{ $followUp->id }}')">
                                                             <i class="fas fa-comment-dots"></i>
                                                         </button>
@@ -273,12 +273,12 @@
 
                                                     <button type="button" class="btn-primary-sm" x-data
                                                         x-on:click.prevent="$dispatch('open-modal', 'followup-done-{{ $followUp->id }}')">
-                                                        {{ __('ui.common.mark_done') }}
+                                                        {{ ui_phrase('common_mark_done') }}
                                                     </button>
 
                                                 @else
 
-                                                    <span class="text-xs text-gray-400">{{ __('ui.common.locked') }}</span>
+                                                    <span class="text-xs text-gray-400">{{ ui_phrase('common_locked') }}</span>
 
                                                 @endif
 
@@ -286,10 +286,10 @@
 
                                             @if (($canResetFollowUpReminder ?? false) && ! is_null($followUp->last_reminded_at))
                                                 <div class="mt-2 flex items-center justify-end">
-                                                    <form method="POST" action="{{ route('inquiries.followups.reset-reminder', $followUp) }}" onsubmit="return confirm('{{ __('ui.modules.inquiries.confirm_reset_reminder') }}')">
+                                                    <form method="POST" action="{{ route('inquiries.followups.reset-reminder', $followUp) }}" onsubmit="return confirm('{{ ui_phrase('modules_inquiries_confirm_reset_reminder') }}')">
                                                         @csrf
                                                         @method('PATCH')
-                                                        <button type="submit" class="btn-outline-sm">{{ __('ui.modules.inquiries.reset_reminder') }}</button>
+                                                        <button type="submit" class="btn-outline-sm">{{ ui_phrase('modules_inquiries_reset_reminder') }}</button>
                                                     </form>
                                                 </div>
                                             @endif
@@ -302,7 +302,7 @@
 
                                     <tr>
 
-                                        <td colspan="4" class="px-3 py-4 text-center text-sm text-gray-500 dark:text-gray-400">{{ __('ui.modules.inquiries.no_reminders_yet') }}</td>
+                                        <td colspan="4" class="px-3 py-4 text-center text-sm text-gray-500 dark:text-gray-400">{{ ui_phrase('modules_inquiries_no_reminders_yet') }}</td>
 
                                     </tr>
 
@@ -313,7 +313,7 @@
                         </table>
 
                     </div>
-                    <div><p class="text-sm text-gray-600 dark:text-gray-300">{{ __('ui.modules.inquiries.fill_input_reminder') }}</p></div>
+                    <div><p class="text-sm text-gray-600 dark:text-gray-300">{{ ui_phrase('modules_inquiries_fill_input_reminder') }}</p></div>
                     @if ($canMarkFollowUpDone && ! $inquiry->isFinal())
                         @foreach ($followUps->where('is_done', false) as $followUp)
                             <x-modal name="followup-done-{{ $followUp->id }}" focusable>
@@ -322,12 +322,12 @@
                                     @method('PATCH')
 
                                     <div>
-                                        <h2 class="text-lg font-semibold text-gray-800 dark:text-gray-100">{{ __('ui.modules.inquiries.mark_follow_up_done') }}</h2>
-                                        <p class="text-sm text-gray-600 dark:text-gray-300">{{ __('ui.modules.inquiries.provide_reason_close') }}</p>
+                                        <h2 class="text-lg font-semibold text-gray-800 dark:text-gray-100">{{ ui_phrase('modules_inquiries_mark_follow_up_done') }}</h2>
+                                        <p class="text-sm text-gray-600 dark:text-gray-300">{{ ui_phrase('modules_inquiries_provide_reason_close') }}</p>
                                     </div>
 
                                     <div>
-                                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('ui.common.reason') }}</label>
+                                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('common_reason') }}</label>
                                         <textarea name="done_reason" rows="3" class="mt-1 w-full app-input" required></textarea>
                                         @error('done_reason')
                                             <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
@@ -335,8 +335,8 @@
                                     </div>
 
                                     <div class="flex justify-end gap-2">
-                                        <button type="button" class="btn-secondary" x-on:click="$dispatch('close')">{{ __('ui.common.cancel') }}</button>
-                                        <button class="btn-primary">{{ __('ui.common.mark_done') }}</button>
+                                        <button type="button" class="btn-secondary" x-on:click="$dispatch('close')">{{ ui_phrase('common_cancel') }}</button>
+                                        <button class="btn-primary">{{ ui_phrase('common_mark_done') }}</button>
                                     </div>
                                 </form>
                             </x-modal>
@@ -347,25 +347,25 @@
                             <x-modal name="followup-reason-{{ $followUp->id }}" focusable>
                                 <div class="p-6 space-y-4">
                                     <div>
-                                        <h2 class="text-lg font-semibold text-gray-800 dark:text-gray-100">{{ __('ui.modules.inquiries.reminder_reason') }}</h2>
-                                        <p class="text-sm text-gray-600 dark:text-gray-300">{{ __('ui.modules.inquiries.reason_submitted') }}</p>
+                                        <h2 class="text-lg font-semibold text-gray-800 dark:text-gray-100">{{ ui_phrase('modules_inquiries_reminder_reason') }}</h2>
+                                        <p class="text-sm text-gray-600 dark:text-gray-300">{{ ui_phrase('modules_inquiries_reason_submitted') }}</p>
                                     </div>
                                     <div class="space-y-3">
                                         <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700 dark:border-gray-700 dark:bg-gray-900/40 dark:text-gray-200">
-                                            <div class="text-xs text-gray-500 dark:text-gray-400">{{ __('ui.modules.inquiries.reminder_note') }}</div>
+                                            <div class="text-xs text-gray-500 dark:text-gray-400">{{ ui_phrase('modules_inquiries_reminder_note') }}</div>
                                             <div class="mt-1 text-sm text-gray-700 dark:text-gray-200">
                                                 {!! $followUp->note ?: '-' !!}
                                             </div>
                                         </div>
                                         <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700 dark:border-gray-700 dark:bg-gray-900/40 dark:text-gray-200">
-                                            <div class="text-xs text-gray-500 dark:text-gray-400">{{ __('ui.common.reason_note') }}</div>
+                                            <div class="text-xs text-gray-500 dark:text-gray-400">{{ ui_phrase('common_reason_note') }}</div>
                                             <div class="mt-1 text-sm text-gray-700 dark:text-gray-200">
                                                 {!! $followUp->done_reason !!}
                                             </div>
                                         </div>
                                     </div>
                                     <div class="flex justify-end">
-                                        <button type="button" class="btn-secondary" x-on:click="$dispatch('close')">{{ __('ui.common.close') }}</button>
+                                        <button type="button" class="btn-secondary" x-on:click="$dispatch('close')">{{ ui_phrase('common_close') }}</button>
                                     </div>
                                 </div>
                             </x-modal>
@@ -380,7 +380,7 @@
 
                             <div>
 
-                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('ui.modules.inquiries.due_date') }}</label>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('modules_inquiries_due_date') }}</label>
 
                                 <input name="due_date" type="date" class="mt-1 app-input" required>
 
@@ -388,7 +388,7 @@
 
                             <div>
 
-                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('ui.common.channel') }}</label>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('common_channel') }}</label>
 
                                 <select name="channel" class="mt-1 app-input">
 
@@ -406,7 +406,7 @@
 
                             <div>
 
-                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('ui.modules.inquiries.note') }}</label>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('modules_inquiries_note') }}</label>
 
                                 <input name="note" type="text" class="mt-1 app-input">
 
@@ -414,7 +414,7 @@
 
                             <button  class="btn-primary">
 
-                                {{ __('ui.common.add_reminder') }}
+                                {{ ui_phrase('common_add_reminder') }}
 
                             </button>
 
@@ -433,9 +433,9 @@
 
                     <div>
 
-                        <h2 class="text-lg font-semibold text-gray-800 dark:text-gray-100">{{ __('ui.common.communication_history') }}</h2>
+                        <h2 class="text-lg font-semibold text-gray-800 dark:text-gray-100">{{ ui_phrase('common_communication_history') }}</h2>
 
-                        <p class="text-sm text-gray-600 dark:text-gray-300">{{ __('ui.modules.inquiries.log_communications') }}</p>
+                        <p class="text-sm text-gray-600 dark:text-gray-300">{{ ui_phrase('modules_inquiries_log_communications') }}</p>
 
                     </div>
 
@@ -449,13 +449,13 @@
                                     <div class="flex flex-wrap items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
                                         <span class="inline-flex rounded-full bg-gray-100 px-2 py-0.5 text-gray-600 dark:bg-gray-900/40 dark:text-gray-300">{{ $channelLabels[$item->channel] ?? '-' }}</span>
                                         <span><x-local-time :value="$item->contact_at" /></span>
-                                        <span>{{ __('ui.modules.inquiries.by_label', ['name' => $item->creator->name ?? '-']) }}</span>
+                                        <span>{{ ui_phrase('modules_inquiries_by_label', ['name' => $item->creator->name ?? '-']) }}</span>
                                     </div>
                                     <p class="text-sm text-gray-800 dark:text-gray-100">{{ $item->summary }}</p>
                                 </div>
                             </div>
                         @empty
-                            <div class="text-sm text-gray-500 dark:text-gray-400">{{ __('ui.modules.inquiries.no_history_yet') }}</div>
+                            <div class="text-sm text-gray-500 dark:text-gray-400">{{ ui_phrase('modules_inquiries_no_history_yet') }}</div>
                         @endforelse
                     </div>
 
@@ -467,7 +467,7 @@
 
                             <div>
 
-                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('ui.common.channel') }}</label>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('common_channel') }}</label>
 
                                 <select name="channel" class="mt-1 app-input" required>
 
@@ -483,7 +483,7 @@
 
                             <div>
 
-                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('ui.common.contact_at') }}</label>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('common_contact_at') }}</label>
 
                                 <input name="contact_at" type="datetime-local" class="mt-1 app-input">
 
@@ -491,7 +491,7 @@
 
                             <div>
 
-                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('ui.common.summary') }}</label>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('common_summary') }}</label>
 
                                 <input name="summary" type="text" class="mt-1 app-input" required>
 
@@ -499,7 +499,7 @@
 
                             <button  class="btn-primary">
 
-                                {{ __('ui.common.add_history') }}
+                                {{ ui_phrase('common_add_history') }}
 
                             </button>
 

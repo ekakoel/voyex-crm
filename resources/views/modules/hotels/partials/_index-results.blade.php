@@ -15,22 +15,22 @@
                                 #</th>
                             <th
                                 class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">
-                                {{ __('ui.modules.hotels.hotel') }}</th>
+                                {{ ui_phrase('modules_hotels_hotel') }}</th>
                             <th
                                 class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">
-                                {{ __('ui.common.location') }}</th>
+                                {{ ui_phrase('common_location') }}</th>
                             <th
                                 class="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">
-                                {{ __('ui.common.rooms') }}</th>
+                                {{ ui_phrase('common_rooms') }}</th>
                             <th
                                 class="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">
-                                {{ __('ui.common.rates') }}</th>
+                                {{ ui_phrase('common_rates') }}</th>
                             <th
                                 class="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">
-                                {{ __('ui.common.status') }}</th>
+                                {{ ui_phrase('common_status') }}</th>
                             <th
                                 class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300 actions-compact">
-                                {{ __('ui.common.actions') }}</th>
+                                {{ ui_phrase('common_actions') }}</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
@@ -60,18 +60,18 @@
                                 <td class="px-4 py-3 text-right text-sm actions-compact">
                                     <div class="flex items-center justify-end gap-2">
                                         <a href="{{ route('hotels.show', $hotel) }}" class="btn-outline-sm"
-                                            title="{{ __('ui.common.view') }}" aria-label="{{ __('ui.common.view') }}"><i class="fa-solid fa-eye"></i><span
-                                                class="sr-only">{{ __('ui.common.view') }}</span></a>
+                                            title="{{ ui_phrase('common_view') }}" aria-label="{{ ui_phrase('common_view') }}"><i class="fa-solid fa-eye"></i><span
+                                                class="sr-only">{{ ui_phrase('common_view') }}</span></a>
                                         <a href="{{ route('hotels.edit', $hotel) }}" class="btn-secondary-sm"
-                                            title="{{ __('ui.common.edit') }}" aria-label="{{ __('ui.common.edit') }}"><i class="fa-solid fa-pen"></i><span
-                                                class="sr-only">{{ __('ui.common.edit') }}</span></a>
+                                            title="{{ ui_phrase('common_edit') }}" aria-label="{{ ui_phrase('common_edit') }}"><i class="fa-solid fa-pen"></i><span
+                                                class="sr-only">{{ ui_phrase('common_edit') }}</span></a>
                                         <form action="{{ route('hotels.toggle-status', $hotel->id) }}"
                                             method="POST" class="inline">
                                             @csrf
                                             @method('PATCH')
                                             <button type="submit"
-                                                onclick="return confirm('{{ $isActive ? __('ui.modules.hotels.confirm_deactivate') : __('ui.modules.hotels.confirm_activate') }}')"
-                                                class="{{ $isActive ? 'btn-muted-sm' : 'btn-primary-sm' }}">{{ $isActive ? __('ui.common.deactivate') : __('ui.common.activate') }}</button>
+                                                onclick="return confirm('{{ $isActive ? ui_phrase('modules_hotels_confirm_deactivate') : ui_phrase('modules_hotels_confirm_activate') }}')"
+                                                class="{{ $isActive ? 'btn-muted-sm' : 'btn-primary-sm' }}">{{ $isActive ? ui_phrase('common_deactivate') : ui_phrase('common_activate') }}</button>
                                         </form>
                                     </div>
                                 </td>
@@ -79,7 +79,7 @@
                         @empty
                             <tr>
                                 <td colspan="7"
-                                    class="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">{{ __('ui.index.no_data_available', ['entity' => __('ui.entities.hotels')]) }}</td>
+                                    class="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">{{ ui_phrase('index_no_data_available', ['entity' => ui_phrase('entities_hotels')]) }}</td>
                             </tr>
                         @endforelse
                     </tbody>
@@ -102,34 +102,34 @@
                         <x-status-badge :status="$isActive ? 'active' : 'inactive'" size="xs" />
                     </div>
                     <div class="mt-3 grid grid-cols-2 gap-2 text-xs text-gray-600 dark:text-gray-300">
-                        <div>{{ __('ui.common.location') }}</div>
+                        <div>{{ ui_phrase('common_location') }}</div>
                         <div>{{ trim(($hotel->city ?? '') . (($hotel->city && $hotel->province) ? ', ' : '') . ($hotel->province ?? '')) ?: '-' }}</div>
-                        <div>{{ __('ui.common.country') }}</div>
+                        <div>{{ ui_phrase('common_country') }}</div>
                         <div>{{ $hotel->country ?: '-' }}</div>
-                        <div>{{ __('ui.common.destination') }}</div>
+                        <div>{{ ui_phrase('common_destination') }}</div>
                         <div>{{ $hotel->destination?->province ?: ($hotel->destination?->name ?? '-') }}</div>
-                        <div>{{ __('ui.common.rooms') }}</div>
+                        <div>{{ ui_phrase('common_rooms') }}</div>
                         <div>{{ $hotel->rooms_count }}</div>
-                        <div>{{ __('ui.common.rates') }}</div>
+                        <div>{{ ui_phrase('common_rates') }}</div>
                         <div>{{ $hotel->prices_count }}</div>
                     </div>
                     <div class="mt-3 flex flex-wrap gap-2">
                         <a href="{{ route('hotels.show', $hotel) }}" class="btn-outline-sm" title="{{ __('View') }}"
-                            aria-label="{{ __('ui.common.view') }}"><i class="fa-solid fa-eye"></i><span class="sr-only">{{ __('ui.common.view') }}</span></a>
+                            aria-label="{{ ui_phrase('common_view') }}"><i class="fa-solid fa-eye"></i><span class="sr-only">{{ ui_phrase('common_view') }}</span></a>
                         <a href="{{ route('hotels.edit', $hotel) }}" class="btn-secondary-sm" title="{{ __('Edit') }}"
-                            aria-label="{{ __('ui.common.edit') }}"><i class="fa-solid fa-pen"></i><span class="sr-only">{{ __('ui.common.edit') }}</span></a>
+                            aria-label="{{ ui_phrase('common_edit') }}"><i class="fa-solid fa-pen"></i><span class="sr-only">{{ ui_phrase('common_edit') }}</span></a>
                         <form action="{{ route('hotels.toggle-status', $hotel->id) }}" method="POST"
                             class="inline">
                             @csrf
                             @method('PATCH')
                             <button type="submit"
-                                onclick="return confirm('{{ $isActive ? __('ui.modules.hotels.confirm_deactivate') : __('ui.modules.hotels.confirm_activate') }}')"
-                                class="{{ $isActive ? 'btn-muted-sm' : 'btn-primary-sm' }}">{{ $isActive ? __('ui.common.deactivate') : __('ui.common.activate') }}</button>
+                                onclick="return confirm('{{ $isActive ? ui_phrase('modules_hotels_confirm_deactivate') : ui_phrase('modules_hotels_confirm_activate') }}')"
+                                class="{{ $isActive ? 'btn-muted-sm' : 'btn-primary-sm' }}">{{ $isActive ? ui_phrase('common_deactivate') : ui_phrase('common_activate') }}</button>
                         </form>
                     </div>
                 </div>
             @empty
-                <div class="app-card p-6 text-center text-sm text-gray-500 dark:text-gray-400">{{ __('ui.index.no_data_available', ['entity' => __('ui.entities.hotels')]) }}</div>
+                <div class="app-card p-6 text-center text-sm text-gray-500 dark:text-gray-400">{{ ui_phrase('index_no_data_available', ['entity' => ui_phrase('entities_hotels')]) }}</div>
             @endforelse
         </div>
         <div>{{ $hotels->links() }}</div>

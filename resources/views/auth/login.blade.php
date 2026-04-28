@@ -6,7 +6,7 @@
     @php($appTitle = trim((string) ($companyName ?? config('app.name', 'VOYEX CRM'))))
     @php($loginTagline = trim((string) ($companyTagline ?? 'Smart Travel CRM Platform')))
     @php($loginFooterSuffix = trim((string) ($companyFooterNote ?? '')) ?: 'All rights reserved.')
-    <title>{{ __('ui.auth.titles.login_page') }} | {{ $appTitle }}</title>
+    <title>{{ ui_phrase('auth_titles_login_page') }} | {{ $appTitle }}</title>
     @if (!empty($companyFaviconUrl))
         <link rel="icon" type="{{ $companyFaviconMime ?? 'image/x-icon' }}" href="{{ $companyFaviconUrl }}">
         <link rel="shortcut icon" type="{{ $companyFaviconMime ?? 'image/x-icon' }}" href="{{ $companyFaviconUrl }}">
@@ -40,22 +40,22 @@
                 <strong>{{ $appTitle }}</strong>
             </div>
         </div>
-        <h2>{{ __('ui.auth.branding.welcome_back') }}</h2>
+        <h2>{{ ui_phrase('auth_branding_welcome_back') }}</h2>
         <p class="auth-brand-tagline">{{ $loginTagline }}</p>
         <p class="auth-brand-message">
-            {{ __('ui.auth.branding.login_message') }}
+            {{ ui_phrase('auth_branding_login_message') }}
         </p>
         <ul class="auth-context-list">
-            <li>{{ __('ui.auth.branding.login_point_1') }}</li>
-            <li>{{ __('ui.auth.branding.login_point_2') }}</li>
-            <li>{{ __('ui.auth.branding.login_point_3') }}</li>
+            <li>{{ ui_phrase('auth_branding_login_point_1') }}</li>
+            <li>{{ ui_phrase('auth_branding_login_point_2') }}</li>
+            <li>{{ ui_phrase('auth_branding_login_point_3') }}</li>
         </ul>
     </div>
 
     <div class="auth-right">
         <div class="auth-card">
-            <h3>{{ __('ui.auth.forms.sign_in') }}</h3>
-            <p class="auth-subtitle">{{ __('ui.auth.subtitles.sign_in') }}</p>
+            <h3>{{ ui_phrase('auth_forms_sign_in') }}</h3>
+            <p class="auth-subtitle">{{ ui_phrase('auth_subtitles_sign_in') }}</p>
 
             @if (session('status'))
                 <div class="auth-alert auth-alert-success">{{ session('status') }}</div>
@@ -73,7 +73,7 @@
                         type="email"
                         name="email"
                         value="{{ old('email') }}"
-                        placeholder="{{ __('ui.auth.forms.email_address') }}"
+                        placeholder="{{ ui_phrase('auth_forms_email_address') }}"
                         required
                         autofocus
                         autocomplete="username"
@@ -85,7 +85,7 @@
                         type="password"
                         name="password"
                         id="password"
-                        placeholder="{{ __('ui.auth.forms.password') }}"
+                        placeholder="{{ ui_phrase('auth_forms_password') }}"
                         required
                         autocomplete="current-password"
                     >
@@ -95,19 +95,19 @@
                 <div class="form-group remember">
                     <label class="remember">
                         <input type="checkbox" name="remember">
-                        <span>{{ __('ui.auth.forms.remember_me') }}</span>
+                        <span>{{ ui_phrase('auth_forms_remember_me') }}</span>
                     </label>
                 </div>
 
                 @if (Route::has('password.request'))
                     <div class="form-group" style="text-align:right;">
-                        <a href="{{ route('password.request') }}" class="auth-inline-link">{{ __('ui.auth.forms.forgot_password') }}</a>
+                        <a href="{{ route('password.request') }}" class="auth-inline-link">{{ ui_phrase('auth_forms_forgot_password') }}</a>
                     </div>
                 @endif
 
-                <button type="submit" class="btn-primary" data-auth-submit-btn data-loading-text="{{ __('ui.auth.forms.signing_in') }}">
+                <button type="submit" class="btn-primary" data-auth-submit-btn data-loading-text="{{ ui_phrase('auth_forms_signing_in') }}">
                     <span class="auth-btn-spinner" aria-hidden="true"></span>
-                    <span data-auth-btn-label>{{ __('ui.auth.forms.sign_in') }}</span>
+                    <span data-auth-btn-label>{{ ui_phrase('auth_forms_sign_in') }}</span>
                 </button>
             </form>
 
@@ -118,7 +118,7 @@
 <div class="auth-page-spinner" data-auth-page-spinner aria-hidden="true">
     <div class="auth-page-spinner__inner">
         <div class="auth-page-spinner__ring" aria-hidden="true"></div>
-        <div class="auth-page-spinner__text">{{ __('ui.auth.spinner.processing') }}</div>
+        <div class="auth-page-spinner__text">{{ ui_phrase('auth_spinner_processing') }}</div>
     </div>
 </div>
 
@@ -161,7 +161,7 @@
                     label.dataset.originalText = label.textContent || '';
                 }
                 if (label) {
-                    label.textContent = button.getAttribute('data-loading-text') || @json(__('ui.auth.forms.loading'));
+                    label.textContent = button.getAttribute('data-loading-text') || @json(ui_phrase('auth_forms_loading'));
                 }
             }
 

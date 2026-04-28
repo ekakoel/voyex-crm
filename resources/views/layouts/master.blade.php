@@ -88,7 +88,7 @@
             <button type="button"
                      class="hidden md:inline-flex items-center justify-center h-9 w-9 rounded-lg hover:bg-gray-700 transition"
                     @click="toggleSidebar()"
-                     :title="sidebarCollapsed ? '{{ __('ui.sidebar.show_icons_labels') }}' : '{{ __('ui.sidebar.show_icons_only') }}'">
+                     :title="sidebarCollapsed ? '{{ ui_phrase('sidebar_show_icons_labels') }}' : '{{ ui_phrase('sidebar_show_icons_only') }}'">
                 <svg x-show="sidebarCollapsed" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                     <path fill-rule="evenodd" d="M12.293 15.707a1 1 0 010-1.414L15.586 11H4a1 1 0 110-2h11.586l-3.293-3.293a1 1 0 111.414-1.414l5 5a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0z" clip-rule="evenodd" />
                 </svg>
@@ -110,7 +110,7 @@
                 $translateMenuTitle = function (array $entry): string {
                     $titleKey = trim((string) ($entry['title_key'] ?? ''));
                     if ($titleKey !== '') {
-                        $translated = __($titleKey);
+                        $translated = ui_phrase($titleKey);
                         if ($translated !== $titleKey) {
                             return $translated;
                         }
@@ -333,13 +333,13 @@
                 @endphp
 
                 <!-- Language Switch -->
-                {{-- <div x-data="{ open: false }" class="relative shrink-0">
+                <div x-data="{ open: false }" class="relative shrink-0">
                     <button
                         type="button"
                         @click="open = !open"
                         class="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-2.5 py-1.5 text-gray-700 dark:border-gray-700 dark:text-gray-200"
-                        title="{{ __('ui.common.switch_language') }}"
-                        aria-label="{{ __('ui.common.switch_language') }}"
+                        title="{{ ui_phrase('common_switch_language') }}"
+                        aria-label="{{ ui_phrase('common_switch_language') }}"
                     >
                         <i class="fa-solid fa-language"></i>
                         <span class="hidden sm:inline truncate max-w-[140px] md:max-w-[180px]">{{ $activeLocaleShort }}</span>
@@ -368,7 +368,7 @@
                             </form>
                         @endforeach
                     </div>
-                </div> --}}
+                </div>
 
                 <!-- Currency Switch -->
                 <div class="hidden sm:flex items-center gap-2">
@@ -500,18 +500,20 @@
                         'update' => 'edit',
                         default => $normalized,
                     };
-                    $actionKey = 'ui.breadcrumb.actions.'.$actionAlias;
-                    if (\Illuminate\Support\Facades\Lang::has($actionKey)) {
-                        return __($actionKey);
+                    $actionKey = 'breadcrumb_actions_'.$actionAlias;
+                    $translated = ui_phrase($actionKey);
+                    if ($translated !== $actionKey) {
+                        return $translated;
                     }
 
                     return __(\Illuminate\Support\Str::headline(str_replace('_', ' ', $actionAlias)));
                 })();
                 $resourceLabel = (function () use ($routeResource, $normalizeBreadcrumbToken): string {
                     $normalized = $normalizeBreadcrumbToken($routeResource);
-                    $resourceKey = 'ui.breadcrumb.resources.'.$normalized;
-                    if (\Illuminate\Support\Facades\Lang::has($resourceKey)) {
-                        return __($resourceKey);
+                    $resourceKey = 'breadcrumb_resources_'.$normalized;
+                    $translated = ui_phrase($resourceKey);
+                    if ($translated !== $resourceKey) {
+                        return $translated;
                     }
                     if (function_exists('ui_term')) {
                         return ui_term($routeResource);
@@ -521,7 +523,7 @@
                 })();
                 $breadcrumbs = [
                     [
-                        'label' => __('ui.breadcrumb.dashboard'),
+                        'label' => ui_phrase('breadcrumb_dashboard'),
                         'url' => \Illuminate\Support\Facades\Route::has('dashboard') ? route('dashboard') : url('/'),
                     ],
                 ];

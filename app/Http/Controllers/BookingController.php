@@ -98,7 +98,7 @@ class BookingController extends Controller
         if ($booking->isFinal()) {
             return redirect()
                 ->route('bookings.show', $booking)
-                ->with('error', __('ui.modules.bookings.final_locked_edit'));
+                ->with('error', ui_phrase('modules_bookings_final_locked_edit'));
         }
         $quotations = Quotation::query()
             ->with('inquiry.customer')
@@ -123,7 +123,7 @@ class BookingController extends Controller
         if ($booking->isFinal()) {
             return redirect()
                 ->route('bookings.show', $booking)
-                ->with('error', __('ui.modules.bookings.final_locked_edit'));
+                ->with('error', ui_phrase('modules_bookings_final_locked_edit'));
         }
         $validated = $request->validated();
         $booking->update($validated);
@@ -145,7 +145,7 @@ class BookingController extends Controller
         if ($booking->isFinal()) {
             return redirect()
                 ->route('bookings.show', $booking)
-                ->with('error', __('ui.modules.bookings.final_locked_delete'));
+                ->with('error', ui_phrase('modules_bookings_final_locked_delete'));
         }
         $booking->delete();
 

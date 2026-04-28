@@ -54,7 +54,12 @@ class QuotationController extends Controller
         $this->autoFinalizeExpiredApprovedQuotations();
         $showNeedsMyApproval = request()->boolean('needs_my_approval');
 
-        $query = Quotation::query()->with(['inquiry.customer', 'creator', 'approvals:id,quotation_id,user_id,approval_role']);
+        $query = Quotation::query()->with([
+            'inquiry.customer',
+            'creator',
+            'approvals:id,quotation_id,user_id,approval_role',
+            'items:id,quotation_id,qty,unit_price,contract_rate,markup_type,markup,discount,discount_type,itinerary_item_type',
+        ]);
         $this->applyQuotationKeywordFilter($query, (string) request('q'));
         if ($showNeedsMyApproval) {
             $this->applyNeedsMyApprovalFilter($query, auth()->user());
@@ -78,6 +83,8 @@ class QuotationController extends Controller
             $quotation->setAttribute('needs_my_approval_badge', $showNeedsMyApproval
                 ? $this->needsMyApprovalForQuotation($quotation, $authUser, $approvalRole)
                 : false);
+            $kpiSummary = $this->computeQuotationKpiSummary($quotation);
+            $quotation->setAttribute('display_final_amount', (float) ($kpiSummary['final_amount'] ?? 0));
             return $quotation;
         });
 
@@ -96,7 +103,12 @@ class QuotationController extends Controller
     {
         $this->autoFinalizeExpiredApprovedQuotations();
 
-        $query = Quotation::query()->withTrashed()->with(['inquiry.customer', 'creator', 'approvals:id,quotation_id,user_id,approval_role']);
+        $query = Quotation::query()->withTrashed()->with([
+            'inquiry.customer',
+            'creator',
+            'approvals:id,quotation_id,user_id,approval_role',
+            'items:id,quotation_id,qty,unit_price,contract_rate,markup_type,markup,discount,discount_type,itinerary_item_type',
+        ]);
         if (Schema::hasColumn('quotations', 'created_by')) {
             $query->where('created_by', (int) auth()->id());
         } else {
@@ -114,6 +126,8 @@ class QuotationController extends Controller
         $quotations = $query->latest()->paginate($perPage)->withQueryString();
         $quotations->getCollection()->transform(function (Quotation $quotation) {
             $quotation->setAttribute('needs_my_approval_badge', false);
+            $kpiSummary = $this->computeQuotationKpiSummary($quotation);
+            $quotation->setAttribute('display_final_amount', (float) ($kpiSummary['final_amount'] ?? 0));
             return $quotation;
         });
         $statsCards = $this->buildQuotationStatsCards((int) auth()->id(), null, true);
@@ -1017,7 +1031,9 @@ class QuotationController extends Controller
                         'travel_minutes_to_next' => $attraction->pivot->travel_minutes_to_next,
                         'visit_order' => (int) ($attraction->pivot->visit_order ?? 999999),
                     ];
-                });
+                })
+                ->values()
+                ->toBase();
 
             $activities = $itinerary->itineraryActivities
                 ->filter(fn ($item) => (int) ($item->day_number ?? 0) === $day)
@@ -1040,7 +1056,9 @@ class QuotationController extends Controller
                         'travel_minutes_to_next' => $item->travel_minutes_to_next,
                         'visit_order' => (int) ($item->visit_order ?? 999999),
                     ];
-                });
+                })
+                ->values()
+                ->toBase();
 
             $foodBeverages = $itinerary->itineraryFoodBeverages
                 ->filter(fn ($item) => (int) ($item->day_number ?? 0) === $day)
@@ -1063,7 +1081,9 @@ class QuotationController extends Controller
                         'travel_minutes_to_next' => $item->travel_minutes_to_next,
                         'visit_order' => (int) ($item->visit_order ?? 999999),
                     ];
-                });
+                })
+                ->values()
+                ->toBase();
 
             $islandTransfers = $itinerary->itineraryIslandTransfers
                 ->filter(fn ($item) => (int) ($item->day_number ?? 0) === $day)
@@ -1083,7 +1103,9 @@ class QuotationController extends Controller
                         'travel_minutes_to_next' => $item->travel_minutes_to_next,
                         'visit_order' => (int) ($item->visit_order ?? 999999),
                     ];
-                });
+                })
+                ->values()
+                ->toBase();
 
             $items = $attractions->merge($activities)->merge($islandTransfers)->merge($foodBeverages)
                 ->sortBy('visit_order')
@@ -1497,7 +1519,7 @@ SVG;
         if ($quotation->isCreator($user)) {
             return redirect()
                 ->route('quotations.show', $quotation)
-                ->with('error', __('ui.modules.quotations.creator_cannot_approve'));
+                ->with('error', ui_phrase('modules_quotations_creator_cannot_approve'));
         }
 
         $approvalRole = $this->resolveApprovalRoleForUser($user);
@@ -1510,7 +1532,7 @@ SVG;
         if ($alreadyApprovedByUser) {
             return redirect()
                 ->route('quotations.show', $quotation)
-                ->with('error', __('ui.modules.quotations.approval_already_done'));
+                ->with('error', ui_phrase('modules_quotations_approval_already_done'));
         }
 
         $validated = $request->validate([

@@ -1,10 +1,10 @@
 @extends('layouts.master')
 
-@section('page_title', __('ui.modules.island_transfers.show_page_title'))
-@section('page_subtitle', __('ui.modules.island_transfers.show_page_subtitle'))
+@section('page_title', ui_phrase('modules_island_transfers_show_page_title'))
+@section('page_subtitle', ui_phrase('modules_island_transfers_show_page_subtitle'))
 @section('page_actions')
-    <a href="{{ route('island-transfers.index') }}" class="btn-ghost">{{ __('ui.modules.island_transfers.back') }}</a>
-    <a href="{{ route('island-transfers.edit', $islandTransfer) }}" class="btn-primary">{{ __('ui.modules.island_transfers.edit') }}</a>
+    <a href="{{ route('island-transfers.index') }}" class="btn-ghost">{{ ui_phrase('modules_island_transfers_back') }}</a>
+    <a href="{{ route('island-transfers.edit', $islandTransfer) }}" class="btn-primary">{{ ui_phrase('modules_island_transfers_edit') }}</a>
 @endsection
 
 @section('content')
@@ -33,7 +33,7 @@
                 @include('modules.activities.partials._vendor-info', ['vendor' => $islandTransfer->vendor])
 
                 <div class="app-card p-5">
-                    <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ __('ui.common.gallery') }}</h3>
+                    <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ ui_phrase('common_gallery') }}</h3>
                     @if ($galleryItems->isNotEmpty())
                         <div class="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
                             @foreach ($galleryItems as $item)
@@ -43,44 +43,44 @@
                             @endforeach
                         </div>
                     @else
-                        <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">{{ __('ui.modules.hotels.no_gallery') }}</p>
+                        <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">{{ ui_phrase('modules_hotels_no_gallery') }}</p>
                     @endif
                 </div>
 
                 <div class="app-card p-5">
                     <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                         <div>
-                            <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ __('ui.modules.island_transfers.transfer_name') }}</p>
+                            <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ ui_phrase('modules_island_transfers_transfer_name') }}</p>
                             <p class="mt-1 text-sm font-semibold text-gray-900 dark:text-gray-100">{{ $islandTransfer->name }}</p>
                         </div>
                         <div>
-                            <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ __('ui.modules.island_transfers.type') }}</p>
-                            <p class="mt-1 text-sm text-gray-800 dark:text-gray-100">{{ __('ui.modules.island_transfers.types.' . (string) $islandTransfer->transfer_type) }}</p>
+                            <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ ui_phrase('modules_island_transfers_type') }}</p>
+                            <p class="mt-1 text-sm text-gray-800 dark:text-gray-100">{{ ui_phrase('modules_island_transfers_types' . (string) $islandTransfer->transfer_type) }}</p>
                         </div>
                         <div>
-                            <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ __('ui.modules.island_transfers.duration') }}</p>
-                            <p class="mt-1 text-sm text-gray-800 dark:text-gray-100">{{ __('ui.modules.island_transfers.duration_short', ['minutes' => (int) ($islandTransfer->duration_minutes ?? 0)]) }}</p>
+                            <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ ui_phrase('modules_island_transfers_duration') }}</p>
+                            <p class="mt-1 text-sm text-gray-800 dark:text-gray-100">{{ ui_phrase('modules_island_transfers_duration_short', ['minutes' => (int) ($islandTransfer->duration_minutes ?? 0)]) }}</p>
                         </div>
                         <div>
-                            <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ __('ui.modules.island_transfers.distance') }}</p>
-                            <p class="mt-1 text-sm text-gray-800 dark:text-gray-100">{{ __('ui.modules.island_transfers.distance_short', ['distance' => number_format((float) ($islandTransfer->distance_km ?? 0), 2, '.', '')]) }}</p>
+                            <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ ui_phrase('modules_island_transfers_distance') }}</p>
+                            <p class="mt-1 text-sm text-gray-800 dark:text-gray-100">{{ ui_phrase('modules_island_transfers_distance_short', ['distance' => number_format((float) ($islandTransfer->distance_km ?? 0), 2, '.', '')]) }}</p>
                         </div>
                         <div>
-                            <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ __('ui.modules.island_transfers.capacity') }}</p>
+                            <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ ui_phrase('modules_island_transfers_capacity') }}</p>
                             <p class="mt-1 text-sm text-gray-800 dark:text-gray-100">{{ $islandTransfer->capacity_min ?? '-' }} - {{ $islandTransfer->capacity_max ?? '-' }}</p>
                         </div>
                         <div>
-                            <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ __('ui.modules.island_transfers.status') }}</p>
+                            <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ ui_phrase('modules_island_transfers_status') }}</p>
                             <div class="mt-1">
                                 <x-status-badge :status="$isActive ? 'active' : 'inactive'" size="xs" />
                             </div>
                         </div>
                         <div>
-                            <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ __('ui.modules.island_transfers.contract_rate') }}</p>
+                            <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ ui_phrase('modules_island_transfers_contract_rate') }}</p>
                             <p class="mt-1 text-sm text-gray-800 dark:text-gray-100"><x-money :amount="(float) ($islandTransfer->contract_rate ?? 0)" currency="IDR" /></p>
                         </div>
                         <div>
-                            <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ __('ui.modules.island_transfers.markup') }}</p>
+                            <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ ui_phrase('modules_island_transfers_markup') }}</p>
                             <p class="mt-1 text-sm text-gray-800 dark:text-gray-100">
                                 @if (($islandTransfer->markup_type ?? 'fixed') === 'percent')
                                     {{ rtrim(rtrim(number_format((float) ($islandTransfer->markup ?? 0), 2, '.', ''), '0'), '.') }}%
@@ -90,27 +90,27 @@
                             </p>
                         </div>
                         <div>
-                            <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ __('ui.modules.island_transfers.publish_rate') }}</p>
+                            <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ ui_phrase('modules_island_transfers_publish_rate') }}</p>
                             <p class="mt-1 text-sm text-gray-800 dark:text-gray-100"><x-money :amount="(float) ($islandTransfer->publish_rate ?? 0)" currency="IDR" /></p>
                         </div>
                     </div>
                 </div>
 
                 <div class="app-card p-5">
-                    <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ __('ui.modules.island_transfers.route_details') }}</h3>
+                    <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ ui_phrase('modules_island_transfers_route_details') }}</h3>
                     <div class="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2">
                         <div class="rounded-lg border border-sky-200 bg-sky-50/70 p-4 dark:border-sky-700 dark:bg-sky-900/20">
-                            <p class="text-xs font-semibold uppercase tracking-wide text-sky-800 dark:text-sky-200">{{ __('ui.modules.island_transfers.departure_point') }}</p>
+                            <p class="text-xs font-semibold uppercase tracking-wide text-sky-800 dark:text-sky-200">{{ ui_phrase('modules_island_transfers_departure_point') }}</p>
                             <p class="mt-2 text-sm font-medium text-gray-900 dark:text-gray-100">{{ $islandTransfer->departure_point_name ?: '-' }}</p>
                             <p class="mt-1 text-xs text-gray-600 dark:text-gray-300">
-                                {{ __('ui.modules.island_transfers.lat') }}: {{ $islandTransfer->departure_latitude ?: '-' }} | {{ __('ui.modules.island_transfers.lng') }}: {{ $islandTransfer->departure_longitude ?: '-' }}
+                                {{ ui_phrase('modules_island_transfers_lat') }}: {{ $islandTransfer->departure_latitude ?: '-' }} | {{ ui_phrase('modules_island_transfers_lng') }}: {{ $islandTransfer->departure_longitude ?: '-' }}
                             </p>
                         </div>
                         <div class="rounded-lg border border-emerald-200 bg-emerald-50/70 p-4 dark:border-emerald-700 dark:bg-emerald-900/20">
-                            <p class="text-xs font-semibold uppercase tracking-wide text-emerald-800 dark:text-emerald-200">{{ __('ui.modules.island_transfers.arrival_point') }}</p>
+                            <p class="text-xs font-semibold uppercase tracking-wide text-emerald-800 dark:text-emerald-200">{{ ui_phrase('modules_island_transfers_arrival_point') }}</p>
                             <p class="mt-2 text-sm font-medium text-gray-900 dark:text-gray-100">{{ $islandTransfer->arrival_point_name ?: '-' }}</p>
                             <p class="mt-1 text-xs text-gray-600 dark:text-gray-300">
-                                {{ __('ui.modules.island_transfers.lat') }}: {{ $islandTransfer->arrival_latitude ?: '-' }} | {{ __('ui.modules.island_transfers.lng') }}: {{ $islandTransfer->arrival_longitude ?: '-' }}
+                                {{ ui_phrase('modules_island_transfers_lat') }}: {{ $islandTransfer->arrival_latitude ?: '-' }} | {{ ui_phrase('modules_island_transfers_lng') }}: {{ $islandTransfer->arrival_longitude ?: '-' }}
                             </p>
                         </div>
                     </div>
@@ -118,7 +118,7 @@
 
                 @if (!empty($islandTransfer->notes))
                     <div class="app-card p-5">
-                        <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ __('ui.modules.island_transfers.notes') }}</h3>
+                        <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ ui_phrase('modules_island_transfers_notes') }}</h3>
                         <p class="mt-2 whitespace-pre-line text-sm text-gray-700 dark:text-gray-300">{{ $islandTransfer->notes }}</p>
                     </div>
                 @endif
@@ -128,17 +128,17 @@
                 @include('partials._audit-info', ['record' => $islandTransfer])
 
                 <div class="app-card p-5">
-                    <p class="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{{ __('ui.modules.island_transfers.quick_actions') }}</p>
-                    <a href="{{ route('island-transfers.edit', $islandTransfer) }}" class="btn-primary mb-3 w-full justify-center">{{ __('ui.modules.island_transfers.edit_transfer') }}</a>
+                    <p class="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{{ ui_phrase('modules_island_transfers_quick_actions') }}</p>
+                    <a href="{{ route('island-transfers.edit', $islandTransfer) }}" class="btn-primary mb-3 w-full justify-center">{{ ui_phrase('modules_island_transfers_edit_transfer') }}</a>
                     <form action="{{ route('island-transfers.toggle-status', $islandTransfer->id) }}" method="POST" class="w-full">
                         @csrf
                         @method('PATCH')
                         <button
                             type="submit"
-                            onclick="return confirm('{{ $isActive ? __('ui.modules.island_transfers.confirm_deactivate') : __('ui.modules.island_transfers.confirm_activate') }}')"
+                            onclick="return confirm('{{ $isActive ? ui_phrase('modules_island_transfers_confirm_deactivate') : ui_phrase('modules_island_transfers_confirm_activate') }}')"
                             class="{{ $isActive ? 'btn-muted' : 'btn-primary' }} w-full justify-center"
                         >
-                            {{ $isActive ? __('ui.modules.island_transfers.deactivate') : __('ui.modules.island_transfers.activate') }}
+                            {{ $isActive ? ui_phrase('modules_island_transfers_deactivate') : ui_phrase('modules_island_transfers_activate') }}
                         </button>
                     </form>
                 </div>

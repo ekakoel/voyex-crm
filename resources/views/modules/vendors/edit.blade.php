@@ -1,9 +1,9 @@
 @extends('layouts.master')
 
-@section('page_title', __('ui.modules.vendors.edit_page_title'))
-@section('page_subtitle', __('ui.modules.vendors.edit_page_subtitle'))
+@section('page_title', ui_phrase('modules_vendors_edit_page_title'))
+@section('page_subtitle', ui_phrase('modules_vendors_edit_page_subtitle'))
 @section('page_actions')
-    <a href="{{ route('vendors.index') }}" class="btn-ghost">{{ __('ui.common.back') }}</a>
+    <a href="{{ route('vendors.index') }}" class="btn-ghost">{{ ui_phrase('common_back') }}</a>
 @endsection
 
 @section('content')
@@ -14,7 +14,7 @@
                     <form method="POST" action="{{ route('vendors.update', $vendor) }}">
                         @csrf
                         @method('PUT')
-                        @include('modules.vendors._form', ['vendor' => $vendor, 'buttonLabel' => __('ui.modules.vendors.update_vendor')])
+                        @include('modules.vendors._form', ['vendor' => $vendor, 'buttonLabel' => ui_phrase('modules_vendors_update_vendor')])
                     </form>
                 </div>
             </div>

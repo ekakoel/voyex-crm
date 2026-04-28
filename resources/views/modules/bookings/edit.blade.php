@@ -1,10 +1,10 @@
 @extends('layouts.master')
 
-@section('page_title', __('ui.modules.bookings.edit_page_title'))
-@section('page_subtitle', __('ui.modules.bookings.edit_page_subtitle'))
+@section('page_title', ui_phrase('modules_bookings_edit_page_title'))
+@section('page_subtitle', ui_phrase('modules_bookings_edit_page_subtitle'))
 @section('page_actions')
-    <a href="{{ route('bookings.show', $booking) }}" class="btn-secondary">{{ __('ui.common.view_detail') }}</a>
-    <a href="{{ route('bookings.index') }}" class="btn-ghost">{{ __('ui.common.back') }}</a>
+    <a href="{{ route('bookings.show', $booking) }}" class="btn-secondary">{{ ui_phrase('common_view_detail') }}</a>
+    <a href="{{ route('bookings.index') }}" class="btn-ghost">{{ ui_phrase('common_back') }}</a>
 @endsection
 
 @section('content')
@@ -19,7 +19,7 @@
                         @method('PUT')
                         @include('modules.bookings._form', [
                             'booking' => $booking,
-                            'buttonLabel' => __('ui.modules.bookings.update_booking'),
+                            'buttonLabel' => ui_phrase('modules_bookings_update_booking'),
                         ])
                     </form>
                 </div>

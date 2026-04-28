@@ -1,10 +1,10 @@
 @extends('layouts.master')
 
-@section('page_title', __('ui.modules.quotations.validate_page_title'))
-@section('page_subtitle', __('ui.modules.quotations.validate_page_subtitle'))
+@section('page_title', ui_phrase('modules_quotations_validate_page_title'))
+@section('page_subtitle', ui_phrase('modules_quotations_validate_page_subtitle'))
 @section('page_actions')
-    <a href="{{ route('quotations.show', $quotation) }}" class="btn-secondary">{{ __('ui.common.view_detail') }}</a>
-    <a href="{{ route('quotations.index') }}" class="btn-ghost">{{ __('ui.common.back') }}</a>
+    <a href="{{ route('quotations.show', $quotation) }}" class="btn-secondary">{{ ui_phrase('common_view_detail') }}</a>
+    <a href="{{ route('quotations.index') }}" class="btn-ghost">{{ ui_phrase('common_back') }}</a>
 @endsection
 
 @push('scripts')
@@ -116,11 +116,11 @@
 
                     currentEl.innerHTML = `
                         <p class="mb-2 text-[11px] text-gray-500 dark:text-gray-400">{{ __('This section shows the rate currently used by this quotation item.') }}</p>
-                        <div><span class="font-semibold">{{ __('ui.modules.quotations.active_contract_rate') }}:</span> ${formatMoneyFromIdr(item.contract_rate)}</div>
-                        <div class="mt-1"><span class="font-semibold">{{ __('ui.modules.quotations.active_markup_type') }}:</span> ${normalizedMarkupType}</div>
-                        <div class="mt-1"><span class="font-semibold">{{ __('ui.modules.quotations.active_markup') }}:</span> ${markupDisplay}</div>
-                        <div class="mt-1"><span class="font-semibold">{{ __('ui.common.updated_by') }}:</span> ${item.validator || '-'}</div>
-                        <div class="mt-1"><span class="font-semibold">{{ __('ui.common.updated_at') }}:</span> ${updatedAtText}</div>
+                        <div><span class="font-semibold">{{ ui_phrase('modules_quotations_active_contract_rate') }}:</span> ${formatMoneyFromIdr(item.contract_rate)}</div>
+                        <div class="mt-1"><span class="font-semibold">{{ ui_phrase('modules_quotations_active_markup_type') }}:</span> ${normalizedMarkupType}</div>
+                        <div class="mt-1"><span class="font-semibold">{{ ui_phrase('modules_quotations_active_markup') }}:</span> ${markupDisplay}</div>
+                        <div class="mt-1"><span class="font-semibold">{{ ui_phrase('common_updated_by') }}:</span> ${item.validator || '-'}</div>
+                        <div class="mt-1"><span class="font-semibold">{{ ui_phrase('common_updated_at') }}:</span> ${updatedAtText}</div>
                     `;
                 }
 
@@ -152,7 +152,7 @@
                     setLoadingState(false);
                     if (errorEl) {
                         errorEl.classList.remove('hidden');
-                        errorEl.textContent = '{{ __('ui.modules.quotations.load_detail_failed') }}';
+                        errorEl.textContent = '{{ ui_phrase('modules_quotations_load_detail_failed') }}';
                     }
                 }
             };
@@ -183,7 +183,7 @@
                     updateContactSpinner.classList.toggle('hidden', !isLoading);
                 }
                 if (updateContactLabel) {
-                    updateContactLabel.textContent = '{{ __('ui.modules.quotations.update_contact') }}';
+                    updateContactLabel.textContent = '{{ ui_phrase('modules_quotations_update_contact') }}';
                 }
             };
 
@@ -615,9 +615,9 @@
 
                 statusCells.forEach((statusCell) => {
                     if (item.is_validated) {
-                        statusCell.innerHTML = `<span class="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">{{ __('ui.modules.quotations.validated') }}</span>`;
+                        statusCell.innerHTML = `<span class="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">{{ ui_phrase('modules_quotations_validated') }}</span>`;
                     } else {
-                        statusCell.innerHTML = `<span class="inline-flex rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700 dark:border-amber-700 dark:bg-amber-900/30 dark:text-amber-300">{{ __('ui.modules.quotations.pending_validation') }}</span>`;
+                        statusCell.innerHTML = `<span class="inline-flex rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700 dark:border-amber-700 dark:bg-amber-900/30 dark:text-amber-300">{{ ui_phrase('modules_quotations_pending_validation') }}</span>`;
                     }
                 });
 
@@ -697,34 +697,34 @@
         <div class="app-card p-6 space-y-4">
             <div class="flex flex-wrap items-start justify-between gap-4">
                 <div>
-                    <p class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ __('ui.modules.quotations.number') }}</p>
+                    <p class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ ui_phrase('modules_quotations_number') }}</p>
                     <h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100">{{ $quotation->quotation_number }}</h2>
                 </div>
                 <div class="text-right text-sm text-gray-600 dark:text-gray-300">
-                    <div>{{ __('ui.common.status') }}: <span class="font-semibold">{{ $quotation->status }}</span></div>
-                    <div>{{ __('ui.modules.quotations.validation_status') }}: <span class="font-semibold" data-progress-status>{{ $quotation->validation_status ?? 'pending' }}</span></div>
+                    <div>{{ ui_phrase('common_status') }}: <span class="font-semibold">{{ $quotation->status }}</span></div>
+                    <div>{{ ui_phrase('modules_quotations_validation_status') }}: <span class="font-semibold" data-progress-status>{{ $quotation->validation_status ?? 'pending' }}</span></div>
                 </div>
             </div>
 
             <div class="module-kpi-grid">
                 <div class="app-kpi-card rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/30">
-                    <p class="text-xs text-gray-500 dark:text-gray-400">{{ __('ui.modules.quotations.total_items') }}</p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">{{ ui_phrase('modules_quotations_total_items') }}</p>
                     <p class="mt-1 text-base font-semibold text-gray-900 dark:text-gray-100">{{ (int) ($progress['total_items'] ?? 0) }}</p>
                 </div>
                 <div class="app-kpi-card rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/30">
-                    <p class="text-xs text-gray-500 dark:text-gray-400">{{ __('ui.modules.quotations.total_required_validation') }}</p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">{{ ui_phrase('modules_quotations_total_required_validation') }}</p>
                     <p class="mt-1 text-base font-semibold text-gray-900 dark:text-gray-100">{{ (int) ($progress['total_required'] ?? 0) }}</p>
                 </div>
                 <div class="app-kpi-card rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/30">
-                    <p class="text-xs text-gray-500 dark:text-gray-400">{{ __('ui.modules.quotations.total_validated_items') }}</p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">{{ ui_phrase('modules_quotations_total_validated_items') }}</p>
                     <p class="mt-1 text-base font-semibold text-gray-900 dark:text-gray-100" data-progress-total-validated>{{ (int) ($progress['total_validated'] ?? 0) }}</p>
                 </div>
                 <div class="app-kpi-card rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/30">
-                    <p class="text-xs text-gray-500 dark:text-gray-400">{{ __('ui.modules.quotations.validation_progress') }}</p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">{{ ui_phrase('modules_quotations_validation_progress') }}</p>
                     <p class="mt-1 text-base font-semibold text-gray-900 dark:text-gray-100" data-progress-percent>{{ (int) ($progress['validation_percent'] ?? 0) }}%</p>
                 </div>
                 <div class="app-kpi-card rounded-xl border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-700 dark:bg-emerald-900/20">
-                    <p class="text-xs text-emerald-700 dark:text-emerald-300">{{ __('ui.common.customer') }}</p>
+                    <p class="text-xs text-emerald-700 dark:text-emerald-300">{{ ui_phrase('common_customer') }}</p>
                     <p class="mt-1 text-sm font-semibold text-emerald-800 dark:text-emerald-200">{{ $quotation->inquiry?->customer?->name ?? '-' }}</p>
                 </div>
             </div>
@@ -735,7 +735,7 @@
             @method('PATCH')
 
             <div class="flex flex-wrap items-center justify-between gap-2">
-                <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ __('ui.modules.quotations.validation_items') }}</h3>
+                <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ ui_phrase('modules_quotations_validation_items') }}</h3>
             </div>
 
             @php
@@ -848,16 +848,16 @@
                                                 >
                                                 <button type="button" class="btn-outline-sm" data-save-item="{{ $item->id }}" data-save-item-url="{{ route('quotations.validate.save-item', ['quotation' => $quotation, 'item' => $item]) }}">
                                                     <span data-item-spinner="{{ $item->id }}" class="mr-1 hidden inline-block h-3 w-3 animate-spin rounded-full border border-current border-t-transparent align-[-1px]"></span>
-                                                    <span data-item-save-label="{{ $item->id }}">{{ __('ui.modules.quotations.validate') }}</span>
+                                                    <span data-item-save-label="{{ $item->id }}">{{ ui_phrase('modules_quotations_validate') }}</span>
                                                 </button>
                                             </div>
                                         </div>
 
                                         <div class="grid grid-cols-2 gap-2 text-xs text-gray-600 dark:text-gray-300">
-                                            <div>{{ __('ui.common.type') }}</div><div class="text-right text-gray-800 dark:text-gray-100">{{ $typeLabel }}</div>
-                                            <div>{{ __('ui.common.description') }}</div><div class="text-right text-gray-800 dark:text-gray-100">{{ $descriptionLabel }}</div>
-                                            <div>{{ __('ui.common.qty') }}</div><div class="text-right text-gray-800 dark:text-gray-100">{{ (int) ($item->qty ?? 0) }}</div>
-                                            <div>{{ __('ui.modules.quotations.contract_rate') }}</div>
+                                            <div>{{ ui_phrase('common_type') }}</div><div class="text-right text-gray-800 dark:text-gray-100">{{ $typeLabel }}</div>
+                                            <div>{{ ui_phrase('common_description') }}</div><div class="text-right text-gray-800 dark:text-gray-100">{{ $descriptionLabel }}</div>
+                                            <div>{{ ui_phrase('common_qty') }}</div><div class="text-right text-gray-800 dark:text-gray-100">{{ (int) ($item->qty ?? 0) }}</div>
+                                            <div>{{ ui_phrase('modules_quotations_contract_rate') }}</div>
                                             <div>
                                                 <div class="input-with-left-affix">
                                                     <input
@@ -874,14 +874,14 @@
                                                     ></span>
                                                 </div>
                                             </div>
-                                            <div>{{ __('ui.modules.quotations.markup_type') }}</div>
+                                            <div>{{ ui_phrase('modules_quotations_markup_type') }}</div>
                                             <div>
                                                 <select data-mobile-markup-type="{{ $item->id }}" class="app-input text-xs">
-                                                    <option value="fixed" @selected(old('items.' . $item->id . '.markup_type', $item->markup_type) === 'fixed')>{{ __('ui.common.fixed') }}</option>
-                                                    <option value="percent" @selected(old('items.' . $item->id . '.markup_type', $item->markup_type) === 'percent')>{{ __('ui.common.percent') }}</option>
+                                                    <option value="fixed" @selected(old('items.' . $item->id . '.markup_type', $item->markup_type) === 'fixed')>{{ ui_phrase('common_fixed') }}</option>
+                                                    <option value="percent" @selected(old('items.' . $item->id . '.markup_type', $item->markup_type) === 'percent')>{{ ui_phrase('common_percent') }}</option>
                                                 </select>
                                             </div>
-                                            <div>{{ __('ui.modules.quotations.markup') }}</div>
+                                            <div>{{ ui_phrase('modules_quotations_markup') }}</div>
                                             <div>
                                                 <div class="input-with-left-affix">
                                                     <input
@@ -909,9 +909,9 @@
                                             </div>
                                             <div data-item-status="{{ $item->id }}">
                                                 @if ((bool) ($item->is_validated ?? false))
-                                                    <span class="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">{{ __('ui.modules.quotations.validated') }}</span>
+                                                    <span class="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">{{ ui_phrase('modules_quotations_validated') }}</span>
                                                 @else
-                                                    <span class="inline-flex rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700 dark:border-amber-700 dark:bg-amber-900/30 dark:text-amber-300">{{ __('ui.modules.quotations.pending_validation') }}</span>
+                                                    <span class="inline-flex rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700 dark:border-amber-700 dark:bg-amber-900/30 dark:text-amber-300">{{ ui_phrase('modules_quotations_pending_validation') }}</span>
                                                 @endif
                                             </div>
                                         </div>
@@ -923,7 +923,7 @@
                     @endforeach
                 @else
                     <div class="rounded-xl border border-dashed border-gray-300 px-4 py-6 text-center text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400">
-                        {{ __('ui.modules.quotations.no_validation_required_items') }}
+                        {{ ui_phrase('modules_quotations_no_validation_required_items') }}
                     </div>
                 @endif
             </div>
@@ -932,17 +932,17 @@
                 <table class="app-table w-full divide-y divide-gray-200 text-sm dark:divide-gray-700">
                     <thead>
                         <tr>
-                            <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ __('ui.modules.quotations.mark_validated') }}</th>
-                            <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ __('ui.common.type') }}</th>
-                            <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ __('ui.modules.quotations.vendor_provider_item') }}</th>
-                            <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ __('ui.common.description') }}</th>
-                            <th class="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ __('ui.common.qty') }}</th>
-                            <th class="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ __('ui.modules.quotations.contract_rate') }}</th>
-                            <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ __('ui.modules.quotations.markup_type') }}</th>
-                            <th class="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ __('ui.modules.quotations.markup') }}</th>
+                            <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('modules_quotations_mark_validated') }}</th>
+                            <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('common_type') }}</th>
+                            <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('modules_quotations_vendor_provider_item') }}</th>
+                            <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('common_description') }}</th>
+                            <th class="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('common_qty') }}</th>
+                            <th class="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('modules_quotations_contract_rate') }}</th>
+                            <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('modules_quotations_markup_type') }}</th>
+                            <th class="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('modules_quotations_markup') }}</th>
                             <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ __('Validated by') }}</th>
-                            <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ __('ui.modules.quotations.validation_status') }}</th>
-                            <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ __('ui.common.actions') }}</th>
+                            <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('modules_quotations_validation_status') }}</th>
+                            <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('common_actions') }}</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
@@ -1059,8 +1059,8 @@
                                 </td>
                                 <td class="px-3 py-2 align-top">
                                     <select name="items[{{ $item->id }}][markup_type]" data-canonical-input="markup_type-{{ $item->id }}" class="app-input">
-                                        <option value="fixed" @selected(old('items.' . $item->id . '.markup_type', $item->markup_type) === 'fixed')>{{ __('ui.common.fixed') }}</option>
-                                        <option value="percent" @selected(old('items.' . $item->id . '.markup_type', $item->markup_type) === 'percent')>{{ __('ui.common.percent') }}</option>
+                                        <option value="fixed" @selected(old('items.' . $item->id . '.markup_type', $item->markup_type) === 'fixed')>{{ ui_phrase('common_fixed') }}</option>
+                                        <option value="percent" @selected(old('items.' . $item->id . '.markup_type', $item->markup_type) === 'percent')>{{ ui_phrase('common_percent') }}</option>
                                     </select>
                                 </td>
                                 <td class="px-3 py-2 align-top">
@@ -1089,15 +1089,15 @@
                                 </td>
                                 <td class="px-3 py-2 align-top" data-item-status="{{ $item->id }}">
                                     @if ((bool) ($item->is_validated ?? false))
-                                        <span class="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">{{ __('ui.modules.quotations.validated') }}</span>
+                                        <span class="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">{{ ui_phrase('modules_quotations_validated') }}</span>
                                     @else
-                                        <span class="inline-flex rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700 dark:border-amber-700 dark:bg-amber-900/30 dark:text-amber-300">{{ __('ui.modules.quotations.pending_validation') }}</span>
+                                        <span class="inline-flex rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700 dark:border-amber-700 dark:bg-amber-900/30 dark:text-amber-300">{{ ui_phrase('modules_quotations_pending_validation') }}</span>
                                     @endif
                                 </td>
                                 <td class="px-3 py-2 align-top">
                                     <button type="button" class="btn-outline-sm" data-save-item="{{ $item->id }}" data-save-item-url="{{ route('quotations.validate.save-item', ['quotation' => $quotation, 'item' => $item]) }}">
                                         <span data-item-spinner="{{ $item->id }}" class="mr-1 hidden inline-block h-3 w-3 animate-spin rounded-full border border-current border-t-transparent align-[-1px]"></span>
-                                        <span data-item-save-label="{{ $item->id }}">{{ __('ui.modules.quotations.validate') }}</span>
+                                        <span data-item-save-label="{{ $item->id }}">{{ ui_phrase('modules_quotations_validate') }}</span>
                                     </button>
                                 </td>
                             </tr>
@@ -1105,7 +1105,7 @@
                         @endforeach
                         @else
                             <tr>
-                                <td colspan="11" class="px-3 py-4 text-center text-sm text-gray-500 dark:text-gray-400">{{ __('ui.modules.quotations.no_validation_required_items') }}</td>
+                                <td colspan="11" class="px-3 py-4 text-center text-sm text-gray-500 dark:text-gray-400">{{ ui_phrase('modules_quotations_no_validation_required_items') }}</td>
                             </tr>
                         @endif
 
@@ -1117,14 +1117,14 @@
             <div class="module-action-row pt-2">
                 <button type="submit" class="btn-secondary" data-save-progress-btn>
                     <span data-save-progress-spinner class="mr-1 hidden inline-block h-3 w-3 animate-spin rounded-full border border-current border-t-transparent align-[-1px]"></span>
-                    <span data-save-progress-label>{{ __('ui.modules.quotations.save_progress') }}</span>
+                    <span data-save-progress-label>{{ ui_phrase('modules_quotations_save_progress') }}</span>
                 </button>
                 <button
                     type="button"
                     class="btn-primary {{ (bool) ($progress['is_complete'] ?? false) ? '' : 'hidden' }}"
                     data-finalize-quotation-btn
                 >
-                    <span>{{ __('ui.modules.quotations.validate_quotation') }}</span>
+                    <span>{{ ui_phrase('modules_quotations_validate_quotation') }}</span>
                 </button>
             </div>
         </form>
@@ -1141,13 +1141,13 @@
     >
         <div class="w-full max-w-3xl rounded-xl border border-gray-200 bg-white p-5 shadow-xl dark:border-gray-700 dark:bg-gray-900">
             <div class="flex items-center justify-between gap-3">
-                <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100" data-modal-title>{{ __('ui.modules.quotations.item_detail_modal_title') }}</h3>
+                <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100" data-modal-title>{{ ui_phrase('modules_quotations_item_detail_modal_title') }}</h3>
                 <div class="flex items-center gap-2">
                     <button type="button" class="btn-secondary px-2 py-1 text-xs" data-update-contact>
                         <span data-update-contact-spinner class="mr-1 hidden inline-block h-3 w-3 animate-spin rounded-full border border-current border-t-transparent align-[-1px]"></span>
-                        <span data-update-contact-label>{{ __('ui.modules.quotations.update_contact') }}</span>
+                        <span data-update-contact-label>{{ ui_phrase('modules_quotations_update_contact') }}</span>
                     </button>
-                    <button type="button" class="btn-ghost px-2 py-1 text-xs" data-close-validation-modal>{{ __('ui.common.close') }}</button>
+                    <button type="button" class="btn-ghost px-2 py-1 text-xs" data-close-validation-modal>{{ ui_phrase('common_close') }}</button>
                 </div>
             </div>
 
@@ -1162,25 +1162,25 @@
                     <div class="mb-2">
                         <p class="font-semibold text-gray-900 dark:text-gray-100" data-contact-provider>-</p>
                         <p class="mt-1 text-[11px] text-gray-600 dark:text-gray-300">
-                            <span class="font-semibold">{{ __('ui.modules.quotations.address') }}:</span>
+                            <span class="font-semibold">{{ ui_phrase('modules_quotations_address') }}:</span>
                             <span data-contact-address-display>-</span>
                         </p>
                     </div>
                     <div class="space-y-2">
                         <div>
-                            <label class="block text-[11px] font-semibold text-gray-500 dark:text-gray-400">{{ __('ui.modules.quotations.contact_person') }}</label>
+                            <label class="block text-[11px] font-semibold text-gray-500 dark:text-gray-400">{{ ui_phrase('modules_quotations_contact_person') }}</label>
                             <input type="text" class="app-input mt-1 text-xs" data-contact-name>
                         </div>
                         <div>
-                            <label class="block text-[11px] font-semibold text-gray-500 dark:text-gray-400">{{ __('ui.common.phone') }}</label>
+                            <label class="block text-[11px] font-semibold text-gray-500 dark:text-gray-400">{{ ui_phrase('common_phone') }}</label>
                             <input type="text" class="app-input mt-1 text-xs" data-contact-phone>
                         </div>
                         <div>
-                            <label class="block text-[11px] font-semibold text-gray-500 dark:text-gray-400">{{ __('ui.modules.quotations.email') }}</label>
+                            <label class="block text-[11px] font-semibold text-gray-500 dark:text-gray-400">{{ ui_phrase('modules_quotations_email') }}</label>
                             <input type="email" class="app-input mt-1 text-xs" data-contact-email>
                         </div>
                         <div>
-                            <label class="block text-[11px] font-semibold text-gray-500 dark:text-gray-400">{{ __('ui.modules.quotations.website') }}</label>
+                            <label class="block text-[11px] font-semibold text-gray-500 dark:text-gray-400">{{ ui_phrase('modules_quotations_website') }}</label>
                             <input type="text" class="app-input mt-1 text-xs" data-contact-website>
                         </div>
                     </div>

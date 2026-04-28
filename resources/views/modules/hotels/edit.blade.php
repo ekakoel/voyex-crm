@@ -1,8 +1,8 @@
 @extends('layouts.master')
-@section('page_title', __('ui.modules.hotels.edit_hotel'))
-@section('page_subtitle', __('ui.modules.hotels.edit_page_subtitle'))
+@section('page_title', ui_phrase('modules_hotels_edit_hotel'))
+@section('page_subtitle', ui_phrase('modules_hotels_edit_page_subtitle'))
 @section('page_actions')
-    <a href="{{ route('hotels.index') }}" class="btn-ghost">{{ __('ui.common.back') }}</a>
+    <a href="{{ route('hotels.index') }}" class="btn-ghost">{{ ui_phrase('common_back') }}</a>
 @endsection
 @section('content')
     <div class="space-y-6 module-page module-page--hotels">

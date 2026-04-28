@@ -1,20 +1,20 @@
 @extends('layouts.master')
 
-@section('page_title', __('ui.manager_dashboard.page_title'))
-@section('page_subtitle', __('ui.manager_dashboard.page_subtitle'))
+@section('page_title', ui_phrase('manager_dashboard_page_title'))
+@section('page_subtitle', ui_phrase('manager_dashboard_page_subtitle'))
 @section('page_actions')
     <div class="flex items-center gap-2">
         @if($canInquiries)
             <a href="{{ route('inquiries.create') }}" class="btn-primary-sm">
-                <i class="fa-solid fa-plus-circle mr-1"></i>{{ __('ui.manager_dashboard.actions.new_inquiry') }}
+                <i class="fa-solid fa-plus-circle mr-1"></i>{{ ui_phrase('manager_dashboard_actions_new_inquiry') }}
             </a>
         @endif
         @if($canQuotations)
             <a href="{{ route('quotations.index') }}" class="btn-secondary-sm">
-                {{ __('ui.manager_dashboard.actions.view_quotations') }}
+                {{ ui_phrase('manager_dashboard_actions_view_quotations') }}
             </a>
         @endif
-        <span class="text-xs text-slate-500 dark:text-slate-400">{{ __('ui.manager_dashboard.updated') }} <x-local-time :value="now()" /></span>
+        <span class="text-xs text-slate-500 dark:text-slate-400">{{ ui_phrase('manager_dashboard_updated') }} <x-local-time :value="now()" /></span>
     </div>
 @endsection
 
@@ -22,7 +22,7 @@
 <div class="sa-wrap rounded-3xl border border-slate-200/80 bg-slate-100/70 p-3 dark:border-slate-700 dark:bg-slate-900/60" data-progressive-dashboard>
     @if(($needsManagerApprovalCount ?? 0) > 0)
         <div class="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-300">
-            {{ __('ui.manager_dashboard.alert.waiting_approval', ['count' => number_format((int) $needsManagerApprovalCount)]) }}
+            {{ ui_phrase('manager_dashboard_alert_waiting_approval', ['count' => number_format((int) $needsManagerApprovalCount)]) }}
         </div>
     @endif
 
@@ -36,34 +36,34 @@
                 @if($canQuotations)
                     <div class="sa-card p-5" data-progressive-item>
                         <div class="flex items-center justify-between">
-                            <h2 class="text-sm font-semibold text-slate-900 dark:text-slate-100">{{ __('ui.manager_dashboard.pipeline.title') }}</h2>
+                            <h2 class="text-sm font-semibold text-slate-900 dark:text-slate-100">{{ ui_phrase('manager_dashboard_pipeline_title') }}</h2>
                             <a href="{{ route('quotations.index', ['status' => 'pending', 'needs_my_approval' => 1]) }}" class="text-xs font-medium text-indigo-600 hover:text-indigo-700 dark:text-indigo-300">
-                                {{ __('ui.manager_dashboard.pipeline.open_my_approval_list') }}
+                                {{ ui_phrase('manager_dashboard_pipeline_open_my_approval_list') }}
                             </a>
                         </div>
                         <div class="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3 text-xs">
                             <div class="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900">
-                                <p class="text-slate-500 dark:text-slate-400">{{ __('ui.manager_dashboard.pipeline.step_1') }}</p>
+                                <p class="text-slate-500 dark:text-slate-400">{{ ui_phrase('manager_dashboard_pipeline_step_1') }}</p>
                                 <p class="mt-1 text-lg font-semibold text-slate-800 dark:text-slate-100">{{ number_format((int) ($needsReservationApprovalCount ?? 0)) }}</p>
-                                <p class="text-slate-500 dark:text-slate-400">{{ __('ui.manager_dashboard.pipeline.no_non_creator_approval_yet') }}</p>
+                                <p class="text-slate-500 dark:text-slate-400">{{ ui_phrase('manager_dashboard_pipeline_no_non_creator_approval_yet') }}</p>
                             </div>
                             <div class="rounded-xl border border-amber-200 bg-amber-50 p-3 dark:border-amber-700 dark:bg-amber-900/20">
-                                <p class="text-amber-700 dark:text-amber-300">{{ __('ui.manager_dashboard.pipeline.my_approval_queue') }}</p>
+                                <p class="text-amber-700 dark:text-amber-300">{{ ui_phrase('manager_dashboard_pipeline_my_approval_queue') }}</p>
                                 <p class="mt-1 text-lg font-semibold text-amber-800 dark:text-amber-200">{{ number_format((int) ($needsManagerApprovalCount ?? 0)) }}</p>
-                                <p class="text-amber-700 dark:text-amber-300">{{ __('ui.manager_dashboard.captions.need_your_approval') }}</p>
+                                <p class="text-amber-700 dark:text-amber-300">{{ ui_phrase('manager_dashboard_captions_need_your_approval') }}</p>
                             </div>
                             <div class="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900">
-                                <p class="text-slate-500 dark:text-slate-400">{{ __('ui.manager_dashboard.pipeline.step_2') }}</p>
+                                <p class="text-slate-500 dark:text-slate-400">{{ ui_phrase('manager_dashboard_pipeline_step_2') }}</p>
                                 <p class="mt-1 text-lg font-semibold text-slate-800 dark:text-slate-100">{{ number_format((int) ($needsDirectorApprovalCount ?? 0)) }}</p>
-                                <p class="text-slate-500 dark:text-slate-400">{{ __('ui.manager_dashboard.pipeline.already_has_1_non_creator_approval') }}</p>
+                                <p class="text-slate-500 dark:text-slate-400">{{ ui_phrase('manager_dashboard_pipeline_already_has_1_non_creator_approval') }}</p>
                             </div>
                         </div>
                     </div>
 
                     <div class="sa-card p-5" data-progressive-item>
                         <div class="flex items-center justify-between">
-                            <h2 class="text-sm font-semibold text-slate-900 dark:text-slate-100">{{ __('ui.manager_dashboard.approval_queue.title') }}</h2>
-                            <span class="text-[11px] text-slate-500 dark:text-slate-400">{{ __('ui.manager_dashboard.approval_queue.prioritized_by_validity_date') }}</span>
+                            <h2 class="text-sm font-semibold text-slate-900 dark:text-slate-100">{{ ui_phrase('manager_dashboard_approval_queue_title') }}</h2>
+                            <span class="text-[11px] text-slate-500 dark:text-slate-400">{{ ui_phrase('manager_dashboard_approval_queue_prioritized_by_validity_date') }}</span>
                         </div>
                         <div class="mt-3 space-y-2 text-xs">
                             @forelse($managerApprovalQueue as $quotation)
@@ -71,21 +71,21 @@
                                     <div class="flex flex-wrap items-start justify-between gap-2">
                                         <div>
                                             <p class="font-semibold text-slate-800 dark:text-slate-100">{{ $quotation->quotation_number }}</p>
-                                            <p class="text-slate-500 dark:text-slate-400">{{ $quotation->inquiry?->customer?->name ?? __('ui.manager_dashboard.common.customer_not_set') }}</p>
+                                            <p class="text-slate-500 dark:text-slate-400">{{ $quotation->inquiry?->customer?->name ?? ui_phrase('manager_dashboard_common_customer_not_set') }}</p>
                                         </div>
                                         <div class="text-right">
                                             <p class="font-semibold text-slate-800 dark:text-slate-100"><x-money :amount="$quotation->final_amount ?? 0" currency="IDR" /></p>
-                                            <p class="text-slate-500 dark:text-slate-400">{{ __('ui.manager_dashboard.common.validity') }} {{ $quotation->validity_date?->format('Y-m-d') ?? '-' }}</p>
+                                            <p class="text-slate-500 dark:text-slate-400">{{ ui_phrase('manager_dashboard_common_validity') }} {{ $quotation->validity_date?->format('Y-m-d') ?? '-' }}</p>
                                         </div>
                                     </div>
                                     <div class="mt-2">
                                         <a href="{{ route('quotations.show', $quotation) }}" class="inline-flex items-center rounded-lg border border-indigo-300 px-2.5 py-1 text-[11px] font-semibold text-indigo-700 hover:bg-indigo-50 dark:border-indigo-700 dark:text-indigo-300 dark:hover:bg-indigo-900/20">
-                                            {{ __('ui.manager_dashboard.approval_queue.review_quotation') }}
+                                            {{ ui_phrase('manager_dashboard_approval_queue_review_quotation') }}
                                         </a>
                                     </div>
                                 </div>
                             @empty
-                                <p class="text-xs text-slate-500 dark:text-slate-400">{{ __('ui.manager_dashboard.approval_queue.empty') }}</p>
+                                <p class="text-xs text-slate-500 dark:text-slate-400">{{ ui_phrase('manager_dashboard_approval_queue_empty') }}</p>
                             @endforelse
                         </div>
                     </div>
@@ -93,7 +93,7 @@
 
                 @if($canInquiries || $canQuotations || $canItineraries || $canBookings)
                     <div class="sa-card p-5" data-progressive-item>
-                        <h2 class="text-sm font-semibold text-slate-900 dark:text-slate-100">{{ __('ui.manager_dashboard.team_funnel.title') }}</h2>
+                        <h2 class="text-sm font-semibold text-slate-900 dark:text-slate-100">{{ ui_phrase('manager_dashboard_team_funnel_title') }}</h2>
                         <div class="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
                             @forelse($funnel as $stage)
                                 <div class="app-card p-3 text-center" data-progressive-item>
@@ -107,7 +107,7 @@
                                     </p>
                                 </div>
                             @empty
-                                <p class="text-xs text-slate-500 dark:text-slate-400">{{ __('ui.manager_dashboard.team_funnel.empty') }}</p>
+                                <p class="text-xs text-slate-500 dark:text-slate-400">{{ ui_phrase('manager_dashboard_team_funnel_empty') }}</p>
                             @endforelse
                         </div>
                     </div>
@@ -117,7 +117,7 @@
             <aside class="xl:col-span-4 space-y-3" data-progressive-group>
                 @if($canQuotations)
                     <div class="sa-card p-4" data-progressive-item>
-                        <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100">{{ __('ui.manager_dashboard.quotation_status_snapshot.title') }}</h3>
+                        <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100">{{ ui_phrase('manager_dashboard_quotation_status_snapshot_title') }}</h3>
                         <div class="mt-3 space-y-2 text-xs">
                             @forelse(($quotationStatusCounts ?? collect())->sortKeys() as $status => $count)
                                 <div class="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2 dark:border-slate-700 dark:bg-slate-900" data-progressive-item>
@@ -125,7 +125,7 @@
                                     <span class="font-semibold text-slate-900 dark:text-slate-100">{{ number_format((int) $count) }}</span>
                                 </div>
                             @empty
-                                <p class="text-xs text-slate-500 dark:text-slate-400">{{ __('ui.manager_dashboard.quotation_status_snapshot.empty') }}</p>
+                                <p class="text-xs text-slate-500 dark:text-slate-400">{{ ui_phrase('manager_dashboard_quotation_status_snapshot_empty') }}</p>
                             @endforelse
                         </div>
                     </div>
@@ -133,7 +133,7 @@
 
                 @if($canInquiries)
                     <div class="sa-card p-4" data-progressive-item>
-                        <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100">{{ __('ui.manager_dashboard.inquiry_status_distribution.title') }}</h3>
+                        <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100">{{ ui_phrase('manager_dashboard_inquiry_status_distribution_title') }}</h3>
                         <div class="mt-3 grid grid-cols-1 gap-2 text-xs">
                             @forelse($inquiryByStatus as $status => $total)
                                 <div class="app-card px-3 py-2 flex items-center justify-between" data-progressive-item>
@@ -141,7 +141,7 @@
                                     <b class="text-slate-700 dark:text-slate-200">{{ number_format($total) }}</b>
                                 </div>
                             @empty
-                                <p class="text-xs text-slate-500 dark:text-slate-400">{{ __('ui.manager_dashboard.inquiry_status_distribution.empty') }}</p>
+                                <p class="text-xs text-slate-500 dark:text-slate-400">{{ ui_phrase('manager_dashboard_inquiry_status_distribution_empty') }}</p>
                             @endforelse
                         </div>
                     </div>
@@ -149,7 +149,7 @@
 
                 @if($canInquiries)
                     <div class="sa-card p-4" data-progressive-item>
-                        <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100">{{ __('ui.manager_dashboard.action_center_followups.title') }}</h3>
+                        <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100">{{ ui_phrase('manager_dashboard_action_center_followups_title') }}</h3>
                         <div class="mt-3 space-y-2">
                             @forelse($upcomingFollowUps as $followUp)
                                 @php
@@ -163,16 +163,16 @@
                                         @if($isOverdue)
                                             <span class="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2 py-1 text-[11px] font-semibold text-rose-600 dark:bg-rose-900/50 dark:text-rose-300">
                                                 <i class="fa-solid fa-triangle-exclamation"></i>
-                                                {{ __('ui.manager_dashboard.common.overdue') }}
+                                                {{ ui_phrase('manager_dashboard_common_overdue') }}
                                             </span>
                                         @endif
                                     </div>
                                     <p class="{{ $isOverdue ? 'text-rose-600 dark:text-rose-300' : 'text-slate-500 dark:text-slate-400' }}">
-                                        {{ __('ui.manager_dashboard.common.due') }} {{ \App\Support\DateTimeDisplay::date(optional($followUp->due_date)) }}
+                                        {{ ui_phrase('manager_dashboard_common_due') }} {{ \App\Support\DateTimeDisplay::date(optional($followUp->due_date)) }}
                                     </p>
                                 </a>
                             @empty
-                                <p class="text-xs text-slate-500 dark:text-slate-400">{{ __('ui.manager_dashboard.action_center_followups.empty') }}</p>
+                                <p class="text-xs text-slate-500 dark:text-slate-400">{{ ui_phrase('manager_dashboard_action_center_followups_empty') }}</p>
                             @endforelse
                         </div>
                     </div>
@@ -183,8 +183,8 @@
         @if($canInquiries)
             <div class="sa-card p-5" data-progressive-group>
                 <div class="flex items-center justify-between">
-                    <h2 class="text-sm font-semibold text-slate-900 dark:text-slate-100">{{ __('ui.manager_dashboard.recent_team_inquiries.title') }}</h2>
-                    <a href="{{ route('inquiries.index') }}" class="text-xs font-medium text-indigo-600 hover:text-indigo-500 dark:text-indigo-400">{{ __('ui.manager_dashboard.common.view_all') }}</a>
+                    <h2 class="text-sm font-semibold text-slate-900 dark:text-slate-100">{{ ui_phrase('manager_dashboard_recent_team_inquiries_title') }}</h2>
+                    <a href="{{ route('inquiries.index') }}" class="text-xs font-medium text-indigo-600 hover:text-indigo-500 dark:text-indigo-400">{{ ui_phrase('manager_dashboard_common_view_all') }}</a>
                 </div>
                 <div class="mt-3 space-y-2">
                     @forelse($recentInquiries as $inquiry)
@@ -194,12 +194,12 @@
                                 <x-status-badge :status="$inquiry->status" />
                             </div>
                             <div class="mt-1 flex items-center justify-between text-xs">
-                                <span class="text-slate-500 dark:text-slate-400">{{ __('ui.manager_dashboard.common.assigned_to') }} {{ $inquiry->assignedUser->name ?? __('ui.manager_dashboard.common.na') }}</span>
+                                <span class="text-slate-500 dark:text-slate-400">{{ ui_phrase('manager_dashboard_common_assigned_to') }} {{ $inquiry->assignedUser->name ?? ui_phrase('manager_dashboard_common_na') }}</span>
                                 <span class="text-slate-500 dark:text-slate-400">{{ \App\Support\DateTimeDisplay::date($inquiry->created_at) }}</span>
                             </div>
                         </a>
                     @empty
-                        <p class="text-center text-xs text-slate-500 dark:text-slate-400">{{ __('ui.manager_dashboard.recent_team_inquiries.empty') }}</p>
+                        <p class="text-center text-xs text-slate-500 dark:text-slate-400">{{ ui_phrase('manager_dashboard_recent_team_inquiries_empty') }}</p>
                     @endforelse
                 </div>
             </div>
@@ -219,3 +219,4 @@
     })();
 </script>
 @endpush
+

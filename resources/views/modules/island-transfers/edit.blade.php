@@ -1,10 +1,10 @@
 @extends('layouts.master')
 
-@section('page_title', __('ui.modules.island_transfers.edit_page_title'))
-@section('page_subtitle', __('ui.modules.island_transfers.edit_page_subtitle'))
+@section('page_title', ui_phrase('modules_island_transfers_edit_page_title'))
+@section('page_subtitle', ui_phrase('modules_island_transfers_edit_page_subtitle'))
 @section('page_actions')
-    <a href="{{ route('island-transfers.show', $islandTransfer) }}" class="btn-secondary">{{ __('ui.modules.island_transfers.view_details') }}</a>
-    <a href="{{ route('island-transfers.index') }}" class="btn-ghost">{{ __('ui.modules.island_transfers.back') }}</a>
+    <a href="{{ route('island-transfers.show', $islandTransfer) }}" class="btn-secondary">{{ ui_phrase('modules_island_transfers_view_details') }}</a>
+    <a href="{{ route('island-transfers.index') }}" class="btn-ghost">{{ ui_phrase('modules_island_transfers_back') }}</a>
 @endsection
 
 @section('content')
@@ -15,7 +15,7 @@
                     <form method="POST" action="{{ route('island-transfers.update', $islandTransfer) }}" enctype="multipart/form-data">
                         @csrf
                         @method('PUT')
-                        @include('modules.island-transfers._form', ['buttonLabel' => __('ui.modules.island_transfers.update_transfer')])
+                        @include('modules.island-transfers._form', ['buttonLabel' => ui_phrase('modules_island_transfers_update_transfer')])
                     </form>
                 </div>
             </div>

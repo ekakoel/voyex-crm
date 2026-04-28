@@ -1,8 +1,8 @@
 @extends('layouts.master')
-@section('page_title', __('ui.modules.currencies.page_title'))
-@section('page_subtitle', __('ui.modules.currencies.page_subtitle'))
+@section('page_title', ui_phrase('modules_currencies_page_title'))
+@section('page_subtitle', ui_phrase('modules_currencies_page_subtitle'))
 @section('page_actions')
-    <a href="{{ route('currencies.create') }}" class="btn-primary">{{ __('ui.modules.currencies.add_currency') }}</a>
+    <a href="{{ route('currencies.create') }}" class="btn-primary">{{ ui_phrase('modules_currencies_add_currency') }}</a>
 @endsection
 @section('content')
     <div class="space-y-6 module-page module-page--currencies" data-service-filter-page data-page-spinner="off">
@@ -11,18 +11,18 @@
             <aside class="space-y-4 xl:col-span-3">
                 <div class="app-card p-5 space-y-4">
                     <div>
-                        <h2 class="text-base font-semibold text-gray-800 dark:text-gray-100">{{ __('ui.common.filters') }}</h2>
-                        <p class="text-sm text-gray-500 dark:text-gray-400">{{ __('ui.index.refine_list_quickly') }}</p>
+                        <h2 class="text-base font-semibold text-gray-800 dark:text-gray-100">{{ ui_phrase('common_filters') }}</h2>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">{{ ui_phrase('index_refine_list_quickly') }}</p>
                     </div>
                     <form method="GET" action="{{ route('currencies.index') }}" class="grid grid-cols-1 gap-3 sm:grid-cols-2" data-service-filter-form data-disable-submit-lock="1" data-page-spinner="off">
-            <input name="q" value="{{ request('q') }}" placeholder="{{ __('ui.modules.currencies.search') }}" class="app-input sm:col-span-2" data-service-filter-input>
+            <input name="q" value="{{ request('q') }}" placeholder="{{ ui_phrase('modules_currencies_search') }}" class="app-input sm:col-span-2" data-service-filter-input>
             <select name="per_page" class="app-input" data-service-filter-input>
                 @foreach ([10,25,50,100] as $size)
-                    <option value="{{ $size }}" @selected((string) request('per_page', 10) === (string) $size)>{{ __('ui.index.per_page_option', ['size' => $size]) }}</option>
+                    <option value="{{ $size }}" @selected((string) request('per_page', 10) === (string) $size)>{{ ui_phrase('index_per_page_option', ['size' => $size]) }}</option>
                 @endforeach
             </select>
             <div class="flex items-center gap-2 sm:col-span-2 filter-actions">
-                <a href="{{ route('currencies.index') }}" class="btn-ghost" data-service-filter-reset>{{ __('ui.common.reset') }}</a>
+                <a href="{{ route('currencies.index') }}" class="btn-ghost" data-service-filter-reset>{{ ui_phrase('common_reset') }}</a>
             </div>
         </form>
                 </div>
@@ -38,8 +38,8 @@
             <div class="app-card p-4">
                 <div class="flex flex-wrap items-center justify-between gap-2">
                     <div>
-                        <h2 class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ __('ui.modules.currencies.bulk_update_rates') }}</h2>
-                        <p class="text-xs text-gray-500 dark:text-gray-400">{{ __('ui.modules.currencies.bulk_update_caption') }}</p>
+                        <h2 class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ ui_phrase('modules_currencies_bulk_update_rates') }}</h2>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">{{ ui_phrase('modules_currencies_bulk_update_caption') }}</p>
                     </div>
                 </div>
                 <form method="POST" action="{{ route('currencies.bulk-update') }}" class="mt-4 space-y-3">
@@ -54,7 +54,7 @@
                                 <input type="hidden" name="rates[{{ $index }}][id]" value="{{ $currency->id }}">
                                 <div class="mt-2">
                                     <x-money-input
-                                        :label="__('ui.modules.currencies.rate_to_idr')"
+                                        :label="ui_phrase('modules_currencies_rate_to_idr')"
                                         name="rates[{{ $index }}][rate_to_idr]"
                                         :value="old('rates.' . $index . '.rate_to_idr', $currency->rate_to_idr)"
                                         min="0"
@@ -64,7 +64,7 @@
                                     />
                                 </div>
                                 <div class="mt-2">
-                                    <label class="block text-xs text-gray-500">{{ __('ui.modules.currencies.decimals') }}</label>
+                                    <label class="block text-xs text-gray-500">{{ ui_phrase('modules_currencies_decimals') }}</label>
                                     <input
                                         name="rates[{{ $index }}][decimal_places]"
                                         type="number"
@@ -78,7 +78,7 @@
                         @endforeach
                     </div>
                     <div class="flex items-center gap-2">
-                        <button  class="btn-primary">{{ __('ui.modules.currencies.save_rates') }}</button>
+                        <button  class="btn-primary">{{ ui_phrase('modules_currencies_save_rates') }}</button>
                     </div>
                 </form>
             </div>
@@ -89,13 +89,13 @@
                 <thead>
                     <tr>
                         <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">#</th>
-                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ __('ui.common.code') }}</th>
-                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ __('ui.common.name') }}</th>
-                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ __('ui.common.symbol') }}</th>
-                        <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ __('ui.modules.currencies.rate_to_idr') }}</th>
-                        <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ __('ui.modules.currencies.decimals') }}</th>
-                        <th class="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ __('ui.common.status') }}</th>
-                        <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300 actions-compact">{{ __('ui.common.actions') }}</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('common_code') }}</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('common_name') }}</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('common_symbol') }}</th>
+                        <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('modules_currencies_rate_to_idr') }}</th>
+                        <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('modules_currencies_decimals') }}</th>
+                        <th class="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('common_status') }}</th>
+                        <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300 actions-compact">{{ ui_phrase('common_actions') }}</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
@@ -105,7 +105,7 @@
                             <td class="px-4 py-3 text-sm font-semibold text-gray-800 dark:text-gray-100">
                                 {{ $currency->code }}
                                 @if ($currency->is_default)
-                                    <span class="ml-2 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">{{ __('ui.common.default') }}</span>
+                                    <span class="ml-2 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">{{ ui_phrase('common_default') }}</span>
                                 @endif
                             </td>
                             <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">{{ $currency->name }}</td>
@@ -117,12 +117,12 @@
                             </td>
                             <td class="px-4 py-3 text-right text-sm actions-compact">
     <div class="flex items-center justify-end gap-2">
-        <a href="{{ route('currencies.edit', $currency) }}"  class="btn-secondary-sm" title="{{ __('ui.common.edit') }}" aria-label="{{ __('ui.common.edit') }}"><i class="fa-solid fa-pen"></i><span class="sr-only">{{ __('ui.common.edit') }}</span></a>
+        <a href="{{ route('currencies.edit', $currency) }}"  class="btn-secondary-sm" title="{{ ui_phrase('common_edit') }}" aria-label="{{ ui_phrase('common_edit') }}"><i class="fa-solid fa-pen"></i><span class="sr-only">{{ ui_phrase('common_edit') }}</span></a>
                                 @can('module.currencies.delete')
                                 <form action="{{ route('currencies.destroy', $currency) }}" method="POST" class="inline">
                                     @csrf
                                     @method('DELETE')
-                                    <button type="submit" onclick="return confirm('{{ __('ui.modules.currencies.confirm_delete') }}')"   class="btn-danger-sm">{{ __('ui.common.delete') }}</button>
+                                    <button type="submit" onclick="return confirm('{{ ui_phrase('modules_currencies_confirm_delete') }}')"   class="btn-danger-sm">{{ ui_phrase('common_delete') }}</button>
                                 </form>
                                 @endcan
     </div>
@@ -130,7 +130,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="8" class="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">{{ __('ui.index.no_data_available', ['entity' => __('ui.entities.currencies')]) }}</td>
+                            <td colspan="8" class="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">{{ ui_phrase('index_no_data_available', ['entity' => ui_phrase('entities_currencies')]) }}</td>
                         </tr>
                     @endforelse
                 </tbody>
@@ -145,7 +145,7 @@
                             <p class="text-sm font-semibold text-gray-800 dark:text-gray-100">
                                 {{ $currency->code }}
                                 @if ($currency->is_default)
-                                    <span class="ml-2 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">{{ __('ui.common.default') }}</span>
+                                    <span class="ml-2 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">{{ ui_phrase('common_default') }}</span>
                                 @endif
                             </p>
                             <p class="text-xs text-gray-500 dark:text-gray-400">{{ $currency->name }}</p>
@@ -153,28 +153,28 @@
                         <span class="text-xs font-medium rounded-full bg-gray-100 px-2 py-0.5 text-gray-700 dark:bg-gray-900/40 dark:text-gray-300">{{ $currency->symbol ?? '-' }}</span>
                     </div>
                     <div class="mt-3 grid grid-cols-2 gap-2 text-xs text-gray-600 dark:text-gray-300">
-                        <div>{{ __('ui.modules.currencies.rate_to_idr') }}</div>
+                        <div>{{ ui_phrase('modules_currencies_rate_to_idr') }}</div>
                         <div>{{ number_format((float) $currency->rate_to_idr, (int) ($currency->decimal_places ?? 0), '.', ',') }}</div>
-                        <div>{{ __('ui.modules.currencies.decimals') }}</div>
+                        <div>{{ ui_phrase('modules_currencies_decimals') }}</div>
                         <div>{{ $currency->decimal_places }}</div>
-                        <div>{{ __('ui.common.status') }}</div>
+                        <div>{{ ui_phrase('common_status') }}</div>
                         <div>
                             <x-status-badge :status="$currency->is_active ? 'active' : 'inactive'" size="xs" />
                         </div>
                     </div>
                     <div class="mt-3 flex flex-wrap gap-2">
-                        <a href="{{ route('currencies.edit', $currency) }}" class="btn-secondary-sm" title="{{ __('ui.common.edit') }}" aria-label="{{ __('ui.common.edit') }}"><i class="fa-solid fa-pen"></i><span class="sr-only">{{ __('ui.common.edit') }}</span></a>
+                        <a href="{{ route('currencies.edit', $currency) }}" class="btn-secondary-sm" title="{{ ui_phrase('common_edit') }}" aria-label="{{ ui_phrase('common_edit') }}"><i class="fa-solid fa-pen"></i><span class="sr-only">{{ ui_phrase('common_edit') }}</span></a>
                         @can('module.currencies.delete')
                         <form action="{{ route('currencies.destroy', $currency) }}" method="POST" class="inline">
                             @csrf
                             @method('DELETE')
-                            <button type="submit" onclick="return confirm('{{ __('ui.modules.currencies.confirm_delete') }}')" class="btn-danger-sm">{{ __('ui.common.delete') }}</button>
+                            <button type="submit" onclick="return confirm('{{ ui_phrase('modules_currencies_confirm_delete') }}')" class="btn-danger-sm">{{ ui_phrase('common_delete') }}</button>
                         </form>
                         @endcan
                     </div>
                 </div>
             @empty
-                <div class="app-card p-6 text-center text-sm text-gray-500 dark:text-gray-400">{{ __('ui.index.no_data_available', ['entity' => __('ui.entities.currencies')]) }}</div>
+                <div class="app-card p-6 text-center text-sm text-gray-500 dark:text-gray-400">{{ ui_phrase('index_no_data_available', ['entity' => ui_phrase('entities_currencies')]) }}</div>
             @endforelse
         </div>
 <div>{{ $currencies->links() }}</div>

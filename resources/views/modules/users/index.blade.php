@@ -1,8 +1,8 @@
 @extends('layouts.master')
-@section('page_title', __('ui.modules.users.page_title'))
-@section('page_subtitle', __('ui.modules.users.page_subtitle'))
+@section('page_title', ui_phrase('modules_users_page_title'))
+@section('page_subtitle', ui_phrase('modules_users_page_subtitle'))
 @section('page_actions')
-    <a href="{{ route('users.create') }}" class="btn-primary">{{ __('ui.modules.users.add_employee') }}</a>
+    <a href="{{ route('users.create') }}" class="btn-primary">{{ ui_phrase('modules_users_add_employee') }}</a>
 @endsection
 @section('content')
     <div class="space-y-6 module-page module-page--users" data-service-filter-page data-page-spinner="off">
@@ -11,24 +11,24 @@
             <aside class="xl:col-span-3">
                 <div class="app-card p-5 space-y-4">
                     <div>
-                        <h2 class="text-base font-semibold text-gray-800 dark:text-gray-100">{{ __('ui.common.filters') }}</h2>
-                        <p class="text-sm text-gray-500 dark:text-gray-400">{{ __('ui.index.refine_list_quickly') }}</p>
+                        <h2 class="text-base font-semibold text-gray-800 dark:text-gray-100">{{ ui_phrase('common_filters') }}</h2>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">{{ ui_phrase('index_refine_list_quickly') }}</p>
                     </div>
                     <form method="GET" action="{{ route('users.index') }}" class="grid grid-cols-1 gap-3 sm:grid-cols-2" data-service-filter-form data-disable-submit-lock="1" data-page-spinner="off">
-                        <input name="search" value="{{ request('search') }}" placeholder="{{ __('ui.modules.users.search_name_email') }}" class="app-input sm:col-span-2" data-service-filter-input>
+                        <input name="search" value="{{ request('search') }}" placeholder="{{ ui_phrase('modules_users_search_name_email') }}" class="app-input sm:col-span-2" data-service-filter-input>
                         <select name="role" class="app-input" data-service-filter-input>
-                            <option value="">{{ __('ui.modules.users.all_roles') }}</option>
+                            <option value="">{{ ui_phrase('modules_users_all_roles') }}</option>
                             @foreach ($roles as $role)
                                 <option value="{{ $role->name }}" @selected(request('role') === $role->name)>{{ $role->name }}</option>
                             @endforeach
                         </select>
                         <select name="per_page" class="app-input" data-service-filter-input>
                             @foreach ([10,25,50,100] as $size)
-                                <option value="{{ $size }}" @selected((string) request('per_page', 10) === (string) $size)>{{ __('ui.index.per_page_option', ['size' => $size]) }}</option>
+                                <option value="{{ $size }}" @selected((string) request('per_page', 10) === (string) $size)>{{ ui_phrase('index_per_page_option', ['size' => $size]) }}</option>
                             @endforeach
                         </select>
                         <div class="flex items-center gap-2 sm:col-span-2 filter-actions">
-                            <a href="{{ route('users.index') }}" class="btn-ghost" data-service-filter-reset>{{ __('ui.common.reset') }}</a>
+                            <a href="{{ route('users.index') }}" class="btn-ghost" data-service-filter-reset>{{ ui_phrase('common_reset') }}</a>
                         </div>
                     </form>
                 </div>
@@ -59,13 +59,13 @@
                         @endforelse
                     </div>
                     <div class="mt-3 flex flex-wrap gap-2">
-                        <a href="{{ route('users.edit', $user) }}"  class="btn-secondary-sm" title="{{ __('ui.common.edit') }}" aria-label="{{ __('ui.common.edit') }}"><i class="fa-solid fa-pen"></i><span class="sr-only">{{ __('ui.common.edit') }}</span></a>
+                        <a href="{{ route('users.edit', $user) }}"  class="btn-secondary-sm" title="{{ ui_phrase('common_edit') }}" aria-label="{{ ui_phrase('common_edit') }}"><i class="fa-solid fa-pen"></i><span class="sr-only">{{ ui_phrase('common_edit') }}</span></a>
                         @can('module.user_manager.delete')
                             <form action="{{ route('users.destroy', $user) }}" method="POST" class="inline">
                                 @csrf
                                 @method('DELETE')
-                                <button type="submit" onclick="return confirm('{{ __('ui.modules.users.confirm_delete_employee') }}')"   class="btn-danger-sm">
-                                    {{ __('ui.common.delete') }}
+                                <button type="submit" onclick="return confirm('{{ ui_phrase('modules_users_confirm_delete_employee') }}')"   class="btn-danger-sm">
+                                    {{ ui_phrase('common_delete') }}
                                 </button>
                             </form>
                         @endcan
@@ -73,7 +73,7 @@
                 </div>
             @empty
                 <div class="app-card p-6 text-center text-sm text-gray-500 dark:text-gray-400">
-                    {{ __('ui.modules.users.no_employee_data') }}
+                    {{ ui_phrase('modules_users_no_employee_data') }}
                 </div>
             @endforelse
         </div>
@@ -86,7 +86,7 @@
                         <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ __('Name') }}</th>
                         <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ __('Email') }}</th>
                         <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ __('Role') }}</th>
-                        <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300 actions-compact">{{ __('ui.common.actions') }}</th>
+                        <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300 actions-compact">{{ ui_phrase('common_actions') }}</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
@@ -107,15 +107,15 @@
                             <td class="px-4 py-3 text-right text-sm actions-compact">
     <div class="flex items-center justify-end gap-2">
         <a href="{{ route('users.edit', $user) }}"
-                                    class="btn-secondary-sm" title="{{ __('ui.common.edit') }}" aria-label="{{ __('ui.common.edit') }}"><i class="fa-solid fa-pen"></i><span class="sr-only">{{ __('ui.common.edit') }}</span></a>
+                                    class="btn-secondary-sm" title="{{ ui_phrase('common_edit') }}" aria-label="{{ ui_phrase('common_edit') }}"><i class="fa-solid fa-pen"></i><span class="sr-only">{{ ui_phrase('common_edit') }}</span></a>
                                 @can('module.user_manager.delete')
                                     <form action="{{ route('users.destroy', $user) }}" method="POST" class="inline">
                                         @csrf
                                         @method('DELETE')
                                         <button
                                             type="submit"
-                                            onclick="return confirm('{{ __('ui.modules.users.confirm_delete_employee') }}')"
-                                              class="btn-danger-sm">{{ __('ui.common.delete') }}
+                                            onclick="return confirm('{{ ui_phrase('modules_users_confirm_delete_employee') }}')"
+                                              class="btn-danger-sm">{{ ui_phrase('common_delete') }}
                                         </button>
                                     </form>
                                 @endcan
@@ -125,7 +125,7 @@
                     @empty
                         <tr>
                             <td colspan="5" class="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">
-                                {{ __('ui.modules.users.no_employee_data') }}
+                                {{ ui_phrase('modules_users_no_employee_data') }}
                             </td>
                         </tr>
                     @endforelse

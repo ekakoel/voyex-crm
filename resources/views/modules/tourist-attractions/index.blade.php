@@ -1,8 +1,8 @@
 @extends('layouts.master')
-@section('page_title', __('ui.modules.tourist_attractions.page_title'))
-@section('page_subtitle', __('ui.modules.tourist_attractions.page_subtitle'))
+@section('page_title', ui_phrase('modules_tourist_attractions_page_title'))
+@section('page_subtitle', ui_phrase('modules_tourist_attractions_page_subtitle'))
 @section('page_actions')
-    <a href="{{ route('tourist-attractions.create') }}" class="btn-primary">{{ __('ui.modules.tourist_attractions.add_attraction') }}</a>
+    <a href="{{ route('tourist-attractions.create') }}" class="btn-primary">{{ ui_phrase('modules_tourist_attractions_add_attraction') }}</a>
 @endsection
 @section('content')
     <div class="space-y-6 module-page module-page--tourist-attractions" data-tourist-attractions-index data-page-spinner="off">
@@ -12,27 +12,27 @@
                 @if (($googleImportDefaults['can_import'] ?? false) === true)
                     <div class="app-card p-5 space-y-4">
                         <div>
-                            <h2 class="text-base font-semibold text-gray-800 dark:text-gray-100">{{ __('ui.modules.tourist_attractions.import_google.title') }}</h2>
-                            <p class="text-sm text-gray-500 dark:text-gray-400">{{ __('ui.modules.tourist_attractions.import_google.subtitle') }}</p>
+                            <h2 class="text-base font-semibold text-gray-800 dark:text-gray-100">{{ ui_phrase('modules_tourist_attractions_import_google_title') }}</h2>
+                            <p class="text-sm text-gray-500 dark:text-gray-400">{{ ui_phrase('modules_tourist_attractions_import_google_subtitle') }}</p>
                         </div>
                         @if (!($googleImportDefaults['is_configured'] ?? false))
                             <div class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:border-amber-700 dark:bg-amber-900/30 dark:text-amber-200">
-                                {{ __('ui.modules.tourist_attractions.import_google.api_key_hint') }}
+                                {{ ui_phrase('modules_tourist_attractions_import_google_api_key_hint') }}
                             </div>
                         @endif
                         <form method="POST" action="{{ route('tourist-attractions.import-google') }}" class="grid grid-cols-1 gap-3">
                             @csrf
                             <select name="destination_id" class="app-input" required>
-                                <option value="">{{ __('ui.modules.tourist_attractions.import_google.select_destination') }}</option>
+                                <option value="">{{ ui_phrase('modules_tourist_attractions_import_google_select_destination') }}</option>
                                 @foreach (($destinations ?? collect()) as $destination)
                                     <option value="{{ $destination->id }}" @selected((string) old('destination_id') === (string) $destination->id)>
                                         {{ $destination->name }}{{ ($destination->city || $destination->province) ? ' ('.trim(($destination->city ?? '-').' / '.($destination->province ?? '-')).')' : '' }}
                                     </option>
                                 @endforeach
                             </select>
-                            <input name="query" value="{{ old('query') }}" placeholder="{{ __('ui.modules.tourist_attractions.import_google.custom_query_placeholder') }}" class="app-input">
+                            <input name="query" value="{{ old('query') }}" placeholder="{{ ui_phrase('modules_tourist_attractions_import_google_custom_query_placeholder') }}" class="app-input">
                             <select name="island_key" class="app-input">
-                                <option value="">{{ __('ui.modules.tourist_attractions.import_google.all_islands') }}</option>
+                                <option value="">{{ ui_phrase('modules_tourist_attractions_import_google_all_islands') }}</option>
                                 @foreach (($importIslandOptions ?? []) as $islandKey => $islandMeta)
                                     <option value="{{ $islandKey }}" @selected((string) old('island_key') === (string) $islandKey)>
                                         {{ $islandMeta['label'] ?? $islandKey }}
@@ -40,7 +40,7 @@
                                 @endforeach
                             </select>
                             <div class="rounded-lg border border-gray-200 p-3 dark:border-gray-700">
-                                <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300">{{ __('ui.modules.tourist_attractions.import_google.categories') }}</p>
+                                <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300">{{ ui_phrase('modules_tourist_attractions_import_google_categories') }}</p>
                                 <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
                                     @php($selectedPlaceCategories = collect(old('place_categories', []))->map(fn ($value) => (string) $value)->all())
                                     @foreach (($importCategoryOptions ?? []) as $categoryKey => $categoryMeta)
@@ -60,25 +60,25 @@
                             <div class="grid grid-cols-3 gap-2">
                                 <input type="number" name="max_results" min="1" max="200" value="{{ old('max_results', $googleImportDefaults['max_results'] ?? 60) }}" class="app-input" title="Max results">
                                 <input name="region" maxlength="5" value="{{ old('region', $googleImportDefaults['region'] ?? 'ID') }}" class="app-input" title="Region code">
-                                <div class="app-input bg-gray-50 text-xs text-gray-500 dark:bg-gray-800/50 dark:text-gray-300">{{ __('ui.modules.tourist_attractions.import_google.language_fixed_en') }}</div>
+                                <div class="app-input bg-gray-50 text-xs text-gray-500 dark:bg-gray-800/50 dark:text-gray-300">{{ ui_phrase('modules_tourist_attractions_import_google_language_fixed_en') }}</div>
                             </div>
                             <label class="inline-flex items-center gap-2 text-xs text-gray-600 dark:text-gray-300">
                                 <input type="checkbox" name="dry_run" value="1" @checked(old('dry_run')) class="rounded border-gray-300 text-indigo-600">
-                                {{ __('ui.modules.tourist_attractions.import_google.dry_run') }}
+                                {{ ui_phrase('modules_tourist_attractions_import_google_dry_run') }}
                             </label>
-                            <button type="submit" class="btn-primary w-full justify-center">{{ __('ui.modules.tourist_attractions.import_google.import_now') }}</button>
+                            <button type="submit" class="btn-primary w-full justify-center">{{ ui_phrase('modules_tourist_attractions_import_google_import_now') }}</button>
                         </form>
                     </div>
                 @endif
                 <div class="app-card p-5 space-y-4">
                     <div>
-                        <h2 class="text-base font-semibold text-gray-800 dark:text-gray-100">{{ __('ui.common.filters') }}</h2>
-                        <p class="text-sm text-gray-500 dark:text-gray-400">{{ __('ui.index.refine_list_quickly') }}</p>
+                        <h2 class="text-base font-semibold text-gray-800 dark:text-gray-100">{{ ui_phrase('common_filters') }}</h2>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">{{ ui_phrase('index_refine_list_quickly') }}</p>
                     </div>
                     <form method="GET" action="{{ route('tourist-attractions.index') }}" class="grid grid-cols-1 gap-3 sm:grid-cols-2" data-tourist-attractions-index-form data-disable-submit-lock="1" data-page-spinner="off">
-                        <input name="q" value="{{ request('q') }}" placeholder="{{ __('ui.modules.tourist_attractions.search') }}" class="app-input sm:col-span-2" data-tourist-attractions-filter-input>
+                        <input name="q" value="{{ request('q') }}" placeholder="{{ ui_phrase('modules_tourist_attractions_search') }}" class="app-input sm:col-span-2" data-tourist-attractions-filter-input>
                         <select name="destination_id" class="app-input sm:col-span-2" data-tourist-attractions-filter-input>
-                            <option value="">{{ __('ui.common.all_destinations') }}</option>
+                            <option value="">{{ ui_phrase('common_all_destinations') }}</option>
                             @foreach (($destinations ?? collect()) as $destination)
                                 <option value="{{ $destination->id }}" @selected((string) request('destination_id') === (string) $destination->id)>
                                     {{ $destination->name }}{{ ($destination->city || $destination->province) ? ' ('.trim(($destination->city ?? '-').' / '.($destination->province ?? '-')).')' : '' }}
@@ -87,11 +87,11 @@
                         </select>
                         <select name="per_page" class="app-input" data-tourist-attractions-filter-input>
                             @foreach ([10,25,50,100] as $size)
-                                <option value="{{ $size }}" @selected((string) request('per_page', 10) === (string) $size)>{{ __('ui.index.per_page_option', ['size' => $size]) }}</option>
+                                <option value="{{ $size }}" @selected((string) request('per_page', 10) === (string) $size)>{{ ui_phrase('index_per_page_option', ['size' => $size]) }}</option>
                             @endforeach
                         </select>
                         <div class="flex items-center gap-2 sm:col-span-2 filter-actions">
-                            <a href="{{ route('tourist-attractions.index') }}" class="btn-ghost" data-tourist-attractions-filter-reset>{{ __('ui.common.reset') }}</a>
+                            <a href="{{ route('tourist-attractions.index') }}" class="btn-ghost" data-tourist-attractions-filter-reset>{{ ui_phrase('common_reset') }}</a>
                         </div>
                     </form>
                 </div>
@@ -116,11 +116,11 @@
             const toggleFormSelector = '[data-tourist-attractions-toggle-form]';
             const deleteFormSelector = '[data-tourist-attractions-delete-form]';
             const touristAttractionAjaxMessages = {
-                refreshFailed: @json(__('ui.modules.tourist_attractions.ajax.refresh_failed')),
-                deleteConfirm: @json(__('ui.modules.tourist_attractions.ajax.delete_confirm')),
-                requestFailed: @json(__('ui.modules.tourist_attractions.ajax.request_failed')),
-                deleteSuccess: @json(__('ui.modules.tourist_attractions.ajax.delete_success')),
-                statusSuccess: @json(__('ui.modules.tourist_attractions.ajax.status_success')),
+                refreshFailed: @json(ui_phrase('modules_tourist_attractions_ajax_refresh_failed')),
+                deleteConfirm: @json(ui_phrase('modules_tourist_attractions_ajax_delete_confirm')),
+                requestFailed: @json(ui_phrase('modules_tourist_attractions_ajax_request_failed')),
+                deleteSuccess: @json(ui_phrase('modules_tourist_attractions_ajax_delete_success')),
+                statusSuccess: @json(ui_phrase('modules_tourist_attractions_ajax_status_success')),
             };
 
             const setLoading = (resultsWrap, loading) => {

@@ -1220,7 +1220,7 @@
                 <div>
                     <label
                         class="mb-1 block text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
-                        {{ __('ui.modules.itineraries.itinerary_include') }}
+                        {{ ui_phrase('modules_itineraries_itinerary_include') }}
                     </label>
                     <textarea name="itinerary_include"
                         class="w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
@@ -1229,7 +1229,7 @@
                 <div>
                     <label
                         class="mb-1 block text-xs font-semibold uppercase tracking-wide text-rose-700 dark:text-rose-300">
-                        {{ __('ui.modules.itineraries.itinerary_exclude') }}
+                        {{ ui_phrase('modules_itineraries_itinerary_exclude') }}
                     </label>
                     <textarea name="itinerary_exclude"
                         class="w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
@@ -1255,7 +1255,7 @@
             <h4 class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ __('itinerary_form.review.basic_info') }}</h4>
             <dl class="mt-3 grid grid-cols-1 gap-2 text-xs sm:grid-cols-2">
                 <div class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-700 dark:bg-gray-900/50">
-                    <dt class="text-gray-500 dark:text-gray-400">{{ __('ui.common.title') }}</dt>
+                    <dt class="text-gray-500 dark:text-gray-400">{{ ui_phrase('common_title') }}</dt>
                     <dd class="font-semibold text-gray-800 dark:text-gray-100" data-wizard-review-title>-</dd>
                 </div>
                 <div class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-700 dark:bg-gray-900/50">
@@ -1263,15 +1263,15 @@
                     <dd class="font-semibold text-gray-800 dark:text-gray-100" data-wizard-review-order-number>-</dd>
                 </div>
                 <div class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-700 dark:bg-gray-900/50">
-                    <dt class="text-gray-500 dark:text-gray-400">{{ __('ui.common.inquiry') }}</dt>
+                    <dt class="text-gray-500 dark:text-gray-400">{{ ui_phrase('common_inquiry') }}</dt>
                     <dd class="font-semibold text-gray-800 dark:text-gray-100" data-wizard-review-inquiry>-</dd>
                 </div>
                 <div class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-700 dark:bg-gray-900/50">
-                    <dt class="text-gray-500 dark:text-gray-400">{{ __('ui.common.destination') }}</dt>
+                    <dt class="text-gray-500 dark:text-gray-400">{{ ui_phrase('common_destination') }}</dt>
                     <dd class="font-semibold text-gray-800 dark:text-gray-100" data-wizard-review-destination>-</dd>
                 </div>
                 <div class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-700 dark:bg-gray-900/50">
-                    <dt class="text-gray-500 dark:text-gray-400">{{ __('ui.common.duration') }}</dt>
+                    <dt class="text-gray-500 dark:text-gray-400">{{ ui_phrase('common_duration') }}</dt>
                     <dd class="font-semibold text-gray-800 dark:text-gray-100" data-wizard-review-duration>-</dd>
                 </div>
                 <div class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-700 dark:bg-gray-900/50">
@@ -1279,7 +1279,7 @@
                     <dd class="font-semibold text-gray-800 dark:text-gray-100" data-wizard-review-items>-</dd>
                 </div>
                 <div class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-700 dark:bg-gray-900/50 sm:col-span-2">
-                    <dt class="text-gray-500 dark:text-gray-400">{{ __('ui.common.description') }}</dt>
+                    <dt class="text-gray-500 dark:text-gray-400">{{ ui_phrase('common_description') }}</dt>
                     <dd class="whitespace-pre-line font-semibold text-gray-800 dark:text-gray-100" data-wizard-review-description>-</dd>
                 </div>
             </dl>
@@ -1295,11 +1295,11 @@
             <h4 class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ __('itinerary_form.review.include_exclude') }}</h4>
             <div class="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
                 <div class="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 dark:border-emerald-700/60 dark:bg-emerald-900/20">
-                    <p class="text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">{{ __('ui.common.includes') }}</p>
+                    <p class="text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">{{ ui_phrase('common_includes') }}</p>
                     <p class="mt-1 whitespace-pre-line text-sm text-gray-800 dark:text-gray-100" data-wizard-review-include>-</p>
                 </div>
                 <div class="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 dark:border-rose-700/60 dark:bg-rose-900/20">
-                    <p class="text-xs font-semibold uppercase tracking-wide text-rose-700 dark:text-rose-300">{{ __('ui.common.excludes') }}</p>
+                    <p class="text-xs font-semibold uppercase tracking-wide text-rose-700 dark:text-rose-300">{{ ui_phrase('common_excludes') }}</p>
                     <p class="mt-1 whitespace-pre-line text-sm text-gray-800 dark:text-gray-100" data-wizard-review-exclude>-</p>
                 </div>
             </div>
@@ -1327,21 +1327,21 @@
                 <div id="inquiry-detail-content" class="mt-3 hidden space-y-2 text-xs">
                     <div class="grid grid-cols-2 gap-2">
                         <div class="rounded-md border border-gray-200 bg-gray-50 px-2 py-1 dark:border-gray-700 dark:bg-gray-900/50">
-                            <p class="text-[11px] text-gray-500 dark:text-gray-400">{{ __('ui.common.inquiry') }}</p>
+                            <p class="text-[11px] text-gray-500 dark:text-gray-400">{{ ui_phrase('common_inquiry') }}</p>
                             <p id="inq-detail-number" class="font-semibold text-gray-800 dark:text-gray-100">-</p>
                         </div>
                         <div class="rounded-md border border-gray-200 bg-gray-50 px-2 py-1 dark:border-gray-700 dark:bg-gray-900/50">
-                            <p class="text-[11px] text-gray-500 dark:text-gray-400">{{ __('ui.common.customer') }}</p>
+                            <p class="text-[11px] text-gray-500 dark:text-gray-400">{{ ui_phrase('common_customer') }}</p>
                             <p id="inq-detail-customer" class="font-semibold text-gray-800 dark:text-gray-100">-</p>
                         </div>
                     </div>
                     <div class="grid grid-cols-2 gap-2">
                         <div class="rounded-md border border-gray-200 bg-gray-50 px-2 py-1 dark:border-gray-700 dark:bg-gray-900/50">
-                            <p class="text-[11px] text-gray-500 dark:text-gray-400">{{ __('ui.common.status') }}</p>
+                            <p class="text-[11px] text-gray-500 dark:text-gray-400">{{ ui_phrase('common_status') }}</p>
                             <p id="inq-detail-status" class="font-semibold text-gray-800 dark:text-gray-100">-</p>
                         </div>
                         <div class="rounded-md border border-gray-200 bg-gray-50 px-2 py-1 dark:border-gray-700 dark:bg-gray-900/50">
-                            <p class="text-[11px] text-gray-500 dark:text-gray-400">{{ __('ui.common.priority') }}</p>
+                            <p class="text-[11px] text-gray-500 dark:text-gray-400">{{ ui_phrase('common_priority') }}</p>
                             <p id="inq-detail-priority" class="font-semibold text-gray-800 dark:text-gray-100">-</p>
                         </div>
                     </div>
@@ -1354,11 +1354,11 @@
                         </p>
                     </div>
                     <div class="rounded-md border border-gray-200 bg-gray-50 px-2 py-1 dark:border-gray-700 dark:bg-gray-900/50">
-                        <p class="text-[11px] text-gray-500 dark:text-gray-400">{{ __('ui.common.created') }}</p>
+                        <p class="text-[11px] text-gray-500 dark:text-gray-400">{{ ui_phrase('common_created') }}</p>
                         <p id="inq-detail-created" class="font-semibold text-gray-800 dark:text-gray-100">-</p>
                     </div>
                     <div class="rounded-md border border-gray-200 bg-gray-50 px-2 py-1 dark:border-gray-700 dark:bg-gray-900/50">
-                        <p class="text-[11px] text-gray-500 dark:text-gray-400">{{ __('ui.common.notes') }}</p>
+                        <p class="text-[11px] text-gray-500 dark:text-gray-400">{{ ui_phrase('common_notes') }}</p>
                         <div id="inq-detail-notes" class="text-gray-700 dark:text-gray-200">-</div>
                     </div>
                     <div class="rounded-md border border-gray-200 bg-gray-50 px-2 py-1 dark:border-gray-700 dark:bg-gray-900/50">

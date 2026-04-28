@@ -1,8 +1,8 @@
 @extends('layouts.master')
-@section('page_title', __('ui.modules.activities.page_title'))
-@section('page_subtitle', __('ui.modules.activities.page_subtitle'))
+@section('page_title', ui_phrase('modules_activities_page_title'))
+@section('page_subtitle', ui_phrase('modules_activities_page_subtitle'))
 @section('page_actions')
-    <a href="{{ route('activities.create') }}" class="btn-primary">{{ __('ui.modules.activities.add_activity') }}</a>
+    <a href="{{ route('activities.create') }}" class="btn-primary">{{ ui_phrase('modules_activities_add_activity') }}</a>
 @endsection
 @section('content')
     <div class="space-y-6 module-page module-page--activities" data-activities-index data-page-spinner="off">
@@ -11,29 +11,29 @@
             <aside class="module-grid-side space-y-4">
                 <div class="app-card p-5 space-y-4">
                     <div>
-                        <h2 class="text-base font-semibold text-gray-800 dark:text-gray-100">{{ __('ui.common.filters') }}</h2>
-                        <p class="text-sm text-gray-500 dark:text-gray-400">{{ __('ui.index.refine_list_quickly') }}</p>
+                        <h2 class="text-base font-semibold text-gray-800 dark:text-gray-100">{{ ui_phrase('common_filters') }}</h2>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">{{ ui_phrase('index_refine_list_quickly') }}</p>
                     </div>
                     <form method="GET" action="{{ route('activities.index') }}" class="grid grid-cols-1 gap-3 sm:grid-cols-2" data-activities-index-form data-disable-submit-lock="1" data-page-spinner="off">
                         <select name="vendor_id" class="app-input" data-activities-filter-input>
-                            <option value="">{{ __('ui.common.all_vendors') }}</option>
+                            <option value="">{{ ui_phrase('common_all_vendors') }}</option>
                             @foreach ($vendors as $vendor)
                                 <option value="{{ $vendor->id }}" @selected((string) request('vendor_id') === (string) $vendor->id)>{{ $vendor->name }}</option>
                             @endforeach
                         </select>
                         <select name="activity_type_id" class="app-input" data-activities-filter-input>
-                            <option value="">{{ __('ui.common.all_types') }}</option>
+                            <option value="">{{ ui_phrase('common_all_types') }}</option>
                             @foreach ($types as $type)
                                 <option value="{{ $type['value'] }}" @selected((string) request('activity_type_id') === (string) $type['value'])>{{ $type['label'] }}</option>
                             @endforeach
                         </select>
                         <select name="per_page" class="app-input" data-activities-filter-input>
                             @foreach ([10,25,50,100] as $size)
-                                <option value="{{ $size }}" @selected((string) request('per_page', 10) === (string) $size)>{{ __('ui.index.per_page_option', ['size' => $size]) }}</option>
+                                <option value="{{ $size }}" @selected((string) request('per_page', 10) === (string) $size)>{{ ui_phrase('index_per_page_option', ['size' => $size]) }}</option>
                             @endforeach
                         </select>
                         <div class="flex items-center gap-2 sm:col-span-2 filter-actions">
-                            <a href="{{ route('activities.index') }}" class="btn-ghost" data-activities-filter-reset>{{ __('ui.common.reset') }}</a>
+                            <a href="{{ route('activities.index') }}" class="btn-ghost" data-activities-filter-reset>{{ ui_phrase('common_reset') }}</a>
                         </div>
                     </form>
                 </div>

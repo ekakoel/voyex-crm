@@ -261,7 +261,7 @@ class InquiryController extends Controller
         if ($inquiry->isFinal()) {
             return redirect()
                 ->route('inquiries.show', $inquiry)
-                ->with('error', __('ui.modules.inquiries.final_locked_edit'));
+                ->with('error', ui_phrase('modules_inquiries_final_locked_edit'));
         }
         if ($this->isInquiryLockedByQuotation($inquiry)) {
             return redirect()
@@ -298,7 +298,7 @@ class InquiryController extends Controller
         if ($inquiry->isFinal()) {
             return redirect()
                 ->route('inquiries.show', $inquiry)
-                ->with('error', __('ui.modules.inquiries.final_locked_edit'));
+                ->with('error', ui_phrase('modules_inquiries_final_locked_edit'));
         }
         if ($this->isInquiryLockedByQuotation($inquiry)) {
             return redirect()
@@ -354,7 +354,7 @@ class InquiryController extends Controller
         if ($inquiry->isFinal()) {
             return redirect()
                 ->route('inquiries.show', $inquiry)
-                ->with('error', __('ui.modules.inquiries.final_locked_edit'));
+                ->with('error', ui_phrase('modules_inquiries_final_locked_edit'));
         }
         $inquiry->delete();
 
@@ -369,7 +369,7 @@ class InquiryController extends Controller
         if ($inquiry->isFinal()) {
             return redirect()
                 ->route('inquiries.show', $inquiry)
-                ->with('error', __('ui.modules.inquiries.final_locked_status'));
+                ->with('error', ui_phrase('modules_inquiries_final_locked_status'));
         }
 
         if ($inquiry->trashed()) {
@@ -396,7 +396,7 @@ class InquiryController extends Controller
         if ($inquiry->isFinal()) {
             return redirect()
                 ->route('inquiries.show', $inquiry)
-                ->with('error', __('ui.modules.inquiries.final_locked_edit'));
+                ->with('error', ui_phrase('modules_inquiries_final_locked_edit'));
         }
         $validated = $request->validate([
             'due_date' => ['required', 'date'],
@@ -426,7 +426,7 @@ class InquiryController extends Controller
         if ($followUp->inquiry?->isFinal()) {
             return redirect()
                 ->route('inquiries.show', $followUp->inquiry_id)
-                ->with('error', __('ui.modules.inquiries.final_locked_edit'));
+                ->with('error', ui_phrase('modules_inquiries_final_locked_edit'));
         }
         $validated = request()->validate([
             'done_reason' => ['required', 'string', 'max:1000'],
@@ -459,7 +459,7 @@ class InquiryController extends Controller
         if ($inquiry->isFinal()) {
             return redirect()
                 ->route('inquiries.show', $inquiry)
-                ->with('error', __('ui.modules.inquiries.final_locked_edit'));
+                ->with('error', ui_phrase('modules_inquiries_final_locked_edit'));
         }
         $validated = $request->validate([
             'channel' => ['required', Rule::in(self::CHANNEL_OPTIONS)],
