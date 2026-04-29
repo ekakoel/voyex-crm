@@ -1,10 +1,10 @@
 @extends('layouts.master')
 
-@section('page_title', ui_phrase('modules_activities_edit_activity'))
-@section('page_subtitle', ui_phrase('modules_activities_edit_page_subtitle'))
+@section('page_title', ui_phrase('Edit Activity'))
+@section('page_subtitle', ui_phrase('edit page subtitle'))
 @section('page_actions')
-    <a href="{{ route('activities.show', $activity) }}" class="btn-secondary">{{ ui_phrase('common_view_detail') }}</a>
-    <a href="{{ route('activities.index') }}" class="btn-ghost">{{ ui_phrase('common_back') }}</a>
+    <a href="{{ route('activities.show', $activity) }}" class="btn-secondary">{{ ui_phrase('View Detail') }}</a>
+    <a href="{{ route('activities.index') }}" class="btn-ghost" data-page-back-action>{{ ui_phrase('Back') }}</a>
 @endsection
 
 @section('content')
@@ -15,7 +15,7 @@
                     <form method="POST" action="{{ route('activities.update', $activity) }}" enctype="multipart/form-data">
                         @csrf
                         @method('PUT')
-                        @include('modules.activities._form', ['activity' => $activity, 'buttonLabel' => ui_phrase('modules_activities_update_activity')])
+                        @include('modules.activities._form', ['activity' => $activity, 'buttonLabel' => ui_phrase('Update Activity')])
                     </form>
                 </div>
             </div>
@@ -26,6 +26,7 @@
         </div>
     </div>
 @endsection
+
 
 
 

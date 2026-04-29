@@ -6,7 +6,7 @@
         <meta name="csrf-token" content="{{ csrf_token() }}">
         @include('layouts.partials.page-transition-init')
 
-        <title>{{ config('app.name', __('Laravel')) }}</title>
+        <title>{{ config('app.name', ui_phrase('Laravel')) }}</title>
 
         <!-- Fonts -->
         <link rel="preconnect" href="https://fonts.bunny.net">

@@ -65,7 +65,7 @@
 
     <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Address') }}</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Address') }}</label>
             <input
                 name="{{ $addressName }}"
                 data-location-field="address"
@@ -77,27 +77,27 @@
 
     <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('City/Region') }}</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('City/Region') }}</label>
             <input name="{{ $cityName }}" data-location-field="city" value="{{ $cityValue }}" class="mt-1 app-input">
         </div>
         <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Province') }}</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Province') }}</label>
             <input name="{{ $provinceName }}" data-location-field="province" value="{{ $provinceValue }}" class="mt-1 app-input">
         </div>
     </div>
 
     <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Country') }}</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Country') }}</label>
             <input name="{{ $countryName }}" data-location-field="country" value="{{ $countryValue }}" class="mt-1 app-input">
         </div>
     </div>
 
     <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Destination') }}</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Destination') }}</label>
             <select name="{{ $destinationName }}" data-location-field="destination_id" class="mt-1 app-input">
-                <option value="">{{ __('Select destination') }}</option>
+                <option value="">{{ ui_phrase('Select destination') }}</option>
                 @foreach ($destinations as $destination)
                     <option
                         value="{{ $destination->id }}"

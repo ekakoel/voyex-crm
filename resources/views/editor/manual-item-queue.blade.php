@@ -3,7 +3,7 @@
 @section('page_title', 'Item Validation Queue')
 @section('page_subtitle', 'Review and validate manual items created from Itinerary Day Planner.')
 @section('page_actions')
-    <a href="{{ route('itineraries.index') }}" class="btn-ghost">{{ ui_phrase('common_back') }}</a>
+    <a href="{{ route('itineraries.index') }}" class="btn-ghost" data-page-back-action>{{ ui_phrase('Back') }}</a>
 @endsection
 
 @section('content')
@@ -154,3 +154,4 @@
         </div>
     </div>
 @endsection
+

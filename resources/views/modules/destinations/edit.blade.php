@@ -1,10 +1,10 @@
 @extends('layouts.master')
 
-@section('page_title', ui_phrase('common_edit') . ' ' . ui_phrase('modules_destinations_destination'))
-@section('page_subtitle', ui_phrase('modules_destinations_edit_page_subtitle'))
+@section('page_title', ui_phrase('Edit') . ' ' . ui_phrase('Destination'))
+@section('page_subtitle', ui_phrase('edit page subtitle'))
 @section('page_actions')
-    <a href="{{ route('destinations.show', $destination) }}" class="btn-secondary">{{ ui_phrase('common_view_detail') }}</a>
-    <a href="{{ route('destinations.index') }}" class="btn-ghost">{{ ui_phrase('common_back') }}</a>
+    <a href="{{ route('destinations.show', $destination) }}" class="btn-secondary">{{ ui_phrase('View Detail') }}</a>
+    <a href="{{ route('destinations.index') }}" class="btn-ghost" data-page-back-action>{{ ui_phrase('Back') }}</a>
 @endsection
 
 @section('content')
@@ -15,7 +15,7 @@
                     <form method="POST" action="{{ route('destinations.update', $destination) }}">
                         @csrf
                         @method('PUT')
-                        @include('modules.destinations._form', ['destination' => $destination, 'buttonLabel' => ui_phrase('modules_destinations_update_destination')])
+                        @include('modules.destinations._form', ['destination' => $destination, 'buttonLabel' => ui_phrase('Update Destination')])
                     </form>
                 </div>
             </div>
@@ -25,4 +25,5 @@
         </div>
     </div>
 @endsection
+
 

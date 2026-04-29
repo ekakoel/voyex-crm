@@ -1,12 +1,12 @@
 @extends('layouts.master')
 
-@section('page_title', ui_phrase('modules_inquiries_edit_page_title'))
-@section('page_subtitle', ui_phrase('modules_inquiries_edit_page_subtitle'))
+@section('page_title', ui_phrase('Edit Inquiry'))
+@section('page_subtitle', ui_phrase('Update inquiry information.'))
 @section('page_actions')
     <a href="{{ route('inquiries.show', $inquiry) }}"  class="btn-secondary">
-        {{ ui_phrase('common_view_detail') }}
+        {{ ui_phrase('View Detail') }}
     </a>
-    <a href="{{ route('inquiries.index') }}" class="btn-ghost">{{ ui_phrase('common_back') }}</a>
+    <a href="{{ route('inquiries.index') }}" class="btn-ghost" data-page-back-action>{{ ui_phrase('Back') }}</a>
 @endsection
 @section('content')
     <div class="space-y-6 module-page module-page--inquiries">
@@ -18,7 +18,7 @@
                         @method('PUT')
                         @include('modules.inquiries._form', [
                             'inquiry' => $inquiry,
-                            'buttonLabel' => ui_phrase('modules_inquiries_update_inquiry'),
+                            'buttonLabel' => ui_phrase('Update Inquiry'),
                         ])
                     </form>
                 </div>
@@ -26,8 +26,8 @@
             <aside class="module-grid-side">
                 <div class="app-card p-4 space-y-3">
                     <div>
-                        <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ ui_phrase('common_activity_timeline') }}</h3>
-                        <p class="text-xs text-gray-600 dark:text-gray-300">{{ ui_phrase('modules_inquiries_create_update_audit') }}</p>
+                        <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ ui_phrase('Activity Timeline') }}</h3>
+                        <p class="text-xs text-gray-600 dark:text-gray-300">{{ ui_phrase('create update audit') }}</p>
                     </div>
                     <x-activity-timeline :activities="$activities" />
                 </div>
@@ -35,3 +35,4 @@
         </div>
     </div>
 @endsection
+

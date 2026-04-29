@@ -6,17 +6,17 @@
     $statusFilterOptions = collect($statusFilterOptions ?? \App\Models\Quotation::STATUS_OPTIONS)->values();
     $showNeedsMyApproval = (bool) ($showNeedsMyApproval ?? false);
 @endphp
-@section('page_title', $isMyQuotationPage ? ui_phrase('modules_quotations_my_page_title') : ui_phrase('modules_quotations_page_title'))
-@section('page_subtitle', $isMyQuotationPage ? ui_phrase('modules_quotations_my_page_subtitle') : ui_phrase('modules_quotations_page_subtitle'))
+@section('page_title', $isMyQuotationPage ? ui_phrase('my page title') : ui_phrase('page title'))
+@section('page_subtitle', $isMyQuotationPage ? ui_phrase('my page subtitle') : ui_phrase('page subtitle'))
 @section('page_actions')
     <a href="{{ route('quotations.export', array_merge(request()->only(['q', 'status', 'per_page', 'needs_my_approval']), ['scope' => $exportScope])) }}"
         class="btn-secondary">Export CSV</a>
     @if ($isMyQuotationPage)
-        <a href="{{ route('quotations.index') }}" class="btn-outline">{{ ui_phrase('modules_quotations_approved_final_list') }}</a>
+        <a href="{{ route('quotations.index') }}" class="btn-outline">{{ ui_phrase('Approved/Final List') }}</a>
     @else
-        <a href="{{ route('quotations.my') }}" class="btn-outline">{{ ui_phrase('modules_quotations_my_quotations') }}</a>
+        <a href="{{ route('quotations.my') }}" class="btn-outline">{{ ui_phrase('My Quotations') }}</a>
     @endif
-    <a href="{{ route('quotations.create') }}" class="btn-primary">{{ ui_phrase('modules_quotations_add_quotation') }}</a>
+    <a href="{{ route('quotations.create') }}" class="btn-primary">{{ ui_phrase('Add Quotation') }}</a>
 @endsection
 @section('content')
     <div class="space-y-6 module-page module-page--quotations" data-service-filter-page data-page-spinner="off">
@@ -25,7 +25,7 @@
                 <span
                     class="inline-flex items-center gap-2 rounded-full border border-sky-300 bg-sky-50 px-3 py-1 text-xs font-semibold text-sky-700 dark:border-sky-700 dark:bg-sky-900/20 dark:text-sky-300">
                     <i class="fa-solid fa-bell"></i>
-                    {{ ui_phrase('modules_quotations_needs_my_approval') }}
+                    {{ ui_phrase('Needs My Approval') }}
                 </span>
             </div>
         @endif
@@ -34,16 +34,16 @@
             <aside class="module-grid-side">
                 <div class="app-card p-5">
                     <div>
-                        <h2 class="text-base font-semibold text-gray-800 dark:text-gray-100">{{ ui_phrase('common_filters') }}</h2>
-                        <p class="text-sm text-gray-500 dark:text-gray-400">{{ ui_phrase('index_refine_list_quickly') }}</p>
+                        <h2 class="text-base font-semibold text-gray-800 dark:text-gray-100">{{ ui_phrase('Filters') }}</h2>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">{{ ui_phrase('Refine your list quickly.') }}</p>
                     </div>
                     <form method="GET" action="{{ route($listRouteName) }}"
                         class="grid grid-cols-1 gap-3 sm:grid-cols-2" data-service-filter-form data-disable-submit-lock="1"
                         data-page-spinner="off">
-                        <input name="q" value="{{ request('q') }}" placeholder="{{ ui_phrase('modules_quotations_search') }}"
+                        <input name="q" value="{{ request('q') }}" placeholder="{{ ui_phrase('search') }}"
                             class="sm:col-span-2 app-input" data-service-filter-input>
                         <select name="status" class="app-input" data-service-filter-input>
-                            <option value="">{{ __('Status') }}</option>
+                            <option value="">{{ ui_phrase('Status') }}</option>
                             @foreach ($statusFilterOptions as $status)
                                 <option value="{{ $status }}" @selected(request('status') === $status)>{{ ucfirst($status) }}
                                 </option>
@@ -51,12 +51,12 @@
                         </select>
                         <select name="per_page" class="app-input" data-service-filter-input>
                             @foreach ([10, 25, 50, 100] as $size)
-                                <option value="{{ $size }}" @selected((string) request('per_page', 10) === (string) $size)>{{ ui_phrase('index_per_page_option', ['size' => $size]) }}
+                                <option value="{{ $size }}" @selected((string) request('per_page', 10) === (string) $size)>{{ ui_phrase(':size/page', ['size' => $size]) }}
                                 </option>
                             @endforeach
                         </select>
                         <div class="flex items-center gap-2 sm:col-span-2 filter-actions">
-                            <a href="{{ route($listRouteName) }}" class="btn-ghost" data-service-filter-reset>{{ ui_phrase('common_reset') }}</a>
+                            <a href="{{ route($listRouteName) }}" class="btn-ghost" data-service-filter-reset>{{ ui_phrase('Reset') }}</a>
                         </div>
                     </form>
                 </div>
@@ -71,7 +71,7 @@
                 @if ($showNeedsMyApproval && request()->boolean('needs_my_approval'))
                     <div
                         class="rounded-lg mb-6 border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-700 dark:border-sky-700 dark:bg-sky-900/20 dark:text-sky-300">
-                        {{ ui_phrase('modules_quotations_showing_requires_approval') }}
+                        {{ ui_phrase('showing requires approval') }}
                     </div>
                 @endif
                 <div class="md:hidden space-y-3">
@@ -87,31 +87,31 @@
                                     @if ($showNeedsMyApproval && (bool) ($quotation->needs_my_approval_badge ?? false))
                                         <span
                                             class="mt-1 inline-flex items-center rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-300">
-                                                    {{ ui_phrase('modules_quotations_need_approval') }}
+                                                    {{ ui_phrase('Need Approval') }}
                                                 </span>
                                             @endif
                                 </div>
                                 <x-status-badge :status="$quotation->trashed() ? 'inactive' : $quotation->status" size="xs" />
                             </div>
                             <div class="mt-3 grid grid-cols-2 gap-2 text-xs text-gray-600 dark:text-gray-300">
-                                <div>{{ ui_phrase('modules_quotations_validity') }}</div>
+                                <div>{{ ui_phrase('Validity') }}</div>
                                 <div>{{ $quotation->validity_date?->format('Y-m-d') ?? '-' }}</div>
-                                <div>{{ ui_phrase('modules_quotations_amount') }}</div>
+                                <div>{{ ui_phrase('Amount') }}</div>
                                 <div><x-money :amount="$quotation->display_final_amount ?? 0" currency="IDR" /></div>
-                                <div>{{ ui_phrase('modules_quotations_created_by') }}</div>
+                                <div>{{ ui_phrase('Created by') }}</div>
                                 <div>
                                     <x-masked-user-name :user="$quotation->creator" /><br>
                                     <x-local-time :value="$quotation->created_at" />
                                 </div>
                             </div>
                             <div class="mt-3 flex flex-wrap gap-2">
-                                <a href="{{ route('quotations.show', $quotation) }}" class="btn-ghost-sm" title="{{ ui_phrase('common_view') }}"
-                                    aria-label="{{ ui_phrase('common_view') }}"><i class="fa-solid fa-eye"></i><span class="sr-only">{{ ui_phrase('common_view') }}</span></a>
+                                <a href="{{ route('quotations.show', $quotation) }}" class="btn-ghost-sm" title="{{ ui_phrase('View') }}"
+                                    aria-label="{{ ui_phrase('View') }}"><i class="fa-solid fa-eye"></i><span class="sr-only">{{ ui_phrase('View') }}</span></a>
                                 @can('update', $quotation)
                                     @if (($quotation->status ?? '') !== 'final')
                                         <a href="{{ route('quotations.edit', $quotation) }}" class="btn-secondary-sm"
-                                            title="{{ ui_phrase('common_edit') }}" aria-label="{{ ui_phrase('common_edit') }}"><i class="fa-solid fa-pen"></i><span
-                                                class="sr-only">{{ ui_phrase('common_edit') }}</span></a>
+                                            title="{{ ui_phrase('Edit') }}" aria-label="{{ ui_phrase('Edit') }}"><i class="fa-solid fa-pen"></i><span
+                                                class="sr-only">{{ ui_phrase('Edit') }}</span></a>
                                     @endif
                                 @endcan
                                 @if (in_array(($quotation->status ?? ''), ['approved', 'final'], true))
@@ -125,9 +125,9 @@
                                             @csrf
                                             @method('PATCH')
                                             <button type="submit"
-                                                onclick="return confirm('{{ $quotation->trashed() ? ui_phrase('modules_quotations_confirm_activate') : ui_phrase('modules_quotations_confirm_deactivate') }}')"
+                                                onclick="return confirm('{{ $quotation->trashed() ? ui_phrase('confirm activate') : ui_phrase('confirm deactivate') }}')"
                                                 class="{{ $quotation->trashed() ? 'btn-primary-sm' : 'btn-muted-sm' }}">
-                                                {{ $quotation->trashed() ? ui_phrase('common_activate') : ui_phrase('common_deactivate') }}
+                                                {{ $quotation->trashed() ? ui_phrase('Activate') : ui_phrase('Deactivate') }}
                                             </button>
                                         </form>
                                     @endif
@@ -136,7 +136,7 @@
                         </div>
                     @empty
                         <div class="app-card p-6 text-center text-sm text-gray-500 dark:text-gray-400">
-                            {{ ui_phrase('index_no_data_available', ['entity' => ui_phrase('entities_quotations')]) }}
+                            {{ ui_phrase('No :entity available.', ['entity' => ui_phrase('Quotations')]) }}
                         </div>
                     @endforelse
                 </div>
@@ -150,22 +150,22 @@
                                         #</th>
                                     <th
                                         class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">
-                                        {{ ui_phrase('modules_quotations_number') }}</th>
+                                        {{ ui_phrase('Number') }}</th>
                                     <th
                                         class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">
                                         Status</th>
                                     <th
                                         class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">
-                                        {{ ui_phrase('modules_quotations_validity') }}</th>
+                                        {{ ui_phrase('Validity') }}</th>
                                     <th
                                         class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">
-                                        {{ ui_phrase('modules_quotations_amount') }}</th>
+                                        {{ ui_phrase('Amount') }}</th>
                                     <th
                                         class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">
-                                        {{ ui_phrase('modules_quotations_created_by') }}</th>
+                                        {{ ui_phrase('Created by') }}</th>
                                     <th
                                         class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300 actions-compact">
-                                        {{ ui_phrase('common_actions') }}</th>
+                                        {{ ui_phrase('Actions') }}</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
@@ -182,7 +182,7 @@
                                                 @if ($showNeedsMyApproval && (bool) ($quotation->needs_my_approval_badge ?? false))
                                                     <span
                                                         class="mt-1 inline-flex items-center rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-300">
-                                                        {{ ui_phrase('modules_quotations_need_approval') }}
+                                                        {{ ui_phrase('Need Approval') }}
                                                     </span>
                                                 @endif
                                             </div>
@@ -201,14 +201,14 @@
                                         <td class="px-4 py-3 text-right text-sm actions-compact">
                                             <div class="flex items-center justify-end gap-2">
                                                 <a href="{{ route('quotations.show', $quotation) }}" class="btn-outline-sm"
-                                                    title="{{ ui_phrase('common_view') }}" aria-label="{{ ui_phrase('common_view') }}"><i class="fa-solid fa-eye"></i><span
-                                                        class="sr-only">{{ ui_phrase('common_view') }}</span></a>
+                                                    title="{{ ui_phrase('View') }}" aria-label="{{ ui_phrase('View') }}"><i class="fa-solid fa-eye"></i><span
+                                                        class="sr-only">{{ ui_phrase('View') }}</span></a>
                                                 @can('update', $quotation)
                                                     @if (($quotation->status ?? '') !== 'final')
                                                         <a href="{{ route('quotations.edit', $quotation) }}"
-                                                            class="btn-secondary-sm" title="{{ ui_phrase('common_edit') }}" aria-label="{{ ui_phrase('common_edit') }}"><i
+                                                            class="btn-secondary-sm" title="{{ ui_phrase('Edit') }}" aria-label="{{ ui_phrase('Edit') }}"><i
                                                                 class="fa-solid fa-pen"></i><span
-                                                                class="sr-only">{{ ui_phrase('common_edit') }}</span></a>
+                                                                class="sr-only">{{ ui_phrase('Edit') }}</span></a>
                                                     @endif
                                                 @endcan
                                                 @if (in_array(($quotation->status ?? ''), ['approved', 'final'], true))
@@ -222,8 +222,8 @@
                                                             @csrf
                                                             @method('PATCH')
                                                             <button type="submit"
-                                                                onclick="return confirm('{{ $quotation->trashed() ? ui_phrase('modules_quotations_confirm_activate') : ui_phrase('modules_quotations_confirm_deactivate') }}')"
-                                                                class="{{ $quotation->trashed() ? 'btn-primary-sm' : 'btn-muted-sm' }}">{{ $quotation->trashed() ? ui_phrase('common_activate') : ui_phrase('common_deactivate') }}
+                                                                onclick="return confirm('{{ $quotation->trashed() ? ui_phrase('confirm activate') : ui_phrase('confirm deactivate') }}')"
+                                                                class="{{ $quotation->trashed() ? 'btn-primary-sm' : 'btn-muted-sm' }}">{{ $quotation->trashed() ? ui_phrase('Activate') : ui_phrase('Deactivate') }}
                                                             </button>
                                                         </form>
                                                     @endif
@@ -235,7 +235,7 @@
                                     <tr>
                                         <td colspan="7"
                                             class="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">No
-                                            {{ ui_phrase('index_no_data_available', ['entity' => ui_phrase('entities_quotations')]) }}</td>
+                                            {{ ui_phrase('No :entity available.', ['entity' => ui_phrase('Quotations')]) }}</td>
                                     </tr>
                                 @endforelse
                             </tbody>

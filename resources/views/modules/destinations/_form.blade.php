@@ -6,14 +6,14 @@
 <div class="space-y-4" data-location-autofill data-location-resolve-url="{{ route('location.resolve-google-map') }}">
     <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
         <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Code') }}</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Code') }}</label>
             <input name="code" value="{{ old('code', $destination->code ?? '') }}"
                 class="mt-1 uppercase dark:border-gray-600 app-input"
                 required>
             @error('code') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
         </div>
         <div class="md:col-span-2">
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Province (Destination Basis)') }}</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Province (Destination Basis)') }}</label>
             <input name="province" data-location-field="province" value="{{ old('province', $destination->province ?? '') }}"
                 class="mt-1 dark:border-gray-600 app-input"
                 required>
@@ -33,24 +33,24 @@
     <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
         
         <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Slug') }}</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Slug') }}</label>
             <input name="slug" value="{{ old('slug', $destination->slug ?? '') }}"
                 class="mt-1 dark:border-gray-600 app-input"
-                placeholder="{{ __('auto-generated if empty') }}">
+                placeholder="{{ ui_phrase('auto-generated if empty') }}">
             @error('slug') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
         </div>
         <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Location') }}</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Location') }}</label>
             <input name="location" data-location-field="location" value="{{ old('location', $destination->location ?? '') }}"
                 class="mt-1 dark:border-gray-600 app-input">
         </div>
         <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('City/Region (Optional)') }}</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('City/Region (Optional)') }}</label>
             <input name="city" data-location-field="city" value="{{ old('city', $destination->city ?? '') }}"
                 class="mt-1 dark:border-gray-600 app-input">
         </div>
         <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Address') }}</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Address') }}</label>
             <input name="address" data-location-field="address" value="{{ old('address', $destination->address ?? '') }}"
                 class="mt-1 dark:border-gray-600 app-input">
         </div>
@@ -58,12 +58,12 @@
 
     <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Country') }}</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Country') }}</label>
             <input name="country" data-location-field="country" value="{{ old('country', $destination->country ?? '') }}"
                 class="mt-1 dark:border-gray-600 app-input">
         </div>
         <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Timezone') }}</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Timezone') }}</label>
             <input name="timezone" data-location-field="timezone" value="{{ old('timezone', $destination->timezone ?? '') }}"
                 class="mt-1 dark:border-gray-600 app-input">
         </div>
@@ -75,7 +75,7 @@
     <p data-location-status class="hidden text-xs"></p>
 
     <div>
-        <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Description') }}</label>
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Description') }}</label>
         <textarea name="description" rows="3"
             class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">{{ old('description', $destination->description ?? '') }}</textarea>
     </div>
@@ -83,7 +83,7 @@
     <div class="flex items-center gap-2">
         <input type="checkbox" name="is_active" value="1" class="rounded border-gray-300 text-indigo-600"
             @checked(old('is_active', $destination->is_active ?? true))>
-        <span class="text-sm text-gray-700 dark:text-gray-200">{{ __('Active') }}</span>
+        <span class="text-sm text-gray-700 dark:text-gray-200">{{ ui_phrase('Active') }}</span>
     </div>
 
     <div class="flex items-center gap-2">

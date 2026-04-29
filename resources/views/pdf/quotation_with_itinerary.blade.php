@@ -65,7 +65,7 @@
 </head>
 <body>
     <div class="header">
-        <span>{{ __('ITINERARY') }}</span><br>
+        <span>{{ ui_phrase('Itinerary') }}</span><br>
         <div class="title">{{ $itinerary->title }}</div>
         <div class="subtitle">Generated on {{ \App\Support\DateTimeDisplay::datetime(now()) }}</div>
         <span>Duration: {{ $itinerary->duration_days."D" }}{{ $itinerary->duration_nights > 0 ? "/".$itinerary->duration_nights."N":"";  }}</span>
@@ -95,11 +95,11 @@
             <table class="items">
                 <thead>
                     <tr>
-                        <th style="width: 5%;">{{ __('No') }}</th>
-                        <th style="width: 20%;">{{ __('Time') }}</th>
-                        <th style="width: 25%;">{{ __('Item') }}</th>
-                        <th style="width: 15%;">{{ __('location') }}</th>
-                        <th style="width: 35%;">{{ __('Image') }}</th>
+                        <th style="width: 5%;">{{ ui_phrase('No') }}</th>
+                        <th style="width: 20%;">{{ ui_phrase('Time') }}</th>
+                        <th style="width: 25%;">{{ ui_phrase('Item') }}</th>
+                        <th style="width: 15%;">{{ ui_phrase('Location') }}</th>
+                        <th style="width: 35%;">{{ ui_phrase('Image') }}</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -140,7 +140,7 @@
                                     <div>
                                         <strong>{{ $item['name'] }}</strong><br>
                                         @if (!empty($item['is_main_experience']))
-                                            <span>{{ __('Main Experience') }}</span>
+                                            <span>{{ ui_phrase('Main Experience') }}</span>
                                         @endif
                                     </div>
                                 @endif
@@ -258,13 +258,13 @@
                 <tr>
                     @if (filled($itineraryIncludeText))
                         <td class="inc">
-                            <span class="title">{{ __('Itinerary Include') }}</span>
+                            <span class="title">{{ ui_phrase('Itinerary Include') }}</span>
                             <div class="richtext">{!! $itineraryIncludeHtml !!}</div>
                         </td>
                     @endif
                     @if (filled($itineraryExcludeText))
                         <td class="exc">
-                            <span class="title">{{ __('Itinerary Exclude') }}</span>
+                            <span class="title">{{ ui_phrase('Itinerary Exclude') }}</span>
                             <div class="richtext">{!! $itineraryExcludeHtml !!}</div>
                         </td>
                     @endif
@@ -305,10 +305,10 @@
     <table class="q-table">
         <thead>
         <tr>
-            <th style="width: 50%">{{ __('Description') }}</th>
-            <th style="width: 10%">{{ __('Qty') }}</th>
-            <th style="width: 20%">{{ __('Unit Price') }}</th>
-            <th style="width: 20%">{{ __('Total') }}</th>
+            <th style="width: 50%">{{ ui_phrase('Description') }}</th>
+            <th style="width: 10%">{{ ui_phrase('Qty') }}</th>
+            <th style="width: 20%">{{ ui_phrase('Unit Price') }}</th>
+            <th style="width: 20%">{{ ui_phrase('Total') }}</th>
         </tr>
         </thead>
         <tbody>

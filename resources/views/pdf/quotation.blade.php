@@ -48,10 +48,10 @@
     <table>
             <thead>
             <tr>
-                <th style="width: 50%">{{ __('Description') }}</th>
-                <th style="width: 10%">{{ __('Qty') }}</th>
-                <th style="width: 20%">{{ __('Unit Price') }}</th>
-                <th style="width: 20%">{{ __('Total') }}</th>
+                <th style="width: 50%">{{ ui_phrase('Description') }}</th>
+                <th style="width: 10%">{{ ui_phrase('Qty') }}</th>
+                <th style="width: 20%">{{ ui_phrase('Unit Price') }}</th>
+                <th style="width: 20%">{{ ui_phrase('Total') }}</th>
             </tr>
             </thead>
             <tbody>

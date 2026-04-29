@@ -48,63 +48,63 @@
     <div class="app-card p-5 space-y-5">
         <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Hotel Name') }}</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Hotel Name') }}</label>
                 <input name="name" value="{{ old('name', $hotel->name ?? '') }}" class="mt-1 app-input" required>
             </div>
             <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Hotel Code') }}</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Hotel Code') }}</label>
                 <input name="code" value="{{ old('code', $hotel->code ?? '') }}" class="mt-1 app-input" required>
             </div>
             <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Region') }}</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Region') }}</label>
                 <input name="region" value="{{ old('region', $hotel->region ?? '') }}" class="mt-1 app-input" required>
             </div>
             <div class="md:col-span-2">
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Address') }}</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Address') }}</label>
                 <input name="address" value="{{ old('address', $hotel->address ?? '') }}" class="mt-1 app-input" required>
             </div>
             <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Contact Person') }}</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Contact Person') }}</label>
                 <input name="contact_person" value="{{ old('contact_person', $hotel->contact_person ?? '') }}" class="mt-1 app-input" required>
             </div>
             <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Phone') }}</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Phone') }}</label>
                 <input name="phone" value="{{ old('phone', $hotel->phone ?? '') }}" class="mt-1 app-input" required>
             </div>
             <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Website') }}</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Website') }}</label>
                 <input name="web" value="{{ old('web', $hotel->web ?? '') }}" class="mt-1 app-input">
             </div>
             <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Map URL') }}</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Map URL') }}</label>
                 <input name="map" value="{{ old('map', $hotel->map ?? '') }}" class="mt-1 app-input">
             </div>
             <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Check-in Time') }}</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Check-in Time') }}</label>
                 <input name="check_in_time" value="{{ old('check_in_time', $hotel->check_in_time ?? '') }}" class="mt-1 app-input">
             </div>
             <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Check-out Time') }}</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Check-out Time') }}</label>
                 <input name="check_out_time" value="{{ old('check_out_time', $hotel->check_out_time ?? '') }}" class="mt-1 app-input">
             </div>
             <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Min Stay') }}</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Min Stay') }}</label>
                 <input name="min_stay" value="{{ old('min_stay', $hotel->min_stay ?? '') }}" class="mt-1 app-input">
             </div>
             <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Max Stay') }}</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Max Stay') }}</label>
                 <input name="max_stay" value="{{ old('max_stay', $hotel->max_stay ?? '') }}" class="mt-1 app-input">
             </div>
             <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Airport Distance (km)') }}</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Airport Distance (km)') }}</label>
                 <input name="airport_distance" value="{{ old('airport_distance', $hotel->airport_distance ?? '') }}" class="mt-1 app-input" type="number" min="0">
             </div>
             <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Airport Duration (minutes)') }}</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Airport Duration (minutes)') }}</label>
                 <input name="airport_duration" value="{{ old('airport_duration', $hotel->airport_duration ?? '') }}" class="mt-1 app-input" type="number" min="0">
             </div>
             <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Status') }}</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Status') }}</label>
                 <select name="status" class="mt-1 app-input" required>
                     @foreach (['active' => 'Active', 'inactive' => 'Inactive'] as $value => $label)
                         <option value="{{ $value }}" @selected($statusValue === $value)>{{ $label }}</option>
@@ -112,37 +112,37 @@
                 </select>
             </div>
             <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Cover (Image URL)') }}</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Cover (Image URL)') }}</label>
                 <input name="cover" value="{{ old('cover', $hotel->cover ?? '') }}" class="mt-1 app-input" required>
             </div>
         </div>
 
         <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Benefits') }}</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Benefits') }}</label>
                 <input name="benefits" value="{{ old('benefits', $hotel->benefits ?? '') }}" class="mt-1 app-input">
             </div>
             <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Optional Rate') }}</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Optional Rate') }}</label>
                 <input name="optional_rate" value="{{ old('optional_rate', $hotel->optional_rate ?? '') }}" class="mt-1 app-input">
             </div>
         </div>
 
         <div class="grid grid-cols-1 gap-4">
             <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Description') }}</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Description') }}</label>
                 <textarea name="description" rows="3" class="mt-1 app-input">{{ old('description', $hotel->description ?? '') }}</textarea>
             </div>
             <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Facility') }}</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Facility') }}</label>
                 <textarea name="facility" rows="3" class="mt-1 app-input">{{ old('facility', $hotel->facility ?? '') }}</textarea>
             </div>
             <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Additional Info') }}</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Additional Info') }}</label>
                 <textarea name="additional_info" rows="3" class="mt-1 app-input">{{ old('additional_info', $hotel->additional_info ?? '') }}</textarea>
             </div>
             <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Cancellation Policy') }}</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Cancellation Policy') }}</label>
                 <textarea name="cancellation_policy" rows="3" class="mt-1 app-input">{{ old('cancellation_policy', $hotel->cancellation_policy ?? '') }}</textarea>
             </div>
         </div>
@@ -151,14 +151,14 @@
 
     <div class="app-card p-5 space-y-4">
         <div class="flex items-center justify-between">
-            <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ __('Seasonal Prices') }}</h3>
-            <button type="button" class="btn-ghost-sm" data-add-row="price">{{ __('Add Price') }}</button>
+            <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ ui_phrase('Seasonal Prices') }}</h3>
+            <button type="button" class="btn-ghost-sm" data-add-row="price">{{ ui_phrase('Add Price') }}</button>
         </div>
         <div id="price-rows" class="space-y-3">
             @foreach ($priceRows as $index => $row)
                 <div class="grid grid-cols-1 gap-3 rounded-lg border border-slate-200 p-3 dark:border-slate-700 md:grid-cols-12" data-row>
                     <div class="md:col-span-4">
-                        <label class="block text-xs text-gray-500">{{ __('Room') }}</label>
+                        <label class="block text-xs text-gray-500">{{ ui_phrase('Room') }}</label>
                         <select name="hotel_prices[{{ $index }}][rooms_id]" class="mt-1 app-input" @disabled($roomOptions->isEmpty())>
                             <option value="">{{ $roomOptions->isEmpty() ? 'Add rooms first' : 'Select room' }}</option>
                             @foreach ($roomOptions as $roomOption)
@@ -167,27 +167,27 @@
                         </select>
                     </div>
                     <div class="md:col-span-2">
-                        <label class="block text-xs text-gray-500">{{ __('Start') }}</label>
+                        <label class="block text-xs text-gray-500">{{ ui_phrase('Start') }}</label>
                         <input type="date" name="hotel_prices[{{ $index }}][start_date]" value="{{ $row['start_date'] ?? '' }}" class="mt-1 app-input">
                     </div>
                     <div class="md:col-span-2">
-                        <label class="block text-xs text-gray-500">{{ __('End') }}</label>
+                        <label class="block text-xs text-gray-500">{{ ui_phrase('End') }}</label>
                         <input type="date" name="hotel_prices[{{ $index }}][end_date]" value="{{ $row['end_date'] ?? '' }}" class="mt-1 app-input">
                     </div>
                     <div class="md:col-span-2">
-                        <label class="block text-xs text-gray-500">{{ __('Contract Rate (IDR)') }}</label>
+                        <label class="block text-xs text-gray-500">{{ ui_phrase('Contract Rate (IDR)') }}</label>
                         <input type="number" min="0" name="hotel_prices[{{ $index }}][contract_rate]" value="{{ $row['contract_rate'] ?? '' }}" class="mt-1 app-input">
                     </div>
                     <div class="md:col-span-1">
-                        <label class="block text-xs text-gray-500">{{ __('Markup') }}</label>
+                        <label class="block text-xs text-gray-500">{{ ui_phrase('Markup') }}</label>
                         <input type="number" min="0" name="hotel_prices[{{ $index }}][markup]" value="{{ $row['markup'] ?? '' }}" class="mt-1 app-input">
                     </div>
                     <div class="md:col-span-1">
-                        <label class="block text-xs text-gray-500">{{ __('Kick Back') }}</label>
+                        <label class="block text-xs text-gray-500">{{ ui_phrase('Kick Back') }}</label>
                         <input type="number" min="0" name="hotel_prices[{{ $index }}][kick_back]" value="{{ $row['kick_back'] ?? '' }}" class="mt-1 app-input">
                     </div>
                     <div class="md:col-span-12 flex justify-end">
-                        <button type="button" class="btn-ghost-sm" data-remove-row>{{ __('Remove') }}</button>
+                        <button type="button" class="btn-ghost-sm" data-remove-row>{{ ui_phrase('Remove') }}</button>
                     </div>
                 </div>
             @endforeach
@@ -195,7 +195,7 @@
     </div>
     <div class="flex items-center gap-2">
         <button class="btn-primary">{{ $buttonLabel }}</button>
-        <a href="{{ route('hotels.index') }}" class="btn-secondary">{{ __('Cancel') }}</a>
+        <a href="{{ route('hotels.index') }}" class="btn-secondary">{{ ui_phrase('Cancel') }}</a>
     </div>
 </div>
 

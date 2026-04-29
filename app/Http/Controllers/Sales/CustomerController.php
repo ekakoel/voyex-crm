@@ -59,44 +59,44 @@ class CustomerController extends Controller
         $statsCards = [
             [
                 'key' => 'total',
-                'label' => ui_phrase('common_total'),
+                'label' => ui_phrase('Total'),
                 'value' => $totalCustomers,
-                'caption' => ui_phrase('modules_customers_stats_all_customers'),
+                'caption' => ui_phrase('All customers'),
                 'tone' => 'bg-slate-50 text-slate-700 border-slate-100',
             ],
             [
                 'key' => 'active',
-                'label' => ui_phrase('common_active'),
+                'label' => ui_phrase('Active'),
                 'value' => $activeCustomers,
-                'caption' => ui_phrase('modules_customers_stats_currently_active'),
+                'caption' => ui_phrase('Currently active'),
                 'tone' => 'bg-emerald-50 text-emerald-700 border-emerald-100',
             ],
             [
                 'key' => 'inactive',
-                'label' => ui_phrase('common_inactive'),
+                'label' => ui_phrase('Inactive'),
                 'value' => $inactiveCustomers,
-                'caption' => ui_phrase('modules_customers_stats_deactivated'),
+                'caption' => ui_phrase('Deactivated'),
                 'tone' => 'bg-rose-50 text-rose-700 border-rose-100',
             ],
             [
                 'key' => 'company',
-                'label' => ui_term('company'),
+                'label' => ui_phrase('company'),
                 'value' => $companyCustomers,
-                'caption' => ui_phrase('modules_customers_stats_company_type'),
+                'caption' => ui_phrase('Company type'),
                 'tone' => 'bg-indigo-50 text-indigo-700 border-indigo-100',
             ],
             [
                 'key' => 'individual',
-                'label' => ui_term('individual'),
+                'label' => ui_phrase('individual'),
                 'value' => $individualCustomers,
-                'caption' => ui_phrase('modules_customers_stats_individual_type'),
+                'caption' => ui_phrase('Individual type'),
                 'tone' => 'bg-sky-50 text-sky-700 border-sky-100',
             ],
             [
                 'key' => 'countries',
-                'label' => ui_term('countries'),
+                'label' => ui_phrase('countries'),
                 'value' => $countryCount,
-                'caption' => ui_phrase('modules_customers_stats_distinct_countries'),
+                'caption' => ui_phrase('Distinct countries'),
                 'tone' => 'bg-teal-50 text-teal-700 border-teal-100',
             ],
         ];
@@ -137,7 +137,7 @@ class CustomerController extends Controller
 
         return redirect()
             ->route('customers.index')
-            ->with('success', ui_phrase('modules_customers_messages_created'));
+            ->with('success', ui_phrase('Customer created successfully.'));
     }
 
     public function edit(Customer $customer)
@@ -164,7 +164,7 @@ class CustomerController extends Controller
 
         return redirect()
             ->route('customers.index')
-            ->with('success', ui_phrase('modules_customers_messages_updated'));
+            ->with('success', ui_phrase('Customer updated successfully.'));
     }
 
     public function destroy(Customer $customer)
@@ -173,7 +173,7 @@ class CustomerController extends Controller
 
         return redirect()
             ->route('customers.index')
-            ->with('success', ui_phrase('modules_customers_messages_deactivated'));
+            ->with('success', ui_phrase('Customer deactivated successfully.'));
     }
 
     public function toggleStatus($customer)
@@ -184,14 +184,14 @@ class CustomerController extends Controller
 
             return redirect()
                 ->route('customers.index')
-                ->with('success', ui_phrase('modules_customers_messages_activated'));
+                ->with('success', ui_phrase('Customer activated successfully.'));
         }
 
         $customer->delete();
 
         return redirect()
             ->route('customers.index')
-            ->with('success', ui_phrase('modules_customers_messages_deactivated'));
+            ->with('success', ui_phrase('Customer deactivated successfully.'));
     }
 
     public function checkCode(Request $request)
@@ -202,7 +202,7 @@ class CustomerController extends Controller
         if ($code === '') {
             return response()->json([
                 'available' => false,
-                'message' => ui_phrase('modules_customers_messages_code_required'),
+                'message' => ui_phrase('Code is required.'),
             ]);
         }
 
@@ -213,7 +213,7 @@ class CustomerController extends Controller
 
         return response()->json([
             'available' => ! $exists,
-            'message' => $exists ? ui_phrase('modules_customers_messages_code_already_used') : ui_phrase('modules_customers_messages_code_available'),
+            'message' => $exists ? ui_phrase('Code is already in use.') : ui_phrase('Code is available.'),
         ]);
     }
 

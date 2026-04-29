@@ -68,7 +68,7 @@
         @endif
         <div class="mt-4">
             <div class="flex items-center justify-between text-xs text-gray-500">
-                <span>{{ __('Progress') }}</span>
+                <span>{{ ui_phrase('Progress') }}</span>
                 <span>{{ $progress }}%</span>
             </div>
             <div class="mt-2 h-2 w-full overflow-hidden rounded-full bg-gray-100">

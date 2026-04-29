@@ -1,32 +1,32 @@
 @extends('layouts.master')
 
-@section('page_title', ui_phrase('modules_itineraries_show_page_title'))
-@section('page_subtitle', ui_phrase('modules_itineraries_show_page_subtitle'))
+@section('page_title', ui_phrase('Itinerary Detail'))
+@section('page_subtitle', ui_phrase('Review complete itinerary information.'))
 
 @section('content')
     <div class="space-y-5 itinerary-show-page">
         <div class="app-card p-4 mb-6">
             @section('page_actions')@if (Route::has('quotations.create') && auth()->user()->can('module.quotations.access') && ! $itinerary->quotation)
-                        <a href="{{ route('quotations.create', ['itinerary_id' => $itinerary->id]) }}" class="rounded-lg border border-indigo-300 px-4 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-50 dark:border-indigo-700 dark:text-indigo-300 dark:hover:bg-indigo-900/20">{{ ui_phrase('common_generate_quotation') }}</a>
+                        <a href="{{ route('quotations.create', ['itinerary_id' => $itinerary->id]) }}" class="rounded-lg border border-indigo-300 px-4 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-50 dark:border-indigo-700 dark:text-indigo-300 dark:hover:bg-indigo-900/20">{{ ui_phrase('Generate Quotation') }}</a>
                     @endif
-                    <a href="{{ route('itineraries.pdf', [$itinerary, 'mode' => 'stream']) }}" target="_blank" rel="noopener" class="rounded-lg border border-sky-300 px-4 py-2 text-sm font-medium text-sky-700 hover:bg-sky-50 dark:border-sky-700 dark:text-sky-300 dark:hover:bg-sky-900/20">{{ ui_phrase('common_preview_pdf') }}</a>
-                    <a href="{{ route('itineraries.pdf', [$itinerary, 'mode' => 'download']) }}" target="_blank" rel="noopener" class="rounded-lg border border-emerald-300 px-4 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-50 dark:border-emerald-700 dark:text-emerald-300 dark:hover:bg-emerald-900/20">{{ ui_phrase('common_download_pdf') }}</a>
+                    <a href="{{ route('itineraries.pdf', [$itinerary, 'mode' => 'stream']) }}" target="_blank" rel="noopener" class="rounded-lg border border-sky-300 px-4 py-2 text-sm font-medium text-sky-700 hover:bg-sky-50 dark:border-sky-700 dark:text-sky-300 dark:hover:bg-sky-900/20">{{ ui_phrase('Preview PDF') }}</a>
+                    <a href="{{ route('itineraries.pdf', [$itinerary, 'mode' => 'download']) }}" target="_blank" rel="noopener" class="rounded-lg border border-emerald-300 px-4 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-50 dark:border-emerald-700 dark:text-emerald-300 dark:hover:bg-emerald-900/20">{{ ui_phrase('Download PDF') }}</a>
                     @can('update', $itinerary)
                         @if (!($itinerary->quotation && ($itinerary->quotation->status ?? '') === 'approved') && ! $itinerary->isFinal())
-                            <a href="{{ route('itineraries.edit', $itinerary) }}"  class="btn-secondary">{{ ui_phrase('common_edit') }}</a>
+                            <a href="{{ route('itineraries.edit', $itinerary) }}"  class="btn-secondary">{{ ui_phrase('Edit') }}</a>
                         @endif
                     @endcan
-                    <a href="{{ route('itineraries.index') }}"  class="btn-primary">{{ ui_phrase('common_back') }}</a>@endsection
+                    <a href="{{ route('itineraries.index') }}"  class="btn-primary" data-page-back-action>{{ ui_phrase('Back') }}</a>@endsection
             <div class="my-3 grid grid-cols-1 gap-2 text-sm md:grid-cols-2">
-                <div><span class="text-gray-500 dark:text-gray-400">{{ ui_phrase('common_title') }}:</span> <span class="text-gray-800 dark:text-gray-100">{{ $itinerary->title }}</span></div>
-                <div><span class="text-gray-500 dark:text-gray-400">{{ ui_phrase('common_duration') }}:</span> <span class="text-gray-800 dark:text-gray-100">{{ $itinerary->duration_days }}D{{ $itinerary->duration_nights > 0 ? "/".$itinerary->duration_nights."N": "" }}</span></div>
-                <div><span class="text-gray-500 dark:text-gray-400">{{ ui_phrase('common_destination') }}:</span> <span class="text-gray-800 dark:text-gray-100">{{ $itinerary->destination ?: '-' }}</span></div>
-                <div><span class="text-gray-500 dark:text-gray-400">{{ ui_phrase('common_inquiry') }}:</span>
+                <div><span class="text-gray-500 dark:text-gray-400">{{ ui_phrase('Title') }}:</span> <span class="text-gray-800 dark:text-gray-100">{{ $itinerary->title }}</span></div>
+                <div><span class="text-gray-500 dark:text-gray-400">{{ ui_phrase('Duration') }}:</span> <span class="text-gray-800 dark:text-gray-100">{{ $itinerary->duration_days }}D{{ $itinerary->duration_nights > 0 ? "/".$itinerary->duration_nights."N": "" }}</span></div>
+                <div><span class="text-gray-500 dark:text-gray-400">{{ ui_phrase('Destination') }}:</span> <span class="text-gray-800 dark:text-gray-100">{{ $itinerary->destination ?: '-' }}</span></div>
+                <div><span class="text-gray-500 dark:text-gray-400">{{ ui_phrase('Inquiry') }}:</span>
                     <span class="text-gray-800 dark:text-gray-100">
                         @if ($itinerary->inquiry)
                             {{ $itinerary->inquiry?->inquiry_number ?? '-' }}{{ $itinerary->inquiry?->customer?->name ? ' | '.$itinerary->inquiry?->customer?->name : '' }}
                         @else
-                            {{ ui_phrase('modules_itineraries_independent') }}
+                            {{ ui_phrase('Independent') }}
                         @endif
                     </span>
                 </div>
@@ -42,7 +42,7 @@
 
         @if ($itinerary->hotels->isNotEmpty())
             <div class="app-card p-4">
-                <h2 class="text-sm font-semibold uppercase tracking-wide text-gray-700 dark:text-gray-200">{{ ui_phrase('modules_hotels_page_title') }}</h2>
+                <h2 class="text-sm font-semibold uppercase tracking-wide text-gray-700 dark:text-gray-200">{{ ui_phrase('Hotels') }}</h2>
                 @php
                     $dayPointByDayForHotel = $itinerary->dayPoints->keyBy(fn ($point) => (int) $point->day_number);
                 @endphp
@@ -54,31 +54,44 @@
                             if ($stayPoint && (int) ($stayPoint->end_hotel_id ?? 0) !== (int) $hotel->id) {
                                 $stayPoint = null;
                             }
+                            $hotelRegionRaw = trim((string) ($hotel->region ?? ''));
+                            $hotelRegion = $hotelRegionRaw;
+                            if ($hotelRegionRaw !== '' && ctype_digit($hotelRegionRaw)) {
+                                $hotelRegion = trim((string) ($hotel->destination?->province ?? $hotel->destination?->name ?? ''));
+                            }
+                            if ($hotelRegion === '') {
+                                $hotelRegion = trim((string) ($hotel->destination?->province ?? ''));
+                            }
+                            if ($hotelRegion === '') {
+                                $hotelRegion = trim((string) ($hotel->city ?? ''));
+                            }
+                            if ($hotelRegion === '') {
+                                $hotelRegion = trim((string) ($hotel->province ?? ''));
+                            }
+                            $hotelDestination = trim((string) ($hotel->destination?->name ?? ''));
+                            $hotelCity = trim((string) ($hotel->city ?? ''));
                             $roomName = (string) ($stayPoint?->endHotelRoom?->rooms ?? '');
                             $roomType = (string) ($stayPoint?->endHotelRoom?->view ?? '');
+                            $nightCount = max(1, (int) ($hotel->pivot->night_count ?? 1));
                             $bookingModeLabel = ((string) ($stayPoint?->end_hotel_booking_mode ?? 'arranged')) === 'self'
-                                ? ui_phrase('modules_itineraries_self_booked_hotel')
-                                : ui_phrase('modules_itineraries_hotel_arranged_by_us');
+                                ? ui_phrase('Self-booked hotel')
+                                : ui_phrase('Hotel arranged by us');
                         @endphp
                         <div class="rounded-lg mb-6 border border-gray-200 px-3 py-2 text-sm dark:border-gray-700">
                             <p class="font-semibold text-gray-800 dark:text-gray-100">{{ $hotel->name }}</p>
                             <p class="text-xs text-gray-500 dark:text-gray-400">
-                                {{ $hotel->category ?: '-' }}
-                                @if(!is_null($hotel->star_rating))
-                                    | {{ $hotel->star_rating }} star
-                                @endif
-                                | {{ $hotel->city ?: '-' }}
+                                {{ $hotelCity !== '' ? $hotelCity : ($hotelRegion !== '' ? $hotelRegion : '-') }} | {{ $hotelDestination !== '' ? $hotelDestination : '-' }}
                             </p>
                             @if ($roomName !== '')
                                 <p class="mt-1 text-xs text-gray-600 dark:text-gray-300">
-                                    {{ ui_phrase('modules_hotels_room') }}: {{ $roomName }}{{ $roomType !== '' ? ' ('.$roomType.')' : '' }}
+                                    {{ ui_phrase('Room') }}: {{ $roomName }}{{ $roomType !== '' ? ' ('.$roomType.')' : '' }}
                                 </p>
                             @endif
                             <p class="mt-1 text-xs font-medium text-indigo-600 dark:text-indigo-300">
-                                {{ ui_phrase('modules_itineraries_day_label', ['day' => $hotel->pivot->day_number ?? 1]) }} | {{ ui_phrase('modules_itineraries_night_count', ['count' => $hotel->pivot->night_count ?? 1]) }}
+                                Day {{ (int) ($hotel->pivot->day_number ?? 1) }} | {{ $nightCount }} {{ $nightCount > 1 ? ui_phrase('nights') : ui_phrase('night') }}
                             </p>
                             <p class="mt-1 text-xs text-gray-600 dark:text-gray-300">
-                                {{ ui_phrase('modules_itineraries_booking_mode') }}: {{ $bookingModeLabel }}
+                                {{ ui_phrase('Booking mode') }}: {{ $bookingModeLabel }}
                             </p>
                         </div>
                     @endforeach
@@ -88,7 +101,7 @@
 
         <div class="grid min-w-0 grid-cols-1 gap-6 lg:grid-cols-12">
             <div class="app-card min-w-0 p-4 lg:col-span-7">
-                <h2 class="text-sm font-semibold uppercase tracking-wide text-gray-700 dark:text-gray-200">{{ ui_phrase('common_schedule_by_day') }}</h2>
+                <h2 class="text-sm font-semibold uppercase tracking-wide text-gray-700 dark:text-gray-200">{{ ui_phrase('Schedule by Day') }}</h2>
                 <div class="mt-3 space-y-4 text-sm text-gray-700 dark:text-gray-200">
                     @php
                         $dayPointByDay = $itinerary->dayPoints->keyBy(fn ($point) => (int) $point->day_number);
@@ -122,7 +135,7 @@
                             $tokens = array_values(array_unique($tokens));
 
                             $labels = [];
-                            foreach (['breakfast' => 'Breakfast', 'lunch' => 'Lunch', 'dinner' => 'Dinner'] as $key => $label) {
+                            foreach (['breakfast' => ui_phrase('breakfast'), 'lunch' => ui_phrase('lunch'), 'dinner' => ui_phrase('dinner')] as $key => $label) {
                                 if (in_array($key, $tokens, true)) {
                                     $labels[] = $label;
                                 }
@@ -139,7 +152,7 @@
                             return $segments !== [] ? implode(', ', $segments) : '-';
                         };
                         $resolvePointLabel = function ($dayPoint, string $scope, string $previousDayEndLabel = null) {
-                            $defaultNotSet = ui_phrase('modules_itineraries_not_set');
+                            $defaultNotSet = ui_phrase('Not set');
                             if (!$dayPoint) {
                                 return $defaultNotSet;
                             }
@@ -247,8 +260,8 @@
                     @endphp
                     @if ((int) $itinerary->duration_days > 1)
                         <div class="mb-3">
-                            <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ ui_phrase('common_display_by_day') }}</p>
-                            <div id="itinerary-schedule-day-tabs" class="mt-2 flex flex-wrap gap-2" role="tablist" aria-label="{{ ui_phrase('common_schedule_by_day') }}">
+                            <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ ui_phrase('Display By Day') }}</p>
+                            <div id="itinerary-schedule-day-tabs" class="mt-2 flex flex-wrap gap-2" role="tablist" aria-label="{{ ui_phrase('Schedule by Day') }}">
                                 @for ($day = 1; $day <= $itinerary->duration_days; $day++)
                                     <button
                                         type="button"
@@ -259,7 +272,7 @@
                                         aria-selected="{{ $day === 1 ? 'true' : 'false' }}"
                                         aria-controls="itinerary-schedule-day-panel-{{ $day }}"
                                         tabindex="{{ $day === 1 ? '0' : '-1' }}">
-                                        {{ ui_phrase('modules_itineraries_day_label', ['day' => $day]) }}
+                                        Day {{ $day }}
                                     </button>
                                 @endfor
                             </div>
@@ -383,7 +396,7 @@
                             }
                             $startPointLabel = $dayPoint
                                 ? $resolvePointLabel($dayPoint, 'start', $previousEndLabel)
-                                : ($day > 1 ? $previousEndLabel : ui_phrase('modules_itineraries_not_set'));
+                                : ($day > 1 ? $previousEndLabel : ui_phrase('Not set'));
                             $endPointLabel = $resolvePointLabel($dayPoint, 'end');
                             $startPointLocation = $dayPoint
                                 ? $resolvePointLocation($dayPoint, 'start', $previousEndLocation)
@@ -395,8 +408,8 @@
                             $endPointImageUrl = $endPointType === 'airport'
                                 ? $resolveAirportCoverUrl($dayPoint?->endAirport)
                                 : ($endPointType === 'hotel' ? $resolveHotelCoverUrl($dayPoint?->endHotel) : null);
-                            $startPointTypeLabel = $startPointType === 'airport' ? 'Airport' : 'Hotel';
-                            $endPointTypeLabel = $endPointType === 'airport' ? 'Airport' : 'Hotel';
+                            $startPointTypeLabel = $startPointType === 'airport' ? ui_phrase('Airport') : ui_phrase('Hotel');
+                            $endPointTypeLabel = $endPointType === 'airport' ? ui_phrase('Airport') : ui_phrase('Hotel');
                             $firstItem = $dayItems->first();
                             $lastItem = $dayItems->last();
                             $dayStartTime = $dayPoint && !empty($dayPoint->day_start_time)
@@ -413,11 +426,11 @@
                                 $startBookingMode = 'arranged';
                             }
                             $startBookingModeLabel = $startBookingMode === 'self'
-                                ? ui_phrase('modules_itineraries_self_booked_hotel')
-                                : ui_phrase('modules_itineraries_hotel_arranged_by_us');
+                                ? ui_phrase('Self-booked hotel')
+                                : ui_phrase('Hotel arranged by us');
                             $endBookingModeLabel = ((string) ($dayPoint?->end_hotel_booking_mode ?? 'arranged')) === 'self'
-                                ? ui_phrase('modules_itineraries_self_booked_hotel')
-                                : ui_phrase('modules_itineraries_hotel_arranged_by_us');
+                                ? ui_phrase('Self-booked hotel')
+                                : ui_phrase('Hotel arranged by us');
                             $mainExperienceType = (string) ($dayPoint?->main_experience_type ?? '');
                             if (!in_array($mainExperienceType, ['attraction', 'activity', 'fnb'], true)) {
                                 $mainExperienceType = '';
@@ -445,6 +458,42 @@
                                 : ($startBaseMinutes !== null
                                     ? $fromMinutes($startBaseMinutes + max(0, (int) ($dayStartTravelMinutes ?? 0)))
                                     : null);
+                            $startTimeSet = filled((string) ($dayPoint?->day_start_time ?? ''));
+                            $startConfigured = false;
+                            if ($dayPoint) {
+                                if ($startPointTypeRaw === 'airport') {
+                                    $startConfigured = (int) ($dayPoint->start_airport_id ?? 0) > 0;
+                                } elseif ($startPointTypeRaw === 'hotel') {
+                                    $startConfigured = (int) ($dayPoint->start_hotel_id ?? 0) > 0;
+                                } elseif ($startPointTypeRaw === 'previous_day_end') {
+                                    $startConfigured = $day > 1
+                                        && $previousDayPoint
+                                        && in_array((string) ($previousDayPoint->end_point_type ?? ''), ['airport', 'hotel'], true)
+                                        && (
+                                            ((string) ($previousDayPoint->end_point_type ?? '') === 'airport' && (int) ($previousDayPoint->end_airport_id ?? 0) > 0)
+                                            || ((string) ($previousDayPoint->end_point_type ?? '') === 'hotel' && (int) ($previousDayPoint->end_hotel_id ?? 0) > 0)
+                                        );
+                                }
+                            }
+                            $endConfigured = false;
+                            if ($dayPoint) {
+                                if ($endPointType === 'airport') {
+                                    $endConfigured = (int) ($dayPoint->end_airport_id ?? 0) > 0;
+                                } elseif ($endPointType === 'hotel') {
+                                    $endConfigured = (int) ($dayPoint->end_hotel_id ?? 0) > 0;
+                                }
+                            }
+                            $incompleteReasons = [];
+                            if (! $startTimeSet) {
+                                $incompleteReasons[] = ui_phrase('Day start time is not set.');
+                            }
+                            if (! $startConfigured) {
+                                $incompleteReasons[] = ui_phrase('Start point is not fully configured.');
+                            }
+                            if (! $endConfigured) {
+                                $incompleteReasons[] = ui_phrase('End point is not fully configured.');
+                            }
+                            $isDayComplete = $incompleteReasons === [];
                         @endphp
                         <div
                             id="itinerary-schedule-day-panel-{{ $day }}"
@@ -455,17 +504,25 @@
                             @endif
                             @if ((int) $itinerary->duration_days > 1 && $day !== 1) hidden @endif>
                             <div class="app-day-header">
-                                <p class="app-day-header-title">{{ ui_phrase('modules_itineraries_day_label', ['day' => $day]) }}</p>
+                                <p class="app-day-header-title">Day {{ $day }}</p>
                                 <p class="app-day-header-meta">
-                                    {{ ui_phrase('modules_itineraries_start_tour') }}: {{ $dayStartTime ?? '--:--' }} | {{ ui_phrase('modules_itineraries_end_tour') }}: {{ $dayEndTime ?? '--:--' }}
+                                    {{ ui_phrase('Start Tour') }}: {{ $dayStartTime ?? '--:--' }} | {{ ui_phrase('End Tour') }}: {{ $dayEndTime ?? '--:--' }}
                                 </p>
                             </div>
 
                             <p class="mt-1 text-[11px] text-gray-500 dark:text-gray-400">
-                                {{ ui_phrase('modules_itineraries_starts_at') }}: {{ $startPointLabel ?: ui_phrase('modules_itineraries_not_set') }} | {{ ui_phrase('modules_itineraries_ends_at') }}: {{ $endPointLabel ?: ui_phrase('modules_itineraries_not_set') }}
+                                {{ ui_phrase('Starts at') }}: {{ $startPointLabel ?: ui_phrase('Not set') }} | {{ ui_phrase('Ends at') }}: {{ $endPointLabel ?: ui_phrase('Not set') }}
                             </p>
+                            @if (! $isDayComplete)
+                                <div class="mt-2 rounded-md border border-amber-200 bg-amber-50 px-2 py-1.5 text-xs text-amber-800 dark:border-amber-700/60 dark:bg-amber-900/20 dark:text-amber-200">
+                                    <p class="font-semibold">{{ ui_phrase('Incomplete reasons') }}:</p>
+                                    @foreach ($incompleteReasons as $reason)
+                                        <p>- {{ $reason }}</p>
+                                    @endforeach
+                                </div>
+                            @endif
                             <div class="mt-2 rounded-lg border border-gray-200 bg-gray-50/70 px-2.5 py-2 dark:border-gray-700 dark:bg-gray-900/30">
-                                <p class="text-[11px] font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300">{{ ui_phrase('modules_itineraries_transport_unit') }}</p>
+                                <p class="text-[11px] font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300">{{ ui_phrase('Transport Unit') }}</p>
                                 @if ($dayTransports->isNotEmpty())
                                     <div class="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
                                         @foreach ($dayTransports as $transportRow)
@@ -505,7 +562,9 @@
                                                     }
                                                 }
                                                 $transportTypeLabel = trim((string) ($transportSource?->transport_type ?? 'Transport'));
+                                                $transportTypeDisplay = ui_phrase($transportTypeLabel !== '' ? $transportTypeLabel : 'transport');
                                                 $transportName = trim((string) ($transportSource?->name ?? $transportUnit?->name ?? '-'));
+                                                $transportNameDisplay = $transportName !== '' ? ui_phrase($transportName) : '-';
                                                 $transportModel = trim((string) ($transportSource?->brand_model ?? ''));
                                                 $seatCapacity = $transportSource?->seat_capacity !== null ? (int) $transportSource->seat_capacity : null;
                                                 $luggageCapacity = $transportSource?->luggage_capacity !== null ? (int) $transportSource->luggage_capacity : null;
@@ -519,7 +578,7 @@
                                                             @if (filled($transportImageUrl))
                                                                 <img
                                                                     src="{{ $transportImageUrl }}"
-                                                                    alt="{{ $transportName }} image"
+                                                                    alt="{{ ui_phrase('thumbnail alt', ['name' => ($transportNameDisplay !== '' ? $transportNameDisplay : '-')]) }}"
                                                                     class="absolute inset-0 block h-full w-full object-cover object-center"
                                                                     @if (filled($transportImageOriginalUrl))
                                                                         onerror="if(this.dataset.fallbackApplied){this.onerror=null;}else{this.dataset.fallbackApplied='1';this.src='{{ $transportImageOriginalUrl }}';}"
@@ -533,16 +592,16 @@
                                                         </div>
                                                     </div>
                                                     <div class="min-w-0">
-                                                        <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">{{ $transportTypeLabel !== '' ? $transportTypeLabel : 'Transport' }}</p>
-                                                        <p class="mt-0.5 text-xs font-medium text-gray-800 dark:text-gray-100">{{ $transportName !== '' ? $transportName : '-' }}</p>
+                                                        <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">{{ $transportTypeDisplay !== '' ? $transportTypeDisplay : ui_phrase('transport') }}</p>
+                                                        <p class="mt-0.5 text-xs font-medium text-gray-800 dark:text-gray-100">{{ $transportNameDisplay !== '' ? $transportNameDisplay : '-' }}</p>
                                                         @if ($transportModel !== '')
                                                             <p class="mt-0.5 text-[11px] text-gray-500 dark:text-gray-400">{{ $transportModel }}</p>
                                                         @endif
                                                         <div class="mt-1 flex flex-wrap gap-1 text-[11px] text-gray-500 dark:text-gray-400">
-                                                            <span>Seat: {{ $seatCapacity !== null ? $seatCapacity : '-' }}</span>
-                                                            <span>| Luggage: {{ $luggageCapacity !== null ? $luggageCapacity : '-' }}</span>
-                                                            <span>| AC: {{ $airConditioned === null ? '-' : ($airConditioned ? 'Yes' : 'No') }}</span>
-                                                            <span>| Driver: {{ $withDriver === null ? '-' : ($withDriver ? 'Yes' : 'No') }}</span>
+                                                            <span>{{ ui_phrase('seat') }}: {{ $seatCapacity !== null ? $seatCapacity : '-' }}</span>
+                                                            <span>| {{ ui_phrase('luggage') }}: {{ $luggageCapacity !== null ? $luggageCapacity : '-' }}</span>
+                                                            <span>| AC: {{ $airConditioned === null ? '-' : ($airConditioned ? ui_phrase('yes') : ui_phrase('no')) }}</span>
+                                                            <span>| {{ ui_phrase('driver') }}: {{ $withDriver === null ? '-' : ($withDriver ? ui_phrase('yes') : ui_phrase('no')) }}</span>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -568,7 +627,7 @@
                                         </span>
                                         <span class="timeline-travel-spacer"></span>
                                         <span class="timeline-travel-label">
-                                            {{ $dayStartTravelMinutes !== null ? $dayStartTravelMinutes : '-' }} min
+                                            {{ $dayStartTravelMinutes !== null ? $dayStartTravelMinutes : '-' }} {{ ui_phrase('minute') }}
                                         </span>
                                         <span class="timeline-travel-spacer"></span>
                                     </div>
@@ -578,11 +637,11 @@
                                                 <div class="overflow-hidden rounded-md border border-gray-200 bg-gray-100 dark:border-gray-700 dark:bg-gray-800/60">
                                                     <div class="relative aspect-[16/9] h-full overflow-hidden">
                                                     @if (filled($startPointImageUrl))
-                                                        <img src="{{ $startPointImageUrl }}" alt="{{ ui_phrase('common_start_point') }}" class="absolute inset-0 block h-full w-full object-cover object-center">
+                                                        <img src="{{ $startPointImageUrl }}" alt="{{ ui_phrase('Start Point') }}" class="absolute inset-0 block h-full w-full object-cover object-center">
                                                     @else
                                                         <div class="flex h-full w-full flex-col items-center justify-center gap-1 text-gray-500 dark:text-gray-300">
                                                             <i class="{{ $startPointType === 'airport' ? 'fa-solid fa-plane' : 'fa-solid fa-bed' }} text-sm"></i>
-                                                            <span class="text-[10px] font-semibold uppercase tracking-wide">{{ ui_phrase('common_start_point') }}</span>
+                                                            <span class="text-[10px] font-semibold uppercase tracking-wide">{{ ui_phrase('Start Point') }}</span>
                                                         </div>
                                                     @endif
                                                 </div>
@@ -590,11 +649,11 @@
                                             <div class="min-w-0">
                                                 <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">{{ $startPointTypeLabel }}</p>
                                                 <div class="mt-0.5 flex flex-wrap items-center gap-1">
-                                                    <span class="font-medium text-gray-800 dark:text-gray-100">{{ $startPointLabel ?: ui_phrase('modules_itineraries_not_set') }}</span>
+                                                    <span class="font-medium text-gray-800 dark:text-gray-100">{{ $startPointLabel ?: ui_phrase('Not set') }}</span>
                                                 </div>
                                                 <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">
                                                     {{ $startPointLocation ?: '-' }}
-                                                    | {{ ui_phrase('modules_itineraries_start_tour') }}: {{ $dayStartTime ?? '--:--' }}
+                                                    | {{ ui_phrase('Start Tour') }}: {{ $dayStartTime ?? '--:--' }}
                                                 </div>
                                             </div>
                                         </div>
@@ -622,7 +681,7 @@
                                             </span>
                                             <span class="timeline-travel-spacer"></span>
                                             <span class="timeline-travel-label">
-                                                {{ $travelMinutes !== null ? $travelMinutes . ' min' : '- min' }}
+                                                {{ $travelMinutes !== null ? $travelMinutes . ' ' . ui_phrase('minute') : '- ' . ui_phrase('minute') }}
                                             </span>
                                             <span class="timeline-travel-spacer"></span>
                                         </div>
@@ -630,8 +689,10 @@
                                         @php
                                             $itemType = (string) ($item['type'] ?? '');
                                             $itemTypeLabel = $itemType === 'fnb'
-                                                ? 'F&B'
-                                                : ($itemType === 'transfer' ? "Island's Transfer" : ucfirst($itemType));
+                                                ? ui_phrase('food beverages')
+                                                : ($itemType === 'transfer'
+                                                    ? ui_phrase('item type island transfer')
+                                                    : ui_phrase($itemType));
                                             $itemTypeClass = $itemType === 'activity'
                                                 ? 'text-emerald-600 dark:text-emerald-400'
                                                 : ($itemType === 'transfer'
@@ -656,7 +717,7 @@
                                                 <div class="overflow-hidden rounded-md border border-gray-200 bg-gray-100 dark:border-gray-700 dark:bg-gray-800/60">
                                                     <div class="relative aspect-[16/9] h-full overflow-hidden">
                                                         @if (!empty($item['thumbnail_url']))
-                                                            <img src="{{ $item['thumbnail_url'] }}" alt="{{ ($item['name'] ?: $itemTypeLabel) . ' thumbnail' }}" class="absolute inset-0 block h-full w-full object-cover object-center">
+                                                            <img src="{{ $item['thumbnail_url'] }}" alt="{{ ui_phrase('thumbnail alt', ['name' => ($item['name'] ?: $itemTypeLabel)]) }}" class="absolute inset-0 block h-full w-full object-cover object-center">
                                                         @else
                                                             <div class="flex h-full w-full items-center justify-center text-gray-400 dark:text-gray-500">
                                                                 <i class="fa-regular fa-image"></i>
@@ -668,8 +729,13 @@
                                                     <p class="text-[11px] font-semibold uppercase tracking-wide {{ $itemTypeClass }}">{{ $itemTypeLabel }}</p>
                                                     <div class="mt-0.5 flex flex-wrap items-center gap-1">
                                                         <span class="font-medium text-gray-800 dark:text-gray-100">{{ $item['name'] ?: '-' }}</span>
+                                                        @if (($item['type'] ?? '') === 'fnb' && !empty($item['meal_sessions']) && is_array($item['meal_sessions']))
+                                                            <span class="ml-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700 dark:bg-amber-500/20 dark:text-amber-300">
+                                                                {{ implode('/', $item['meal_sessions']) }}
+                                                            </span>
+                                                        @endif
                                                         @if ($isMainExperience)
-                                                            <span class="ml-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700 dark:bg-amber-500/20 dark:text-amber-300">{{ ui_phrase('common_main_experience') }}</span>
+                                                            <span class="ml-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700 dark:bg-amber-500/20 dark:text-amber-300">{{ ui_phrase('Main Experience') }}</span>
                                                         @endif
                                                     </div>
                                                     <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">
@@ -694,11 +760,11 @@
                                             <div class="overflow-hidden rounded-md border border-gray-200 bg-gray-100 dark:border-gray-700 dark:bg-gray-800/60">
                                                 <div class="relative aspect-[16/9] h-full overflow-hidden">
                                                     @if (filled($endPointImageUrl))
-                                                        <img src="{{ $endPointImageUrl }}" alt="{{ ui_phrase('common_end_point') }}" class="absolute inset-0 block h-full w-full object-cover object-center">
+                                                        <img src="{{ $endPointImageUrl }}" alt="{{ ui_phrase('End Point') }}" class="absolute inset-0 block h-full w-full object-cover object-center">
                                                     @else
                                                         <div class="flex h-full w-full flex-col items-center justify-center gap-1 text-gray-500 dark:text-gray-300">
                                                             <i class="{{ $endPointType === 'airport' ? 'fa-solid fa-plane-arrival' : 'fa-solid fa-bed' }} text-sm"></i>
-                                                            <span class="text-[10px] font-semibold uppercase tracking-wide">{{ ui_phrase('common_end_point') }}</span>
+                                                            <span class="text-[10px] font-semibold uppercase tracking-wide">{{ ui_phrase('End Point') }}</span>
                                                         </div>
                                                     @endif
                                                 </div>
@@ -706,15 +772,12 @@
                                             <div class="min-w-0">
                                                 <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">{{ $endPointTypeLabel }}</p>
                                                 <div class="mt-0.5 flex flex-wrap items-center gap-1">
-                                                    <span class="font-medium text-gray-800 dark:text-gray-100">{{ $endPointLabel ?: ui_phrase('modules_itineraries_not_set') }}</span>
+                                                    <span class="font-medium text-gray-800 dark:text-gray-100">{{ $endPointLabel ?: ui_phrase('Not set') }}</span>
                                                 </div>
                                                 <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">
                                                     {{ $endPointLocation ?: '-' }}
-                                                    | {{ ui_phrase('modules_itineraries_end_tour') }}: {{ $dayEndTime ?? '--:--' }}
+                                                    | {{ ui_phrase('End Tour') }}: {{ $dayEndTime ?? '--:--' }}
                                                 </div>
-                                                @if ($dayItems->isEmpty())
-                                                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ ui_phrase('modules_itineraries_no_schedule_item') }}</p>
-                                                @endif
                                             </div>
                                         </div>
                                     </div>
@@ -730,13 +793,13 @@
                         <div class="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2">
                             @if (filled($itineraryIncludeText))
                                 <div class="rounded-lg mb-6 border border-emerald-200 bg-emerald-50/60 px-2 py-1 dark:border-emerald-800 dark:bg-emerald-900/20">
-                                    <p class="text-[11px] font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">{{ ui_phrase('modules_itineraries_itinerary_include') }}</p>
+                                    <p class="text-[11px] font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">{{ ui_phrase('Itinerary Include') }}</p>
                                     <x-rich-text :content="$itinerary->itinerary_include" class="mt-0.5 text-xs text-emerald-900 dark:text-emerald-100" />
                                 </div>
                             @endif
                             @if (filled($itineraryExcludeText))
                                 <div class="rounded-lg mb-6 border border-rose-200 bg-rose-50/60 px-2 py-1 dark:border-rose-800 dark:bg-rose-900/20">
-                                    <p class="text-[11px] font-semibold uppercase tracking-wide text-rose-700 dark:text-rose-300">{{ ui_phrase('modules_itineraries_itinerary_exclude') }}</p>
+                                    <p class="text-[11px] font-semibold uppercase tracking-wide text-rose-700 dark:text-rose-300">{{ ui_phrase('Itinerary Exclude') }}</p>
                                     <x-rich-text :content="$itinerary->itinerary_exclude" class="mt-0.5 text-xs text-rose-900 dark:text-rose-100" />
                                 </div>
                             @endif
@@ -747,13 +810,13 @@
             <div class="space-y-4 lg:col-span-5">
                 <div class="app-card p-4 space-y-3">
                     <div>
-                        <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ ui_phrase('common_activity_timeline') }}</h3>
-                        <p class="text-xs text-gray-600 dark:text-gray-300">{{ ui_phrase('modules_itineraries_detailed_audit_log') }}</p>
+                        <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ ui_phrase('Activity Timeline') }}</h3>
+                        <p class="text-xs text-gray-600 dark:text-gray-300">{{ ui_phrase('detailed audit log') }}</p>
                     </div>
                     <x-activity-timeline :activities="$activities" />
                 </div>
                 <div class="app-card min-w-0 h-fit p-4 lg:self-start xl:sticky xl:top-6">
-                    <h2 class="text-sm font-semibold uppercase tracking-wide text-gray-700 dark:text-gray-200">{{ ui_phrase('common_itinerary_map') }}</h2>
+                    <h2 class="text-sm font-semibold uppercase tracking-wide text-gray-700 dark:text-gray-200">{{ ui_phrase('Itinerary Map') }}</h2>
                     <div id="itinerary-show-map" class="mt-3 h-[520px] md:h-[640px] w-full rounded-lg border border-gray-300 dark:border-gray-700"></div>
                 </div>
             </div>
@@ -856,7 +919,7 @@
                 if ($type === 'airport' && $dayPoint->startAirport) {
                     return [
                         'type' => 'airport',
-                        'name' => (string) ($dayPoint->startAirport->name ?? ui_phrase('common_start_point')),
+                        'name' => (string) ($dayPoint->startAirport->name ?? ui_phrase('Start Point')),
                         'location' => (string) ($dayPoint->startAirport->location ?? '-'),
                         'lat' => $dayPoint->startAirport->latitude,
                         'lng' => $dayPoint->startAirport->longitude,
@@ -865,7 +928,7 @@
                 if ($type === 'hotel' && $dayPoint->startHotel) {
                     return [
                         'type' => 'hotel',
-                        'name' => (string) ($dayPoint->startHotel->name ?? ui_phrase('common_start_point')),
+                        'name' => (string) ($dayPoint->startHotel->name ?? ui_phrase('Start Point')),
                         'location' => (string) ($dayPoint->startHotel->address ?? '-'),
                         'lat' => $dayPoint->startHotel->latitude,
                         'lng' => $dayPoint->startHotel->longitude,
@@ -877,7 +940,7 @@
             if ($type === 'airport' && $dayPoint->endAirport) {
                 return [
                     'type' => 'airport',
-                    'name' => (string) ($dayPoint->endAirport->name ?? ui_phrase('common_end_point')),
+                    'name' => (string) ($dayPoint->endAirport->name ?? ui_phrase('End Point')),
                     'location' => (string) ($dayPoint->endAirport->location ?? '-'),
                     'lat' => $dayPoint->endAirport->latitude,
                     'lng' => $dayPoint->endAirport->longitude,
@@ -886,7 +949,7 @@
             if ($type === 'hotel' && $dayPoint->endHotel) {
                 return [
                     'type' => 'hotel',
-                    'name' => (string) ($dayPoint->endHotel->name ?? ui_phrase('common_end_point')),
+                    'name' => (string) ($dayPoint->endHotel->name ?? ui_phrase('End Point')),
                     'location' => (string) ($dayPoint->endHotel->address ?? '-'),
                     'lat' => $dayPoint->endHotel->latitude,
                     'lng' => $dayPoint->endHotel->longitude,
@@ -1364,7 +1427,8 @@
                 const bounds = [];
                 const dayCounter = {};
                 const dayMarkers = {};
-                const dayLabel = @json(ui_phrase('modules_itineraries_day_short'));
+                const dayLabel = 'Day';
+                const minuteLabel = @json(ui_phrase('minute'));
                 activePoints.forEach((point) => {
                     dayCounter[point.day_number] = (dayCounter[point.day_number] || 0) + 1;
                     const index = dayCounter[point.day_number];
@@ -1478,7 +1542,7 @@
                             interactive: true,
                         })
                             .setLatLng(labelLatLng)
-                            .setContent(`${minutes}m`)
+                            .setContent(`${minutes} ${minuteLabel}`)
                             .addTo(mapDataLayer);
                         durationLabel.on('click', () => {
                             highlightMarkerPair(fromMarker, toMarker);
@@ -1567,3 +1631,4 @@
         })();
     </script>
 @endpush
+

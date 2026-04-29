@@ -24,6 +24,9 @@ class Kernel extends ConsoleKernel
         $schedule->command('inquiries:send-followup-reminders')
             ->timezone((string) config('app.schedule_timezone', config('app.timezone')))
             ->dailyAt('09:00');
+        $schedule->command('inquiries:notify-reservation-draft-deadline-tomorrow')
+            ->timezone((string) config('app.schedule_timezone', config('app.timezone')))
+            ->dailyAt('09:00');
         $schedule->command('hotels:sync-status-from-prices')->dailyAt('00:10');
         $schedule->command('currencies:sync-market-rates')->dailyAt('06:00');
     }

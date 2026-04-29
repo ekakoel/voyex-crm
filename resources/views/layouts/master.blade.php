@@ -6,7 +6,7 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     @include('layouts.partials.page-transition-init')
     @php
-        $appTitle = trim((string) ($companySettings->company_name ?? __('VOYEX CRM')));
+        $appTitle = trim((string) ($companySettings->company_name ?? ui_phrase('VOYEX CRM')));
         $logoPath = $companySettings->logo_path ?? null;
         $logoVersion = !empty($companySettings?->updated_at) ? $companySettings->updated_at->timestamp : null;
         $logoUrl = $logoPath
@@ -33,12 +33,12 @@
             default => 'image/x-icon',
         };
     @endphp
-    <title>{{ $appTitle !== '' ? $appTitle : __('VOYEX CRM') }}</title>
+    <title>{{ $appTitle !== '' ? $appTitle : ui_phrase('VOYEX CRM') }}</title>
     <meta name="theme-color" content="#0f172a">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="{{ $appTitle !== '' ? $appTitle : __('VOYEX CRM') }}">
+    <meta name="apple-mobile-web-app-title" content="{{ $appTitle !== '' ? $appTitle : ui_phrase('VOYEX CRM') }}">
     <link rel="manifest" href="{{ asset('manifest.webmanifest') }}">
     @if ($faviconUrl)
         <link rel="icon" type="{{ $faviconMime }}" href="{{ $faviconUrl }}">
@@ -51,11 +51,11 @@
     @stack('styles')
 </head>
 
-<body class="mb-4 app-shell bg-gray-100 dark:bg-gray-900 transition-colors duration-300" data-currency="{{ $currentCurrency ?? 'IDR' }}">
+<body class="mb-4 app-shell bg-gray-100 dark:bg-gray-900 transition-colors duration-300" data-currency="{{ $currentCurrency ?? 'IDR' }}" data-editor-placeholder="{{ ui_phrase('write here') }}...">
 <div class="page-spinner" data-page-spinner aria-hidden="true">
     <div class="page-spinner__inner">
         <div class="page-spinner__ring" aria-hidden="true"></div>
-        <div class="page-spinner__text">{{ __('Loading...') }}</div>
+        <div class="page-spinner__text">{{ ui_phrase('Loading...') }}</div>
     </div>
 </div>
 
@@ -75,20 +75,20 @@
                 @if ($logoUrl)
                     <img
                         src="{{ $logoUrl }}"
-                        alt="{{ $appTitle !== '' ? $appTitle : __('VOYEX CRM') }} {{ __('Logo') }}"
+                        alt="{{ $appTitle !== '' ? $appTitle : ui_phrase('VOYEX CRM') }} {{ ui_phrase('Logo') }}"
                         class="h-8 w-8 rounded-lg object-cover border border-white/20 shrink-0"
                     >
                 @endif
                 <div class="text-xl font-bold whitespace-nowrap overflow-hidden"
                      :class="sidebarCollapsed ? 'md:hidden' : 'block'">
-                    {{ $appTitle !== '' ? $appTitle : __('VOYEX CRM') }}
+                    {{ $appTitle !== '' ? $appTitle : ui_phrase('VOYEX CRM') }}
                 </div>
             </div>
 
             <button type="button"
                      class="hidden md:inline-flex items-center justify-center h-9 w-9 rounded-lg hover:bg-gray-700 transition"
                     @click="toggleSidebar()"
-                     :title="sidebarCollapsed ? '{{ ui_phrase('sidebar_show_icons_labels') }}' : '{{ ui_phrase('sidebar_show_icons_only') }}'">
+                     :title="sidebarCollapsed ? '{{ ui_phrase('Show icons + labels') }}' : '{{ ui_phrase('Show icons only') }}'">
                 <svg x-show="sidebarCollapsed" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                     <path fill-rule="evenodd" d="M12.293 15.707a1 1 0 010-1.414L15.586 11H4a1 1 0 110-2h11.586l-3.293-3.293a1 1 0 111.414-1.414l5 5a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0z" clip-rule="evenodd" />
                 </svg>
@@ -108,17 +108,9 @@
                     'dashboard.director',
                 ];
                 $translateMenuTitle = function (array $entry): string {
-                    $titleKey = trim((string) ($entry['title_key'] ?? ''));
-                    if ($titleKey !== '') {
-                        $translated = ui_phrase($titleKey);
-                        if ($translated !== $titleKey) {
-                            return $translated;
-                        }
-                    }
-
                     $rawTitle = (string) ($entry['title'] ?? '');
-                    if (function_exists('ui_term')) {
-                        return ui_term($rawTitle);
+                    if (function_exists('ui_phrase')) {
+                        return ui_phrase($rawTitle);
                     }
 
                     return $rawTitle;
@@ -236,7 +228,7 @@
             </button>
 
             <div class="hidden md:flex items-center gap-2 min-w-0 overflow-x-auto">
-                <span class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 whitespace-nowrap">{{ __('Rates') }}</span>
+                <span class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 whitespace-nowrap">{{ ui_phrase('Rates') }}</span>
                 @php
                     $nonIdrCurrencyOptions = collect($currencyOptions ?? [])->filter(function ($currency) {
                         return strtoupper((string) ($currency->code ?? '')) !== 'IDR';
@@ -256,7 +248,7 @@
                     @endforeach
                 @else
                     <span class="inline-flex items-center rounded-full border border-gray-200 bg-white px-2 py-1 text-[11px] text-gray-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300">
-                        {{ __('No non-IDR rates') }}
+                        {{ ui_phrase('No non-IDR rates') }}
                     </span>
                 @endif
             </div>
@@ -267,8 +259,8 @@
                     $notifCount = (int) ($approvalNotif['count'] ?? 0);
                     $notifRole = (string) ($approvalNotif['role'] ?? '');
                     $notifTitle = $notifRole !== ''
-                        ? (__('Quotation approvals pending for') . ' ' . ucfirst($notifRole))
-                        : __('Quotation approvals pending');
+                        ? (ui_phrase('Quotation approvals pending for') . ' ' . ucfirst($notifRole))
+                        : ui_phrase('Quotation approvals pending');
                     $notifClass = match ($notifRole) {
                         'director' => 'border-violet-300 bg-violet-50 text-violet-700 hover:bg-violet-100 dark:border-violet-700 dark:bg-violet-900/20 dark:text-violet-300 dark:hover:bg-violet-900/30',
                         'manager' => 'border-sky-300 bg-sky-50 text-sky-700 hover:bg-sky-100 dark:border-sky-700 dark:bg-sky-900/20 dark:text-sky-300 dark:hover:bg-sky-900/30',
@@ -304,8 +296,8 @@
                     <a
                         href="{{ route('itineraries.manual-item-validation-queue') }}"
                         class="relative inline-flex h-9 w-9 items-center justify-center rounded-lg border border-cyan-300 bg-cyan-50 text-cyan-700 hover:bg-cyan-100 dark:border-cyan-700 dark:bg-cyan-900/20 dark:text-cyan-300 dark:hover:bg-cyan-900/30 {{ $editorManualCount > 0 ? '' : 'hidden' }}"
-                        title="{{ __('Manual itinerary items need editor validation') }}"
-                        aria-label="{{ __('Manual itinerary items need editor validation') }}"
+                        title="{{ ui_phrase('Manual itinerary items need editor validation') }}"
+                        aria-label="{{ ui_phrase('Manual itinerary items need editor validation') }}"
                         data-editor-manual-item-bell="1"
                     >
                         <i class="fa-solid fa-clipboard-check"></i>
@@ -338,8 +330,8 @@
                         type="button"
                         @click="open = !open"
                         class="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-2.5 py-1.5 text-gray-700 dark:border-gray-700 dark:text-gray-200"
-                        title="{{ ui_phrase('common_switch_language') }}"
-                        aria-label="{{ ui_phrase('common_switch_language') }}"
+                        title="{{ ui_phrase('Switch Language') }}"
+                        aria-label="{{ ui_phrase('Switch Language') }}"
                     >
                         <i class="fa-solid fa-language"></i>
                         <span class="hidden sm:inline truncate max-w-[140px] md:max-w-[180px]">{{ $activeLocaleShort }}</span>
@@ -378,14 +370,14 @@
                             <select
                                 name="currency"
                                 onchange="this.form.submit()"
-                                class="nav-currency-select h-9 font-semibold uppercase tracking-wide text-gray-700 transition hover:border-indigo-300 dark:border-gray-700 dark:hover:border-indigo-600 app-input"
+                                class="nav-currency-select h-9 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-sm font-medium uppercase tracking-wide text-gray-700 transition hover:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-200 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 dark:hover:border-indigo-600 dark:focus:ring-indigo-700/40"
                             >
                                 @if(($currencyOptions ?? collect())->isNotEmpty())
                                     @foreach (($currencyOptions ?? collect()) as $currencyOption)
                                         <option value="{{ $currencyOption->code }}" @selected(($currentCurrency ?? 'IDR') === $currencyOption->code)>{{ $currencyOption->code }}</option>
                                     @endforeach
                                 @else
-                                    <option value="IDR" selected>{{ __('IDR') }}</option>
+                                    <option value="IDR" selected>{{ ui_phrase('IDR') }}</option>
                                 @endif
                             </select>
                             
@@ -402,7 +394,7 @@
                     type="button"
                     id="fullscreen-toggle-btn"
                     class="inline-flex items-center justify-center h-9 w-9 rounded-lg border border-gray-200 text-gray-600 hover:border-indigo-300 hover:text-indigo-600 dark:border-gray-700 dark:text-gray-200 dark:hover:border-indigo-600 dark:hover:text-indigo-300"
-                    title="{{ __('Toggle fullscreen') }}"
+                    title="{{ ui_phrase('Toggle fullscreen') }}"
                     aria-label="Toggle fullscreen"
                 >
                     <i class="fa-solid fa-expand" data-fullscreen-icon></i>
@@ -412,7 +404,7 @@
                 <button @click="toggleTheme()"
                          class="inline-flex items-center justify-center h-9 w-9 rounded-lg border border-gray-200 transition-colors duration-200 dark:border-gray-700"
                         :class="dark ? 'text-yellow-400 hover:text-yellow-300' : 'text-gray-500 hover:text-amber-500'"
-                        :title="{{ __('dark ? \'Dark mode on\' : \'Light mode on\'') }}">
+                        :title="dark ? '{{ ui_phrase('Dark mode on') }}' : '{{ ui_phrase('Light mode on') }}'">
                     <svg x-show="!dark" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v2.25m6.364.386-1.591 1.591M21 12h-2.25m-.386 6.364-1.591-1.591M12 18.75V21m-4.773-4.227-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0Z" />
                     </svg>
@@ -429,7 +421,7 @@
                             <i class="fa-solid fa-user"></i>
                         </span>
                         <span class="hidden sm:inline truncate max-w-[140px] md:max-w-[180px]">{{ auth()->user()->name }}</span>
-                        <span class="sm:hidden text-sm font-medium">{{ __('User') }}</span>
+                        <span class="sm:hidden text-sm font-medium">{{ ui_phrase('User') }}</span>
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transition-transform" :class="open ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
                     </button>
 
@@ -438,12 +430,12 @@
                          x-cloak class="absolute right-0 mt-2 w-44 sm:w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border dark:border-gray-700 py-1 z-10">
 
                         <a href="{{ route('profile.edit') }}"  class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">
-                            {{ __('Profile') }}
+                            {{ ui_phrase('Profile') }}
                         </a>
                         @can('module.quotations.access')
                             @if (Route::has('quotations.my'))
                                 <a href="{{ route('quotations.my') }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">
-                                    {{ __('My Quotations') }}
+                                    {{ ui_phrase('My Quotations') }}
                                 </a>
                             @endif
                         @endcan
@@ -451,7 +443,7 @@
                         <form method="POST" action="{{ route('logout') }}">
                             @csrf
                             <button type="submit"  class="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">
-                                {{ __('Logout') }}
+                                {{ ui_phrase('Logout') }}
                             </button>
                         </form>
 
@@ -470,21 +462,33 @@
                 $routeParts = $routeName !== '' ? explode('.', $routeName) : [];
                 $routeAction = !empty($routeParts) ? strtolower((string) end($routeParts)) : 'index';
                 $routeResource = !empty($routeParts) ? strtolower((string) $routeParts[0]) : 'dashboard';
-                $defaultTitle = \Illuminate\Support\Str::headline(str_replace('-', ' ', $routeResource));
-                $defaultSubtitle = match ($routeAction) {
-                    'index' => 'Browse and manage data',
-                    'create', 'store' => 'Create a new record',
-                    'edit', 'update' => 'Update existing data',
+                $defaultTitleBase = \Illuminate\Support\Str::headline(str_replace(['-', '_'], ' ', $routeResource));
+                $defaultTitle = ui_phrase($defaultTitleBase);
+                $defaultSubtitle = ui_phrase(match ($routeAction) {
+                    'index' => 'Browse and manage data.',
+                    'create', 'store' => 'Create a new record.',
+                    'edit', 'update' => 'Update existing data.',
                     'show' => 'Review complete detail information.',
-                    default => 'Page information and actions',
-                };
-                $pageTitle = trim((string) $__env->yieldContent('page_title')) !== ''
-                    ? trim((string) $__env->yieldContent('page_title'))
+                    default => 'Page information and actions.',
+                });
+                $rawPageTitle = trim((string) $__env->yieldContent('page_title'));
+                $rawPageSubtitle = trim((string) $__env->yieldContent('page_subtitle'));
+
+                // Guard against unfinished placeholder copy such as
+                // "page title", "show page title", "page subtitle", etc.
+                $hasPlaceholderTitle = $rawPageTitle !== ''
+                    && str_contains(strtolower($rawPageTitle), 'page title');
+                $hasPlaceholderSubtitle = $rawPageSubtitle !== ''
+                    && str_contains(strtolower($rawPageSubtitle), 'page subtitle');
+
+                $pageTitle = ($rawPageTitle !== '' && ! $hasPlaceholderTitle)
+                    ? ui_phrase($rawPageTitle)
                     : $defaultTitle;
-                $pageSubtitle = trim((string) $__env->yieldContent('page_subtitle')) !== ''
-                    ? trim((string) $__env->yieldContent('page_subtitle'))
+                $pageSubtitle = ($rawPageSubtitle !== '' && ! $hasPlaceholderSubtitle)
+                    ? ui_phrase($rawPageSubtitle)
                     : $defaultSubtitle;
                 $hidePageHeader = trim((string) $__env->yieldContent('page_header_hidden')) === '1';
+                $rawPageActions = (string) $__env->yieldContent('page_actions');
                 $normalizeBreadcrumbToken = function (string $value): string {
                     $value = \Illuminate\Support\Str::replace('-', '_', trim($value));
                     $value = \Illuminate\Support\Str::snake($value);
@@ -500,30 +504,20 @@
                         'update' => 'edit',
                         default => $normalized,
                     };
-                    $actionKey = 'breadcrumb_actions_'.$actionAlias;
-                    $translated = ui_phrase($actionKey);
-                    if ($translated !== $actionKey) {
-                        return $translated;
-                    }
-
-                    return __(\Illuminate\Support\Str::headline(str_replace('_', ' ', $actionAlias)));
+                    $label = \Illuminate\Support\Str::headline(str_replace('_', ' ', $actionAlias));
+                    return ui_phrase($label);
                 })();
                 $resourceLabel = (function () use ($routeResource, $normalizeBreadcrumbToken): string {
                     $normalized = $normalizeBreadcrumbToken($routeResource);
-                    $resourceKey = 'breadcrumb_resources_'.$normalized;
-                    $translated = ui_phrase($resourceKey);
-                    if ($translated !== $resourceKey) {
-                        return $translated;
-                    }
-                    if (function_exists('ui_term')) {
-                        return ui_term($routeResource);
+                    if (function_exists('ui_phrase')) {
+                        return ui_phrase($routeResource);
                     }
 
-                    return __(\Illuminate\Support\Str::headline(str_replace('-', ' ', $routeResource)));
+                    return \Illuminate\Support\Str::headline(str_replace('-', ' ', $routeResource));
                 })();
                 $breadcrumbs = [
                     [
-                        'label' => ui_phrase('breadcrumb_dashboard'),
+                        'label' => ui_phrase('Dashboard'),
                         'url' => \Illuminate\Support\Facades\Route::has('dashboard') ? route('dashboard') : url('/'),
                     ],
                 ];
@@ -533,14 +527,25 @@
                         'label' => $resourceLabel,
                         'url' => \Illuminate\Support\Facades\Route::has($indexRoute) ? route($indexRoute) : null,
                     ];
-                    $breadcrumbs[] = [
-                        'label' => $actionLabel,
-                    ];
+                    if (! in_array($routeAction, ['index'], true)) {
+                        $breadcrumbs[] = [
+                            'label' => $actionLabel,
+                        ];
+                    }
                 }
+                $backRoute = $routeResource . '.index';
+                $backUrl = \Illuminate\Support\Facades\Route::has($backRoute)
+                    ? route($backRoute)
+                    : url()->previous();
+                $showDefaultBackAction = in_array($routeAction, ['show', 'edit', 'create'], true)
+                    && ! str_contains($rawPageActions, 'data-page-back-action');
             @endphp
             @unless ($hidePageHeader)
                 <section class="mb-4 sm:mb-5">
                     <x-page-header :title="$pageTitle" :description="$pageSubtitle" :breadcrumbs="$breadcrumbs">
+                        @if ($showDefaultBackAction)
+                            <a href="{{ $backUrl }}" class="btn-ghost" data-page-back-action>{{ ui_phrase('Back') }}</a>
+                        @endif
                         @hasSection('page_actions')
                             @yield('page_actions')
                         @endif
@@ -557,15 +562,15 @@
 <div id="pwa-install-banner" class="pwa-install-banner hidden" role="dialog" aria-live="polite" aria-label="Install app banner">
     <div class="pwa-install-banner__card">
         <div class="pwa-install-banner__header">
-            <p class="pwa-install-banner__title">{{ __('Install Aplikasi') }}</p>
+            <p class="pwa-install-banner__title">{{ ui_phrase('Install Aplikasi') }}</p>
             <button type="button" id="pwa-install-close" class="pwa-install-banner__close" aria-label="Tutup banner install">
                 <i class="fa-solid fa-xmark"></i>
             </button>
         </div>
         <p id="pwa-install-message" class="pwa-install-banner__message"></p>
         <div class="pwa-install-banner__actions">
-            <button type="button" id="pwa-install-action" class="btn-primary-sm hidden">{{ __('Install Sekarang') }}</button>
-            <button type="button" id="pwa-install-later" class="btn-ghost-sm">{{ __('Nanti') }}</button>
+            <button type="button" id="pwa-install-action" class="btn-primary-sm hidden">{{ ui_phrase('Install Sekarang') }}</button>
+            <button type="button" id="pwa-install-later" class="btn-ghost-sm">{{ ui_phrase('Nanti') }}</button>
         </div>
     </div>
 </div>
@@ -1280,11 +1285,11 @@
                 return;
             }
 
-            const title = @json(__('New quotation needs approval'));
-            const bodyWithNumberTemplate = @json(__('Quotation :number requires your approval.'));
+            const title = @json(ui_phrase('New quotation needs approval'));
+            const bodyWithNumberTemplate = @json(ui_phrase('Quotation :number requires your approval.'));
             const body = quotationNumber
                 ? bodyWithNumberTemplate.replace(':number', quotationNumber)
-                : @json(__('A new quotation requires your approval.'));
+                : @json(ui_phrase('A new quotation requires your approval.'));
 
             const trigger = () => {
                 try {
@@ -1426,9 +1431,9 @@
             const safeType = String(itemType || '').trim() || 'item';
             const safeName = String(itemName || '').trim() || 'manual item';
             const safeCreator = String(creatorName || '').trim();
-            const title = @json(__('Manual item needs validation'));
-            const bodyWithCreatorTemplate = @json(__(':type: :name was created by :creator.'));
-            const bodyWithoutCreatorTemplate = @json(__(':type: :name was created and needs validation.'));
+            const title = @json(ui_phrase('Manual item needs validation'));
+            const bodyWithCreatorTemplate = @json(ui_phrase(':type: :name was created by :creator.'));
+            const bodyWithoutCreatorTemplate = @json(ui_phrase(':type: :name was created and needs validation.'));
             const body = safeCreator !== ''
                 ? bodyWithCreatorTemplate
                     .replace(':type', safeType.toUpperCase())
@@ -1584,7 +1589,7 @@
             fullscreenToggleBtn.classList.remove('hidden');
             const active = fullscreenPreferenceOn || isFullscreenNow();
             fullscreenIconNode.className = active ? 'fa-solid fa-compress' : 'fa-solid fa-expand';
-            fullscreenToggleBtn.title = active ? @json(__('Disable fullscreen')) : @json(__('Enable fullscreen'));
+            fullscreenToggleBtn.title = active ? @json(ui_phrase('Disable fullscreen')) : @json(ui_phrase('Enable fullscreen'));
             fullscreenToggleBtn.setAttribute('aria-label', fullscreenToggleBtn.title);
         };
 

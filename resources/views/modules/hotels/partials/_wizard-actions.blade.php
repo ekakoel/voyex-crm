@@ -8,7 +8,7 @@
         @endif
     </div>
     <div class="flex items-center gap-2">
-        <button type="submit" class="btn-primary-sm">{{ __('Save') }}</button>
-        <button type="submit" name="stay" value="1" class="btn-outline-sm">{{ __('Save & Stay') }}</button>
+        <button type="submit" class="btn-primary-sm">{{ ui_phrase('Save') }}</button>
+        <button type="submit" name="stay" value="1" class="btn-outline-sm">{{ ui_phrase('Save & Stay') }}</button>
     </div>
 </div>

@@ -12,12 +12,12 @@
                     <thead>
                         <tr>
                             <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">#</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('modules_activities_activity') }}</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('common_type') }}</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('common_duration') }}</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('modules_activities_rate_per_pax') }}</th>
-                            <th class="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('common_status') }}</th>
-                            <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300 actions-compact">{{ ui_phrase('common_actions') }}</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('Activity') }}</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('Type') }}</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('Duration') }}</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('rate per pax') }}</th>
+                            <th class="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('Status') }}</th>
+                            <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300 actions-compact">{{ ui_phrase('Actions') }}</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
@@ -70,19 +70,19 @@
                                 </td>
                                 <td class="px-4 py-3 text-right text-sm actions-compact">
                                     <div class="flex items-center justify-end gap-2">
-                                        <a href="{{ route('activities.show', $activity->id) }}" class="btn-outline-sm" title="{{ ui_phrase('common_detail') }}" aria-label="{{ ui_phrase('common_detail') }}"><i class="fa-solid fa-eye"></i><span class="sr-only">{{ ui_phrase('common_detail') }}</span></a>
-                                        <a href="{{ route('activities.edit', $activity) }}" class="btn-secondary-sm" title="{{ ui_phrase('common_edit') }}" aria-label="{{ ui_phrase('common_edit') }}"><i class="fa-solid fa-pen"></i><span class="sr-only">{{ ui_phrase('common_edit') }}</span></a>
+                                        <a href="{{ route('activities.show', $activity->id) }}" class="btn-outline-sm" title="{{ ui_phrase('Detail') }}" aria-label="{{ ui_phrase('Detail') }}"><i class="fa-solid fa-eye"></i><span class="sr-only">{{ ui_phrase('Detail') }}</span></a>
+                                        <a href="{{ route('activities.edit', $activity) }}" class="btn-secondary-sm" title="{{ ui_phrase('Edit') }}" aria-label="{{ ui_phrase('Edit') }}"><i class="fa-solid fa-pen"></i><span class="sr-only">{{ ui_phrase('Edit') }}</span></a>
                                         <form action="{{ route('activities.toggle-status', $activity->id) }}" method="POST" class="inline">
                                             @csrf
                                             @method('PATCH')
-                                            <button type="submit" onclick="return confirm('{{ $isActive ? ui_phrase('modules_activities_confirm_deactivate') : ui_phrase('modules_activities_confirm_activate') }}')" class="{{ $isActive ? 'btn-muted-sm' : 'btn-primary-sm' }}">{{ $isActive ? ui_phrase('common_deactivate') : ui_phrase('common_activate') }}</button>
+                                            <button type="submit" onclick="return confirm('{{ $isActive ? ui_phrase('confirm deactivate') : ui_phrase('confirm activate') }}')" class="{{ $isActive ? 'btn-muted-sm' : 'btn-primary-sm' }}">{{ $isActive ? ui_phrase('Deactivate') : ui_phrase('Activate') }}</button>
                                         </form>
                                     </div>
                                 </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="8" class="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">{{ ui_phrase('index_no_data_available', ['entity' => ui_phrase('entities_activities')]) }}</td>
+                                <td colspan="8" class="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">{{ ui_phrase('No :entity available.', ['entity' => ui_phrase('Activities')]) }}</td>
                             </tr>
                         @endforelse
                     </tbody>
@@ -108,9 +108,9 @@
                         <span class="text-xs font-medium rounded-full bg-gray-100 px-2 py-0.5 text-gray-700 dark:bg-gray-900/40 dark:text-gray-300">{{ $activity->activityType->name ?? $activity->activity_type ?? '-' }}</span>
                     </div>
                     <div class="mt-3 grid grid-cols-2 gap-2 text-xs text-gray-600 dark:text-gray-300">
-                        <div>{{ ui_phrase('common_duration') }}</div>
+                        <div>{{ ui_phrase('Duration') }}</div>
                         <div>{{ $activity->duration_minutes }} min</div>
-                        <div>{{ ui_phrase('common_rate') }}</div>
+                        <div>{{ ui_phrase('Rate') }}</div>
                         <div>
                             @if ($activity->adult_contract_rate !== null)
                                 <div>ACR: <x-money :amount="(float) $activity->adult_contract_rate" currency="IDR" /></div>
@@ -137,21 +137,21 @@
                                 <div>CPR: <x-money :amount="(float) $activity->child_publish_rate" currency="IDR" /></div>
                             @endif
                         </div>
-                        <div>{{ ui_phrase('common_status') }}</div>
+                        <div>{{ ui_phrase('Status') }}</div>
                         <div><x-status-badge :status="$activity->trashed() ? 'inactive' : 'active'" size="xs" /></div>
                     </div>
                     <div class="mt-3 flex flex-wrap gap-2">
-                        <a href="{{ route('activities.show', $activity->id) }}" class="btn-outline-sm" title="{{ ui_phrase('common_detail') }}" aria-label="{{ ui_phrase('common_detail') }}"><i class="fa-solid fa-eye"></i><span class="sr-only">{{ ui_phrase('common_detail') }}</span></a>
-                        <a href="{{ route('activities.edit', $activity) }}" class="btn-secondary-sm" title="{{ ui_phrase('common_edit') }}" aria-label="{{ ui_phrase('common_edit') }}"><i class="fa-solid fa-pen"></i><span class="sr-only">{{ ui_phrase('common_edit') }}</span></a>
+                        <a href="{{ route('activities.show', $activity->id) }}" class="btn-outline-sm" title="{{ ui_phrase('Detail') }}" aria-label="{{ ui_phrase('Detail') }}"><i class="fa-solid fa-eye"></i><span class="sr-only">{{ ui_phrase('Detail') }}</span></a>
+                        <a href="{{ route('activities.edit', $activity) }}" class="btn-secondary-sm" title="{{ ui_phrase('Edit') }}" aria-label="{{ ui_phrase('Edit') }}"><i class="fa-solid fa-pen"></i><span class="sr-only">{{ ui_phrase('Edit') }}</span></a>
                         <form action="{{ route('activities.toggle-status', $activity->id) }}" method="POST" class="inline">
                             @csrf
                             @method('PATCH')
-                            <button type="submit" onclick="return confirm('{{ $activity->trashed() ? ui_phrase('modules_activities_confirm_activate') : ui_phrase('modules_activities_confirm_deactivate') }}')" class="{{ $activity->trashed() ? 'btn-primary-sm' : 'btn-muted-sm' }}">{{ $activity->trashed() ? ui_phrase('common_activate') : ui_phrase('common_deactivate') }}</button>
+                            <button type="submit" onclick="return confirm('{{ $activity->trashed() ? ui_phrase('confirm activate') : ui_phrase('confirm deactivate') }}')" class="{{ $activity->trashed() ? 'btn-primary-sm' : 'btn-muted-sm' }}">{{ $activity->trashed() ? ui_phrase('Activate') : ui_phrase('Deactivate') }}</button>
                         </form>
                     </div>
                 </div>
             @empty
-                <div class="app-card p-6 text-center text-sm text-gray-500 dark:text-gray-400">{{ ui_phrase('index_no_data_available', ['entity' => ui_phrase('entities_activities')]) }}</div>
+                <div class="app-card p-6 text-center text-sm text-gray-500 dark:text-gray-400">{{ ui_phrase('No :entity available.', ['entity' => ui_phrase('Activities')]) }}</div>
             @endforelse
         </div>
         <div>{{ $activities->links() }}</div>

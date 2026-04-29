@@ -1,5 +1,5 @@
 @php
-    $buttonLabel = $buttonLabel ?? 'Save';
+    $buttonLabel = $buttonLabel ?? ui_phrase('Save');
     $sourceLabels = $sourceLabels ?? [];
     $customerLabels = collect($customers ?? [])->mapWithKeys(function ($customer) {
         $label = '(' . ($customer->code ?? '-') . ') ' . $customer->name;
@@ -14,13 +14,13 @@
 
 <div class="module-form">
     <div>
-        <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Customer') }}</label>
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Customer:') }}</label>
         <input
             id="customer_label"
             type="text"
             list="customer-options"
             class="mt-1 app-input"
-            placeholder="{{ __('Select customer') }}"
+            placeholder="{{ ui_phrase('select customer') }}"
             value="{{ $selectedCustomerLabel }}"
             data-datalist-input="1"
             data-hidden-target="customer_id"
@@ -37,17 +37,17 @@
             <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
         @enderror
         <p id="customer-invalid-message" class="mt-1 text-xs text-rose-600 hidden">
-            Invalid customer. Please select one from the available list.
+            {{ ui_phrase('invalid customer message') }}
         </p>
     </div>
 
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Source') }}</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Source') }}</label>
             <select name="source" class="mt-1 app-input">
                 <option value="">-</option>
                 @foreach (($sourceLabels ?? []) as $value => $label)
-                    <option value="{{ $value }}" @selected(old('source', $inquiry->source ?? '') === $value)>{{ $label }}</option>
+                    <option value="{{ $value }}" @selected(old('source', $inquiry->source ?? '') === $value)>{{ ui_phrase((string) $value) }}</option>
                 @endforeach
             </select>
             @error('source')
@@ -56,7 +56,7 @@
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Deadline') }}</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Deadline') }}</label>
             <input
                 name="deadline"
                 type="date"
@@ -69,27 +69,12 @@
         </div>
     </div>
 
-    @if (!empty($canAssignToReservation))
-        <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Assign To (Reservation)') }}</label>
-            <select name="assigned_to" class="mt-1 app-input" required>
-                <option value="">{{ __('Select reservation') }}</option>
-                @foreach (($assignees ?? []) as $user)
-                    <option value="{{ $user->id }}" @selected((string) old('assigned_to', $inquiry->assigned_to ?? '') === (string) $user->id)>{{ $user->name }}</option>
-                @endforeach
-            </select>
-            @error('assigned_to')
-                <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
-            @enderror
-        </div>
-    @endif
-
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-1">
         <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Priority') }}</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Priority') }}</label>
             <select name="priority" class="mt-1 app-input" required>
                 @foreach (['low','normal','high'] as $priority)
-                    <option value="{{ $priority }}" @selected(old('priority', $inquiry->priority ?? 'normal') === $priority)>{{ $priority }}</option>
+                    <option value="{{ $priority }}" @selected(old('priority', $inquiry->priority ?? 'normal') === $priority)>{{ ui_phrase($priority) }}</option>
                 @endforeach
             </select>
             @error('priority')
@@ -99,35 +84,24 @@
     </div>
 
     <div>
-        <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Notes') }}</label>
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Notes') }}</label>
         <textarea
             name="notes"
             rows="4"
             class="mt-1 w-full app-input"
+            placeholder="{{ ui_phrase('write here') }}"
         >{{ old('notes', $inquiry->notes ?? '') }}</textarea>
         @error('notes')
             <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
         @enderror
     </div>
 
-    <div class="flex items-center gap-2">
-        <input
-            id="reminder_enabled"
-            name="reminder_enabled"
-            type="checkbox"
-            value="1"
-            class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-            @checked(old('reminder_enabled', $inquiry->reminder_enabled ?? true))
-        >
-        <label for="reminder_enabled" class="text-sm text-gray-700 dark:text-gray-200">{{ __('Enable email reminder') }}</label>
-    </div>
-
-    <div class="flex items-center gap-2">
+    <div class="flex items-center gap-2 mt-4">
         <button type="submit"  class="btn-primary">
             {{ $buttonLabel }}
         </button>
         <a href="{{ route('inquiries.index') }}"  class="btn-secondary">
-            Cancel
+            {{ ui_phrase('Cancel') }}
         </a>
     </div>
 </div>
@@ -191,7 +165,3 @@
         </script>
     @endpush
 @endonce
-
-
-
-

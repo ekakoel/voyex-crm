@@ -93,7 +93,7 @@ class TouristAttractionController extends Controller
         if (! $googlePlacesService->isConfigured()) {
             return redirect()
                 ->route('tourist-attractions.index')
-                ->with('error', ui_phrase('modules_tourist_attractions_messages_google_places_not_configured'));
+                ->with('error', ui_phrase('Google Places API key is not configured. Please set GOOGLE MAPS PLACES API KEY first.'));
         }
 
         $validated = $request->validate([
@@ -113,7 +113,7 @@ class TouristAttractionController extends Controller
         if (! $destination) {
             return redirect()
                 ->route('tourist-attractions.index')
-                ->with('error', ui_phrase('modules_tourist_attractions_messages_destination_not_found'));
+                ->with('error', ui_phrase('Destination not found or inactive.'));
         }
 
         try {
@@ -127,7 +127,7 @@ class TouristAttractionController extends Controller
                 'dry_run' => $request->boolean('dry_run'),
             ]);
 
-            $message = ui_phrase('modules_tourist_attractions_messages_google_places_import_summary', [
+            $message = ui_phrase('Import completed for :destination. fetched=:fetched, created=:created, updated=:updated, skipped=:skipped, invalid=:invalid.', [
                 'destination' => (string) $summary['destination_name'],
                 'fetched' => (int) $summary['fetched'],
                 'created' => (int) $summary['created'],
@@ -136,7 +136,7 @@ class TouristAttractionController extends Controller
                 'invalid' => (int) $summary['invalid'],
             ]);
             if ($request->boolean('dry_run')) {
-                $message .= ' ' . ui_phrase('modules_tourist_attractions_messages_google_places_dry_run_note');
+                $message .= ' ' . ui_phrase('(dry run: no data saved)');
             }
 
             return redirect()
@@ -145,7 +145,7 @@ class TouristAttractionController extends Controller
         } catch (\Throwable $exception) {
             return redirect()
                 ->route('tourist-attractions.index')
-                ->with('error', ui_phrase('modules_tourist_attractions_messages_google_places_import_failed') . ' ' . $exception->getMessage());
+                ->with('error', ui_phrase('Google Places import failed:') . ' ' . $exception->getMessage());
         }
     }
 
@@ -167,7 +167,7 @@ class TouristAttractionController extends Controller
 
         TouristAttraction::query()->create($validated);
 
-        return redirect()->route('tourist-attractions.index')->with('success', ui_phrase('modules_tourist_attractions_messages_created'));
+        return redirect()->route('tourist-attractions.index')->with('success', ui_phrase('Tourist attraction created successfully.'));
     }
 
     public function edit(TouristAttraction $touristAttraction)
@@ -201,7 +201,7 @@ class TouristAttractionController extends Controller
 
         $touristAttraction->update($validated);
 
-        return redirect()->route('tourist-attractions.index')->with('success', ui_phrase('modules_tourist_attractions_messages_updated'));
+        return redirect()->route('tourist-attractions.index')->with('success', ui_phrase('Tourist attraction updated successfully.'));
     }
 
     public function destroy($touristAttraction)
@@ -217,11 +217,11 @@ class TouristAttractionController extends Controller
         if ($this->wantsAjaxFragment(request())) {
             return response()->json([
                 'success' => true,
-                'message' => ui_phrase('modules_tourist_attractions_messages_deleted'),
+                'message' => ui_phrase('Tourist attraction deleted successfully.'),
             ]);
         }
 
-        return redirect()->route('tourist-attractions.index')->with('success', ui_phrase('modules_tourist_attractions_messages_deleted'));
+        return redirect()->route('tourist-attractions.index')->with('success', ui_phrase('Tourist attraction deleted successfully.'));
     }
 
     public function toggleStatus($touristAttraction)
@@ -235,13 +235,13 @@ class TouristAttractionController extends Controller
                 return response()->json([
                     'success' => true,
                     'status' => 'active',
-                    'message' => ui_phrase('modules_tourist_attractions_messages_activated'),
+                    'message' => ui_phrase('Tourist attraction activated successfully.'),
                 ]);
             }
 
             return redirect()
                 ->route('tourist-attractions.index')
-                ->with('success', ui_phrase('modules_tourist_attractions_messages_activated'));
+                ->with('success', ui_phrase('Tourist attraction activated successfully.'));
         }
 
         $touristAttraction->update(['is_active' => false]);
@@ -251,13 +251,13 @@ class TouristAttractionController extends Controller
             return response()->json([
                 'success' => true,
                 'status' => 'inactive',
-                'message' => ui_phrase('modules_tourist_attractions_messages_deactivated'),
+                'message' => ui_phrase('Tourist attraction deactivated successfully.'),
             ]);
         }
 
         return redirect()
             ->route('tourist-attractions.index')
-            ->with('success', ui_phrase('modules_tourist_attractions_messages_deactivated'));
+            ->with('success', ui_phrase('Tourist attraction deactivated successfully.'));
     }
 
     public function removeGalleryImage(Request $request, TouristAttraction $touristAttraction)

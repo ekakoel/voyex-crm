@@ -1,12 +1,12 @@
 @extends('layouts.master')
 
-@section('page_title', ui_phrase('administrator_dashboard_page_title'))
-@section('page_subtitle', ui_phrase('administrator_dashboard_page_subtitle'))
+@section('page_title', ui_phrase('Administrator Dashboard'))
+@section('page_subtitle', ui_phrase('Overview of system management, operations, and master data.'))
 @section('page_actions')
     <div class="flex items-center gap-2">
         @if($canUsers)
             <a href="{{ route('users.create') }}" class="btn-primary">
-                <i class="fa-solid fa-plus-circle mr-2"></i>{{ ui_phrase('new_user') }}
+                <i class="fa-solid fa-plus-circle mr-2"></i>{{ ui_phrase('New User') }}
             </a>
         @endif
     </div>
@@ -18,51 +18,51 @@
         <section class="xl:col-span-9 space-y-3">
             <section class="sa-card p-5 dashboard-widget" data-dashboard-widget="system-management" data-endpoint="{{ $widgetEndpoints['system-management'] ?? '' }}">
                 <div class="dashboard-widget-body">
-                    @include('administrator.dashboard.partials._skeleton', ['title' => ui_phrase('administrator_dashboard_sections_system_management')])
+                    @include('administrator.dashboard.partials._skeleton', ['title' => ui_phrase('System Management')])
                 </div>
             </section>
 
             <section class="sa-card p-5 dashboard-widget" data-dashboard-widget="operational-overview" data-endpoint="{{ $widgetEndpoints['operational-overview'] ?? '' }}">
                 <div class="dashboard-widget-body">
-                    @include('administrator.dashboard.partials._skeleton', ['title' => ui_phrase('administrator_dashboard_sections_operational_overview')])
+                    @include('administrator.dashboard.partials._skeleton', ['title' => ui_phrase('Operational Overview')])
                 </div>
             </section>
 
             <section class="sa-card p-5 dashboard-widget" data-dashboard-widget="master-data-catalog" data-endpoint="{{ $widgetEndpoints['master-data-catalog'] ?? '' }}">
                 <div class="dashboard-widget-body">
-                    @include('administrator.dashboard.partials._skeleton', ['title' => ui_phrase('administrator_dashboard_sections_master_data_catalog')])
+                    @include('administrator.dashboard.partials._skeleton', ['title' => ui_phrase('Master Data Catalog')])
                 </div>
             </section>
         </section>
 
         <aside class="xl:col-span-3 space-y-3">
             <div class="sa-card p-4">
-                <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100">{{ ui_phrase('administrator_dashboard_sections_quick_actions') }}</h3>
+                <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100">{{ ui_phrase('Quick Actions') }}</h3>
                 <div class="mt-3 grid grid-cols-2 gap-2">
                     @if($canUsers)
-                    <a href="{{ route('users.index') }}" class="btn-secondary-sm text-center"><i class="fa-solid fa-user-gear mr-2"></i>{{ ui_term('users') }}</a>
+                    <a href="{{ route('users.index') }}" class="btn-secondary-sm text-center"><i class="fa-solid fa-user-gear mr-2"></i>{{ ui_phrase('users') }}</a>
                     @endif
                     @if($canRoles)
-                    <a href="{{ route('roles.index') }}" class="btn-secondary-sm text-center"><i class="fa-solid fa-user-shield mr-2"></i>{{ ui_term('roles') }}</a>
+                    <a href="{{ route('roles.index') }}" class="btn-secondary-sm text-center"><i class="fa-solid fa-user-shield mr-2"></i>{{ ui_phrase('roles') }}</a>
                     @endif
                     @if($canServices)
-                    <a href="{{ route('services.index') }}" class="btn-secondary-sm text-center"><i class="fa-solid fa-cubes mr-2"></i>{{ ui_term('modules') }}</a>
+                    <a href="{{ route('services.index') }}" class="btn-secondary-sm text-center"><i class="fa-solid fa-cubes mr-2"></i>{{ ui_phrase('modules') }}</a>
                     @endif
                     @if($canVendors)
-                    <a href="{{ route('vendors.index') }}" class="btn-secondary-sm text-center"><i class="fa-solid fa-handshake mr-2"></i>{{ ui_term('vendors') }}</a>
+                    <a href="{{ route('vendors.index') }}" class="btn-secondary-sm text-center"><i class="fa-solid fa-handshake mr-2"></i>{{ ui_phrase('vendors') }}</a>
                     @endif
                 </div>
             </div>
 
             <section class="sa-card p-4 dashboard-widget" data-dashboard-widget="pending-quotations" data-endpoint="{{ $widgetEndpoints['pending-quotations'] ?? '' }}">
                 <div class="dashboard-widget-body">
-                    @include('administrator.dashboard.partials._skeleton', ['title' => ui_phrase('administrator_dashboard_sections_pending_quotations'), 'compact' => true])
+                    @include('administrator.dashboard.partials._skeleton', ['title' => ui_phrase('Pending Quotations'), 'compact' => true])
                 </div>
             </section>
 
             <section class="sa-card p-4 dashboard-widget" data-dashboard-widget="recent-users" data-endpoint="{{ $widgetEndpoints['recent-users'] ?? '' }}">
                 <div class="dashboard-widget-body">
-                    @include('administrator.dashboard.partials._skeleton', ['title' => ui_phrase('administrator_dashboard_sections_recently_updated_users'), 'compact' => true])
+                    @include('administrator.dashboard.partials._skeleton', ['title' => ui_phrase('Recently Updated Users'), 'compact' => true])
                 </div>
             </section>
         </aside>
@@ -74,8 +74,8 @@
 <script>
     (function () {
         const i18n = {
-            retry: @json(ui_phrase('retry')),
-            failed_to_load: @json(ui_phrase('failed_to_load_section')),
+            retry: @json(ui_phrase('Retry')),
+            failed_to_load: @json(ui_phrase('Failed to load this section.')),
         };
         const widgets = document.querySelectorAll('[data-dashboard-widget]');
         if (!widgets.length) return;

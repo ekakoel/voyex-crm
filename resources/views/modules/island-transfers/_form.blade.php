@@ -1,5 +1,5 @@
 @php
-    $buttonLabel = $buttonLabel ?? ui_phrase('modules_island_transfers_save_transfer');
+    $buttonLabel = $buttonLabel ?? ui_phrase('transfers save transfer');
     $islandTransfer = $islandTransfer ?? null;
     $defaultDepartureMapUrl = '';
     if (($islandTransfer?->departure_latitude ?? null) !== null && ($islandTransfer?->departure_longitude ?? null) !== null) {
@@ -48,7 +48,7 @@
 <div class="space-y-4">
     <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('common_gallery') }}</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Gallery') }}</label>
             <div id="island-transfer-gallery-preview"
                 class="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3"
                 data-remove-endpoint-template="{{ isset($islandTransfer) ? route('island-transfers.gallery-images.remove', $islandTransfer) : '' }}"
@@ -60,7 +60,7 @@
                         <button
                             type="button"
                             class="island-transfer-gallery-remove-btn absolute right-1 top-1 z-10 inline-flex h-6 w-6 items-center justify-center rounded-full bg-rose-600/95 text-xs font-bold text-white shadow hover:bg-rose-700"
-                            title="{{ __('Remove image') }}"
+                            title="{{ ui_phrase('Remove image') }}"
                             aria-label="Remove image">
                             X
                         </button>
@@ -70,7 +70,7 @@
                                     <path d="M4 7h3l2-2h6l2 2h3a1 1 0 0 1 1 1v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a1 1 0 0 1 1-1z"></path>
                                     <circle cx="12" cy="13" r="4"></circle>
                                 </svg>
-                                <span>{{ __('Select image to preview') }}</span>
+                                <span>{{ ui_phrase('Select image to preview') }}</span>
                             </div>
                             @if ($thumbUrl)
                                 <img
@@ -90,7 +90,7 @@
                                     <path d="M4 7h3l2-2h6l2 2h3a1 1 0 0 1 1 1v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a1 1 0 0 1 1-1z"></path>
                                     <circle cx="12" cy="13" r="4"></circle>
                                 </svg>
-                                <span>{{ __('Select image to preview') }}</span>
+                                <span>{{ ui_phrase('Select image to preview') }}</span>
                             </div>
                         </div>
                     </div>
@@ -105,15 +105,15 @@
 
     <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div>
-            <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ ui_phrase('modules_island_transfers_general_information') }}</p>
+            <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ ui_phrase('transfers general information') }}</p>
         </div>
     </div>
 
     <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('modules_island_transfers_vendor') }}</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('transfers vendor') }}</label>
             <select name="vendor_id" class="mt-1 dark:border-gray-600 app-input" required>
-                <option value="">{{ ui_phrase('modules_island_transfers_select_vendor') }}</option>
+                <option value="">{{ ui_phrase('transfers select vendor') }}</option>
                 @foreach ($vendors as $vendor)
                     <option value="{{ $vendor->id }}" @selected((int) old('vendor_id', $islandTransfer->vendor_id ?? 0) === (int) $vendor->id)>
                         {{ $vendor->name }}{{ ($vendor->city || $vendor->province) ? ' ('.trim(($vendor->city ?? '-').' / '.($vendor->province ?? '-')).')' : '' }}
@@ -123,7 +123,7 @@
             @error('vendor_id') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
         </div>
         <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('modules_island_transfers_transfer_name') }}</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('transfers transfer name') }}</label>
             <input name="name" value="{{ old('name', $islandTransfer->name ?? '') }}" class="mt-1 dark:border-gray-600 app-input" required>
             @error('name') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
         </div>
@@ -131,25 +131,31 @@
 
     <div class="grid grid-cols-1 gap-4 md:grid-cols-5">
         <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('modules_island_transfers_transfer_type') }}</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('transfers transfer type') }}</label>
             <select name="transfer_type" class="mt-1 dark:border-gray-600 app-input" required>
                 @foreach (['fastboat', 'ferry', 'speedboat', 'boat'] as $type)
                     <option value="{{ $type }}" @selected(old('transfer_type', $islandTransfer->transfer_type ?? 'fastboat') === $type)>
-                        {{ ui_phrase('modules_island_transfers_types' . $type) }}
+                        {{ ui_phrase(match ((string) $type) {
+                            'fastboat' => 'Fastboat',
+                            'ferry' => 'Ferry',
+                            'speedboat' => 'Speedboat',
+                            'boat' => 'Boat',
+                            default => (string) $type,
+                        }) }}
                     </option>
                 @endforeach
             </select>
             @error('transfer_type') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
         </div>
         <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('modules_island_transfers_duration_minutes') }}</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('transfers duration minutes') }}</label>
             <input name="duration_minutes" type="number" min="10" max="1440"
                 value="{{ old('duration_minutes', $islandTransfer->duration_minutes ?? 60) }}"
                 class="mt-1 dark:border-gray-600 app-input" required>
             @error('duration_minutes') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
         </div>
         <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('modules_island_transfers_distance') }} (km)</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('transfers distance') }} (km)</label>
             <input
                 name="distance_km"
                 type="number"
@@ -163,12 +169,12 @@
             @error('distance_km') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
         </div>
         <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('modules_island_transfers_capacity_min') }}</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('transfers capacity min') }}</label>
             <input name="capacity_min" type="number" min="1" value="{{ old('capacity_min', $islandTransfer->capacity_min ?? '') }}" class="mt-1 dark:border-gray-600 app-input">
             @error('capacity_min') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
         </div>
         <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('modules_island_transfers_capacity_max') }}</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('transfers capacity max') }}</label>
             <input name="capacity_max" type="number" min="1" value="{{ old('capacity_max', $islandTransfer->capacity_max ?? '') }}" class="mt-1 dark:border-gray-600 app-input">
             @error('capacity_max') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
         </div>
@@ -177,7 +183,7 @@
     <div class="grid grid-cols-1 gap-4 md:grid-cols-4">
         <div>
             <x-money-input
-                :label="ui_phrase('modules_island_transfers_contract_rate')"
+                :label="ui_phrase('transfers contract rate')"
                 name="contract_rate"
                 id="island-transfer-contract-rate"
                 :value="$contractRateValue"
@@ -187,16 +193,16 @@
             @error('contract_rate') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
         </div>
         <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('modules_island_transfers_markup_type') }}</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('transfers markup type') }}</label>
             <select name="markup_type" id="island-transfer-markup-type" class="mt-1 dark:border-gray-600 app-input">
-                <option value="fixed" @selected($defaultMarkupType === 'fixed')>{{ ui_phrase('common_fixed') }}</option>
-                <option value="percent" @selected($defaultMarkupType === 'percent')>{{ ui_phrase('common_percent') }}</option>
+                <option value="fixed" @selected($defaultMarkupType === 'fixed')>{{ ui_phrase('Fixed') }}</option>
+                <option value="percent" @selected($defaultMarkupType === 'percent')>{{ ui_phrase('Percent') }}</option>
             </select>
             @error('markup_type') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
         </div>
         <div>
             <x-money-input
-                :label="ui_phrase('modules_island_transfers_markup')"
+                :label="ui_phrase('transfers markup')"
                 name="markup"
                 id="island-transfer-markup"
                 :value="$defaultMarkup"
@@ -207,7 +213,7 @@
         </div>
         <div>
             <x-money-input
-                :label="ui_phrase('modules_island_transfers_publish_rate')"
+                :label="ui_phrase('transfers publish rate')"
                 name="publish_rate"
                 id="island-transfer-publish-rate"
                 :value="$publishRateValue"
@@ -220,10 +226,10 @@
     </div>
 
     <div class="rounded-lg border border-sky-200 bg-sky-50/70 p-4 dark:border-sky-700 dark:bg-sky-900/20">
-        <p class="mb-3 text-sm font-semibold text-sky-800 dark:text-sky-200">{{ ui_phrase('modules_island_transfers_departure_point') }}</p>
+        <p class="mb-3 text-sm font-semibold text-sky-800 dark:text-sky-200">{{ ui_phrase('transfers departure point') }}</p>
         <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
             <div class="md:col-span-3">
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('modules_island_transfers_departure_google_maps_url') }}</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('transfers departure google maps url') }}</label>
                 <div class="mt-1 flex flex-col gap-2 sm:flex-row sm:items-center">
                     <input
                         type="url"
@@ -238,25 +244,25 @@
                         class="btn-outline-sm w-full justify-center sm:w-auto"
                         data-map-url-autofill="departure"
                     >
-                        {{ ui_phrase('modules_island_transfers_auto_fill_coordinates') }}
+                        {{ ui_phrase('transfers auto fill coordinates') }}
                     </button>
                 </div>
-                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ ui_phrase('modules_island_transfers_google_maps_url_helper') }}</p>
+                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ ui_phrase('transfers google maps url helper') }}</p>
             </div>
             <div class="md:col-span-1">
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('modules_island_transfers_departure_name') }}</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('transfers departure name') }}</label>
                 <input name="departure_point_name" value="{{ old('departure_point_name', $islandTransfer->departure_point_name ?? '') }}"
                     class="mt-1 dark:border-gray-600 app-input" required>
                 @error('departure_point_name') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
             </div>
             <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('modules_island_transfers_departure_latitude') }}</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('transfers departure latitude') }}</label>
                 <input name="departure_latitude" value="{{ old('departure_latitude', $islandTransfer->departure_latitude ?? '') }}" data-coordinate-target="departure-latitude"
                     class="mt-1 dark:border-gray-600 app-input" required>
                 @error('departure_latitude') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
             </div>
             <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('modules_island_transfers_departure_longitude') }}</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('transfers departure longitude') }}</label>
                 <input name="departure_longitude" value="{{ old('departure_longitude', $islandTransfer->departure_longitude ?? '') }}" data-coordinate-target="departure-longitude"
                     class="mt-1 dark:border-gray-600 app-input" required>
                 @error('departure_longitude') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
@@ -265,10 +271,10 @@
     </div>
 
     <div class="rounded-lg border border-emerald-200 bg-emerald-50/70 p-4 dark:border-emerald-700 dark:bg-emerald-900/20">
-        <p class="mb-3 text-sm font-semibold text-emerald-800 dark:text-emerald-200">{{ ui_phrase('modules_island_transfers_arrival_point') }}</p>
+        <p class="mb-3 text-sm font-semibold text-emerald-800 dark:text-emerald-200">{{ ui_phrase('transfers arrival point') }}</p>
         <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
             <div class="md:col-span-3">
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('modules_island_transfers_arrival_google_maps_url') }}</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('transfers arrival google maps url') }}</label>
                 <div class="mt-1 flex flex-col gap-2 sm:flex-row sm:items-center">
                     <input
                         type="url"
@@ -283,25 +289,25 @@
                         class="btn-outline-sm w-full justify-center sm:w-auto"
                         data-map-url-autofill="arrival"
                     >
-                        {{ ui_phrase('modules_island_transfers_auto_fill_coordinates') }}
+                        {{ ui_phrase('transfers auto fill coordinates') }}
                     </button>
                 </div>
-                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ ui_phrase('modules_island_transfers_google_maps_url_helper') }}</p>
+                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ ui_phrase('transfers google maps url helper') }}</p>
             </div>
             <div class="md:col-span-1">
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('modules_island_transfers_arrival_name') }}</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('transfers arrival name') }}</label>
                 <input name="arrival_point_name" value="{{ old('arrival_point_name', $islandTransfer->arrival_point_name ?? '') }}"
                     class="mt-1 dark:border-gray-600 app-input" required>
                 @error('arrival_point_name') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
             </div>
             <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('modules_island_transfers_arrival_latitude') }}</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('transfers arrival latitude') }}</label>
                 <input name="arrival_latitude" value="{{ old('arrival_latitude', $islandTransfer->arrival_latitude ?? '') }}" data-coordinate-target="arrival-latitude"
                     class="mt-1 dark:border-gray-600 app-input" required>
                 @error('arrival_latitude') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
             </div>
             <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('modules_island_transfers_arrival_longitude') }}</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('transfers arrival longitude') }}</label>
                 <input name="arrival_longitude" value="{{ old('arrival_longitude', $islandTransfer->arrival_longitude ?? '') }}" data-coordinate-target="arrival-longitude"
                     class="mt-1 dark:border-gray-600 app-input" required>
                 @error('arrival_longitude') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
@@ -310,18 +316,18 @@
     </div>
 
     <div>
-        <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('modules_island_transfers_route_geojson_optional') }}</label>
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('transfers route geojson optional') }}</label>
         <textarea name="route_geojson" rows="6" data-wysiwyg="false"
             class="mt-1 app-input font-mono"
             placeholder='{"type":"LineString","coordinates":[[115.2634,-8.6901],[115.4501,-8.7348]]}'>{{ $routeGeoJsonValue }}</textarea>
         <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-            {{ ui_phrase('modules_island_transfers_route_geojson_helper') }}
+            {{ ui_phrase('transfers route geojson helper') }}
         </p>
         @error('route_geojson') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
     </div>
 
     <div>
-        <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('modules_island_transfers_notes') }}</label>
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('transfers notes') }}</label>
         <textarea name="notes" rows="3" class="mt-1 app-input">{{ old('notes', $islandTransfer->notes ?? '') }}</textarea>
         @error('notes') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
     </div>
@@ -329,12 +335,12 @@
     <div class="flex items-center gap-2">
         <input type="checkbox" name="is_active" value="1" class="rounded border-gray-300 text-indigo-600"
             @checked(old('is_active', $islandTransfer->is_active ?? true))>
-        <span class="text-sm text-gray-700 dark:text-gray-200">{{ ui_phrase('modules_island_transfers_active') }}</span>
+        <span class="text-sm text-gray-700 dark:text-gray-200">{{ ui_phrase('transfers active') }}</span>
     </div>
 
     <div class="flex items-center gap-2">
         <button class="btn-primary">{{ $buttonLabel }}</button>
-        <a href="{{ route('island-transfers.index') }}" class="btn-secondary">{{ ui_phrase('modules_island_transfers_cancel') }}</a>
+        <a href="{{ route('island-transfers.index') }}" class="btn-secondary">{{ ui_phrase('transfers cancel') }}</a>
     </div>
 </div>
 
@@ -584,7 +590,7 @@
                     elements.trigger.addEventListener('click', () => {
                         const coordinates = extractCoordinatesFromGoogleMapsUrl(elements.source.value);
                         if (!coordinates) {
-                            window.alert(@json(ui_phrase('modules_island_transfers_invalid_google_maps_url')));
+                            window.alert(@json(ui_phrase('transfers invalid google maps url')));
                             elements.source.focus();
                             return;
                         }

@@ -8,7 +8,7 @@
     <div class="space-y-4">
         <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Vendor / Provider Name') }}</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Vendor / Provider Name') }}</label>
                 <input name="name" value="{{ old('name', $vendor->name ?? '') }}"
                     class="mt-1 dark:border-gray-600 app-input" required>
                 @error('name')
@@ -34,7 +34,7 @@
         <input type="hidden" id="location" data-location-field="location" name="location"
             value="{{ old('location', $vendor->location ?? '') }}">
         <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Timezone') }}</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Timezone') }}</label>
             <input name="timezone" data-location-field="timezone"
                 value="{{ old('timezone', $vendor->timezone ?? '') }}" class="mt-1 dark:border-gray-600 app-input">
             @error('timezone')
@@ -43,23 +43,23 @@
         </div>
         <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Contact Name') }}</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Contact Name') }}</label>
                 <input name="contact_name" value="{{ old('contact_name', $vendor->contact_name ?? '') }}"
                     class="mt-1 dark:border-gray-600 app-input">
             </div>
             <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Contact Email') }}</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Contact Email') }}</label>
                 <input name="contact_email" type="email"
                     value="{{ old('contact_email', $vendor->contact_email ?? '') }}"
                     class="mt-1 dark:border-gray-600 app-input">
             </div>
             <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Contact Phone') }}</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Contact Phone') }}</label>
                 <input name="contact_phone" value="{{ old('contact_phone', $vendor->contact_phone ?? '') }}"
                     class="mt-1 dark:border-gray-600 app-input">
             </div>
             <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Website') }}</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Website') }}</label>
                 <input name="website" type="url" value="{{ old('website', $vendor->website ?? '') }}"
                     placeholder="{{ __('https://example.com') }}" class="mt-1 dark:border-gray-600 app-input">
                 @error('website')
@@ -69,12 +69,12 @@
             <div class="flex items-center gap-2 mt-6">
                 <input type="checkbox" name="is_active" value="1"
                     class="rounded border-gray-300 text-indigo-600" @checked(old('is_active', $vendor->is_active ?? true))>
-                <span class="text-sm text-gray-700 dark:text-gray-200">{{ __('Active') }}</span>
+                <span class="text-sm text-gray-700 dark:text-gray-200">{{ ui_phrase('Active') }}</span>
             </div>
         </div>
         <div class="flex items-center gap-2">
             <button class="btn-primary">{{ $buttonLabel }}</button>
-            <a href="{{ route('vendors.index') }}" class="btn-secondary">{{ __('Cancel') }}</a>
+            <a href="{{ route('vendors.index') }}" class="btn-secondary">{{ ui_phrase('Cancel') }}</a>
         </div>
     </div>
 </div>

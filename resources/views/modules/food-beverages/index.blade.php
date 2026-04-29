@@ -2,7 +2,7 @@
 @section('page_title', 'Food & Beverage')
 @section('page_subtitle', 'Manage food & beverage data.')
 @section('page_actions')
-    <a href="{{ route('food-beverages.create') }}" class="btn-primary">{{ __('Add F&B') }}</a>
+    <a href="{{ route('food-beverages.create') }}" class="btn-primary">{{ ui_phrase('Add F&B') }}</a>
 @endsection
 @section('content')
     @php
@@ -28,18 +28,18 @@
             <aside class="module-grid-side space-y-4">
                 <div class="app-card p-5 space-y-4">
                     <div>
-                        <h2 class="text-base font-semibold text-gray-800 dark:text-gray-100">{{ __('Filters') }}</h2>
+                        <h2 class="text-base font-semibold text-gray-800 dark:text-gray-100">{{ ui_phrase('Filters') }}</h2>
                         <p class="text-sm text-gray-500 dark:text-gray-400">{{ __('Refine your list quickly.') }}</p>
                     </div>
                     <form method="GET" action="{{ route('food-beverages.index') }}" class="grid grid-cols-1 gap-3 sm:grid-cols-2" data-service-filter-form data-disable-submit-lock="1" data-page-spinner="off">
                         <select name="vendor_id" class="app-input" data-service-filter-input>
-                            <option value="">{{ __('All Vendors') }}</option>
+                            <option value="">{{ ui_phrase('All Vendors') }}</option>
                             @foreach ($vendors as $vendor)
                                 <option value="{{ $vendor->id }}" @selected((string) request('vendor_id') === (string) $vendor->id)>{{ $vendor->name }}</option>
                             @endforeach
                         </select>
                         <select name="service_type" class="app-input" data-service-filter-input>
-                            <option value="">{{ __('All Types') }}</option>
+                            <option value="">{{ ui_phrase('All Types') }}</option>
                             @foreach ($types as $type)
                                 <option value="{{ $type['value'] }}" @selected((string) request('service_type') === (string) $type['value'])>{{ $type['label'] }}</option>
                             @endforeach
@@ -50,7 +50,7 @@
                             @endforeach
                         </select>
                         <div class="flex items-center gap-2 sm:col-span-2 filter-actions">
-                            <a href="{{ route('food-beverages.index') }}" class="btn-ghost" data-service-filter-reset>{{ __('Reset') }}</a>
+                            <a href="{{ route('food-beverages.index') }}" class="btn-ghost" data-service-filter-reset>{{ ui_phrase('Reset') }}</a>
                         </div>
                     </form>
                 </div>
@@ -65,12 +65,12 @@
                 <thead>
                     <tr>
                         <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">#</th>
-                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ __('Service') }}</th>
-                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ __('Type') }}</th>
-                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ __('Duration') }}</th>
-                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ __('Rate / Pax') }}</th>
-                        <th class="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ __('Status') }}</th>
-                        <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300 actions-compact">{{ __('Actions') }}</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('Service') }}</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('Type') }}</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('Duration') }}</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('Rate / Pax') }}</th>
+                        <th class="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('Status') }}</th>
+                        <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300 actions-compact">{{ ui_phrase('Actions') }}</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
@@ -118,7 +118,7 @@
                                             {{ $session['label'] }}
                                         </span>
                                     @empty
-                                        <span class="text-[11px] text-gray-500 dark:text-gray-400">{{ __('Meal: -') }}</span>
+                                        <span class="text-[11px] text-gray-500 dark:text-gray-400">{{ ui_phrase('Meal: -') }}</span>
                                     @endforelse
                                 </div>
                             </td>
@@ -127,8 +127,8 @@
                             </td>
                             <td class="px-4 py-3 text-right text-sm actions-compact">
     <div class="flex items-center justify-end gap-2">
-        <a href="{{ route('food-beverages.create', ['copy' => $foodBeverage->id]) }}" class="btn-outline-sm" title="{{ __('Copy') }}" aria-label="Copy"><i class="fa-regular fa-copy"></i><span class="sr-only">{{ __('Copy') }}</span></a>
-        <a href="{{ route('food-beverages.edit', $foodBeverage) }}"  class="btn-secondary-sm" title="{{ __('Edit') }}" aria-label="Edit"><i class="fa-solid fa-pen"></i><span class="sr-only">{{ __('Edit') }}</span></a>
+        <a href="{{ route('food-beverages.create', ['copy' => $foodBeverage->id]) }}" class="btn-outline-sm" title="{{ ui_phrase('Copy') }}" aria-label="Copy"><i class="fa-regular fa-copy"></i><span class="sr-only">{{ ui_phrase('Copy') }}</span></a>
+        <a href="{{ route('food-beverages.edit', $foodBeverage) }}"  class="btn-secondary-sm" title="{{ ui_phrase('Edit') }}" aria-label="Edit"><i class="fa-solid fa-pen"></i><span class="sr-only">{{ ui_phrase('Edit') }}</span></a>
                                 <form action="{{ route('food-beverages.toggle-status', $foodBeverage->id) }}" method="POST" class="inline">
                                     @csrf
                                     @method('PATCH')
@@ -190,7 +190,7 @@
                                         {{ $session['label'] }}
                                     </span>
                                 @empty
-                                    <span class="text-[11px] text-gray-500 dark:text-gray-400">{{ __('Meal: -') }}</span>
+                                    <span class="text-[11px] text-gray-500 dark:text-gray-400">{{ ui_phrase('Meal: -') }}</span>
                                 @endforelse
                             </div>
                         </div>
@@ -198,8 +198,8 @@
                         <div><x-status-badge :status="$foodBeverage->trashed() ? 'inactive' : 'active'" size="xs" /></div>
                     </div>
                     <div class="mt-3 flex flex-wrap gap-2">
-                        <a href="{{ route('food-beverages.create', ['copy' => $foodBeverage->id]) }}" class="btn-outline-sm" title="{{ __('Copy') }}" aria-label="Copy"><i class="fa-regular fa-copy"></i><span class="sr-only">{{ __('Copy') }}</span></a>
-                        <a href="{{ route('food-beverages.edit', $foodBeverage) }}" class="btn-secondary-sm" title="{{ __('Edit') }}" aria-label="Edit"><i class="fa-solid fa-pen"></i><span class="sr-only">{{ __('Edit') }}</span></a>
+                        <a href="{{ route('food-beverages.create', ['copy' => $foodBeverage->id]) }}" class="btn-outline-sm" title="{{ ui_phrase('Copy') }}" aria-label="Copy"><i class="fa-regular fa-copy"></i><span class="sr-only">{{ ui_phrase('Copy') }}</span></a>
+                        <a href="{{ route('food-beverages.edit', $foodBeverage) }}" class="btn-secondary-sm" title="{{ ui_phrase('Edit') }}" aria-label="Edit"><i class="fa-solid fa-pen"></i><span class="sr-only">{{ ui_phrase('Edit') }}</span></a>
                         <form action="{{ route('food-beverages.toggle-status', $foodBeverage->id) }}" method="POST" class="inline">
                             @csrf
                             @method('PATCH')

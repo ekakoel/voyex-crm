@@ -6,7 +6,7 @@
     @php($appTitle = trim((string) ($companyName ?? config('app.name', 'VOYEX CRM'))))
     @php($loginTagline = trim((string) ($companyTagline ?? 'Smart Travel CRM Platform')))
     @php($loginFooterSuffix = trim((string) ($companyFooterNote ?? '')) ?: 'All rights reserved.')
-    <title>{{ ui_phrase('auth_titles_forgot_password_page') }} | {{ $appTitle }}</title>
+    <title>{{ ui_phrase('Forgot Password') }} | {{ $appTitle }}</title>
     @if (!empty($companyFaviconUrl))
         <link rel="icon" type="{{ $companyFaviconMime ?? 'image/x-icon' }}" href="{{ $companyFaviconUrl }}">
         <link rel="shortcut icon" type="{{ $companyFaviconMime ?? 'image/x-icon' }}" href="{{ $companyFaviconUrl }}">
@@ -36,22 +36,22 @@
                 <strong>{{ $appTitle }}</strong>
             </div>
         </div>
-        <h2>{{ ui_phrase('auth_branding_reset_password') }}</h2>
+        <h2>{{ ui_phrase('Reset Password') }}</h2>
         <p class="auth-brand-tagline">{{ $loginTagline }}</p>
         <p class="auth-brand-message">
-            {{ ui_phrase('auth_branding_forgot_message') }}
+            {{ ui_phrase('Enter your registered email address, and we will send a secure password reset link.') }}
         </p>
         <ol class="auth-context-list auth-context-list--steps">
-            <li>{{ ui_phrase('auth_branding_forgot_step_1') }}</li>
-            <li>{{ ui_phrase('auth_branding_forgot_step_2') }}</li>
-            <li>{{ ui_phrase('auth_branding_forgot_step_3') }}</li>
+            <li>{{ ui_phrase('Input your registered email address.') }}</li>
+            <li>{{ ui_phrase('Open the reset link sent to your inbox.') }}</li>
+            <li>{{ ui_phrase('Create a new password and sign in again securely.') }}</li>
         </ol>
     </div>
 
     <div class="auth-right">
         <div class="auth-card">
-            <h3>{{ ui_phrase('auth_titles_forgot_password_page') }}</h3>
-            <p class="auth-subtitle">{{ ui_phrase('auth_subtitles_forgot_password') }}</p>
+            <h3>{{ ui_phrase('Forgot Password') }}</h3>
+            <p class="auth-subtitle">{{ ui_phrase('Use the same email address registered in the system.') }}</p>
 
             @if (session('status'))
                 <div class="auth-alert auth-alert-success">{{ session('status') }}</div>
@@ -69,7 +69,7 @@
                         type="email"
                         name="email"
                         value="{{ old('email') }}"
-                        placeholder="{{ ui_phrase('auth_forms_email_address') }}"
+                        placeholder="{{ ui_phrase('Email Address') }}"
                         required
                         autofocus
                         autocomplete="username"
@@ -79,14 +79,14 @@
                     <p class="auth-error-text">{{ $message }}</p>
                 @enderror
 
-                <button type="submit" class="btn-primary" data-auth-submit-btn data-loading-text="{{ ui_phrase('auth_forms_sending_link') }}">
+                <button type="submit" class="btn-primary" data-auth-submit-btn data-loading-text="{{ ui_phrase('Sending Link...') }}">
                     <span class="auth-btn-spinner" aria-hidden="true"></span>
-                    <span data-auth-btn-label>{{ ui_phrase('auth_forms_send_reset_link') }}</span>
+                    <span data-auth-btn-label>{{ ui_phrase('Send Reset Link') }}</span>
                 </button>
             </form>
 
             <p style="margin-top:14px;text-align:right;">
-                <a href="{{ route('login') }}" class="auth-inline-link">{{ ui_phrase('auth_forms_back_to_sign_in') }}</a>
+                <a href="{{ route('login') }}" class="auth-inline-link">{{ ui_phrase('Back to Sign In') }}</a>
             </p>
 
             <p class="footer-text">{{ $appTitle }} &copy; {{ now()->year }}. {{ $loginFooterSuffix }}</p>
@@ -96,7 +96,7 @@
 <div class="auth-page-spinner" data-auth-page-spinner aria-hidden="true">
     <div class="auth-page-spinner__inner">
         <div class="auth-page-spinner__ring" aria-hidden="true"></div>
-        <div class="auth-page-spinner__text">{{ ui_phrase('auth_spinner_processing') }}</div>
+        <div class="auth-page-spinner__text">{{ ui_phrase('Processing...') }}</div>
     </div>
 </div>
 <script>
@@ -126,7 +126,7 @@
                     label.dataset.originalText = label.textContent || '';
                 }
                 if (label) {
-                    label.textContent = button.getAttribute('data-loading-text') || @json(ui_phrase('auth_forms_loading'));
+                    label.textContent = button.getAttribute('data-loading-text') || @json(ui_phrase('Loading...'));
                 }
             }
 

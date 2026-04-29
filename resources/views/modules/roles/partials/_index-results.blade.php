@@ -18,9 +18,9 @@
                     <thead>
                         <tr>
                             <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">#</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('common_role') }}</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('common_permissions') }}</th>
-                            <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300 actions-compact">{{ ui_phrase('common_actions') }}</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('Role') }}</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('Permissions') }}</th>
+                            <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300 actions-compact">{{ ui_phrase('Actions') }}</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
@@ -45,19 +45,19 @@
                                     @endforelse
                                     @if ($role->permissions->count() > 5)
                                         <span class="mr-1 inline-flex rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600 dark:bg-gray-700/40 dark:text-gray-300">
-                                            {{ ui_phrase('common_more', ['count' => $role->permissions->count() - 5]) }}
+                                            {{ ui_phrase('more', ['count' => $role->permissions->count() - 5]) }}
                                         </span>
                                     @endif
                                 </td>
                                 <td class="px-4 py-3 text-right text-sm actions-compact">
                                     <div class="flex items-center justify-end gap-2">
-                                        <a href="{{ route('roles.edit', $role) }}" class="btn-secondary-sm" title="{{ ui_phrase('common_edit') }}" aria-label="{{ ui_phrase('common_edit') }}"><i class="fa-solid fa-pen"></i><span class="sr-only">{{ ui_phrase('common_edit') }}</span></a>
-                                        <a href="{{ route('roles.create', ['template_role_id' => $role->id]) }}" class="btn-outline-sm"><i class="fa-solid fa-copy mr-1"></i>{{ ui_phrase('common_clone') }}</a>
+                                        <a href="{{ route('roles.edit', $role) }}" class="btn-secondary-sm" title="{{ ui_phrase('Edit') }}" aria-label="{{ ui_phrase('Edit') }}"><i class="fa-solid fa-pen"></i><span class="sr-only">{{ ui_phrase('Edit') }}</span></a>
+                                        <a href="{{ route('roles.create', ['template_role_id' => $role->id]) }}" class="btn-outline-sm"><i class="fa-solid fa-copy mr-1"></i>{{ ui_phrase('Clone') }}</a>
                                         @can('module.role_manager.delete')
                                             <form action="{{ route('roles.destroy', $role) }}" method="POST" class="inline">
                                                 @csrf
                                                 @method('DELETE')
-                                                <button type="submit" onclick="return confirm('{{ ui_phrase('modules_roles_confirm_delete') }}')" class="btn-danger-sm">{{ ui_phrase('common_delete') }}</button>
+                                                <button type="submit" onclick="return confirm('{{ ui_phrase('confirm delete') }}')" class="btn-danger-sm">{{ ui_phrase('Delete') }}</button>
                                             </form>
                                         @endcan
                                     </div>
@@ -66,7 +66,7 @@
                         @empty
                             <tr>
                                 <td colspan="4" class="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">
-                                    {{ ui_phrase('index_no_data_available', ['entity' => ui_phrase('entities_roles')]) }}
+                                    {{ ui_phrase('No :entity available.', ['entity' => ui_phrase('Roles')]) }}
                                 </td>
                             </tr>
                         @endforelse
@@ -81,7 +81,7 @@
                     <div class="flex items-start justify-between gap-3">
                         <p class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ $role->name }}</p>
                         <span class="inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-700 dark:bg-slate-700/40 dark:text-slate-200">
-                            {{ ui_phrase('modules_roles_permissions_short', ['count' => $role->permissions->count()]) }}
+                            {{ ui_phrase('permissions short', ['count' => $role->permissions->count()]) }}
                         </span>
                     </div>
 
@@ -93,24 +93,24 @@
                         @endforelse
                         @if ($role->permissions->count() > 4)
                             <span class="inline-flex rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600 dark:bg-gray-700/40 dark:text-gray-300">
-                                {{ ui_phrase('common_more', ['count' => $role->permissions->count() - 4]) }}
+                                {{ ui_phrase('more', ['count' => $role->permissions->count() - 4]) }}
                             </span>
                         @endif
                     </div>
 
                     <div class="mt-3 flex flex-wrap gap-2">
-                        <a href="{{ route('roles.edit', $role) }}" class="btn-secondary-sm" title="{{ ui_phrase('common_edit') }}" aria-label="{{ ui_phrase('common_edit') }}">
-                            <i class="fa-solid fa-pen"></i><span class="sr-only">{{ ui_phrase('common_edit') }}</span>
+                        <a href="{{ route('roles.edit', $role) }}" class="btn-secondary-sm" title="{{ ui_phrase('Edit') }}" aria-label="{{ ui_phrase('Edit') }}">
+                            <i class="fa-solid fa-pen"></i><span class="sr-only">{{ ui_phrase('Edit') }}</span>
                         </a>
                         <a href="{{ route('roles.create', ['template_role_id' => $role->id]) }}" class="btn-outline-sm">
-                            <i class="fa-solid fa-copy mr-1"></i>{{ ui_phrase('common_clone') }}
+                            <i class="fa-solid fa-copy mr-1"></i>{{ ui_phrase('Clone') }}
                         </a>
                         @can('module.role_manager.delete')
                             <form action="{{ route('roles.destroy', $role) }}" method="POST" class="inline">
                                 @csrf
                                 @method('DELETE')
-                                <button type="submit" onclick="return confirm('{{ ui_phrase('modules_roles_confirm_delete') }}')" class="btn-danger-sm">
-                                    {{ ui_phrase('common_delete') }}
+                                <button type="submit" onclick="return confirm('{{ ui_phrase('confirm delete') }}')" class="btn-danger-sm">
+                                    {{ ui_phrase('Delete') }}
                                 </button>
                             </form>
                         @endcan
@@ -118,7 +118,7 @@
                 </div>
             @empty
                 <div class="app-card p-6 text-center text-sm text-gray-500 dark:text-gray-400">
-                    {{ ui_phrase('index_no_data_available', ['entity' => ui_phrase('entities_roles')]) }}
+                    {{ ui_phrase('No :entity available.', ['entity' => ui_phrase('Roles')]) }}
                 </div>
             @endforelse
         </div>

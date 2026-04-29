@@ -44,23 +44,30 @@ class CustomerImportController extends Controller
         $validated = $request->validate([
             'file' => ['required', 'file', 'mimes:csv,txt', 'max:2048'],
             'mode' => ['required', 'in:skip,update'],
+        ], [
+            'file.required' => ui_phrase('Please choose a CSV file.'),
+            'file.file' => ui_phrase('Uploaded file is invalid.'),
+            'file.mimes' => ui_phrase('File must be CSV format.'),
+            'file.max' => ui_phrase('Maximum file size is 2 MB.'),
+            'mode.required' => ui_phrase('Import mode is required.'),
+            'mode.in' => ui_phrase('Import mode is invalid.'),
         ]);
 
         $handle = fopen($validated['file']->getRealPath(), 'r');
         if (! $handle) {
-            return back()->with('error', ui_phrase('modules_customers_import_messages_failed_read_csv'));
+            return back()->with('error', ui_phrase('Failed to read CSV file.'));
         }
 
         $headers = fgetcsv($handle);
         if (! $headers) {
             fclose($handle);
-            return back()->with('error', ui_phrase('modules_customers_import_messages_invalid_csv'));
+            return back()->with('error', ui_phrase('CSV is empty or has an invalid format.'));
         }
 
         $headers = array_map(fn ($h) => strtolower(trim($h)), $headers);
         if (! in_array('name', $headers, true)) {
             fclose($handle);
-            return back()->with('error', ui_phrase('modules_customers_import_messages_required_column_name'));
+            return back()->with('error', ui_phrase('Required column not found: name'));
         }
 
         $rows = [];
@@ -100,7 +107,7 @@ class CustomerImportController extends Controller
     {
         $payload = Session::get(self::SESSION_KEY);
         if (! $payload) {
-            return redirect()->route('customers.import')->with('error', ui_phrase('modules_customers_import_messages_preview_not_found'));
+            return redirect()->route('customers.import')->with('error', ui_phrase('Preview not found. Please upload the file again.'));
         }
 
         $rows = $payload['rows'] ?? [];
@@ -130,14 +137,14 @@ class CustomerImportController extends Controller
             DB::commit();
         } catch (\Throwable $e) {
             DB::rollBack();
-            return redirect()->route('customers.import')->with('error', ui_phrase('modules_customers_import_messages_failed'));
+            return redirect()->route('customers.import')->with('error', ui_phrase('Import failed. Please check the CSV data.'));
         } finally {
             Session::forget(self::SESSION_KEY);
         }
 
         return redirect()
             ->route('customers.index')
-            ->with('success', ui_phrase('modules_customers_import_messages_done', [
+            ->with('success', ui_phrase('Import completed. Created: :created, Updated: :updated, Skipped: :skipped.', [
                 'created' => $created,
                 'updated' => $updated,
                 'skipped' => $skipped,
@@ -198,5 +205,4 @@ class CustomerImportController extends Controller
         return $trimmed === '' ? null : $trimmed;
     }
 }
-
 

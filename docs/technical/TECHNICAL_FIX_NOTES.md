@@ -4,6 +4,46 @@ Last Updated: 2026-04-28
 
 Dokumen ini menggabungkan fix-report teknis lintas modul yang berdampak ke arsitektur/standar.
 
+## 44. Itinerary Day Planner F&B Meal Availability Filter (2026-04-29)
+
+Masalah:
+- Pada tab `Day Planner` create/edit itinerary, item F&B belum difilter berdasarkan slot makan.
+- User masih bisa memilih F&B yang tidak menyediakan `Breakfast/Lunch/Dinner` sesuai `start_time` row.
+
+Perbaikan:
+- Menambahkan filter meal-slot pada frontend Day Planner khusus row `item_type = fnb`:
+  - `< 11:00` => `breakfast`
+  - `11:00 - 15:59` => `lunch`
+  - `>= 16:00` => `dinner`
+- Menambahkan metadata `meal_period` pada option/suggestion F&B agar filtering berjalan tanpa query tambahan di browser.
+- Menambahkan guard backend di `ItineraryController::validateFoodBeverageItems()`:
+  - validasi `food_beverage_id` wajib kompatibel dengan slot meal dari `start_time`.
+- Menjaga backward compatibility:
+  - F&B legacy tanpa `meal_period` diperlakukan sebagai available all-day.
+
+Dampak:
+- Mengurangi risiko salah pilih F&B pada itinerary harian.
+- Menjaga konsistensi data itinerary F&B antara UI dan server-side validation.
+- Performa tetap efisien karena filter berbasis metadata yang sudah dibawa di payload halaman.
+
+Update (strict mode):
+- F&B legacy dengan `meal_period` kosong kini tidak ditampilkan untuk slot waktu terdefinisi dan ditolak di backend jika dipilih.
+
+## 43. Itinerary Daily Transport Validation Audit Note (2026-04-29)
+
+Masalah:
+- Hasil audit runtime di `ItineraryController` (store/update) menunjukkan validasi:
+  - `daily_transport_units.*.transport_unit_id => exists:transports,id`
+- Ini tidak sejalan dengan kontrak payload `transport_unit_id` dan relasi sinkron itinerary transport unit yang berbasis unit.
+
+Catatan:
+- Dokumen historis fix sebelumnya mencatat rule sudah diarahkan ke `transport_units`.
+- Kondisi kode berjalan per 2026-04-29: rule masih mengarah ke `transports`.
+
+Dampak:
+- Risiko mismatch validasi tetap ada pada environment/data tertentu.
+- Dokumentasi teknis itinerary kini diselaraskan agar mencerminkan kondisi runtime aktual, bukan status historis.
+
 ## 42. Itinerary + Quotation Consistency & Service Item Validation Highlight (2026-04-28)
 
 Masalah:

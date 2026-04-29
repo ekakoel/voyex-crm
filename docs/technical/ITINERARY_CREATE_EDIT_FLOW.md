@@ -1,9 +1,9 @@
 # Itinerary Create/Edit Flow
 
-Last Updated: 2026-04-23
+Last Updated: 2026-04-29 (F&B meal-availability sync)
 
 
-This document explains the end-to-end itinerary create/edit flow without repeating show-page map details.
+This document explains the current end-to-end itinerary create/edit flow (runtime as of 2026-04-29) without repeating show-page map details.
 
 Main code references:
 - `resources/views/modules/itineraries/create.blade.php`
@@ -26,6 +26,11 @@ Out of scope:
 
 - Left column: main itinerary form (`_form.blade.php`).
 - Right column: supporting panels such as Inquiry Detail, Route Preview, and Audit Info (edit).
+- Main form UX uses a 4-step wizard in `_form.blade.php`:
+  - Step 1: Basic Info
+  - Step 2: Day Planner
+  - Step 3: Include/Exclude
+  - Step 4: Review
 
 Create vs edit differences:
 - Create submit ke `itineraries.store`.
@@ -71,9 +76,10 @@ Common flow for both:
 - sync itinerary relations to related tables.
 
 Additional important flow:
-- create enforces `status = draft` and sets `created_by`.
+- create enforces `status = pending` (`Itinerary::STATUS_PENDING`) and sets `created_by`.
 - destination can be resolved to `destination_id`.
 - related inquiry can auto-transition `draft -> processed` (based on status rules).
+- update calls `QuotationItinerarySyncService` to sync linked quotation payload after itinerary is saved.
 
 ## 3. Data Preparation in `_form.blade.php`
 
@@ -141,18 +147,38 @@ Important notes:
 
 - `getRowSelection(row)`: determines the active selector based on type + value.
 - `toggleType(row, type)`: switches attraction/activity/transfer/fnb mode and resets related state.
-- For type `attraction` and `activity`, the primary selector in Day Planner now uses autocomplete input.
+- For type `attraction`, `activity`, and `fnb`, the primary selector in Day Planner uses autocomplete input.
   - Existing data is still stored as IDs through hidden selects (`item-attraction` / `item-activity`).
   - Users can quick-add new data directly from Day Planner if not available yet.
   - Required manual format:
     - Attraction: `Attraction Name, Region, Destination`
     - Activity: `Activity Name, Region, Vendor`
+    - F&B: `F&B Name, Region, Vendor`
   - When quick-add succeeds, data is saved into the related master module and still logged via model hooks.
+- For type `fnb`, selectable options are now constrained by meal availability:
+  - meal slot is inferred from row `start_time`,
+  - slot mapping:
+    - `< 11:00` => `Breakfast`
+    - `11:00 - 15:59` => `Lunch`
+    - `>= 16:00` => `Dinner`
+  - F&B suggestions and select options in Day Planner are filtered by `meal_period` compatibility.
 
 ### 6.2 Time calculation
 
 - `recalcDay(section)`: calculates sequence, item start/end times, and daily end-time.
 - `recalcAll()`: runs calculations for all days sequentially.
+- New row behavior:
+  - when a new schedule row is added in Day Planner, `Start Time` is auto-populated immediately from the current day timeline.
+  - if the item has not been selected yet, `End Time` stays empty until duration can be resolved from selected item data.
+- Connector travel-minute behavior:
+  - auto-estimate from map still runs as default.
+  - users can manually edit connector minutes; manual values are preserved and will not be overwritten by auto-estimate.
+  - clearing manual connector value re-enables auto-estimate for that connector.
+  - if timeline recalculation changes an F&B row `start_time` and shifts its meal slot (`Breakfast/Lunch/Dinner`), selected F&B is auto-reset so user must reselect based on the new slot.
+  - this reset rule applies consistently across timeline change sources, including:
+    - connector travel-minute edits,
+    - `Day Start Time` edits,
+    - and other recalculation paths that shift row start-time.
 
 ### 6.3 Submit payload building
 
@@ -178,11 +204,12 @@ Without correct `reindex()`, backend payload will be out of sync.
 - `cloneRow()` + `bindRow()`: adds a new row with complete listeners.
 - `initSortable()`: drag-drop reorder row.
 - Standard submit pipeline:
-  1. `recalcAll()`
-  2. `reindex()`
-  3. sync hidden payload (hotel stays)
-  4. frontend validation
-  5. submit form.
+  1. `autoFillAllTravelMinutesFromMap()` (best effort; async)
+  2. `recalcAll()`
+  3. `reindex()`
+  4. sync hidden payload (hotel stays)
+  5. frontend validation
+  6. submit form.
 
 ## 7. Payload to Backend
 
@@ -216,24 +243,30 @@ In the controller, payload is processed with this pattern:
 3. `normalizeDailyTransportUnits()`,
 4. sync itinerary relations.
 
+Additional F&B guard:
+- backend validates each `itinerary_food_beverage_items[*]` row against `food_beverages.meal_period` based on row `start_time` meal slot.
+- strict mode: F&B with empty/unknown `meal_period` is not eligible for timed meal-slot selection and will fail validation when selected for a defined slot.
+
 The final result is stored in separate relational structures (not a single flat table).
 
 ## 9. Critical Business Rules
 
 - `duration_nights` cannot exceed `duration_days`.
-- end point must be valid for each day.
+- duration hard limit on create/edit: `duration_days` 1..7 and `duration_nights` 0..6.
+- day start/end point is allowed to stay empty; validation accepts empty point type/item values.
 - `final` itineraries cannot be mutated.
-- itineraries with `approved` quotations cannot be edited.
+- itineraries with related quotation status `approved` or `final` are locked for edit/update.
 - related inquiry can change from `draft` to `processed` after save.
 - F&B items auto-fill `meal_type` from `start_time`:
   - `< 11:00` => `Breakfast`
   - `11:00 - 15:59` => `Lunch`
   - `>= 16:00` => `Dinner`
+- create/update mutation is owner-centric through policy/controller checks (creator + permission).
 
 ## 10. Known Risks During Refactor
 
 1. High dependency on DOM-state + `reindex()`.
-2. Transport unit validation mismatch (`transport_unit_id` vs table rule) must be verified before major refactors.
+2. Current validation rule for daily transport unit still uses `exists:transports,id` while payload key is `transport_unit_id` and sync uses itinerary transport-unit relation. This is a known mismatch risk that should be addressed carefully in code refactor.
 3. Clone/sort day-row can trigger drift if listeners or naming are not attached correctly.
 
 ## 11. Map Integration

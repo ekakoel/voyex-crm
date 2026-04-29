@@ -1,8 +1,8 @@
 @extends('layouts.master')
-@section('page_title', ui_phrase('modules_airports_page_title'))
-@section('page_subtitle', ui_phrase('modules_airports_page_subtitle'))
+@section('page_title', ui_phrase('page title'))
+@section('page_subtitle', ui_phrase('page subtitle'))
 @section('page_actions')
-    <a href="{{ route('airports.create') }}" class="btn-primary">{{ ui_phrase('modules_airports_add_airport') }}</a>
+    <a href="{{ route('airports.create') }}" class="btn-primary">{{ ui_phrase('Add Airport') }}</a>
 @endsection
 @section('content')
     <div class="space-y-6 module-page module-page--airports" data-service-filter-page data-page-spinner="off">
@@ -11,24 +11,24 @@
             <aside class="module-grid-side space-y-4">
                 <div class="app-card p-5">
                     <div>
-                        <h2 class="text-base font-semibold text-gray-800 dark:text-gray-100">{{ ui_phrase('common_filters') }}
+                        <h2 class="text-base font-semibold text-gray-800 dark:text-gray-100">{{ ui_phrase('Filters') }}
                         </h2>
-                        <p class="text-sm text-gray-500 dark:text-gray-400">{{ ui_phrase('index_refine_list_quickly') }}</p>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">{{ ui_phrase('Refine your list quickly.') }}</p>
                     </div>
                     <form method="GET" action="{{ route('airports.index') }}" class="grid grid-cols-1 gap-3 sm:grid-cols-2"
                         data-service-filter-form data-disable-submit-lock="1" data-page-spinner="off">
                         <input name="q" value="{{ request('q') }}"
-                            placeholder="{{ ui_phrase('modules_airports_search') }}" class="app-input sm:col-span-2"
+                            placeholder="{{ ui_phrase('search') }}" class="app-input sm:col-span-2"
                             data-service-filter-input>
                         <select name="per_page" class="app-input" data-service-filter-input>
                             @foreach ([10, 25, 50, 100] as $size)
                                 <option value="{{ $size }}" @selected((string) request('per_page', 10) === (string) $size)>
-                                    {{ ui_phrase('index_per_page_option', ['size' => $size]) }}</option>
+                                    {{ ui_phrase(':size/page', ['size' => $size]) }}</option>
                             @endforeach
                         </select>
                         <div class="flex items-center gap-2 sm:col-span-2 filter-actions">
                             <a href="{{ route('airports.index') }}" class="btn-ghost"
-                                data-service-filter-reset>{{ ui_phrase('common_reset') }}</a>
+                                data-service-filter-reset>{{ ui_phrase('Reset') }}</a>
                         </div>
                     </form>
                 </div>
@@ -50,16 +50,16 @@
                                         #</th>
                                     <th
                                         class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">
-                                        {{ ui_phrase('modules_airports_airport') }}</th>
+                                        {{ ui_phrase('Airport') }}</th>
                                     <th
                                         class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">
-                                        {{ ui_phrase('common_location') }}</th>
+                                        {{ ui_phrase('Location') }}</th>
                                     <th
                                         class="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">
-                                        {{ ui_phrase('common_status') }}</th>
+                                        {{ ui_phrase('Status') }}</th>
                                     <th
                                         class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300 actions-compact">
-                                        {{ ui_phrase('common_actions') }}</th>
+                                        {{ ui_phrase('Actions') }}</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
@@ -90,22 +90,22 @@
                                         <td class="px-4 py-3 text-right text-sm actions-compact">
                                             <div class="flex items-center justify-end gap-2">
                                                 <a href="{{ route('airports.show', $airport) }}" class="btn-outline-sm"
-                                                    title="{{ ui_phrase('common_view') }}"
-                                                    aria-label="{{ ui_phrase('common_view') }}"><i
+                                                    title="{{ ui_phrase('View') }}"
+                                                    aria-label="{{ ui_phrase('View') }}"><i
                                                         class="fa-solid fa-eye"></i><span
-                                                        class="sr-only">{{ ui_phrase('common_view') }}</span></a>
+                                                        class="sr-only">{{ ui_phrase('View') }}</span></a>
                                                 <a href="{{ route('airports.edit', $airport) }}" class="btn-secondary-sm"
-                                                    title="{{ ui_phrase('common_edit') }}"
-                                                    aria-label="{{ ui_phrase('common_edit') }}"><i
+                                                    title="{{ ui_phrase('Edit') }}"
+                                                    aria-label="{{ ui_phrase('Edit') }}"><i
                                                         class="fa-solid fa-pen"></i><span
-                                                        class="sr-only">{{ ui_phrase('common_edit') }}</span></a>
+                                                        class="sr-only">{{ ui_phrase('Edit') }}</span></a>
                                                 <form action="{{ route('airports.toggle-status', $airport->id) }}"
                                                     method="POST" class="inline">
                                                     @csrf
                                                     @method('PATCH')
                                                     <button type="submit"
-                                                        onclick="return confirm('{{ $isActive ? ui_phrase('modules_airports_confirm_deactivate') : ui_phrase('modules_airports_confirm_activate') }}')"
-                                                        class="{{ $isActive ? 'btn-muted-sm' : 'btn-primary-sm' }}">{{ $isActive ? ui_phrase('common_deactivate') : ui_phrase('common_activate') }}</button>
+                                                        onclick="return confirm('{{ $isActive ? ui_phrase('confirm deactivate') : ui_phrase('confirm activate') }}')"
+                                                        class="{{ $isActive ? 'btn-muted-sm' : 'btn-primary-sm' }}">{{ $isActive ? ui_phrase('Deactivate') : ui_phrase('Activate') }}</button>
                                                 </form>
                                             </div>
                                         </td>
@@ -114,7 +114,7 @@
                                     <tr>
                                         <td colspan="6"
                                             class="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">
-                                            {{ ui_phrase('index_no_data_available', ['entity' => ui_phrase('entities_airports')]) }}
+                                            {{ ui_phrase('No :entity available.', ['entity' => ui_phrase('Airports')]) }}
                                         </td>
                                     </tr>
                                 @endforelse
@@ -135,39 +135,39 @@
                                     class="text-xs font-medium rounded-full bg-gray-100 px-2 py-0.5 text-gray-700 dark:bg-gray-900/40 dark:text-gray-300">{{ $airport->country ?: '-' }}</span>
                             </div>
                             <div class="mt-3 grid grid-cols-2 gap-2 text-xs text-gray-600 dark:text-gray-300">
-                                <div>{{ ui_phrase('common_location') }}</div>
+                                <div>{{ ui_phrase('Location') }}</div>
                                 <div>
                                     {{ trim(($airport->city ?? '') . ($airport->city && $airport->province ? ', ' : '') . ($airport->province ?? '')) ?: '-' }}
                                 </div>
-                                <div>{{ ui_phrase('common_country') }}</div>
+                                <div>{{ ui_phrase('Country') }}</div>
                                 <div>{{ $airport->country ?: '-' }}</div>
-                                <div>{{ ui_phrase('common_destination') }}</div>
+                                <div>{{ ui_phrase('Destination') }}</div>
                                 <div>{{ $airport->destination?->name ?? '-' }}</div>
-                                <div>{{ ui_phrase('common_status') }}</div>
+                                <div>{{ ui_phrase('Status') }}</div>
                                 <div><x-status-badge :status="$airport->trashed() ? 'inactive' : 'active'" size="xs" /></div>
                             </div>
                             <div class="mt-3 flex flex-wrap gap-2">
                                 <a href="{{ route('airports.show', $airport) }}" class="btn-outline-sm"
-                                    title="{{ ui_phrase('common_view') }}" aria-label="{{ ui_phrase('common_view') }}"><i
+                                    title="{{ ui_phrase('View') }}" aria-label="{{ ui_phrase('View') }}"><i
                                         class="fa-solid fa-eye"></i><span
-                                        class="sr-only">{{ ui_phrase('common_view') }}</span></a>
+                                        class="sr-only">{{ ui_phrase('View') }}</span></a>
                                 <a href="{{ route('airports.edit', $airport) }}" class="btn-secondary-sm"
-                                    title="{{ ui_phrase('common_edit') }}" aria-label="{{ ui_phrase('common_edit') }}"><i
+                                    title="{{ ui_phrase('Edit') }}" aria-label="{{ ui_phrase('Edit') }}"><i
                                         class="fa-solid fa-pen"></i><span
-                                        class="sr-only">{{ ui_phrase('common_edit') }}</span></a>
+                                        class="sr-only">{{ ui_phrase('Edit') }}</span></a>
                                 <form action="{{ route('airports.toggle-status', $airport->id) }}" method="POST"
                                     class="inline">
                                     @csrf
                                     @method('PATCH')
                                     <button type="submit"
-                                        onclick="return confirm('{{ $airport->trashed() ? ui_phrase('modules_airports_confirm_activate') : ui_phrase('modules_airports_confirm_deactivate') }}')"
-                                        class="{{ $airport->trashed() ? 'btn-primary-sm' : 'btn-muted-sm' }}">{{ $airport->trashed() ? ui_phrase('common_activate') : ui_phrase('common_deactivate') }}</button>
+                                        onclick="return confirm('{{ $airport->trashed() ? ui_phrase('confirm activate') : ui_phrase('confirm deactivate') }}')"
+                                        class="{{ $airport->trashed() ? 'btn-primary-sm' : 'btn-muted-sm' }}">{{ $airport->trashed() ? ui_phrase('Activate') : ui_phrase('Deactivate') }}</button>
                                 </form>
                             </div>
                         </div>
                     @empty
                         <div class="app-card p-6 text-center text-sm text-gray-500 dark:text-gray-400">
-                            {{ ui_phrase('index_no_data_available', ['entity' => ui_phrase('entities_airports')]) }}</div>
+                            {{ ui_phrase('No :entity available.', ['entity' => ui_phrase('Airports')]) }}</div>
                     @endforelse
                 </div>
                 <div>{{ $airports->links() }}</div>

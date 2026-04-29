@@ -1,6 +1,6 @@
 # Itinerary Detail Map Architecture
 
-Last Updated: 2026-04-20
+Last Updated: 2026-04-29
 
 
 Dokumen ini menjelaskan implementasi map pada halaman detail itinerary (`show`) agar developer/AI bisa memahami sistem tanpa trial-error.
@@ -53,6 +53,8 @@ Struktur item `$mapPoints`:
 - `lat`, `lng`
 - `day_number`
 - `visit_order`
+- `map_order` (internal ordering helper for render sequence)
+- `transfer_role` + `transfer_pair_key` (khusus transfer departure/arrival pairing)
 - `route_to_next_coords` (opsional, khusus transfer departure bila tersedia `route_geojson`)
 
 Semua titik di-sort sebelum dikirim ke JS:

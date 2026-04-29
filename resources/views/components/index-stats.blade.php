@@ -7,7 +7,7 @@
                 $key = strtolower((string) ($card['key'] ?? $card['label'] ?? ''));
                 $label = (string) ($card['label'] ?? '-');
                 $value = (int) ($card['value'] ?? 0);
-                $caption = (string) ($card['caption'] ?? __('Total'));
+                $caption = (string) ($card['caption'] ?? 'total');
                 $tone = (string) ($card['tone'] ?? 'slate');
                 $colorMap = [
                     'total' => 'slate',
@@ -73,9 +73,9 @@
             <div class="app-card app-kpi-card p-4">
                 <div class="flex items-center justify-between h-full relative">
                     <div class="data-card">
-                        <p class="text-xs font-semibold uppercase tracking-wide text-gray-400">{{ __($label) }}</p>
+                        <p class="text-xs font-semibold uppercase tracking-wide text-gray-400">{{ ui_phrase($label) }}</p>
                         <p class="mt-2 text-2xl font-semibold text-gray-900">{{ number_format($value) }}</p>
-                        <p class="mt-1 text-xs text-gray-500">{{ __($caption) }}</p>
+                        <p class="mt-1 text-xs text-gray-500">{{ ui_phrase($caption) }}</p>
                     </div>
                     <div class="icon-kpi icon-kpi--{{ $colorKey }}">
                         <i class="fa-solid {{ $iconClass }}"></i>

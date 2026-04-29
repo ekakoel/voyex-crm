@@ -13,7 +13,6 @@ use App\Models\User;
 use App\Services\ActivityAuditLogger;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
-use Spatie\Permission\Models\Role;
 
 class InquiryController extends Controller
 {
@@ -148,13 +147,11 @@ class InquiryController extends Controller
     public function create()
     {
         $customers = Customer::query()->orderBy('name')->get();
-        $assignees = User::role(['Reservation'])->orderBy('name')->get();
-        $canAssignToReservation = auth()->user()?->can('module.inquiries.update') ?? false;
 
         $sourceLabels = self::SOURCE_LABELS;
         $channelLabels = self::CHANNEL_LABELS;
 
-        return view('modules.inquiries.create', compact('customers', 'assignees', 'sourceLabels', 'channelLabels', 'canAssignToReservation'));
+        return view('modules.inquiries.create', compact('customers', 'sourceLabels', 'channelLabels'));
     }
 
     /**
@@ -162,32 +159,16 @@ class InquiryController extends Controller
      */
     public function store(Request $request)
     {
-        $canAssignToReservation = auth()->user()?->can('module.inquiries.update') ?? false;
-        $reservationRoleId = $canAssignToReservation
-            ? Role::query()->where('name', 'Reservation')->value('id')
-            : null;
         $validated = $request->validate([
             'customer_id' => ['required', 'exists:customers,id'],
             'source' => ['nullable', Rule::in(self::SOURCE_OPTIONS)],
             'priority' => ['required', Rule::in(['low', 'normal', 'high'])],
             'deadline' => ['nullable', 'date'],
             'notes' => ['nullable', 'string'],
-            'reminder_enabled' => ['nullable', 'boolean'],
-            'assigned_to' => $canAssignToReservation
-                ? [
-                    'required',
-                    'integer',
-                    Rule::exists('model_has_roles', 'model_id')
-                        ->where('role_id', $reservationRoleId)
-                        ->where('model_type', User::class),
-                ]
-                : ['nullable'],
         ]);
-        $validated['reminder_enabled'] = $request->boolean('reminder_enabled');
+        $validated['reminder_enabled'] = true;
         $validated['status'] = 'draft';
-        $validated['assigned_to'] = $canAssignToReservation
-            ? (int) ($validated['assigned_to'] ?? auth()->id())
-            : auth()->id();
+        $validated['assigned_to'] = null;
 
         $inquiry = Inquiry::withoutActivityLogging(function () use ($validated) {
             return Inquiry::query()->create($validated);
@@ -196,7 +177,7 @@ class InquiryController extends Controller
 
         return redirect()
             ->route('inquiries.show', $inquiry)
-            ->with('success', 'Inquiry created successfully.');
+            ->with('success', ui_phrase('Inquiry created successfully.'));
     }
 
     /**
@@ -261,16 +242,14 @@ class InquiryController extends Controller
         if ($inquiry->isFinal()) {
             return redirect()
                 ->route('inquiries.show', $inquiry)
-                ->with('error', ui_phrase('modules_inquiries_final_locked_edit'));
+                ->with('error', ui_phrase('Inquiry is final and cannot be edited.'));
         }
         if ($this->isInquiryLockedByQuotation($inquiry)) {
             return redirect()
                 ->route('inquiries.show', $inquiry)
-                ->with('error', 'Inquiry cannot be edited because the related quotation is approved/final.');
+                ->with('error', ui_phrase('Inquiry is locked by quotation and cannot be edited.'));
         }
         $customers = Customer::query()->orderBy('name')->get();
-        $assignees = User::role(['Reservation'])->orderBy('name')->get();
-        $canAssignToReservation = auth()->user()?->can('module.inquiries.update') ?? false;
         $activities = $inquiry->activities()
             ->with('user:id,name')
             ->latest()
@@ -283,7 +262,7 @@ class InquiryController extends Controller
             return $this->activityTimelineFragmentResponse($activities);
         }
 
-        return view('modules.inquiries.edit', compact('inquiry', 'customers', 'assignees', 'sourceLabels', 'canAssignToReservation', 'activities'));
+        return view('modules.inquiries.edit', compact('inquiry', 'customers', 'sourceLabels', 'activities'));
     }
 
     /**
@@ -298,40 +277,22 @@ class InquiryController extends Controller
         if ($inquiry->isFinal()) {
             return redirect()
                 ->route('inquiries.show', $inquiry)
-                ->with('error', ui_phrase('modules_inquiries_final_locked_edit'));
+                ->with('error', ui_phrase('Inquiry is final and cannot be edited.'));
         }
         if ($this->isInquiryLockedByQuotation($inquiry)) {
             return redirect()
                 ->route('inquiries.show', $inquiry)
-                ->with('error', 'Inquiry cannot be updated because the related quotation is approved/final.');
+                ->with('error', ui_phrase('Inquiry is locked by quotation and cannot be updated.'));
         }
-        $canAssignToReservation = auth()->user()?->can('module.inquiries.update') ?? false;
-        $reservationRoleId = $canAssignToReservation
-            ? Role::query()->where('name', 'Reservation')->value('id')
-            : null;
         $validated = $request->validate([
             'customer_id' => ['required', 'exists:customers,id'],
             'source' => ['nullable', Rule::in(self::SOURCE_OPTIONS)],
             'priority' => ['required', Rule::in(['low', 'normal', 'high'])],
             'deadline' => ['nullable', 'date'],
             'notes' => ['nullable', 'string'],
-            'reminder_enabled' => ['nullable', 'boolean'],
-            'assigned_to' => $canAssignToReservation
-                ? [
-                    'nullable',
-                    'integer',
-                    Rule::exists('model_has_roles', 'model_id')
-                        ->where('role_id', $reservationRoleId)
-                        ->where('model_type', User::class),
-                ]
-                : ['nullable'],
         ]);
-        $validated['reminder_enabled'] = $request->boolean('reminder_enabled');
-        if ($canAssignToReservation && ! empty($validated['assigned_to'])) {
-            $validated['assigned_to'] = (int) $validated['assigned_to'];
-        } else {
-            unset($validated['assigned_to']);
-        }
+        $validated['reminder_enabled'] = true;
+        $validated['assigned_to'] = null;
 
         $beforeAudit = $this->buildInquiryAuditSnapshot($inquiry);
         Inquiry::withoutActivityLogging(function () use ($inquiry, $validated): void {
@@ -343,7 +304,7 @@ class InquiryController extends Controller
 
         return redirect()
             ->route('inquiries.show', $inquiry)
-            ->with('success', 'Inquiry updated successfully.');
+            ->with('success', ui_phrase('Inquiry updated successfully.'));
     }
 
     /**
@@ -354,13 +315,13 @@ class InquiryController extends Controller
         if ($inquiry->isFinal()) {
             return redirect()
                 ->route('inquiries.show', $inquiry)
-                ->with('error', ui_phrase('modules_inquiries_final_locked_edit'));
+                ->with('error', ui_phrase('Inquiry is final and cannot be edited.'));
         }
         $inquiry->delete();
 
         return redirect()
             ->route('inquiries.index')
-            ->with('success', 'Inquiry deactivated successfully.');
+            ->with('success', ui_phrase('Inquiry deactivated successfully.'));
     }
 
     public function toggleStatus($inquiry)
@@ -369,7 +330,7 @@ class InquiryController extends Controller
         if ($inquiry->isFinal()) {
             return redirect()
                 ->route('inquiries.show', $inquiry)
-                ->with('error', ui_phrase('modules_inquiries_final_locked_status'));
+                ->with('error', ui_phrase('Inquiry is final and status cannot be changed.'));
         }
 
         if ($inquiry->trashed()) {
@@ -377,14 +338,14 @@ class InquiryController extends Controller
 
             return redirect()
                 ->route('inquiries.index')
-                ->with('success', 'Inquiry activated successfully.');
+                ->with('success', ui_phrase('Inquiry activated successfully.'));
         }
 
         $inquiry->delete();
 
         return redirect()
             ->route('inquiries.index')
-            ->with('success', 'Inquiry deactivated successfully.');
+            ->with('success', ui_phrase('Inquiry deactivated successfully.'));
     }
 
     public function storeFollowUp(Request $request, Inquiry $inquiry)
@@ -396,7 +357,7 @@ class InquiryController extends Controller
         if ($inquiry->isFinal()) {
             return redirect()
                 ->route('inquiries.show', $inquiry)
-                ->with('error', ui_phrase('modules_inquiries_final_locked_edit'));
+                ->with('error', ui_phrase('Inquiry is final and cannot be edited.'));
         }
         $validated = $request->validate([
             'due_date' => ['required', 'date'],
@@ -414,7 +375,7 @@ class InquiryController extends Controller
 
         return redirect()
             ->route('inquiries.show', $inquiry)
-            ->with('success', 'Follow-up reminder added successfully.');
+            ->with('success', ui_phrase('Follow-up added successfully.'));
     }
 
     public function markFollowUpDone(InquiryFollowUp $followUp)
@@ -426,7 +387,7 @@ class InquiryController extends Controller
         if ($followUp->inquiry?->isFinal()) {
             return redirect()
                 ->route('inquiries.show', $followUp->inquiry_id)
-                ->with('error', ui_phrase('modules_inquiries_final_locked_edit'));
+                ->with('error', ui_phrase('Inquiry is final and cannot be edited.'));
         }
         $validated = request()->validate([
             'done_reason' => ['required', 'string', 'max:1000'],
@@ -447,7 +408,7 @@ class InquiryController extends Controller
 
         return redirect()
             ->route('inquiries.show', $followUp->inquiry_id)
-            ->with('success', 'Follow-up marked as done.');
+            ->with('success', ui_phrase('Follow-up marked as done.'));
     }
 
     public function storeCommunication(Request $request, Inquiry $inquiry)
@@ -459,7 +420,7 @@ class InquiryController extends Controller
         if ($inquiry->isFinal()) {
             return redirect()
                 ->route('inquiries.show', $inquiry)
-                ->with('error', ui_phrase('modules_inquiries_final_locked_edit'));
+                ->with('error', ui_phrase('Inquiry is final and cannot be edited.'));
         }
         $validated = $request->validate([
             'channel' => ['required', Rule::in(self::CHANNEL_OPTIONS)],
@@ -477,7 +438,7 @@ class InquiryController extends Controller
 
         return redirect()
             ->route('inquiries.show', $inquiry)
-            ->with('success', 'Communication history added successfully.');
+            ->with('success', ui_phrase('Communication added successfully.'));
     }
 
     public function resetFollowUpReminder(InquiryFollowUp $followUp)
@@ -485,7 +446,7 @@ class InquiryController extends Controller
         if (! $this->canResetFollowUpReminder()) {
             return redirect()
                 ->route('inquiries.show', $followUp->inquiry_id)
-                ->with('error', 'You do not have permission to reset this reminder.');
+                ->with('error', ui_phrase('You do not have permission to reset reminder.'));
         }
 
         $followUp->loadMissing('inquiry');
@@ -501,7 +462,7 @@ class InquiryController extends Controller
 
         return redirect()
             ->route('inquiries.show', $followUp->inquiry_id)
-            ->with('success', 'Reminder reset successfully. The follow-up can be sent again.');
+            ->with('success', ui_phrase('Reminder reset successfully.'));
     }
 
     private function syncFollowUpStatus(Inquiry $inquiry): void
@@ -558,7 +519,7 @@ class InquiryController extends Controller
     {
         return redirect()
             ->route('inquiries.show', $inquiry)
-            ->with('error', 'You do not have permission to modify this inquiry.');
+            ->with('error', ui_phrase('You do not have permission to modify this inquiry.'));
     }
 
     private function buildInquiryAuditSnapshot(Inquiry $inquiry): array

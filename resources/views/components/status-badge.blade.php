@@ -22,7 +22,7 @@
     ];
 
     $colorClass = $statusClasses[$statusKey] ?? 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700';
-    $text = $label ?? ucfirst(str_replace('_', ' ', (string) $status));
+    $text = $label ?? ui_phrase((string) $status);
 @endphp
 
 <span {{ $attributes->merge(['class' => "inline-flex items-center rounded-full border font-semibold {$sizeClass} {$colorClass}"]) }}>

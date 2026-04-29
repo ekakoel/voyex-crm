@@ -148,7 +148,10 @@ function buildWysiwyg(textarea) {
     const editor = document.createElement('div');
     editor.className = 'wysiwyg-editor';
     editor.contentEditable = 'true';
-    editor.dataset.placeholder = textarea.getAttribute('placeholder') || 'Write here...';
+    const localizedEditorPlaceholder =
+        document.body?.dataset?.editorPlaceholder ||
+        'Write here...';
+    editor.dataset.placeholder = textarea.getAttribute('placeholder') || localizedEditorPlaceholder;
     editor.innerHTML = textareaValueToHtml(textarea.value);
 
     const syncToTextarea = () => {

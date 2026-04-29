@@ -1,9 +1,9 @@
 @extends('layouts.master')
-@section('page_title', ui_phrase('modules_inquiries_page_title'))
-@section('page_subtitle', ui_phrase('modules_inquiries_page_subtitle'))
+@section('page_title', ui_phrase('Inquiries'))
+@section('page_subtitle', ui_phrase('Manage inquiry records.'))
 @section('page_actions')
     <a href="{{ route('inquiries.create') }}" class="btn-primary">
-        {{ ui_phrase('modules_inquiries_add_inquiry') }}
+        {{ ui_phrase('Add Inquiry') }}
     </a>
 @endsection
 @section('content')
@@ -13,28 +13,28 @@
             <aside class="module-grid-side space-y-4">
                 <div class="app-card p-5 space-y-4">
                     <div>
-                        <h2 class="text-base font-semibold text-gray-800 dark:text-gray-100">{{ ui_phrase('common_filters') }}</h2>
-                        <p class="text-sm text-gray-500 dark:text-gray-400">{{ ui_phrase('index_refine_list_quickly') }}</p>
+                        <h2 class="text-base font-semibold text-gray-800 dark:text-gray-100">{{ ui_phrase('Filters') }}</h2>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">{{ ui_phrase('Refine your list quickly.') }}</p>
                     </div>
                     <form method="GET" action="{{ route('inquiries.index') }}" class="grid grid-cols-1 gap-3 sm:grid-cols-2" data-service-filter-form data-disable-submit-lock="1" data-page-spinner="off">
-                        <input name="q" value="{{ request('q') }}" placeholder="{{ ui_phrase('modules_inquiries_search') }}"
+                        <input name="q" value="{{ request('q') }}" placeholder="{{ ui_phrase('Search') }}"
                             class="app-input sm:col-span-2" data-service-filter-input>
                         <select name="status" class="app-input" data-service-filter-input>
-                            <option value="">{{ __('Status') }}</option>
+                            <option value="">{{ ui_phrase('Status') }}</option>
                             @foreach (\App\Models\Inquiry::STATUS_OPTIONS as $status)
-                                <option value="{{ $status }}" @selected(request('status') === $status)>{{ ucfirst($status) }}
+                                <option value="{{ $status }}" @selected(request('status') === $status)>{{ ui_phrase((string) $status) }}
                                 </option>
                             @endforeach
                         </select>
                         <select name="priority" class="app-input" data-service-filter-input>
-                            <option value="">{{ __('Priority') }}</option>
+                            <option value="">{{ ui_phrase('Priority') }}</option>
                             @foreach (['low', 'normal', 'high'] as $priority)
-                                <option value="{{ $priority }}" @selected(request('priority') === $priority)>{{ $priority }}
+                                <option value="{{ $priority }}" @selected(request('priority') === $priority)>{{ ui_phrase($priority) }}
                                 </option>
                             @endforeach
                         </select>
                         <select name="assigned_to" class="app-input" data-service-filter-input>
-                            <option value="">{{ ui_phrase('common_assigned') }}</option>
+                            <option value="">{{ ui_phrase('Assigned') }}</option>
                             @foreach ($assignees as $user)
                                 <option value="{{ $user->id }}" @selected((string) request('assigned_to') === (string) $user->id)>{{ $user->name }}
                                 </option>
@@ -42,12 +42,12 @@
                         </select>
                         <select name="per_page" class="app-input" data-service-filter-input>
                             @foreach ([10, 25, 50, 100] as $size)
-                                <option value="{{ $size }}" @selected((string) request('per_page', 10) === (string) $size)>{{ ui_phrase('index_per_page_option', ['size' => $size]) }}
+                                <option value="{{ $size }}" @selected((string) request('per_page', 10) === (string) $size)>{{ ui_phrase(':size/page', ['size' => $size]) }}
                                 </option>
                             @endforeach
                         </select>
                         <div class="flex items-center gap-2 sm:col-span-2 filter-actions">
-                            <a href="{{ route('inquiries.index') }}" class="btn-ghost" data-service-filter-reset>{{ ui_phrase('common_reset') }}</a>
+                            <a href="{{ route('inquiries.index') }}" class="btn-ghost" data-service-filter-reset>{{ ui_phrase('Reset') }}</a>
                         </div>
                     </form>
                 </div>
@@ -69,22 +69,22 @@
                                         #</th>
                                     <th
                                         class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">
-                                        Customer</th>
+                                        {{ ui_phrase('Customer:') }}</th>
                                     <th
                                         class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">
-                                        {{ ui_phrase('common_priority') }}</th>
+                                        {{ ui_phrase('Priority') }}</th>
                                     <th
                                         class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">
-                                        {{ ui_phrase('common_assigned') }}</th>
+                                        {{ ui_phrase('Assigned') }}</th>
                                     <th
                                         class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">
-                                        {{ ui_phrase('common_deadline') }}</th>
+                                        {{ ui_phrase('Deadline') }}</th>
                                     <th
                                         class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">
-                                        {{ ui_phrase('modules_inquiries_itinerary') }}</th>
+                                        {{ ui_phrase('Itinerary') }}</th>
                                     <th
                                         class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300 actions-compact">
-                                        {{ ui_phrase('common_actions') }}</th>
+                                        {{ ui_phrase('Actions') }}</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
@@ -97,10 +97,10 @@
                                                 size="xs" /></td>
 
                                         <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">
-                                            {{ $inquiry->priority }}</td>
+                                            {{ ui_phrase((string) $inquiry->priority) }}</td>
                                         <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">
                                             @if(($inquiry->assigned_to ?? null) === (auth()->user()?->id ?? null))
-                                                {{ ui_phrase('common_you') }}
+                                                {{ ui_phrase('You') }}
                                             @else
                                                 {{ $inquiry->assignedUser->name ?? '-' }}
                                             @endif
@@ -111,7 +111,7 @@
                                             @if (($inquiry->itineraries_count ?? 0) > 0)
                                                 <span
                                                     class="inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
-                                                    {{ ui_phrase('modules_inquiries_available_count', ['count' => $inquiry->itineraries_count]) }}
+                                                    {{ ui_phrase('Available (:count)', ['count' => $inquiry->itineraries_count]) }}
                                                 </span>
                                                 <div class="mt-1 space-y-1">
                                                     @foreach ($inquiry->itineraries->take(2) as $itinerary)
@@ -119,10 +119,10 @@
                                                             @if (Route::has('itineraries.show') && auth()->user()->can('module.itineraries.access'))
                                                                 <a href="{{ route('itineraries.show', $itinerary) }}"
                                                                     class="text-indigo-600 hover:text-indigo-700 hover:underline dark:text-indigo-400">
-                                                                    {{ $itinerary->title }} ({{ ucfirst((string) ($itinerary->status ?? 'pending')) }})
+                                                                    {{ $itinerary->title }} ({{ ui_phrase((string) ($itinerary->status ?? 'pending')) }})
                                                                 </a>
                                                             @else
-                                                                {{ $itinerary->title }} ({{ ucfirst((string) ($itinerary->status ?? 'pending')) }})
+                                                                {{ $itinerary->title }} ({{ ui_phrase((string) ($itinerary->status ?? 'pending')) }})
                                                             @endif
                                                         </p>
                                                     @endforeach
@@ -134,22 +134,22 @@
                                         <td class="px-4 py-3 text-right text-sm actions-compact">
                                             <div class="flex items-center justify-end gap-2">
                                                 <a href="{{ route('inquiries.show', $inquiry) }}"
-                                                    class="btn-secondary-sm" title="{{ ui_phrase('common_detail') }}" aria-label="{{ ui_phrase('common_detail') }}"><i class="fa-solid fa-eye"></i><span class="sr-only">{{ ui_phrase('common_detail') }}</span></a>
+                                                    class="btn-secondary-sm" title="{{ ui_phrase('Detail') }}" aria-label="{{ ui_phrase('Detail') }}"><i class="fa-solid fa-eye"></i><span class="sr-only">{{ ui_phrase('Detail') }}</span></a>
                                                 @can('update', $inquiry)
                                                     @if (!in_array(($inquiry->quotation->status ?? ''), ['approved', \App\Models\Quotation::FINAL_STATUS], true) && !$inquiry->isFinal())
                                                         <a href="{{ route('inquiries.edit', $inquiry) }}"
-                                                            class="btn-secondary-sm" title="{{ ui_phrase('common_edit') }}" aria-label="{{ ui_phrase('common_edit') }}"><i class="fa-solid fa-pen"></i><span class="sr-only">{{ ui_phrase('common_edit') }}</span></a>
+                                                            class="btn-secondary-sm" title="{{ ui_phrase('Edit') }}" aria-label="{{ ui_phrase('Edit') }}"><i class="fa-solid fa-pen"></i><span class="sr-only">{{ ui_phrase('Edit') }}</span></a>
                                                     @endif
                                                 @endcan
                                                 <a href="{{ route('itineraries.create', ['inquiry_id' => $inquiry->id]) }}"
-                                                    class="btn-outline-sm">{{ ui_phrase('modules_inquiries_create_itinerary') }}</a>
+                                                    class="btn-outline-sm">{{ ui_phrase('Create Itinerary') }}</a>
 </div>
                                         </td>
                                     </tr>
                                 @empty
                                     <tr>
                                         <td colspan="8"
-                                            class="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">{{ ui_phrase('index_no_data_available', ['entity' => ui_phrase('entities_inquiries')]) }}</td>
+                                            class="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">{{ ui_phrase('No :entity available.', ['entity' => ui_phrase('Inquiries')]) }}</td>
                                     </tr>
                                 @endforelse
                             </tbody>
@@ -169,24 +169,24 @@
                                 <x-status-badge :status="$inquiry->status" size="xs" />
                             </div>
                             <div class="mt-3 grid grid-cols-2 gap-2 text-xs text-gray-600 dark:text-gray-300">
-                                <div>{{ ui_phrase('common_priority') }}</div>
-                                <div>{{ $inquiry->priority }}</div>
-                                <div>{{ ui_phrase('common_assigned') }}</div>
+                                <div>{{ ui_phrase('Priority') }}</div>
+                                <div>{{ ui_phrase((string) $inquiry->priority) }}</div>
+                                <div>{{ ui_phrase('Assigned') }}</div>
                                 <div>
                                     @if(($inquiry->assigned_to ?? null) === (auth()->user()?->id ?? null))
-                                        {{ ui_phrase('common_you') }}
+                                        {{ ui_phrase('You') }}
                                     @else
                                         {{ $inquiry->assignedUser->name ?? '-' }}
                                     @endif
                                 </div>
-                                <div>{{ ui_phrase('common_deadline') }}</div>
+                                <div>{{ ui_phrase('Deadline') }}</div>
                                 <div>{{ $inquiry->deadline ? $inquiry->deadline->format('Y-m-d') : '-' }}</div>
                             </div>
                             <div class="mt-3">
                                 @if (($inquiry->itineraries_count ?? 0) > 0)
                                     <span
                                         class="inline-flex rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
-                                        {{ ui_phrase('modules_inquiries_itinerary_available', ['count' => $inquiry->itineraries_count]) }}
+                                        {{ ui_phrase('itinerary available', ['count' => $inquiry->itineraries_count]) }}
                                     </span>
                                     <div class="mt-2 space-y-1">
                                         @foreach ($inquiry->itineraries->take(2) as $itinerary)
@@ -195,10 +195,10 @@
                                                 @if (Route::has('itineraries.show') && auth()->user()->can('module.itineraries.access'))
                                                     <a href="{{ route('itineraries.show', $itinerary) }}"
                                                         class="text-indigo-600 hover:text-indigo-700 hover:underline dark:text-indigo-400">
-                                                        {{ $itinerary->title }} ({{ ucfirst((string) ($itinerary->status ?? 'pending')) }})
+                                                        {{ $itinerary->title }} ({{ ui_phrase((string) ($itinerary->status ?? 'pending')) }})
                                                     </a>
                                                 @else
-                                                    {{ $itinerary->title }} ({{ ucfirst((string) ($itinerary->status ?? 'pending')) }})
+                                                    {{ $itinerary->title }} ({{ ui_phrase((string) ($itinerary->status ?? 'pending')) }})
                                                 @endif
                                             </p>
                                         @endforeach
@@ -206,26 +206,26 @@
                                 @else
                                     <span
                                         class="inline-flex rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
-                                        {{ ui_phrase('modules_inquiries_no_itinerary_yet') }}
+                                        {{ ui_phrase('No Itinerary Yet') }}
                                     </span>
                                 @endif
                             </div>
                             <div class="mt-3 flex flex-wrap gap-2">
-                                <a href="{{ route('inquiries.show', $inquiry) }}" class="btn-outline-sm" title="{{ ui_phrase('common_detail') }}" aria-label="{{ ui_phrase('common_detail') }}"><i class="fa-solid fa-eye"></i><span class="sr-only">{{ ui_phrase('common_detail') }}</span></a>
+                                <a href="{{ route('inquiries.show', $inquiry) }}" class="btn-outline-sm" title="{{ ui_phrase('Detail') }}" aria-label="{{ ui_phrase('Detail') }}"><i class="fa-solid fa-eye"></i><span class="sr-only">{{ ui_phrase('Detail') }}</span></a>
                                 @can('update', $inquiry)
                                     @if (!in_array(($inquiry->quotation->status ?? ''), ['approved', \App\Models\Quotation::FINAL_STATUS], true) && !$inquiry->isFinal())
-                                        <a href="{{ route('inquiries.edit', $inquiry) }}" class="btn-secondary-sm" title="{{ ui_phrase('common_edit') }}" aria-label="{{ ui_phrase('common_edit') }}"><i class="fa-solid fa-pen"></i><span class="sr-only">{{ ui_phrase('common_edit') }}</span></a>
+                                        <a href="{{ route('inquiries.edit', $inquiry) }}" class="btn-secondary-sm" title="{{ ui_phrase('Edit') }}" aria-label="{{ ui_phrase('Edit') }}"><i class="fa-solid fa-pen"></i><span class="sr-only">{{ ui_phrase('Edit') }}</span></a>
                                     @endif
                                 @endcan
                                 <a href="{{ route('itineraries.create', ['inquiry_id' => $inquiry->id]) }}"
                                     class="btn-outline-sm">
-                                    {{ ui_phrase('modules_inquiries_create_itinerary') }}
+                                    {{ ui_phrase('Create Itinerary') }}
                                 </a>
 </div>
                         </div>
                     @empty
                         <div class="app-card p-6 text-center text-sm text-gray-500 dark:text-gray-400">
-                            {{ ui_phrase('index_no_data_available', ['entity' => ui_phrase('entities_inquiries')]) }}
+                            {{ ui_phrase('No :entity available.', ['entity' => ui_phrase('Inquiries')]) }}
                         </div>
                     @endforelse
                 </div>
@@ -234,4 +234,3 @@
         </div>
     </div>
 @endsection
-

@@ -4,7 +4,7 @@
 
 <div class="space-y-5">
     <div>
-        <label for="name" class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Name') }}</label>
+        <label for="name" class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Name') }}</label>
         <input
             id="name"
             name="name"
@@ -19,7 +19,7 @@
     </div>
 
     <div>
-        <label for="email" class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Email') }}</label>
+        <label for="email" class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Email') }}</label>
         <input
             id="email"
             name="email"
@@ -34,7 +34,7 @@
     </div>
 
     <div>
-        <label for="password" class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Password') }}</label>
+        <label for="password" class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Password') }}</label>
         <input
             id="password"
             name="password"
@@ -51,7 +51,7 @@
     </div>
 
     <div>
-        <label for="password_confirmation" class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Confirm Password') }}</label>
+        <label for="password_confirmation" class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Confirm Password') }}</label>
         <input
             id="password_confirmation"
             name="password_confirmation"
@@ -62,7 +62,7 @@
     </div>
 
     <div>
-        <p class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('Role') }}</p>
+        <p class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Role') }}</p>
         <div class="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
             @foreach ($roles as $role)
                 <label class="inline-flex items-center gap-2 rounded-md border border-gray-200 px-3 py-2 text-sm dark:border-gray-700">

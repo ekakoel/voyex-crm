@@ -16,13 +16,16 @@ Last Updated: 2026-04-17
 
 ## Required Rules
 1. Never hardcode user-facing text in Blade.
-2. Use translation keys from `lang/en/ui.php`.
-3. Use `__('ui...')` for single labels and messages.
+2. Use canonical dictionary from `lang/en/ui_core.php` for shared UI phrases.
+3. For global/shared labels, prefer `ui_phrase('Exact English Phrase')`.
 4. Use placeholders for dynamic text, example: `__('ui.common.waiting_for', ['names' => $names])`.
 5. Keep keys grouped by domain:
    - shared labels: `ui.common.*`
    - module labels: `ui.modules.{module_key}.*`
 6. New module/page cannot be considered done without translation keys.
+7. Do not introduce artificial prefix keys for simple nav/layout labels.
+   - Avoid: `sidebar_dashboard`, `sidebar_users`
+   - Use: `'Dashboard'`, `'Users'`, `'Reservations'`
 
 ## Recommended Key Pattern
 - Page-level:
@@ -47,7 +50,7 @@ Last Updated: 2026-04-17
 
 ## QA Checklist (Before Merge)
 1. Run syntax check:
-   - `php -l lang/en/ui.php`
+   - `php -l lang/en/ui_core.php`
 2. Ensure no missing UI keys referenced in create/edit/show pages.
 3. Build Blade cache:
    - `php artisan view:cache`

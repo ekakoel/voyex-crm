@@ -1524,7 +1524,7 @@ SVG;
         if ($quotation->isCreator($user)) {
             return redirect()
                 ->route('quotations.show', $quotation)
-                ->with('error', ui_phrase('modules_quotations_creator_cannot_approve'));
+                ->with('error', ui_phrase('Quotation creator cannot approve this quotation.'));
         }
 
         $approvalRole = $this->resolveApprovalRoleForUser($user);
@@ -1537,7 +1537,7 @@ SVG;
         if ($alreadyApprovedByUser) {
             return redirect()
                 ->route('quotations.show', $quotation)
-                ->with('error', ui_phrase('modules_quotations_approval_already_done'));
+                ->with('error', ui_phrase('You have already approved this quotation.'));
         }
 
         $validated = $request->validate([

@@ -199,6 +199,32 @@ Kebijakan ini wajib untuk setiap update code (penambahan, perubahan, pengurangan
 
 # CHANGELOG (LATEST)
 
+Date: 2026-04-29
+Completed in this cycle:
+
+- i18n sidebar navigation standardization (no prefixed translation keys):
+  - sidebar menu now resolves labels directly from phrase dictionary (`ui_phrase('...')`) using menu title text.
+  - removed sidebar translation-key dependency in layout resolver (no `sidebar_*` lookup in sidebar rendering path).
+  - cleaned sidebar menu definition to use plain phrase titles only (removed `title_key` properties) in:
+    - `app/Http/View/SidebarComposer.php`
+    - `resources/views/layouts/master.blade.php`
+  - impact:
+    - navigation labels follow the same translation pattern as the rest of the app (`'Dashboard' => '...'`) without technical prefix/alias keys.
+    - simpler maintenance for language teams and lower risk of key drift.
+  - left navbar coverage (completed):
+    - verified all sidebar labels are phrase-based and available in all active locales (`en`, `zh_Hant`, `zh_Hans`), including:
+      - section labels (`CRM & Sales`, `Product & Reservation`, `Administration`),
+      - menu items (`Dashboard`, `Reservations`, `Service Items`, `System Admin`, etc.),
+      - collapsed-sidebar helper labels (`Show icons + labels`, `Show icons only`).
+    - ensured sidebar rendering path no longer depends on prefixed translation keys.
+- i18n documentation alignment update:
+  - updated canonical dictionary references from `ui.php` to `ui_core.php`.
+  - documented mandatory rule for global nav/layout text:
+    - use exact phrase mapping, avoid prefixed keys such as `sidebar_*`.
+  - updated files:
+    - `docs/I18N_GUIDE.md`
+    - `docs/technical/I18N_TRANSLATION_STANDARD.md`
+
 Date: 2026-04-27
 Completed in this cycle:
 
@@ -1432,3 +1458,18 @@ Historical detailed entries moved to:
 - docs/changelog/ROADMAP_CHANGELOG_ARCHIVE.md
 
 - Reservation dashboard: added short-term caching for heavy booking queries and weekly trend data (Cache TTL 120s) to improve dashboard responsiveness; added feature test `tests/Feature/Dashboard/ReservationDashboardTest.php` to verify permission guard and rendering. (Controller: `app/Http/Controllers/Reservation/DashboardController.php`, View: `resources/views/reservation/dashboard.blade.php`).
+Date: 2026-04-29
+
+Completed in this cycle:
+
+- Itinerary Day Planner F&B meal-availability alignment:
+  - create/edit itinerary Day Planner now filters F&B choices by meal slot inferred from row `start_time`:
+    - `< 11:00` => Breakfast,
+    - `11:00 - 15:59` => Lunch,
+    - `>= 16:00` => Dinner.
+  - F&B suggestion payload and rendered select options now carry meal-period metadata for fast client-side filtering.
+  - added backend guard in `ItineraryController::validateFoodBeverageItems()` to reject mismatched F&B vs meal slot at submit time.
+  - backward compatibility retained: F&B master rows with empty `meal_period` are treated as all-day available.
+- Documentation sync:
+  - updated `docs/technical/ITINERARY_CREATE_EDIT_FLOW.md`.
+  - added fix note `docs/technical/TECHNICAL_FIX_NOTES.md` section 44.

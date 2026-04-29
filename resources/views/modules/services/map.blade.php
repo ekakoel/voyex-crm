@@ -3,7 +3,7 @@
 @section('page_title', 'Service Map')
 @section('page_subtitle', 'Full map of services with valid coordinates.')
 @section('page_actions')
-    <a href="{{ route('services.index') }}" class="btn-ghost">{{ __('Back to Services') }}</a>
+    <a href="{{ route('services.index') }}" class="btn-ghost">{{ ui_phrase('Back to Services') }}</a>
 @endsection
 
 @section('content')
@@ -25,12 +25,12 @@
         <div class="module-grid-3-9">
             <aside class="module-grid-side space-y-4">
                 <div class="app-card p-5">
-                    <p class="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{{ __('Summary') }}</p>
+                    <p class="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{{ ui_phrase('Summary') }}</p>
                     <h3 class="mt-2 text-lg font-semibold text-slate-900 dark:text-slate-100">{{ number_format($stats['total'] ?? 0) }} point(s)</h3>
                     <p class="mt-1 text-sm text-slate-600 dark:text-slate-300">{{ __('Auto-loaded from service modules that have latitude and longitude.') }}</p>
                 </div>
                 <div class="app-card p-5">
-                    <p class="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{{ __('Legend') }}</p>
+                    <p class="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{{ ui_phrase('Legend') }}</p>
                     <div class="mt-3 space-y-2">
                         @foreach ($legend as $item)
                             <label class="flex items-center justify-between gap-3 rounded-lg border border-slate-200 px-3 py-2 text-sm dark:border-slate-700">
@@ -51,11 +51,11 @@
                 <div class="app-card p-4 sm:p-5">
                     <div class="mb-3 flex items-center justify-between gap-3">
                         <div>
-                            <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100">{{ __('Service Coverage Map') }}</h3>
+                            <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100">{{ ui_phrase('Service Coverage Map') }}</h3>
                             <p class="text-xs text-slate-500 dark:text-slate-400">{{ __('Interactive map for service points and island transfer routes.') }}</p>
                         </div>
                         <span class="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-                            {{ number_format($stats['total'] ?? 0) }} {{ __('points') }}
+                            {{ number_format($stats['total'] ?? 0) }} {{ ui_phrase('points') }}
                         </span>
                     </div>
 

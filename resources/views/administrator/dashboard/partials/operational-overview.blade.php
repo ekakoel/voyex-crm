@@ -1,8 +1,8 @@
 @if(!empty($operationalKpis))
     <div>
         <div class="flex items-center justify-between">
-            <h2 class="text-sm font-semibold text-slate-900 dark:text-slate-100">{{ ui_phrase('administrator_dashboard_sections_operational_overview') }}</h2>
-            <span class="text-[11px] text-slate-500 dark:text-slate-400">{{ ui_phrase('administrator_dashboard_operational_kpis_sales_booking_metrics') }}</span>
+            <h2 class="text-sm font-semibold text-slate-900 dark:text-slate-100">{{ ui_phrase('Operational Overview') }}</h2>
+            <span class="text-[11px] text-slate-500 dark:text-slate-400">{{ ui_phrase('Sales & booking metrics') }}</span>
         </div>
         <div class="dashboard-kpi-grid mt-3 grid grid-cols-2 gap-3 lg:grid-cols-4">
             @foreach($operationalKpis as $card)
@@ -17,6 +17,6 @@
         </div>
     </div>
 @else
-    <p class="text-sm text-slate-500 dark:text-slate-400" data-progressive-item>{{ ui_phrase('administrator_dashboard_operational_kpis_no_access') }}</p>
+    <p class="text-sm text-slate-500 dark:text-slate-400" data-progressive-item>{{ ui_phrase('No access to operational KPI.') }}</p>
 @endif
 

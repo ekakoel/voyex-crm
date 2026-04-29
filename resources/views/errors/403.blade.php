@@ -14,7 +14,7 @@
         <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-rose-100 text-rose-600 dark:bg-rose-900/30 dark:text-rose-300">
             <i class="fa-solid fa-lock"></i>
         </div>
-        <h2 class="mt-4 text-lg font-semibold text-slate-900 dark:text-slate-100">{{ __('403 - Access Denied') }}</h2>
+        <h2 class="mt-4 text-lg font-semibold text-slate-900 dark:text-slate-100">{{ ui_phrase('403 - Access Denied') }}</h2>
         <p class="mt-2 text-sm text-slate-500 dark:text-slate-400">
             {{ $exception->getMessage() ?: 'Please contact the administrator if you believe this is a mistake.' }}
         </p>

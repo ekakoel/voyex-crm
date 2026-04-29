@@ -1,9 +1,9 @@
 @extends('layouts.master')
 
-@section('page_title', ui_phrase('modules_customers_edit_page_title'))
-@section('page_subtitle', ui_phrase('modules_customers_edit_page_subtitle'))
+@section('page_title', ui_phrase('Edit Customer'))
+@section('page_subtitle', ui_phrase('Update customer information.'))
 @section('page_actions')
-    <a href="{{ route('customers.index') }}"  class="btn-ghost">{{ ui_phrase('common_back') }}</a>
+    <a href="{{ route('customers.index') }}"  class="btn-ghost" data-page-back-action>{{ ui_phrase('Back') }}</a>
 @endsection
 
 @section('content')
@@ -16,7 +16,7 @@
                         @method('PUT')
                         @include('modules.customers._form', [
                             'customer' => $customer,
-                            'buttonLabel' => ui_phrase('modules_customers_update_customer'),
+                            'buttonLabel' => ui_phrase('Update Customer'),
                         ])
                     </form>
                 </div>

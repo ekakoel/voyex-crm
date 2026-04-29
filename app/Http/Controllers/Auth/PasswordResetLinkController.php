@@ -35,10 +35,10 @@ class PasswordResetLinkController extends Controller
 
         if ($status === Password::RESET_THROTTLED) {
             return back()->withInput($request->only('email'))
-                ->withErrors(['email' => ui_phrase('auth_messages_retry_later')]);
+                ->withErrors(['email' => ui_phrase('Please wait before retrying.')]);
         }
 
         // Return a generic success message to prevent user email enumeration.
-        return back()->with('status', ui_phrase('auth_messages_reset_link_if_registered'));
+        return back()->with('status', ui_phrase('If your email is registered, a password reset link has been sent.'));
     }
 }

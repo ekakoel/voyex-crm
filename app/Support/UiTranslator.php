@@ -16,7 +16,7 @@ class UiTranslator
             $key = substr($key, 3);
         }
 
-        return str_replace('.', '_', $key);
+        return Str::snake(str_replace('.', '_', $key));
     }
 
     /**
@@ -59,7 +59,7 @@ class UiTranslator
                 return __('ui_core.na');
             }
 
-            return ui_phrase('common_unknown');
+            return ui_phrase('Unknown');
         }
 
         $coreKey = "ui_core.{$normalized}";

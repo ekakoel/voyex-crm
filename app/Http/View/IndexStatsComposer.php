@@ -4,7 +4,6 @@ namespace App\Http\View;
 
 use App\Support\SchemaInspector;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 class IndexStatsComposer
@@ -51,7 +50,7 @@ class IndexStatsComposer
 
         $model = new $modelClass();
         $table = method_exists($model, 'getTable') ? $model->getTable() : null;
-        $cacheKey = 'index_stats:' . $module . ':v1';
+        $cacheKey = 'index_stats:' . $module . ':v2';
 
         $cards = Cache::remember($cacheKey, now()->addSeconds(120), function () use ($module, $table, $modelClass): array {
             $cards = [];
@@ -66,9 +65,9 @@ class IndexStatsComposer
                 foreach ($priorityOptions as $priority) {
                     $cards[] = [
                         'key' => 'priority_' . $priority,
-                        'label' => Str::headline((string) $priority),
+                        'label' => (string) $priority,
                         'value' => (int) ($counts[$priority] ?? 0),
-                        'caption' => 'Priority',
+                        'caption' => 'priority',
                         'tone' => $this->toneForPriority((string) $priority),
                     ];
                 }
@@ -82,9 +81,9 @@ class IndexStatsComposer
                 foreach ($statusOptions as $status) {
                     $cards[] = [
                         'key' => (string) $status,
-                        'label' => Str::headline((string) $status),
+                        'label' => (string) $status,
                         'value' => (int) ($counts[$status] ?? 0),
-                        'caption' => 'Total',
+                        'caption' => 'total',
                         'tone' => $this->toneForStatus((string) $status),
                     ];
                 }
@@ -96,23 +95,23 @@ class IndexStatsComposer
 
                 $cards[] = [
                     'key' => 'total',
-                    'label' => 'Total',
+                    'label' => 'total',
                     'value' => (int) $counts->sum(),
-                    'caption' => 'Total',
+                    'caption' => 'total',
                     'tone' => 'bg-slate-50 text-slate-700 border-slate-100',
                 ];
                 $cards[] = [
                     'key' => 'active',
-                    'label' => 'Active',
+                    'label' => 'active',
                     'value' => (int) ($counts[1] ?? 0),
-                    'caption' => 'Active',
+                    'caption' => 'active',
                     'tone' => 'bg-emerald-50 text-emerald-700 border-emerald-100',
                 ];
                 $cards[] = [
                     'key' => 'inactive',
-                    'label' => 'Inactive',
+                    'label' => 'inactive',
                     'value' => (int) ($counts[0] ?? 0),
-                    'caption' => 'Inactive',
+                    'caption' => 'inactive',
                     'tone' => 'bg-slate-100 text-slate-700 border-slate-200',
                 ];
             } elseif ($table && SchemaInspector::hasColumn($table, 'is_enabled')) {
@@ -123,31 +122,31 @@ class IndexStatsComposer
 
                 $cards[] = [
                     'key' => 'total',
-                    'label' => 'Total',
+                    'label' => 'total',
                     'value' => (int) $counts->sum(),
-                    'caption' => 'Total',
+                    'caption' => 'total',
                     'tone' => 'bg-slate-50 text-slate-700 border-slate-100',
                 ];
                 $cards[] = [
                     'key' => 'enabled',
-                    'label' => 'Enabled',
+                    'label' => 'enabled',
                     'value' => (int) ($counts[1] ?? 0),
-                    'caption' => 'Enabled',
+                    'caption' => 'enabled',
                     'tone' => 'bg-emerald-50 text-emerald-700 border-emerald-100',
                 ];
                 $cards[] = [
                     'key' => 'disabled',
-                    'label' => 'Disabled',
+                    'label' => 'disabled',
                     'value' => (int) ($counts[0] ?? 0),
-                    'caption' => 'Disabled',
+                    'caption' => 'disabled',
                     'tone' => 'bg-slate-100 text-slate-700 border-slate-200',
                 ];
             } else {
                 $cards[] = [
                     'key' => 'total',
-                    'label' => 'Total',
+                    'label' => 'total',
                     'value' => (int) $modelClass::query()->count(),
-                    'caption' => 'Total',
+                    'caption' => 'total',
                     'tone' => 'bg-slate-50 text-slate-700 border-slate-100',
                 ];
             }

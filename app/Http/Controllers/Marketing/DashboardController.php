@@ -76,13 +76,13 @@ class DashboardController extends Controller
         // Build Funnel for the authenticated user
         $funnel = [];
         if ($canInquiries) {
-            $funnel[] = ['label' => ui_phrase('marketing_dashboard_funnel_label', ['term' => ui_term('inquiries')]), 'value' => $totalInquiries];
+            $funnel[] = ['label' => ui_phrase('My :term', ['term' => ui_phrase('inquiries')]), 'value' => $totalInquiries];
         }
         if ($canQuotations) {
-            $funnel[] = ['label' => ui_phrase('marketing_dashboard_funnel_label', ['term' => ui_term('quotations')]), 'value' => $totalQuotations];
+            $funnel[] = ['label' => ui_phrase('My :term', ['term' => ui_phrase('quotations')]), 'value' => $totalQuotations];
         }
         if ($canBookings) {
-            $funnel[] = ['label' => ui_phrase('marketing_dashboard_funnel_label', ['term' => ui_term('bookings')]), 'value' => $totalBookings];
+            $funnel[] = ['label' => ui_phrase('My :term', ['term' => ui_phrase('bookings')]), 'value' => $totalBookings];
         }
 
         // Inquiry stats by status

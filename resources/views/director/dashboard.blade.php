@@ -1,28 +1,26 @@
 @extends('layouts.master')
 
-@section('page_title', ui_phrase('director_dashboard_page_title'))
-@section('page_subtitle', ui_phrase('director_dashboard_page_subtitle'))
+@section('page_title', ui_phrase('Director Dashboard'))
+@section('page_subtitle', ui_phrase('Strategic overview for approvals, pipeline health, and business performance.'))
 @section('page_actions')
-    <span class="text-xs text-slate-500 dark:text-slate-400">{{ ui_phrase('director_dashboard_updated') }} <x-local-time :value="now()" /></span>
+    <span class="text-xs text-slate-500 dark:text-slate-400">{{ ui_phrase('Updated:') }} <x-local-time :value="now()" /></span>
 @endsection
 
 @section('content')
-@php
-    $t = 'director_dashboard';
-    $kpiCards = [];
+@php\n$kpiCards = [];
     if ($canBookings) {
         $kpiCards[] = [
-            'label' => ui_phrase("$t.cards.revenue_mtd"),
+            'label' => ui_phrase('Revenue MTD'),
             'value' => (float) ($monthlyRevenue ?? 0),
-            'caption' => ui_phrase("$t.captions.previous_month", ['amount' => \App\Support\Currency::format((float) ($previousMonthlyRevenue ?? 0), 'IDR')]),
+            'caption' => ui_phrase('Compared to previous month', ['amount' => \App\Support\Currency::format((float) ($previousMonthlyRevenue ?? 0), 'IDR')]),
             'icon' => 'wallet',
             'color' => 'emerald',
             'format' => 'money',
         ];
         $kpiCards[] = [
-            'label' => ui_phrase("$t.cards.revenue_growth"),
+            'label' => ui_phrase('Revenue Growth'),
             'value' => (float) ($revenueGrowthPercent ?? 0),
-            'caption' => ui_phrase("$t.captions.compared_previous_month"),
+            'caption' => ui_phrase('Compared to previous month'),
             'icon' => 'chart-line',
             'color' => ((float) ($revenueGrowthPercent ?? 0) >= 0) ? 'indigo' : 'rose',
             'suffix' => '%',
@@ -31,34 +29,34 @@
     }
     if ($canQuotations) {
         $kpiCards[] = [
-            'label' => ui_phrase("$t.cards.director_action_queue"),
+            'label' => ui_phrase('Director Action Queue'),
             'value' => (int) ($needsDirectorApprovalCount ?? 0),
-            'caption' => ui_phrase("$t.captions.pending_for_you"),
+            'caption' => ui_phrase('Pending for you'),
             'icon' => 'file-circle-check',
             'color' => 'amber',
         ];
         $kpiCards[] = [
-            'label' => ui_phrase("$t.cards.total_quotations"),
+            'label' => ui_phrase('Total Quotations'),
             'value' => (int) ($totalQuotation ?? 0),
-            'caption' => ui_phrase("$t.captions.all_quotation_records"),
+            'caption' => ui_phrase('All quotation records'),
             'icon' => 'file-invoice-dollar',
             'color' => 'sky',
         ];
     }
     if ($canInquiries) {
         $kpiCards[] = [
-            'label' => ui_phrase("$t.cards.inquiries_mtd"),
+            'label' => ui_phrase('Inquiries MTD'),
             'value' => (int) ($inquiriesThisMonth ?? 0),
-            'caption' => ui_phrase("$t.captions.total_inquiries", ['count' => number_format((int) ($totalInquiry ?? 0))]),
+            'caption' => ui_phrase('Total inquiries: :count', ['count' => number_format((int) ($totalInquiry ?? 0))]),
             'icon' => 'inbox',
             'color' => 'violet',
         ];
     }
     if ($canBookings && $canInquiries) {
         $kpiCards[] = [
-            'label' => ui_phrase("$t.cards.inquiry_to_booking"),
+            'label' => ui_phrase('Inquiry to Booking'),
             'value' => (float) ($conversionRate ?? 0),
-            'caption' => ui_phrase("$t.captions.bookings_count", ['count' => number_format((int) ($totalBooking ?? 0))]),
+            'caption' => ui_phrase('Bookings: :count', ['count' => number_format((int) ($totalBooking ?? 0))]),
             'icon' => 'bullseye',
             'color' => 'teal',
             'suffix' => '%',
@@ -70,7 +68,7 @@
 <div class="sa-wrap rounded-3xl border border-slate-200/80 bg-slate-100/70 p-3 dark:border-slate-700 dark:bg-slate-900/60" data-progressive-dashboard>
     @if (($needsDirectorApprovalCount ?? 0) > 0)
         <div class="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-300">
-            {{ ui_phrase("$t.alert.waiting_approval", ['count' => number_format((int) $needsDirectorApprovalCount)]) }}
+            {{ ui_phrase(':count quotation(s) waiting for your approval.', ['count' => number_format((int) $needsDirectorApprovalCount)]) }}
         </div>
     @endif
 
@@ -79,7 +77,7 @@
             <div class="sa-card app-kpi-card p-4" data-progressive-item>
                 <div class="flex items-center justify-between">
                     <span class="sa-dot sa-{{ $card['color'] }}"><i class="fa-solid fa-{{ $card['icon'] }}"></i></span>
-                    <span class="text-[10px] text-slate-400 uppercase">{{ ui_phrase("$t.common.kpi") }}</span>
+                    <span class="text-[10px] text-slate-400 uppercase">{{ ui_phrase('KPI') }}</span>
                 </div>
                 <p class="mt-3 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{{ $card['label'] }}</p>
                 <b class="mt-1 block text-xl text-slate-900 dark:text-slate-100">
@@ -99,34 +97,34 @@
             @if($canQuotations)
                 <div class="sa-card p-5" data-progressive-item>
                     <div class="flex items-center justify-between">
-                        <h2 class="text-sm font-semibold text-slate-900 dark:text-slate-100">{{ ui_phrase("$t.pipeline.title") }}</h2>
+                        <h2 class="text-sm font-semibold text-slate-900 dark:text-slate-100">{{ ui_phrase('Approval Pipeline') }}</h2>
                         <a href="{{ route('quotations.index', ['status' => 'pending', 'needs_my_approval' => 1]) }}" class="text-xs font-medium text-indigo-600 hover:text-indigo-700 dark:text-indigo-300">
-                            {{ ui_phrase("$t.pipeline.open_my_approval_list") }}
+                            {{ ui_phrase('Open My Approval List') }}
                         </a>
                     </div>
                     <div class="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3 text-xs">
                         <div class="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900">
-                            <p class="text-slate-500 dark:text-slate-400">{{ ui_phrase("$t.pipeline.step_1") }}</p>
+                            <p class="text-slate-500 dark:text-slate-400">{{ ui_phrase('Step 1: First Approval') }}</p>
                             <p class="mt-1 text-lg font-semibold text-slate-800 dark:text-slate-100">{{ number_format((int) ($needsReservationApprovalCount ?? 0)) }}</p>
-                            <p class="text-slate-500 dark:text-slate-400">{{ ui_phrase("$t.pipeline.no_non_creator_approval_yet") }}</p>
+                            <p class="text-slate-500 dark:text-slate-400">{{ ui_phrase('No non-creator approval yet') }}</p>
                         </div>
                         <div class="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900">
-                            <p class="text-slate-500 dark:text-slate-400">{{ ui_phrase("$t.pipeline.step_2") }}</p>
+                            <p class="text-slate-500 dark:text-slate-400">{{ ui_phrase('Step 2: Final Approval') }}</p>
                             <p class="mt-1 text-lg font-semibold text-slate-800 dark:text-slate-100">{{ number_format((int) ($needsManagerApprovalCount ?? 0)) }}</p>
-                            <p class="text-slate-500 dark:text-slate-400">{{ ui_phrase("$t.pipeline.already_has_1_non_creator_approval") }}</p>
+                            <p class="text-slate-500 dark:text-slate-400">{{ ui_phrase('Already has 1 non-creator approval') }}</p>
                         </div>
                         <div class="rounded-xl border border-amber-200 bg-amber-50 p-3 dark:border-amber-700 dark:bg-amber-900/20">
-                            <p class="text-amber-700 dark:text-amber-300">{{ ui_phrase("$t.pipeline.my_approval_queue") }}</p>
+                            <p class="text-amber-700 dark:text-amber-300">{{ ui_phrase('My Approval Queue') }}</p>
                             <p class="mt-1 text-lg font-semibold text-amber-800 dark:text-amber-200">{{ number_format((int) ($needsDirectorApprovalCount ?? 0)) }}</p>
-                            <p class="text-amber-700 dark:text-amber-300">{{ ui_phrase("$t.pipeline.need_your_approval") }}</p>
+                            <p class="text-amber-700 dark:text-amber-300">{{ ui_phrase('Need your approval') }}</p>
                         </div>
                     </div>
                 </div>
 
                 <div class="sa-card p-5" data-progressive-item>
                     <div class="flex items-center justify-between">
-                        <h2 class="text-sm font-semibold text-slate-900 dark:text-slate-100">{{ ui_phrase("$t.approval_queue.title") }}</h2>
-                        <span class="text-[11px] text-slate-500 dark:text-slate-400">{{ ui_phrase("$t.approval_queue.prioritized_by_validity_date") }}</span>
+                        <h2 class="text-sm font-semibold text-slate-900 dark:text-slate-100">{{ ui_phrase('Director Approval Queue') }}</h2>
+                        <span class="text-[11px] text-slate-500 dark:text-slate-400">{{ ui_phrase('Prioritized by validity date') }}</span>
                     </div>
                     <div class="mt-3 space-y-2 text-xs">
                         @forelse($pendingApprovals as $quotation)
@@ -135,22 +133,22 @@
                                     <div>
                                         <p class="font-semibold text-slate-800 dark:text-slate-100">{{ $quotation->quotation_number }}</p>
                                         <p class="text-slate-500 dark:text-slate-400">
-                                            {{ $quotation->inquiry?->customer?->name ?? ui_phrase("$t.common.customer_not_set") }}
+                                            {{ $quotation->inquiry?->customer?->name ?? ui_phrase('Customer not set') }}
                                         </p>
                                     </div>
                                     <div class="text-right">
                                         <p class="font-semibold text-slate-800 dark:text-slate-100"><x-money :amount="$quotation->final_amount ?? 0" currency="IDR" /></p>
-                                        <p class="text-slate-500 dark:text-slate-400">{{ ui_phrase("$t.common.validity") }} {{ $quotation->validity_date?->format('Y-m-d') ?? '-' }}</p>
+                                        <p class="text-slate-500 dark:text-slate-400">{{ ui_phrase('Validity:') }} {{ $quotation->validity_date?->format('Y-m-d') ?? '-' }}</p>
                                     </div>
                                 </div>
                                 <div class="mt-2">
                                     <a href="{{ route('quotations.show', $quotation) }}" class="inline-flex items-center rounded-lg border border-indigo-300 px-2.5 py-1 text-[11px] font-semibold text-indigo-700 hover:bg-indigo-50 dark:border-indigo-700 dark:text-indigo-300 dark:hover:bg-indigo-900/20">
-                                        {{ ui_phrase("$t.approval_queue.review_quotation") }}
+                                        {{ ui_phrase('Review Quotation') }}
                                     </a>
                                 </div>
                             </div>
                         @empty
-                            <p class="text-xs text-slate-500 dark:text-slate-400">{{ ui_phrase("$t.approval_queue.empty") }}</p>
+                            <p class="text-xs text-slate-500 dark:text-slate-400">{{ ui_phrase('No quotation is currently waiting for director approval.') }}</p>
                         @endforelse
                     </div>
                 </div>
@@ -159,8 +157,8 @@
             @if($canBookings)
                 <div class="sa-card p-5" data-progressive-item>
                     <div class="flex items-center justify-between">
-                        <h2 class="text-sm font-semibold text-slate-900 dark:text-slate-100">{{ ui_phrase("$t.revenue_trend.title", ['year' => now()->year]) }}</h2>
-                        <span class="text-[11px] text-slate-500 dark:text-slate-400">{{ ui_phrase("$t.revenue_trend.based_on_booking_creation_date") }}</span>
+                        <h2 class="text-sm font-semibold text-slate-900 dark:text-slate-100">{{ ui_phrase('Revenue Trend :year', ['year' => now()->year]) }}</h2>
+                        <span class="text-[11px] text-slate-500 dark:text-slate-400">{{ ui_phrase('Based on booking creation date') }}</span>
                     </div>
                     <div class="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6 xl:grid-cols-12">
                         @foreach($monthlyData as $row)
@@ -184,15 +182,15 @@
         <aside class="xl:col-span-4 space-y-3" data-progressive-group>
             @if($canQuotations)
                 <div class="sa-card p-4" data-progressive-item>
-                    <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100">{{ ui_phrase("$t.quotation_status_snapshot.title") }}</h3>
+                    <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100">{{ ui_phrase('Quotation Status Snapshot') }}</h3>
                     <div class="mt-3 space-y-2 text-xs">
                         @forelse(($quotationStatusCounts ?? collect())->sortKeys() as $status => $count)
                             <div class="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2 dark:border-slate-700 dark:bg-slate-900" data-progressive-item>
-                                <span class="font-medium text-slate-700 dark:text-slate-200">{{ ui_term((string) $status) }}</span>
+                                <span class="font-medium text-slate-700 dark:text-slate-200">{{ ui_phrase((string) $status) }}</span>
                                 <span class="font-semibold text-slate-900 dark:text-slate-100">{{ number_format((int) $count) }}</span>
                             </div>
                         @empty
-                            <p class="text-xs text-slate-500 dark:text-slate-400">{{ ui_phrase("$t.quotation_status_snapshot.empty") }}</p>
+                            <p class="text-xs text-slate-500 dark:text-slate-400">{{ ui_phrase('No quotation status data.') }}</p>
                         @endforelse
                     </div>
                 </div>
@@ -200,16 +198,16 @@
 
             @if($canBookings)
                 <div class="sa-card p-4" data-progressive-item>
-                    <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100">{{ ui_phrase("$t.upcoming_bookings.title") }}</h3>
+                    <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100">{{ ui_phrase('Upcoming Bookings') }}</h3>
                     <div class="mt-3 space-y-2 text-xs">
                         @forelse($upcomingBookings as $booking)
                             <div class="rounded-lg border border-slate-200 bg-white px-3 py-2 dark:border-slate-700 dark:bg-slate-900" data-progressive-item>
                                 <p class="font-semibold text-slate-800 dark:text-slate-100">{{ $booking->booking_number }}</p>
-                                <p class="text-slate-500 dark:text-slate-400">{{ optional($booking->travel_date)->format('Y-m-d') ?? '-' }} • {{ ui_term((string) ($booking->status ?? '-')) }}</p>
-                                <p class="text-slate-500 dark:text-slate-400">{{ $booking->quotation?->inquiry?->customer?->name ?? ui_phrase("$t.common.customer_not_set") }}</p>
+                                <p class="text-slate-500 dark:text-slate-400">{{ optional($booking->travel_date)->format('Y-m-d') ?? '-' }} ï¿½ {ui_phraserm((string) ($booking->status ?? '-')) }}</p>
+                                <p class="text-slate-500 dark:text-slate-400">{{ $booking->quotation?->inquiry?->customer?->name ?? ui_phrase('Customer not set') }}</p>
                             </div>
                         @empty
-                            <p class="text-xs text-slate-500 dark:text-slate-400">{{ ui_phrase("$t.upcoming_bookings.empty") }}</p>
+                            <p class="text-xs text-slate-500 dark:text-slate-400">{{ ui_phrase('No upcoming bookings found.') }}</p>
                         @endforelse
                     </div>
                 </div>

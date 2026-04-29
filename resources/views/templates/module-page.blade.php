@@ -1,10 +1,10 @@
 @extends('layouts.master')
 
-@section('page_title', __('Module'))
-@section('page_subtitle', __('Page description'))
+@section('page_title', ui_phrase('Module'))
+@section('page_subtitle', ui_phrase('Page description'))
 @section('page_actions')
     <a href="{{ route('route.create') }}"  class="btn-primary">
-        {{ __('Action') }}
+        {{ ui_phrase('Action') }}
     </a>
 @endsection
 

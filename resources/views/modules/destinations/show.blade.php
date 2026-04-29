@@ -1,67 +1,67 @@
 @extends('layouts.master')
 
-@section('page_title', ui_phrase('modules_destinations_page_title'))
-@section('page_subtitle', ui_phrase('modules_destinations_show_page_subtitle'))
+@section('page_title', ui_phrase('page title'))
+@section('page_subtitle', ui_phrase('show page subtitle'))
 
 @section('content')
     <div class="module-page module-page--destinations">
-        @section('page_actions')<a href="{{ route('destinations.edit', $destination) }}"  class="btn-primary">{{ ui_phrase('common_edit') }}</a>
-                <a href="{{ route('destinations.index') }}"  class="btn-ghost">{{ ui_phrase('common_back') }}</a>@endsection
+        @section('page_actions')<a href="{{ route('destinations.edit', $destination) }}"  class="btn-primary">{{ ui_phrase('Edit') }}</a>
+                <a href="{{ route('destinations.index') }}"  class="btn-ghost" data-page-back-action>{{ ui_phrase('Back') }}</a>@endsection
 
         @php
             $linkedServiceGroups = [
                 [
                     'key' => 'island_transfers',
-                    'label' => ui_phrase('modules_island_transfers_page_title'),
+                    'label' => ui_phrase('transfers page title'),
                     'items' => $islandTransfers,
-                    'empty' => ui_phrase('modules_destinations_island_transfers_empty'),
+                    'empty' => ui_phrase('island transfers empty'),
                     'tone' => 'bg-sky-50 text-sky-700 dark:bg-sky-900/30 dark:text-sky-200',
                 ],
                 [
                     'key' => 'activities',
-                    'label' => ui_phrase('modules_activities_page_title'),
+                    'label' => ui_phrase('page title'),
                     'items' => $activities,
                     'empty' => __('No activities linked to this destination yet.'),
                     'tone' => 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-200',
                 ],
                 [
                     'key' => 'vendors',
-                    'label' => ui_phrase('modules_vendors_page_title'),
+                    'label' => ui_phrase('page title'),
                     'items' => $vendors,
                     'empty' => __('No vendors linked to this destination yet.'),
                     'tone' => 'bg-sky-50 text-sky-700 dark:bg-sky-900/30 dark:text-sky-200',
                 ],
                 [
                     'key' => 'hotels',
-                    'label' => ui_phrase('modules_hotels_page_title'),
+                    'label' => ui_phrase('page title'),
                     'items' => $hotels,
                     'empty' => __('No hotels linked to this destination yet.'),
                     'tone' => 'bg-cyan-50 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-200',
                 ],
                 [
                     'key' => 'attractions',
-                    'label' => ui_phrase('modules_tourist_attractions_page_title'),
+                    'label' => ui_phrase('attractions page title'),
                     'items' => $touristAttractions,
                     'empty' => __('No attractions linked to this destination yet.'),
                     'tone' => 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-200',
                 ],
                 [
                     'key' => 'airports',
-                    'label' => ui_phrase('modules_airports_page_title'),
+                    'label' => ui_phrase('page title'),
                     'items' => $airports,
                     'empty' => __('No airports linked to this destination yet.'),
                     'tone' => 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-200',
                 ],
                 [
                     'key' => 'transports',
-                    'label' => ui_phrase('modules_transports_page_title'),
+                    'label' => ui_phrase('page title'),
                     'items' => $transports,
                     'empty' => __('No transports linked to this destination yet.'),
                     'tone' => 'bg-violet-50 text-violet-700 dark:bg-violet-900/30 dark:text-violet-200',
                 ],
                 [
                     'key' => 'food_beverages',
-                    'label' => ui_phrase('modules_food_beverages_page_title'),
+                    'label' => ui_phrase('beverages page title'),
                     'items' => $foodBeverages,
                     'empty' => __('No food & beverage linked to this destination yet.'),
                     'tone' => 'bg-rose-50 text-rose-700 dark:bg-rose-900/30 dark:text-rose-200',
@@ -79,37 +79,37 @@
             $serviceCards = [
                 [
                     'key' => 'vendors',
-                    'label' => ui_phrase('modules_vendors_page_title'),
+                    'label' => ui_phrase('page title'),
                     'value' => (int) ($destination->vendors_count ?? 0),
-                    'caption' => ui_phrase('common_total'),
+                    'caption' => ui_phrase('Total'),
                     'tone' => 'bg-emerald-50 text-emerald-700 border-emerald-100',
                 ],
                 [
                     'key' => 'island_transfers',
-                    'label' => __('Island Transfers'),
+                    'label' => ui_phrase('Island Transfers'),
                     'value' => (int) ($destination->island_transfers_count ?? 0),
-                    'caption' => ui_phrase('common_total'),
+                    'caption' => ui_phrase('Total'),
                     'tone' => 'bg-sky-50 text-sky-700 border-sky-100',
                 ],
                 [
                     'key' => 'attractions',
-                    'label' => ui_phrase('modules_destinations_attractions'),
+                    'label' => ui_phrase('Attractions'),
                     'value' => (int) ($destination->tourist_attractions_count ?? 0),
-                    'caption' => ui_phrase('common_total'),
+                    'caption' => ui_phrase('Total'),
                     'tone' => 'bg-amber-50 text-amber-700 border-amber-100',
                 ],
                 [
                     'key' => 'hotels',
-                    'label' => ui_phrase('modules_hotels_page_title'),
+                    'label' => ui_phrase('page title'),
                     'value' => (int) ($destination->hotels_count ?? 0),
-                    'caption' => ui_phrase('common_total'),
+                    'caption' => ui_phrase('Total'),
                     'tone' => 'bg-cyan-50 text-cyan-700 border-cyan-100',
                 ],
                 [
                     'key' => 'airports',
-                    'label' => ui_phrase('modules_airports_page_title'),
+                    'label' => ui_phrase('page title'),
                     'value' => (int) ($destination->airports_count ?? 0),
-                    'caption' => ui_phrase('common_total'),
+                    'caption' => ui_phrase('Total'),
                     'tone' => 'bg-indigo-50 text-indigo-700 border-indigo-100',
                 ],
             ];
@@ -123,27 +123,27 @@
             <div class="module-grid-main">
                 <div class="app-card p-4">
                     <div class="grid grid-cols-1 gap-3 text-sm md:grid-cols-2">
-                        <div><span class="text-gray-500 dark:text-gray-400">{{ ui_phrase('common_location') }}:</span> <span class="text-gray-800 dark:text-gray-100">{{ $destination->location ?: '-' }}</span></div>
-                        <div><span class="text-gray-500 dark:text-gray-400">{{ ui_phrase('modules_destinations_city_province') }}:</span> <span class="text-gray-800 dark:text-gray-100">{{ trim(($destination->city ?? '') . (($destination->city && $destination->province) ? ', ' : '') . ($destination->province ?? '')) ?: '-' }}</span></div>
-                        <div><span class="text-gray-500 dark:text-gray-400">{{ ui_phrase('common_country') }}:</span> <span class="text-gray-800 dark:text-gray-100">{{ $destination->country ?: '-' }}</span></div>
-                        <div><span class="text-gray-500 dark:text-gray-400">{{ ui_phrase('modules_destinations_timezone') }}:</span> <span class="text-gray-800 dark:text-gray-100">{{ $destination->timezone ?: '-' }}</span></div>
-                        <div><span class="text-gray-500 dark:text-gray-400">{{ ui_phrase('modules_destinations_latitude') }}:</span> <span class="text-gray-800 dark:text-gray-100">{{ $destination->latitude ?? '-' }}</span></div>
-                        <div><span class="text-gray-500 dark:text-gray-400">{{ ui_phrase('modules_destinations_longitude') }}:</span> <span class="text-gray-800 dark:text-gray-100">{{ $destination->longitude ?? '-' }}</span></div>
-                        <div class="md:col-span-2"><span class="text-gray-500 dark:text-gray-400">{{ ui_phrase('common_description') }}:</span> <span class="text-gray-800 dark:text-gray-100">{{ $destination->description ?: '-' }}</span></div>
+                        <div><span class="text-gray-500 dark:text-gray-400">{{ ui_phrase('Location') }}:</span> <span class="text-gray-800 dark:text-gray-100">{{ $destination->location ?: '-' }}</span></div>
+                        <div><span class="text-gray-500 dark:text-gray-400">{{ ui_phrase('City / Province') }}:</span> <span class="text-gray-800 dark:text-gray-100">{{ trim(($destination->city ?? '') . (($destination->city && $destination->province) ? ', ' : '') . ($destination->province ?? '')) ?: '-' }}</span></div>
+                        <div><span class="text-gray-500 dark:text-gray-400">{{ ui_phrase('Country') }}:</span> <span class="text-gray-800 dark:text-gray-100">{{ $destination->country ?: '-' }}</span></div>
+                        <div><span class="text-gray-500 dark:text-gray-400">{{ ui_phrase('Timezone') }}:</span> <span class="text-gray-800 dark:text-gray-100">{{ $destination->timezone ?: '-' }}</span></div>
+                        <div><span class="text-gray-500 dark:text-gray-400">{{ ui_phrase('Latitude') }}:</span> <span class="text-gray-800 dark:text-gray-100">{{ $destination->latitude ?? '-' }}</span></div>
+                        <div><span class="text-gray-500 dark:text-gray-400">{{ ui_phrase('Longitude') }}:</span> <span class="text-gray-800 dark:text-gray-100">{{ $destination->longitude ?? '-' }}</span></div>
+                        <div class="md:col-span-2"><span class="text-gray-500 dark:text-gray-400">{{ ui_phrase('Description') }}:</span> <span class="text-gray-800 dark:text-gray-100">{{ $destination->description ?: '-' }}</span></div>
                     </div>
                 </div>
 
                 <div class="app-card p-4 mb-5">
                     <div class="mb-3 flex items-center justify-between gap-3">
-                        <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ ui_phrase('modules_destinations_linked_data') }}</h3>
+                        <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ ui_phrase('Linked Data') }}</h3>
                         <span class="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-200">
-                            {{ number_format($totalLinkedRecords) }} {{ ui_phrase('common_total') }}
+                            {{ number_format($totalLinkedRecords) }} {{ ui_phrase('Total') }}
                         </span>
                     </div>
 
                     @if ($totalLinkedRecords === 0)
                         <div class="rounded-lg border border-dashed border-gray-300 px-3 py-4 text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400">
-                            {{ ui_phrase('index_no_data_available', ['entity' => ui_phrase('modules_destinations_linked_data')]) }}
+                            {{ ui_phrase('No :entity available.', ['entity' => ui_phrase('Linked Data')]) }}
                         </div>
                     @else
                         <div class="space-y-4">
@@ -152,7 +152,7 @@
                                     <div class="mb-3 flex items-center justify-between gap-3">
                                         <h4 class="text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300">{{ $group['label'] }}</h4>
                                         <span class="rounded-full px-2.5 py-1 text-xs font-medium {{ $group['tone'] }}">
-                                            {{ number_format($group['items']->count()) }} {{ ui_phrase('modules_destinations_linked') }}
+                                            {{ number_format($group['items']->count()) }} {{ ui_phrase('Linked') }}
                                         </span>
                                     </div>
 
@@ -194,17 +194,17 @@
 
                                                     @if ($group['key'] === 'activities')
                                                         <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ $item->vendor->name ?? '-' }}</div>
-                                                        <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ ui_phrase('common_duration') }}: {{ (int) ($item->duration_minutes ?? 0) }} {{ ui_phrase('modules_destinations_minutes_short') }}</div>
+                                                        <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ ui_phrase('Duration') }}: {{ (int) ($item->duration_minutes ?? 0) }} {{ ui_phrase('minutes short') }}</div>
                                                     @elseif ($group['key'] === 'island_transfers')
                                                         <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ $item->departure_point_name ?: '-' }} -> {{ $item->arrival_point_name ?: '-' }}</div>
-                                                        <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ ui_phrase('common_vendor') }}: {{ $item->vendor->name ?? '-' }} | {{ ui_phrase('common_duration') }}: {{ (int) ($item->duration_minutes ?? 0) }} {{ ui_phrase('modules_destinations_minutes_short') }} | {{ ui_phrase('modules_island_transfers_distance') }}: {{ number_format((float) ($item->distance_km ?? 0), 2, '.', '') }} km</div>
+                                                        <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ ui_phrase('Vendor') }}: {{ $item->vendor->name ?? '-' }} | {{ ui_phrase('Duration') }}: {{ (int) ($item->duration_minutes ?? 0) }} {{ ui_phrase('minutes short') }} | {{ ui_phrase('transfers distance') }}: {{ number_format((float) ($item->distance_km ?? 0), 2, '.', '') }} km</div>
                                                     @elseif ($group['key'] === 'vendors')
                                                         <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ trim(($item->city ?? '') . (($item->city && $item->province) ? ', ' : '') . ($item->province ?? '')) ?: '-' }}</div>
                                                     @elseif ($group['key'] === 'hotels')
                                                         <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ trim(($item->city ?? '') . (($item->city && $item->province) ? ', ' : '') . ($item->province ?? '')) ?: '-' }}</div>
                                                     @elseif ($group['key'] === 'attractions')
                                                         <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ trim(($item->city ?? '') . (($item->city && $item->province) ? ', ' : '') . ($item->province ?? '')) ?: '-' }}</div>
-                                                        <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ ui_phrase('common_duration') }}: {{ (int) ($item->ideal_visit_minutes ?? 0) }} {{ ui_phrase('modules_destinations_minutes_short') }}</div>
+                                                        <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ ui_phrase('Duration') }}: {{ (int) ($item->ideal_visit_minutes ?? 0) }} {{ ui_phrase('minutes short') }}</div>
                                                     @elseif ($group['key'] === 'airports')
                                                         <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ $item->code ?: '-' }}</div>
                                                         <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ trim(($item->city ?? '') . (($item->city && $item->province) ? ', ' : '') . ($item->province ?? '')) ?: '-' }}</div>
@@ -213,7 +213,7 @@
                                                         <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ $item->code ?: '-' }} | {{ \Illuminate\Support\Str::headline((string) ($item->transport_type ?? '-')) }}</div>
                                                     @elseif ($group['key'] === 'food_beverages')
                                                         <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ $item->vendor->name ?? '-' }}</div>
-                                                        <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ \Illuminate\Support\Str::headline((string) ($item->service_type ?? '-')) }} | {{ (int) ($item->duration_minutes ?? 0) }} {{ ui_phrase('modules_destinations_minutes_short') }}</div>
+                                                        <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ \Illuminate\Support\Str::headline((string) ($item->service_type ?? '-')) }} | {{ (int) ($item->duration_minutes ?? 0) }} {{ ui_phrase('minutes short') }}</div>
                                                     @endif
 
                                                     <div class="mt-2">
@@ -237,8 +237,8 @@
             </div>
             <aside class="module-grid-side">
                 <div class="app-card p-4">
-                    <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ ui_phrase('modules_destinations_province_map_title') }}</h3>
-                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ ui_phrase('modules_destinations_province_map_subtitle') }}</p>
+                    <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ ui_phrase('province map title') }}</h3>
+                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ ui_phrase('province map subtitle') }}</p>
                     <div
                         id="destination-province-map"
                         class="mt-3 h-[300px] overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700"
@@ -259,12 +259,12 @@
 @push('scripts')
     <script>
         const destinationProvinceMapMessages = {
-            unavailable: @json(ui_phrase('modules_destinations_province_map_unavailable')),
-            boundaryLoadFailed: @json(ui_phrase('modules_destinations_province_map_boundary_failed')),
-            boundaryNotFound: @json(ui_phrase('modules_destinations_province_map_not_found')),
-            overlayLoaded: @json(ui_phrase('modules_destinations_province_map_loaded')),
-            renderFailed: @json(ui_phrase('modules_destinations_province_map_render_failed')),
-            provinceLabel: @json(ui_phrase('modules_destinations_province_label')),
+            unavailable: @json(ui_phrase('province map unavailable')),
+            boundaryLoadFailed: @json(ui_phrase('province map boundary failed')),
+            boundaryNotFound: @json(ui_phrase('province map not found')),
+            overlayLoaded: @json(ui_phrase('province map loaded')),
+            renderFailed: @json(ui_phrase('province map render failed')),
+            provinceLabel: @json(ui_phrase('province label')),
         };
 
         function normalizeDestinationProvinceName(value) {
@@ -417,3 +417,4 @@
         document.addEventListener('DOMContentLoaded', initDestinationProvinceMap);
     </script>
 @endpush
+

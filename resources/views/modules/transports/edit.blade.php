@@ -1,10 +1,10 @@
 @extends('layouts.master')
 
-@section('page_title', ui_phrase('modules_transports_edit_page_title'))
-@section('page_subtitle', ui_phrase('modules_transports_edit_page_subtitle'))
+@section('page_title', ui_phrase('edit page title'))
+@section('page_subtitle', ui_phrase('edit page subtitle'))
 @section('page_actions')
-    <a href="{{ route('transports.show', $transport) }}" class="btn-secondary">{{ ui_phrase('common_view_detail') }}</a>
-    <a href="{{ route('transports.index') }}" class="btn-ghost">{{ ui_phrase('common_back') }}</a>
+    <a href="{{ route('transports.show', $transport) }}" class="btn-secondary">{{ ui_phrase('View Detail') }}</a>
+    <a href="{{ route('transports.index') }}" class="btn-ghost" data-page-back-action>{{ ui_phrase('Back') }}</a>
 @endsection
 
 @section('content')
@@ -15,7 +15,7 @@
                     <form method="POST" action="{{ route('transports.update', $transport) }}" enctype="multipart/form-data">
                         @csrf
                         @method('PUT')
-                        @include('modules.transports._form', ['transport' => $transport, 'buttonLabel' => ui_phrase('modules_transports_update_transport')])
+                        @include('modules.transports._form', ['transport' => $transport, 'buttonLabel' => ui_phrase('Update Transport')])
                     </form>
                 </div>
             </div>
@@ -25,4 +25,5 @@
         </div>
     </div>
 @endsection
+
 

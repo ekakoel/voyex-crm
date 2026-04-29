@@ -353,7 +353,7 @@ class ItineraryController extends Controller
 
         $this->syncInquiryProcessedStatus($itinerary->inquiry_id);
 
-        return redirect()->route('itineraries.show', $itinerary)->with('success', 'Itinerary created successfully.');
+        return redirect()->route('itineraries.show', $itinerary)->with('success', ui_phrase('Itinerary created successfully.'));
     }
 
     public function duplicate(Itinerary $itinerary)
@@ -362,7 +362,7 @@ class ItineraryController extends Controller
         if ($userId <= 0) {
             return redirect()
                 ->route('itineraries.index')
-                ->with('error', 'Unauthenticated request.');
+                ->with('error', ui_phrase('You must be signed in.'));
         }
 
         $duplicateLockSeconds = 8;
@@ -370,7 +370,7 @@ class ItineraryController extends Controller
         if (! Cache::add($duplicateLockKey, now()->toIso8601String(), $duplicateLockSeconds)) {
             return redirect()
                 ->back()
-                ->with('error', 'Duplicate request is still being processed. Please wait a few seconds and try again.');
+                ->with('error', ui_phrase('Duplicate process is already in progress.'));
         }
 
         $itinerary->load([
@@ -565,7 +565,7 @@ class ItineraryController extends Controller
                     'changes' => [
                         [
                             'field' => 'source_itinerary',
-                            'label' => 'Source Itinerary',
+                            'label' => ui_phrase('Source itinerary'),
                             'from' => null,
                             'to' => sprintf(
                                 '#%d - %s',
@@ -582,7 +582,7 @@ class ItineraryController extends Controller
 
             return redirect()
                 ->route('itineraries.edit', $duplicated)
-                ->with('success', 'Itinerary duplicated successfully. Please review and save the updated data.');
+                ->with('success', ui_phrase('Itinerary duplicated successfully.'));
         } catch (\Throwable $e) {
             Cache::forget($duplicateLockKey);
             throw $e;
@@ -598,12 +598,12 @@ class ItineraryController extends Controller
         if ($itinerary->isFinal()) {
             return redirect()
                 ->route('itineraries.show', $itinerary)
-                ->with('error', 'This itinerary is final and cannot be edited.');
+                ->with('error', ui_phrase('Final itinerary cannot be edited.'));
         }
         if ($this->isItineraryLockedByQuotation($itinerary)) {
             return redirect()
                 ->route('itineraries.show', $itinerary)
-                ->with('error', 'Itinerary cannot be edited because the related quotation is approved/final.');
+                ->with('error', ui_phrase('Itinerary is locked by quotation and cannot be edited.'));
         }
         $itinerary->load([
             'touristAttractions:id,name,location,latitude,longitude',
@@ -795,12 +795,12 @@ class ItineraryController extends Controller
         $isManualCreatedLog = (string) ($activityLog->module ?? '') === 'itinerary_day_planner'
             && (string) ($activityLog->action ?? '') === 'manual_item_created';
         if (! $isManualCreatedLog) {
-            return back()->with('error', 'Selected item is not part of manual item validation queue.');
+            return back()->with('error', ui_phrase('Manual item is not in validation queue.'));
         }
 
         $properties = is_array($activityLog->properties) ? $activityLog->properties : [];
         if (! empty($properties['validated_at'])) {
-            return back()->with('success', 'Item is already marked as validated.');
+            return back()->with('success', ui_phrase('Manual item is already validated.'));
         }
 
         $properties['validated_at'] = now()->toIso8601String();
@@ -810,7 +810,7 @@ class ItineraryController extends Controller
         $activityLog->properties = $properties;
         $activityLog->save();
 
-        return back()->with('success', 'Manual item marked as validated.');
+        return back()->with('success', ui_phrase('Manual item validated successfully.'));
     }
 
     public function activitySuggestions(Request $request)
@@ -1075,6 +1075,8 @@ class ItineraryController extends Controller
     public function show(Request $request, Itinerary $itinerary)
     {
         $itinerary->load([
+            'hotels:id,destination_id,name,region,city,province',
+            'hotels.destination:id,name',
             'touristAttractions:id,name,location,city,province,destination_id,latitude,longitude,description,gallery_images',
             'touristAttractions.destination:id,name',
             'itineraryActivities.activity:id,vendor_id,name,activity_type,duration_minutes,adult_publish_rate,child_publish_rate,includes,excludes,benefits,notes,gallery_images',
@@ -1739,12 +1741,12 @@ SVG;
         if ($itinerary->isFinal()) {
             return redirect()
                 ->route('itineraries.show', $itinerary)
-                ->with('error', 'This itinerary is final and cannot be edited.');
+                ->with('error', ui_phrase('Final itinerary cannot be edited.'));
         }
         if ($this->isItineraryLockedByQuotation($itinerary)) {
             return redirect()
                 ->route('itineraries.show', $itinerary)
-                ->with('error', 'Itinerary cannot be updated because the related quotation is approved/final.');
+                ->with('error', ui_phrase('Itinerary is locked by quotation and cannot be updated.'));
         }
         $validated = $request->validate([
             'title' => ['required', 'string', 'max:255'],
@@ -1908,8 +1910,8 @@ SVG;
         $quotationSynced = $this->quotationItinerarySyncService->syncLinkedQuotationFromItinerary($itinerary);
 
         $successMessage = $quotationSynced
-            ? 'Itinerary updated successfully. Linked quotation has been synced and reset to pending for re-validation/approval.'
-            : 'Itinerary updated successfully.';
+            ? ui_phrase('Itinerary updated and synced successfully.')
+            : ui_phrase('Itinerary updated successfully.');
 
         return redirect()->route('itineraries.show', $itinerary)->with('success', $successMessage);
     }
@@ -1928,30 +1930,30 @@ SVG;
         if ($itinerary->isFinal()) {
             return redirect()
                 ->route('itineraries.show', $itinerary)
-                ->with('error', 'This itinerary is final and cannot be deleted.');
+                ->with('error', ui_phrase('Final itinerary cannot be deleted.'));
         }
 
         if ($itinerary->quotation) {
             $reasons = ['quotation'];
             if ($this->isItineraryLockedByQuotation($itinerary)) {
-                $reasons[0] = 'quotation (approved/final)';
+                $reasons[0] = ui_phrase('Related quotation is approved/final.');
             }
             if ($itinerary->quotation->booking) {
-                $reasons[] = 'booking';
+                $reasons[] = ui_phrase('booking');
             }
             if ($itinerary->quotation->booking?->invoice) {
-                $reasons[] = 'invoice';
+                $reasons[] = ui_phrase('invoice');
             }
 
             return redirect()
                 ->route('itineraries.show', $itinerary)
-                ->with('error', 'This itinerary cannot be deleted because it is linked to ' . implode(', ', $reasons) . '. Please remove related data first.');
+                ->with('error', ui_phrase('modules itineraries messages cannot delete linked', ['reasons' => implode(', ', $reasons)]));
         }
 
         $itinerary->update(['is_active' => false]);
         $itinerary->delete();
 
-        return redirect()->route('itineraries.index')->with('success', 'Itinerary deactivated successfully.');
+        return redirect()->route('itineraries.index')->with('success', ui_phrase('Itinerary deactivated successfully.'));
     }
 
     private function syncLinkedQuotationOrderNumber(Itinerary $itinerary): void
@@ -1981,7 +1983,7 @@ SVG;
         if ($itinerary->isFinal()) {
             return redirect()
                 ->route('itineraries.show', $itinerary)
-                ->with('error', 'This itinerary is final and its status cannot be changed.');
+                ->with('error', ui_phrase('Final itinerary status is locked.'));
         }
 
         if ($itinerary->trashed()) {
@@ -1990,7 +1992,7 @@ SVG;
 
             return redirect()
                 ->route('itineraries.index')
-                ->with('success', 'Itinerary activated successfully.');
+                ->with('success', ui_phrase('Itinerary activated successfully.'));
         }
 
         $itinerary->loadMissing([
@@ -2001,18 +2003,18 @@ SVG;
         if ($itinerary->quotation) {
             $reasons = ['quotation'];
             if ($this->isItineraryLockedByQuotation($itinerary)) {
-                $reasons[0] = 'quotation (approved/final)';
+                $reasons[0] = ui_phrase('Related quotation is approved/final.');
             }
             if ($itinerary->quotation->booking) {
-                $reasons[] = 'booking';
+                $reasons[] = ui_phrase('booking');
             }
             if ($itinerary->quotation->booking?->invoice) {
-                $reasons[] = 'invoice';
+                $reasons[] = ui_phrase('invoice');
             }
 
             return redirect()
                 ->route('itineraries.show', $itinerary)
-                ->with('error', 'This itinerary cannot be deactivated because it is linked to ' . implode(', ', $reasons) . '. Please remove related data first.');
+                ->with('error', ui_phrase('modules itineraries messages cannot deactivate linked', ['reasons' => implode(', ', $reasons)]));
         }
 
         $itinerary->update(['is_active' => false]);
@@ -2020,7 +2022,7 @@ SVG;
 
         return redirect()
             ->route('itineraries.index')
-            ->with('success', 'Itinerary deactivated successfully.');
+            ->with('success', ui_phrase('Itinerary deactivated successfully.'));
     }
 
     private function canManageItinerary(Itinerary $itinerary, string $ability = 'update'): bool
@@ -2040,7 +2042,7 @@ SVG;
     {
         return redirect()
             ->route('itineraries.show', $itinerary)
-            ->with('error', 'You do not have permission to modify this itinerary.');
+            ->with('error', ui_phrase('Permission denied.'));
     }
 
     private function isItineraryLockedByQuotation(Itinerary $itinerary): bool
@@ -2070,7 +2072,7 @@ SVG;
             $day = (int) ($item['day_number'] ?? 0);
             if ($day > $durationDays) {
                 throw ValidationException::withMessages([
-                    "itinerary_items.{$index}.day_number" => "Day on row {$rowNumber} cannot exceed itinerary duration.",
+                    "itinerary_items.{$index}.day_number" => ui_phrase('modules itineraries messages day exceeds duration', ['row' => $rowNumber]),
                 ]);
             }
         }
@@ -2307,12 +2309,41 @@ SVG;
 
     private function validateFoodBeverageItems(array $items, int $durationDays): void
     {
+        $foodBeverageIds = array_values(array_unique(array_map(
+            static fn ($item): int => (int) ($item['food_beverage_id'] ?? 0),
+            $items
+        )));
+        $foodBeverageIds = array_values(array_filter($foodBeverageIds, static fn (int $id): bool => $id > 0));
+        $mealPeriodsById = $foodBeverageIds === []
+            ? []
+            : FoodBeverage::query()
+                ->whereIn('id', $foodBeverageIds)
+                ->pluck('meal_period', 'id')
+                ->all();
+
         foreach ($items as $index => $item) {
             $rowNumber = $index + 1;
             $day = (int) ($item['day_number'] ?? 0);
             if ($day > $durationDays) {
                 throw ValidationException::withMessages([
                     "itinerary_food_beverage_items.{$index}.day_number" => "F&B day on row {$rowNumber} cannot exceed itinerary duration.",
+                ]);
+            }
+
+            $foodBeverageId = (int) ($item['food_beverage_id'] ?? 0);
+            if ($foodBeverageId <= 0) {
+                continue;
+            }
+
+            $slot = $this->resolveMealSlotKeyFromStartTime((string) ($item['start_time'] ?? ''));
+            if ($slot === null) {
+                continue;
+            }
+
+            $mealPeriod = (string) ($mealPeriodsById[$foodBeverageId] ?? '');
+            if (! $this->isFoodBeverageAvailableForMealSlot($mealPeriod, $slot)) {
+                throw ValidationException::withMessages([
+                    "itinerary_food_beverage_items.{$index}.food_beverage_id" => "F&B row {$rowNumber} is not available for {$slot}. Please select an F&B that provides {$slot}.",
                 ]);
             }
         }
@@ -2457,33 +2488,33 @@ SVG;
                 && $startItemId <= 0
             ) {
                 throw ValidationException::withMessages([
-                    "daily_start_point_items.{$day}" => "Start point item on day {$day} is required.",
+                    "daily_start_point_items.{$day}" => ui_phrase('modules itineraries messages start point required', ['day' => $day]),
                 ]);
             }
             if ($startType === 'hotel') {
                 if (! $startHotelIsSelfBooked) {
                     if ($startRoomId <= 0) {
                         throw ValidationException::withMessages([
-                            "daily_start_point_room_ids.{$day}" => "Start room on day {$day} is required when start point is hotel.",
+                            "daily_start_point_room_ids.{$day}" => ui_phrase('modules itineraries messages start room required', ['day' => $day]),
                         ]);
                     }
                     $roomHotelId = (int) ($roomHotelMap[$startRoomId] ?? 0);
                     if ($roomHotelId !== $startItemId) {
                         throw ValidationException::withMessages([
-                            "daily_start_point_room_ids.{$day}" => "Selected start room on day {$day} does not belong to selected hotel.",
+                            "daily_start_point_room_ids.{$day}" => ui_phrase('modules itineraries messages start room not in hotel', ['day' => $day]),
                         ]);
                     }
                 } else {
                     if ($startRoomId > 0 && $startItemId <= 0) {
                         throw ValidationException::withMessages([
-                            "daily_start_point_items.{$day}" => "Please select start hotel on day {$day} when start room is selected.",
+                            "daily_start_point_items.{$day}" => ui_phrase('modules itineraries messages start hotel required for room', ['day' => $day]),
                         ]);
                     }
                     if ($startRoomId > 0 && $startItemId > 0) {
                         $roomHotelId = (int) ($roomHotelMap[$startRoomId] ?? 0);
                         if ($roomHotelId !== $startItemId) {
                             throw ValidationException::withMessages([
-                                "daily_start_point_room_ids.{$day}" => "Selected start room on day {$day} does not belong to selected hotel.",
+                                "daily_start_point_room_ids.{$day}" => ui_phrase('modules itineraries messages start room not in hotel', ['day' => $day]),
                             ]);
                         }
                     }
@@ -2496,33 +2527,33 @@ SVG;
                 && $endItemId <= 0
             ) {
                 throw ValidationException::withMessages([
-                    "daily_end_point_items.{$day}" => "End point item on day {$day} is required.",
+                    "daily_end_point_items.{$day}" => ui_phrase('modules itineraries messages end point required', ['day' => $day]),
                 ]);
             }
             if ($endType === 'hotel') {
                 if (! $endHotelIsSelfBooked) {
                     if ($endRoomId <= 0) {
                         throw ValidationException::withMessages([
-                            "daily_end_point_room_ids.{$day}" => "End room on day {$day} is required when end point is hotel.",
+                            "daily_end_point_room_ids.{$day}" => ui_phrase('modules itineraries messages end room required', ['day' => $day]),
                         ]);
                     }
                     $roomHotelId = (int) ($roomHotelMap[$endRoomId] ?? 0);
                     if ($roomHotelId !== $endItemId) {
                         throw ValidationException::withMessages([
-                            "daily_end_point_room_ids.{$day}" => "Selected end room on day {$day} does not belong to selected hotel.",
+                            "daily_end_point_room_ids.{$day}" => ui_phrase('modules itineraries messages end room not in hotel', ['day' => $day]),
                         ]);
                     }
                 } else {
                     if ($endRoomId > 0 && $endItemId <= 0) {
                         throw ValidationException::withMessages([
-                            "daily_end_point_items.{$day}" => "Please select end hotel on day {$day} when end room is selected.",
+                            "daily_end_point_items.{$day}" => ui_phrase('modules itineraries messages end hotel required for room', ['day' => $day]),
                         ]);
                     }
                     if ($endRoomId > 0 && $endItemId > 0) {
                         $roomHotelId = (int) ($roomHotelMap[$endRoomId] ?? 0);
                         if ($roomHotelId !== $endItemId) {
                             throw ValidationException::withMessages([
-                                "daily_end_point_room_ids.{$day}" => "Selected end room on day {$day} does not belong to selected hotel.",
+                                "daily_end_point_room_ids.{$day}" => ui_phrase('modules itineraries messages end room not in hotel', ['day' => $day]),
                             ]);
                         }
                     }
@@ -2532,7 +2563,7 @@ SVG;
             }
             if ($mainExperienceType !== '' && $mainExperienceItemId <= 0) {
                 throw ValidationException::withMessages([
-                    "daily_main_experience_items.{$day}" => "Main experience item on day {$day} is required.",
+                    "daily_main_experience_items.{$day}" => ui_phrase('modules itineraries messages main experience required', ['day' => $day]),
                 ]);
             }
             if ($mainExperienceType !== '' && $mainExperienceItemId > 0) {
@@ -2942,13 +2973,83 @@ SVG;
         $hour = (int) $time->format('H');
 
         if ($hour < 11) {
-            return 'Breakfast';
+            return ui_phrase('breakfast');
         }
         if ($hour < 16) {
-            return 'Lunch';
+            return ui_phrase('lunch');
         }
 
-        return 'Dinner';
+        return ui_phrase('dinner');
+    }
+
+    private function resolveMealSlotKeyFromStartTime(?string $startTime): ?string
+    {
+        $raw = trim((string) $startTime);
+        if ($raw === '') {
+            return null;
+        }
+
+        try {
+            $time = Carbon::createFromFormat('H:i', substr($raw, 0, 5));
+        } catch (\Throwable $e) {
+            return null;
+        }
+
+        $hour = (int) $time->format('H');
+        if ($hour < 11) {
+            return 'breakfast';
+        }
+        if ($hour < 16) {
+            return 'lunch';
+        }
+
+        return 'dinner';
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function normalizeMealPeriodTokens(?string $value): array
+    {
+        $raw = trim((string) $value);
+        if ($raw === '') {
+            return [];
+        }
+
+        $items = preg_split('/[\s,;\/|]+/', $raw) ?: [];
+        $normalized = [];
+        foreach ($items as $item) {
+            $token = Str::lower(trim((string) $item));
+            if (in_array($token, ['breakfast', 'lunch', 'dinner'], true)) {
+                $normalized[] = $token;
+            }
+        }
+
+        $ordered = [];
+        foreach (['breakfast', 'lunch', 'dinner'] as $allowed) {
+            if (in_array($allowed, $normalized, true)) {
+                $ordered[] = $allowed;
+            }
+        }
+
+        return $ordered;
+    }
+
+    private function isFoodBeverageAvailableForMealSlot(?string $mealPeriod, ?string $slot): bool
+    {
+        $normalizedSlot = Str::lower(trim((string) $slot));
+        if (! in_array($normalizedSlot, ['breakfast', 'lunch', 'dinner'], true)) {
+            return true;
+        }
+
+        $tokens = $this->normalizeMealPeriodTokens($mealPeriod);
+        if ($tokens === []) {
+            // Strict mode:
+            // rows without explicit meal_period are not eligible for timed meal-slot matching.
+            return false;
+        }
+
+        return in_array($normalizedSlot, $tokens, true);
     }
 
     /**
@@ -3334,7 +3435,7 @@ SVG;
         return $query
             ->orderBy('name')
             ->limit(max(5, min(50, $limit)))
-            ->get(['id', 'vendor_id', 'name', 'duration_minutes'])
+            ->get(['id', 'vendor_id', 'name', 'duration_minutes', 'meal_period'])
             ->map(fn (FoodBeverage $foodBeverage) => $this->formatFoodBeverageSuggestionItem($foodBeverage))
             ->values()
             ->all();
@@ -3425,6 +3526,8 @@ SVG;
             'longitude' => $foodBeverage->vendor?->longitude,
             'duration_minutes' => max(1, (int) ($foodBeverage->duration_minutes ?? 60)),
             'region' => $region,
+            'meal_period' => (string) ($foodBeverage->meal_period ?? ''),
+            'meal_period_tokens' => $this->normalizeMealPeriodTokens((string) ($foodBeverage->meal_period ?? '')),
         ];
     }
 

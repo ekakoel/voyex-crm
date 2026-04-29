@@ -139,14 +139,14 @@ class DashboardController extends Controller
 
             $items = [];
             if ($canUsers) {
-                $items[] = ['label' => ui_term('users'), 'value' => $systemManagementStats['users'] ?? 0, 'icon' => 'users', 'color' => 'sky', 'route' => 'users.index'];
+                $items[] = ['label' => ui_phrase('users'), 'value' => $systemManagementStats['users'] ?? 0, 'icon' => 'users', 'color' => 'sky', 'route' => 'users.index'];
             }
             if ($canRoles) {
-                $items[] = ['label' => ui_term('roles'), 'value' => $systemManagementStats['roles'] ?? 0, 'icon' => 'user-shield', 'color' => 'violet', 'route' => 'roles.index'];
+                $items[] = ['label' => ui_phrase('roles'), 'value' => $systemManagementStats['roles'] ?? 0, 'icon' => 'user-shield', 'color' => 'violet', 'route' => 'roles.index'];
             }
             if ($canServices) {
-                $items[] = ['label' => ui_phrase('administrator_dashboard_system_kpis_modules_on'), 'value' => $systemManagementStats['modules_enabled'] ?? 0, 'icon' => 'toggle-on', 'color' => 'emerald', 'route' => 'services.index'];
-                $items[] = ['label' => ui_phrase('administrator_dashboard_system_kpis_modules_off'), 'value' => $systemManagementStats['modules_disabled'] ?? 0, 'icon' => 'toggle-off', 'color' => 'rose', 'route' => 'services.index'];
+                $items[] = ['label' => ui_phrase('Modules On'), 'value' => $systemManagementStats['modules_enabled'] ?? 0, 'icon' => 'toggle-on', 'color' => 'emerald', 'route' => 'services.index'];
+                $items[] = ['label' => ui_phrase('Modules Off'), 'value' => $systemManagementStats['modules_disabled'] ?? 0, 'icon' => 'toggle-off', 'color' => 'rose', 'route' => 'services.index'];
             }
 
             return $items;
@@ -170,16 +170,16 @@ class DashboardController extends Controller
 
             $items = [];
             if ($canCustomers) {
-                $items[] = ['label' => ui_term('customers'), 'value' => $operationalStats['customers'] ?? 0, 'icon' => 'address-book', 'color' => 'indigo'];
+                $items[] = ['label' => ui_phrase('customers'), 'value' => $operationalStats['customers'] ?? 0, 'icon' => 'address-book', 'color' => 'indigo'];
             }
             if ($canInquiries) {
-                $items[] = ['label' => ui_term('inquiries'), 'value' => $operationalStats['inquiries'] ?? 0, 'icon' => 'circle-question', 'color' => 'amber'];
+                $items[] = ['label' => ui_phrase('inquiries'), 'value' => $operationalStats['inquiries'] ?? 0, 'icon' => 'circle-question', 'color' => 'amber'];
             }
             if ($canQuotations) {
-                $items[] = ['label' => ui_term('quotations'), 'value' => $operationalStats['quotations'] ?? 0, 'icon' => 'file-lines', 'color' => 'teal'];
+                $items[] = ['label' => ui_phrase('quotations'), 'value' => $operationalStats['quotations'] ?? 0, 'icon' => 'file-lines', 'color' => 'teal'];
             }
             if ($canBookings) {
-                $items[] = ['label' => ui_term('bookings'), 'value' => $operationalStats['bookings'] ?? 0, 'icon' => 'calendar-check', 'color' => 'cyan'];
+                $items[] = ['label' => ui_phrase('bookings'), 'value' => $operationalStats['bookings'] ?? 0, 'icon' => 'calendar-check', 'color' => 'cyan'];
             }
 
             return $items;
@@ -209,25 +209,25 @@ class DashboardController extends Controller
 
             $items = [];
             if ($canVendors) {
-                $items[] = ['label' => ui_term('vendors'), 'value' => $masterDataStats['vendors'] ?? 0, 'icon' => 'handshake', 'route' => 'vendors.index'];
+                $items[] = ['label' => ui_phrase('vendors'), 'value' => $masterDataStats['vendors'] ?? 0, 'icon' => 'handshake', 'route' => 'vendors.index'];
             }
             if ($canDestinations) {
-                $items[] = ['label' => ui_term('destinations'), 'value' => $masterDataStats['destinations'] ?? 0, 'icon' => 'map-location-dot', 'route' => 'destinations.index'];
+                $items[] = ['label' => ui_phrase('destinations'), 'value' => $masterDataStats['destinations'] ?? 0, 'icon' => 'map-location-dot', 'route' => 'destinations.index'];
             }
             if ($canActivities) {
-                $items[] = ['label' => ui_term('activities'), 'value' => $masterDataStats['activities'] ?? 0, 'icon' => 'person-hiking', 'route' => 'activities.index'];
+                $items[] = ['label' => ui_phrase('activities'), 'value' => $masterDataStats['activities'] ?? 0, 'icon' => 'person-hiking', 'route' => 'activities.index'];
             }
             if ($canTransports) {
-                $items[] = ['label' => ui_term('transports'), 'value' => $masterDataStats['transports'] ?? 0, 'icon' => 'bus', 'route' => 'transports.index'];
+                $items[] = ['label' => ui_phrase('transports'), 'value' => $masterDataStats['transports'] ?? 0, 'icon' => 'bus', 'route' => 'transports.index'];
             }
             if ($canAttractions) {
-                $items[] = ['label' => ui_term('attractions'), 'value' => $masterDataStats['tourist_attractions'] ?? 0, 'icon' => 'landmark', 'route' => 'tourist-attractions.index'];
+                $items[] = ['label' => ui_phrase('attractions'), 'value' => $masterDataStats['tourist_attractions'] ?? 0, 'icon' => 'landmark', 'route' => 'tourist-attractions.index'];
             }
             if ($canFoodBeverages) {
-                $items[] = ['label' => ui_term('food_beverages'), 'value' => $masterDataStats['food_beverages'] ?? 0, 'icon' => 'utensils', 'route' => 'food-beverages.index'];
+                $items[] = ['label' => ui_phrase('food beverages'), 'value' => $masterDataStats['food_beverages'] ?? 0, 'icon' => 'utensils', 'route' => 'food-beverages.index'];
             }
             if ($canAirports) {
-                $items[] = ['label' => ui_term('airports'), 'value' => $masterDataStats['airports'] ?? 0, 'icon' => 'plane-departure', 'route' => 'airports.index'];
+                $items[] = ['label' => ui_phrase('airports'), 'value' => $masterDataStats['airports'] ?? 0, 'icon' => 'plane-departure', 'route' => 'airports.index'];
             }
 
             return $items;

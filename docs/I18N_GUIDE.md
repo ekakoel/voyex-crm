@@ -29,7 +29,7 @@ Configured in: `config/app.php` under `supported_locales`.
 
 ## Translation Files
 
-- Main UI dictionary: `lang/<locale>/ui.php`
+- Main UI dictionary: `lang/<locale>/ui_core.php`
 - Itinerary form dictionary: `lang/<locale>/itinerary_form.php`
 - Core Laravel messages:
   - `lang/<locale>/auth.php`
@@ -43,15 +43,19 @@ Configured in: `config/app.php` under `supported_locales`.
 - Use English source copy in `lang/en/*`.
 - Do not hardcode user-facing strings in Blade or Controller.
 - For inline JavaScript inside Blade, keep strings translatable by injecting via `@json(__('...'))`.
-- Use translation keys:
-  - Blade: `{{ __('ui.common.save') }}`
-  - PHP: `__('ui.modules.bookings.final_locked_edit')`
+- For shared UI text, use `ui_phrase('Exact English Phrase')` and ensure the same exact phrase exists in `ui_core.php`.
+- Avoid technical/prefix-only keys for layout labels (example: do not use `sidebar_dashboard`).
+- Preferred pattern for global navigation text:
+  - Blade/PHP: `ui_phrase('Dashboard')`
+  - `lang/en/ui_core.php`: `'Dashboard' => 'Dashboard'`
+  - `lang/zh_Hant/ui_core.php`: `'Dashboard' => '儀表板'`
+  - `lang/zh_Hans/ui_core.php`: `'Dashboard' => '仪表板'`
 
 ## Migration Strategy for Remaining Pages
 
-1. Replace hardcoded text in each module with translation keys.
-2. Add keys to `lang/en/ui.php` (or module-specific file if needed).
-3. Sync keys to `zh_Hant` and `zh_Hans` files.
+1. Replace hardcoded text in each module with translatable phrase calls.
+2. Add phrase entries to `lang/en/ui_core.php` (or module-specific file if needed).
+3. Sync the same phrase entries to `zh_Hant` and `zh_Hans` files.
 4. Keep wording concise and consistent with existing tone.
 
 ## PDF Chinese Support (Traditional / Simplified)

@@ -4,22 +4,24 @@
 
 @php
     $actionLabels = [
-        'created' => 'Created',
-        'updated' => 'Updated',
-        'deleted' => 'Deleted',
-        'duplicated_from' => 'Duplicated From',
-        'reminder_added' => 'Reminder added',
-        'reminder_done' => 'Reminder done',
-        'reminder_reset' => 'Reminder reset',
-        'communication_added' => 'Communication added',
+        'created' => ui_phrase('Created'),
+        'updated' => ui_phrase('Updated'),
+        'deleted' => ui_phrase('Deleted'),
+        'duplicated_from' => ui_phrase('Duplicated From'),
+        'reminder_added' => ui_phrase('Reminder added'),
+        'reminder_email_sent' => ui_phrase('Reminder email sent'),
+        'reminder_done' => ui_phrase('Reminder done'),
+        'reminder_reset' => ui_phrase('Reminder reset'),
+        'communication_added' => ui_phrase('Communication added'),
     ];
 @endphp
 
 <div class="space-y-3" data-activity-timeline-panel data-page-spinner="off">
-    <div class="space-y-2">
+    <div class="divide-y divide-gray-200 rounded-md border border-gray-200 dark:divide-gray-700 dark:border-gray-700">
         @forelse ($activities as $activity)
             @php
                 $properties = is_array($activity->properties ?? null) ? $activity->properties : [];
+                $customNote = trim((string) ($properties['note'] ?? ''));
                 $changes = collect($properties['changes'] ?? [])->filter(function ($change) {
                     return is_array($change)
                         && array_key_exists('field', $change)
@@ -47,17 +49,17 @@
                         return '-';
                     }
                     if (is_bool($value)) {
-                        return $value ? 'true' : 'false';
+                        return $value ? ui_phrase('True') : ui_phrase('False');
                     }
                     if (is_array($value)) {
                         $encoded = json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
                         return \Illuminate\Support\Str::limit((string) $encoded, 140);
                     }
 
-                    return \Illuminate\Support\Str::limit((string) $value, 140);
+                    return \Illuminate\Support\Str::limit(ui_phrase((string) $value), 140);
                 };
             @endphp
-            <div class="rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-600 dark:border-gray-700 dark:text-gray-300">
+            <div class="px-3 py-2 text-sm text-gray-600 dark:text-gray-300">
                 @php
                     $label = $actionLabels[$activity->action] ?? \Illuminate\Support\Str::headline((string) $activity->action);
                     $userName = $activity->user?->name ?? '-';
@@ -65,17 +67,21 @@
                 @endphp
                 <div class="flex items-center justify-between gap-3">
                     <p class="min-w-0 flex-1 truncate text-xs text-gray-700 dark:text-gray-200">
-                        <span class="font-semibold">{{ $label }}</span>
-                        <span> <x-local-time :value="$activity->created_at" /></span>
-                        <span> - {{ $userName }}</span>
+                        @if ($customNote !== '')
+                            <span>{{ $customNote }}</span>
+                        @else
+                            <span class="font-semibold">{{ $label }}</span>
+                            <span> <x-local-time :value="$activity->created_at" /></span>
+                            <span> - {{ $userName }}</span>
+                        @endif
                     </p>
                     <button
                         type="button"
                         class="inline-flex h-7 w-7 items-center justify-center rounded-md border border-gray-300 text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800"
                         x-data
                         x-on:click.prevent="$dispatch('open-modal', '{{ $modalName }}')"
-                        title="{{ __('View log detail') }}"
-                        aria-label="View log detail"
+                        title="{{ ui_phrase('View log detail') }}"
+                        aria-label="{{ ui_phrase('View log detail') }}"
                     >
                         <i class="fa-solid fa-eye text-[11px]"></i>
                     </button>
@@ -96,7 +102,7 @@
                             class="btn-ghost px-2 py-1 text-xs"
                             x-on:click.prevent="$dispatch('close-modal', '{{ $modalName }}')"
                         >
-                            Close
+                            {{ ui_phrase('Close') }}
                         </button>
                     </div>
 
@@ -104,25 +110,25 @@
                         <div class="space-y-2 max-h-[60vh] overflow-y-auto pr-1">
                             @foreach ($changes as $change)
                                 <div class="rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-700 dark:border-gray-700 dark:bg-gray-900/40 dark:text-gray-200">
-                                    <p class="font-semibold">{{ $change['label'] ?? $change['field'] ?? 'Field' }}</p>
+                                    <p class="font-semibold">{{ ui_phrase((string) ($change['label'] ?? $change['field'] ?? 'Field')) }}</p>
                                     <p class="mt-1">
-                                        <span class="text-gray-500 dark:text-gray-400">{{ __('From:') }}</span>
+                                        <span class="text-gray-500 dark:text-gray-400">{{ ui_phrase('From:') }}</span>
                                         <span>{{ $formatValue($change['from'] ?? null) }}</span>
                                     </p>
                                     <p>
-                                        <span class="text-gray-500 dark:text-gray-400">{{ __('To:') }}</span>
+                                        <span class="text-gray-500 dark:text-gray-400">{{ ui_phrase('To:') }}</span>
                                         <span>{{ $formatValue($change['to'] ?? null) }}</span>
                                     </p>
                                 </div>
                             @endforeach
                         </div>
                     @else
-                        <p class="text-sm text-gray-500 dark:text-gray-400">{{ __('No detailed field changes available for this log.') }}</p>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">{{ ui_phrase('No detailed field changes available for this log.') }}</p>
                     @endif
                 </div>
             </x-modal>
         @empty
-            <div class="text-sm text-gray-500 dark:text-gray-400">No activity yet.</div>
+            <div class="text-sm text-gray-500 dark:text-gray-400">{{ ui_phrase('No activity yet.') }}</div>
         @endforelse
     </div>
 

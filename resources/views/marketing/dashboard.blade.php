@@ -1,34 +1,32 @@
 @extends('layouts.master')
 
 @section('content')
-@php
-    $t = 'marketing_dashboard';
-    $kpiCards = [];
+@php\n$kpiCards = [];
     if ($canBookings) {
-        $kpiCards[] = ['label' => ui_phrase("$t.cards.my_revenue_this_month"), 'value' => $kpis['monthly_revenue'] ?? 0, 'icon' => 'wallet', 'color' => 'emerald', 'format' => 'money'];
+        $kpiCards[] = ['label' => ui_phrase('My Revenue This Month'), 'value' => $kpis['monthly_revenue'] ?? 0, 'icon' => 'wallet', 'color' => 'emerald', 'format' => 'money'];
     }
     if ($canBookings && $canInquiries) {
-        $kpiCards[] = ['label' => ui_phrase("$t.cards.my_conversion_rate"), 'value' => $kpis['conversion_rate'] ?? 0, 'icon' => 'chart-line', 'color' => 'indigo', 'suffix' => '%'];
+        $kpiCards[] = ['label' => ui_phrase('My Conversion Rate'), 'value' => $kpis['conversion_rate'] ?? 0, 'icon' => 'chart-line', 'color' => 'indigo', 'suffix' => '%'];
     }
     if ($canInquiries) {
-        $kpiCards[] = ['label' => ui_phrase("$t.cards.my_active_inquiries"), 'value' => $kpis['active_inquiries'] ?? 0, 'icon' => 'circle-question', 'color' => 'sky'];
-        $kpiCards[] = ['label' => ui_phrase("$t.cards.overdue_followups"), 'value' => $kpis['overdue_followups'] ?? 0, 'icon' => 'calendar-times', 'color' => 'rose'];
+        $kpiCards[] = ['label' => ui_phrase('My Active Inquiries'), 'value' => $kpis['active_inquiries'] ?? 0, 'icon' => 'circle-question', 'color' => 'sky'];
+        $kpiCards[] = ['label' => ui_phrase('Overdue Follow-ups'), 'value' => $kpis['overdue_followups'] ?? 0, 'icon' => 'calendar-times', 'color' => 'rose'];
     }
 @endphp
 
 <div class="sa-wrap rounded-3xl border border-slate-200/80 bg-slate-100/70 p-3 dark:border-slate-700 dark:bg-slate-900/60">
-    @section('page_title', ui_phrase('marketing_dashboard_page_title'))
-    @section('page_subtitle', ui_phrase('marketing_dashboard_page_subtitle'))
+    @section('page_title', ui_phrase('Marketing Dashboard'))
+    @section('page_subtitle', ui_phrase('Monitor your personal sales performance and follow-ups.'))
     @section('page_actions')
         <div class="flex items-center gap-2">
             @if($canCustomers)
                 <a href="{{ route('customers.create') }}"  class="btn-secondary-sm">
-                    <i class="fa-solid fa-user-plus mr-2"></i>{{ ui_phrase('new_customer') }}
+                    <i class="fa-solid fa-user-plus mr-2"></i>{{ ui_phrase('New Customer') }}
                 </a>
             @endif
             @if($canInquiries)
                 <a href="{{ route('inquiries.create') }}"  class="btn-primary-sm">
-                    <i class="fa-solid fa-plus-circle mr-2"></i>{{ ui_phrase('new_inquiry') }}
+                    <i class="fa-solid fa-plus-circle mr-2"></i>{{ ui_phrase('New Inquiry') }}
                 </a>
             @endif
         </div>
@@ -58,7 +56,7 @@
         @if($canInquiries || $canQuotations || $canBookings)
             <div class="grid grid-cols-1 gap-3 lg:grid-cols-2">
                 <div class="sa-card p-5">
-                    <h2 class="text-sm font-semibold text-slate-900 dark:text-slate-100">{{ ui_phrase('marketing_dashboard_sales_funnel_title') }}</h2>
+                    <h2 class="text-sm font-semibold text-slate-900 dark:text-slate-100">{{ ui_phrase('My Sales Funnel') }}</h2>
                     <div class="mt-3 grid grid-cols-3 gap-3">
                         @forelse($funnel as $stage)
                             <div class="rounded-xl border border-slate-200 p-3 text-center dark:border-slate-700">
@@ -66,21 +64,21 @@
                                 <p class="mt-1 text-2xl font-bold text-slate-800 dark:text-slate-100">{{ number_format($stage['value']) }}</p>
                             </div>
                         @empty
-                            <p class="text-xs text-slate-500 dark:text-slate-400">{{ ui_phrase('marketing_dashboard_sales_funnel_empty') }}</p>
+                            <p class="text-xs text-slate-500 dark:text-slate-400">{{ ui_phrase('No funnel data available.') }}</p>
                         @endforelse
                     </div>
                 </div>
                 @if($canInquiries)
                     <div class="sa-card p-5">
-                        <h2 class="text-sm font-semibold text-slate-900 dark:text-slate-100">{{ ui_phrase('marketing_dashboard_inquiry_status_title') }}</h2>
+                        <h2 class="text-sm font-semibold text-slate-900 dark:text-slate-100">{{ ui_phrase('My Inquiry Status') }}</h2>
                          <div class="mt-3 grid grid-cols-2 gap-x-3 gap-y-2">
                             @forelse($inquiryByStatus as $status => $total)
                                 <div class="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs dark:border-slate-700 dark:bg-slate-900">
-                                    <x-status-badge :status="$status" :label="ui_term((string) $status)" size="xs" />
+                                    <x-status-badge :status="$status" :label="ui_phrase((string) $status)" size="xs" />
                                     <b class="text-slate-700 dark:text-slate-200">{{ number_format($total) }}</b>
                                 </div>
                             @empty
-                                <p class="text-xs text-slate-500 dark:text-slate-400">{{ ui_phrase('marketing_dashboard_inquiry_status_empty') }}</p>
+                                <p class="text-xs text-slate-500 dark:text-slate-400">{{ ui_phrase('No inquiry data found.') }}</p>
                             @endforelse
                         </div>
                     </div>
@@ -91,7 +89,7 @@
         @if($canInquiries)
             <div class="grid grid-cols-1 gap-3 lg:grid-cols-2">
                 <div class="sa-card p-4">
-                    <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100">{{ ui_phrase('marketing_dashboard_followups_title') }}</h3>
+                    <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100">{{ ui_phrase('Action Center: My Follow-ups') }}</h3>
                     <div class="mt-3 space-y-2">
                         @forelse($upcomingFollowUps as $followUp)
                              @php
@@ -104,17 +102,17 @@
                                     @if($isOverdue)
                                          <span class="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2 py-1 text-[11px] font-semibold text-rose-600 dark:bg-rose-900/50 dark:text-rose-300">
                                             <i class="fa-solid fa-triangle-exclamation"></i>
-                                            {{ ui_phrase('overdue') }}
+                                            {{ ui_phrase('Overdue') }}
                                         </span>
                                     @endif
                                 </div>
                                 <p class="{{ $isOverdue ? 'text-rose-600 dark:text-rose-300' : 'text-slate-500 dark:text-slate-400' }}">
-                                    {{ ui_phrase('due') }} {{ \App\Support\DateTimeDisplay::date(optional($followUp->due_date)) }}
+                                    {{ ui_phrase('Due') }} {{ \App\Support\DateTimeDisplay::date(optional($followUp->due_date)) }}
                                 </p>
                             </a>
                         @empty
                              <div class="rounded-lg mb-6 border border-dashed border-slate-200 p-4 text-center dark:border-slate-700">
-                                 <p class="text-xs font-medium text-slate-600 dark:text-slate-300">{{ ui_phrase('marketing_dashboard_followups_empty') }}</p>
+                                 <p class="text-xs font-medium text-slate-600 dark:text-slate-300">{{ ui_phrase('You have no upcoming follow-ups.') }}</p>
                             </div>
                         @endforelse
                     </div>
@@ -122,8 +120,8 @@
 
                  <div class="sa-card p-5">
                     <div class="flex items-center justify-between">
-                        <h2 class="text-sm font-semibold text-slate-900 dark:text-slate-100">{{ ui_phrase('marketing_dashboard_recent_inquiries_title') }}</h2>
-                        <a href="{{ route('inquiries.index') }}"  class="text-xs font-medium text-indigo-600 hover:text-indigo-500 dark:text-indigo-400">{{ ui_phrase('view_all') }}</a>
+                        <h2 class="text-sm font-semibold text-slate-900 dark:text-slate-100">{{ ui_phrase('My Recent Inquiries') }}</h2>
+                        <a href="{{ route('inquiries.index') }}"  class="text-xs font-medium text-indigo-600 hover:text-indigo-500 dark:text-indigo-400">{{ ui_phrase('View all') }}</a>
                     </div>
                     <div class="mt-3 space-y-2">
                         @forelse($recentInquiries as $inquiry)
@@ -133,12 +131,12 @@
                                     <x-status-badge :status="$inquiry->status" />
                                 </div>
                                  <div class="mt-1 flex items-center justify-between text-xs">
-                                    <span class="text-slate-500 dark:text-slate-400">{{ ui_phrase('customer_label') }} {{ $inquiry->customer->name ?? ui_phrase('na') }}</span>
+                                    <span class="text-slate-500 dark:text-slate-400">{{ ui_phrase('Customer:') }} {{ $inquiry->customer->name ?? ui_phrase('N/A') }}</span>
                                     <span class="text-slate-500 dark:text-slate-400">{{ \App\Support\DateTimeDisplay::date($inquiry->created_at) }}</span>
                                 </div>
                             </a>
                         @empty
-                            <p class="text-center text-xs text-slate-500 dark:text-slate-400">{{ ui_phrase('marketing_dashboard_recent_inquiries_empty') }}</p>
+                            <p class="text-center text-xs text-slate-500 dark:text-slate-400">{{ ui_phrase('You have no recent inquiries.') }}</p>
                         @endforelse
                     </div>
                 </div>
