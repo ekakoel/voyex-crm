@@ -69,7 +69,7 @@ class InquiryController extends Controller
             ->with([
                 'customer',
                 'assignedUser',
-                'quotation:id,inquiry_id,status',
+                'quotations:id,inquiry_id,status',
                 'itineraries:id,inquiry_id,title,status,is_active,updated_at',
             ])
             ->withCount('itineraries');
@@ -153,7 +153,7 @@ class InquiryController extends Controller
      */
     public function show(Request $request, Inquiry $inquiry)
     {
-        $inquiry->load(['customer', 'assignedUser', 'quotation:id,inquiry_id,status']);
+        $inquiry->load(['customer', 'assignedUser', 'quotations:id,inquiry_id,status']);
         $itineraries = $inquiry->itineraries()
             ->select(['id', 'inquiry_id', 'title', 'status', 'is_active', 'updated_at'])
             ->orderByDesc('is_active')
@@ -189,7 +189,7 @@ class InquiryController extends Controller
      */
     public function edit(Request $request, Inquiry $inquiry)
     {
-        $inquiry->loadMissing(['quotation:id,inquiry_id,status']);
+        $inquiry->loadMissing(['quotations:id,inquiry_id,status']);
         if (! $this->canManageInquiry($inquiry, 'update')) {
             return $this->denyInquiryMutation($inquiry);
         }
@@ -224,7 +224,7 @@ class InquiryController extends Controller
      */
     public function update(Request $request, Inquiry $inquiry)
     {
-        $inquiry->loadMissing(['quotation:id,inquiry_id,status']);
+        $inquiry->loadMissing(['quotations:id,inquiry_id,status']);
         if (! $this->canManageInquiry($inquiry, 'update')) {
             return $this->denyInquiryMutation($inquiry);
         }
@@ -317,8 +317,10 @@ class InquiryController extends Controller
 
     private function isInquiryLockedByQuotation(Inquiry $inquiry): bool
     {
-        $status = (string) ($inquiry->quotation->status ?? '');
-        return in_array($status, ['approved', Quotation::FINAL_STATUS], true);
+        $inquiry->loadMissing('quotations:id,inquiry_id,status');
+        return $inquiry->quotations->contains(
+            fn ($quotation) => in_array((string) ($quotation->status ?? ''), ['approved', Quotation::FINAL_STATUS], true)
+        );
     }
 
     private function denyInquiryMutation(Inquiry $inquiry)

@@ -5,11 +5,36 @@
     $exportScope = (string) ($exportScope ?? ($isMyQuotationPage ? 'my' : 'published'));
     $statusFilterOptions = collect($statusFilterOptions ?? \App\Models\Quotation::STATUS_OPTIONS)->values();
     $showNeedsMyApproval = (bool) ($showNeedsMyApproval ?? false);
+    $upcomingQuotations = $upcomingQuotations ?? null;
+    $expiredQuotations = $expiredQuotations ?? null;
+    $finalQuotations = $finalQuotations ?? null;
+    $quotationSections = [
+        [
+            'key' => 'upcoming',
+            'title' => ui_phrase('Upcoming Quotations'),
+            'items' => $upcomingQuotations,
+        ],
+        [
+            'key' => 'passed',
+            'title' => ui_phrase('Passed Quotation'),
+            'items' => $expiredQuotations,
+        ],
+        [
+            'key' => 'final',
+            'title' => ui_phrase('Final Quotations'),
+            'items' => $finalQuotations,
+        ],
+    ];
+    $activeQuotationTab = (string) request('tab', 'upcoming');
+    $availableTabKeys = collect($quotationSections)->pluck('key')->all();
+    if (!in_array($activeQuotationTab, $availableTabKeys, true)) {
+        $activeQuotationTab = 'upcoming';
+    }
 @endphp
 @section('page_title', $isMyQuotationPage ? ui_phrase('my page title') : ui_phrase('page title'))
 @section('page_subtitle', $isMyQuotationPage ? ui_phrase('my page subtitle') : ui_phrase('page subtitle'))
 @section('page_actions')
-    <a href="{{ route('quotations.export', array_merge(request()->only(['q', 'status', 'per_page', 'needs_my_approval']), ['scope' => $exportScope])) }}"
+    <a href="{{ route('quotations.export', array_merge(request()->only(['q', 'per_page', 'needs_my_approval']), ['scope' => $exportScope])) }}"
         class="btn-secondary">Export CSV</a>
     @if ($isMyQuotationPage)
         <a href="{{ route('quotations.index') }}" class="btn-outline">{{ ui_phrase('Approved/Final List') }}</a>
@@ -30,8 +55,32 @@
             </div>
         @endif
         <div class="module-grid-9-3">
-            <aside class="module-grid-side">
+            <aside class="module-grid-side space-y-3">
                 @include('components.module-index-sidebar-info')
+                <section class="app-card p-4">
+                    <div class="mb-3">
+                        <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ ui_phrase('Quotation Logs') }}</h3>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">{{ ui_phrase('Latest quotation activity updates.') }}</p>
+                    </div>
+                    <div class="space-y-2">
+                        @forelse (($quotationLogs ?? collect()) as $log)
+                            @php
+                                $logUser = trim((string) ($log->user?->displayNameFor(auth()->user()) ?? $log->user?->name ?? ui_phrase('System')));
+                                $logAction = trim((string) ($log->action ?? 'updated'));
+                                $logActionLabel = \Illuminate\Support\Str::headline(str_replace('_', ' ', $logAction));
+                                $logSubjectId = (int) ($log->subject_id ?? 0);
+                                $logDateTime = optional($log->created_at)->format('d M Y H:i') ?? '-';
+                            @endphp
+                            <div class="flex items-center gap-2 text-xs text-gray-700 dark:text-gray-200">
+                                <span class="min-w-0 truncate">{{ $logUser }}, {{ $logActionLabel }} quotation id {{ $logSubjectId > 0 ? $logSubjectId : '-' }}</span>
+                                <span class="min-w-6 flex-1 border-b border-dotted border-gray-300 dark:border-gray-600"></span>
+                                <span class="shrink-0 text-gray-500 dark:text-gray-400">({{ $logDateTime }})</span>
+                            </div>
+                        @empty
+                            <p class="text-xs text-gray-500 dark:text-gray-400">{{ ui_phrase('No quotation logs yet.') }}</p>
+                        @endforelse
+                    </div>
+                </section>
             </aside>
             <div class="module-grid-main" data-service-filter-results>
                 <div class="app-card p-5">
@@ -44,13 +93,6 @@
                         data-page-spinner="off">
                         <input name="q" value="{{ request('q') }}" placeholder="{{ ui_phrase('search') }}"
                             class="sm:col-span-2 app-input" data-service-filter-input>
-                        <select name="status" class="app-input" data-service-filter-input>
-                            <option value="">{{ ui_phrase('Status') }}</option>
-                            @foreach ($statusFilterOptions as $status)
-                                <option value="{{ $status }}" @selected(request('status') === $status)>{{ ucfirst($status) }}
-                                </option>
-                            @endforeach
-                        </select>
                         <select name="per_page" class="app-input" data-service-filter-input>
                             @foreach ([10, 25, 50, 100] as $size)
                                 <option value="{{ $size }}" @selected((string) request('per_page', 10) === (string) $size)>{{ ui_phrase(':size/page', ['size' => $size]) }}
@@ -74,16 +116,38 @@
                         {{ ui_phrase('showing requires approval') }}
                     </div>
                 @endif
-                <div class="md:hidden space-y-3">
-                    @forelse ($quotations as $quotation)
+                <div class="app-card p-3">
+                    <div class="flex flex-wrap items-center gap-2">
+                        @foreach ($quotationSections as $section)
+                            @php
+                                $isActiveTab = $activeQuotationTab === $section['key'];
+                                $tabUrl = route($listRouteName, array_merge(request()->except(['upcoming_page', 'expired_page', 'final_page']), ['tab' => $section['key']]));
+                            @endphp
+                            <a href="{{ $tabUrl }}"
+                                class="inline-flex items-center rounded-md border px-3 py-1.5 text-xs font-semibold transition {{ $isActiveTab ? 'border-slate-700 bg-slate-700 text-white dark:border-slate-200 dark:bg-slate-200 dark:text-slate-900' : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800' }}">
+                                {{ $section['title'] }}
+                            </a>
+                        @endforeach
+                    </div>
+                </div>
+                @foreach ($quotationSections as $section)
+                    @php
+                        if ($section['key'] !== $activeQuotationTab) {
+                            continue;
+                        }
+                        $sectionItems = $section['items'];
+                    @endphp
+                    <section class="space-y-3">
+                        <div class="md:hidden space-y-3">
+                    @forelse ($sectionItems ?? [] as $quotation)
                         <div class="app-card p-4">
                             <div class="flex items-start justify-between gap-3">
                                 <div>
                                     <p class="text-sm font-semibold text-gray-800 dark:text-gray-100">
-                                        {{ $quotation->quotation_number }}</p>
-                                    @if (!empty($quotation->order_number))
-                                        <p class="text-xs text-gray-500 dark:text-gray-400">{{ $quotation->order_number }}</p>
-                                    @endif
+                                        {{ $quotation->order_number ?: '-' }}</p>
+                                    <p class="text-xs text-gray-500 dark:text-gray-400">
+                                        {{ $quotation->itinerary?->title ?: '-' }}
+                                    </p>
                                     @if ($showNeedsMyApproval && (bool) ($quotation->needs_my_approval_badge ?? false))
                                         <span
                                             class="mt-1 inline-flex items-center rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-300">
@@ -125,9 +189,10 @@
                                             @csrf
                                             @method('PATCH')
                                             <button type="submit"
-                                                onclick="return confirm('{{ $quotation->trashed() ? ui_phrase('confirm activate') : ui_phrase('confirm deactivate') }}')"
-                                                class="{{ $quotation->trashed() ? 'btn-primary-sm' : 'btn-muted-sm' }}">
-                                                {{ $quotation->trashed() ? ui_phrase('Activate') : ui_phrase('Deactivate') }}
+                                                onclick="return confirm('{{ ui_phrase('confirm deactivate') }}')"
+                                                class="btn-ghost-sm text-rose-600 hover:text-rose-700 dark:text-rose-300 dark:hover:text-rose-200"
+                                                title="{{ ui_phrase('Delete') }}" aria-label="{{ ui_phrase('Delete') }}">
+                                                <i class="fa-solid fa-trash"></i><span class="sr-only">{{ ui_phrase('Delete') }}</span>
                                             </button>
                                         </form>
                                     @endif
@@ -153,32 +218,30 @@
                                         {{ ui_phrase('Number') }}</th>
                                     <th
                                         class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">
-                                        Status</th>
+                                        {{ ui_phrase('Service Date') }}</th>
                                     <th
                                         class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">
                                         {{ ui_phrase('Validity') }}</th>
                                     <th
                                         class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">
-                                        {{ ui_phrase('Amount') }}</th>
+                                        {{ ui_phrase('Created by') }}</th>
                                     <th
                                         class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">
-                                        {{ ui_phrase('Created by') }}</th>
+                                        Status</th>
                                     <th
                                         class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300 actions-compact">
                                         {{ ui_phrase('Actions') }}</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
-                                @forelse ($quotations as $index=>$quotation)
+                                @forelse ($sectionItems ?? [] as $index=>$quotation)
                                     <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/30">
                                         <td class="px-4 py-3 text-sm text-gray-800 dark:text-gray-100">{{ ++$index }}
                                         </td>
                                         <td class="px-4 py-3 text-sm text-gray-800 dark:text-gray-100">
                                             <div class="flex flex-col items-start">
-                                                <span>{{ $quotation->quotation_number }}</span>
-                                                @if (!empty($quotation->order_number))
-                                                    <span class="text-xs text-gray-500 dark:text-gray-400">{{ $quotation->order_number }}</span>
-                                                @endif
+                                                <span>{{ $quotation->order_number ?: '-' }}</span>
+                                                <span class="text-xs text-gray-500 dark:text-gray-400">{{ $quotation->itinerary?->title ?: '-' }}</span>
                                                 @if ($showNeedsMyApproval && (bool) ($quotation->needs_my_approval_badge ?? false))
                                                     <span
                                                         class="mt-1 inline-flex items-center rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-300">
@@ -188,15 +251,15 @@
                                             </div>
                                         </td>
                                         <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">
-                                            <x-status-badge :status="$quotation->trashed() ? 'inactive' : $quotation->status" size="xs" />
-                                        </td>
+                                            {{ $quotation->service_date?->format('Y-m-d') ?? '-' }}</td>
                                         <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">
                                             {{ $quotation->validity_date?->format('Y-m-d') ?? '-' }}</td>
-                                        <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200"><x-money
-                                                :amount="$quotation->display_final_amount ?? 0" currency="IDR" /></td>
                                         <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">
                                             <x-masked-user-name :user="$quotation->creator" /><br>
                                             <i><x-local-time :value="$quotation->created_at" /></i>
+                                        </td>
+                                        <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">
+                                            <x-status-badge :status="$quotation->trashed() ? 'inactive' : $quotation->status" size="xs" />
                                         </td>
                                         <td class="px-4 py-3 text-right text-sm actions-compact">
                                             <div class="flex items-center justify-end gap-2">
@@ -222,8 +285,10 @@
                                                             @csrf
                                                             @method('PATCH')
                                                             <button type="submit"
-                                                                onclick="return confirm('{{ $quotation->trashed() ? ui_phrase('confirm activate') : ui_phrase('confirm deactivate') }}')"
-                                                                class="{{ $quotation->trashed() ? 'btn-primary-sm' : 'btn-muted-sm' }}">{{ $quotation->trashed() ? ui_phrase('Activate') : ui_phrase('Deactivate') }}
+                                                                onclick="return confirm('{{ ui_phrase('confirm deactivate') }}')"
+                                                                class="btn-ghost-sm text-rose-600 hover:text-rose-700 dark:text-rose-300 dark:hover:text-rose-200"
+                                                                title="{{ ui_phrase('Delete') }}" aria-label="{{ ui_phrase('Delete') }}">
+                                                                <i class="fa-solid fa-trash"></i><span class="sr-only">{{ ui_phrase('Delete') }}</span>
                                                             </button>
                                                         </form>
                                                     @endif
@@ -242,7 +307,11 @@
                         </table>
                     </div>
                 </div>
-                <div>{{ $quotations->links() }}</div>
+                @if ($sectionItems && method_exists($sectionItems, 'links'))
+                    <div>{{ $sectionItems->links() }}</div>
+                @endif
+                    </section>
+                @endforeach
             </div>
         </div>
     </div>

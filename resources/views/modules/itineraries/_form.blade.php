@@ -2207,11 +2207,9 @@
                     if (type === 'fnb') return i18n.rowTypeFnb;
                     return i18n.rowTypeAttraction;
                 };
+                const reviewAttractionBadgeClass = 'inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[10px] font-semibold leading-4 text-blue-700 dark:border-blue-700/60 dark:bg-blue-900/20 dark:text-blue-300';
                 const reviewRowTypeBadgeClass = (type) => {
-                    if (type === 'activity') return 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-700/60 dark:bg-emerald-900/20 dark:text-emerald-300';
-                    if (type === 'transfer') return 'border-purple-200 bg-purple-50 text-purple-700 dark:border-purple-700/60 dark:bg-purple-900/20 dark:text-purple-300';
-                    if (type === 'fnb') return 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-700/60 dark:bg-amber-900/20 dark:text-amber-300';
-                    return 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-700/60 dark:bg-blue-900/20 dark:text-blue-300';
+                    return reviewAttractionBadgeClass;
                 };
                 const reviewPointLabel = (section, kind) => {
                     if (!section) return i18n.notSet;
@@ -2360,7 +2358,7 @@
                                         ? resolveMealSlotFromTimeValue(row.querySelector('.item-start')?.value || '')
                                         : null;
                                     const mealSlotBadge = (type === 'fnb' && mealSlot)
-                                        ? `<span class="inline-flex rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:border-amber-700/60 dark:bg-amber-900/20 dark:text-amber-300">${escapeHtml(toMealSlotLabel(mealSlot))}</span>`
+                                        ? `<span class="${reviewAttractionBadgeClass}">${escapeHtml(toMealSlotLabel(mealSlot))}</span>`
                                         : '';
                                     const travelText = String(row.querySelector('.item-travel')?.value || '').trim();
                                     const nextRow = selectedRows[rowIndex + 1] || null;
@@ -2386,7 +2384,7 @@
                                                         ${mealSlotBadge}
                                                     </div>
                                                 </div>
-                                                <span class="inline-flex rounded-full border px-2 py-0.5 text-[10px] font-semibold ${typeClass}">${typeLabel}</span>
+                                                <span class="${typeClass}">${typeLabel}</span>
                                             </div>
                                             <p class="mt-1 text-[11px] text-gray-600 dark:text-gray-300">${escapeHtml(itemStart)} - ${escapeHtml(itemEnd)}</p>
                                         </li>
@@ -5439,7 +5437,8 @@
                             allOptions.slice(1).forEach((option) => {
                                 const pointType = normalizePointType(option.dataset.pointType || '');
                                 if (pointType !== selectedType) return;
-                                if (!matchesDestinationOption(option)) return;
+                                const isCurrentSelected = String(option.value || '') === selectedValue;
+                                if (!matchesDestinationOption(option) && !isCurrentSelected) return;
                                 const clone = option.cloneNode(true);
                                 clone.hidden = false;
                                 clone.disabled = false;
@@ -5699,6 +5698,36 @@
                     `;
                     });
                     hotelStaysHidden.innerHTML = html;
+                };
+                const prepareDayPointFieldsForSubmit = () => {
+                    daySections.querySelectorAll('.day-section').forEach((section) => {
+                        const endType = normalizePointType(section.querySelector('.day-end-point-type')?.value || '');
+                        const endBookingMode = String(section.querySelector('.day-end-booking-mode')?.value || 'arranged');
+                        const isEndHotel = isHotelPointType(endType);
+                        const isEndSelfBooked = isEndHotel && isSelfBookedHotelMode(endBookingMode);
+
+                        const endItem = section.querySelector('.day-end-point-item');
+                        const endRoom = section.querySelector('.day-end-room-select');
+                        const endArea = section.querySelector('.day-end-point-area');
+                        const endBooking = section.querySelector('.day-end-booking-mode');
+                        const endRoomCount = section.querySelector('.day-end-room-count');
+
+                        if (endItem) {
+                            endItem.disabled = !(endType === 'airport' || (isEndHotel && !isEndSelfBooked));
+                        }
+                        if (endRoom) {
+                            endRoom.disabled = !(isEndHotel && !isEndSelfBooked);
+                        }
+                        if (endArea) {
+                            endArea.disabled = !(isEndHotel && isEndSelfBooked);
+                        }
+                        if (endBooking) {
+                            endBooking.disabled = !isEndHotel;
+                        }
+                        if (endRoomCount) {
+                            endRoomCount.disabled = !(isEndHotel && !isEndSelfBooked);
+                        }
+                    });
                 };
                 const updateDayEndpointBadges = () => {
                     const sections = [...daySections.querySelectorAll('.day-section')].sort((a, b) => Number(a.dataset
@@ -6315,6 +6344,7 @@
                     await recalcAll();
                     reindex();
                     syncHotelStaysHidden();
+                    prepareDayPointFieldsForSubmit();
                     clearEndPointValidationState();
                     form.submit();
                 });

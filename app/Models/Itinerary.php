@@ -7,6 +7,7 @@ use App\Models\ActivityLog;
 use App\Models\User;
 use App\Models\Destination;
 use App\Traits\LogsActivity;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Schema;
@@ -51,6 +52,16 @@ class Itinerary extends Model
         'is_active' => 'boolean',
     ];
 
+    protected static function booted(): void
+    {
+        static::addGlobalScope('active_visibility', function (Builder $query): void {
+            $user = auth()->user();
+            if (! $user || ! $user->hasRole('Super Admin')) {
+                $query->where('is_active', true);
+            }
+        });
+    }
+
     public function isFinal(): bool
     {
         return $this->status === self::FINAL_STATUS;
@@ -58,14 +69,14 @@ class Itinerary extends Model
 
     public function syncLifecycleStatus(): void
     {
-        $this->loadMissing('quotation:id,itinerary_id,status');
+        $this->loadMissing('quotations:id,itinerary_id,status');
 
         $nextStatus = self::STATUS_PENDING;
-        if ($this->quotation) {
-            $quotationStatus = (string) ($this->quotation->status ?? '');
-            $nextStatus = $quotationStatus === Quotation::FINAL_STATUS
-                ? self::STATUS_FINAL
-                : self::STATUS_PROCESSED;
+        if ($this->quotations->isNotEmpty()) {
+            $hasFinalQuotation = $this->quotations->contains(
+                fn (Quotation $quotation): bool => (string) ($quotation->status ?? '') === Quotation::FINAL_STATUS
+            );
+            $nextStatus = $hasFinalQuotation ? self::STATUS_FINAL : self::STATUS_PROCESSED;
         }
 
         if ((string) ($this->status ?? '') === $nextStatus) {
@@ -136,7 +147,13 @@ class Itinerary extends Model
 
     public function quotation()
     {
-        return $this->hasOne(Quotation::class);
+        // Backward-compatible alias: latest linked quotation.
+        return $this->hasOne(Quotation::class)->latestOfMany('id');
+    }
+
+    public function quotations()
+    {
+        return $this->hasMany(Quotation::class);
     }
 
     public function activities()

@@ -256,6 +256,8 @@ Completed in this cycle:
     - removed inquiry follow-up/communication routes from `routes/web.php`,
     - removed follow-up/communication controller actions and related permission-helper methods from `Sales\\InquiryController`,
     - removed follow-up reminder scheduler registration from `app/Console/Kernel.php` to prevent deprecated reminders from being sent.
+  - started UI data-display standardization on Inquiry detail:
+    - `Inquiry Overview` now uses vertical display pattern `Title:` then value on next line for each DB-backed field.
 
 - Itinerary module cleanup: removed `Order Number` property usage from itinerary domain/UI flow.
   - removed `order_number` input and validation flow from itinerary create/edit pipeline:

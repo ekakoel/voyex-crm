@@ -35,6 +35,18 @@
             const appCurrencySymbol = String(window.appCurrencySymbol || (appCurrency === 'USD' ? '$' : 'Rp'));
             const currencyBadgeText = appCurrencySymbol || appCurrency;
             const appDisplayLocale = appCurrency === 'USD' ? 'en-US' : 'id-ID';
+            const i18n = {
+                day: @json(ui_phrase('Day')),
+                withoutDay: @json(ui_phrase('Without Day')),
+                foodAndBeverage: @json(ui_phrase('Food and Beverage')),
+                islandTransfer: @json(ui_phrase('Island Transfer')),
+                touristAttraction: @json(ui_phrase('Tourist Attraction')),
+                transport: @json(ui_phrase('Transport')),
+                rateInfo: @json(ui_phrase('This section shows the rate currently used by this quotation item.')),
+                loadDetailFailed: @json(ui_phrase('load detail failed')),
+                contactUpdateFailed: @json(ui_phrase('Failed to update contact details.')),
+                contactUpdateSuccess: @json(ui_phrase('Contact details updated.')),
+            };
 
             const openModal = () => {
                 modal.classList.remove('hidden');
@@ -51,10 +63,10 @@
             const readableItemType = (rawType) => {
                 const type = String(rawType || '').trim();
                 const map = {
-                    FoodBeverage: 'Food and Beverage',
-                    IslandTransfer: 'Island Transfer',
-                    TouristAttraction: 'Tourist Attraction',
-                    TransportUnit: 'Transport',
+                    FoodBeverage: i18n.foodAndBeverage,
+                    IslandTransfer: i18n.islandTransfer,
+                    TouristAttraction: i18n.touristAttraction,
+                    TransportUnit: i18n.transport,
                 };
                 return map[type] || type || '-';
             };
@@ -76,7 +88,7 @@
 
                 if (titleEl) {
                     const dayNumber = Number(item.day_number || 0);
-                    const dayLabel = dayNumber > 0 ? `Day ${dayNumber}` : 'Without Day';
+                    const dayLabel = dayNumber > 0 ? `${i18n.day} ${dayNumber}` : i18n.withoutDay;
                     const typeLabel = readableItemType(item.serviceable_type);
                     const itemName = String(item.item_name || '').trim() || String(item.description || '').trim() || '-';
                     titleEl.textContent = `${dayLabel} - ${typeLabel} - ${itemName}`;
@@ -117,7 +129,7 @@
                     })();
 
                     currentEl.innerHTML = `
-                        <p class="mb-2 text-[11px] text-gray-500 dark:text-gray-400">{{ __('This section shows the rate currently used by this quotation item.') }}</p>
+                        <p class="mb-2 text-[11px] text-gray-500 dark:text-gray-400">${i18n.rateInfo}</p>
                         <div><span class="font-semibold">{{ ui_phrase('Active Contract Rate') }}:</span> ${formatMoneyFromIdr(item.contract_rate)}</div>
                         <div class="mt-1"><span class="font-semibold">{{ ui_phrase('Active Markup Type') }}:</span> ${normalizedMarkupType}</div>
                         <div class="mt-1"><span class="font-semibold">{{ ui_phrase('Active Markup') }}:</span> ${markupDisplay}</div>
@@ -154,7 +166,7 @@
                     setLoadingState(false);
                     if (errorEl) {
                         errorEl.classList.remove('hidden');
-                        errorEl.textContent = '{{ ui_phrase('load detail failed') }}';
+                        errorEl.textContent = i18n.loadDetailFailed;
                     }
                 }
             };
@@ -233,7 +245,7 @@
                     const result = await response.json();
                     if (!response.ok) {
                         const firstError = result?.errors ? Object.values(result.errors)[0]?.[0] : null;
-                        throw new Error(firstError || result?.message || 'Failed to update contact details.');
+                        throw new Error(firstError || result?.message || i18n.contactUpdateFailed);
                     }
 
                     const contact = result?.contact || {};
@@ -243,9 +255,9 @@
                     if (contactWebsiteInput) contactWebsiteInput.value = contact.contact_website && contact.contact_website !== '-' ? contact.contact_website : '';
                     if (contactAddressDisplay) contactAddressDisplay.textContent = contact.contact_address || '-';
 
-                    setUpdateContactFeedback(result?.message || 'Contact details updated.');
+                    setUpdateContactFeedback(result?.message || i18n.contactUpdateSuccess);
                 } catch (error) {
-                    setUpdateContactFeedback(error.message || 'Failed to update contact details.', 'error');
+                    setUpdateContactFeedback(error.message || i18n.contactUpdateFailed, 'error');
                 } finally {
                     setUpdateContactLoading(false);
                 }
@@ -801,7 +813,7 @@
                         @php
                             $firstDayItem = $dayItems->first();
                             $groupDayNumber = (int) ($firstDayItem->day_number ?? 0);
-                            $dayText = $groupDayNumber > 0 ? ('Day ' . $groupDayNumber) : 'Without Day';
+                            $dayText = $groupDayNumber > 0 ? (ui_phrase('Day') . ' ' . $groupDayNumber) : ui_phrase('Without Day');
                         @endphp
                         <div class="responsive-group-card">
                             <div class="responsive-group-header">
@@ -812,13 +824,13 @@
                                     @php
                                         $serviceableType = class_basename((string) ($item->serviceable_type ?? ''));
                                         $typeLabelMap = [
-                                            'Activity' => 'Activity',
-                                            'FoodBeverage' => 'Food and Beverage',
-                                            'IslandTransfer' => 'Island Transfer',
-                                            'Transport' => 'Transport',
-                                            'TransportUnit' => 'Transport',
-                                            'TouristAttraction' => 'Tourist Attraction',
-                                            'HotelRoom' => 'Hotel',
+                                            'Activity' => ui_phrase('Activity'),
+                                            'FoodBeverage' => ui_phrase('Food and Beverage'),
+                                            'IslandTransfer' => ui_phrase('Island Transfer'),
+                                            'Transport' => ui_phrase('Transport'),
+                                            'TransportUnit' => ui_phrase('Transport'),
+                                            'TouristAttraction' => ui_phrase('Tourist Attraction'),
+                                            'HotelRoom' => ui_phrase('Hotel'),
                                         ];
                                         $typeLabel = $typeLabelMap[$serviceableType] ?? $serviceableType;
                                         $itemName = trim((string) ($item->serviceable?->name ?? ''));
@@ -984,7 +996,7 @@
                             @php
                                 $firstDayItem = $dayItems->first();
                                 $groupDayNumber = (int) ($firstDayItem->day_number ?? 0);
-                                $dayText = $groupDayNumber > 0 ? ('Day ' . $groupDayNumber) : 'Without Day';
+                                $dayText = $groupDayNumber > 0 ? (ui_phrase('Day') . ' ' . $groupDayNumber) : ui_phrase('Without Day');
                             @endphp
                             <tr class="bg-gray-50/90 dark:bg-gray-800/70">
                                 <td colspan="11" class="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-700 dark:text-gray-200">
@@ -995,13 +1007,13 @@
                             @php
                                 $serviceableType = class_basename((string) ($item->serviceable_type ?? ''));
                                 $typeLabelMap = [
-                                    'Activity' => 'Activity',
-                                    'FoodBeverage' => 'Food and Beverage',
-                                    'IslandTransfer' => 'Island Transfer',
-                                    'Transport' => 'Transport',
-                                    'TransportUnit' => 'Transport',
-                                    'TouristAttraction' => 'Tourist Attraction',
-                                    'HotelRoom' => 'Hotel',
+                                    'Activity' => ui_phrase('Activity'),
+                                    'FoodBeverage' => ui_phrase('Food and Beverage'),
+                                    'IslandTransfer' => ui_phrase('Island Transfer'),
+                                    'Transport' => ui_phrase('Transport'),
+                                    'TransportUnit' => ui_phrase('Transport'),
+                                    'TouristAttraction' => ui_phrase('Tourist Attraction'),
+                                    'HotelRoom' => ui_phrase('Hotel'),
                                 ];
                                 $typeLabel = $typeLabelMap[$serviceableType] ?? $serviceableType;
                                 $itemName = trim((string) ($item->serviceable?->name ?? ''));
@@ -1012,7 +1024,7 @@
                                 $vendorProviderItemLabel = $item->serviceable?->name ?? '-';
                                 $dayNumber = (int) ($item->day_number ?? 0);
                                 $dayKey = $dayNumber > 0 ? 'day-' . $dayNumber : 'day-without';
-                                $dayText = $dayNumber > 0 ? ('Day ' . $dayNumber) : 'Without Day';
+                                $dayText = $dayNumber > 0 ? (ui_phrase('Day') . ' ' . $dayNumber) : ui_phrase('Without Day');
 
                                 if (in_array($serviceableType, ['Activity', 'FoodBeverage', 'IslandTransfer', 'Transport', 'TransportUnit'], true)) {
                                     $vendorName = trim((string) ($item->serviceable?->vendor?->name ?? ''));

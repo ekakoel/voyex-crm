@@ -462,6 +462,13 @@ Route::middleware('auth')->group(function () {
                 'permission:module.itineraries.access',
                 'module.permission:itineraries',
             ]);
+        Route::delete('itineraries/{itinerary}', [AdminItineraryController::class, 'destroy'])
+            ->name('itineraries.destroy')
+            ->middleware([
+                'module:itineraries',
+                'permission:module.itineraries.access',
+                'module.permission:itineraries',
+            ]);
         Route::post('itineraries/{itinerary}/duplicate', [AdminItineraryController::class, 'duplicate'])
             ->name('itineraries.duplicate')
             ->middleware([

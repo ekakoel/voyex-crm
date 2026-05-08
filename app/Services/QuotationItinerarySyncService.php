@@ -15,8 +15,10 @@ class QuotationItinerarySyncService
 
     public function syncLinkedQuotationFromItinerary(\App\Models\Itinerary $itinerary): bool
     {
-        $itinerary->loadMissing('quotation.items');
-        $quotation = $itinerary->quotation;
+        $itinerary->loadMissing(['quotations' => function ($query) {
+            $query->latest('id');
+        }, 'quotations.items']);
+        $quotation = $itinerary->quotations->sortByDesc('id')->first();
         if (! $quotation instanceof Quotation) {
             return false;
         }
@@ -166,4 +168,3 @@ class QuotationItinerarySyncService
         ];
     }
 }
-

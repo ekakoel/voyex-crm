@@ -6,13 +6,13 @@
 @section('content')
     <div class="space-y-5 itinerary-show-page">
         <div class="app-card p-4 mb-6">
-            @section('page_actions')@if (Route::has('quotations.create') && auth()->user()->can('module.quotations.access') && ! $itinerary->quotation)
+            @section('page_actions')@if (Route::has('quotations.create') && auth()->user()->can('module.quotations.access'))
                         <a href="{{ route('quotations.create', ['itinerary_id' => $itinerary->id]) }}" class="rounded-lg border border-indigo-300 px-4 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-50 dark:border-indigo-700 dark:text-indigo-300 dark:hover:bg-indigo-900/20">{{ ui_phrase('Generate Quotation') }}</a>
                     @endif
                     <a href="{{ route('itineraries.pdf', [$itinerary, 'mode' => 'stream']) }}" target="_blank" rel="noopener" class="rounded-lg border border-sky-300 px-4 py-2 text-sm font-medium text-sky-700 hover:bg-sky-50 dark:border-sky-700 dark:text-sky-300 dark:hover:bg-sky-900/20">{{ ui_phrase('Preview PDF') }}</a>
                     <a href="{{ route('itineraries.pdf', [$itinerary, 'mode' => 'download']) }}" target="_blank" rel="noopener" class="rounded-lg border border-emerald-300 px-4 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-50 dark:border-emerald-700 dark:text-emerald-300 dark:hover:bg-emerald-900/20">{{ ui_phrase('Download PDF') }}</a>
                     @can('update', $itinerary)
-                        @if (!($itinerary->quotation && ($itinerary->quotation->status ?? '') === 'approved') && ! $itinerary->isFinal())
+                        @if (! $itinerary->quotations->contains(fn ($quotation) => in_array((string) ($quotation->status ?? ''), ['approved', \App\Models\Quotation::FINAL_STATUS], true)) && ! $itinerary->isFinal())
                             <a href="{{ route('itineraries.edit', $itinerary) }}"  class="btn-secondary">{{ ui_phrase('Edit') }}</a>
                         @endif
                     @endcan

@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 return array (
   '(dry run: no data saved)' => '(dry run: no data saved)',
@@ -1110,6 +1110,7 @@ return array (
   'View Detail' => 'View Detail',
   'View Details' => 'View Details',
   'View done reason' => 'View done reason',
+  'Edit Itinerary' => 'Edit Itinerary',
   'View Itinerary Detail' => 'View Itinerary Detail',
   'View Itinerary PDF' => 'View Itinerary PDF',
   'View Queue' => 'View Queue',
@@ -1236,6 +1237,12 @@ return array (
   ':type: :name was created and needs validation.' => ':type: :name was created and needs validation.',
   ':type: :name was created by :creator.' => ':type: :name was created by :creator.',
   'A new quotation requires your approval.' => 'A new quotation requires your approval.',
+  'Upcoming Quotations' => 'Upcoming Quotations',
+  'Passed Quotation' => 'Passed Quotation',
+  'Final Quotations' => 'Final Quotations',
+  'Quotation Logs' => 'Quotation Logs',
+  'Latest quotation activity updates.' => 'Latest quotation activity updates.',
+  'No quotation logs yet.' => 'No quotation logs yet.',
   'No' => 'No',
   'Profile' => 'Profile',
   'Register' => 'Register',
@@ -1244,4 +1251,10 @@ return array (
   'IDR' => 'IDR',
   '-' => '-',
   '{0} No comments|{1} :count comment|[2,*] :count comments' => '{0} No comments|{1} :count comment|[2,*] :count comments',
+  'Without Day' => 'Without Day',
+  'Food and Beverage' => 'Food and Beverage',
+  'This section shows the rate currently used by this quotation item.' => 'This section shows the rate currently used by this quotation item.',
+  'Failed to update contact details.' => 'Failed to update contact details.',
+  'Contact details updated.' => 'Contact details updated.'
 );
+

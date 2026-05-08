@@ -10,7 +10,7 @@
 
     @can('update', $inquiry)
 
-        @if (!in_array(($inquiry->quotation->status ?? ''), ['approved', \App\Models\Quotation::FINAL_STATUS], true) && ! $inquiry->isFinal())
+        @if (! $inquiry->quotations->contains(fn ($quotation) => in_array((string) ($quotation->status ?? ''), ['approved', \App\Models\Quotation::FINAL_STATUS], true)) && ! $inquiry->isFinal())
 
             <a href="{{ route('inquiries.edit', $inquiry) }}"  class="btn-secondary">
 
@@ -121,72 +121,46 @@
 
                     <h2 class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ ui_phrase('Inquiry Overview') }}</h2>
 
-                    <dl class="app-dl mt-4 text-sm">
+                    <dl class="mt-4 grid grid-cols-1 gap-4 text-sm md:grid-cols-2">
+                        <div>
+                            <dt class="text-gray-500 dark:text-gray-400">{{ ui_phrase('Customer') }}:</dt>
+                            <dd class="mt-1 font-medium text-gray-800 dark:text-gray-100">({{ $inquiry->customer->code ?? '-' }}) {{ $inquiry->customer->name ?? '-' }}</dd>
+                        </div>
 
-                    <div class="flex items-start items-center justify-between gap-3">
+                        <div>
+                            <dt class="text-gray-500 dark:text-gray-400">{{ ui_phrase('Status') }}:</dt>
+                            <dd class="mt-1"><x-status-badge :status="$inquiry->status" size="xs" /></dd>
+                        </div>
 
-                        <dt class="text-gray-500 dark:text-gray-400">{{ ui_phrase('Customer:') }}</dt>
+                        <div>
+                            <dt class="text-gray-500 dark:text-gray-400">{{ ui_phrase('Priority') }}:</dt>
+                            <dd class="mt-1 font-medium text-gray-800 dark:text-gray-100">{{ ui_phrase((string) $inquiry->priority) }}</dd>
+                        </div>
 
-                        <dd class="text-right font-medium text-gray-800 dark:text-gray-100">({{ $inquiry->customer->code ?? '-' }}) {{ $inquiry->customer->name ?? '-' }}</dd>
+                        <div>
+                            <dt class="text-gray-500 dark:text-gray-400">{{ ui_phrase('Source') }}:</dt>
+                            <dd class="mt-1 font-medium text-gray-800 dark:text-gray-100">{{ $inquiry->source ? ui_phrase((string) $inquiry->source) : '-' }}</dd>
+                        </div>
 
-                    </div>
+                        <div>
+                            <dt class="text-gray-500 dark:text-gray-400">{{ ui_phrase('Assigned to') }}:</dt>
+                            <dd class="mt-1 font-medium text-gray-800 dark:text-gray-100">{{ $inquiry->assignedUser->name ?? '-' }}</dd>
+                        </div>
 
-                    <div class="flex items-start items-center justify-between gap-3">
+                        <div>
+                            <dt class="text-gray-500 dark:text-gray-400">{{ ui_phrase('Deadline') }}:</dt>
+                            <dd class="mt-1 font-medium text-gray-800 dark:text-gray-100">{{ $inquiry->deadline?->format('Y-m-d') ?? '-' }}</dd>
+                        </div>
 
-                        <dt class="text-gray-500 dark:text-gray-400">{{ ui_phrase('Status') }}</dt>
+                        <div>
+                            <dt class="text-gray-500 dark:text-gray-400">{{ ui_phrase('Reminder Email') }}:</dt>
+                            <dd class="mt-1 font-medium text-gray-800 dark:text-gray-100">{{ $inquiry->reminder_enabled ? ui_phrase('Enabled') : ui_phrase('Disabled') }}</dd>
+                        </div>
 
-                        <dd><x-status-badge :status="$inquiry->status" size="xs" /></dd>
-
-                    </div>
-
-                    <div class="flex items-start items-center justify-between gap-3">
-
-                        <dt class="text-gray-500 dark:text-gray-400">{{ ui_phrase('Priority') }}</dt>
-
-                        <dd class="font-medium text-gray-800 dark:text-gray-100">{{ ui_phrase((string) $inquiry->priority) }}</dd>
-
-                    </div>
-
-                    <div class="flex items-start items-center justify-between gap-3">
-
-                        <dt class="text-gray-500 dark:text-gray-400">{{ ui_phrase('Source') }}</dt>
-
-                        <dd class="font-medium text-gray-800 dark:text-gray-100">{{ $inquiry->source ? ui_phrase((string) $inquiry->source) : '-' }}</dd>
-
-                    </div>
-
-                    <div class="flex items-start items-center justify-between gap-3">
-
-                        <dt class="text-gray-500 dark:text-gray-400">{{ ui_phrase('Assigned to:') }}</dt>
-
-                        <dd class="font-medium text-gray-800 dark:text-gray-100">{{ $inquiry->assignedUser->name ?? '-' }}</dd>
-
-                    </div>
-
-                    <div class="flex items-start items-center justify-between gap-3">
-
-                        <dt class="text-gray-500 dark:text-gray-400">{{ ui_phrase('Deadline') }}</dt>
-
-                        <dd class="font-medium text-gray-800 dark:text-gray-100">{{ $inquiry->deadline?->format('Y-m-d') ?? '-' }}</dd>
-
-                    </div>
-
-                    <div class="flex items-start items-center justify-between gap-3">
-
-                        <dt class="text-gray-500 dark:text-gray-400">{{ ui_phrase('Reminder Email') }}</dt>
-
-                        <dd class="font-medium text-gray-800 dark:text-gray-100">{{ $inquiry->reminder_enabled ? ui_phrase('Enabled') : ui_phrase('Disabled') }}</dd>
-
-                    </div>
-
-                    <div>
-
-                        <div class="text-gray-500 dark:text-gray-400">{{ ui_phrase('Notes') }}:</div>
-
-                        <dd class="text-left font-medium text-gray-800 dark:text-gray-100">{!! $inquiry->notes ?: '-' !!}</dd>
-
-                    </div>
-
+                        <div class="md:col-span-2">
+                            <dt class="text-gray-500 dark:text-gray-400">{{ ui_phrase('Notes') }}:</dt>
+                            <dd class="mt-1 font-medium text-gray-800 dark:text-gray-100">{!! $inquiry->notes ?: '-' !!}</dd>
+                        </div>
                     </dl>
 
                 </div>
@@ -198,9 +172,6 @@
     </div>
 
 @endsection
-
-
-
 
 
 

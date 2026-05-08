@@ -47,14 +47,23 @@ class ItineraryController extends Controller
     public function index()
     {
         $query = Itinerary::query()
-            ->withTrashed()
+            ->where('is_active', true)
             ->with([
                 'creator:id,name',
                 'destination:id,name',
                 'touristAttractions:id,name',
-                'inquiry:id,inquiry_number,customer_id',
-                'inquiry.customer:id,name',
-                'quotation:id,itinerary_id,status',
+                'itineraryActivities:id,itinerary_id,activity_id,day_number,start_time,visit_order',
+                'itineraryActivities.activity:id,name,vendor_id',
+                'itineraryActivities.activity.vendor:id,name',
+                'itineraryIslandTransfers:id,itinerary_id,island_transfer_id,day_number,start_time,visit_order',
+                'itineraryIslandTransfers.islandTransfer:id,name,vendor_id',
+                'itineraryIslandTransfers.islandTransfer.vendor:id,name',
+                'itineraryFoodBeverages:id,itinerary_id,food_beverage_id,day_number,start_time,visit_order',
+                'itineraryFoodBeverages.foodBeverage:id,name,vendor_id',
+                'itineraryFoodBeverages.foodBeverage.vendor:id,name',
+                'itineraryTransportUnits:id,itinerary_id,transport_unit_id,day_number',
+                'itineraryTransportUnits.transportUnit:id,name,brand_model,transport_type,seat_capacity',
+                'quotations:id,itinerary_id,status',
             ]);
 
         $query->when(request('title'), fn ($q) => $q->where('title', 'like', '%'.request('title').'%'));
@@ -88,7 +97,7 @@ class ItineraryController extends Controller
         $perPage = $perPage > 0 && $perPage <= 100 ? $perPage : 10;
 
         $itineraries = $query
-            ->orderByDesc('itineraries.created_at')
+            ->orderBy('itineraries.title')
             ->orderByDesc('itineraries.id')
             ->paginate($perPage)
             ->withQueryString();
@@ -97,7 +106,14 @@ class ItineraryController extends Controller
             ->orderBy('name')
             ->get(['id', 'name', 'city', 'province']);
 
-        return view('modules.itineraries.index', compact('itineraries', 'destinations'));
+        $itineraryLogs = ActivityLog::query()
+            ->with('user:id,name')
+            ->where('subject_type', (new Itinerary())->getMorphClass())
+            ->latest('id')
+            ->limit(10)
+            ->get();
+
+        return view('modules.itineraries.index', compact('itineraries', 'destinations', 'itineraryLogs'));
     }
 
     public function create(Request $request)
@@ -601,7 +617,7 @@ class ItineraryController extends Controller
 
     public function edit(Request $request, Itinerary $itinerary)
     {
-        $itinerary->loadMissing(['quotation:id,itinerary_id,status']);
+        $itinerary->loadMissing(['quotations:id,itinerary_id,status']);
         if (! $this->canManageItinerary($itinerary, 'update')) {
             return $this->denyItineraryMutation($itinerary);
         }
@@ -1109,7 +1125,7 @@ class ItineraryController extends Controller
             'dayPoints.endHotelRoom:id,hotels_id,rooms,view,cover',
             'inquiry:id,inquiry_number,customer_id',
             'inquiry.customer:id,name',
-            'quotation:id,itinerary_id,status',
+            'quotations:id,itinerary_id,status',
                         'arrivalTransport:id,name,transport_type',
             'departureTransport:id,name,transport_type',
         ]);
@@ -1312,6 +1328,7 @@ class ItineraryController extends Controller
                         'source_type' => 'activity',
                         'source_id' => (int) ($item->activity_id ?? 0),
                         'name' => (string) ($item->activity->name ?? '-'),
+                        'vendor_name' => (string) ($item->activity->vendor->name ?? ''),
                         'location' => (string) ($item->activity->vendor->location ?? '-'),
                         'description' => (string) ($item->activity->notes ?? '-'),
                         'includes' => (string) ($item->activity->includes ?? ''),
@@ -1336,6 +1353,7 @@ class ItineraryController extends Controller
                         'source_type' => 'transfer',
                         'source_id' => (int) ($item->island_transfer_id ?? 0),
                         'name' => (string) ($transfer->name ?? '-'),
+                        'vendor_name' => (string) ($transfer->vendor->name ?? ''),
                         'location' => trim((string) (($transfer->departure_point_name ?? '-') . ' -> ' . ($transfer->arrival_point_name ?? '-'))),
                         'description' => (string) ($transfer->notes ?? '-'),
                         'thumbnail_data_uri' => $this->resolveGalleryImageDataUri($transfer->gallery_images ?? []),
@@ -1770,7 +1788,7 @@ SVG;
 
     public function update(Request $request, Itinerary $itinerary)
     {
-        $itinerary->loadMissing(['quotation:id,itinerary_id,status']);
+        $itinerary->loadMissing(['quotations:id,itinerary_id,status']);
         if (! $this->canManageItinerary($itinerary, 'update')) {
             return $this->denyItineraryMutation($itinerary);
         }
@@ -1961,36 +1979,10 @@ SVG;
 
     public function destroy(Itinerary $itinerary)
     {
-        $itinerary->loadMissing([
-            'quotation:id,itinerary_id,status',
-            'quotation.booking:id,quotation_id',
-            'quotation.booking.invoice:id,booking_id',
-        ]);
-        if (! $this->canManageItinerary($itinerary, 'delete')) {
-            return $this->denyItineraryMutation($itinerary);
-        }
-
-        if ($itinerary->isFinal()) {
+        if (! $this->canDeactivateItinerary($itinerary)) {
             return redirect()
-                ->route('itineraries.show', $itinerary)
-                ->with('error', ui_phrase('Final itinerary cannot be deleted.'));
-        }
-
-        if ($itinerary->quotation) {
-            $reasons = ['quotation'];
-            if ($this->isItineraryLockedByQuotation($itinerary)) {
-                $reasons[0] = ui_phrase('Related quotation is approved/final.');
-            }
-            if ($itinerary->quotation->booking) {
-                $reasons[] = ui_phrase('booking');
-            }
-            if ($itinerary->quotation->booking?->invoice) {
-                $reasons[] = ui_phrase('invoice');
-            }
-
-            return redirect()
-                ->route('itineraries.show', $itinerary)
-                ->with('error', ui_phrase('modules itineraries messages cannot delete linked', ['reasons' => implode(', ', $reasons)]));
+                ->route('itineraries.index')
+                ->with('error', ui_phrase('Permission denied.'));
         }
 
         $itinerary->update(['is_active' => false]);
@@ -2022,19 +2014,19 @@ SVG;
         }
 
         $itinerary->loadMissing([
-            'quotation:id,itinerary_id,status',
-            'quotation.booking:id,quotation_id',
-            'quotation.booking.invoice:id,booking_id',
+            'quotations:id,itinerary_id,status',
+            'quotations.booking:id,quotation_id',
+            'quotations.booking.invoice:id,booking_id',
         ]);
-        if ($itinerary->quotation) {
+        if ($itinerary->quotations->isNotEmpty()) {
             $reasons = ['quotation'];
             if ($this->isItineraryLockedByQuotation($itinerary)) {
                 $reasons[0] = ui_phrase('Related quotation is approved/final.');
             }
-            if ($itinerary->quotation->booking) {
+            if ($itinerary->quotations->contains(fn ($quotation) => (bool) $quotation->booking)) {
                 $reasons[] = ui_phrase('booking');
             }
-            if ($itinerary->quotation->booking?->invoice) {
+            if ($itinerary->quotations->contains(fn ($quotation) => (bool) $quotation->booking?->invoice)) {
                 $reasons[] = ui_phrase('invoice');
             }
 
@@ -2049,6 +2041,16 @@ SVG;
         return redirect()
             ->route('itineraries.index')
             ->with('success', ui_phrase('Itinerary deactivated successfully.'));
+    }
+
+    private function canDeactivateItinerary(Itinerary $itinerary): bool
+    {
+        $user = auth()->user();
+        if (! $user) {
+            return false;
+        }
+
+        return $user->hasAnyRole(['Super Admin', 'Super User', 'Administrator']);
     }
 
     private function canManageItinerary(Itinerary $itinerary, string $ability = 'update'): bool
@@ -2073,8 +2075,10 @@ SVG;
 
     private function isItineraryLockedByQuotation(Itinerary $itinerary): bool
     {
-        $status = (string) ($itinerary->quotation->status ?? '');
-        return in_array($status, ['approved', Quotation::FINAL_STATUS], true);
+        $itinerary->loadMissing('quotations:id,itinerary_id,status');
+        return $itinerary->quotations->contains(
+            fn ($quotation) => in_array((string) ($quotation->status ?? ''), ['approved', Quotation::FINAL_STATUS], true)
+        );
     }
 
     private function syncInquiryProcessedStatus(?int $inquiryId): void

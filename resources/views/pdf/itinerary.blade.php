@@ -147,6 +147,9 @@
                                     <div class="richtext">{!! $menuHighlights !== '' ? $menuHighlights : '-' !!}</div>
                                 @else
                                     <div>
+                                        @if (filled($item['vendor_name'] ?? ''))
+                                            <strong>{{ $item['vendor_name'] }}</strong><br>
+                                        @endif
                                         <strong>{{ $item['name'] }}</strong><br>
                                         @if (!empty($item['is_main_experience']))
                                             <span>{{ ui_phrase('Main Experience') }}</span>

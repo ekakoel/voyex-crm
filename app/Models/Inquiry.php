@@ -44,7 +44,13 @@ class Inquiry extends Model
 
     public function quotation()
     {
-        return $this->hasOne(Quotation::class);
+        // Backward-compatible alias: latest linked quotation.
+        return $this->hasOne(Quotation::class)->latestOfMany('id');
+    }
+
+    public function quotations()
+    {
+        return $this->hasMany(Quotation::class);
     }
 
     public function customer()
@@ -164,7 +170,6 @@ class Inquiry extends Model
         return $letters;
     }
 }
-
 
 
 

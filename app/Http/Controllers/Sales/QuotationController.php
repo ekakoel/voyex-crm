@@ -24,6 +24,7 @@ use App\Services\QuotationValidationService;
 use App\Support\ImageThumbnailGenerator;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
+use App\Models\ActivityLog;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\File;
@@ -66,30 +67,57 @@ class QuotationController extends Controller
             $statusFilterOptions = ['pending'];
             $statsCards = $this->buildQuotationStatsCards(null, ['pending'], false);
         } else {
-            $status = strtolower(trim((string) request('status')));
-            if ($status !== '' && in_array($status, Quotation::STATUS_OPTIONS, true)) {
-                $query->where('status', $status);
-            }
             $statusFilterOptions = Quotation::STATUS_OPTIONS;
             $statsCards = $this->buildQuotationStatsCards(null, null, false);
         }
         $perPage = (int) request('per_page', 10);
         $perPage = $perPage > 0 && $perPage <= 100 ? $perPage : 10;
 
-        $quotations = $query->latest()->paginate($perPage)->withQueryString();
+        $today = now()->toDateString();
+        $nonFinalQuery = (clone $query)->where('status', '!=', Quotation::FINAL_STATUS);
+        $upcomingQuotations = (clone $nonFinalQuery)
+            ->where(function (Builder $builder) use ($today): void {
+                $builder->whereDate('service_date', '>=', $today)
+                    ->orWhereNull('service_date');
+            })
+            ->latest()
+            ->paginate($perPage, ['*'], 'upcoming_page')
+            ->withQueryString();
+        $expiredQuotations = (clone $nonFinalQuery)
+            ->whereDate('service_date', '<', $today)
+            ->latest()
+            ->paginate($perPage, ['*'], 'expired_page')
+            ->withQueryString();
+        $finalQuotations = (clone $query)
+            ->where('status', Quotation::FINAL_STATUS)
+            ->latest()
+            ->paginate($perPage, ['*'], 'final_page')
+            ->withQueryString();
         $authUser = auth()->user();
         $approvalRole = $this->resolveApprovalRoleForUser($authUser);
-        $quotations->getCollection()->transform(function (Quotation $quotation) use ($authUser, $approvalRole, $showNeedsMyApproval) {
+        $transformQuotation = function (Quotation $quotation) use ($authUser, $approvalRole, $showNeedsMyApproval): Quotation {
             $quotation->setAttribute('needs_my_approval_badge', $showNeedsMyApproval
                 ? $this->needsMyApprovalForQuotation($quotation, $authUser, $approvalRole)
                 : false);
             $kpiSummary = $this->computeQuotationKpiSummary($quotation);
             $quotation->setAttribute('display_final_amount', (float) ($kpiSummary['final_amount'] ?? 0));
             return $quotation;
-        });
+        };
+        $upcomingQuotations->getCollection()->transform($transformQuotation);
+        $expiredQuotations->getCollection()->transform($transformQuotation);
+        $finalQuotations->getCollection()->transform($transformQuotation);
+        $quotationLogs = ActivityLog::query()
+            ->with('user:id,name')
+            ->where('subject_type', (new Quotation())->getMorphClass())
+            ->latest('id')
+            ->limit(10)
+            ->get();
 
         return view('modules.quotations.index', [
-            'quotations' => $quotations,
+            'upcomingQuotations' => $upcomingQuotations,
+            'expiredQuotations' => $expiredQuotations,
+            'finalQuotations' => $finalQuotations,
+            'quotationLogs' => $quotationLogs,
             'statsCards' => $statsCards,
             'isMyQuotationPage' => false,
             'listRouteName' => 'quotations.index',
@@ -115,25 +143,52 @@ class QuotationController extends Controller
             $query->whereRaw('1 = 0');
         }
         $this->applyQuotationKeywordFilter($query, (string) request('q'));
-        $status = strtolower(trim((string) request('status')));
-        if ($status !== '' && in_array($status, Quotation::STATUS_OPTIONS, true)) {
-            $query->where('status', $status);
-        }
 
         $perPage = (int) request('per_page', 10);
         $perPage = $perPage > 0 && $perPage <= 100 ? $perPage : 10;
 
-        $quotations = $query->latest()->paginate($perPage)->withQueryString();
-        $quotations->getCollection()->transform(function (Quotation $quotation) {
+        $today = now()->toDateString();
+        $nonFinalQuery = (clone $query)->where('status', '!=', Quotation::FINAL_STATUS);
+        $upcomingQuotations = (clone $nonFinalQuery)
+            ->where(function (Builder $builder) use ($today): void {
+                $builder->whereDate('service_date', '>=', $today)
+                    ->orWhereNull('service_date');
+            })
+            ->latest()
+            ->paginate($perPage, ['*'], 'upcoming_page')
+            ->withQueryString();
+        $expiredQuotations = (clone $nonFinalQuery)
+            ->whereDate('service_date', '<', $today)
+            ->latest()
+            ->paginate($perPage, ['*'], 'expired_page')
+            ->withQueryString();
+        $finalQuotations = (clone $query)
+            ->where('status', Quotation::FINAL_STATUS)
+            ->latest()
+            ->paginate($perPage, ['*'], 'final_page')
+            ->withQueryString();
+        $transformQuotation = function (Quotation $quotation): Quotation {
             $quotation->setAttribute('needs_my_approval_badge', false);
             $kpiSummary = $this->computeQuotationKpiSummary($quotation);
             $quotation->setAttribute('display_final_amount', (float) ($kpiSummary['final_amount'] ?? 0));
             return $quotation;
-        });
+        };
+        $upcomingQuotations->getCollection()->transform($transformQuotation);
+        $expiredQuotations->getCollection()->transform($transformQuotation);
+        $finalQuotations->getCollection()->transform($transformQuotation);
+        $quotationLogs = ActivityLog::query()
+            ->with('user:id,name')
+            ->where('subject_type', (new Quotation())->getMorphClass())
+            ->latest('id')
+            ->limit(10)
+            ->get();
         $statsCards = $this->buildQuotationStatsCards((int) auth()->id(), null, true);
 
         return view('modules.quotations.index', [
-            'quotations' => $quotations,
+            'upcomingQuotations' => $upcomingQuotations,
+            'expiredQuotations' => $expiredQuotations,
+            'finalQuotations' => $finalQuotations,
+            'quotationLogs' => $quotationLogs,
             'statsCards' => $statsCards,
             'isMyQuotationPage' => true,
             'listRouteName' => 'quotations.my',
@@ -193,9 +248,6 @@ class QuotationController extends Controller
     {
         $prefillItineraryId = request()->integer('itinerary_id') ?: null;
         $itineraries = $this->availableItinerariesQuery()
-            ->whereNotIn('id', Quotation::query()
-                ->select('itinerary_id')
-                ->whereNotNull('itinerary_id'))
             ->orderByDesc('id')
             ->get(['id', 'title', 'inquiry_id', 'destination', 'duration_days', 'duration_nights', 'is_active', 'status']);
         $itineraryInquiryMap = $itineraries->mapWithKeys(function ($itinerary): array {
@@ -245,7 +297,6 @@ class QuotationController extends Controller
                 'required',
                 'integer',
                 'exists:itineraries,id',
-                Rule::unique('quotations', 'itinerary_id'),
             ],
             'order_number' => ['nullable', 'string', 'max:100', 'regex:/^[A-Za-z0-9]+$/'],
             'service_date' => ['required', 'date'],
@@ -429,12 +480,6 @@ class QuotationController extends Controller
         $this->quotationValidationService->syncValidationRequirements($quotation);
 
         $itineraries = $this->availableItinerariesQuery((int) ($quotation->itinerary_id ?? 0))
-            ->where(function ($query) use ($quotation) {
-                $query->whereDoesntHave('quotation', function (Builder $quotationQuery): void {
-                    $quotationQuery->whereNull('deleted_at');
-                })
-                    ->orWhere('id', $quotation->itinerary_id);
-            })
             ->orderByDesc('id')
             ->get(['id', 'title', 'inquiry_id', 'destination', 'duration_days', 'duration_nights', 'is_active', 'status']);
         $inquiries = $this->availableInquiriesQuery((int) ($quotation->inquiry_id ?? 0))
@@ -506,7 +551,6 @@ class QuotationController extends Controller
                 'required',
                 'integer',
                 'exists:itineraries,id',
-                Rule::unique('quotations', 'itinerary_id')->ignore($quotation->id),
             ],
             'order_number' => ['nullable', 'string', 'max:100', 'regex:/^[A-Za-z0-9]+$/'],
             'service_date' => ['required', 'date'],
