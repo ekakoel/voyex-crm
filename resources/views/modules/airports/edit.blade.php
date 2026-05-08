@@ -19,7 +19,7 @@
                     </form>
                 </div>
             </div>
-            <aside class="module-grid-side space-y-6">
+            <aside class="module-grid-side">
                 <div class="app-card p-5 text-sm text-slate-600 dark:text-slate-300">
                     <p class="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{{ ui_phrase('Guidelines') }}</p>
                     <ul class="mt-2 space-y-2 text-sm">
@@ -33,4 +33,5 @@
         </div>
     </div>
 @endsection
+
 

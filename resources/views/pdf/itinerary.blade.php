@@ -56,7 +56,7 @@
         .itinerary-inc-exc td:last-child { padding-right: 0; }
         .itinerary-inc-exc .inc { background: transparent; border: 1px solid #cbd5e1; border-radius: 4px; padding: 6px; }
         .itinerary-inc-exc .exc { background: transparent; border: 1px solid #cbd5e1; border-radius: 4px; padding: 6px; }
-        .itinerary-inc-exc .title { display: block; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 3px; color: #374151; }
+        .itinerary-inc-exc .title, .additional-info-title { display: block; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 3px; color: #374151; }
         .transport-box { margin-top: 8px; }
         .transport-head-block { display: table; width: 100%; page-break-inside: avoid; break-inside: avoid; page-break-before: auto; }
         .transport-title { font-size: 10px; text-transform: uppercase; letter-spacing: .06em; color: #334155; font-weight: 700; margin-bottom: 4px; }
@@ -257,28 +257,36 @@
     @php
         $itineraryIncludeText = \App\Support\SafeRichText::plainText($itinerary->itinerary_include ?? null);
         $itineraryExcludeText = \App\Support\SafeRichText::plainText($itinerary->itinerary_exclude ?? null);
+        $itineraryTermConditionsText = \App\Support\SafeRichText::plainText($itinerary->term_conditions ?? null);
         $itineraryIncludeHtml = \App\Support\SafeRichText::sanitize((string) ($itinerary->itinerary_include ?? ''));
         $itineraryExcludeHtml = \App\Support\SafeRichText::sanitize((string) ($itinerary->itinerary_exclude ?? ''));
+        $itineraryTermConditionsHtml = \App\Support\SafeRichText::sanitize((string) ($itinerary->term_conditions ?? ''));
     @endphp
-    @if (filled($itineraryIncludeText) || filled($itineraryExcludeText))
+    @if (filled($itineraryIncludeText) || filled($itineraryExcludeText) || filled($itineraryTermConditionsText))
         <div class="panel panel-plain">
-            <div class="panel-title">Itinerary Include & Exclude</div>
+            <div class="panel-title">Additional Info</div>
             <table class="itinerary-inc-exc">
                 <tr>
                     @if (filled($itineraryIncludeText))
                         <td class="inc">
-                            <span class="title">{{ ui_phrase('Itinerary Include') }}</span>
+                            <span class="title">Inclutions</span>
                             <div class="richtext">{!! $itineraryIncludeHtml !!}</div>
                         </td>
                     @endif
                     @if (filled($itineraryExcludeText))
                         <td class="exc">
-                            <span class="title">{{ ui_phrase('Itinerary Exclude') }}</span>
+                            <span class="title">Exclutions</span>
                             <div class="richtext">{!! $itineraryExcludeHtml !!}</div>
                         </td>
                     @endif
                 </tr>
             </table>
+            @if (filled($itineraryTermConditionsText))
+                <div style="margin-top: 8px; border: 1px solid #cbd5e1; border-radius: 4px; padding: 6px;">
+                    <span class="additional-info-title">Terms &amp; Conditions</span>
+                    <div class="richtext">{!! $itineraryTermConditionsHtml !!}</div>
+                </div>
+            @endif
         </div>
     @endif
 

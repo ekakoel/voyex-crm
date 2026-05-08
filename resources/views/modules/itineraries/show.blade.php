@@ -99,8 +99,9 @@
             </div>
         @endif
 
-        <div class="grid min-w-0 grid-cols-1 gap-6 lg:grid-cols-12">
-            <div class="app-card min-w-0 p-4 lg:col-span-7">
+        <div class="module-grid-8-4 min-w-0">
+            <div class="module-grid-main">
+                <div class="app-card min-w-0 p-4">
                 <h2 class="text-sm font-semibold uppercase tracking-wide text-gray-700 dark:text-gray-200">{{ ui_phrase('Schedule by Day') }}</h2>
                 <div class="mt-3 space-y-4 text-sm text-gray-700 dark:text-gray-200">
                     @php
@@ -165,8 +166,14 @@
                                     return $dayPoint->startAirport?->name ?: $defaultNotSet;
                                 }
                                 if ($type === 'hotel') {
+                                    $startBookingMode = (string) ($dayPoint->start_hotel_booking_mode ?? '');
+                                    $isSelfBookedStartHotel = strtolower(trim($startBookingMode)) === 'self';
                                     $hotelName = (string) ($dayPoint->startHotel?->name ?? $defaultNotSet);
                                     $roomName = (string) ($dayPoint->startHotelRoom?->rooms ?? '');
+                                    $startArea = trim((string) ($dayPoint->start_hotel_area ?? ''));
+                                    if ($isSelfBookedStartHotel && $hotelName === $defaultNotSet && $startArea !== '') {
+                                        return ui_phrase('Self-booked hotel') . ' - ' . $startArea;
+                                    }
                                     if ($hotelName === $defaultNotSet) {
                                         return $defaultNotSet;
                                     }
@@ -182,8 +189,14 @@
                                 return $dayPoint->endAirport?->name ?: $defaultNotSet;
                             }
                             if ($type === 'hotel') {
+                                $endBookingMode = (string) ($dayPoint->end_hotel_booking_mode ?? '');
+                                $isSelfBookedEndHotel = strtolower(trim($endBookingMode)) === 'self';
                                 $hotelName = (string) ($dayPoint->endHotel?->name ?? $defaultNotSet);
                                 $roomName = (string) ($dayPoint->endHotelRoom?->rooms ?? '');
+                                $endArea = trim((string) ($dayPoint->end_hotel_area ?? ''));
+                                if ($isSelfBookedEndHotel && $hotelName === $defaultNotSet && $endArea !== '') {
+                                    return ui_phrase('Self-booked hotel') . ' - ' . $endArea;
+                                }
                                 if ($hotelName === $defaultNotSet) {
                                     return $defaultNotSet;
                                 }
@@ -207,7 +220,12 @@
                                     return $dayPoint->startAirport?->location;
                                 }
                                 if ($type === 'hotel') {
-                                    return $dayPoint->startHotel?->address;
+                                    $hotelAddress = (string) ($dayPoint->startHotel?->address ?? '');
+                                    if (trim($hotelAddress) !== '') {
+                                        return $hotelAddress;
+                                    }
+                                    $startArea = trim((string) ($dayPoint->start_hotel_area ?? ''));
+                                    return $startArea !== '' ? $startArea : null;
                                 }
                                 return null;
                             }
@@ -216,7 +234,12 @@
                                 return $dayPoint->endAirport?->location;
                             }
                             if ($type === 'hotel') {
-                                return $dayPoint->endHotel?->address;
+                                $hotelAddress = (string) ($dayPoint->endHotel?->address ?? '');
+                                if (trim($hotelAddress) !== '') {
+                                    return $hotelAddress;
+                                }
+                                $endArea = trim((string) ($dayPoint->end_hotel_area ?? ''));
+                                return $endArea !== '' ? $endArea : null;
                             }
                             return null;
                         };
@@ -464,7 +487,10 @@
                                 if ($startPointTypeRaw === 'airport') {
                                     $startConfigured = (int) ($dayPoint->start_airport_id ?? 0) > 0;
                                 } elseif ($startPointTypeRaw === 'hotel') {
-                                    $startConfigured = (int) ($dayPoint->start_hotel_id ?? 0) > 0;
+                                    $startBookingModeNormalized = strtolower(trim((string) ($dayPoint->start_hotel_booking_mode ?? '')));
+                                    $isSelfBookedStartHotel = $startBookingModeNormalized === 'self';
+                                    $startConfigured = (int) ($dayPoint->start_hotel_id ?? 0) > 0
+                                        || ($isSelfBookedStartHotel && trim((string) ($dayPoint->start_hotel_area ?? '')) !== '');
                                 } elseif ($startPointTypeRaw === 'previous_day_end') {
                                     $startConfigured = $day > 1
                                         && $previousDayPoint
@@ -480,7 +506,10 @@
                                 if ($endPointType === 'airport') {
                                     $endConfigured = (int) ($dayPoint->end_airport_id ?? 0) > 0;
                                 } elseif ($endPointType === 'hotel') {
-                                    $endConfigured = (int) ($dayPoint->end_hotel_id ?? 0) > 0;
+                                    $endBookingModeNormalized = strtolower(trim((string) ($dayPoint->end_hotel_booking_mode ?? '')));
+                                    $isSelfBookedEndHotel = $endBookingModeNormalized === 'self';
+                                    $endConfigured = (int) ($dayPoint->end_hotel_id ?? 0) > 0
+                                        || ($isSelfBookedEndHotel && trim((string) ($dayPoint->end_hotel_area ?? '')) !== '');
                                 }
                             }
                             $incompleteReasons = [];
@@ -788,8 +817,9 @@
                     @php
                         $itineraryIncludeText = \App\Support\SafeRichText::plainText($itinerary->itinerary_include);
                         $itineraryExcludeText = \App\Support\SafeRichText::plainText($itinerary->itinerary_exclude);
+                        $termConditionsText = \App\Support\SafeRichText::plainText($itinerary->term_conditions);
                     @endphp
-                    @if (filled($itineraryIncludeText) || filled($itineraryExcludeText))
+                    @if (filled($itineraryIncludeText) || filled($itineraryExcludeText) || filled($termConditionsText))
                         <div class="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2">
                             @if (filled($itineraryIncludeText))
                                 <div class="rounded-lg mb-6 border border-emerald-200 bg-emerald-50/60 px-2 py-1 dark:border-emerald-800 dark:bg-emerald-900/20">
@@ -803,12 +833,19 @@
                                     <x-rich-text :content="$itinerary->itinerary_exclude" class="mt-0.5 text-xs text-rose-900 dark:text-rose-100" />
                                 </div>
                             @endif
+                            @if (filled($termConditionsText))
+                                <div class="rounded-lg mb-6 border border-indigo-200 bg-indigo-50/60 px-2 py-1 dark:border-indigo-800 dark:bg-indigo-900/20 md:col-span-2">
+                                    <p class="text-[11px] font-semibold uppercase tracking-wide text-indigo-700 dark:text-indigo-300">{{ ui_phrase('Term & Conditions') }}</p>
+                                    <x-rich-text :content="$itinerary->term_conditions" class="mt-0.5 text-xs text-indigo-900 dark:text-indigo-100" />
+                                </div>
+                            @endif
                         </div>
                     @endif
                 </div>
+                </div>
             </div>
-            <div class="space-y-4 lg:col-span-5">
-                <div class="app-card p-4 space-y-3">
+            <aside class="module-grid-side">
+                <div class="app-card p-4">
                     <div>
                         <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ ui_phrase('Activity Timeline') }}</h3>
                         <p class="text-xs text-gray-600 dark:text-gray-300">{{ ui_phrase('detailed audit log') }}</p>
@@ -819,7 +856,7 @@
                     <h2 class="text-sm font-semibold uppercase tracking-wide text-gray-700 dark:text-gray-200">{{ ui_phrase('Itinerary Map') }}</h2>
                     <div id="itinerary-show-map" class="mt-3 h-[520px] md:h-[640px] w-full rounded-lg border border-gray-300 dark:border-gray-700"></div>
                 </div>
-            </div>
+            </aside>
         </div>
     </div>
 @endsection
@@ -827,6 +864,64 @@
 @push('scripts')
     @php
         $dayPointByDayForMap = $itinerary->dayPoints->keyBy(fn ($point) => (int) $point->day_number);
+        $normalizeAreaKey = static fn ($value): string => strtolower(trim((string) $value));
+        $itineraryDestinationKey = $normalizeAreaKey($itinerary->destination ?? '');
+        $hotelAreaCoordinateLookup = [];
+        try {
+            $hotelsForAreaCoordinates = \App\Models\Hotel::query()
+                ->with('destination:id,name')
+                ->whereNotNull('latitude')
+                ->whereNotNull('longitude')
+                ->get(['id', 'destination_id', 'city', 'province', 'latitude', 'longitude']);
+
+            foreach ($hotelsForAreaCoordinates as $hotelForArea) {
+                $lat = $hotelForArea->latitude;
+                $lng = $hotelForArea->longitude;
+                if (!is_numeric($lat) || !is_numeric($lng)) {
+                    continue;
+                }
+                $destinationKey = $normalizeAreaKey($hotelForArea->destination?->name ?? '');
+                $candidateRegions = array_values(array_filter([
+                    trim((string) ($hotelForArea->city ?? '')),
+                    trim((string) ($hotelForArea->province ?? '')),
+                ], static fn ($value) => $value !== ''));
+                foreach ($candidateRegions as $region) {
+                    $regionKey = $normalizeAreaKey($region);
+                    if ($regionKey === '') {
+                        continue;
+                    }
+                    $bucketKey = $destinationKey . '|' . $regionKey;
+                    if (!array_key_exists($bucketKey, $hotelAreaCoordinateLookup)) {
+                        $hotelAreaCoordinateLookup[$bucketKey] = ['lat' => (float) $lat, 'lng' => (float) $lng];
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
+            $hotelAreaCoordinateLookup = [];
+        }
+        $resolveAreaCoordinates = static function (
+            array $lookup,
+            string $region,
+            string $destinationKey,
+            callable $normalize
+        ): ?array {
+            $regionKey = $normalize($region);
+            if ($regionKey === '') {
+                return null;
+            }
+            $preferredKey = $destinationKey . '|' . $regionKey;
+            if (array_key_exists($preferredKey, $lookup)) {
+                return $lookup[$preferredKey];
+            }
+            foreach ($lookup as $bucketKey => $coords) {
+                $parts = explode('|', (string) $bucketKey, 2);
+                $bucketRegionKey = $parts[1] ?? '';
+                if ($bucketRegionKey === $regionKey) {
+                    return $coords;
+                }
+            }
+            return null;
+        };
         $normalizeTransferRouteCoords = static function ($routeGeoJson): array {
             if (is_string($routeGeoJson)) {
                 $decoded = json_decode($routeGeoJson, true);
@@ -907,7 +1002,12 @@
 
             return count($normalized) >= 2 ? $normalized : [];
         };
-        $resolveMapPoint = function ($dayPoint, string $scope, ?array $previousEnd = null) {
+        $resolveMapPoint = function ($dayPoint, string $scope, ?array $previousEnd = null) use (
+            $resolveAreaCoordinates,
+            $hotelAreaCoordinateLookup,
+            $itineraryDestinationKey,
+            $normalizeAreaKey
+        ) {
             if (!$dayPoint) {
                 return null;
             }
@@ -934,6 +1034,21 @@
                         'lng' => $dayPoint->startHotel->longitude,
                     ];
                 }
+                if ($type === 'hotel' && strtolower(trim((string) ($dayPoint->start_hotel_booking_mode ?? ''))) === 'self') {
+                    $startArea = trim((string) ($dayPoint->start_hotel_area ?? ''));
+                    if ($startArea !== '') {
+                        $areaCoords = $resolveAreaCoordinates($hotelAreaCoordinateLookup, $startArea, $itineraryDestinationKey, $normalizeAreaKey);
+                        if (is_array($areaCoords) && is_numeric($areaCoords['lat'] ?? null) && is_numeric($areaCoords['lng'] ?? null)) {
+                            return [
+                                'type' => 'hotel',
+                                'name' => ui_phrase('Self-booked hotel') . ' - ' . $startArea,
+                                'location' => $startArea,
+                                'lat' => (float) $areaCoords['lat'],
+                                'lng' => (float) $areaCoords['lng'],
+                            ];
+                        }
+                    }
+                }
                 return null;
             }
             $type = (string) ($dayPoint->end_point_type ?? '');
@@ -954,6 +1069,21 @@
                     'lat' => $dayPoint->endHotel->latitude,
                     'lng' => $dayPoint->endHotel->longitude,
                 ];
+            }
+            if ($type === 'hotel' && strtolower(trim((string) ($dayPoint->end_hotel_booking_mode ?? ''))) === 'self') {
+                $endArea = trim((string) ($dayPoint->end_hotel_area ?? ''));
+                if ($endArea !== '') {
+                    $areaCoords = $resolveAreaCoordinates($hotelAreaCoordinateLookup, $endArea, $itineraryDestinationKey, $normalizeAreaKey);
+                    if (is_array($areaCoords) && is_numeric($areaCoords['lat'] ?? null) && is_numeric($areaCoords['lng'] ?? null)) {
+                        return [
+                            'type' => 'hotel',
+                            'name' => ui_phrase('Self-booked hotel') . ' - ' . $endArea,
+                            'location' => $endArea,
+                            'lat' => (float) $areaCoords['lat'],
+                            'lng' => (float) $areaCoords['lng'],
+                        ];
+                    }
+                }
             }
             return null;
         };
@@ -1631,4 +1761,3 @@
         })();
     </script>
 @endpush
-

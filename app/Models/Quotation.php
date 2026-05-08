@@ -42,6 +42,9 @@ class Quotation extends Model
         'status',
         'validation_status',
         'validity_date',
+        'service_date',
+        'pax_adult',
+        'pax_child',
         'sub_total',
         'discount_type',
         'discount_value',
@@ -57,6 +60,9 @@ class Quotation extends Model
     
     protected $casts = [
         'validity_date' => 'date',
+        'service_date' => 'date',
+        'pax_adult' => 'integer',
+        'pax_child' => 'integer',
         'sub_total' => 'decimal:2',
         'discount_value' => 'decimal:2',
         'final_amount' => 'decimal:2',
@@ -122,7 +128,6 @@ class Quotation extends Model
     }
 
 }
-
 
 
 

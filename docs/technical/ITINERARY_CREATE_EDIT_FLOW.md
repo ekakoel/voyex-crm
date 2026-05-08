@@ -219,7 +219,11 @@ Without correct `reindex()`, backend payload will be out of sync.
 - inquiry_id,
 - duration days/nights,
 - description,
+- term_conditions,
 - status/is_active.
+
+Note:
+- `order_number` is no longer part of itinerary create/edit payload and is not rendered in itinerary module pages.
 
 ### Layer schedule item
 - `itinerary_items`
@@ -229,6 +233,7 @@ Without correct `reindex()`, backend payload will be out of sync.
 
 ### Day-level layer
 - start/end point arrays,
+- self-booked start hotel area (`daily_start_point_areas`) for region-based start point when hotel is not selected,
 - start time + travel minute,
 - includes/excludes,
 - main experience,

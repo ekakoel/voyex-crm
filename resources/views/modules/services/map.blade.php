@@ -23,7 +23,7 @@
 
     <div class="space-y-6 module-page module-page--service-map" data-service-map-page>
         <div class="module-grid-3-9">
-            <aside class="module-grid-side space-y-4">
+            <aside class="module-grid-side">
                 <div class="app-card p-5">
                     <p class="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{{ ui_phrase('Summary') }}</p>
                     <h3 class="mt-2 text-lg font-semibold text-slate-900 dark:text-slate-100">{{ number_format($stats['total'] ?? 0) }} point(s)</h3>
@@ -91,3 +91,4 @@
         }
     </style>
 @endpush
+

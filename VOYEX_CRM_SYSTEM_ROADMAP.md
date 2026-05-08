@@ -199,6 +199,154 @@ Kebijakan ini wajib untuk setiap update code (penambahan, perubahan, pengurangan
 
 # CHANGELOG (LATEST)
 
+Date: 2026-05-08
+Completed in this cycle:
+
+- Index layout standardization for pages with filters:
+  - removed KPI cards (`<x-index-stats>`) from module index pages that use filter panels.
+  - moved filter area into right sidebar (`3` columns) and set main data content to left (`9` columns).
+  - standardized index split to `module-grid-9-3` with `module-grid-main` + `module-grid-side` pattern for consistent responsive behavior.
+  - added CSS ordering guard in `resources/css/app.css` so legacy Blade order (sidebar declared first) still renders as `9:3` (main left, sidebar right) on desktop.
+  - compacted filter layout in main content area:
+    - filter controls now use tighter width constraints,
+    - desktop layout prefers one-row horizontal filter bar with horizontal scroll fallback,
+    - filter action buttons are aligned to the right side of the filter row.
+  - standardized spacing tokens for index/layout consistency:
+    - unified layout/card/grid spacing to shared CSS variables,
+    - removed mixed hardcoded gap values (`1rem`, `18px`) in core module grid/header blocks,
+    - normalized filter toolbar spacing (`gap`, control width, action alignment) for cleaner and more professional visual rhythm.
+  - added global UI consistency layer for module pages:
+    - standardized shared radius tokens for cards/forms/inputs,
+    - standardized table cell rhythm (`th/td` padding) on `app-table`,
+    - standardized action-row spacing (`page-actions`, `filter-actions`, module action rows),
+    - normalized top-level module card density (`p-4/p-5/p-6` direct cards in main/side grid),
+    - normalized alert block spacing/radius for success/error/info/warning states.
+  - enforced no-margin policy for cards:
+    - `app-card`, `module-card`, `sa-card`, `sa-kpi`, and generic `.card` now force `margin: 0`,
+    - inter-card spacing is controlled exclusively by parent `gap` for consistent rhythm.
+  - disabled `space-y-*` behavior on card containers:
+    - when `space-y-*` class is attached directly to card elements, vertical sibling margins are neutralized,
+    - prevents card-level stack utilities from introducing inconsistent spacing outside the parent `gap` system.
+  - removed `space-y-*` utility usage from `module-grid-side` and `module-grid-main` wrappers across module views,
+    so grid section spacing is fully standardized using shared `gap` tokens only.
+  - standardized `Itineraries` index page structure to match latest layout rules:
+    - removed residual `space-y-*` on `module-grid-side`/`module-grid-main`,
+    - refactored filter card internal spacing to `grid gap-*` (no card-level `space-y-*` dependency).
+  - standardized `Bookings` index page structure to match latest layout rules:
+    - normalized sidebar/main wrappers to current layout style,
+    - removed card-level `space-y-*` dependency from filter block,
+    - refactored filter card internals to `grid gap-*` for consistent gap-based spacing.
+  - completed index-page standardization sweep across modules:
+    - removed residual `app-card ... space-y-*` usage on module index filter cards,
+    - normalized sidebar include formatting for `module-index-sidebar-info`,
+    - confirmed no remaining `space-y-*` usage on `module-grid-main` / `module-grid-side` wrappers in module index pages.
+  - standardized detail pages to `8:4` layout baseline:
+    - updated `Hotels` detail wrapper from `module-grid-9-3` to `module-grid-8-4`,
+    - updated `Transports` detail wrapper from `module-grid-9-3` to `module-grid-8-4`,
+    - refactored `Itineraries` detail container from custom `12-col` split to `module-grid-8-4` with `module-grid-main` + `module-grid-side`.
+  - standardized `Inquiry` detail content ordering:
+    - enforced main content (`module-grid-main`) as first order and supporting info (`module-grid-side`) as second order across viewport sizes,
+    - removed breakpoint-dependent ordering pattern on inquiry detail layout.
+  - restructured `Inquiry` detail composition to match UI standard:
+    - moved `Inquiry Overview` into main content area as primary data block,
+    - kept `Related Records` and `Activity Timeline` in right sidebar as supporting information,
+    - removed page-level width cap (`max-w-6xl`) so layout follows shared module container standard.
+  - retired unused Inquiry sub-features:
+    - removed `Reminder Follow-up` and `Communication History` UI blocks from inquiry detail page,
+    - removed inquiry follow-up/communication routes from `routes/web.php`,
+    - removed follow-up/communication controller actions and related permission-helper methods from `Sales\\InquiryController`,
+    - removed follow-up reminder scheduler registration from `app/Console/Kernel.php` to prevent deprecated reminders from being sent.
+
+- Itinerary module cleanup: removed `Order Number` property usage from itinerary domain/UI flow.
+  - removed `order_number` input and validation flow from itinerary create/edit pipeline:
+    - `resources/views/modules/itineraries/_form.blade.php`
+    - `app/Http/Controllers/Admin/ItineraryController.php`
+    - `app/Models/Itinerary.php` (`$fillable` cleanup)
+  - removed itinerary review-card rendering for order number in itinerary wizard.
+  - removed itinerary duplicate copy behavior for `order_number`.
+  - removed itinerary-to-quotation order-number sync on itinerary update.
+  - impact:
+    - itinerary index/create/edit/show and related itinerary wizard review no longer expose order number.
+    - itinerary updates no longer push `order_number` changes into linked quotations.
+
+- Quotation integration adjustment (to avoid itinerary order-number dependency):
+  - quotation create/edit now normalize order number only from quotation input (no fallback from itinerary).
+  - removed itinerary-order-number autofill metadata/JS from quotation form itinerary selector.
+  - updated files:
+    - `app/Http/Controllers/Sales/QuotationController.php`
+    - `resources/views/modules/quotations/_form.blade.php`
+
+- Itinerary module enhancement: added `Term & Conditions` property to itinerary create/edit flow.
+  - added new persistence column:
+    - `database/migrations/2026_05_08_120000_add_term_conditions_to_itineraries_table.php`
+  - create/update validation + model fillable support added in:
+    - `app/Http/Controllers/Admin/ItineraryController.php`
+    - `app/Models/Itinerary.php`
+  - UI placement implemented on itinerary wizard tab `Include/Exclude` directly after Include/Exclude inputs:
+    - `resources/views/modules/itineraries/_form.blade.php`
+  - review-step preview now includes `Term & Conditions` block before final submit.
+
+- Itinerary wizard label adjustment (step 3):
+  - renamed tab title from `Include/Exclude` to `Additional Info`.
+  - removed helper text:
+    - `Include & Exclude`
+    - `Fill itinerary coverage clearly to help users understand what is included and excluded.`
+  - updated labels:
+    - `Itinerary Include` -> `Inclutions`
+    - `Itinerary Exclude` -> `Exclutions`
+  - updated files:
+    - `resources/views/modules/itineraries/_form.blade.php`
+    - `lang/en/itinerary_form.php`
+    - `lang/zh_Hans/itinerary_form.php`
+    - `lang/zh_Hant/itinerary_form.php`
+
+- Itinerary wizard day-completion fix (`Incomplete reasons`):
+  - fixed point-completion evaluator for:
+    - `Start point is not fully configured.`
+    - `End point is not fully configured.`
+  - behavior correction:
+    - `self-booked` hotel mode no longer auto-passes when hotel item is empty.
+    - hotel point is now valid only when hotel item is selected (room optional only for self-booked; required for arranged mode).
+    - `previous_day_end` start point now validates against actual previous day end-point completeness using the same rules.
+  - updated file:
+    - `resources/views/modules/itineraries/_form.blade.php`
+
+- Itinerary self-booked hotel area enhancement (detail rendering + create/edit input):
+  - added start-point area support for self-booked hotel flow on day points:
+    - new column `itinerary_day_points.start_hotel_area`
+    - migration: `database/migrations/2026_05_08_130000_add_start_hotel_area_to_itinerary_day_points_table.php`
+  - create/edit itinerary now allows selecting start hotel area (region) when:
+    - start point type = `hotel`
+    - booking mode = `self-booked`
+  - validation + normalization behavior:
+    - self-booked start point is considered valid when either hotel is selected OR start area is selected.
+  - itinerary detail page (`show`) behavior:
+    - if self-booked start hotel has no hotel selected, display area-based label instead of `Not set`.
+  - updated files:
+    - `resources/views/modules/itineraries/_form.blade.php`
+    - `resources/views/modules/itineraries/show.blade.php`
+    - `app/Http/Controllers/Admin/ItineraryController.php`
+    - `app/Models/ItineraryDayPoint.php`
+
+- Itinerary self-booked point selector behavior adjustment (create/edit):
+  - when `Start Point` or `End Point` is `Hotel` and booking mode is `Self-booked hotel`:
+    - hide hotel selector,
+    - hide room selector,
+    - show only `Select hotel area (region)`.
+  - area selection is now first-class payload for both start and end point:
+    - `daily_start_point_areas[...]`
+    - `daily_end_point_areas[...]`
+  - added end-point area persistence:
+    - `itinerary_day_points.end_hotel_area`
+    - migration: `database/migrations/2026_05_08_131000_add_end_hotel_area_to_itinerary_day_points_table.php`
+
+- Itinerary hotel-area destination scoping improvement:
+  - option list `Select hotel area (region)` is now filtered by selected destination in `Basic Info`.
+  - only regions associated with the selected destination are shown for self-booked start/end hotel area selectors.
+  - improved multi-destination keyword matching (comma-separated) in destination filter runtime.
+  - updated file:
+    - `resources/views/modules/itineraries/_form.blade.php`
+
 Date: 2026-04-29
 Completed in this cycle:
 

@@ -6,8 +6,6 @@ use App\Http\Controllers\Concerns\HandlesActivityTimelineAjax;
 use App\Http\Controllers\Controller;
 use App\Models\Customer;
 use App\Models\Inquiry;
-use App\Models\InquiryCommunication;
-use App\Models\InquiryFollowUp;
 use App\Models\Quotation;
 use App\Models\User;
 use App\Services\ActivityAuditLogger;
@@ -42,21 +40,6 @@ class InquiryController extends Controller
         'other',
     ];
 
-    private const CHANNEL_OPTIONS = [
-        'phone',
-        'email',
-        'whatsapp',
-        'line',
-        'wechat',
-        'telegram',
-        'meeting',
-        'zoom',
-        'google-meet',
-        'instagram',
-        'facebook',
-        'other',
-    ];
-
     private const SOURCE_LABELS = [
         'phone' => 'Phone',
         'email' => 'Email',
@@ -76,20 +59,6 @@ class InquiryController extends Controller
         'other' => 'Other',
     ];
 
-    private const CHANNEL_LABELS = [
-        'phone' => 'Phone',
-        'email' => 'Email',
-        'whatsapp' => 'WhatsApp',
-        'line' => 'LINE',
-        'wechat' => 'WeChat',
-        'telegram' => 'Telegram',
-        'meeting' => 'Meeting',
-        'zoom' => 'Zoom',
-        'google-meet' => 'Google Meet',
-        'instagram' => 'Instagram',
-        'facebook' => 'Facebook',
-        'other' => 'Other',
-    ];
     /**
      * Display a listing of the resource.
      */
@@ -149,9 +118,8 @@ class InquiryController extends Controller
         $customers = Customer::query()->orderBy('name')->get();
 
         $sourceLabels = self::SOURCE_LABELS;
-        $channelLabels = self::CHANNEL_LABELS;
 
-        return view('modules.inquiries.create', compact('customers', 'sourceLabels', 'channelLabels'));
+        return view('modules.inquiries.create', compact('customers', 'sourceLabels'));
     }
 
     /**
@@ -186,10 +154,6 @@ class InquiryController extends Controller
     public function show(Request $request, Inquiry $inquiry)
     {
         $inquiry->load(['customer', 'assignedUser', 'quotation:id,inquiry_id,status']);
-        $followUps = $inquiry->followUps()
-            ->with('creator:id,name')
-            ->orderByDesc('due_date')
-            ->get();
         $itineraries = $inquiry->itineraries()
             ->select(['id', 'inquiry_id', 'title', 'status', 'is_active', 'updated_at'])
             ->orderByDesc('is_active')
@@ -204,30 +168,20 @@ class InquiryController extends Controller
             })
             ->with('itinerary:id,title')
             ->orderByDesc('updated_at')
-            ->get(['id', 'quotation_number', 'status', 'inquiry_id', 'itinerary_id', 'updated_at']);
+            ->get(['id', 'quotation_number', 'order_number', 'status', 'inquiry_id', 'itinerary_id', 'updated_at']);
         $activities = $inquiry->activities()
             ->with('user:id,name')
             ->latest()
             ->paginate(5, ['*'], 'activity_page')
             ->withQueryString();
-        $communications = $inquiry->communications()
-            ->with('creator')
-            ->orderByDesc('contact_at')
-            ->orderByDesc('created_at')
-            ->get();
-        $channelLabels = self::CHANNEL_LABELS;
         $sourceLabels = self::SOURCE_LABELS;
         $canManageInquiry = auth()->user()?->can('update', $inquiry) ?? false;
-        $canManageFollowUp = $this->canManageFollowUp($inquiry);
-        $canMarkFollowUpDone = $this->canMarkFollowUpDone($inquiry);
-        $canResetFollowUpReminder = $this->canResetFollowUpReminder();
-        $canManageCommunication = $canManageInquiry && ! $inquiry->isFinal();
 
         if ($this->wantsActivityTimelineFragment($request)) {
             return $this->activityTimelineFragmentResponse($activities);
         }
 
-        return view('modules.inquiries.show', compact('inquiry', 'followUps', 'itineraries', 'quotations', 'activities', 'communications', 'channelLabels', 'sourceLabels', 'canManageInquiry', 'canManageFollowUp', 'canMarkFollowUpDone', 'canResetFollowUpReminder', 'canManageCommunication'));
+        return view('modules.inquiries.show', compact('inquiry', 'itineraries', 'quotations', 'activities', 'sourceLabels', 'canManageInquiry'));
     }
 
     /**
@@ -300,7 +254,6 @@ class InquiryController extends Controller
         });
         $inquiry->refresh();
         $this->activityAuditLogger->logUpdated($inquiry, $beforeAudit, $this->buildInquiryAuditSnapshot($inquiry), 'Inquiry');
-        $this->syncFollowUpStatus($inquiry);
 
         return redirect()
             ->route('inquiries.show', $inquiry)
@@ -348,133 +301,6 @@ class InquiryController extends Controller
             ->with('success', ui_phrase('Inquiry deactivated successfully.'));
     }
 
-    public function storeFollowUp(Request $request, Inquiry $inquiry)
-    {
-        $inquiry->loadMissing(['quotation:id,inquiry_id,status']);
-        if (! $this->canManageFollowUp($inquiry)) {
-            return $this->denyInquiryMutation($inquiry);
-        }
-        if ($inquiry->isFinal()) {
-            return redirect()
-                ->route('inquiries.show', $inquiry)
-                ->with('error', ui_phrase('Inquiry is final and cannot be edited.'));
-        }
-        $validated = $request->validate([
-            'due_date' => ['required', 'date'],
-            'channel' => ['nullable', Rule::in(self::CHANNEL_OPTIONS)],
-            'note' => ['nullable', 'string'],
-        ]);
-
-        $validated['created_by'] = auth()->id();
-        $followUp = $inquiry->followUps()->create($validated);
-        $this->syncFollowUpStatus($inquiry);
-        $inquiry->logActivity('reminder_added', $inquiry, [
-            'follow_up_id' => $followUp->id,
-            'due_date' => $followUp->due_date?->format('Y-m-d'),
-        ]);
-
-        return redirect()
-            ->route('inquiries.show', $inquiry)
-            ->with('success', ui_phrase('Follow-up added successfully.'));
-    }
-
-    public function markFollowUpDone(InquiryFollowUp $followUp)
-    {
-        $followUp->loadMissing(['inquiry.quotation:id,inquiry_id,status']);
-        if ($followUp->inquiry && ! $this->canMarkFollowUpDone($followUp->inquiry)) {
-            return $this->denyInquiryMutation($followUp->inquiry);
-        }
-        if ($followUp->inquiry?->isFinal()) {
-            return redirect()
-                ->route('inquiries.show', $followUp->inquiry_id)
-                ->with('error', ui_phrase('Inquiry is final and cannot be edited.'));
-        }
-        $validated = request()->validate([
-            'done_reason' => ['required', 'string', 'max:1000'],
-        ]);
-        $followUp->update([
-            'is_done' => true,
-            'done_at' => now(),
-            'done_reason' => $validated['done_reason'],
-        ]);
-
-        $this->syncFollowUpStatus($followUp->inquiry);
-        if ($followUp->inquiry) {
-            $followUp->inquiry->logActivity('reminder_done', $followUp->inquiry, [
-                'follow_up_id' => $followUp->id,
-                'done_reason' => $validated['done_reason'],
-            ]);
-        }
-
-        return redirect()
-            ->route('inquiries.show', $followUp->inquiry_id)
-            ->with('success', ui_phrase('Follow-up marked as done.'));
-    }
-
-    public function storeCommunication(Request $request, Inquiry $inquiry)
-    {
-        $inquiry->loadMissing(['quotation:id,inquiry_id,status']);
-        if (! $this->canManageInquiry($inquiry, 'update')) {
-            return $this->denyInquiryMutation($inquiry);
-        }
-        if ($inquiry->isFinal()) {
-            return redirect()
-                ->route('inquiries.show', $inquiry)
-                ->with('error', ui_phrase('Inquiry is final and cannot be edited.'));
-        }
-        $validated = $request->validate([
-            'channel' => ['required', Rule::in(self::CHANNEL_OPTIONS)],
-            'summary' => ['required', 'string'],
-            'contact_at' => ['nullable', 'date'],
-        ]);
-
-        $validated['created_by'] = auth()->id();
-
-        $communication = $inquiry->communications()->create($validated);
-        $inquiry->logActivity('communication_added', $inquiry, [
-            'communication_id' => $communication->id,
-            'channel' => $communication->channel,
-        ]);
-
-        return redirect()
-            ->route('inquiries.show', $inquiry)
-            ->with('success', ui_phrase('Communication added successfully.'));
-    }
-
-    public function resetFollowUpReminder(InquiryFollowUp $followUp)
-    {
-        if (! $this->canResetFollowUpReminder()) {
-            return redirect()
-                ->route('inquiries.show', $followUp->inquiry_id)
-                ->with('error', ui_phrase('You do not have permission to reset reminder.'));
-        }
-
-        $followUp->loadMissing('inquiry');
-        $followUp->forceFill([
-            'last_reminded_at' => null,
-        ])->saveQuietly();
-
-        if ($followUp->inquiry) {
-            $followUp->inquiry->logActivity('reminder_reset', $followUp->inquiry, [
-                'follow_up_id' => $followUp->id,
-            ]);
-        }
-
-        return redirect()
-            ->route('inquiries.show', $followUp->inquiry_id)
-            ->with('success', ui_phrase('Reminder reset successfully.'));
-    }
-
-    private function syncFollowUpStatus(Inquiry $inquiry): void
-    {
-        if ($inquiry->isFinal()) {
-            return;
-        }
-        $hasActive = $inquiry->followUps()->where('is_done', false)->exists();
-        if ($hasActive && $inquiry->status === 'draft') {
-            $inquiry->update(['status' => 'processed']);
-        }
-    }
 
     private function canManageInquiry(Inquiry $inquiry, string $ability = 'update'): bool
     {
@@ -493,26 +319,6 @@ class InquiryController extends Controller
     {
         $status = (string) ($inquiry->quotation->status ?? '');
         return in_array($status, ['approved', Quotation::FINAL_STATUS], true);
-    }
-
-    private function canManageFollowUp(Inquiry $inquiry): bool
-    {
-        return $this->canManageInquiry($inquiry, 'update');
-    }
-
-    private function canMarkFollowUpDone(Inquiry $inquiry): bool
-    {
-        return $this->canManageInquiry($inquiry, 'update');
-    }
-
-    private function canResetFollowUpReminder(): bool
-    {
-        $user = auth()->user();
-        if (! $user) {
-            return false;
-        }
-
-        return $user->can('module.inquiries.update');
     }
 
     private function denyInquiryMutation(Inquiry $inquiry)

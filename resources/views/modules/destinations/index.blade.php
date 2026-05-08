@@ -6,10 +6,12 @@
 @endsection
 @section('content')
     <div class="space-y-6 module-page module-page--destinations" data-service-filter-page data-page-spinner="off">
-        <x-index-stats :cards="$statsCards ?? []" />
-        <div class="module-grid-3-9">
-            <aside class="module-grid-side space-y-4">
-                <div class="app-card p-5 space-y-4">
+        <div class="module-grid-9-3">
+            <aside class="module-grid-side">
+                @include('components.module-index-sidebar-info')
+            </aside>
+            <div class="module-grid-main" data-service-filter-results>
+                <div class="app-card p-5">
                     <div>
                         <h2 class="text-base font-semibold text-gray-800 dark:text-gray-100">{{ ui_phrase('Filters') }}</h2>
                         <p class="text-sm text-gray-500 dark:text-gray-400">{{ ui_phrase('Refine your list quickly.') }}</p>
@@ -26,8 +28,6 @@
                         </div>
                     </form>
                 </div>
-            </aside>
-            <div class="module-grid-main space-y-4" data-service-filter-results>
         @if (session('success'))
             <div class="rounded-lg mb-6 border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300">{{ session('success') }}</div>
         @endif
@@ -126,5 +126,10 @@
         </div>
 </div>
 @endsection
+
+
+
+
+
 
 

@@ -4,6 +4,15 @@
     $inquiries = $inquiries ?? collect();
     $prefillItineraryId = $prefillItineraryId ?? null;
     $isEditQuotation = isset($quotation) && $quotation instanceof \App\Models\Quotation;
+    $itineraryEditUrlTemplate = route('itineraries.edit', ['itinerary' => '__ITINERARY_ID__']);
+    $selectedItineraryIdForDuration = (string) old('itinerary_id', $quotation->itinerary_id ?? $prefillItineraryId ?? '');
+    $selectedItineraryForDuration = $itineraries->firstWhere('id', (int) $selectedItineraryIdForDuration);
+    $initialDurationText = '-';
+    if ($selectedItineraryForDuration) {
+        $durationDaysValue = max(1, (int) ($selectedItineraryForDuration->duration_days ?? 1));
+        $durationNightsValue = max(0, (int) ($selectedItineraryForDuration->duration_nights ?? max(0, $durationDaysValue - 1)));
+        $initialDurationText = $durationDaysValue . 'D' . ($durationNightsValue > 0 ? '/' . $durationNightsValue . 'N' : '');
+    }
 @endphp
 
 @php
@@ -196,6 +205,7 @@
                     name="itinerary_id"
                     class="app-input"
                     data-endpoint="{{ url('quotations/itinerary-items') }}"
+                    data-itinerary-edit-url-template="{{ $itineraryEditUrlTemplate }}"
                     required
                 >
                     <option value="">{{ ui_phrase('Select itinerary (required)') }}</option>
@@ -204,7 +214,8 @@
                             value="{{ $itinerary->id }}"
                             data-inquiry-id="{{ $itinerary->inquiry_id ?? '' }}"
                             data-inquiry-number="{{ $itinerary->inquiry?->inquiry_number ?? '' }}"
-                            data-order-number="{{ $itinerary->order_number ?? '' }}"
+                            data-duration-days="{{ (int) ($itinerary->duration_days ?? 1) }}"
+                            data-duration-nights="{{ (int) ($itinerary->duration_nights ?? max(0, ((int) ($itinerary->duration_days ?? 1)) - 1)) }}"
                             @selected((string) old('itinerary_id', $quotation->itinerary_id ?? $prefillItineraryId ?? '') === (string) $itinerary->id)
                         >
                             {{ $itinerary->title }}
@@ -220,13 +231,17 @@
                         </option>
                     @endforeach
                 </select>
-                <button
-                    type="button"
-                    id="itinerary-generate-btn"
-                    class="btn-outline-sm min-h-[42px] w-full sm:w-auto"
+                <a
+                    href="#"
+                    id="itinerary-edit-btn"
+                    class="btn-secondary-sm min-h-[42px] w-full sm:w-auto hidden inline-flex items-center gap-1.5"
+                    aria-hidden="true"
+                    target="_blank"
+                    rel="noopener"
                 >
-                    Generate
-                </button>
+                    <i class="fa-solid fa-pen-to-square" aria-hidden="true"></i>
+                    <span>Itinerary</span>
+                </a>
                 @if ($isEditQuotation)
                     <button
                         type="button"
@@ -236,6 +251,13 @@
                         Update Contract Rate
                     </button>
                 @endif
+                <button
+                    type="button"
+                    id="itinerary-generate-btn"
+                    class="btn-outline-sm min-h-[42px] w-full sm:w-auto"
+                >
+                    Generate
+                </button>
             </div>
             <p id="itinerary-generate-status" class="mt-1 text-xs text-gray-500 dark:text-gray-400">
                 Use Generate to fill items from the selected itinerary.@if ($isEditQuotation) Use "Update Contract Rate" to sync the latest rates without replacing the item structure.@endif
@@ -251,7 +273,7 @@
         </div>
     </div>
 
-    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Order Number') }}</label>
             <input
@@ -267,6 +289,57 @@
             @error('order_number')
                 <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
             @enderror
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Pax Adult') }}</label>
+            <input
+                name="pax_adult"
+                type="number"
+                min="0"
+                value="{{ old('pax_adult', isset($quotation->pax_adult) ? (int) $quotation->pax_adult : 0) }}"
+                class="mt-1 app-input"
+                required
+            >
+            @error('pax_adult')
+                <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
+            @enderror
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Pax Child') }}</label>
+            <input
+                name="pax_child"
+                type="number"
+                min="0"
+                value="{{ old('pax_child', isset($quotation->pax_child) ? (int) $quotation->pax_child : 0) }}"
+                class="mt-1 app-input"
+                required
+            >
+            @error('pax_child')
+                <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
+            @enderror
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Service Date') }}</label>
+            <input
+                name="service_date"
+                type="date"
+                value="{{ old('service_date', isset($quotation->service_date) ? $quotation->service_date->format('Y-m-d') : '') }}"
+                class="mt-1 app-input"
+                required
+            >
+            @error('service_date')
+                <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
+            @enderror
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Duration') }}</label>
+            <input
+                id="quotation-duration-display"
+                type="text"
+                value="{{ $initialDurationText }}"
+                class="mt-1 app-input bg-gray-50 dark:bg-gray-900/40"
+                readonly
+            >
         </div>
         <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Validity Date') }}</label>
@@ -294,15 +367,11 @@
             <span id="itinerary-items-summary" class="text-xs text-gray-500 dark:text-gray-400"></span>
         </div>
         <div id="quotation-items" class="mt-3 divide-y divide-gray-200 dark:divide-gray-700">
-            <div class="hidden sm:grid sm:grid-cols-9 sm:gap-2 sticky top-0 z-10 mb-2 rounded-md border border-slate-800 px-2 py-2 text-[11px] font-semibold uppercase tracking-wide text-white bg-slate-900">
+            <div class="hidden sm:grid sm:grid-cols-6 sm:gap-2 sticky top-0 z-10 mb-2 rounded-md border border-slate-800 px-2 py-2 text-[11px] font-semibold uppercase tracking-wide text-white bg-slate-900">
                 <div class="sm:col-span-2">Description</div>
                 <div>Qty</div>
-                <div>Contract Rate</div>
-                <div>Markup Type</div>
-                <div>Markup</div>
-                <div>Discount Type</div>
-                <div>Discount</div>
-                <div>Unit Price</div>
+                <div>Publish Rate</div>
+                <div class="sm:col-span-2">Unit Price</div>
             </div>
             @for ($i = 0; $i < max($minRows, count($items)); $i++)
                 @php
@@ -323,7 +392,7 @@
                         $serviceableMetaValue = json_encode($serviceableMetaValue);
                     }
                 @endphp
-                <div class="grid grid-cols-1 gap-2 py-2 sm:grid-cols-9 quotation-item-row" data-row-mode="itinerary">
+                <div class="grid grid-cols-1 gap-2 py-2 sm:grid-cols-6 quotation-item-row" data-row-mode="itinerary">
                     <div class="sm:col-span-2">
                         <label class="block text-xs text-gray-500 sm:hidden">{{ ui_phrase('Description') }}</label>
                         <div
@@ -346,75 +415,36 @@
                     </div>
                     <div>
                         <x-money-input
-                            label="Contract Rate"
+                            label="Publish Rate"
                             label-class="block text-xs text-gray-500 sm:hidden"
                             wrapper-class="quotation-item-money-field"
-                            name="items[{{ $i }}][contract_rate]"
-                            :value="$row['contract_rate'] ?? 0"
-                            data-field="contract_rate"
+                            :value="max(0, ((float) ($row['unit_price'] ?? 0)) / max(1, (int) ($row['qty'] ?? 1)))"
+                            data-role="publish_rate_display"
                             input-class="quotation-item-control"
                             step="0.01"
                             readonly
                             compact
                         />
                     </div>
-                    <div>
-                        <label class="block text-xs text-gray-500 sm:hidden">{{ ui_phrase('Markup Type') }}</label>
-                        <input type="hidden" data-field="markup_type" name="items[{{ $i }}][markup_type]" value="{{ ($row['markup_type'] ?? 'fixed') === 'percent' ? 'percent' : 'fixed' }}">
-                        <select data-markup-type-display disabled class="quotation-item-control cursor-not-allowed bg-gray-100 text-gray-600 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 app-input">
-                            <option value="fixed" @selected(($row['markup_type'] ?? 'fixed') === 'fixed')>{{ ui_phrase('Fixed') }}</option>
-                            <option value="percent" @selected(($row['markup_type'] ?? '') === 'percent')>{{ ui_phrase('Percent') }}</option>
-                        </select>
-                    </div>
-                    <div>
-                        <x-money-input
-                            label="Markup"
-                            label-class="block text-xs text-gray-500 sm:hidden"
-                            wrapper-class="quotation-item-money-field"
-                            name="items[{{ $i }}][markup]"
-                            :value="$row['markup'] ?? 0"
-                            data-field="markup"
-                            input-class="quotation-item-control"
-                            step="0.01"
-                            readonly
-                            compact
-                        />
-                    </div>
-                    <div>
-                        <label class="block text-xs text-gray-500 sm:hidden">{{ ui_phrase('Discount Type') }}</label>
-                        <select data-field="discount_type" name="items[{{ $i }}][discount_type]" class="quotation-item-control dark:border-gray-600 app-input">
-                            <option value="fixed" @selected(($row['discount_type'] ?? 'fixed') === 'fixed')>{{ ui_phrase('Fixed') }}</option>
-                            <option value="percent" @selected(($row['discount_type'] ?? '') === 'percent')>{{ ui_phrase('Percent') }}</option>
-                        </select>
-                    </div>
-                    <div>
-                        <x-money-input
-                            label="Discount"
-                            label-class="block text-xs text-gray-500 sm:hidden"
-                            wrapper-class="quotation-item-money-field"
-                            name="items[{{ $i }}][discount]"
-                            :value="$row['discount'] ?? 0"
-                            data-field="discount"
-                            input-class="quotation-item-control"
-                            step="0.01"
-                            compact
-                        />
-                    </div>
-                    <div>
+                    <div class="sm:col-span-2">
                         <x-money-input
                             label="Unit Price"
                             label-class="block text-xs text-gray-500 sm:hidden"
                             wrapper-class="quotation-item-money-field"
-                            name="items[{{ $i }}][unit_price]"
                             :value="$row['unit_price'] ?? 0"
-                            data-field="unit_price"
+                            data-role="unit_price_display"
                             input-class="quotation-item-control"
                             step="0.01"
-                            required
                             readonly
                             compact
                         />
                     </div>
+                    <input type="hidden" data-field="contract_rate" name="items[{{ $i }}][contract_rate]" value="{{ $row['contract_rate'] ?? 0 }}">
+                    <input type="hidden" data-field="markup_type" name="items[{{ $i }}][markup_type]" value="{{ ($row['markup_type'] ?? 'fixed') === 'percent' ? 'percent' : 'fixed' }}">
+                    <input type="hidden" data-field="markup" name="items[{{ $i }}][markup]" value="{{ $row['markup'] ?? 0 }}">
+                    <input type="hidden" data-field="discount_type" name="items[{{ $i }}][discount_type]" value="{{ ($row['discount_type'] ?? 'fixed') === 'percent' ? 'percent' : 'fixed' }}">
+                    <input type="hidden" data-field="discount" name="items[{{ $i }}][discount]" value="{{ $row['discount'] ?? 0 }}">
+                    <input type="hidden" data-field="unit_price" name="items[{{ $i }}][unit_price]" value="{{ $row['unit_price'] ?? 0 }}">
                     <input type="hidden" data-field="serviceable_type" name="items[{{ $i }}][serviceable_type]" value="{{ $row['serviceable_type'] ?? '' }}" class="app-input">
                     <input type="hidden" data-field="serviceable_id" name="items[{{ $i }}][serviceable_id]" value="{{ $row['serviceable_id'] ?? '' }}" class="app-input">
                     <input type="hidden" data-field="day_number" name="items[{{ $i }}][day_number]" value="{{ $row['day_number'] ?? '' }}" class="app-input">
@@ -424,7 +454,7 @@
             @endfor
         </div>
         <template id="quotation-item-row-template">
-            <div class="grid grid-cols-1 gap-2 py-2 sm:grid-cols-9 quotation-item-row" data-row-mode="itinerary">
+                <div class="grid grid-cols-1 gap-2 py-2 sm:grid-cols-6 quotation-item-row" data-row-mode="itinerary">
                 <div class="sm:col-span-2">
                     <label class="block text-xs text-gray-500 sm:hidden">{{ ui_phrase('Description') }}</label>
                     <div
@@ -440,67 +470,34 @@
                 </div>
                 <div>
                     <x-money-input
-                        label="Contract Rate"
+                        label="Publish Rate"
                         label-class="block text-xs text-gray-500 sm:hidden"
                         wrapper-class="quotation-item-money-field"
-                        data-field="contract_rate"
+                        data-role="publish_rate_display"
                         input-class="quotation-item-control"
                         step="0.01"
                         readonly
                         compact
                     />
                 </div>
-                <div>
-                    <label class="block text-xs text-gray-500 sm:hidden">{{ ui_phrase('Markup Type') }}</label>
-                    <input type="hidden" data-field="markup_type" value="fixed">
-                    <select data-markup-type-display disabled class="quotation-item-control cursor-not-allowed bg-gray-100 text-gray-600 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 app-input">
-                        <option value="fixed">{{ ui_phrase('Fixed') }}</option>
-                        <option value="percent">{{ ui_phrase('Percent') }}</option>
-                    </select>
-                </div>
-                <div>
-                    <x-money-input
-                        label="Markup"
-                        label-class="block text-xs text-gray-500 sm:hidden"
-                        wrapper-class="quotation-item-money-field"
-                        data-field="markup"
-                        input-class="quotation-item-control"
-                        step="0.01"
-                        readonly
-                        compact
-                    />
-                </div>
-                <div>
-                    <label class="block text-xs text-gray-500 sm:hidden">{{ ui_phrase('Discount Type') }}</label>
-                    <select data-field="discount_type" class="quotation-item-control dark:border-gray-600 app-input">
-                        <option value="fixed">{{ ui_phrase('Fixed') }}</option>
-                        <option value="percent">{{ ui_phrase('Percent') }}</option>
-                    </select>
-                </div>
-                <div>
-                    <x-money-input
-                        label="Discount"
-                        label-class="block text-xs text-gray-500 sm:hidden"
-                        wrapper-class="quotation-item-money-field"
-                        data-field="discount"
-                        input-class="quotation-item-control"
-                        step="0.01"
-                        compact
-                    />
-                </div>
-                <div>
+                <div class="sm:col-span-2">
                     <x-money-input
                         label="Unit Price"
                         label-class="block text-xs text-gray-500 sm:hidden"
                         wrapper-class="quotation-item-money-field"
-                        data-field="unit_price"
+                        data-role="unit_price_display"
                         input-class="quotation-item-control"
                         step="0.01"
-                        required
                         readonly
                         compact
                     />
                 </div>
+                <input type="hidden" data-field="contract_rate" value="0">
+                <input type="hidden" data-field="markup_type" value="fixed">
+                <input type="hidden" data-field="markup" value="0">
+                <input type="hidden" data-field="discount_type" value="fixed">
+                <input type="hidden" data-field="discount" value="0">
+                <input type="hidden" data-field="unit_price" value="0">
                 <input type="hidden" data-field="serviceable_type" class="app-input">
                 <input type="hidden" data-field="serviceable_id" class="app-input">
                 <input type="hidden" data-field="day_number" class="app-input">
@@ -565,7 +562,6 @@
                             label="Unit Price"
                             label-class="block text-xs text-gray-500 sm:hidden"
                             wrapper-class="quotation-item-money-field w-full"
-                            name="items[{{ $idx }}][unit_price]"
                             :value="$manualTotal"
                             data-field="unit_price"
                             input-class="quotation-item-control"
@@ -660,33 +656,6 @@
         <input type="hidden" id="main-global-discount-value" name="discount_value" value="{{ old('discount_value', $quotation->discount_value ?? 0) }}">
         <div>
             <x-money-input
-                label="Item Discount (Auto)"
-                id="quotation-item-discount-total"
-                step="0.01"
-                :value="$storedItemDiscountTotal"
-                readonly
-            />
-        </div>
-        <div>
-            <x-money-input
-                label="Sub Total (Auto)"
-                id="quotation-sub-total"
-                step="0.01"
-                :value="old('sub_total', $quotation->sub_total ?? 0)"
-                readonly
-            />
-        </div>
-        <div>
-            <x-money-input
-                label="Global Discount Amount (Auto)"
-                id="quotation-global-discount-amount"
-                step="0.01"
-                :value="$storedGlobalDiscountAmount"
-                readonly
-            />
-        </div>
-        <div>
-            <x-money-input
                 label="Final Amount (Auto)"
                 name="final_amount"
                 id="quotation-final-amount"
@@ -742,7 +711,6 @@
                 if (!itemsContainer || !itemsTemplate || !manualItemsContainer || !manualItemsTemplate) return;
 
                 const itinerarySelect = document.getElementById('itinerary-select');
-                const orderNumberInput = document.getElementById('quotation-order-number');
                 const inquirySelect = document.getElementById('inquiry-select');
                 const generateBtn = document.getElementById('itinerary-generate-btn');
                 const updateContractRateBtn = document.getElementById('itinerary-update-contract-rate-btn');
@@ -988,6 +956,17 @@
                     return unitPrice;
                 };
 
+                const syncItineraryRowPriceDisplays = (row, unitPrice) => {
+                    if (!row || (row?.dataset?.rowMode || '') !== 'itinerary') return;
+                    const qty = Math.max(1, parseInteger(row.querySelector('[data-field="qty"]')?.value) || 1);
+                    const safeUnitPrice = Math.max(0, Math.round(Number(unitPrice) || 0));
+                    const publishRate = Math.max(0, Math.round(safeUnitPrice / qty));
+                    const publishRateInput = row.querySelector('[data-role="publish_rate_display"]');
+                    const unitPriceDisplayInput = row.querySelector('[data-role="unit_price_display"]');
+                    setMoneyInputDisplay(publishRateInput, publishRate);
+                    setMoneyInputDisplay(unitPriceDisplayInput, safeUnitPrice);
+                };
+
                 const recalcTotals = () => {
                     let subTotal = 0;
                     let itemDiscountTotal = 0;
@@ -996,6 +975,7 @@
                         updateRowDiscountBadge(row);
                         updateRowMarkupBadge(row);
                         const unitPrice = computeRowUnitPrice(row);
+                        syncItineraryRowPriceDisplays(row, unitPrice);
                         const baseAmount = isManualRow
                             ? unitPrice
                             : computeRowBaseAmount(row);
@@ -1102,18 +1082,14 @@
                         card.appendChild(heading);
 
                         const tableHeader = document.createElement('div');
-                        tableHeader.className = 'hidden sm:grid sm:grid-cols-9 sm:gap-2 sticky top-0 z-10 mb-2 rounded-md border border-slate-800 px-2 py-2 text-[11px] font-semibold uppercase tracking-wide text-white';
+                        tableHeader.className = 'hidden sm:grid sm:grid-cols-6 sm:gap-2 sticky top-0 z-10 mb-2 rounded-md border border-slate-800 px-2 py-2 text-[11px] font-semibold uppercase tracking-wide text-white';
                         tableHeader.style.setProperty('--tw-bg-opacity', '1');
                         tableHeader.style.backgroundColor = 'rgb(15 23 42 / var(--tw-bg-opacity, 1))';
                         tableHeader.innerHTML = `
                             <div class="sm:col-span-2">Description</div>
                             <div>Qty</div>
-                            <div>Contract Rate</div>
-                            <div>Markup Type</div>
-                            <div>Markup</div>
-                            <div>Discount Type</div>
-                            <div>Discount</div>
-                            <div>Unit Price</div>
+                            <div>Publish Rate</div>
+                            <div class="sm:col-span-2">Unit Price</div>
                         `;
                         card.appendChild(tableHeader);
 
@@ -1373,6 +1349,35 @@
                 const updateSummary = (message) => {
                     if (summaryEl) summaryEl.textContent = message || '';
                 };
+                const updateItineraryDurationDisplay = () => {
+                    const durationInput = document.getElementById('quotation-duration-display');
+                    if (!durationInput || !itinerarySelect) return;
+                    const selectedOption = itinerarySelect.options[itinerarySelect.selectedIndex];
+                    const days = Number.parseInt(String(selectedOption?.dataset?.durationDays || ''), 10);
+                    const nights = Number.parseInt(String(selectedOption?.dataset?.durationNights || ''), 10);
+                    if (!Number.isFinite(days) || days <= 0) {
+                        durationInput.value = '-';
+                        return;
+                    }
+                    const safeNights = Number.isFinite(nights) && nights > 0 ? nights : Math.max(0, days - 1);
+                    durationInput.value = `${days}D${safeNights > 0 ? `/${safeNights}N` : ''}`;
+                };
+
+                const updateItineraryEditButtonState = () => {
+                    const itineraryEditBtn = document.getElementById('itinerary-edit-btn');
+                    if (!itinerarySelect || !itineraryEditBtn) return;
+                    const selectedItineraryId = String(itinerarySelect.value || '').trim();
+                    const templateUrl = String(itinerarySelect.dataset.itineraryEditUrlTemplate || '').trim();
+                    if (selectedItineraryId === '' || templateUrl === '') {
+                        itineraryEditBtn.classList.add('hidden');
+                        itineraryEditBtn.setAttribute('aria-hidden', 'true');
+                        itineraryEditBtn.setAttribute('href', '#');
+                        return;
+                    }
+                    itineraryEditBtn.classList.remove('hidden');
+                    itineraryEditBtn.setAttribute('aria-hidden', 'false');
+                    itineraryEditBtn.setAttribute('href', templateUrl.replace('__ITINERARY_ID__', encodeURIComponent(selectedItineraryId)));
+                };
 
                 const emitItinerarySelection = () => {
                     const selectedOption = itinerarySelect?.options[itinerarySelect.selectedIndex];
@@ -1385,30 +1390,6 @@
                         inquiryNumber: selectedOption?.dataset?.inquiryNumber || '',
                     };
                     window.dispatchEvent(new CustomEvent('quotation:itinerary-selected', { detail }));
-                };
-
-                const normalizeOrderNumberText = (value) => String(value || '').trim();
-                let lastAutoFilledOrderNumber = '';
-
-                const applyOrderNumberFromSelectedItinerary = () => {
-                    if (!itinerarySelect || !orderNumberInput) return;
-                    const selectedOption = itinerarySelect.options[itinerarySelect.selectedIndex];
-                    const itineraryOrderNumber = normalizeOrderNumberText(selectedOption?.dataset?.orderNumber || '');
-                    const currentOrderNumber = normalizeOrderNumberText(orderNumberInput.value);
-                    const isCurrentManualValue = currentOrderNumber !== '' && currentOrderNumber !== lastAutoFilledOrderNumber;
-
-                    if (itineraryOrderNumber !== '') {
-                        if (!isCurrentManualValue) {
-                            orderNumberInput.value = itineraryOrderNumber;
-                            lastAutoFilledOrderNumber = itineraryOrderNumber;
-                        }
-                        return;
-                    }
-
-                    if (currentOrderNumber === lastAutoFilledOrderNumber) {
-                        orderNumberInput.value = '';
-                    }
-                    lastAutoFilledOrderNumber = '';
                 };
 
                 const emitInquirySelection = () => {
@@ -1504,6 +1485,7 @@
 
                     emitInquirySelection();
                     emitItinerarySelection();
+                    updateItineraryDurationDisplay();
                 };
 
                 const fetchItems = async () => {
@@ -1633,26 +1615,23 @@
                     updateContractRateBtn?.addEventListener('click', updateContractRatesOnly);
                     itinerarySelect.addEventListener('change', () => {
                         applyItineraryInquiryLinkRules('itinerary');
-                        applyOrderNumberFromSelectedItinerary();
                         updateGenerateButtonState();
+                        updateItineraryEditButtonState();
+                        updateItineraryDurationDisplay();
                         if (itinerarySelect.value === '') {
                             updateSummary('');
                         }
                     });
                     applyItineraryInquiryLinkRules('init');
-                    applyOrderNumberFromSelectedItinerary();
                     updateGenerateButtonState();
+                    updateItineraryEditButtonState();
+                    updateItineraryDurationDisplay();
                 }
-                orderNumberInput?.addEventListener('input', () => {
-                    const currentOrderNumber = normalizeOrderNumberText(orderNumberInput.value);
-                    if (currentOrderNumber === '' || currentOrderNumber === lastAutoFilledOrderNumber) {
-                        return;
-                    }
-                    lastAutoFilledOrderNumber = '';
-                });
                 inquirySelect?.addEventListener('change', () => {
                     applyItineraryInquiryLinkRules('inquiry');
                     updateGenerateButtonState();
+                    updateItineraryEditButtonState();
+                    updateItineraryDurationDisplay();
                 });
 
                 const addManualItem = () => {

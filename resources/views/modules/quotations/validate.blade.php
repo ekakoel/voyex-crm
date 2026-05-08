@@ -39,11 +39,13 @@
             const openModal = () => {
                 modal.classList.remove('hidden');
                 modal.classList.add('flex');
+                document.body.classList.add('overflow-hidden');
             };
 
             const closeModal = () => {
                 modal.classList.remove('flex');
                 modal.classList.add('hidden');
+                document.body.classList.remove('overflow-hidden');
             };
 
             const readableItemType = (rawType) => {
@@ -734,6 +736,37 @@
             @csrf
             @method('PATCH')
 
+            @php
+                $paxAdult = max(0, (int) ($quotation->pax_adult ?? 0));
+                $paxChild = max(0, (int) ($quotation->pax_child ?? 0));
+                $paxLabel = ($paxAdult > 0 || $paxChild > 0)
+                    ? trim(($paxAdult > 0 ? ($paxAdult . ' Adult') : '0 Adult') . ' / ' . ($paxChild > 0 ? ($paxChild . ' Child') : '0 Child'))
+                    : '-';
+                $serviceDate = $quotation->service_date;
+            @endphp
+
+            <div class="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/30">
+                <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ ui_phrase('Quotation Detail') }}</h3>
+                <div class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                    <div>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">{{ ui_phrase('Order Number') }}</p>
+                        <p class="mt-1 text-sm font-semibold text-gray-900 dark:text-gray-100">{{ $quotation->order_number ?? '-' }}</p>
+                    </div>
+                    <div>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">{{ ui_phrase('Service Date') }}</p>
+                        <p class="mt-1 text-sm font-semibold text-gray-900 dark:text-gray-100">{{ $serviceDate ? $serviceDate->format('Y-m-d') : '-' }}</p>
+                    </div>
+                    <div>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">{{ ui_phrase('Jumlah Pax') }}</p>
+                        <p class="mt-1 text-sm font-semibold text-gray-900 dark:text-gray-100">{{ $paxLabel }}</p>
+                    </div>
+                    <div>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">{{ ui_phrase('Validity Date') }}</p>
+                        <p class="mt-1 text-sm font-semibold text-gray-900 dark:text-gray-100">{{ $quotation->validity_date?->format('Y-m-d') ?? '-' }}</p>
+                    </div>
+                </div>
+            </div>
+
             <div class="flex flex-wrap items-center justify-between gap-2">
                 <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ ui_phrase('Validation Items') }}</h3>
             </div>
@@ -1135,10 +1168,11 @@
 
     <div
         id="validation-item-detail-modal"
-        class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 p-4"
+        class="fixed inset-0 z-[9999] hidden bg-black/50 p-4 overflow-y-auto"
         data-detail-endpoint-template="{{ route('quotations.validate.item-detail-json', ['quotation' => $quotation, 'item' => '__ITEM__']) }}"
         data-contact-update-endpoint-template="{{ route('quotations.validate.update-item-contact', ['quotation' => $quotation, 'item' => '__ITEM__']) }}"
     >
+        <div class="flex min-h-full w-full items-start justify-center pt-2 sm:pt-6">
         <div class="w-full max-w-3xl rounded-xl border border-gray-200 bg-white p-5 shadow-xl dark:border-gray-700 dark:bg-gray-900">
             <div class="flex items-center justify-between gap-3">
                 <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100" data-modal-title>{{ ui_phrase('item detail modal title') }}</h3>
@@ -1189,6 +1223,6 @@
             </div>
 
         </div>
+        </div>
     </div>
 @endsection
-

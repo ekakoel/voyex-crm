@@ -197,7 +197,7 @@ class QuotationController extends Controller
                 ->select('itinerary_id')
                 ->whereNotNull('itinerary_id'))
             ->orderByDesc('id')
-            ->get(['id', 'title', 'order_number', 'inquiry_id', 'destination', 'duration_days', 'duration_nights', 'is_active', 'status']);
+            ->get(['id', 'title', 'inquiry_id', 'destination', 'duration_days', 'duration_nights', 'is_active', 'status']);
         $itineraryInquiryMap = $itineraries->mapWithKeys(function ($itinerary): array {
             $inquiry = $itinerary->inquiry;
             if (! $inquiry) {
@@ -248,6 +248,9 @@ class QuotationController extends Controller
                 Rule::unique('quotations', 'itinerary_id'),
             ],
             'order_number' => ['nullable', 'string', 'max:100', 'regex:/^[A-Za-z0-9]+$/'],
+            'service_date' => ['required', 'date'],
+            'pax_adult' => ['required', 'integer', 'min:0'],
+            'pax_child' => ['required', 'integer', 'min:0'],
             'validity_date' => ['required', 'date'],
             'discount_type' => ['nullable', Rule::in(['percent', 'fixed'])],
             'discount_value' => ['nullable', 'numeric', 'min:0'],
@@ -284,9 +287,14 @@ class QuotationController extends Controller
                 ]);
             }
         }
+        if (((int) ($validated['pax_adult'] ?? 0) + (int) ($validated['pax_child'] ?? 0)) <= 0) {
+            throw ValidationException::withMessages([
+                'pax_adult' => 'Pax adult and child cannot both be zero.',
+            ]);
+        }
 
         $selectedItineraryId = (int) ($validated['itinerary_id'] ?? 0);
-        $normalizedOrderNumber = $this->resolveOrderNumberFromInputOrItinerary($validated['order_number'] ?? null, $selectedItineraryId);
+        $normalizedOrderNumber = $this->normalizeOrderNumber($validated['order_number'] ?? null);
         $inquiryId = $this->resolveInquiryIdFromItinerary($selectedItineraryId);
         if (! $this->canApplyGlobalDiscount()) {
             $validated['discount_type'] = null;
@@ -308,6 +316,9 @@ class QuotationController extends Controller
                     'order_number' => $normalizedOrderNumber,
                     'inquiry_id' => $inquiryId,
                     'itinerary_id' => $selectedItineraryId,
+                    'service_date' => $validated['service_date'],
+                    'pax_adult' => (int) ($validated['pax_adult'] ?? 0),
+                    'pax_child' => (int) ($validated['pax_child'] ?? 0),
                     'status' => 'pending',
                     'validity_date' => $validated['validity_date'],
                     'sub_total' => $totals['sub_total'],
@@ -318,8 +329,6 @@ class QuotationController extends Controller
                     'approved_at' => null,
                 ]);
             });
-            $this->syncItineraryOrderNumber($selectedItineraryId, $normalizedOrderNumber);
-
             foreach ($totals['items'] as $item) {
                 $quotation->items()->create($item);
             }
@@ -427,7 +436,7 @@ class QuotationController extends Controller
                     ->orWhere('id', $quotation->itinerary_id);
             })
             ->orderByDesc('id')
-            ->get(['id', 'title', 'order_number', 'inquiry_id', 'destination', 'duration_days', 'duration_nights', 'is_active', 'status']);
+            ->get(['id', 'title', 'inquiry_id', 'destination', 'duration_days', 'duration_nights', 'is_active', 'status']);
         $inquiries = $this->availableInquiriesQuery((int) ($quotation->inquiry_id ?? 0))
             ->orderByDesc('id')
             ->get(['id', 'inquiry_number', 'customer_id', 'status', 'priority', 'source', 'assigned_to', 'deadline', 'notes']);
@@ -500,6 +509,9 @@ class QuotationController extends Controller
                 Rule::unique('quotations', 'itinerary_id')->ignore($quotation->id),
             ],
             'order_number' => ['nullable', 'string', 'max:100', 'regex:/^[A-Za-z0-9]+$/'],
+            'service_date' => ['required', 'date'],
+            'pax_adult' => ['required', 'integer', 'min:0'],
+            'pax_child' => ['required', 'integer', 'min:0'],
             'validity_date' => ['required', 'date'],
             'discount_type' => ['nullable', Rule::in(['percent', 'fixed'])],
             'discount_value' => ['nullable', 'numeric', 'min:0'],
@@ -536,9 +548,14 @@ class QuotationController extends Controller
                 ]);
             }
         }
+        if (((int) ($validated['pax_adult'] ?? 0) + (int) ($validated['pax_child'] ?? 0)) <= 0) {
+            throw ValidationException::withMessages([
+                'pax_adult' => 'Pax adult and child cannot both be zero.',
+            ]);
+        }
 
         $selectedItineraryId = (int) ($validated['itinerary_id'] ?? 0);
-        $normalizedOrderNumber = $this->resolveOrderNumberFromInputOrItinerary($validated['order_number'] ?? null, $selectedItineraryId);
+        $normalizedOrderNumber = $this->normalizeOrderNumber($validated['order_number'] ?? null);
         $inquiryId = $this->resolveInquiryIdFromItinerary($selectedItineraryId);
         if (! $this->canApplyGlobalDiscount()) {
             $validated['discount_type'] = $quotation->discount_type;
@@ -567,6 +584,9 @@ class QuotationController extends Controller
                     'order_number' => $normalizedOrderNumber,
                     'inquiry_id' => $inquiryId,
                     'itinerary_id' => $selectedItineraryId,
+                    'service_date' => $validated['service_date'],
+                    'pax_adult' => (int) ($validated['pax_adult'] ?? 0),
+                    'pax_child' => (int) ($validated['pax_child'] ?? 0),
                     'validity_date' => $validated['validity_date'],
                     'sub_total' => $totals['sub_total'],
                     'discount_type' => $validated['discount_type'] ?? null,
@@ -574,8 +594,6 @@ class QuotationController extends Controller
                     'final_amount' => $totals['final_amount'],
                 ]);
             });
-            $this->syncItineraryOrderNumber($selectedItineraryId, $normalizedOrderNumber);
-
             $quotation->items()->delete();
             foreach ($totals['items'] as $item) {
                 $quotation->items()->create($item);
@@ -868,6 +886,9 @@ class QuotationController extends Controller
             fputcsv($handle, [
                 'quotation_number',
                 'order_number',
+                'service_date',
+                'pax_adult',
+                'pax_child',
                 'inquiry_number',
                 'customer_name',
                 'status',
@@ -878,6 +899,9 @@ class QuotationController extends Controller
                 fputcsv($handle, [
                     $quotation->quotation_number,
                     $quotation->order_number ?? '',
+                    optional($quotation->service_date)->format('Y-m-d'),
+                    (int) ($quotation->pax_adult ?? 0),
+                    (int) ($quotation->pax_child ?? 0),
                     $quotation->inquiry?->inquiry_number ?? '',
                     $quotation->inquiry?->customer?->name ?? '',
                     $quotation->status,
@@ -2023,47 +2047,6 @@ SVG;
         return strtoupper($trimmed);
     }
 
-    private function resolveOrderNumberFromInputOrItinerary(?string $manualOrderNumber, ?int $itineraryId): ?string
-    {
-        $normalizedManual = $this->normalizeOrderNumber($manualOrderNumber);
-        if ($normalizedManual !== null) {
-            return $normalizedManual;
-        }
-
-        if (! $itineraryId || $itineraryId <= 0) {
-            return null;
-        }
-
-        $itineraryOrderNumber = Itinerary::query()
-            ->whereKey($itineraryId)
-            ->value('order_number');
-        $normalizedItineraryOrderNumber = $this->normalizeOrderNumber(
-            is_string($itineraryOrderNumber) ? $itineraryOrderNumber : null
-        );
-        if ($normalizedItineraryOrderNumber === null) {
-            return null;
-        }
-
-        return preg_match('/^[A-Z0-9]+$/', $normalizedItineraryOrderNumber) === 1
-            ? $normalizedItineraryOrderNumber
-            : null;
-    }
-
-    private function syncItineraryOrderNumber(?int $itineraryId, ?string $orderNumber): void
-    {
-        $itineraryId = (int) ($itineraryId ?? 0);
-        if ($itineraryId <= 0) {
-            return;
-        }
-
-        $normalizedOrderNumber = $this->normalizeOrderNumber($orderNumber);
-        Itinerary::query()
-            ->whereKey($itineraryId)
-            ->update([
-                'order_number' => $normalizedOrderNumber,
-            ]);
-    }
-
     private function availableItinerariesQuery(?int $includeItineraryId = null): Builder
     {
         return Itinerary::query()->with(['inquiry.customer', 'inquiry.assignedUser']);
@@ -2707,6 +2690,9 @@ SVG;
         return [
             'quotation_number' => (string) ($quotation->quotation_number ?? ''),
             'order_number' => (string) ($quotation->order_number ?? ''),
+            'service_date' => optional($quotation->service_date)->format('Y-m-d'),
+            'pax_adult' => (int) ($quotation->pax_adult ?? 0),
+            'pax_child' => (int) ($quotation->pax_child ?? 0),
             'inquiry_id' => (int) ($quotation->inquiry_id ?? 0),
             'itinerary_id' => (int) ($quotation->itinerary_id ?? 0),
             'status' => (string) ($quotation->status ?? ''),

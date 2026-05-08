@@ -17,7 +17,7 @@
                     </form>
                 </div>
             </div>
-            <aside class="module-grid-side space-y-4">
+            <aside class="module-grid-side">
                 <div class="module-card p-6">
                     <p class="text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300">{{ ui_phrase('Rate History') }}</p>
                     @if (!empty($rateHistories) && $rateHistories->count() > 0)
@@ -50,6 +50,7 @@
         </div>
     </div>
 @endsection
+
 
 
 

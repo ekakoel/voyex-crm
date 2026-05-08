@@ -3,10 +3,12 @@
 @section('page_subtitle', ui_phrase('page subtitle'))
 @section('content')
     <div class="space-y-6 module-page module-page--invoices" data-service-filter-page data-page-spinner="off">
-        <x-index-stats :cards="$statsCards ?? []" />
-        <div class="grid grid-cols-1 gap-6 xl:grid-cols-12">
-            <aside class="space-y-4 xl:col-span-3">
-                <div class="app-card p-5 space-y-4">
+        <div class="module-grid-9-3">
+            <aside class="module-grid-side">
+                @include('components.module-index-sidebar-info')
+            </aside>
+            <div class="module-grid-main" data-service-filter-results>
+                <div class="app-card p-5">
                     <div>
                         <h2 class="text-base font-semibold text-gray-800 dark:text-gray-100">{{ ui_phrase('Filters') }}</h2>
                         <p class="text-sm text-gray-500 dark:text-gray-400">{{ ui_phrase('Refine your list quickly.') }}</p>
@@ -31,8 +33,6 @@
             </div>
         </form>
                 </div>
-            </aside>
-            <div class="space-y-4 xl:col-span-9" data-service-filter-results>
         <div class="hidden md:block app-card overflow-hidden">
             <div class="overflow-x-auto">
             <table class="app-table w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">
@@ -106,6 +106,11 @@
         </div>
 </div>
 @endsection
+
+
+
+
+
 
 
 

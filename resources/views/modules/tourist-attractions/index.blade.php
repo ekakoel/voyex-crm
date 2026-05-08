@@ -6,11 +6,10 @@
 @endsection
 @section('content')
     <div class="space-y-6 module-page module-page--tourist-attractions" data-tourist-attractions-index data-page-spinner="off">
-        <x-index-stats :cards="$statsCards ?? []" />
-        <div class="module-grid-3-9">
-            <aside class="module-grid-side space-y-4">
+        <div class="module-grid-9-3">
+            <aside class="module-grid-side">
                 @if (($googleImportDefaults['can_import'] ?? false) === true)
-                    <div class="app-card p-5 space-y-4">
+                    <div class="app-card p-5">
                         <div>
                             <h2 class="text-base font-semibold text-gray-800 dark:text-gray-100">{{ ui_phrase('attractions import google title') }}</h2>
                             <p class="text-sm text-gray-500 dark:text-gray-400">{{ ui_phrase('attractions import google subtitle') }}</p>
@@ -70,7 +69,10 @@
                         </form>
                     </div>
                 @endif
-                <div class="app-card p-5 space-y-4">
+                @include('components.module-index-sidebar-info')
+            </aside>
+            <div class="module-grid-main" data-tourist-attractions-index-results-wrap>
+                <div class="app-card p-5">
                     <div>
                         <h2 class="text-base font-semibold text-gray-800 dark:text-gray-100">{{ ui_phrase('Filters') }}</h2>
                         <p class="text-sm text-gray-500 dark:text-gray-400">{{ ui_phrase('Refine your list quickly.') }}</p>
@@ -95,8 +97,6 @@
                         </div>
                     </form>
                 </div>
-            </aside>
-            <div class="module-grid-main space-y-4" data-tourist-attractions-index-results-wrap>
                 @include('modules.tourist-attractions.partials._index-results', ['touristAttractions' => $touristAttractions])
             </div>
         </div>
@@ -223,3 +223,7 @@
         })();
     </script>
 @endpush
+
+
+
+

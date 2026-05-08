@@ -33,6 +33,17 @@
         --app-form-label-h: 20px;
         --app-form-font-size: 14px;
         --app-card-gap: 0.75rem;
+        --app-layout-gap: 0.75rem;
+        --app-filter-gap: 0.5rem;
+        --app-filter-control-w: 180px;
+        --app-filter-control-min-w: 150px;
+        --app-radius-md: 0.75rem;
+        --app-radius-sm: 0.5rem;
+        --app-card-padding: 1rem;
+        --app-card-padding-compact: 0.75rem;
+        --app-table-cell-px: 0.875rem;
+        --app-table-cell-py: 0.625rem;
+        --app-action-gap: 0.5rem;
         --app-kpi-card-min-height: 128px;
     }
 
@@ -526,7 +537,7 @@
     }
     .dashboard-skeleton-card {
         height: 78px;
-        border-radius: 0.75rem;
+        border-radius: var(--app-radius-md);
         border: 1px solid #e2e8f0;
         background: linear-gradient(90deg, #e2e8f0 0%, #f8fafc 45%, #e2e8f0 100%);
         background-size: 220% 100%;
@@ -715,7 +726,7 @@
 
     .itinerary-form-page .travel-connector {
         margin: 0.25rem 0 0.5rem;
-        border-radius: 0.75rem;
+        border-radius: var(--app-radius-md);
         background: rgb(248 250 252);
     }
 
@@ -923,7 +934,7 @@
     }
 
     .module-page .module-card {
-        border-radius: 0.75rem;
+        border-radius: var(--app-radius-md);
         border: 1px solid #e5e7eb;
         background: #ffffff;
         box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
@@ -935,11 +946,29 @@
     }
 
     .module-page .module-form-wrap {
-        border-radius: 0.75rem;
+        border-radius: var(--app-radius-md);
         border: 1px solid #e5e7eb;
         background: #ffffff;
         box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
         padding: 1.5rem;
+    }
+
+    /* Standard card density for top-level module cards (index/detail side & main sections). */
+    .module-page :is(.module-grid-main, .module-grid-side) > .app-card.p-4,
+    .module-page :is(.module-grid-main, .module-grid-side) > .app-card.p-5,
+    .module-page :is(.module-grid-main, .module-grid-side) > .app-card.p-6 {
+        padding: var(--app-card-padding);
+    }
+
+    /* Consistent alert spacing/radius across modules. */
+    .module-page :is(
+        .border-emerald-200.bg-emerald-50,
+        .border-rose-200.bg-rose-50,
+        .border-sky-200.bg-sky-50,
+        .border-amber-200.bg-amber-50
+    ) {
+        border-radius: var(--app-radius-sm);
+        padding: 0.75rem 0.875rem;
     }
 
     .dark .module-page .module-form-wrap {
@@ -959,7 +988,7 @@
     .module-grid-9-3,
     .module-grid-3-9 {
         display: grid;
-        gap: 1rem;
+        gap: var(--app-layout-gap);
         grid-template-columns: minmax(0, 1fr);
         margin-bottom: 90px;
     }
@@ -968,8 +997,17 @@
     .module-grid-side {
         min-width: 0;
         display: grid;
-        gap: 18px !important;
+        gap: var(--app-layout-gap) !important;
         align-content: start;
+    }
+
+    /* Keep legacy Blade order (aside then main) but render as 9:3 (main left, side right). */
+    .module-grid-9-3 > .module-grid-main {
+        order: 1;
+    }
+
+    .module-grid-9-3 > .module-grid-side {
+        order: 2;
     }
 
     /* Responsive data presentation baseline (table desktop + cards mobile/tablet) */
@@ -1036,7 +1074,7 @@
         flex-wrap: wrap;
         align-items: center;
         justify-content: space-between;
-        gap: 0.5rem;
+        gap: var(--app-action-gap);
     }
 
     .page-actions {
@@ -1044,8 +1082,77 @@
         flex-wrap: wrap;
         align-items: center;
         justify-content: flex-start;
-        gap: 0.5rem;
+        gap: var(--app-action-gap);
         min-width: 0;
+    }
+
+    .filter-actions {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--app-action-gap);
+    }
+
+    /* Compact index filters (main area): keep controls tight and actions on the right. */
+    .module-grid-main :is(
+        form[data-service-filter-form],
+        form[data-activities-index-form],
+        form[data-hotels-index-form],
+        form[data-roles-index-form],
+        form[data-tourist-attractions-index-form]
+    ) {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-end;
+        gap: var(--app-filter-gap);
+    }
+
+    .module-grid-main :is(
+        form[data-service-filter-form],
+        form[data-activities-index-form],
+        form[data-hotels-index-form],
+        form[data-roles-index-form],
+        form[data-tourist-attractions-index-form]
+    ) > * {
+        min-width: 0;
+        margin: 0 !important;
+    }
+
+    .module-grid-main :is(
+        form[data-service-filter-form],
+        form[data-activities-index-form],
+        form[data-hotels-index-form],
+        form[data-roles-index-form],
+        form[data-tourist-attractions-index-form]
+    ) > :not(.filter-actions) {
+        flex: 1 1 var(--app-filter-control-w);
+        min-width: var(--app-filter-control-min-w);
+        max-width: 220px;
+    }
+
+    .module-grid-main :is(
+        form[data-service-filter-form],
+        form[data-activities-index-form],
+        form[data-hotels-index-form],
+        form[data-roles-index-form],
+        form[data-tourist-attractions-index-form]
+    ) :is(input.app-input, select.app-input, .app-input) {
+        flex: 1 1 var(--app-filter-control-w);
+        min-width: var(--app-filter-control-min-w);
+        max-width: 220px;
+    }
+
+    .module-grid-main :is(
+        form[data-service-filter-form],
+        form[data-activities-index-form],
+        form[data-hotels-index-form],
+        form[data-roles-index-form],
+        form[data-tourist-attractions-index-form]
+    ) .filter-actions {
+        margin-left: auto;
+        width: auto !important;
+        justify-content: flex-end;
+        white-space: nowrap;
+        gap: var(--app-filter-gap);
     }
 
     @media (min-width: 640px) {
@@ -1065,6 +1172,30 @@
 
         .module-kpi-grid {
             grid-template-columns: repeat(5, minmax(0, 1fr));
+        }
+
+        .module-grid-main :is(
+            form[data-service-filter-form],
+            form[data-activities-index-form],
+            form[data-hotels-index-form],
+            form[data-roles-index-form],
+            form[data-tourist-attractions-index-form]
+        ) {
+            flex-wrap: nowrap;
+            overflow-x: auto;
+            padding-bottom: 0.125rem;
+        }
+
+        .module-grid-main :is(
+            form[data-service-filter-form],
+            form[data-activities-index-form],
+            form[data-hotels-index-form],
+            form[data-roles-index-form],
+            form[data-tourist-attractions-index-form]
+        ) > :not(.filter-actions) {
+            flex: 0 0 var(--app-filter-control-w);
+            min-width: var(--app-filter-control-w);
+            max-width: var(--app-filter-control-w);
         }
     }
 
@@ -1102,7 +1233,7 @@
         display: flex;
         align-items: flex-start;
         justify-content: space-between;
-        gap: 1rem;
+        gap: var(--app-layout-gap);
         border: 1px solid #e5e7eb;
         border-radius: 0.75rem;
         background: #ffffff;
@@ -1158,6 +1289,24 @@
         box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
     }
 
+    /* Card spacing is controlled by parent gap only. */
+    :is(.app-card, .module-card, .sa-card, .sa-kpi, .card) {
+        margin: 0 !important;
+    }
+
+    /*
+     * Disable Tailwind space-y utilities when attached directly to card containers.
+     * Card-to-card spacing must be controlled by parent gap, not by card-local space stacks.
+     */
+    :is(.app-card, .module-card, .sa-card, .sa-kpi, .card)[class*="space-y-"] {
+        --tw-space-y-reverse: 0 !important;
+    }
+
+    :is(.app-card, .module-card, .sa-card, .sa-kpi, .card)[class*="space-y-"] > :not([hidden]) ~ :not([hidden]) {
+        margin-top: 0 !important;
+        margin-bottom: 0 !important;
+    }
+
     .dark .app-card {
         border-color: #374151;
         background: #1f2937;
@@ -1177,7 +1326,7 @@
     .app-input {
         width: 100%;
         min-height: var(--app-form-control-h);
-        border-radius: 0.5rem;
+        border-radius: var(--app-radius-sm);
         border: 1px solid #d1d5db;
         padding: 0.5rem 0.75rem;
         font-size: var(--app-form-font-size);
@@ -1485,14 +1634,15 @@
         border-collapse: collapse;
     }
 
-    .app-table th {
-        text-align: left;
-        font-size: 0.75rem;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        color: #4b5563;
-    }
+.app-table th {
+    text-align: left;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #4b5563;
+    padding: var(--app-table-cell-py) var(--app-table-cell-px);
+}
 
 .dark .app-table th {
     color: #d1d5db;
@@ -1500,6 +1650,7 @@
 
     .app-table td {
         vertical-align: middle;
+        padding: var(--app-table-cell-py) var(--app-table-cell-px);
     }
 
     /* Table action buttons: softer palette + compact sizing */
@@ -1689,7 +1840,7 @@
 
     .app-card-grid {
         display: grid;
-        gap: 1rem;
+        gap: var(--app-layout-gap);
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
@@ -1699,7 +1850,7 @@
 
     .dashboard-kpi-grid {
         display: grid;
-        gap: 1rem;
+        gap: var(--app-layout-gap);
         grid-template-columns: repeat(1, minmax(0, 1fr));
     }
 

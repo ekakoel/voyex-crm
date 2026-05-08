@@ -6,35 +6,37 @@
 @endsection
 @section('content')
     <div class="space-y-5 module-page module-page--itineraries" data-service-filter-page data-page-spinner="off">
-        <x-index-stats :cards="$statsCards ?? []" />
-        <div class="grid min-w-0 grid-cols-1 gap-6 xl:grid-cols-12">
-            <aside class="min-w-0 space-y-4 xl:col-span-3">
-                <div class="app-card p-5 space-y-4">
-                    <div>
-                        <h2 class="text-base font-semibold text-gray-800 dark:text-gray-100">{{ ui_phrase('Filters') }}</h2>
-                        <p class="text-sm text-gray-500 dark:text-gray-400">{{ ui_phrase('Refine your list quickly.') }}</p>
-                    </div>
-                    <form method="GET" action="{{ route('itineraries.index') }}" class="grid grid-cols-1 gap-3 sm:grid-cols-2" data-service-filter-form data-disable-submit-lock="1" data-page-spinner="off">
-                        <input name="title" value="{{ request('title') }}" placeholder="{{ ui_phrase('Title') }}" class="app-input sm:col-span-2" data-service-filter-input>
-                        <select name="destination_id" class="app-input sm:col-span-2" data-service-filter-input>
-                            <option value="">{{ ui_phrase('All destinations') }}</option>
-                            @foreach ($destinations as $destination)
-                                <option value="{{ $destination->id }}" @selected((string) request('destination_id') === (string) $destination->id)>{{ $destination->name }}</option>
-                            @endforeach
-                        </select>
-                        <input name="duration" type="number" min="1" value="{{ request('duration') }}" placeholder="{{ ui_phrase('Duration (days)') }}" class="app-input" data-service-filter-input>
-                        <select name="per_page" class="app-input" data-service-filter-input>
-                            @foreach ([10,25,50,100] as $size)
-                                <option value="{{ $size }}" @selected((string) request('per_page', 10) === (string) $size)>{{ ui_phrase(':size/page', ['size' => $size]) }}</option>
-                            @endforeach
-                        </select>
-                        <div class="flex items-center gap-2 sm:col-span-2 filter-actions">
-                            <a href="{{ route('itineraries.index') }}" class="btn-ghost" data-service-filter-reset>{{ ui_phrase('Reset') }}</a>
-                        </div>
-                    </form>
-                </div>
+        <div class="module-grid-9-3 min-w-0">
+            <aside class="module-grid-side min-w-0">
+                @include('components.module-index-sidebar-info')
             </aside>
-            <div class="min-w-0 space-y-4 xl:col-span-9" data-service-filter-results>
+            <div class="module-grid-main min-w-0" data-service-filter-results>
+                <div class="app-card p-5">
+                    <div class="grid gap-3">
+                        <div>
+                            <h2 class="text-base font-semibold text-gray-800 dark:text-gray-100">{{ ui_phrase('Filters') }}</h2>
+                            <p class="text-sm text-gray-500 dark:text-gray-400">{{ ui_phrase('Refine your list quickly.') }}</p>
+                        </div>
+                        <form method="GET" action="{{ route('itineraries.index') }}" class="grid grid-cols-1 gap-3 sm:grid-cols-2" data-service-filter-form data-disable-submit-lock="1" data-page-spinner="off">
+                            <input name="title" value="{{ request('title') }}" placeholder="{{ ui_phrase('Title') }}" class="app-input sm:col-span-2" data-service-filter-input>
+                            <select name="destination_id" class="app-input sm:col-span-2" data-service-filter-input>
+                                <option value="">{{ ui_phrase('All destinations') }}</option>
+                                @foreach ($destinations as $destination)
+                                    <option value="{{ $destination->id }}" @selected((string) request('destination_id') === (string) $destination->id)>{{ $destination->name }}</option>
+                                @endforeach
+                            </select>
+                            <input name="duration" type="number" min="1" value="{{ request('duration') }}" placeholder="{{ ui_phrase('Duration (days)') }}" class="app-input" data-service-filter-input>
+                            <select name="per_page" class="app-input" data-service-filter-input>
+                                @foreach ([10,25,50,100] as $size)
+                                    <option value="{{ $size }}" @selected((string) request('per_page', 10) === (string) $size)>{{ ui_phrase(':size/page', ['size' => $size]) }}</option>
+                                @endforeach
+                            </select>
+                            <div class="flex items-center gap-2 sm:col-span-2 filter-actions">
+                                <a href="{{ route('itineraries.index') }}" class="btn-ghost" data-service-filter-reset>{{ ui_phrase('Reset') }}</a>
+                            </div>
+                        </form>
+                    </div>
+                </div>
         @if (session('success'))
             <div class="mb-6 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300">{{ session('success') }}</div>
         @endif
@@ -153,3 +155,5 @@
         </div>
 </div>
 @endsection
+
+

@@ -178,35 +178,6 @@ Route::middleware('auth')->group(function () {
             'permission:module.inquiries.access',
             'module.permission:inquiries',
         ])->except(['destroy']);
-    Route::post('inquiries/{inquiry}/followups', [SalesInquiryController::class, 'storeFollowUp'])
-        ->name('inquiries.followups.store')
-        ->middleware([
-            'module:inquiries',
-            'permission:module.inquiries.access',
-            'module.permission:inquiries',
-        ]);
-    Route::patch('inquiries/followups/{followUp}', [SalesInquiryController::class, 'markFollowUpDone'])
-        ->name('inquiries.followups.done')
-        ->middleware([
-            'module:inquiries',
-            'permission:module.inquiries.access',
-            'module.permission:inquiries',
-        ]);
-    Route::patch('inquiries/followups/{followUp}/reset-reminder', [SalesInquiryController::class, 'resetFollowUpReminder'])
-        ->name('inquiries.followups.reset-reminder')
-        ->middleware([
-            'module:inquiries',
-            'permission:module.inquiries.access',
-            'module.permission:inquiries',
-        ]);
-    Route::post('inquiries/{inquiry}/communications', [SalesInquiryController::class, 'storeCommunication'])
-        ->name('inquiries.communications.store')
-        ->middleware([
-            'module:inquiries',
-            'permission:module.inquiries.access',
-            'module.permission:inquiries',
-        ]);
-
     Route::get('quotations/my', [SalesQuotationController::class, 'myQuotations'])
         ->name('quotations.my')
         ->middleware([

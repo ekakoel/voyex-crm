@@ -18,12 +18,13 @@
                     </form>
                 </div>
             </div>
-            <aside class="module-grid-side space-y-6">
+            <aside class="module-grid-side">
                 @include('modules.activities.partials._vendor-info', ['vendor' => $foodBeverage->vendor])
                 @include('partials._audit-info', ['record' => $foodBeverage])
             </aside>
         </div>
     </div>
 @endsection
+
 
 

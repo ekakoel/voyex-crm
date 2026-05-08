@@ -160,8 +160,30 @@
             return $city . '|' . $name;
         })
         ->values();
+    $hotelAreaOptions = $hotelsSorted
+        ->map(function ($hotel) use ($destinationNameById) {
+            $region = trim((string) ($hotel->city ?? ''));
+            if ($region === '') {
+                $region = trim((string) ($hotel->province ?? ''));
+            }
+            $destination = trim((string) ($destinationNameById[$hotel->destination_id] ?? ''));
+            return [
+                'region' => $region,
+                'destination' => $destination,
+                'city' => trim((string) ($hotel->city ?? '')),
+                'province' => trim((string) ($hotel->province ?? '')),
+                'location' => trim((string) ($hotel->address ?? '')),
+                'latitude' => $hotel->latitude,
+                'longitude' => $hotel->longitude,
+            ];
+        })
+        ->filter(fn ($row) => trim((string) ($row['region'] ?? '')) !== '')
+        ->unique(fn ($row) => strtolower(trim((string) ($row['destination'] ?? ''))).'|'.strtolower(trim((string) ($row['region'] ?? ''))))
+        ->sortBy(fn ($row) => strtolower(trim((string) ($row['destination'] ?? '')).'|'.trim((string) ($row['region'] ?? ''))))
+        ->values();
     $dailyEndPointTypes = old('daily_end_point_types');
     $dailyEndPointItems = old('daily_end_point_items');
+    $dailyEndPointAreas = old('daily_end_point_areas');
     $dailyStartHotelBookingModes = old('daily_start_hotel_booking_modes');
     $dailyEndHotelBookingModes = old('daily_end_hotel_booking_modes');
     $dailyStartPointRoomIds = old('daily_start_point_room_ids');
@@ -171,6 +193,7 @@
     if (!is_array($dailyEndPointTypes) || !is_array($dailyEndPointItems)) {
         $dailyEndPointTypes = [];
         $dailyEndPointItems = [];
+        $dailyEndPointAreas = [];
         if (isset($itinerary) && $itinerary->dayPoints->isNotEmpty()) {
             foreach ($itinerary->dayPoints as $dayPoint) {
                 $day = (int) ($dayPoint->day_number ?? 0);
@@ -184,6 +207,7 @@
                         : $dayPoint->end_hotel_id ?? '');
                 $dailyEndPointRoomIds[$day] = (string) ($dayPoint->end_hotel_room_id ?? '');
                 $dailyEndHotelBookingModes[$day] = (string) ($dayPoint->end_hotel_booking_mode ?? 'arranged');
+                $dailyEndPointAreas[$day] = (string) ($dayPoint->end_hotel_area ?? '');
             }
         } elseif (isset($itinerary)) {
             foreach ($itinerary->hotels as $hotel) {
@@ -196,6 +220,7 @@
                     $dailyEndPointRoomCounts[$day] = $roomCount;
                     $dailyEndPointRoomIds[$day] = '';
                     $dailyEndHotelBookingModes[$day] = 'arranged';
+                    $dailyEndPointAreas[$day] = '';
                 }
             }
         }
@@ -218,8 +243,12 @@
     if (!is_array($dailyEndPointRoomCounts)) {
         $dailyEndPointRoomCounts = [];
     }
+    if (!is_array($dailyEndPointAreas)) {
+        $dailyEndPointAreas = [];
+    }
     $dailyStartPointTypes = old('daily_start_point_types');
     $dailyStartPointItems = old('daily_start_point_items');
+    $dailyStartPointAreas = old('daily_start_point_areas');
     $dailyTransportUnitItems = old('daily_transport_units');
     $dailyTransportUnitItemsByDay = [];
     if (is_array($dailyTransportUnitItems)) {
@@ -264,6 +293,7 @@
     if (!is_array($dailyStartPointTypes) || !is_array($dailyStartPointItems)) {
         $dailyStartPointTypes = [];
         $dailyStartPointItems = [];
+        $dailyStartPointAreas = [];
         if (isset($itinerary) && $itinerary->dayPoints->isNotEmpty()) {
             foreach ($itinerary->dayPoints as $dayPoint) {
                 $day = (int) ($dayPoint->day_number ?? 0);
@@ -277,6 +307,7 @@
                         : $dayPoint->start_hotel_id ?? '');
                 $dailyStartPointRoomIds[$day] = (string) ($dayPoint->start_hotel_room_id ?? '');
                 $dailyStartHotelBookingModes[$day] = (string) ($dayPoint->start_hotel_booking_mode ?? 'arranged');
+                $dailyStartPointAreas[$day] = (string) ($dayPoint->start_hotel_area ?? '');
             }
         }
         for ($day = 1; $day <= $durationDays; $day++) {
@@ -286,7 +317,13 @@
             if (!isset($dailyStartPointItems[$day])) {
                 $dailyStartPointItems[$day] = '';
             }
+            if (!isset($dailyStartPointAreas[$day])) {
+                $dailyStartPointAreas[$day] = '';
+            }
         }
+    }
+    if (!is_array($dailyStartPointAreas)) {
+        $dailyStartPointAreas = [];
     }
     $dailyMainExperienceTypes = old('daily_main_experience_types');
     $dailyMainExperienceItems = old('daily_main_experience_items');
@@ -317,6 +354,7 @@
     }
     $itineraryInclude = old('itinerary_include', (string) ($itinerary->itinerary_include ?? ''));
     $itineraryExclude = old('itinerary_exclude', (string) ($itinerary->itinerary_exclude ?? ''));
+    $termConditions = old('term_conditions', (string) ($itinerary->term_conditions ?? ''));
 
     $rows = collect();
     foreach ($rawAttractions as $i => $item) {
@@ -475,15 +513,6 @@
             placeholder="{{ ui_phrase('Example: 3D2N Tour Package') }}"
             required>
     </div>
-    <div>
-        <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Order Number') }} <span><i>{{ ui_phrase('(Optional)') }}</i></span></label>
-        <input name="order_number" value="{{ old('order_number', $itinerary->order_number ?? '') }}"
-            class="mt-1 dark:border-gray-600 app-input"
-            placeholder="{{ ui_phrase('Example: CODE260424A') }}">
-        @error('order_number')
-            <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
-        @enderror
-    </div>
     <div class="grid grid-cols-1 gap-3 md:grid-cols-12">
         <div class="md:col-span-6">
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Destination') }}</label>
@@ -541,7 +570,13 @@
     @error('daily_start_point_room_ids.*')
         <p class="text-xs text-rose-600">{{ $message }}</p>
     @enderror
+    @error('daily_start_point_areas.*')
+        <p class="text-xs text-rose-600">{{ $message }}</p>
+    @enderror
     @error('daily_end_point_room_ids.*')
+        <p class="text-xs text-rose-600">{{ $message }}</p>
+    @enderror
+    @error('daily_end_point_areas.*')
         <p class="text-xs text-rose-600">{{ $message }}</p>
     @enderror
     @error('daily_transport_units')
@@ -586,6 +621,7 @@
                     @php
                         $startType = $normalizePointType($dailyStartPointTypes[$day] ?? '', '');
                         $startItem = (string) ($dailyStartPointItems[$day] ?? '');
+                        $startArea = (string) ($dailyStartPointAreas[$day] ?? '');
                         $startRoomId = (string) ($dailyStartPointRoomIds[$day] ?? '');
                         $startHotelBookingMode = (string) ($dailyStartHotelBookingModes[$day] ?? 'arranged');
                         if (!in_array($startHotelBookingMode, ['arranged', 'self'], true)) {
@@ -593,6 +629,7 @@
                         }
                         $endType = $normalizePointType($dailyEndPointTypes[$day] ?? '', '');
                         $endItem = (string) ($dailyEndPointItems[$day] ?? '');
+                        $endArea = (string) ($dailyEndPointAreas[$day] ?? '');
                         $endRoomId = (string) ($dailyEndPointRoomIds[$day] ?? '');
                         $endHotelBookingMode = (string) ($dailyEndHotelBookingModes[$day] ?? 'arranged');
                         if (!in_array($endHotelBookingMode, ['arranged', 'self'], true)) {
@@ -703,7 +740,7 @@
                                         <option value="airport" @selected($startType === 'airport')>{{ ui_phrase('Airport') }}</option>
                                     </select>
                                 </div>
-                                <div class="md:w-1/4">
+                                <div class="day-start-item-wrap {{ $startType === 'hotel' && $startHotelBookingMode === 'self' ? 'hidden' : '' }} md:w-1/4">
                                     <select name="daily_start_point_items[{{ $day }}]"
                                         class="day-start-point-item dark:border-gray-600 app-input">
                                         <option value="">{{ ui_phrase('Select start point item') }}</option>
@@ -733,10 +770,10 @@
                                         @endforeach
                                     </select>
                                 </div>
-                                <div class="day-start-room-wrap {{ $startType === 'hotel' ? '' : 'hidden' }} md:w-1/4">
+                                <div class="day-start-room-wrap {{ $startType === 'hotel' && $startHotelBookingMode !== 'self' ? '' : 'hidden' }} md:w-1/4">
                                     <select name="daily_start_point_room_ids[{{ $day }}]"
                                         class="day-start-room-select dark:border-gray-600 app-input"
-                                        {{ $startType === 'hotel' ? '' : 'disabled' }}>
+                                        {{ $startType === 'hotel' && $startHotelBookingMode !== 'self' ? '' : 'disabled' }}>
                                         <option value="">{{ ui_phrase('Select room') }}</option>
                                         @foreach ($hotels as $hotel)
                                             @foreach ($hotel->rooms ?? collect() as $room)
@@ -755,6 +792,23 @@
                                         {{ $startType === 'hotel' ? '' : 'disabled' }}>
                                         <option value="arranged" @selected($startHotelBookingMode === 'arranged')>{{ ui_phrase('Hotel arranged by us') }}</option>
                                         <option value="self" @selected($startHotelBookingMode === 'self')>{{ ui_phrase('Self-booked hotel') }}</option>
+                                    </select>
+                                </div>
+                                <div class="day-start-area-wrap {{ $startType === 'hotel' && $startHotelBookingMode === 'self' ? '' : 'hidden' }} md:w-1/4">
+                                    <select name="daily_start_point_areas[{{ $day }}]"
+                                        class="day-start-point-area dark:border-gray-600 app-input"
+                                        {{ $startType === 'hotel' && $startHotelBookingMode === 'self' ? '' : 'disabled' }}>
+                                        <option value="">{{ ui_phrase('Select hotel area (region)') }}</option>
+                                        @foreach ($hotelAreaOptions as $areaOption)
+                                            <option value="{{ $areaOption['region'] }}"
+                                                data-city="{{ $areaOption['city'] }}"
+                                                data-province="{{ $areaOption['province'] }}"
+                                                data-location="{{ $areaOption['location'] }}"
+                                                data-destination="{{ $areaOption['destination'] }}"
+                                                data-latitude="{{ $areaOption['latitude'] ?? '' }}"
+                                                data-longitude="{{ $areaOption['longitude'] ?? '' }}"
+                                                @selected($startArea === (string) ($areaOption['region'] ?? ''))>{{ $areaOption['region'] }}</option>
+                                        @endforeach
                                     </select>
                                 </div>
                             </div>
@@ -1152,7 +1206,7 @@
                                         @endif
                                     </select>
                                 </div>
-                                <div class="md:w-1/4">
+                                <div class="day-end-item-wrap {{ $endType === 'hotel' && $endHotelBookingMode === 'self' ? 'hidden' : '' }} md:w-1/4">
                                     <select name="daily_end_point_items[{{ $day }}]"
                                         class="day-end-point-item day-end-point-select dark:border-gray-600 app-input">
                                         <option value="">{{ ui_phrase('Select end point item') }}</option>
@@ -1182,10 +1236,10 @@
                                         @endforeach
                                     </select>
                                 </div>
-                                <div class="day-end-room-wrap {{ $endType === 'hotel' ? '' : 'hidden' }} md:w-1/4">
+                                <div class="day-end-room-wrap {{ $endType === 'hotel' && $endHotelBookingMode !== 'self' ? '' : 'hidden' }} md:w-1/4">
                                     <select name="daily_end_point_room_ids[{{ $day }}]"
                                         class="day-end-room-select dark:border-gray-600 app-input"
-                                        {{ $endType === 'hotel' ? '' : 'disabled' }}>
+                                        {{ $endType === 'hotel' && $endHotelBookingMode !== 'self' ? '' : 'disabled' }}>
                                         <option value="">{{ ui_phrase('Select room') }}</option>
                                         @foreach ($hotels as $hotel)
                                             @foreach ($hotel->rooms ?? collect() as $room)
@@ -1204,6 +1258,23 @@
                                         {{ $endType === 'hotel' ? '' : 'disabled' }}>
                                         <option value="arranged" @selected($endHotelBookingMode === 'arranged')>{{ ui_phrase('Hotel arranged by us') }}</option>
                                         <option value="self" @selected($endHotelBookingMode === 'self')>{{ ui_phrase('Self-booked hotel') }}</option>
+                                    </select>
+                                </div>
+                                <div class="day-end-area-wrap {{ $endType === 'hotel' && $endHotelBookingMode === 'self' ? '' : 'hidden' }} md:w-1/4">
+                                    <select name="daily_end_point_areas[{{ $day }}]"
+                                        class="day-end-point-area dark:border-gray-600 app-input"
+                                        {{ $endType === 'hotel' && $endHotelBookingMode === 'self' ? '' : 'disabled' }}>
+                                        <option value="">{{ ui_phrase('Select hotel area (region)') }}</option>
+                                        @foreach ($hotelAreaOptions as $areaOption)
+                                            <option value="{{ $areaOption['region'] }}"
+                                                data-city="{{ $areaOption['city'] }}"
+                                                data-province="{{ $areaOption['province'] }}"
+                                                data-location="{{ $areaOption['location'] }}"
+                                                data-destination="{{ $areaOption['destination'] }}"
+                                                data-latitude="{{ $areaOption['latitude'] ?? '' }}"
+                                                data-longitude="{{ $areaOption['longitude'] ?? '' }}"
+                                                @selected($endArea === (string) ($areaOption['region'] ?? ''))>{{ $areaOption['region'] }}</option>
+                                        @endforeach
                                     </select>
                                 </div>
                             </div>
@@ -1242,12 +1313,11 @@
     <section data-wizard-step="3" class="space-y-3 hidden">
         <div data-wizard-review-card="basic-info" class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
             <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ __('itinerary_form.wizard.include_exclude_title') }}</h3>
-            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ __('itinerary_form.wizard.include_exclude_hint') }}</p>
             <div class="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
                 <div>
                     <label
                         class="mb-1 block text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
-                        {{ ui_phrase('Itinerary Include') }}
+                        Inclutions
                     </label>
                     <textarea name="itinerary_include"
                         class="w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
@@ -1256,18 +1326,30 @@
                 <div>
                     <label
                         class="mb-1 block text-xs font-semibold uppercase tracking-wide text-rose-700 dark:text-rose-300">
-                        {{ ui_phrase('Itinerary Exclude') }}
+                        Exclutions
                     </label>
                     <textarea name="itinerary_exclude"
                         class="w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
                         rows="6" placeholder="{{ __('itinerary_form.wizard.exclude_placeholder') }}">{{ $itineraryExclude }}</textarea>
                 </div>
             </div>
+            <div class="mt-3">
+                <label
+                    class="mb-1 block text-xs font-semibold uppercase tracking-wide text-indigo-700 dark:text-indigo-300">
+                    {{ ui_phrase('Term & Conditions') }}
+                </label>
+                <textarea name="term_conditions"
+                    class="w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
+                    rows="5" placeholder="{{ ui_phrase('Write itinerary terms and conditions') }}">{{ $termConditions }}</textarea>
+            </div>
         </div>
         @error('itinerary_include')
             <p class="text-xs text-rose-600">{{ $message }}</p>
         @enderror
         @error('itinerary_exclude')
+            <p class="text-xs text-rose-600">{{ $message }}</p>
+        @enderror
+        @error('term_conditions')
             <p class="text-xs text-rose-600">{{ $message }}</p>
         @enderror
     </section>
@@ -1284,10 +1366,6 @@
                 <div class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-700 dark:bg-gray-900/50">
                     <dt class="text-gray-500 dark:text-gray-400">{{ ui_phrase('Title') }}</dt>
                     <dd class="font-semibold text-gray-800 dark:text-gray-100" data-wizard-review-title>-</dd>
-                </div>
-                <div class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-700 dark:bg-gray-900/50">
-                    <dt class="text-gray-500 dark:text-gray-400">{{ __('itinerary_form.review.order_number') }}</dt>
-                    <dd class="font-semibold text-gray-800 dark:text-gray-100" data-wizard-review-order-number>-</dd>
                 </div>
                 <div class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-700 dark:bg-gray-900/50">
                     <dt class="text-gray-500 dark:text-gray-400">{{ ui_phrase('Inquiry') }}</dt>
@@ -1329,6 +1407,10 @@
                     <p class="text-xs font-semibold uppercase tracking-wide text-rose-700 dark:text-rose-300">{{ ui_phrase('Exclusions') }}</p>
                     <div class="prose prose-sm mt-1 max-w-none text-sm text-gray-800 dark:prose-invert dark:text-gray-100" data-wizard-review-exclude>-</div>
                 </div>
+            </div>
+            <div class="mt-3 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 dark:border-indigo-700/60 dark:bg-indigo-900/20">
+                <p class="text-xs font-semibold uppercase tracking-wide text-indigo-700 dark:text-indigo-300">{{ ui_phrase('Term & Conditions') }}</p>
+                <div class="prose prose-sm mt-1 max-w-none text-sm text-gray-800 dark:prose-invert dark:text-gray-100" data-wizard-review-term-conditions>-</div>
             </div>
         </div>
     </section>
@@ -1910,13 +1992,12 @@
                 const dayWizardNextButton = wizardRoot?.querySelector('[data-day-wizard-next]') || null;
                 const dayWizardTabs = wizardRoot?.querySelector('#itinerary-day-wizard-tabs') || null;
                 const itineraryTitleInput = wizardRoot?.querySelector('input[name="title"]') || null;
-                const itineraryOrderNumberInput = wizardRoot?.querySelector('input[name="order_number"]') || null;
                 const itineraryDestinationInput = wizardRoot?.querySelector('#itinerary-destination') || null;
                 const itineraryDescriptionInput = wizardRoot?.querySelector('textarea[name="description"]') || null;
                 const itineraryIncludeInput = wizardRoot?.querySelector('textarea[name="itinerary_include"]') || null;
                 const itineraryExcludeInput = wizardRoot?.querySelector('textarea[name="itinerary_exclude"]') || null;
+                const itineraryTermConditionsInput = wizardRoot?.querySelector('textarea[name="term_conditions"]') || null;
                 const reviewTitleEl = wizardRoot?.querySelector('[data-wizard-review-title]') || null;
-                const reviewOrderNumberEl = wizardRoot?.querySelector('[data-wizard-review-order-number]') || null;
                 const reviewInquiryEl = wizardRoot?.querySelector('[data-wizard-review-inquiry]') || null;
                 const reviewDestinationEl = wizardRoot?.querySelector('[data-wizard-review-destination]') || null;
                 const reviewDurationEl = wizardRoot?.querySelector('[data-wizard-review-duration]') || null;
@@ -1925,6 +2006,7 @@
                 const reviewDaysEl = wizardRoot?.querySelector('[data-wizard-review-days]') || null;
                 const reviewIncludeEl = wizardRoot?.querySelector('[data-wizard-review-include]') || null;
                 const reviewExcludeEl = wizardRoot?.querySelector('[data-wizard-review-exclude]') || null;
+                const reviewTermConditionsEl = wizardRoot?.querySelector('[data-wizard-review-term-conditions]') || null;
                 const i18n = {
                     statusComplete: @json(__('itinerary_form.status.complete')),
                     statusIncomplete: @json(__('itinerary_form.status.incomplete')),
@@ -1998,6 +2080,16 @@
                     if (type === 'fnb') return String(row.querySelector('.item-fnb')?.value || '').trim();
                     return String(row.querySelector('.item-attraction')?.value || '').trim();
                 };
+                const isPointConfigured = (pointType, itemSet, roomSet, selfBooked, areaSet = false) => {
+                    if (pointType === 'airport') {
+                        return itemSet;
+                    }
+                    if (pointType === 'hotel') {
+                        // Self-booked mode allows either selected hotel item or manual area region.
+                        return selfBooked ? (itemSet || areaSet) : (itemSet && roomSet);
+                    }
+                    return false;
+                };
                 const evaluateDayCompletion = (section) => {
                     const day = Number.parseInt(String(section?.dataset?.day || ''), 10);
                     const dayNumber = Number.isFinite(day) ? day : 1;
@@ -2009,39 +2101,31 @@
                     const startType = normalizePointType(section?.querySelector('.day-start-point-type')?.value || '');
                     const startItemSet = hasInputValue(section?.querySelector('.day-start-point-item'));
                     const startRoomSet = hasInputValue(section?.querySelector('.day-start-room-select'));
+                    const startAreaSet = hasInputValue(section?.querySelector('.day-start-point-area'));
                     const startBookingMode = String(section?.querySelector('.day-start-booking-mode')?.value || 'arranged');
                     const startSelfBooked = isSelfBookedHotelMode(startBookingMode);
                     let startConfigured = false;
-                    if (startType === 'airport') {
-                        startConfigured = startItemSet;
-                    } else if (startType === 'hotel') {
-                        startConfigured = startSelfBooked ? true : (startItemSet && startRoomSet);
-                    } else if (startType === 'previous_day_end') {
+                    if (startType === 'previous_day_end') {
                         if (dayNumber > 1) {
                             const prevSection = daySections.querySelector(`.day-section[data-day="${dayNumber - 1}"]`);
                             const prevEndType = normalizePointType(prevSection?.querySelector('.day-end-point-type')?.value || '');
                             const prevEndItemSet = hasInputValue(prevSection?.querySelector('.day-end-point-item'));
                             const prevEndRoomSet = hasInputValue(prevSection?.querySelector('.day-end-room-select'));
+                            const prevEndAreaSet = hasInputValue(prevSection?.querySelector('.day-end-point-area'));
                             const prevEndMode = String(prevSection?.querySelector('.day-end-booking-mode')?.value || 'arranged');
                             const prevEndSelfBooked = isSelfBookedHotelMode(prevEndMode);
-                            if (prevEndType === 'airport') {
-                                startConfigured = prevEndItemSet;
-                            } else if (prevEndType === 'hotel') {
-                                startConfigured = prevEndSelfBooked ? true : (prevEndItemSet && prevEndRoomSet);
-                            }
+                            startConfigured = isPointConfigured(prevEndType, prevEndItemSet, prevEndRoomSet, prevEndSelfBooked, prevEndAreaSet);
                         }
+                    } else {
+                        startConfigured = isPointConfigured(startType, startItemSet, startRoomSet, startSelfBooked, startAreaSet);
                     }
                     const endType = normalizePointType(section?.querySelector('.day-end-point-type')?.value || '');
                     const endItemSet = hasInputValue(section?.querySelector('.day-end-point-item'));
                     const endRoomSet = hasInputValue(section?.querySelector('.day-end-room-select'));
+                    const endAreaSet = hasInputValue(section?.querySelector('.day-end-point-area'));
                     const endBookingMode = String(section?.querySelector('.day-end-booking-mode')?.value || 'arranged');
                     const endSelfBooked = isSelfBookedHotelMode(endBookingMode);
-                    let endConfigured = false;
-                    if (endType === 'airport') {
-                        endConfigured = endItemSet;
-                    } else if (endType === 'hotel') {
-                        endConfigured = endSelfBooked ? true : (endItemSet && endRoomSet);
-                    }
+                    const endConfigured = isPointConfigured(endType, endItemSet, endRoomSet, endSelfBooked, endAreaSet);
                     if (!startConfigured) {
                         reasons.push(i18n.incompleteReasonStartPoint);
                     }
@@ -2136,8 +2220,13 @@
                     const itemSelect = section.querySelector(isStart ? '.day-start-point-item' : '.day-end-point-item');
                     const roomSelect = section.querySelector(isStart ? '.day-start-room-select' : '.day-end-room-select');
                     const bookingSelect = section.querySelector(isStart ? '.day-start-booking-mode' : '.day-end-booking-mode');
+                    const areaSelect = section.querySelector(isStart ? '.day-start-point-area' : '.day-end-point-area');
                     const pointType = normalizePointType(typeSelect?.value || '');
-                    const pointItemText = String(itemSelect?.selectedOptions?.[0]?.textContent || '').trim();
+                    const pointItemValue = String(itemSelect?.value || '').trim();
+                    const pointItemText = pointItemValue !== ''
+                        ? String(itemSelect?.selectedOptions?.[0]?.textContent || '').trim()
+                        : '';
+                    const areaText = String(areaSelect?.selectedOptions?.[0]?.textContent || areaSelect?.value || '').trim();
                     const roomText = String(roomSelect?.selectedOptions?.[0]?.textContent || '').trim();
 
                     if (pointType === 'previous_day_end') {
@@ -2159,9 +2248,13 @@
                     if (pointType === 'hotel') {
                         if (isSelfBookedHotelMode(bookingSelect?.value || 'arranged')) {
                             if (isStart) {
+                                if (pointItemText !== '') return `${pointItemText} (${i18n.selfBookedSuffix})`;
+                                if (areaText !== '') return `${i18n.selfBookedHotel} - ${areaText}`;
                                 return i18n.selfBookedHotel;
                             }
-                            return pointItemText !== '' ? `${pointItemText} (${i18n.selfBookedSuffix})` : i18n.selfBookedHotel;
+                            if (pointItemText !== '') return `${pointItemText} (${i18n.selfBookedSuffix})`;
+                            if (areaText !== '') return `${i18n.selfBookedHotel} - ${areaText}`;
+                            return i18n.selfBookedHotel;
                         }
                         if (pointItemText !== '' && roomText !== '') {
                             return `${pointItemText} - ${roomText}`;
@@ -2175,15 +2268,14 @@
                     const inquiryOptionText = String(inquirySelect?.selectedOptions?.[0]?.textContent || '').trim();
                     const destinationText = String(itineraryDestinationInput?.value || '').trim();
                     const titleText = String(itineraryTitleInput?.value || '').trim();
-                    const orderNumberText = String(itineraryOrderNumberInput?.value || '').trim();
                     const descriptionText = String(itineraryDescriptionInput?.value || '').trim();
                     const includeText = String(itineraryIncludeInput?.value || '').trim();
                     const excludeText = String(itineraryExcludeInput?.value || '').trim();
+                    const termConditionsText = String(itineraryTermConditionsInput?.value || '').trim();
                     const dayValue = clampDurationDays(durationInput.value || MIN_DURATION_DAYS);
                     const nightValue = clampDurationNights(durationNightsInput?.value || MIN_DURATION_NIGHTS, dayValue);
                     const selectedItemCount = countSelectedScheduleItems();
                     if (reviewTitleEl) reviewTitleEl.textContent = reviewText(titleText);
-                    if (reviewOrderNumberEl) reviewOrderNumberEl.textContent = reviewText(orderNumberText);
                     if (reviewInquiryEl) reviewInquiryEl.textContent = inquiryOptionText !== '' ? inquiryOptionText : i18n.independentItinerary;
                     if (reviewDestinationEl) reviewDestinationEl.textContent = reviewText(destinationText);
                     if (reviewDurationEl) {
@@ -2197,6 +2289,7 @@
                     if (reviewDescriptionEl) reviewDescriptionEl.innerHTML = reviewRichHtml(descriptionText);
                     if (reviewIncludeEl) reviewIncludeEl.innerHTML = reviewRichHtml(includeText);
                     if (reviewExcludeEl) reviewExcludeEl.innerHTML = reviewRichHtml(excludeText);
+                    if (reviewTermConditionsEl) reviewTermConditionsEl.innerHTML = reviewRichHtml(termConditionsText);
 
                     applyDayCompletionIndicators();
                     if (reviewDaysEl) {
@@ -2229,7 +2322,6 @@
                                 '--:--',
                             );
                             const startTravelTextRaw = String(section.querySelector('.day-start-travel')?.value || '').trim();
-                            const startTravelText = startTravelTextRaw !== '' ? `${escapeHtml(startTravelTextRaw)} min` : '-';
                             const transportTexts = [...section.querySelectorAll('.day-transport-unit')]
                                 .map((input) => String(input?.selectedOptions?.[0]?.textContent || '').trim())
                                 .filter((text) => text !== '' && !text.toLowerCase().includes('select transport unit'));
@@ -2246,8 +2338,17 @@
                             const startConnectorTargetName = firstSelection?.option?.textContent
                                 ? String(firstSelection.option.textContent).trim()
                                 : endPointText;
+                            const startConnectorItem = startTravelTextRaw !== '' && firstSelectedRow
+                                ? `
+                                    <li class="list-none px-0.5 py-0.5">
+                                        <p class="text-[11px] italic text-gray-500 dark:text-gray-400">
+                                            Estimated time to ${escapeHtml(startConnectorTargetName)}: ${escapeHtml(startTravelTextRaw)} min
+                                        </p>
+                                    </li>
+                                `
+                                : '';
                             const scheduleItemsHtml = selectedRows.length
-                                ? selectedRows.map((row, rowIndex) => {
+                                ? `${startConnectorItem}${selectedRows.map((row, rowIndex) => {
                                     const selection = getRowSelection(row);
                                     const type = selection.type;
                                     const typeLabel = reviewRowTypeLabel(type);
@@ -2269,10 +2370,9 @@
                                         : endPointText;
                                     const connectorCard = travelText !== ''
                                         ? `
-                                            <li class="list-none rounded-md border border-dashed border-sky-200 bg-sky-50/70 px-2.5 py-2 dark:border-sky-700/60 dark:bg-sky-900/20">
-                                                <p class="text-[11px] text-sky-800 dark:text-sky-200">
-                                                    <span class="font-semibold">Estimated time to ${escapeHtml(nextItemName)}:</span>
-                                                    ${escapeHtml(travelText)} min
+                                            <li class="list-none px-0.5 py-0.5">
+                                                <p class="text-[11px] italic text-gray-500 dark:text-gray-400">
+                                                    Estimated time to ${escapeHtml(nextItemName)}: ${escapeHtml(travelText)} min
                                                 </p>
                                             </li>
                                         `
@@ -2292,7 +2392,7 @@
                                         </li>
                                     `;
                                     return `${itemCard}${connectorCard}`;
-                                }).join('')
+                                }).join('')}`
                                 : (isComplete
                                     ? ''
                                     : `<p class="rounded-md border border-dashed border-gray-300 px-2.5 py-2 text-xs text-gray-500 dark:border-gray-700 dark:text-gray-400">${i18n.noScheduleItems}</p>`);
@@ -2311,15 +2411,14 @@
                                 : '';
 
                             const dayItemsHtml = `
-                                <div class="rounded-md border border-slate-200 bg-slate-50 px-2.5 py-2 dark:border-slate-700 dark:bg-slate-900/40">
+                                <div class="rounded-md border border-gray-200 bg-white px-2.5 py-2 dark:border-gray-700 dark:bg-gray-900/50">
                                     <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">${i18n.startPoint}</p>
                                     <p class="mt-1 text-xs font-medium text-gray-800 dark:text-gray-100">${escapeHtml(startPointText)}</p>
                                     <p class="mt-1 text-[11px] text-gray-600 dark:text-gray-300"><span class="font-semibold">Start Time:</span> ${escapeHtml(startTimeText)}</p>
-                                    <p class="mt-1 text-[11px] text-gray-600 dark:text-gray-300"><span class="font-semibold">Estimated time to ${escapeHtml(startConnectorTargetName)}:</span> ${startTravelText}</p>
                                 </div>
                                 ${scheduleItemsHtml}
                                 ${incompleteReasonsHtml}
-                                <div class="rounded-md border border-slate-200 bg-slate-50 px-2.5 py-2 dark:border-slate-700 dark:bg-slate-900/40">
+                                <div class="rounded-md border border-gray-200 bg-white px-2.5 py-2 dark:border-gray-700 dark:bg-gray-900/50">
                                     <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">${i18n.endPoint}</p>
                                     <p class="mt-1 text-xs font-medium text-gray-800 dark:text-gray-100">${escapeHtml(endPointText)}</p>
                                     <p class="mt-1 text-[11px] text-gray-600 dark:text-gray-300"><span class="font-semibold">End Time:</span> ${escapeHtml(endTimeText)}</p>
@@ -2351,11 +2450,11 @@
                         const includeCardEl = wizardRoot.querySelector('[data-wizard-review-card="include-exclude"]');
                         const isBlank = (v) => String(v || '').trim() === '' || String(v || '').trim() === '-';
                         const inquiryHasValue = inquiryOptionText !== '' && inquiryOptionText !== i18n.independentItinerary;
-                        const basicEmpty = isBlank(titleText) && isBlank(orderNumberText) && !inquiryHasValue && isBlank(destinationText) && isBlank(descriptionText) && selectedItemCount === 0;
+                        const basicEmpty = isBlank(titleText) && !inquiryHasValue && isBlank(destinationText) && isBlank(descriptionText) && selectedItemCount === 0;
                         if (basicCardEl) basicCardEl.classList.toggle('hidden', basicEmpty);
                         const daysEmpty = selectedItemCount === 0;
                         if (dayCardEl) dayCardEl.classList.toggle('hidden', daysEmpty);
-                        const includeEmpty = isBlank(includeText) && isBlank(excludeText);
+                        const includeEmpty = isBlank(includeText) && isBlank(excludeText) && isBlank(termConditionsText);
                         if (includeCardEl) includeCardEl.classList.toggle('hidden', includeEmpty);
                     } catch (__) {}
                     }
@@ -3988,6 +4087,23 @@
                         type: normalizeMapPointType(typeHint || option.dataset.pointType || ''),
                     };
                 };
+                const parseAreaPoint = (areaSelect, fallbackLabel = '-') => {
+                    if (!areaSelect) return null;
+                    const option = areaSelect.selectedOptions?.[0] || null;
+                    if (!option || String(option.value || '').trim() === '') return null;
+                    const normalized = normalizeLatLngPair(
+                        parseFloat(option.dataset.latitude || ''),
+                        parseFloat(option.dataset.longitude || ''),
+                    );
+                    if (!normalized) return null;
+                    const label = String(option.textContent || '').trim();
+                    return {
+                        lat: normalized.lat,
+                        lng: normalized.lng,
+                        name: label !== '' ? label : fallbackLabel,
+                        type: 'hotel',
+                    };
+                };
                 const parseTransferRouteCoords = (option) => {
                     if (!option) return null;
                     const raw = String(option.dataset.routeGeojson || '').trim();
@@ -4178,6 +4294,11 @@
                     if (!section) return null;
                     const endType = normalizePointType(section.querySelector('.day-end-point-type')?.value || '');
                     if (endType !== 'airport' && endType !== 'hotel') return null;
+                    const endBookingMode = String(section.querySelector('.day-end-booking-mode')?.value || 'arranged');
+                    if (endType === 'hotel' && isSelfBookedHotelMode(endBookingMode)) {
+                        const areaPoint = parseAreaPoint(section.querySelector('.day-end-point-area'), i18n.selfBookedHotel);
+                        if (areaPoint) return areaPoint;
+                    }
                     return parseOptionPoint(section.querySelector('.day-end-point-item')?.selectedOptions?.[0] || null, endType);
                 };
                 const collectDayRoutePoints = (day) => {
@@ -4185,9 +4306,12 @@
                     if (!section) return [];
                     const points = [];
                     const startType = normalizePointType(section.querySelector('.day-start-point-type')?.value || '');
+                    const startBookingMode = String(section.querySelector('.day-start-booking-mode')?.value || 'arranged');
                     let startPoint = null;
                     if (startType === 'previous_day_end' && day > 1) {
                         startPoint = getDayEndPoint(day - 1);
+                    } else if (startType === 'hotel' && isSelfBookedHotelMode(startBookingMode)) {
+                        startPoint = parseAreaPoint(section.querySelector('.day-start-point-area'), i18n.selfBookedHotel);
                     } else {
                         const startOpt = section.querySelector('.day-start-point-item')?.selectedOptions?.[0] || null;
                         startPoint = parseOptionPoint(startOpt, startType);
@@ -4302,8 +4426,10 @@
                         return Number(a.order || 0) - Number(b.order || 0);
                     });
                     const endType = normalizePointType(section.querySelector('.day-end-point-type')?.value || '');
-                    const endOpt = section.querySelector('.day-end-point-item')?.selectedOptions?.[0] || null;
-                    const endPoint = parseOptionPoint(endOpt, endType);
+                    const endBookingMode = String(section.querySelector('.day-end-booking-mode')?.value || 'arranged');
+                    const endPoint = (endType === 'hotel' && isSelfBookedHotelMode(endBookingMode))
+                        ? parseAreaPoint(section.querySelector('.day-end-point-area'), i18n.selfBookedHotel)
+                        : parseOptionPoint(section.querySelector('.day-end-point-item')?.selectedOptions?.[0] || null, endType);
                     if ((endType === 'airport' || endType === 'hotel') && endPoint) {
                         points.push({
                             day,
@@ -4641,7 +4767,7 @@
                             );
                     input.placeholder = rows.length > 0 ? nextLabel : endPointLabel;
                 };
-                const getPointLabelFromTypeAndItem = (typeSelect, itemSelect, previousDayEndLabel = i18n.notSet) => {
+                const getPointLabelFromTypeAndItem = (typeSelect, itemSelect, previousDayEndLabel = i18n.notSet, bookingSelect = null, areaSelect = null) => {
                     const type = normalizePointType(typeSelect?.value || '');
                     if (type === 'previous_day_end') {
                         return previousDayEndLabel || i18n.notSet;
@@ -4649,8 +4775,22 @@
                     if (!isHotelPointType(type) && type !== 'airport') {
                         return i18n.notSet;
                     }
+                    if (isHotelPointType(type) && isSelfBookedHotelMode(bookingSelect?.value || '')) {
+                        const hotelOption = itemSelect?.selectedOptions?.[0];
+                        const hotelValue = String(hotelOption?.value || '').trim();
+                        if (hotelValue !== '') {
+                            const hotelText = String(hotelOption?.textContent || '').trim();
+                            return hotelText !== '' ? `${hotelText} (${i18n.selfBookedSuffix})` : i18n.selfBookedHotel;
+                        }
+                        const areaText = String(areaSelect?.selectedOptions?.[0]?.textContent || areaSelect?.value || '').trim();
+                        if (areaText !== '') {
+                            return `${i18n.selfBookedHotel} - ${areaText}`;
+                        }
+                        return i18n.selfBookedHotel;
+                    }
+                    const optionValue = String(itemSelect?.value || '').trim();
                     const option = itemSelect?.selectedOptions?.[0];
-                    if (!option || !String(option.value || '').trim()) {
+                    if (!option || optionValue === '') {
                         return i18n.notSet;
                     }
                     return (option.textContent || '').trim() || i18n.notSet;
@@ -4747,17 +4887,23 @@
                             prevSec.querySelector('.day-end-point-type'),
                             prevSec.querySelector('.day-end-point-item'),
                             i18n.notSet,
+                            prevSec.querySelector('.day-end-booking-mode'),
+                            prevSec.querySelector('.day-end-point-area'),
                         ) :
                         i18n.notSet;
                     const startPointLabel = getPointLabelFromTypeAndItem(
                         sec.querySelector('.day-start-point-type'),
                         sec.querySelector('.day-start-point-item'),
                         prevEndLabel,
+                        sec.querySelector('.day-start-booking-mode'),
+                        sec.querySelector('.day-start-point-area'),
                     );
                     const endPointLabel = getPointLabelFromTypeAndItem(
                         sec.querySelector('.day-end-point-type'),
                         sec.querySelector('.day-end-point-item'),
                         i18n.notSet,
+                        sec.querySelector('.day-end-booking-mode'),
+                        sec.querySelector('.day-end-point-area'),
                     );
                     const startAtLabel = sec.querySelector('.day-starts-at-label');
                     const endsAtLabel = sec.querySelector('.day-ends-at-label');
@@ -4995,9 +5141,11 @@
                         const startItem = section.querySelector('.day-start-point-item');
                         const startRoomSelect = section.querySelector('.day-start-room-select');
                         const startBookingSelect = section.querySelector('.day-start-booking-mode');
+                        const startAreaSelect = section.querySelector('.day-start-point-area');
                         const startRoom = section.querySelector('.day-start-room-count');
                         const endType = section.querySelector('.day-end-point-type');
                         const endItem = section.querySelector('.day-end-point-item');
+                        const endAreaSelect = section.querySelector('.day-end-point-area');
                         const endRoomSelect = section.querySelector('.day-end-room-select');
                         const endBookingSelect = section.querySelector('.day-end-booking-mode');
                         const endRoom = section.querySelector('.day-end-room-count');
@@ -5011,9 +5159,11 @@
                         if (startRoomSelect) startRoomSelect.name = `daily_start_point_room_ids[${day}]`;
                         if (startBookingSelect) startBookingSelect.name =
                             `daily_start_hotel_booking_modes[${day}]`;
+                        if (startAreaSelect) startAreaSelect.name = `daily_start_point_areas[${day}]`;
                         if (startRoom) startRoom.name = `daily_start_point_room_counts[${day}]`;
                         if (endType) endType.name = `daily_end_point_types[${day}]`;
                         if (endItem) endItem.name = `daily_end_point_items[${day}]`;
+                        if (endAreaSelect) endAreaSelect.name = `daily_end_point_areas[${day}]`;
                         if (endRoomSelect) endRoomSelect.name = `daily_end_point_room_ids[${day}]`;
                         if (endBookingSelect) endBookingSelect.name = `daily_end_hotel_booking_modes[${day}]`;
                         if (endRoom) endRoom.name = `daily_end_point_room_counts[${day}]`;
@@ -5232,22 +5382,29 @@
                     daySections.querySelectorAll('.day-section').forEach((section) => {
                         const startType = section.querySelector('.day-start-point-type');
                         const startItem = section.querySelector('.day-start-point-item');
+                        const startItemWrap = section.querySelector('.day-start-item-wrap');
                         const startRoomWrap = section.querySelector('.day-start-room-wrap');
                         const startRoomSelect = section.querySelector('.day-start-room-select');
                         const startBookingWrap = section.querySelector('.day-start-booking-wrap');
                         const startBookingSelect = section.querySelector('.day-start-booking-mode');
+                        const startAreaWrap = section.querySelector('.day-start-area-wrap');
+                        const startAreaSelect = section.querySelector('.day-start-point-area');
                         const startRoomInput = section.querySelector('.day-start-room-count');
                         const endType = section.querySelector('.day-end-point-type');
                         const endItem = section.querySelector('.day-end-point-item');
+                        const endItemWrap = section.querySelector('.day-end-item-wrap');
                         const endRoomWrap = section.querySelector('.day-end-room-wrap');
                         const endRoomSelect = section.querySelector('.day-end-room-select');
                         const endBookingWrap = section.querySelector('.day-end-booking-wrap');
                         const endBookingSelect = section.querySelector('.day-end-booking-mode');
+                        const endAreaWrap = section.querySelector('.day-end-area-wrap');
+                        const endAreaSelect = section.querySelector('.day-end-point-area');
                         const endRoomInput = section.querySelector('.day-end-room-count');
 
                             const applyFilter = (typeSelect, itemSelect, isHotelSelfBooking = false) => {
                                 if (!typeSelect || !itemSelect) return;
                                 const selectedType = normalizePointType(typeSelect.value || '');
+                                const supportsItem = selectedType === 'airport' || isHotelPointType(selectedType);
                                 const requiresItem = selectedType === 'airport' || (isHotelPointType(selectedType) && !isHotelSelfBooking);
                                 const selectedValue = String(itemSelect.value || '');
                             let allOptions = pointOptionCache.get(itemSelect);
@@ -5269,7 +5426,7 @@
                                 itemSelect.appendChild(placeholder);
                             }
 
-                            if (!requiresItem) {
+                            if (!supportsItem) {
                                 itemSelect.disabled = true;
                                 itemSelect.required = false;
                                 itemSelect.value = '';
@@ -5277,7 +5434,7 @@
                             }
 
                             itemSelect.disabled = false;
-                            itemSelect.required = true;
+                            itemSelect.required = requiresItem;
                             let appendedCount = 0;
                             allOptions.slice(1).forEach((option) => {
                                 const pointType = normalizePointType(option.dataset.pointType || '');
@@ -5319,8 +5476,10 @@
                         const startHotel = isHotelPointType(startType?.value || '');
                         const startHotelSelfBooking = startHotel && isSelfBookedHotelMode(startBookingSelect?.value || 'arranged');
                         applyFilter(startType, startItem, startHotelSelfBooking);
-                        if (startRoomWrap) startRoomWrap.classList.toggle('hidden', !startHotel);
+                        if (startItemWrap) startItemWrap.classList.toggle('hidden', startHotel && startHotelSelfBooking);
+                        if (startRoomWrap) startRoomWrap.classList.toggle('hidden', !(startHotel && !startHotelSelfBooking));
                         if (startBookingWrap) startBookingWrap.classList.toggle('hidden', !startHotel);
+                        if (startAreaWrap) startAreaWrap.classList.toggle('hidden', !(startHotel && startHotelSelfBooking));
                         if (startRoomSelect) {
                             const selectedHotelId = String(startItem?.value || '');
                             Array.from(startRoomSelect.options).forEach((option, idx) => {
@@ -5347,6 +5506,13 @@
                             startRoomInput.disabled = !startHotel || startHotelSelfBooking;
                             if (!startHotel || startHotelSelfBooking) startRoomInput.value = '1';
                         }
+                        if (startAreaSelect) {
+                            startAreaSelect.disabled = !(startHotel && startHotelSelfBooking);
+                            startAreaSelect.required = startHotel && startHotelSelfBooking;
+                            if (!(startHotel && startHotelSelfBooking)) {
+                                startAreaSelect.value = '';
+                            }
+                        }
                         if (startBookingSelect) {
                             startBookingSelect.disabled = !startHotel;
                             startBookingSelect.required = startHotel;
@@ -5362,8 +5528,10 @@
                         const endHotel = isHotelPointType(endType?.value || '');
                         const endHotelSelfBooking = endHotel && isSelfBookedHotelMode(endBookingSelect?.value || 'arranged');
                         applyFilter(endType, endItem, endHotelSelfBooking);
-                        if (endRoomWrap) endRoomWrap.classList.toggle('hidden', !endHotel);
+                        if (endItemWrap) endItemWrap.classList.toggle('hidden', endHotel && endHotelSelfBooking);
+                        if (endRoomWrap) endRoomWrap.classList.toggle('hidden', !(endHotel && !endHotelSelfBooking));
                         if (endBookingWrap) endBookingWrap.classList.toggle('hidden', !endHotel);
+                        if (endAreaWrap) endAreaWrap.classList.toggle('hidden', !(endHotel && endHotelSelfBooking));
                         if (endRoomSelect) {
                             const selectedHotelId = String(endItem?.value || '');
                             Array.from(endRoomSelect.options).forEach((option, idx) => {
@@ -5389,6 +5557,13 @@
                         if (endRoomInput) {
                             endRoomInput.disabled = !endHotel || endHotelSelfBooking;
                             if (!endHotel || endHotelSelfBooking) endRoomInput.value = '1';
+                        }
+                        if (endAreaSelect) {
+                            endAreaSelect.disabled = !(endHotel && endHotelSelfBooking);
+                            endAreaSelect.required = endHotel && endHotelSelfBooking;
+                            if (!(endHotel && endHotelSelfBooking)) {
+                                endAreaSelect.value = '';
+                            }
                         }
                         if (endBookingSelect) {
                             endBookingSelect.disabled = !endHotel;
@@ -5534,11 +5709,15 @@
                             section.querySelector('.day-start-point-type'),
                             section.querySelector('.day-start-point-item'),
                             previousEndLabel,
+                            section.querySelector('.day-start-booking-mode'),
+                            section.querySelector('.day-start-point-area'),
                         );
                         const endLabel = getPointLabelFromTypeAndItem(
                             section.querySelector('.day-end-point-type'),
                             section.querySelector('.day-end-point-item'),
                             i18n.notSet,
+                            section.querySelector('.day-end-booking-mode'),
+                            section.querySelector('.day-end-point-area'),
                         );
                         const startBadge = section.querySelector('.day-starts-at-label');
                         const endBadge = section.querySelector('.day-ends-at-label');
@@ -5800,6 +5979,8 @@
                         syncPointItemVisibility();
                         recalcNoConnectorRebuild();
                     });
+                    sec.querySelector('.day-start-point-area')?.addEventListener('change',
+                        recalcNoConnectorRebuild);
                     sec.querySelector('.day-start-room-count')?.addEventListener('input', recalcNoConnectorRebuild);
                     sec.querySelector('.day-end-point-type')?.addEventListener('change', () => {
                         updateDayPointTheme(sec);
@@ -5812,6 +5993,7 @@
                         recalcNoConnectorRebuild();
                     });
                     sec.querySelector('.day-end-point-item')?.addEventListener('change', syncPointItemVisibility);
+                    sec.querySelector('.day-end-point-area')?.addEventListener('change', recalcNoConnectorRebuild);
                     sec.querySelector('.day-end-room-select')?.addEventListener('change', recalcNoConnectorRebuild);
                     sec.querySelector('.day-end-booking-mode')?.addEventListener('change', () => {
                         syncPointItemVisibility();
@@ -5878,11 +6060,11 @@
                 });
                 inquirySelect?.addEventListener('change', updateWizardReview);
                 itineraryTitleInput?.addEventListener('input', updateWizardReview);
-                itineraryOrderNumberInput?.addEventListener('input', updateWizardReview);
                 itineraryDestinationInput?.addEventListener('input', updateWizardReview);
                 itineraryDescriptionInput?.addEventListener('input', updateWizardReview);
                 itineraryIncludeInput?.addEventListener('input', updateWizardReview);
                 itineraryExcludeInput?.addEventListener('input', updateWizardReview);
+                itineraryTermConditionsInput?.addEventListener('input', updateWizardReview);
                 durationNightsInput?.addEventListener('input', updateWizardReview);
                 daySections.addEventListener('change', updateWizardReview);
                 daySections.addEventListener('input', updateWizardReview);
@@ -5940,6 +6122,9 @@
                             const dayStartRoomWrap = c.querySelector('.day-start-room-wrap');
                             const dayStartBookingSelect = c.querySelector('.day-start-booking-mode');
                             const dayStartBookingWrap = c.querySelector('.day-start-booking-wrap');
+                            const dayStartItemWrap = c.querySelector('.day-start-item-wrap');
+                            const dayStartAreaSelect = c.querySelector('.day-start-point-area');
+                            const dayStartAreaWrap = c.querySelector('.day-start-area-wrap');
                             if (dayStartRoomInput) {
                                 dayStartRoomInput.name = `daily_start_point_room_counts[${i}]`;
                                 dayStartRoomInput.value = '1';
@@ -5950,8 +6135,15 @@
                                 dayStartBookingSelect.value = 'arranged';
                                 dayStartBookingSelect.disabled = true;
                             }
+                            if (dayStartAreaSelect) {
+                                dayStartAreaSelect.name = `daily_start_point_areas[${i}]`;
+                                dayStartAreaSelect.value = '';
+                                dayStartAreaSelect.disabled = true;
+                            }
                             dayStartRoomWrap?.classList.add('hidden');
                             dayStartBookingWrap?.classList.add('hidden');
+                            dayStartItemWrap?.classList.remove('hidden');
+                            dayStartAreaWrap?.classList.add('hidden');
                             const dayEndPointType = c.querySelector('.day-end-point-type');
                             if (dayEndPointType) {
                                 dayEndPointType.name = `daily_end_point_types[${i}]`;
@@ -5961,6 +6153,12 @@
                             if (dayEndPointSelect) {
                                 dayEndPointSelect.name = `daily_end_point_items[${i}]`;
                                 dayEndPointSelect.value = '';
+                            }
+                            const dayEndAreaSelect = c.querySelector('.day-end-point-area');
+                            if (dayEndAreaSelect) {
+                                dayEndAreaSelect.name = `daily_end_point_areas[${i}]`;
+                                dayEndAreaSelect.value = '';
+                                dayEndAreaSelect.disabled = true;
                             }
                             const dayEndRoomSelect = c.querySelector('.day-end-room-select');
                             if (dayEndRoomSelect) {
@@ -5977,6 +6175,8 @@
                             const dayEndRoomInput = c.querySelector('.day-end-room-count');
                             const dayEndRoomWrap = c.querySelector('.day-end-room-wrap');
                             const dayEndBookingWrap = c.querySelector('.day-end-booking-wrap');
+                            const dayEndItemWrap = c.querySelector('.day-end-item-wrap');
+                            const dayEndAreaWrap = c.querySelector('.day-end-area-wrap');
                             if (dayEndRoomInput) {
                                 dayEndRoomInput.name = `daily_end_point_room_counts[${i}]`;
                                 dayEndRoomInput.value = '1';
@@ -5984,6 +6184,8 @@
                             }
                             dayEndRoomWrap?.classList.add('hidden');
                             dayEndBookingWrap?.classList.add('hidden');
+                            dayEndItemWrap?.classList.remove('hidden');
+                            dayEndAreaWrap?.classList.add('hidden');
                             const dayStartTravelInput = c.querySelector('.day-start-travel');
                             if (dayStartTravelInput) {
                                 dayStartTravelInput.name = `day_start_travel_minutes[${i}]`;
@@ -6041,6 +6243,11 @@
                             c.querySelector('.day-start-room-select')?.addEventListener('change',
                                 recalcNoConnectorRebuild);
                             c.querySelector('.day-start-booking-mode')?.addEventListener('change',
+                                () => {
+                                    syncPointItemVisibility();
+                                    recalcNoConnectorRebuild();
+                                });
+                            c.querySelector('.day-start-point-area')?.addEventListener('change',
                                 recalcNoConnectorRebuild);
                             c.querySelector('.day-start-room-count')?.addEventListener('input',
                                 recalcNoConnectorRebuild);
@@ -6055,8 +6262,15 @@
                             });
                             c.querySelector('.day-end-point-item')?.addEventListener('change',
                                 syncPointItemVisibility);
+                            c.querySelector('.day-end-point-area')?.addEventListener('change',
+                                recalcNoConnectorRebuild);
                             c.querySelector('.day-end-room-select')?.addEventListener('change',
                                 recalcNoConnectorRebuild);
+                            c.querySelector('.day-end-booking-mode')?.addEventListener('change',
+                                () => {
+                                    syncPointItemVisibility();
+                                    recalcNoConnectorRebuild();
+                                });
                             c.querySelector('.day-end-room-count')?.addEventListener('input',
                                 recalcNoConnectorRebuild);
                             c.querySelector('.day-start-travel')?.addEventListener('input',
@@ -6213,10 +6427,17 @@
                     const province = normalize(option.dataset.province);
                     const location = normalize(option.dataset.location);
                     const destination = normalize(option.dataset.destination);
-                    return city.includes(keyword) ||
-                        province.includes(keyword) ||
-                        location.includes(keyword) ||
-                        destination.includes(keyword);
+                    const keywords = String(keyword || '')
+                        .split(',')
+                        .map((part) => normalize(part))
+                        .filter((part) => part !== '');
+                    if (keywords.length === 0) return true;
+                    return keywords.some((key) =>
+                        city.includes(key) ||
+                        province.includes(key) ||
+                        location.includes(key) ||
+                        destination.includes(key)
+                    );
                 };
                 const matchesRegion = (option, regionKeyword) => {
                     if (!regionKeyword) return true;
@@ -6270,12 +6491,34 @@
                         ) && !selected;
                     });
                 };
+                const applyFilterToAreaSelect = (select) => {
+                    if (!select) return;
+                    const keyword = normalize(destinationInput.value);
+                    const selectedValue = String(select.value || '');
+                    let hasVisibleSelected = false;
+                    Array.from(select.options).forEach((option, idx) => {
+                        if (idx === 0) {
+                            option.hidden = false;
+                            return;
+                        }
+                        const visible = matchesDestination(option, keyword);
+                        option.hidden = !visible;
+                        if (visible && option.value === selectedValue) {
+                            hasVisibleSelected = true;
+                        }
+                    });
+                    if (selectedValue !== '' && !hasVisibleSelected) {
+                        select.value = '';
+                    }
+                };
 
                 const applyDestinationFilter = () => {
                     document.querySelectorAll(
                             '.item-attraction, .item-activity, .item-transfer, .item-fnb, .day-start-point-item, .day-end-point-item, .day-transport-unit'
                             )
                         .forEach(applyFilterToSelect);
+                    document.querySelectorAll('.day-start-point-area, .day-end-point-area')
+                        .forEach(applyFilterToAreaSelect);
                 };
 
                 const fetchSuggestionsDebounced = debounce((keyword) => {

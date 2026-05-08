@@ -21,9 +21,6 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule): void
     {
-        $schedule->command('inquiries:send-followup-reminders')
-            ->timezone((string) config('app.schedule_timezone', config('app.timezone')))
-            ->dailyAt('09:00');
         $schedule->command('inquiries:notify-reservation-draft-deadline-tomorrow')
             ->timezone((string) config('app.schedule_timezone', config('app.timezone')))
             ->dailyAt('09:00');

@@ -33,7 +33,6 @@ class Itinerary extends Model
         'inquiry_id',
         'created_by',
         'title',
-        'order_number',
         'destination',
         'destination_id',
         'arrival_transport_id',
@@ -43,6 +42,7 @@ class Itinerary extends Model
         'description',
         'itinerary_include',
         'itinerary_exclude',
+        'term_conditions',
         'is_active',
         'status',
     ];

@@ -19,11 +19,12 @@
                     </form>
                 </div>
             </div>
-            <aside class="module-grid-side space-y-6">
+            <aside class="module-grid-side">
                 @include('partials._audit-info', ['record' => $transport])
             </aside>
         </div>
     </div>
 @endsection
+
 
 

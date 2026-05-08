@@ -72,7 +72,7 @@
     @endphp
 
     <div class="module-page module-page--hotels">
-        <div class="module-grid-9-3 hotel-detail-print-grid">
+        <div class="module-grid-8-4 hotel-detail-print-grid">
             <div class="module-grid-main">
                 <div class="app-card p-5">
                     <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ ui_phrase('Gallery') }}</h3>
@@ -468,4 +468,3 @@
         </script>
     @endpush
 @endif
-

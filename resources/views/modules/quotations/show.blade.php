@@ -97,6 +97,14 @@
                             <dd class="text-sm font-medium text-gray-800 dark:text-gray-100">{{ $quotation->validity_date?->format('Y-m-d') ?? '-' }}</dd>
                         </div>
                         <div>
+                            <dt class="text-xs text-gray-500 dark:text-gray-400">{{ ui_phrase('Service Date') }}</dt>
+                            <dd class="text-sm font-medium text-gray-800 dark:text-gray-100">{{ $quotation->service_date?->format('Y-m-d') ?? '-' }}</dd>
+                        </div>
+                        <div>
+                            <dt class="text-xs text-gray-500 dark:text-gray-400">{{ ui_phrase('Pax (Adult / Child)') }}</dt>
+                            <dd class="text-sm font-medium text-gray-800 dark:text-gray-100">{{ (int) ($quotation->pax_adult ?? 0) }} / {{ (int) ($quotation->pax_child ?? 0) }}</dd>
+                        </div>
+                        <div>
                             <dt class="text-xs text-gray-500 dark:text-gray-400">{{ ui_phrase('Destination') }}</dt>
                             <dd class="text-sm font-medium text-gray-800 dark:text-gray-100">{{ $quotation->itinerary?->destination ?? '-' }}</dd>
                         </div>
@@ -501,4 +509,3 @@
         </div>
     </div>
 @endsection
-

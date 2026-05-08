@@ -25,11 +25,13 @@ class ItineraryDayPoint extends Model
         'start_hotel_id',
         'start_hotel_room_id',
         'start_hotel_booking_mode',
+        'start_hotel_area',
         'end_point_type',
         'end_airport_id',
         'end_hotel_id',
         'end_hotel_room_id',
         'end_hotel_booking_mode',
+        'end_hotel_area',
     ];
 
     protected $casts = [
@@ -87,5 +89,3 @@ class ItineraryDayPoint extends Model
         return $this->belongsTo(FoodBeverage::class, 'main_food_beverage_id');
     }
 }
-
-
