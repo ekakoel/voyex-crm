@@ -504,7 +504,7 @@ class HotelController extends Controller
         $currentNormalized = $this->normalizeHotelCoverPath((string) $currentCover);
 
         if ($uploaded) {
-            $originalPath = $uploaded->store('hotels/cover', 'public');
+            $originalPath = $uploaded->store('hotels/covers', 'public');
             $processedPath = ImageThumbnailGenerator::processAndGenerate('public', $originalPath, 3, 2, 360, 240) ?? $originalPath;
             $deletePath = $currentNormalized !== '' && ! Str::startsWith($currentNormalized, ['http://', 'https://']) && $currentNormalized !== $processedPath
                 ? $currentNormalized
@@ -761,4 +761,3 @@ class HotelController extends Controller
     }
 
 }
-

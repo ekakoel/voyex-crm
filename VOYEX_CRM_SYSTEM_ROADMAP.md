@@ -199,6 +199,19 @@ Kebijakan ini wajib untuk setiap update code (penambahan, perubahan, pengurangan
 
 # CHANGELOG (LATEST)
 
+Date: 2026-05-11
+Completed in this cycle:
+
+- Hotels create/edit cover upload reliability fix:
+  - fixed cover preview binding on hotel info step by using stable wrapper scope (`data-hotel-cover-field`) so `Choose File` always targets the correct preview container.
+  - ensured selected image is rendered immediately in preview area when user picks a file (`cover_file`) on create/edit.
+  - added helper note in Hotels info form to align UX with image pipeline behavior:
+    - `Image will be cropped to 3:2 and a thumbnail is generated.`
+  - aligned Hotels cover upload storage path to project standard naming:
+    - upload now stores into `hotels/covers` (plural) on `public` disk.
+    - existing/legacy paths (`hotels/cover` and `hotels/covers`) remain supported by normalization logic for backward compatibility.
+  - maintained thumbnail-first delivery flow through `ImageThumbnailGenerator` for hotel cover rendering and fallback behavior.
+
 Date: 2026-05-08
 Completed in this cycle:
 

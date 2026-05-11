@@ -1146,7 +1146,8 @@ function initHotelInfoCover(root = document) {
         wrapper.dataset.hotelInfoCoverBound = '1';
 
         const input = wrapper.querySelector('.hotel-cover-input');
-        const preview = wrapper.closest('div')?.querySelector('.hotel-cover-preview') || wrapper.parentElement?.querySelector('.hotel-cover-preview');
+        const coverField = wrapper.closest('[data-hotel-cover-field]');
+        const preview = coverField?.querySelector('.hotel-cover-preview') || wrapper.parentElement?.querySelector('.hotel-cover-preview');
         if (!input || !preview) {
             return;
         }
@@ -1164,6 +1165,7 @@ function initHotelInfoCover(root = document) {
                 image.alt = 'Hotel cover preview';
                 preview.appendChild(image);
             }
+            image.removeAttribute('data-fallback-applied');
             image.addEventListener('load', () => {
                 image.classList.add('image-loaded');
                 preview.classList.add('has-image');

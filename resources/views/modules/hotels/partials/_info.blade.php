@@ -9,7 +9,7 @@
 <div class="space-y-6 hotel-form" data-location-autofill data-location-resolve-url="{{ route('location.resolve-google-map') }}">
     <div class="app-card p-5 space-y-5">
         <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <div>
+            <div data-hotel-cover-field>
                 @php
                     $coverValue = (string) old('existing_cover', $hotel->cover ?? '');
                     $coverStoredPath = trim(str_replace('\\', '/', $coverValue), '/');
@@ -52,6 +52,7 @@
                     <input type="file" name="cover_file" accept="image/*" class="hotel-cover-input w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
                     <input type="hidden" name="existing_cover" value="{{ $coverStoredPath }}">
                 </div>
+                <p class="mt-1 text-[11px] text-gray-500">{{ __('Image will be cropped to 3:2 and a thumbnail is generated.') }}</p>
                 @error('cover_file') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
                 @error('cover') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
             </div>
@@ -157,7 +158,6 @@
         </div>
     @endif
 </div>
-
 
 
 
