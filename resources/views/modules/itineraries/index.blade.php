@@ -36,7 +36,7 @@
 
                 </section>
             </aside>
-            <div class="module-grid-main min-w-0" data-service-filter-results>
+            <div class="module-grid-main min-w-0">
                 <div class="app-card p-5">
                     <div class="grid gap-3">
                         <div>
@@ -63,6 +63,7 @@
                         </form>
                     </div>
                 </div>
+        <div data-service-filter-results>
         @if (session('success'))
             <div class="mb-6 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300">{{ session('success') }}</div>
         @endif
@@ -445,6 +446,7 @@
             @endforelse
         </div>
         <div>{{ $itineraries->links() }}</div>
+        </div>
             </div>
         </div>
 </div>

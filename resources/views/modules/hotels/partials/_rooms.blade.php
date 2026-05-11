@@ -6,6 +6,7 @@
     $roomRows = old('rooms');
     if ($roomRows === null) {
         $roomRows = $hotel?->rooms?->map(fn ($room) => [
+            'id' => $room->id,
             'room_view_id' => $room->room_view_id,
             'cover' => $room->cover,
             'rooms' => $room->rooms,
@@ -37,6 +38,7 @@
                     $roomTitle = $roomLabel !== '' ? $roomLabel : 'Room ' . ($index + 1);
                 @endphp
                 <div class="app-card p-4" data-room-card>
+                    <input type="hidden" name="rooms[{{ $index }}][id]" value="{{ $row['id'] ?? '' }}">
                     <div class="flex flex-wrap items-center justify-between gap-3">
                         <div class="flex items-center gap-2">
                             <span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-700">{{ $index + 1 }}</span>
@@ -67,9 +69,16 @@
                                 $coverFull = $coverStoredPath !== '' && ! $coverIsExternal
                                     ? \App\Support\ImageThumbnailGenerator::resolveOriginalPublicUrl($coverStoredPath)
                                     : $coverStoredPath;
+                                if ($coverThumb === null || $coverThumb === '') {
+                                    $coverThumb = $coverFull;
+                                }
+                                if ($coverFull === null || $coverFull === '') {
+                                    $coverFull = $coverThumb;
+                                }
                             @endphp
+                            @php($coverMissingInStorage = $coverStoredPath !== '' && empty($coverThumb))
                             <label class="block text-xs text-gray-500">{{ ui_phrase('Cover (Upload Image)') }}</label>
-                            <div class="room-cover-preview image-preview mt-2 flex w-full items-center justify-center overflow-hidden rounded-lg border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800/40">
+                            <div class="room-cover-preview image-preview mt-2 flex w-full items-center justify-center overflow-hidden rounded-lg border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800/40 {{ ! empty($coverThumb) ? 'has-image' : '' }}">
                             <div class="image-preview-placeholder">
                                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                                     <path d="M4 7h3l2-2h6l2 2h3a1 1 0 0 1 1 1v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a1 1 0 0 1 1-1z"></path>
@@ -77,12 +86,24 @@
                                 </svg>
                                 <span>{{ ui_phrase('Select image to preview') }}</span>
                             </div>
-                                @if ($coverStoredPath !== '')
-                                    <img src="{{ $coverThumb }}" loading="lazy" decoding="async" onload="this.classList.add('image-loaded');var p=this.closest('.image-preview');if(p){p.classList.add('has-image');}" onerror="if(this.dataset.fallbackApplied){var p=this.closest('.image-preview');if(p){p.classList.remove('has-image');}this.remove();}else{this.dataset.fallbackApplied='1';this.src='{{ $coverFull }}';}" alt="Room cover preview" class="h-full w-full object-cover">
+                                @if (! empty($coverThumb))
+                                    <img
+                                        src="{{ $coverThumb }}"
+                                        data-preview-image="1"
+                                        data-fallback-src="{{ $coverFull }}"
+                                        loading="eager"
+                                        decoding="async"
+                                        alt="Room cover preview"
+                                        class="h-full w-full object-cover image-loaded"
+                                    >
                                 @endif
                             </div>
                             <input type="file" name="rooms[{{ $index }}][cover]" accept="image/*" class="room-cover-input mt-2 w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
                             <input type="hidden" name="rooms[{{ $index }}][existing_cover]" value="{{ $coverStoredPath }}">
+                            @if ($coverMissingInStorage)
+                                <p class="mt-1 text-xs text-amber-600">{{ __('Existing room cover file is missing from storage. Please re-upload image.') }}</p>
+                            @endif
+                            <p class="mt-1 text-[11px] text-gray-500">{{ __('Image will be cropped to 3:2 and a thumbnail is generated.') }}</p>
                         </div>
                         <div class="md:col-span-8">
                             <div class="mt-4 grid grid-cols-2 gap-3 md:grid-cols-12">
@@ -137,6 +158,7 @@
         </div>
         <template id="room-row-template">
             <div class="app-card p-4" data-room-card>
+                <input type="hidden" name="rooms[__INDEX__][id]" value="">
                 <div class="flex flex-wrap items-center justify-between gap-3">
                     <div class="flex items-center gap-2">
                         <span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-700">#</span>
@@ -210,6 +232,3 @@
         </template>
     </div>
 </div>
-
-
-

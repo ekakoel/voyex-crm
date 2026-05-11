@@ -80,21 +80,24 @@
                         <div class="mt-3 space-y-3">
                             <button
                                 type="button"
-                                class="block w-full overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700"
+                                class="relative block w-full overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700"
                                 data-hotel-gallery-open="1"
                             >
-                                <img id="hotel-gallery-main-image" src="{{ $firstGalleryImage }}" alt="{{ ui_phrase('hotel image alt') }}" class="h-72 w-full object-cover object-center md:h-[28rem]">
+                                <div id="hotel-gallery-main-spinner" class="pointer-events-none absolute inset-0 z-10 hidden items-center justify-center bg-black/20 backdrop-blur-[1px]">
+                                    <span class="inline-block h-9 w-9 animate-spin rounded-full border-2 border-white/35 border-t-white"></span>
+                                </div>
+                                <img id="hotel-gallery-main-image" src="{{ $firstGalleryImage }}" alt="{{ ui_phrase('hotel image alt') }}" class="h-72 w-full object-cover object-center transition-opacity duration-200 md:h-[28rem]" loading="eager" decoding="async">
                             </button>
                             <div class="grid grid-cols-3 gap-2 md:grid-cols-6">
                                 @foreach ($galleryItems as $index => $item)
                                     <button
                                         type="button"
-                                        class="relative overflow-hidden rounded-md border border-gray-200 dark:border-gray-700"
+                                        class="relative overflow-hidden rounded-md border border-gray-200 dark:border-gray-700 {{ $index === 0 ? 'ring-2 ring-sky-500' : '' }}"
                                         data-hotel-gallery-thumb="{{ $index }}"
                                         data-hotel-gallery-src="{{ $item['full_url'] }}"
                                         title="{{ $item['label'] }}"
                                     >
-                                        <img src="{{ $item['thumbnail_url'] ?: $item['full_url'] }}" alt="{{ $item['label'] }}" class="h-16 w-full object-cover">
+                                        <img src="{{ $item['thumbnail_url'] ?: $item['full_url'] }}" alt="{{ $item['label'] }}" class="h-16 w-full object-cover" loading="lazy" decoding="async">
                                         <span class="pointer-events-none absolute bottom-1 left-1 right-1 truncate rounded bg-black/70 px-1.5 py-0.5 text-[10px] font-medium text-white">
                                             {{ $item['label'] }}
                                         </span>
@@ -109,74 +112,86 @@
 
                 <div class="app-card p-5">
                     <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ ui_phrase('Hotel Information') }}</h3>
-                    <div class="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2">
-                        <div>
-                            <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ ui_phrase('Hotel Name') }}</p>
-                            <p class="mt-1 text-sm font-semibold text-gray-900 dark:text-gray-100">{{ $hotel->name }}</p>
+                    <div class="mt-3 grid grid-cols-1 gap-4 lg:grid-cols-2">
+                        <div class="overflow-x-auto">
+                            <table class="app-table w-full divide-y divide-gray-200 text-sm dark:divide-gray-700">
+                                <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
+                                    <tr>
+                                        <th class="w-52 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('Hotel Name') }}</th>
+                                        <td class="px-3 py-2 text-gray-900 dark:text-gray-100">{{ $hotel->name }}</td>
+                                    </tr>
+                                    <tr>
+                                        <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('Code') }}</th>
+                                        <td class="px-3 py-2 text-gray-800 dark:text-gray-100">{{ $hotel->code ?: '-' }}</td>
+                                    </tr>
+                                    <tr>
+                                        <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('Property') }}</th>
+                                        <td class="px-3 py-2 text-gray-800 dark:text-gray-100">{{ $hotel->region ?: '-' }}</td>
+                                    </tr>
+                                    <tr>
+                                        <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('Destination') }}</th>
+                                        <td class="px-3 py-2 text-gray-800 dark:text-gray-100">{{ $hotel->destination?->province ?: ($hotel->destination?->name ?? '-') }}</td>
+                                    </tr>
+                                    <tr>
+                                        <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('City') }}</th>
+                                        <td class="px-3 py-2 text-gray-800 dark:text-gray-100">{{ $hotel->city ?: '-' }}</td>
+                                    </tr>
+                                    <tr>
+                                        <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('Province') }}</th>
+                                        <td class="px-3 py-2 text-gray-800 dark:text-gray-100">{{ $hotel->province ?: '-' }}</td>
+                                    </tr>
+                                    <tr>
+                                        <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('Country') }}</th>
+                                        <td class="px-3 py-2 text-gray-800 dark:text-gray-100">{{ $hotel->country ?: '-' }}</td>
+                                    </tr>
+                                    <tr>
+                                        <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('Status') }}</th>
+                                        <td class="px-3 py-2 text-gray-800 dark:text-gray-100"><x-status-badge :status="$hotelStatus" size="xs" /></td>
+                                    </tr>
+                                </tbody>
+                            </table>
                         </div>
-                        <div>
-                            <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ ui_phrase('Code') }}</p>
-                            <p class="mt-1 text-sm text-gray-800 dark:text-gray-100">{{ $hotel->code ?: '-' }}</p>
-                        </div>
-                        <div>
-                            <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ ui_phrase('Property') }}</p>
-                            <p class="mt-1 text-sm text-gray-800 dark:text-gray-100">{{ $hotel->region ?? '-' }}</p>
-                        </div>
-                        <div>
-                            <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ ui_phrase('Destination') }}</p>
-                            <p class="mt-1 text-sm text-gray-800 dark:text-gray-100">{{ $hotel->destination?->province ?: ($hotel->destination?->name ?? '-') }}</p>
-                        </div>
-                        <div>
-                            <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ ui_phrase('City') }}</p>
-                            <p class="mt-1 text-sm text-gray-800 dark:text-gray-100">{{ $hotel->city ?: '-' }}</p>
-                        </div>
-                        <div>
-                            <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ ui_phrase('Province') }}</p>
-                            <p class="mt-1 text-sm text-gray-800 dark:text-gray-100">{{ $hotel->province ?: '-' }}</p>
-                        </div>
-                        <div>
-                            <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ ui_phrase('Country') }}</p>
-                            <p class="mt-1 text-sm text-gray-800 dark:text-gray-100">{{ $hotel->country ?: '-' }}</p>
-                        </div>
-                        <div>
-                            <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ ui_phrase('Contact Person') }}</p>
-                            <p class="mt-1 text-sm text-gray-800 dark:text-gray-100">{{ $hotel->contact_person ?: '-' }}</p>
-                        </div>
-                        <div>
-                            <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ ui_phrase('Phone') }}</p>
-                            <p class="mt-1 text-sm text-gray-800 dark:text-gray-100">{{ $hotel->phone ?: '-' }}</p>
-                        </div>
-                        <div>
-                            <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ ui_phrase('Check-in') }}</p>
-                            <p class="mt-1 text-sm text-gray-800 dark:text-gray-100">{{ $hotel->check_in_time ?: '-' }}</p>
-                        </div>
-                        <div>
-                            <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ ui_phrase('Check-out') }}</p>
-                            <p class="mt-1 text-sm text-gray-800 dark:text-gray-100">{{ $hotel->check_out_time ?: '-' }}</p>
-                        </div>
-                        <div>
-                            <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ ui_phrase('Min Stay') }}</p>
-                            <p class="mt-1 text-sm text-gray-800 dark:text-gray-100">{{ $hotel->min_stay ?: '-' }}</p>
-                        </div>
-                        <div>
-                            <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ ui_phrase('Max Stay') }}</p>
-                            <p class="mt-1 text-sm text-gray-800 dark:text-gray-100">{{ $hotel->max_stay ?: '-' }}</p>
-                        </div>
-                        <div>
-                            <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ ui_phrase('Airport Distance') }}</p>
-                            <p class="mt-1 text-sm text-gray-800 dark:text-gray-100">{{ $hotel->airport_distance ? ui_phrase(':distance km', ['distance' => $hotel->airport_distance]) : '-' }}</p>
-                        </div>
-                        <div>
-                            <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ ui_phrase('Airport Duration') }}</p>
-                            <p class="mt-1 text-sm text-gray-800 dark:text-gray-100">{{ $hotel->airport_duration ? ui_phrase(':duration min', ['duration' => $hotel->airport_duration]) : '-' }}</p>
-                        </div>
-                        <div>
-                            <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ ui_phrase('Status') }}</p>
-                            <div class="mt-1"><x-status-badge :status="$hotelStatus" size="xs" /></div>
-                        </div>
-                        <div class="md:col-span-2">
-                            <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ ui_phrase('Address') }}</p>
-                            <p class="mt-1 text-sm text-gray-800 dark:text-gray-100">{{ $hotel->address ?: '-' }}</p>
+                        <div class="overflow-x-auto">
+                            <table class="app-table w-full divide-y divide-gray-200 text-sm dark:divide-gray-700">
+                                <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
+                                    <tr>
+                                        <th class="w-52 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('Contact Person') }}</th>
+                                        <td class="px-3 py-2 text-gray-800 dark:text-gray-100">{{ $hotel->contact_person ?: '-' }}</td>
+                                    </tr>
+                                    <tr>
+                                        <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('Phone') }}</th>
+                                        <td class="px-3 py-2 text-gray-800 dark:text-gray-100">{{ $hotel->phone ?: '-' }}</td>
+                                    </tr>
+                                    <tr>
+                                        <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('Check-in') }}</th>
+                                        <td class="px-3 py-2 text-gray-800 dark:text-gray-100">{{ $hotel->check_in_time ?: '-' }}</td>
+                                    </tr>
+                                    <tr>
+                                        <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('Check-out') }}</th>
+                                        <td class="px-3 py-2 text-gray-800 dark:text-gray-100">{{ $hotel->check_out_time ?: '-' }}</td>
+                                    </tr>
+                                    <tr>
+                                        <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('Min Stay') }}</th>
+                                        <td class="px-3 py-2 text-gray-800 dark:text-gray-100">{{ $hotel->min_stay ?: '-' }}</td>
+                                    </tr>
+                                    <tr>
+                                        <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('Max Stay') }}</th>
+                                        <td class="px-3 py-2 text-gray-800 dark:text-gray-100">{{ $hotel->max_stay ?: '-' }}</td>
+                                    </tr>
+                                    <tr>
+                                        <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('Airport Distance') }}</th>
+                                        <td class="px-3 py-2 text-gray-800 dark:text-gray-100">{{ $hotel->airport_distance ? ui_phrase(':distance km', ['distance' => $hotel->airport_distance]) : '-' }}</td>
+                                    </tr>
+                                    <tr>
+                                        <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('Airport Duration') }}</th>
+                                        <td class="px-3 py-2 text-gray-800 dark:text-gray-100">{{ $hotel->airport_duration ? ui_phrase(':duration min', ['duration' => $hotel->airport_duration]) : '-' }}</td>
+                                    </tr>
+                                    <tr>
+                                        <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300 align-top">{{ ui_phrase('Address') }}</th>
+                                        <td class="px-3 py-2 text-gray-800 dark:text-gray-100">{{ $hotel->address ?: '-' }}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </div>
@@ -397,22 +412,59 @@
         <script>
             (function () {
                 const mainImage = document.getElementById('hotel-gallery-main-image');
+                const mainSpinner = document.getElementById('hotel-gallery-main-spinner');
                 const lightbox = document.getElementById('hotel-gallery-lightbox');
                 const lightboxImage = document.getElementById('hotel-gallery-lightbox-image');
-                if (!mainImage || !lightbox || !lightboxImage) return;
+                if (!mainImage || !mainSpinner || !lightbox || !lightboxImage) return;
 
                 const thumbs = Array.from(document.querySelectorAll('[data-hotel-gallery-thumb]'));
-                const sources = thumbs.map((btn) => btn.getAttribute('data-hotel-gallery-src')).filter(Boolean);
-                if (!sources.length) return;
+                const entries = thumbs
+                    .map((btn) => ({
+                        full: btn.getAttribute('data-hotel-gallery-src'),
+                    }))
+                    .filter((entry) => Boolean(entry.full));
+                if (!entries.length) return;
 
                 let currentIndex = 0;
+                const activeThumbClass = 'ring-2';
+                const activeThumbColorClass = 'ring-sky-500';
+                let isMainLoading = false;
+
+                const setMainLoading = (loading) => {
+                    isMainLoading = loading;
+                    mainSpinner.classList.toggle('hidden', !loading);
+                    mainSpinner.classList.toggle('flex', loading);
+                    mainImage.classList.toggle('opacity-60', loading);
+                };
+
+                mainImage.addEventListener('load', () => {
+                    if (!isMainLoading) return;
+                    setMainLoading(false);
+                });
+
+                mainImage.addEventListener('error', () => {
+                    if (!isMainLoading) return;
+                    setMainLoading(false);
+                });
+
+                const setActiveThumb = (index) => {
+                    thumbs.forEach((btn, idx) => {
+                        const isActive = idx === index;
+                        btn.classList.toggle(activeThumbClass, isActive);
+                        btn.classList.toggle(activeThumbColorClass, isActive);
+                    });
+                };
 
                 const setImage = (index) => {
-                    if (!sources.length) return;
-                    currentIndex = (index + sources.length) % sources.length;
-                    const src = sources[currentIndex];
-                    mainImage.src = src;
-                    lightboxImage.src = src;
+                    if (!entries.length) return;
+                    currentIndex = (index + entries.length) % entries.length;
+                    const current = entries[currentIndex];
+                    if (mainImage.src !== current.full) {
+                        setMainLoading(true);
+                        mainImage.src = current.full;
+                    }
+                    lightboxImage.src = current.full;
+                    setActiveThumb(currentIndex);
                 };
 
                 thumbs.forEach((btn) => {
@@ -464,6 +516,8 @@
                         setImage(currentIndex + 1);
                     }
                 });
+
+                setImage(0);
             })();
         </script>
     @endpush

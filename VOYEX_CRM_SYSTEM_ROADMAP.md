@@ -211,6 +211,86 @@ Completed in this cycle:
     - upload now stores into `hotels/covers` (plural) on `public` disk.
     - existing/legacy paths (`hotels/cover` and `hotels/covers`) remain supported by normalization logic for backward compatibility.
   - maintained thumbnail-first delivery flow through `ImageThumbnailGenerator` for hotel cover rendering and fallback behavior.
+  - improved existing-cover render reliability on hotel form:
+    - when hotel already has stored cover, preview now renders immediately using thumbnail-first URL with original-image fallback resolution.
+    - prevents empty preview state when thumbnail URL cannot be resolved on first pass.
+  - image preview UX consistency hardening (Hotels module):
+    - refactored hotel-cover and room-cover file preview to use one shared JS helper flow in `resources/js/app.js`,
+      so behavior is consistent across create/edit and dynamic room rows.
+    - room-cover existing image render now uses the same thumbnail-first + original fallback pattern as hotel cover.
+    - standardized helper text under room cover input to match hotel cover image pipeline guidance.
+  - upload/file management guard:
+    - added max file-size validation (`5MB`) for:
+      - `cover_file`
+      - `rooms.*.cover`
+  - detail gallery performance optimization:
+    - hotel detail main gallery image now uses thumbnail source by default,
+      while lightbox still uses full image.
+    - thumbnail buttons now pass explicit preview/full sources and use lazy-loading attributes for lighter initial render.
+  - legacy storage integrity diagnostics for Hotels media:
+    - deep audit confirms many historical hotel/room cover DB values reference files that are no longer present in current `storage/app/public` tree.
+    - added explicit warning messages on edit form when DB has cover path/value but file cannot be resolved in storage, to avoid silent blank preview states.
+  - edit-preview replacement behavior hardening:
+    - when user selects a new file for hotel/room cover, preview node is now replaced with a fresh image element and immediately points to latest selected file.
+    - ensures preview consistently reflects the newest selected upload candidate during replace flow on edit page.
+  - hotels editor ajax rehydration fix (preview persistence):
+    - after `Hotel Info` save or step switch via AJAX, editor replacement now explicitly re-initializes:
+      - hotels editor handlers,
+      - hotel room/image handlers,
+      - hotel cover handlers,
+      - and image-preview state scanner.
+    - prevents existing cover image from remaining hidden after successful save when returning to `Hotel Info` tab.
+  - hotels cover-preview refactor (server-first deterministic render):
+    - cover preview markup for hotel/room now sets `has-image` and `image-loaded` directly when resolvable image URL is available from server.
+    - removed dependence on inline load/error handlers in Blade for hotel/room covers.
+    - image fallback is centralized in JS via `data-fallback-src`:
+      - thumbnail is attempted first,
+      - original image is auto-used if thumbnail fails.
+    - existing cover source selection on hotel info now avoids stale empty `old('existing_cover')` overriding actual persisted DB cover path.
+  - hotels rooms row-index integrity fix (room #4+ reliability):
+    - backend room normalization no longer reindexes row keys before resolving uploaded files.
+      uploaded file lookup now uses original form row key (`rooms.{rowKey}.cover`) to prevent misalignment after dynamic add/remove cycles.
+    - frontend `Add Room` now generates next row key from max existing `rooms[...]` key + 1 (not from visible card count),
+      eliminating duplicate/gap index collisions that could break room rows in later positions.
+  - hotels rooms persistence refactor (stability for replace/update on later rows):
+    - refactored `updateRooms` from full delete-recreate into identity-aware update flow:
+      - existing rows are updated by `rooms[*][id]`,
+      - new rows are created,
+      - removed rows are deleted after reconciliation.
+    - this prevents late-row (`room 4+`) cover replacement from being lost due to row reindex/mapping drift.
+    - room cover cleanup now compares previous covers vs final persisted covers after reconciliation.
+  - room-cover preview fetch/render deadlock fix (row 4+):
+    - changed preview image CSS behavior from `display:none` pre-load to visible-block with opacity transition,
+      so browser can still fetch image resources before `image-loaded` state is confirmed.
+    - changed hotel/room edit-form preview images to `loading=\"eager\"` to avoid lazy-load deferral on lower room cards.
+    - addresses cases where cover URL/path is valid but preview stayed on placeholder for room 4 and beyond.
+  - hotels index filter persistence fix (ajax search):
+    - refactored hotels index DOM boundaries so ajax result replacement targets only data-result container,
+      not the parent block that contains filter controls.
+    - filter panel now remains visible after search/filter interaction while hotel data reloads automatically without full page refresh.
+  - hotels detail gallery quality fix:
+    - thumbnail click behavior now updates main preview with full/original image URL (not thumbnail source).
+    - prevents main gallery image from appearing low-resolution/pixelated after thumbnail selection.
+  - hotels detail gallery button behavior refactor:
+    - thumbnail buttons now manage explicit active state (`ring`) and always sync selected index with:
+      - main preview image,
+      - lightbox image,
+      - keyboard navigation (`ArrowLeft`/`ArrowRight`).
+    - initial gallery state is now initialized through unified `setImage(0)` flow to avoid desync between UI and script state.
+  - hotels detail gallery smooth-loading UX:
+    - added local spinner overlay inside main preview area while selected image is loading.
+    - added smooth opacity transition during image switch to reduce abrupt preview changes.
+    - loading feedback is scoped to preview area only (no full-page spinner impact).
+  - hotels detail information readability update:
+    - refactored `Hotel Information` card from multi-block grid into structured 4-column key/value table layout.
+    - improves scanability and comparison speed for operational users reading many hotel attributes.
+  - hotels detail information layout update (2-table grid):
+    - `Hotel Information` is now rendered as a 2-column grid where each column contains its own key/value table.
+    - both tables are aligned side-by-side on desktop for better readability and visual balance.
+  - itineraries index filter standardization:
+    - refactored index DOM boundaries so `data-service-filter-results` wraps only result content (table/cards/pagination),
+      while filter card remains outside the ajax-replaced region.
+    - ensures filter panel stays visible and usable after ajax search/filter updates, matching module index standard.
 
 Date: 2026-05-08
 Completed in this cycle:

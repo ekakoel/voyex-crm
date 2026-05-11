@@ -11,7 +11,8 @@
         <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div data-hotel-cover-field>
                 @php
-                    $coverValue = (string) old('existing_cover', $hotel->cover ?? '');
+                    $oldExistingCover = old('existing_cover');
+                    $coverValue = (string) (($oldExistingCover !== null && trim((string) $oldExistingCover) !== '') ? $oldExistingCover : ($hotel->cover ?? ''));
                     $coverStoredPath = trim(str_replace('\\', '/', $coverValue), '/');
                     if (\Illuminate\Support\Str::startsWith($coverStoredPath, 'storage/')) {
                         $coverStoredPath = \Illuminate\Support\Str::after($coverStoredPath, 'storage/');
@@ -34,9 +35,16 @@
                     $coverFull = $coverStoredPath !== '' && ! $coverIsExternal
                         ? \App\Support\ImageThumbnailGenerator::resolveOriginalPublicUrl($coverStoredPath)
                         : $coverStoredPath;
+                    if ($coverThumb === null || $coverThumb === '') {
+                        $coverThumb = $coverFull;
+                    }
+                    if ($coverFull === null || $coverFull === '') {
+                        $coverFull = $coverThumb;
+                    }
                 @endphp
+                @php($coverMissingInStorage = $coverStoredPath !== '' && empty($coverThumb))
                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Cover (Upload Image)') }}</label>
-                <div class="hotel-cover-preview room-cover-preview image-preview mt-2 flex w-full items-center justify-center overflow-hidden rounded-lg border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800/40">
+                <div class="hotel-cover-preview room-cover-preview image-preview mt-2 flex w-full items-center justify-center overflow-hidden rounded-lg border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800/40 {{ ! empty($coverThumb) ? 'has-image' : '' }}">
                     <div class="image-preview-placeholder">
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                             <path d="M4 7h3l2-2h6l2 2h3a1 1 0 0 1 1 1v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a1 1 0 0 1 1-1z"></path>
@@ -44,14 +52,25 @@
                         </svg>
                         <span>{{ ui_phrase('Select image to preview') }}</span>
                     </div>
-                    @if ($coverStoredPath !== '')
-                        <img src="{{ $coverThumb }}" loading="lazy" decoding="async" onload="this.classList.add('image-loaded');var p=this.closest('.image-preview');if(p){p.classList.add('has-image');}" onerror="if(this.dataset.fallbackApplied){var p=this.closest('.image-preview');if(p){p.classList.remove('has-image');}this.remove();}else{this.dataset.fallbackApplied='1';this.src='{{ $coverFull }}';}" alt="Hotel cover preview" class="h-full w-full object-cover">
+                    @if (! empty($coverThumb))
+                        <img
+                            src="{{ $coverThumb }}"
+                            data-preview-image="1"
+                            data-fallback-src="{{ $coverFull }}"
+                            loading="eager"
+                            decoding="async"
+                            alt="Hotel cover preview"
+                            class="h-full w-full object-cover image-loaded"
+                        >
                     @endif
                 </div>
                 <div data-hotel-info-cover class="mt-2 space-y-2">
                     <input type="file" name="cover_file" accept="image/*" class="hotel-cover-input w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
                     <input type="hidden" name="existing_cover" value="{{ $coverStoredPath }}">
                 </div>
+                @if ($coverMissingInStorage)
+                    <p class="mt-1 text-xs text-amber-600">{{ __('Existing cover file is missing from storage. Please re-upload image.') }}</p>
+                @endif
                 <p class="mt-1 text-[11px] text-gray-500">{{ __('Image will be cropped to 3:2 and a thumbnail is generated.') }}</p>
                 @error('cover_file') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
                 @error('cover') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
@@ -158,10 +177,6 @@
         </div>
     @endif
 </div>
-
-
-
-
 
 
 

@@ -230,24 +230,45 @@ class HotelController extends Controller
     {
         $request->validate([
             'rooms' => ['required', 'array', 'min:1'],
-            'rooms.*.cover' => ['nullable', 'image'],
+            'rooms.*.id' => ['nullable', 'integer'],
+            'rooms.*.cover' => ['nullable', 'image', 'max:5120'],
             'rooms.*.existing_cover' => ['nullable', 'string'],
         ]);
 
-        $existingCovers = $this->normalizeRoomCovers($hotel->rooms->pluck('cover')->all());
-        $retainedCovers = [];
-        $roomsPayload = $this->normalizeRooms($request, $request->input('rooms', []), $retainedCovers, (string) ($hotel->status ?? 'active'));
+        $existingRooms = $hotel->rooms()->get()->keyBy('id');
+        $existingCovers = $this->normalizeRoomCovers($existingRooms->pluck('cover')->all());
+        $uploadedRoomCovers = $this->extractRoomCoverUploads($request);
+        $roomsPayload = $this->normalizeRooms($request->input('rooms', []), $uploadedRoomCovers, (string) ($hotel->status ?? 'active'));
+        $processedIds = [];
 
-        DB::transaction(function () use ($hotel, $roomsPayload) {
+        DB::transaction(function () use ($hotel, $roomsPayload, $existingRooms, &$processedIds) {
+            // Price rows depend on room rows; reset to avoid stale room references.
             $hotel->prices()->delete();
-            $hotel->rooms()->delete();
-            if ($roomsPayload !== []) {
-                $hotel->rooms()->createMany($roomsPayload);
+
+            foreach ($roomsPayload as $roomData) {
+                $roomId = (int) ($roomData['id'] ?? 0);
+                unset($roomData['id']);
+
+                if ($roomId > 0 && $existingRooms->has($roomId)) {
+                    $existingRooms->get($roomId)->update($roomData);
+                    $processedIds[] = $roomId;
+                    continue;
+                }
+
+                $created = $hotel->rooms()->create($roomData);
+                $processedIds[] = (int) $created->id;
+            }
+
+            $processedIds = array_values(array_unique(array_filter(array_map('intval', $processedIds))));
+            if ($processedIds !== []) {
+                $hotel->rooms()->whereNotIn('id', $processedIds)->delete();
+            } else {
+                $hotel->rooms()->delete();
             }
         });
 
-        $retainedStored = $this->normalizeRoomCovers($retainedCovers);
-        $coversToDelete = array_values(array_diff($existingCovers, $retainedStored));
+        $currentCovers = $this->normalizeRoomCovers($hotel->rooms()->pluck('cover')->all());
+        $coversToDelete = array_values(array_diff($existingCovers, $currentCovers));
         if ($coversToDelete !== []) {
             $this->deleteRoomCovers($coversToDelete);
         }
@@ -412,7 +433,7 @@ class HotelController extends Controller
             'check_out_time' => ['nullable', 'string', 'max:255'],
             'status' => ['required', 'string', 'max:255'],
             'cover' => ['nullable', 'string', 'max:255'],
-            'cover_file' => ['nullable', 'image'],
+            'cover_file' => ['nullable', 'image', 'max:5120'],
             'existing_cover' => ['nullable', 'string', 'max:255'],
             'web' => ['nullable', 'url', 'max:500'],
             'map' => ['nullable', 'url', 'max:5000'],
@@ -573,16 +594,17 @@ class HotelController extends Controller
         }
     }
 
-    private function normalizeRooms(Request $request, array $rows, array &$retainedCovers = [], string $roomStatus = 'active'): array
+    private function normalizeRooms(array $rows, array $uploadedRoomCovers = [], string $roomStatus = 'active'): array
     {
         $payload = [];
-        foreach (array_values($rows) as $index => $row) {
+        foreach ($rows as $rowKey => $row) {
             $rooms = trim((string) ($row['rooms'] ?? ''));
             if ($rooms === '') {
                 continue;
             }
-            $cover = $this->resolveRoomCover($request, $index, $row, $retainedCovers);
+            $cover = $this->resolveRoomCover((string) $rowKey, $row, $uploadedRoomCovers);
             $payload[] = [
+                'id' => (int) ($row['id'] ?? 0),
                 'room_view_id' => Arr::get($row, 'room_view_id'),
                 'cover' => $cover,
                 'rooms' => $rooms,
@@ -606,9 +628,9 @@ class HotelController extends Controller
         return $payload;
     }
 
-    private function resolveRoomCover(Request $request, int $index, array $row, array &$retainedCovers): string
+    private function resolveRoomCover(string $rowKey, array $row, array $uploadedRoomCovers = []): string
     {
-        $uploaded = $request->file("rooms.{$index}.cover");
+        $uploaded = $uploadedRoomCovers[$rowKey] ?? null;
         if ($uploaded) {
             $originalPath = $uploaded->store('hotels/rooms', 'public');
             $processedPath = ImageThumbnailGenerator::processAndGenerate('public', $originalPath, 3, 2, 360, 240) ?? $originalPath;
@@ -618,13 +640,31 @@ class HotelController extends Controller
         $existing = trim((string) ($row['existing_cover'] ?? ''));
         if ($existing !== '') {
             $normalized = $this->normalizeRoomCoverPath($existing);
-            if ($normalized !== '') {
-                $retainedCovers[] = $normalized;
-            }
             return $normalized;
         }
 
         return '';
+    }
+
+    private function extractRoomCoverUploads(Request $request): array
+    {
+        $uploads = [];
+        $roomFiles = $request->file('rooms', []);
+        if (! is_array($roomFiles)) {
+            return $uploads;
+        }
+
+        foreach ($roomFiles as $rowKey => $fields) {
+            if (! is_array($fields)) {
+                continue;
+            }
+            $cover = $fields['cover'] ?? null;
+            if ($cover) {
+                $uploads[(string) $rowKey] = $cover;
+            }
+        }
+
+        return $uploads;
     }
 
     private function normalizeRoomCovers($covers): array

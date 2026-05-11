@@ -10,7 +10,7 @@
             <aside class="module-grid-side">
                 @include('components.module-index-sidebar-info')
             </aside>
-            <div class="module-grid-main" data-hotels-index-results-wrap>
+            <div class="module-grid-main">
                 <div class="app-card p-5">
                     <div>
                         <h2 class="text-base font-semibold text-gray-800 dark:text-gray-100">{{ ui_phrase('Filters') }}</h2>
@@ -43,7 +43,9 @@
                         </div>
                     </form>
                 </div>
-                @include('modules.hotels.partials._index-results', ['hotels' => $hotels, 'statsCards' => $statsCards])
+                <div data-hotels-index-results-wrap>
+                    @include('modules.hotels.partials._index-results', ['hotels' => $hotels, 'statsCards' => $statsCards])
+                </div>
             </div>
         </div>
     </div>

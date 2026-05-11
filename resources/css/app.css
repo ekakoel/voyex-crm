@@ -2332,11 +2332,13 @@ body.app-standalone .app-content {
 }
 
 .image-preview img {
-    display: none;
+    display: block;
+    opacity: 0;
+    transition: opacity 0.14s ease;
 }
 
 .image-preview img.image-loaded {
-    display: block;
+    opacity: 1;
 }
 
 .image-preview.has-image .image-preview-placeholder {

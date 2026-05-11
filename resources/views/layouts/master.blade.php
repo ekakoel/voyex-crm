@@ -1323,6 +1323,9 @@
         };
 
         const poll = async () => {
+            if (document.hidden) {
+                return;
+            }
             try {
                 const response = await fetch(endpoint, {
                     method: 'GET',
@@ -1368,7 +1371,10 @@
         };
 
         poll();
-        window.setInterval(poll, 20000);
+        if (window.__quotationApprovalPollIntervalId) {
+            window.clearInterval(window.__quotationApprovalPollIntervalId);
+        }
+        window.__quotationApprovalPollIntervalId = window.setInterval(poll, 20000);
     }
 
     function initEditorManualItemNotifier() {
@@ -1480,6 +1486,9 @@
         };
 
         const poll = async () => {
+            if (document.hidden) {
+                return;
+            }
             try {
                 const response = await fetch(endpoint, {
                     method: 'GET',
@@ -1526,7 +1535,10 @@
         };
 
         poll();
-        window.setInterval(poll, 20000);
+        if (window.__editorManualItemPollIntervalId) {
+            window.clearInterval(window.__editorManualItemPollIntervalId);
+        }
+        window.__editorManualItemPollIntervalId = window.setInterval(poll, 20000);
     }
 </script>
 <script>

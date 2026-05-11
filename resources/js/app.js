@@ -240,6 +240,39 @@ function updateImagePreviewState(container) {
     });
 }
 
+function applyImageFilePreview(input, preview, options = {}) {
+    if (!(input instanceof HTMLInputElement) || !(preview instanceof HTMLElement)) {
+        return;
+    }
+
+    const file = input.files?.[0];
+    if (!file || !String(file.type || '').startsWith('image/')) {
+        return;
+    }
+
+    const objectUrl = URL.createObjectURL(file);
+    const existingImage = preview.querySelector('img');
+    const image = document.createElement('img');
+    image.className = options.className || 'h-full w-full object-cover';
+    image.alt = options.alt || 'Image preview';
+    if (existingImage) {
+        existingImage.remove();
+    }
+    preview.appendChild(image);
+
+    image.addEventListener('load', () => {
+        image.classList.add('image-loaded');
+        preview.classList.add('has-image');
+        URL.revokeObjectURL(objectUrl);
+    }, { once: true });
+    image.addEventListener('error', () => {
+        preview.classList.remove('has-image');
+        image.remove();
+        URL.revokeObjectURL(objectUrl);
+    }, { once: true });
+    image.src = objectUrl;
+}
+
 function initImagePreviews(root = document) {
     root.querySelectorAll(IMAGE_PREVIEW_SELECTOR).forEach((container) => {
         buildImagePreviewPlaceholder(container);
@@ -250,7 +283,15 @@ function initImagePreviews(root = document) {
                 return;
             }
             img.addEventListener('load', () => updateImagePreviewState(container));
-            img.addEventListener('error', () => updateImagePreviewState(container));
+            img.addEventListener('error', () => {
+                const fallback = String(img.dataset.fallbackSrc || '').trim();
+                if (img.dataset.fallbackApplied !== '1' && fallback !== '' && img.src !== fallback) {
+                    img.dataset.fallbackApplied = '1';
+                    img.src = fallback;
+                    return;
+                }
+                updateImagePreviewState(container);
+            });
             img.dataset.imagePreviewBound = '1';
         });
 
@@ -268,7 +309,15 @@ function initImagePreviews(root = document) {
                         return;
                     }
                     node.addEventListener('load', () => updateImagePreviewState(container));
-                    node.addEventListener('error', () => updateImagePreviewState(container));
+                    node.addEventListener('error', () => {
+                        const fallback = String(node.dataset.fallbackSrc || '').trim();
+                        if (node.dataset.fallbackApplied !== '1' && fallback !== '' && node.src !== fallback) {
+                            node.dataset.fallbackApplied = '1';
+                            node.src = fallback;
+                            return;
+                        }
+                        updateImagePreviewState(container);
+                    });
                     node.dataset.imagePreviewBound = '1';
                 });
             });
@@ -740,6 +789,55 @@ function appendSubmitter(formData, submitter) {
     formData.append(submitter.name, submitter.value || '');
 }
 
+function buildNormalizedRoomsFormData(form) {
+    const formData = new FormData();
+    const appendFieldValue = (name, field) => {
+        if (!name) {
+            return;
+        }
+        if (field instanceof HTMLInputElement) {
+            const type = String(field.type || '').toLowerCase();
+            if (type === 'file') {
+                const file = field.files?.[0];
+                if (file) {
+                    formData.append(name, file);
+                }
+                return;
+            }
+            if ((type === 'checkbox' || type === 'radio') && !field.checked) {
+                return;
+            }
+            formData.append(name, field.value ?? '');
+            return;
+        }
+        formData.append(name, field.value ?? '');
+    };
+
+    // Append non-room fields first (_token, _method, stay, etc.).
+    form.querySelectorAll('input[name], select[name], textarea[name]').forEach((field) => {
+        const name = String(field.getAttribute('name') || '');
+        if (name.startsWith('rooms[')) {
+            return;
+        }
+        appendFieldValue(name, field);
+    });
+
+    const cards = Array.from(form.querySelectorAll('[data-room-card]'));
+    cards.forEach((card, index) => {
+        card.querySelectorAll('input[name^="rooms["], select[name^="rooms["], textarea[name^="rooms["]').forEach((field) => {
+            const currentName = String(field.getAttribute('name') || '');
+            const match = currentName.match(/^rooms\[\d+\]\[([^\]]+)\]$/);
+            if (!match) {
+                return;
+            }
+            const subKey = match[1];
+            appendFieldValue(`rooms[${index}][${subKey}]`, field);
+        });
+    });
+
+    return formData;
+}
+
 async function fetchHotelsEditor(url, options = {}) {
     const response = await fetch(url, {
         method: options.method || 'GET',
@@ -776,6 +874,14 @@ function syncHotelsHistory(url, replace = false) {
     window.history.pushState(state, '', url);
 }
 
+function hydrateHotelsEditorUI(scope) {
+    initHotelsEditor(scope);
+    initHotelRooms(scope);
+    initHotelPrices(scope);
+    initHotelInfoCover(scope);
+    initImagePreviews(scope);
+}
+
 function initHotelsEditor(root = document) {
     const scope = root instanceof Element || root instanceof Document ? root : document;
     const editors = scope.matches?.(HOTELS_EDITOR_SELECTOR)
@@ -808,7 +914,7 @@ function initHotelsEditor(root = document) {
                 if (payload?.warning) {
                     setHotelsFlash(nextEditor, payload.warning, 'warning');
                 }
-                initHotelsEditor(nextEditor);
+                hydrateHotelsEditorUI(nextEditor);
             } catch (_) {
                 window.location.href = link.href;
             } finally {
@@ -828,7 +934,9 @@ function initHotelsEditor(root = document) {
             }
 
             const submitter = event.submitter || null;
-            const formData = new FormData(form);
+            const formData = form.getAttribute('data-hotels-step-form') === 'rooms'
+                ? buildNormalizedRoomsFormData(form)
+                : new FormData(form);
             appendSubmitter(formData, submitter);
             form.dataset.hotelsSubmitting = '1';
             window.AppLoading?.showPageSpinner?.();
@@ -846,7 +954,7 @@ function initHotelsEditor(root = document) {
                 if (payload?.message) {
                     setHotelsFlash(nextEditor, payload.message, 'success');
                 }
-                initHotelsEditor(nextEditor);
+                hydrateHotelsEditorUI(nextEditor);
             } catch (error) {
                 if (error?.response?.status === 422 && error?.payload?.errors) {
                     const messages = Object.values(error.payload.errors).flat();
@@ -881,6 +989,41 @@ function initHotelRooms(root = document) {
 
         const editor = container.closest(HOTELS_EDITOR_SELECTOR) || document;
         const addRoomButton = editor.querySelector('[data-add-row="room"]');
+        const roomsForm = container.closest('form[data-hotels-step-form="rooms"]');
+
+        const nextRoomIndex = () => {
+            const keys = Array.from(
+                container.querySelectorAll('input[name^="rooms["], select[name^="rooms["], textarea[name^="rooms["]')
+            )
+                .map((field) => {
+                    const name = String(field.getAttribute('name') || '');
+                    const match = name.match(/^rooms\[(\d+)\]/);
+                    return match ? Number(match[1]) : null;
+                })
+                .filter((value) => Number.isFinite(value));
+            if (keys.length === 0) {
+                return 0;
+            }
+            return Math.max(...keys) + 1;
+        };
+
+        const reindexRoomFieldNames = () => {
+            const cards = Array.from(container.querySelectorAll('[data-room-card]'));
+            cards.forEach((card, index) => {
+                const badge = card.querySelector('.inline-flex.items-center.rounded-full');
+                if (badge) {
+                    badge.textContent = String(index + 1);
+                }
+                card.querySelectorAll('input[name^="rooms["], select[name^="rooms["], textarea[name^="rooms["]').forEach((field) => {
+                    const current = String(field.getAttribute('name') || '');
+                    const updated = current.replace(/^rooms\[\d+\]/, `rooms[${index}]`);
+                    if (updated !== current) {
+                        field.setAttribute('name', updated);
+                    }
+                });
+                updateRoomTitle(card);
+            });
+        };
 
         const updateRoomTitle = (card) => {
             const title = card.querySelector('[data-room-title]');
@@ -914,28 +1057,10 @@ function initHotelRooms(root = document) {
             }
             const card = input.closest('[data-room-card]');
             const preview = card?.querySelector('.room-cover-preview');
-            const file = input.files?.[0];
-            if (!preview || !file || !String(file.type || '').startsWith('image/')) {
+            if (!preview) {
                 return;
             }
-            const url = URL.createObjectURL(file);
-            let img = preview.querySelector('img');
-            if (!img) {
-                img = document.createElement('img');
-                img.className = 'h-full w-full object-cover';
-                img.alt = 'Room cover preview';
-                preview.appendChild(img);
-            }
-            img.addEventListener('load', () => {
-                img.classList.add('image-loaded');
-                preview.classList.add('has-image');
-                URL.revokeObjectURL(url);
-            }, { once: true });
-            img.addEventListener('error', () => {
-                preview.classList.remove('has-image');
-                img.remove();
-            }, { once: true });
-            img.src = url;
+            applyImageFilePreview(input, preview, { alt: 'Room cover preview' });
         });
 
         container.addEventListener('click', (event) => {
@@ -946,13 +1071,14 @@ function initHotelRooms(root = document) {
             const card = button.closest('[data-room-card]');
             if (card) {
                 card.remove();
+                reindexRoomFieldNames();
             }
         });
 
         if (addRoomButton && addRoomButton.dataset.hotelRoomsButtonBound !== '1') {
             addRoomButton.dataset.hotelRoomsButtonBound = '1';
             addRoomButton.addEventListener('click', () => {
-                const idx = container.querySelectorAll('[data-room-card]').length;
+                const idx = nextRoomIndex();
                 const template = editor.querySelector('#room-row-template');
                 if (!template) {
                     return;
@@ -968,6 +1094,14 @@ function initHotelRooms(root = document) {
                 }
                 container.appendChild(card);
                 updateRoomTitle(card);
+                reindexRoomFieldNames();
+            });
+        }
+
+        if (roomsForm && roomsForm.dataset.roomsReindexBound !== '1') {
+            roomsForm.dataset.roomsReindexBound = '1';
+            roomsForm.addEventListener('submit', () => {
+                reindexRoomFieldNames();
             });
         }
     });
@@ -1153,38 +1287,13 @@ function initHotelInfoCover(root = document) {
         }
 
         input.addEventListener('change', () => {
-            const file = input.files?.[0];
-            if (!file || !String(file.type || '').startsWith('image/')) {
-                return;
-            }
-            const url = URL.createObjectURL(file);
-            let image = preview.querySelector('img');
-            if (!image) {
-                image = document.createElement('img');
-                image.className = 'h-full w-full object-cover';
-                image.alt = 'Hotel cover preview';
-                preview.appendChild(image);
-            }
-            image.removeAttribute('data-fallback-applied');
-            image.addEventListener('load', () => {
-                image.classList.add('image-loaded');
-                preview.classList.add('has-image');
-                URL.revokeObjectURL(url);
-            }, { once: true });
-            image.addEventListener('error', () => {
-                preview.classList.remove('has-image');
-                image.remove();
-            }, { once: true });
-            image.src = url;
+            applyImageFilePreview(input, preview, { alt: 'Hotel cover preview' });
         });
     });
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    initHotelsEditor(document);
-    initHotelRooms(document);
-    initHotelPrices(document);
-    initHotelInfoCover(document);
+    hydrateHotelsEditorUI(document);
 
     window.addEventListener('popstate', async () => {
         const editor = document.querySelector(HOTELS_EDITOR_SELECTOR);
@@ -1194,10 +1303,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const payload = await fetchHotelsEditor(window.location.href);
             const nextEditor = replaceHotelsEditor(editor, payload?.html || '');
-            initHotelsEditor(nextEditor);
-            initHotelRooms(nextEditor);
-            initHotelPrices(nextEditor);
-            initHotelInfoCover(nextEditor);
+            hydrateHotelsEditorUI(nextEditor);
         } catch (_) {
             window.location.reload();
         }
@@ -1211,10 +1317,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (node.nodeType !== Node.ELEMENT_NODE) {
                     return;
                 }
-                initHotelsEditor(node);
-                initHotelRooms(node);
-                initHotelPrices(node);
-                initHotelInfoCover(node);
+                hydrateHotelsEditorUI(node);
             });
         });
     });
