@@ -8,7 +8,6 @@
     <div class="space-y-5 module-page module-page--itineraries" data-service-filter-page data-page-spinner="off">
         <div class="module-grid-9-3 min-w-0">
             <aside class="module-grid-side min-w-0 space-y-3">
-                @include('components.module-index-sidebar-info')
                 <section class="app-card p-4">
                     <div class="mb-3">
                         <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ ui_phrase('Itinerary Logs') }}</h3>
@@ -201,7 +200,7 @@
                                             </div>
                                         @endif
                                         @if ($flatItemNames->isNotEmpty())
-                                            <div class="max-h-64 space-y-2 overflow-auto text-xs text-gray-700 dark:text-gray-200">
+                                            <div class="max-h-64 space-y-2 overflow-auto overscroll-contain pr-1 text-xs text-gray-700 dark:text-gray-200">
                                                 @if ($isMultiDayPopover)
                                                     @foreach ($itemsByDay as $day => $dayItemNames)
                                                         <div>
@@ -246,9 +245,7 @@
                                     </form>
                                 @endif
                                 @can('update', $itinerary)
-                                    @if (! $itinerary->quotations->contains(fn ($quotation) => in_array((string) ($quotation->status ?? ''), ['approved', \App\Models\Quotation::FINAL_STATUS], true)) && ! $itinerary->isFinal())
-                                        <a href="{{ route('itineraries.edit', $itinerary) }}"  class="btn-secondary-sm" title="{{ ui_phrase('Edit') }}" aria-label="{{ ui_phrase('Edit') }}"><i class="fa-solid fa-pen"></i><span class="sr-only">{{ ui_phrase('Edit') }}</span></a>
-                                    @endif
+                                    <a href="{{ route('itineraries.edit', $itinerary) }}"  class="btn-secondary-sm" title="{{ ui_phrase('Edit') }}" aria-label="{{ ui_phrase('Edit') }}"><i class="fa-solid fa-pen"></i><span class="sr-only">{{ ui_phrase('Edit') }}</span></a>
                                 @endcan
                                 @if (auth()->user()?->hasAnyRole(['Super Admin', 'Super User', 'Administrator']))
                                     <form action="{{ route('itineraries.destroy', $itinerary) }}" method="POST" class="inline" onsubmit="return confirm('{{ ui_phrase('Are you sure you want to delete this itinerary?') }}');">
@@ -382,7 +379,7 @@
                                     </div>
                                 @endif
                                 @if ($flatItemNames->isNotEmpty())
-                                    <div class="max-h-64 space-y-2 overflow-auto text-xs text-gray-700 dark:text-gray-200">
+                                    <div class="max-h-64 space-y-2 overflow-auto overscroll-contain pr-1 text-xs text-gray-700 dark:text-gray-200">
                                         @if ($isMultiDayPopover)
                                             @foreach ($itemsByDay as $day => $dayItemNames)
                                                 <div>
@@ -426,9 +423,7 @@
                             </form>
                         @endif
                         @can('update', $itinerary)
-                            @if (! $itinerary->quotations->contains(fn ($quotation) => in_array((string) ($quotation->status ?? ''), ['approved', \App\Models\Quotation::FINAL_STATUS], true)) && ! $itinerary->isFinal())
-                                <a href="{{ route('itineraries.edit', $itinerary) }}"  class="btn-secondary-sm" title="{{ ui_phrase('Edit') }}" aria-label="{{ ui_phrase('Edit') }}"><i class="fa-solid fa-pen"></i><span class="sr-only">{{ ui_phrase('Edit') }}</span></a>
-                            @endif
+                            <a href="{{ route('itineraries.edit', $itinerary) }}"  class="btn-secondary-sm" title="{{ ui_phrase('Edit') }}" aria-label="{{ ui_phrase('Edit') }}"><i class="fa-solid fa-pen"></i><span class="sr-only">{{ ui_phrase('Edit') }}</span></a>
                         @endcan
                         @if (auth()->user()?->hasAnyRole(['Super Admin', 'Super User', 'Administrator']))
                             <form action="{{ route('itineraries.destroy', $itinerary) }}" method="POST" class="inline" onsubmit="return confirm('{{ ui_phrase('Are you sure you want to delete this itinerary?') }}');">
@@ -634,7 +629,16 @@ document.addEventListener('DOMContentLoaded', function () {
         });
 
         window.addEventListener('resize', closeAll);
-        window.addEventListener('scroll', closeAll, true);
+        window.addEventListener('scroll', function (event) {
+            const scrollTarget = event.target;
+            const isScrollingInsidePopover = scrollTarget instanceof Element && state.popovers.some(function (entry) {
+                return entry.panel && entry.panel.contains(scrollTarget);
+            });
+            if (isScrollingInsidePopover) {
+                return;
+            }
+            closeAll();
+        }, true);
     }
 
     bindRoots(document);

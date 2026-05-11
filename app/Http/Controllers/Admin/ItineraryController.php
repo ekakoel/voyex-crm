@@ -19,7 +19,6 @@ use App\Models\Quotation;
 use App\Models\TouristAttraction;
 use App\Models\TransportUnit;
 use App\Services\ActivityAuditLogger;
-use App\Services\QuotationItinerarySyncService;
 use App\Models\Vendor;
 use App\Support\ImageThumbnailGenerator;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -28,6 +27,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -39,8 +39,7 @@ class ItineraryController extends Controller
     use HandlesActivityTimelineAjax;
 
     public function __construct(
-        private readonly ActivityAuditLogger $activityAuditLogger,
-        private readonly QuotationItinerarySyncService $quotationItinerarySyncService
+        private readonly ActivityAuditLogger $activityAuditLogger
     ) {
     }
 
@@ -212,7 +211,8 @@ class ItineraryController extends Controller
 
     public function store(Request $request)
     {
-        $validated = $request->validate([
+        try {
+            $validated = $request->validate([
             'title' => ['required', 'string', 'max:255'],
             'destination' => ['required', 'string', 'max:255'],
             'arrival_transport_id' => ['nullable', 'integer', 'exists:transports,id'],
@@ -295,7 +295,22 @@ class ItineraryController extends Controller
             'daily_transport_units' => ['nullable', 'array'],
             'daily_transport_units.*.day_number' => ['required', 'integer', 'min:1'],
             'daily_transport_units.*.transport_unit_id' => ['nullable', 'integer', 'exists:transports,id'],
-        ]);
+            'day_points_payload' => ['nullable', 'string'],
+            ]);
+        } catch (ValidationException $exception) {
+            throw $exception;
+        } catch (\Throwable $exception) {
+            Log::error('itineraries.store.validation_or_request_failed', [
+                'user_id' => (int) (auth()->id() ?? 0),
+                'message' => $exception->getMessage(),
+            ]);
+
+            return back()
+                ->withInput()
+                ->with('error', ui_phrase('Failed to save itinerary. Please check your input and try again.'));
+        }
+
+        $validated = $this->hydrateDayPointArraysFromPayload($validated);
 
         // Business rule: new itinerary must always start as active.
         $validated['is_active'] = true;
@@ -310,28 +325,47 @@ class ItineraryController extends Controller
             $validated['hotel_stays'] ?? [],
             (int) ($validated['duration_days'] ?? 1)
         );
-        $dayPoints = $this->normalizeDayPoints(
-            (int) ($validated['duration_days'] ?? 1),
-            $validated['daily_start_point_types'] ?? [],
-            $validated['daily_start_point_items'] ?? [],
-            $validated['daily_start_point_areas'] ?? [],
-            $validated['daily_start_point_room_ids'] ?? [],
-            $validated['daily_start_point_room_counts'] ?? [],
-            $validated['daily_start_hotel_booking_modes'] ?? [],
-            $validated['day_start_times'] ?? [],
-            $validated['day_start_travel_minutes'] ?? [],
-            $validated['daily_end_point_types'] ?? [],
-            $validated['daily_end_point_items'] ?? [],
-            $validated['daily_end_point_areas'] ?? [],
-            $validated['daily_end_point_room_ids'] ?? [],
-            $validated['daily_end_point_room_counts'] ?? [],
-            $validated['daily_end_hotel_booking_modes'] ?? [],
-            $validated['daily_main_experience_types'] ?? [],
-            $validated['daily_main_experience_items'] ?? [],
-            $items,
-            $activityItems,
-            $foodBeverageItems
-        );
+        try {
+            $dayPoints = $this->normalizeDayPoints(
+                (int) ($validated['duration_days'] ?? 1),
+                $validated['daily_start_point_types'] ?? [],
+                $validated['daily_start_point_items'] ?? [],
+                $validated['daily_start_point_areas'] ?? [],
+                $validated['daily_start_point_room_ids'] ?? [],
+                $validated['daily_start_point_room_counts'] ?? [],
+                $validated['daily_start_hotel_booking_modes'] ?? [],
+                $validated['day_start_times'] ?? [],
+                $validated['day_start_travel_minutes'] ?? [],
+                $validated['daily_end_point_types'] ?? [],
+                $validated['daily_end_point_items'] ?? [],
+                $validated['daily_end_point_areas'] ?? [],
+                $validated['daily_end_point_room_ids'] ?? [],
+                $validated['daily_end_point_room_counts'] ?? [],
+                $validated['daily_end_hotel_booking_modes'] ?? [],
+                $validated['daily_main_experience_types'] ?? [],
+                $validated['daily_main_experience_items'] ?? [],
+                $items,
+                $activityItems,
+                $foodBeverageItems
+            );
+        } catch (ValidationException $exception) {
+            Log::warning('itineraries.update.day_points_validation_failed', [
+                'itinerary_id' => 0,
+                'user_id' => (int) (auth()->id() ?? 0),
+                'errors' => $exception->errors(),
+                'start_types' => $validated['daily_start_point_types'] ?? [],
+                'start_items' => $validated['daily_start_point_items'] ?? [],
+                'start_rooms' => $validated['daily_start_point_room_ids'] ?? [],
+                'end_types' => $validated['daily_end_point_types'] ?? [],
+                'end_items' => $validated['daily_end_point_items'] ?? [],
+                'end_rooms' => $validated['daily_end_point_room_ids'] ?? [],
+            ]);
+            throw $exception;
+        }
+        if ($hotelStays === []) {
+            $hotelStays = $this->deriveHotelStaysFromDayPoints($dayPoints, (int) ($validated['duration_days'] ?? 1));
+        }
+
         $transportUnitsByDay = $this->normalizeDailyTransportUnits(
             $validated['daily_transport_units'] ?? [],
             (int) ($validated['duration_days'] ?? 1)
@@ -358,6 +392,7 @@ class ItineraryController extends Controller
         unset($validated['itinerary_island_transfer_items']);
         unset($validated['itinerary_food_beverage_items']);
         unset($validated['daily_transport_units']);
+        unset($validated['day_points_payload']);
         $this->validateScheduleItems($items, (int) $validated['duration_days']);
         $this->validateActivityItems($activityItems, (int) $validated['duration_days']);
         $this->validateIslandTransferItems($islandTransferItems, (int) $validated['duration_days']);
@@ -620,16 +655,6 @@ class ItineraryController extends Controller
         $itinerary->loadMissing(['quotations:id,itinerary_id,status']);
         if (! $this->canManageItinerary($itinerary, 'update')) {
             return $this->denyItineraryMutation($itinerary);
-        }
-        if ($itinerary->isFinal()) {
-            return redirect()
-                ->route('itineraries.show', $itinerary)
-                ->with('error', ui_phrase('Final itinerary cannot be edited.'));
-        }
-        if ($this->isItineraryLockedByQuotation($itinerary)) {
-            return redirect()
-                ->route('itineraries.show', $itinerary)
-                ->with('error', ui_phrase('Itinerary is locked by quotation and cannot be edited.'));
         }
         $itinerary->load([
             'touristAttractions:id,name,location,latitude,longitude',
@@ -1125,7 +1150,7 @@ class ItineraryController extends Controller
             'dayPoints.endHotelRoom:id,hotels_id,rooms,view,cover',
             'inquiry:id,inquiry_number,customer_id',
             'inquiry.customer:id,name',
-            'quotations:id,itinerary_id,status',
+            'quotations:id,itinerary_id,status,quotation_number,order_number,created_at',
                         'arrivalTransport:id,name,transport_type',
             'departureTransport:id,name,transport_type',
         ]);
@@ -1792,17 +1817,8 @@ SVG;
         if (! $this->canManageItinerary($itinerary, 'update')) {
             return $this->denyItineraryMutation($itinerary);
         }
-        if ($itinerary->isFinal()) {
-            return redirect()
-                ->route('itineraries.show', $itinerary)
-                ->with('error', ui_phrase('Final itinerary cannot be edited.'));
-        }
-        if ($this->isItineraryLockedByQuotation($itinerary)) {
-            return redirect()
-                ->route('itineraries.show', $itinerary)
-                ->with('error', ui_phrase('Itinerary is locked by quotation and cannot be updated.'));
-        }
-        $validated = $request->validate([
+        try {
+            $validated = $request->validate([
             'title' => ['required', 'string', 'max:255'],
             'destination' => ['required', 'string', 'max:255'],
             'arrival_transport_id' => ['nullable', 'integer', 'exists:transports,id'],
@@ -1886,6 +1902,31 @@ SVG;
             'daily_transport_units' => ['nullable', 'array'],
             'daily_transport_units.*.day_number' => ['required', 'integer', 'min:1'],
             'daily_transport_units.*.transport_unit_id' => ['nullable', 'integer', 'exists:transports,id'],
+            'day_points_payload' => ['nullable', 'string'],
+            ]);
+        } catch (ValidationException $exception) {
+            throw $exception;
+        } catch (\Throwable $exception) {
+            Log::error('itineraries.update.validation_or_request_failed', [
+                'itinerary_id' => (int) $itinerary->id,
+                'user_id' => (int) (auth()->id() ?? 0),
+                'message' => $exception->getMessage(),
+            ]);
+
+            return back()
+                ->withInput()
+                ->with('error', ui_phrase('Failed to update itinerary. Please refresh and try again.'));
+        }
+
+        $validated = $this->hydrateDayPointArraysFromPayload($validated);
+        Log::info('itineraries.update.day_points_payload_received', [
+            'itinerary_id' => (int) $itinerary->id,
+            'user_id' => (int) (auth()->id() ?? 0),
+            'has_payload' => filled((string) ($validated['day_points_payload'] ?? '')),
+            'start_types' => $validated['daily_start_point_types'] ?? [],
+            'start_items' => $validated['daily_start_point_items'] ?? [],
+            'end_types' => $validated['daily_end_point_types'] ?? [],
+            'end_items' => $validated['daily_end_point_items'] ?? [],
         ]);
 
         // Business rule: itinerary must remain active on create/update.
@@ -1921,6 +1962,10 @@ SVG;
             $activityItems,
             $foodBeverageItems
         );
+        if ($hotelStays === []) {
+            $hotelStays = $this->deriveHotelStaysFromDayPoints($dayPoints, (int) ($validated['duration_days'] ?? 1));
+        }
+
         $transportUnitsByDay = $this->normalizeDailyTransportUnits(
             $validated['daily_transport_units'] ?? [],
             (int) ($validated['duration_days'] ?? 1)
@@ -1947,6 +1992,7 @@ SVG;
         unset($validated['itinerary_island_transfer_items']);
         unset($validated['itinerary_food_beverage_items']);
         unset($validated['daily_transport_units']);
+        unset($validated['day_points_payload']);
         $this->validateScheduleItems($items, (int) $validated['duration_days']);
         $this->validateActivityItems($activityItems, (int) $validated['duration_days']);
         $this->validateIslandTransferItems($islandTransferItems, (int) $validated['duration_days']);
@@ -1962,17 +2008,34 @@ SVG;
         $this->syncItineraryIslandTransfers($itinerary, $islandTransferItems);
         $this->syncItineraryFoodBeverages($itinerary, $foodBeverageItems);
         $this->syncDayPoints($itinerary, $dayPoints);
+        Log::info('itineraries.update.day_points_saved', [
+            'itinerary_id' => (int) $itinerary->id,
+            'saved_day_points' => $itinerary->dayPoints()
+                ->orderBy('day_number')
+                ->get([
+                    'day_number',
+                    'start_point_type',
+                    'start_airport_id',
+                    'start_hotel_id',
+                    'start_hotel_room_id',
+                    'start_hotel_booking_mode',
+                    'start_hotel_area',
+                    'end_point_type',
+                    'end_airport_id',
+                    'end_hotel_id',
+                    'end_hotel_room_id',
+                    'end_hotel_booking_mode',
+                    'end_hotel_area',
+                ])->toArray(),
+        ]);
         $this->syncHotelStays($itinerary, $hotelStays);
         $this->syncDailyTransportUnits($itinerary, $transportUnitsByDay);
         $itinerary->refresh();
         $this->activityAuditLogger->logUpdated($itinerary, $beforeAudit, $this->buildItineraryAuditSnapshot($itinerary), 'Itinerary');
 
         $this->syncInquiryProcessedStatus($itinerary->inquiry_id);
-        $quotationSynced = $this->quotationItinerarySyncService->syncLinkedQuotationFromItinerary($itinerary);
 
-        $successMessage = $quotationSynced
-            ? ui_phrase('Itinerary updated and synced successfully.')
-            : ui_phrase('Itinerary updated successfully.');
+        $successMessage = ui_phrase('Itinerary updated successfully. Quotation items remain unchanged until Generate is clicked in Quotation form.');
 
         return redirect()->route('itineraries.show', $itinerary)->with('success', $successMessage);
     }
@@ -2533,26 +2596,18 @@ SVG;
             }
             if ($startType === 'hotel') {
                 if (! $startHotelIsSelfBooked) {
-                    if ($startRoomId <= 0) {
-                        throw ValidationException::withMessages([
-                            "daily_start_point_room_ids.{$day}" => ui_phrase('modules itineraries messages start room required', ['day' => $day]),
-                        ]);
-                    }
-                    $roomHotelId = (int) ($roomHotelMap[$startRoomId] ?? 0);
-                    if ($roomHotelId !== $startItemId) {
-                        throw ValidationException::withMessages([
-                            "daily_start_point_room_ids.{$day}" => ui_phrase('modules itineraries messages start room not in hotel', ['day' => $day]),
-                        ]);
+                    if ($startRoomId > 0) {
+                        $roomHotelId = (int) ($roomHotelMap[$startRoomId] ?? 0);
+                        if ($roomHotelId !== $startItemId) {
+                            throw ValidationException::withMessages([
+                                "daily_start_point_room_ids.{$day}" => ui_phrase('modules itineraries messages start room not in hotel', ['day' => $day]),
+                            ]);
+                        }
                     }
                 } else {
-                    if ($startItemId <= 0 && $startArea === '') {
+                    if ($startArea === '') {
                         throw ValidationException::withMessages([
                             "daily_start_point_areas.{$day}" => ui_phrase('modules itineraries messages start point required', ['day' => $day]),
-                        ]);
-                    }
-                    if ($startRoomId > 0 && $startItemId <= 0) {
-                        throw ValidationException::withMessages([
-                            "daily_start_point_items.{$day}" => ui_phrase('modules itineraries messages start hotel required for room', ['day' => $day]),
                         ]);
                     }
                     if ($startRoomId > 0 && $startItemId > 0) {
@@ -2577,26 +2632,18 @@ SVG;
             }
             if ($endType === 'hotel') {
                 if (! $endHotelIsSelfBooked) {
-                    if ($endRoomId <= 0) {
-                        throw ValidationException::withMessages([
-                            "daily_end_point_room_ids.{$day}" => ui_phrase('modules itineraries messages end room required', ['day' => $day]),
-                        ]);
-                    }
-                    $roomHotelId = (int) ($roomHotelMap[$endRoomId] ?? 0);
-                    if ($roomHotelId !== $endItemId) {
-                        throw ValidationException::withMessages([
-                            "daily_end_point_room_ids.{$day}" => ui_phrase('modules itineraries messages end room not in hotel', ['day' => $day]),
-                        ]);
+                    if ($endRoomId > 0) {
+                        $roomHotelId = (int) ($roomHotelMap[$endRoomId] ?? 0);
+                        if ($roomHotelId !== $endItemId) {
+                            throw ValidationException::withMessages([
+                                "daily_end_point_room_ids.{$day}" => ui_phrase('modules itineraries messages end room not in hotel', ['day' => $day]),
+                            ]);
+                        }
                     }
                 } else {
-                    if ($endItemId <= 0 && $endArea === '') {
+                    if ($endArea === '') {
                         throw ValidationException::withMessages([
                             "daily_end_point_areas.{$day}" => ui_phrase('modules itineraries messages end point required', ['day' => $day]),
-                        ]);
-                    }
-                    if ($endRoomId > 0 && $endItemId <= 0) {
-                        throw ValidationException::withMessages([
-                            "daily_end_point_items.{$day}" => ui_phrase('modules itineraries messages end hotel required for room', ['day' => $day]),
                         ]);
                     }
                     if ($endRoomId > 0 && $endItemId > 0) {
@@ -2635,9 +2682,9 @@ SVG;
                 $resolvedStartAirportId = $startItemId > 0 ? $startItemId : null;
             } elseif ($startType === 'hotel') {
                 $resolvedStartHotelId = $startItemId > 0 ? $startItemId : null;
-                $resolvedStartHotelRoomId = $startRoomId > 0 ? $startRoomId : null;
+                $resolvedStartHotelRoomId = $startHotelIsSelfBooked ? null : ($startRoomId > 0 ? $startRoomId : null);
                 $resolvedStartHotelBookingMode = $startHotelBookingMode;
-                $resolvedStartHotelArea = $startHotelIsSelfBooked && $startItemId <= 0 && $startArea !== '' ? $startArea : null;
+                $resolvedStartHotelArea = $startHotelIsSelfBooked && $startArea !== '' ? $startArea : null;
             } elseif ($startType === 'previous_day_end') {
                 $previousDayRow = $rows[$day - 2] ?? null;
                 if (is_array($previousDayRow)) {
@@ -2672,13 +2719,81 @@ SVG;
                 'end_point_type' => $endType !== '' ? $endType : null,
                 'end_airport_id' => $endType === 'airport' ? $endItemId : null,
                 'end_hotel_id' => $endType === 'hotel' && $endItemId > 0 ? $endItemId : null,
-                'end_hotel_room_id' => $endType === 'hotel' && $endRoomId > 0 ? $endRoomId : null,
+                'end_hotel_room_id' => $endType === 'hotel' && ! $endHotelIsSelfBooked && $endRoomId > 0 ? $endRoomId : null,
                 'end_hotel_booking_mode' => $endType === 'hotel' ? $endHotelBookingMode : null,
-                'end_hotel_area' => $endType === 'hotel' && $endHotelIsSelfBooked && $endItemId <= 0 && $endArea !== '' ? $endArea : null,
+                'end_hotel_area' => $endType === 'hotel' && $endHotelIsSelfBooked && $endArea !== '' ? $endArea : null,
             ];
         }
 
         return $rows;
+    }
+
+    private function hydrateDayPointArraysFromPayload(array $validated): array
+    {
+        $rawPayload = $validated['day_points_payload'] ?? null;
+        if (! is_string($rawPayload) || trim($rawPayload) === '') {
+            return $validated;
+        }
+
+        try {
+            $payload = json_decode($rawPayload, true, 512, JSON_THROW_ON_ERROR);
+        } catch (\Throwable) {
+            return $validated;
+        }
+
+        if (! is_array($payload) || $payload === []) {
+            return $validated;
+        }
+
+        $mapped = [
+            'daily_start_point_types' => [],
+            'daily_start_point_items' => [],
+            'daily_start_point_areas' => [],
+            'daily_start_point_room_ids' => [],
+            'daily_start_point_room_counts' => [],
+            'daily_start_hotel_booking_modes' => [],
+            'day_start_times' => [],
+            'day_start_travel_minutes' => [],
+            'daily_end_point_types' => [],
+            'daily_end_point_items' => [],
+            'daily_end_point_areas' => [],
+            'daily_end_point_room_ids' => [],
+            'daily_end_point_room_counts' => [],
+            'daily_end_hotel_booking_modes' => [],
+        ];
+
+        foreach ($payload as $row) {
+            if (! is_array($row)) {
+                continue;
+            }
+            $day = (int) ($row['day'] ?? 0);
+            if ($day < 1) {
+                continue;
+            }
+
+            $mapped['daily_start_point_types'][$day] = (string) ($row['start_type'] ?? '');
+            $mapped['daily_start_point_items'][$day] = (string) ($row['start_item'] ?? '');
+            $mapped['daily_start_point_areas'][$day] = (string) ($row['start_area'] ?? '');
+            $mapped['daily_start_point_room_ids'][$day] = (string) ($row['start_room_id'] ?? '');
+            $mapped['daily_start_point_room_counts'][$day] = (string) ($row['start_room_count'] ?? '');
+            $mapped['daily_start_hotel_booking_modes'][$day] = (string) ($row['start_booking_mode'] ?? '');
+            $mapped['day_start_times'][$day] = (string) ($row['day_start_time'] ?? '');
+            $mapped['day_start_travel_minutes'][$day] = (string) ($row['day_start_travel_minutes'] ?? '');
+            $mapped['daily_end_point_types'][$day] = (string) ($row['end_type'] ?? '');
+            $mapped['daily_end_point_items'][$day] = (string) ($row['end_item'] ?? '');
+            $mapped['daily_end_point_areas'][$day] = (string) ($row['end_area'] ?? '');
+            $mapped['daily_end_point_room_ids'][$day] = (string) ($row['end_room_id'] ?? '');
+            $mapped['daily_end_point_room_counts'][$day] = (string) ($row['end_room_count'] ?? '');
+            $mapped['daily_end_hotel_booking_modes'][$day] = (string) ($row['end_booking_mode'] ?? '');
+        }
+
+        foreach ($mapped as $key => $value) {
+            if ($value !== []) {
+                $validated[$key] = $value;
+            }
+        }
+
+        return $validated;
     }
 
     private function normalizeHotelStays(array $rows, int $durationDays): array
@@ -2758,6 +2873,27 @@ SVG;
         }, $rows);
 
         $itinerary->dayPoints()->insert($payload);
+    }
+
+    private function deriveHotelStaysFromDayPoints(array $dayPoints, int $durationDays): array
+    {
+        $rows = [];
+        foreach ($dayPoints as $row) {
+            $dayNumber = (int) ($row['day_number'] ?? 0);
+            $hotelId = (int) ($row['end_hotel_id'] ?? 0);
+            if ($dayNumber < 1 || $hotelId <= 0) {
+                continue;
+            }
+
+            $rows[] = [
+                'hotel_id' => $hotelId,
+                'day_number' => $dayNumber,
+                'night_count' => 1,
+                'room_count' => 1,
+            ];
+        }
+
+        return $this->normalizeHotelStays($rows, $durationDays);
     }
 
     private function syncHotelStays(Itinerary $itinerary, array $rows): void

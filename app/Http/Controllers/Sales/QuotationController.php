@@ -33,6 +33,7 @@ use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Database\UniqueConstraintViolationException;
 
 class QuotationController extends Controller
 {
@@ -397,6 +398,11 @@ class QuotationController extends Controller
         } catch (\Throwable $e) {
             DB::rollBack();
             report($e);
+            if ($e instanceof UniqueConstraintViolationException && str_contains((string) $e->getMessage(), 'quotations_itinerary_id_unique')) {
+                return back()
+                    ->withInput()
+                    ->with('error', 'Database rule still limits 1 quotation per itinerary. Please run latest migration and try again.');
+            }
             return back()
                 ->withInput()
                 ->with('error', 'Failed to save quotation. Please check the data.');
@@ -667,6 +673,11 @@ class QuotationController extends Controller
         } catch (\Throwable $e) {
             DB::rollBack();
             report($e);
+            if ($e instanceof UniqueConstraintViolationException && str_contains((string) $e->getMessage(), 'quotations_itinerary_id_unique')) {
+                return back()
+                    ->withInput()
+                    ->with('error', 'Database rule still limits 1 quotation per itinerary. Please run latest migration and try again.');
+            }
             return back()
                 ->withInput()
                 ->with('error', 'Failed to save quotation. Please check the data.');
@@ -2093,7 +2104,16 @@ SVG;
 
     private function availableItinerariesQuery(?int $includeItineraryId = null): Builder
     {
-        return Itinerary::query()->with(['inquiry.customer', 'inquiry.assignedUser']);
+        $userId = (int) (auth()->id() ?? 0);
+
+        return Itinerary::query()
+            ->with(['inquiry.customer', 'inquiry.assignedUser'])
+            ->where(function (Builder $query) use ($userId, $includeItineraryId): void {
+                $query->where('created_by', $userId);
+                if ($includeItineraryId && $includeItineraryId > 0) {
+                    $query->orWhere('id', $includeItineraryId);
+                }
+            });
     }
 
     private function availableInquiriesQuery(?int $includeInquiryId = null): Builder

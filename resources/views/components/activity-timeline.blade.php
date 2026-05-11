@@ -17,7 +17,7 @@
 @endphp
 
 <div class="space-y-3" data-activity-timeline-panel data-page-spinner="off">
-    <div class="divide-y divide-gray-200 rounded-md border border-gray-200 dark:divide-gray-700 dark:border-gray-700">
+    <div class="space-y-1.5">
         @forelse ($activities as $activity)
             @php
                 $properties = is_array($activity->properties ?? null) ? $activity->properties : [];
@@ -59,13 +59,13 @@
                     return \Illuminate\Support\Str::limit(ui_phrase((string) $value), 140);
                 };
             @endphp
-            <div class="px-3 py-2 text-sm text-gray-600 dark:text-gray-300">
+            <div class="px-0 py-0.5 text-sm text-gray-600 dark:text-gray-300">
                 @php
                     $label = $actionLabels[$activity->action] ?? \Illuminate\Support\Str::headline((string) $activity->action);
                     $userName = $activity->user?->name ?? '-';
                     $modalName = 'activity-log-' . (int) $activity->id;
                 @endphp
-                <div class="flex items-center justify-between gap-3">
+                <div class="group flex items-center justify-between gap-2 rounded-sm px-1 py-1">
                     <p class="min-w-0 flex-1 truncate text-xs text-gray-700 dark:text-gray-200">
                         @if ($customNote !== '')
                             <span>{{ $customNote }}</span>
@@ -77,7 +77,7 @@
                     </p>
                     <button
                         type="button"
-                        class="inline-flex h-7 w-7 items-center justify-center rounded-md border border-gray-300 text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800"
+                        class="inline-flex h-6 w-6 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-200"
                         x-data
                         x-on:click.prevent="$dispatch('open-modal', '{{ $modalName }}')"
                         title="{{ ui_phrase('View log detail') }}"
@@ -128,7 +128,7 @@
                 </div>
             </x-modal>
         @empty
-            <div class="text-sm text-gray-500 dark:text-gray-400">{{ ui_phrase('No activity yet.') }}</div>
+            <div class="px-1 py-1 text-sm text-gray-500 dark:text-gray-400">{{ ui_phrase('No activity yet.') }}</div>
         @endforelse
     </div>
 

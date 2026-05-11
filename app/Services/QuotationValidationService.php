@@ -195,6 +195,26 @@ class QuotationValidationService
         $contactWebsite = $this->resolveContactFieldFromOverride($contactWebsite, $contactOverride, 'contact_website');
         $contactAddress = $this->resolveContactFieldFromOverride($contactAddress, $contactOverride, 'contact_address');
 
+        $history = QuotationItemValidation::query()
+            ->where('quotation_id', $quotation->id)
+            ->where('quotation_item_id', $item->id)
+            ->with('validator:id,name')
+            ->latest('id')
+            ->limit(20)
+            ->get()
+            ->map(function (QuotationItemValidation $log): array {
+                return [
+                    'id' => (int) $log->id,
+                    'action' => (string) ($log->action ?? ''),
+                    'is_validated' => (bool) ($log->is_validated ?? false),
+                    'validation_notes' => trim((string) ($log->validation_notes ?? '')),
+                    'validator_name' => (string) ($log->validator?->name ?? '-'),
+                    'created_at' => optional($log->created_at)->toIso8601String(),
+                ];
+            })
+            ->values()
+            ->all();
+
         return [
             'item' => [
                 'id' => (int) $item->id,
@@ -206,6 +226,7 @@ class QuotationValidationService
                 'contract_rate' => (float) ($item->contract_rate ?? 0),
                 'markup_type' => $this->normalizeMarkupType((string) ($item->markup_type ?? 'fixed')),
                 'markup' => (float) ($item->markup ?? 0),
+                'validation_notes' => (string) ($item->validation_notes ?? ''),
                 'updated_at' => optional($item->updated_at)->toIso8601String(),
                 'validator' => $item->validator?->name,
             ],
@@ -217,8 +238,7 @@ class QuotationValidationService
                 'contact_website' => $contactWebsite,
                 'contact_address' => $contactAddress,
             ],
-            // Keep response compact for large quotations: modal only needs the values currently used by this quotation item.
-            'history' => [],
+            'history' => $history,
         ];
     }
 

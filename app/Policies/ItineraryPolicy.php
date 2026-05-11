@@ -12,8 +12,15 @@ class ItineraryPolicy
 
     public function update(User $user, Itinerary $itinerary): bool
     {
-        return $user->can('module.itineraries.update')
-            && $itinerary->isCreator($user);
+        if (! $user->can('module.itineraries.update')) {
+            return false;
+        }
+
+        if ($user->hasRole('Super Admin')) {
+            return true;
+        }
+
+        return $itinerary->isCreator($user);
     }
 
     public function delete(User $user, Itinerary $itinerary): bool

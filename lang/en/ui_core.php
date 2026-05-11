@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 
 return array (
   '(dry run: no data saved)' => '(dry run: no data saved)',
@@ -1255,6 +1255,19 @@ return array (
   'Food and Beverage' => 'Food and Beverage',
   'This section shows the rate currently used by this quotation item.' => 'This section shows the rate currently used by this quotation item.',
   'Failed to update contact details.' => 'Failed to update contact details.',
-  'Contact details updated.' => 'Contact details updated.'
+  'Contact details updated.' => 'Contact details updated.',
+  'Communication Log' => 'Communication Log',
+  'No communication history yet.' => 'No communication history yet.',
+  'Vendor / Provider Information' => 'Vendor / Provider Information',
+  'Contact Form & Communication' => 'Contact Form & Communication',
+  'Communication Note' => 'Communication Note',
+  'Write communication summary for this validation item...' => 'Write communication summary for this validation item...',
+  'item detail modal title' => 'Item Detail',
+  'load detail failed' => 'Failed to load item detail.',
+  'Update' => 'Update'
+  ,'Related Quotations' => 'Related Quotations'
+  ,'Non-final quotations linked to this itinerary.' => 'Non-final quotations linked to this itinerary.'
+  ,'No non-final related quotations.' => 'No non-final related quotations.'
+  ,'Process' => 'Process'
 );
 

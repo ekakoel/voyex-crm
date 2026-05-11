@@ -373,14 +373,16 @@
     </div>
 
     @if ($galleryItems->isNotEmpty())
-        <div id="hotel-gallery-lightbox" class="fixed inset-0 z-[100] hidden bg-black/85 p-4">
-            <div class="mx-auto flex h-full w-full max-w-6xl items-center justify-center">
-                <button type="button" class="absolute right-5 top-5 rounded-md border border-white/30 px-3 py-1 text-xs font-semibold text-white" data-hotel-gallery-close="1">{{ ui_phrase('Close') }}</button>
-                <button type="button" class="absolute left-4 rounded-md border border-white/30 px-3 py-2 text-xs font-semibold text-white" data-hotel-gallery-prev="1">{{ ui_phrase('Prev') }}</button>
-                <img id="hotel-gallery-lightbox-image" src="{{ $firstGalleryImage }}" alt="{{ ui_phrase('hotel gallery full alt') }}" class="max-h-[90vh] max-w-full rounded-lg object-contain">
-                <button type="button" class="absolute right-4 rounded-md border border-white/30 px-3 py-2 text-xs font-semibold text-white" data-hotel-gallery-next="1">{{ ui_phrase('Next') }}</button>
+        <x-modal name="hotel-gallery-lightbox" maxWidth="2xl">
+            <div class="relative rounded-xl border border-gray-700 bg-black/95 p-3">
+                <div class="mx-auto flex w-full items-center justify-center">
+                    <button type="button" class="absolute right-3 top-3 rounded-md border border-white/30 px-3 py-1 text-xs font-semibold text-white" x-data x-on:click.prevent="$dispatch('close-modal', 'hotel-gallery-lightbox')" data-hotel-gallery-close="1">{{ ui_phrase('Close') }}</button>
+                    <button type="button" class="absolute left-3 rounded-md border border-white/30 px-3 py-2 text-xs font-semibold text-white" data-hotel-gallery-prev="1">{{ ui_phrase('Prev') }}</button>
+                    <img id="hotel-gallery-lightbox-image" src="{{ $firstGalleryImage }}" alt="{{ ui_phrase('hotel gallery full alt') }}" class="max-h-[82vh] max-w-full rounded-lg object-contain">
+                    <button type="button" class="absolute right-3 rounded-md border border-white/30 px-3 py-2 text-xs font-semibold text-white" data-hotel-gallery-next="1">{{ ui_phrase('Next') }}</button>
+                </div>
             </div>
-        </div>
+        </x-modal>
     @endif
 @endsection
 
@@ -413,9 +415,9 @@
             (function () {
                 const mainImage = document.getElementById('hotel-gallery-main-image');
                 const mainSpinner = document.getElementById('hotel-gallery-main-spinner');
-                const lightbox = document.getElementById('hotel-gallery-lightbox');
+                const lightboxModalName = 'hotel-gallery-lightbox';
                 const lightboxImage = document.getElementById('hotel-gallery-lightbox-image');
-                if (!mainImage || !mainSpinner || !lightbox || !lightboxImage) return;
+                if (!mainImage || !mainSpinner || !lightboxImage) return;
 
                 const thumbs = Array.from(document.querySelectorAll('[data-hotel-gallery-thumb]'));
                 const entries = thumbs
@@ -429,6 +431,7 @@
                 const activeThumbClass = 'ring-2';
                 const activeThumbColorClass = 'ring-sky-500';
                 let isMainLoading = false;
+                let isLightboxOpen = false;
 
                 const setMainLoading = (loading) => {
                     isMainLoading = loading;
@@ -475,33 +478,35 @@
                 });
 
                 document.querySelector('[data-hotel-gallery-open="1"]')?.addEventListener('click', () => {
-                    lightbox.classList.remove('hidden');
+                    isLightboxOpen = true;
+                    window.dispatchEvent(new CustomEvent('open-modal', { detail: lightboxModalName }));
                 });
 
-                lightbox.querySelector('[data-hotel-gallery-close="1"]')?.addEventListener('click', () => {
-                    lightbox.classList.add('hidden');
+                document.querySelector('[data-hotel-gallery-close="1"]')?.addEventListener('click', () => {
+                    isLightboxOpen = false;
                 });
 
-                lightbox.querySelector('[data-hotel-gallery-prev="1"]')?.addEventListener('click', () => {
+                document.querySelector('[data-hotel-gallery-prev="1"]')?.addEventListener('click', () => {
                     setImage(currentIndex - 1);
                 });
 
-                lightbox.querySelector('[data-hotel-gallery-next="1"]')?.addEventListener('click', () => {
+                document.querySelector('[data-hotel-gallery-next="1"]')?.addEventListener('click', () => {
                     setImage(currentIndex + 1);
                 });
 
-                lightbox.addEventListener('click', (event) => {
-                    if (event.target === lightbox) {
-                        lightbox.classList.add('hidden');
+                window.addEventListener('close-modal', (event) => {
+                    if ((event?.detail || '') === lightboxModalName) {
+                        isLightboxOpen = false;
                     }
                 });
 
                 document.addEventListener('keydown', (event) => {
-                    if (lightbox.classList.contains('hidden')) return;
+                    if (!isLightboxOpen) return;
 
                     if (event.key === 'Escape') {
                         event.preventDefault();
-                        lightbox.classList.add('hidden');
+                        isLightboxOpen = false;
+                        window.dispatchEvent(new CustomEvent('close-modal', { detail: lightboxModalName }));
                         return;
                     }
 

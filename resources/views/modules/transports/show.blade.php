@@ -226,14 +226,16 @@
     </div>
 
     @if ($galleryItems->isNotEmpty())
-        <div id="transport-gallery-lightbox" class="fixed inset-0 z-[100] hidden bg-black/85 p-4">
-            <div class="mx-auto flex h-full w-full max-w-6xl items-center justify-center">
-                <button type="button" class="absolute right-5 top-5 rounded-md border border-white/30 px-3 py-1 text-xs font-semibold text-white" data-transport-gallery-close="1">{{ ui_phrase('Close') }}</button>
-                <button type="button" class="absolute left-4 rounded-md border border-white/30 px-3 py-2 text-xs font-semibold text-white" data-transport-gallery-prev="1">{{ ui_phrase('Prev') }}</button>
-                <img id="transport-gallery-lightbox-image" src="{{ $firstGalleryImage }}" alt="{{ ui_phrase('Transport Unit Detail') }}" class="max-h-[90vh] max-w-full rounded-lg object-contain">
-                <button type="button" class="absolute right-4 rounded-md border border-white/30 px-3 py-2 text-xs font-semibold text-white" data-transport-gallery-next="1">{{ ui_phrase('Next') }}</button>
+        <x-modal name="transport-gallery-lightbox" maxWidth="2xl">
+            <div class="relative rounded-xl border border-gray-700 bg-black/95 p-3">
+                <div class="mx-auto flex w-full items-center justify-center">
+                    <button type="button" class="absolute right-3 top-3 rounded-md border border-white/30 px-3 py-1 text-xs font-semibold text-white" x-data x-on:click.prevent="$dispatch('close-modal', 'transport-gallery-lightbox')" data-transport-gallery-close="1">{{ ui_phrase('Close') }}</button>
+                    <button type="button" class="absolute left-3 rounded-md border border-white/30 px-3 py-2 text-xs font-semibold text-white" data-transport-gallery-prev="1">{{ ui_phrase('Prev') }}</button>
+                    <img id="transport-gallery-lightbox-image" src="{{ $firstGalleryImage }}" alt="{{ ui_phrase('Transport Unit Detail') }}" class="max-h-[82vh] max-w-full rounded-lg object-contain">
+                    <button type="button" class="absolute right-3 rounded-md border border-white/30 px-3 py-2 text-xs font-semibold text-white" data-transport-gallery-next="1">{{ ui_phrase('Next') }}</button>
+                </div>
             </div>
-        </div>
+        </x-modal>
     @endif
 @endsection
 
@@ -265,15 +267,16 @@
         <script>
             (function () {
                 const mainImage = document.getElementById('transport-gallery-main-image');
-                const lightbox = document.getElementById('transport-gallery-lightbox');
+                const lightboxModalName = 'transport-gallery-lightbox';
                 const lightboxImage = document.getElementById('transport-gallery-lightbox-image');
-                if (!mainImage || !lightbox || !lightboxImage) return;
+                if (!mainImage || !lightboxImage) return;
 
                 const thumbs = Array.from(document.querySelectorAll('[data-transport-gallery-thumb]'));
                 const sources = thumbs.map((btn) => btn.getAttribute('data-transport-gallery-src')).filter(Boolean);
                 if (!sources.length) return;
 
                 let currentIndex = 0;
+                let isLightboxOpen = false;
 
                 const setImage = (index) => {
                     if (!sources.length) return;
@@ -291,33 +294,35 @@
                 });
 
                 document.querySelector('[data-transport-gallery-open="1"]')?.addEventListener('click', () => {
-                    lightbox.classList.remove('hidden');
+                    isLightboxOpen = true;
+                    window.dispatchEvent(new CustomEvent('open-modal', { detail: lightboxModalName }));
                 });
 
-                lightbox.querySelector('[data-transport-gallery-close="1"]')?.addEventListener('click', () => {
-                    lightbox.classList.add('hidden');
+                document.querySelector('[data-transport-gallery-close="1"]')?.addEventListener('click', () => {
+                    isLightboxOpen = false;
                 });
 
-                lightbox.querySelector('[data-transport-gallery-prev="1"]')?.addEventListener('click', () => {
+                document.querySelector('[data-transport-gallery-prev="1"]')?.addEventListener('click', () => {
                     setImage(currentIndex - 1);
                 });
 
-                lightbox.querySelector('[data-transport-gallery-next="1"]')?.addEventListener('click', () => {
+                document.querySelector('[data-transport-gallery-next="1"]')?.addEventListener('click', () => {
                     setImage(currentIndex + 1);
                 });
 
-                lightbox.addEventListener('click', (event) => {
-                    if (event.target === lightbox) {
-                        lightbox.classList.add('hidden');
+                window.addEventListener('close-modal', (event) => {
+                    if ((event?.detail || '') === lightboxModalName) {
+                        isLightboxOpen = false;
                     }
                 });
 
                 document.addEventListener('keydown', (event) => {
-                    if (lightbox.classList.contains('hidden')) return;
+                    if (!isLightboxOpen) return;
 
                     if (event.key === 'Escape') {
                         event.preventDefault();
-                        lightbox.classList.add('hidden');
+                        isLightboxOpen = false;
+                        window.dispatchEvent(new CustomEvent('close-modal', { detail: lightboxModalName }));
                         return;
                     }
 

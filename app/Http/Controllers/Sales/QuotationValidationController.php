@@ -161,6 +161,7 @@ class QuotationValidationController extends Controller
                 'message' => 'Contact details updated.',
                 'contact' => $payload['contact'] ?? [],
                 'item' => $payload['item'] ?? [],
+                'history' => $payload['history'] ?? [],
             ]);
         }
 

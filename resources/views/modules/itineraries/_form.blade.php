@@ -458,6 +458,27 @@
     }
 @endphp
 
+@if (session('error'))
+    <div class="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+        {{ session('error') }}
+    </div>
+@endif
+@if (session('success'))
+    <div class="mb-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
+        {{ session('success') }}
+    </div>
+@endif
+@if ($errors->any())
+    <div class="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+        <p class="font-semibold">{{ ui_phrase('Please fix the following errors:') }}</p>
+        <ul class="mt-2 list-disc pl-5">
+            @foreach ($errors->all() as $error)
+                <li>{{ $error }}</li>
+            @endforeach
+        </ul>
+    </div>
+@endif
+
 <div class="space-y-4 itinerary-form-page" data-itinerary-wizard>
     <div class="itinerary-wizard-shell rounded-xl border border-gray-200 bg-white p-3 shadow-sm dark:border-gray-700 dark:bg-gray-800">
         <div class="itinerary-wizard-steps">
@@ -1308,6 +1329,7 @@
         @error('daily_end_hotel_booking_modes.*')
             <p class="text-xs text-rose-600">{{ $message }}</p>
         @enderror
+        <input type="hidden" name="day_points_payload" id="day-points-payload" value="">
     </section>
 
     <section data-wizard-step="3" class="space-y-3 hidden">
@@ -1966,6 +1988,7 @@
                     return Math.max(MIN_DURATION_NIGHTS, Math.min(maxNightsByDays, parsed));
                 };
                 const hotelStaysHidden = document.getElementById('hotel-stays-hidden');
+                const dayPointsPayloadInput = document.getElementById('day-points-payload');
                 const mapEl = document.getElementById('itinerary-map');
                 const mapDayTabsEl = document.getElementById('itinerary-map-day-tabs');
                 const mapLegendEl = document.getElementById('itinerary-map-legend');
@@ -5399,75 +5422,15 @@
                         const endAreaSelect = section.querySelector('.day-end-point-area');
                         const endRoomInput = section.querySelector('.day-end-room-count');
 
-                            const applyFilter = (typeSelect, itemSelect, isHotelSelfBooking = false) => {
-                                if (!typeSelect || !itemSelect) return;
-                                const selectedType = normalizePointType(typeSelect.value || '');
-                                const supportsItem = selectedType === 'airport' || isHotelPointType(selectedType);
-                                const requiresItem = selectedType === 'airport' || (isHotelPointType(selectedType) && !isHotelSelfBooking);
-                                const selectedValue = String(itemSelect.value || '');
-                            let allOptions = pointOptionCache.get(itemSelect);
-                            if (!allOptions) {
-                                allOptions = [];
-                                Array.from(itemSelect.options).forEach((opt) => {
-                                    const cacheClone = opt.cloneNode(true);
-                                    cacheClone.hidden = false;
-                                    cacheClone.disabled = false;
-                                    allOptions.push(cacheClone);
-                                });
-                                pointOptionCache.set(itemSelect, allOptions);
-                            }
+                        const applyFilter = (typeSelect, itemSelect, isHotelSelfBooking = false) => {
+                            if (!typeSelect || !itemSelect) return;
+                            const selectedType = normalizePointType(typeSelect.value || '');
+                            const supportsItem = selectedType === 'airport' || isHotelPointType(selectedType);
+                            const requiresItem = selectedType === 'airport' || (isHotelPointType(selectedType) && !isHotelSelfBooking);
 
-                            itemSelect.innerHTML = '';
-                            const placeholder = allOptions[0] ? allOptions[0].cloneNode(true) : null;
-                            if (placeholder) {
-                                placeholder.selected = true;
-                                itemSelect.appendChild(placeholder);
-                            }
-
+                            itemSelect.disabled = !supportsItem;
+                            itemSelect.required = supportsItem && requiresItem;
                             if (!supportsItem) {
-                                itemSelect.disabled = true;
-                                itemSelect.required = false;
-                                itemSelect.value = '';
-                                return;
-                            }
-
-                            itemSelect.disabled = false;
-                            itemSelect.required = requiresItem;
-                            let appendedCount = 0;
-                            allOptions.slice(1).forEach((option) => {
-                                const pointType = normalizePointType(option.dataset.pointType || '');
-                                if (pointType !== selectedType) return;
-                                const isCurrentSelected = String(option.value || '') === selectedValue;
-                                if (!matchesDestinationOption(option) && !isCurrentSelected) return;
-                                const clone = option.cloneNode(true);
-                                clone.hidden = false;
-                                clone.disabled = false;
-                                if (clone.value === selectedValue) {
-                                    clone.selected = true;
-                                }
-                                itemSelect.appendChild(clone);
-                                appendedCount += 1;
-                            });
-
-                            // Safety fallback for Day End Point Airport:
-                            // if destination filter yields zero matches, still show airport list.
-                            const isEndPointSelect = itemSelect.classList.contains('day-end-point-item');
-                            if (isEndPointSelect && selectedType === 'airport' && appendedCount === 0) {
-                                allOptions.slice(1).forEach((option) => {
-                                    const pointType = normalizePointType(option.dataset.pointType || '');
-                                    if (pointType !== 'airport') return;
-                                    const clone = option.cloneNode(true);
-                                    clone.hidden = false;
-                                    clone.disabled = false;
-                                    if (clone.value === selectedValue) {
-                                        clone.selected = true;
-                                    }
-                                    itemSelect.appendChild(clone);
-                                });
-                            }
-
-                            if (selectedValue !== '' &&
-                                !Array.from(itemSelect.options).some((option) => option.value === selectedValue)) {
                                 itemSelect.value = '';
                             }
                         };
@@ -5699,34 +5662,39 @@
                     });
                     hotelStaysHidden.innerHTML = html;
                 };
+                const buildDayPointsPayload = () => {
+                    const rows = [...daySections.querySelectorAll('.day-section')]
+                        .sort((a, b) => Number(a.dataset.day || '0') - Number(b.dataset.day || '0'))
+                        .map((section) => {
+                            const day = Number(section.dataset.day || '0');
+                            return {
+                                day,
+                                start_type: String(section.querySelector('.day-start-point-type')?.value || ''),
+                                start_item: String(section.querySelector('.day-start-point-item')?.value || ''),
+                                start_area: String(section.querySelector('.day-start-point-area')?.value || ''),
+                                start_room_id: String(section.querySelector('.day-start-room-select')?.value || ''),
+                                start_room_count: String(section.querySelector('.day-start-room-count')?.value || ''),
+                                start_booking_mode: String(section.querySelector('.day-start-booking-mode')?.value || ''),
+                                day_start_time: String(section.querySelector('.day-start-time')?.value || ''),
+                                day_start_travel_minutes: String(section.querySelector('.day-start-travel')?.value || ''),
+                                end_type: String(section.querySelector('.day-end-point-type')?.value || ''),
+                                end_item: String(section.querySelector('.day-end-point-item')?.value || ''),
+                                end_area: String(section.querySelector('.day-end-point-area')?.value || ''),
+                                end_room_id: String(section.querySelector('.day-end-room-select')?.value || ''),
+                                end_room_count: String(section.querySelector('.day-end-room-count')?.value || ''),
+                                end_booking_mode: String(section.querySelector('.day-end-booking-mode')?.value || ''),
+                            };
+                        })
+                        .filter((row) => Number.isFinite(row.day) && row.day > 0);
+                    return JSON.stringify(rows);
+                };
                 const prepareDayPointFieldsForSubmit = () => {
                     daySections.querySelectorAll('.day-section').forEach((section) => {
-                        const endType = normalizePointType(section.querySelector('.day-end-point-type')?.value || '');
-                        const endBookingMode = String(section.querySelector('.day-end-booking-mode')?.value || 'arranged');
-                        const isEndHotel = isHotelPointType(endType);
-                        const isEndSelfBooked = isEndHotel && isSelfBookedHotelMode(endBookingMode);
-
-                        const endItem = section.querySelector('.day-end-point-item');
-                        const endRoom = section.querySelector('.day-end-room-select');
-                        const endArea = section.querySelector('.day-end-point-area');
-                        const endBooking = section.querySelector('.day-end-booking-mode');
-                        const endRoomCount = section.querySelector('.day-end-room-count');
-
-                        if (endItem) {
-                            endItem.disabled = !(endType === 'airport' || (isEndHotel && !isEndSelfBooked));
-                        }
-                        if (endRoom) {
-                            endRoom.disabled = !(isEndHotel && !isEndSelfBooked);
-                        }
-                        if (endArea) {
-                            endArea.disabled = !(isEndHotel && isEndSelfBooked);
-                        }
-                        if (endBooking) {
-                            endBooking.disabled = !isEndHotel;
-                        }
-                        if (endRoomCount) {
-                            endRoomCount.disabled = !(isEndHotel && !isEndSelfBooked);
-                        }
+                        section.querySelectorAll(
+                            '.day-start-point-type, .day-start-point-item, .day-start-room-select, .day-start-booking-mode, .day-start-point-area, .day-start-room-count, .day-end-point-type, .day-end-point-item, .day-end-room-select, .day-end-booking-mode, .day-end-point-area, .day-end-room-count'
+                        ).forEach((input) => {
+                            input.disabled = false;
+                        });
                     });
                 };
                 const updateDayEndpointBadges = () => {
@@ -6332,21 +6300,23 @@
                     commitDays: true
                 });
                 refreshRequiredAsterisks();
-                form?.addEventListener('submit', async (e) => {
-                    e.preventDefault();
-                    try {
-                        await autoFillAllTravelMinutesFromMap();
-                    } catch (error) {
-                        if (error?.name !== 'AbortError') {
-                            console.warn('Auto travel-time recalculation failed before submit.', error);
-                        }
+                let isSubmittingItineraryForm = false;
+                form?.addEventListener('submit', (e) => {
+                    if (isSubmittingItineraryForm) {
+                        return;
                     }
-                    await recalcAll();
+                    e.preventDefault();
+                    isSubmittingItineraryForm = true;
                     reindex();
+                    if (dayPointsPayloadInput) {
+                        dayPointsPayloadInput.value = buildDayPointsPayload();
+                    }
+                    syncDayPointOptionRules();
+                    syncPointItemVisibility();
                     syncHotelStaysHidden();
                     prepareDayPointFieldsForSubmit();
                     clearEndPointValidationState();
-                    form.submit();
+                    HTMLFormElement.prototype.submit.call(form);
                 });
                 recalc();
                 const initialWizardStep = (() => {
@@ -6544,7 +6514,7 @@
 
                 const applyDestinationFilter = () => {
                     document.querySelectorAll(
-                            '.item-attraction, .item-activity, .item-transfer, .item-fnb, .day-start-point-item, .day-end-point-item, .day-transport-unit'
+                            '.item-attraction, .item-activity, .item-transfer, .item-fnb, .day-transport-unit'
                             )
                         .forEach(applyFilterToSelect);
                     document.querySelectorAll('.day-start-point-area, .day-end-point-area')
