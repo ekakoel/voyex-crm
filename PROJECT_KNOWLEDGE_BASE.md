@@ -230,3 +230,39 @@ Jika terjadi konflik dokumen, urutan prioritas:
 - Performance: heavy booking queries (status counts, monthly counts, weekly trends, top customers) are cached with a short TTL (120 seconds) using cache keys namespaced under `reservation:*` to reduce load during high traffic. Consider invalidating these keys in booking/quotation update hooks.
 - Testing: feature test `tests/Feature/Dashboard/ReservationDashboardTest.php` added to assert permission enforcement and page rendering.
 
+---
+
+## 12. Booking Service Item Flow
+
+This section explains the process of booking an individual service item from the booking detail page.
+
+### 12.1 User Interface
+
+- On the **Booking Detail** page (`bookings.show`), each service item listed from the quotation has a "Book" button if it hasn't been booked yet.
+- Clicking "Book" opens the **Book Service Item** modal.
+- This modal contains a form to input booking details, such as contact information, service date, and a confirmation number from the vendor/provider.
+
+### 12.2 Data Handling
+
+- The form submission is handled by the `bookServiceItem` method in `App\Http\Controllers\BookingController`.
+- The system uses two main tables for this process:
+    - `booking_items`: This table links a service item from a quotation to a booking. It stores the core details of the item within the context of the booking (e.g., quantity, price).
+    - `booking_item_booking_logs`: This table stores the actual booking confirmation details. Every time a booking is made or updated for a service item, a new record is created here. This provides a complete history of booking actions.
+
+### 12.3 Storage Logic
+
+1.  When the form is submitted, the `bookServiceItem` method first validates the input.
+2.  It finds or creates a corresponding record in the `booking_items` table to ensure the service item is associated with the current booking.
+3.  It then creates a new record in the `booking_item_booking_logs` table with the data submitted from the form. This includes:
+    - `vendor_provider_item_name`
+    - `contact_channel`
+    - `contact_value`
+    - `contacted_person_name`
+    - `service_date`
+    - `confirmation_number`
+    - `pax_adult` / `pax_child`
+    - `notes`
+    - `created_by` (the user who performed the booking)
+    - `booked_at` (timestamp)
+4.  This design ensures that all booking attempts and updates are logged, providing full auditability, without overwriting previous confirmation data. After a successful booking, a voucher is automatically generated.
+

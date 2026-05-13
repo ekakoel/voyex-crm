@@ -505,7 +505,7 @@ return array (
   'Hotel gallery full image' => 'Hotel gallery full image',
   'Hotel image' => 'Hotel image',
   'Hotel Information' => 'Hotel Information',
-  'Hotel Name' => 'Hotel Name',
+  'Hotel Name' => '酒店名稱',
   'Hotels' => 'é…’åº—',
   'hotels' => 'hotels',
   'Ideal' => 'Ideal',

@@ -358,10 +358,6 @@
                                                         <h4 class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ ui_phrase('Booking Detail') }}</h4>
                                                         <div class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
                                                             @php
-                                                                $vendorLabel = $isHotelType ? 'Hotel Name' : 'Vendors/Provider';
-                                                                if ($isTouristAttractionType) {
-                                                                    $vendorLabel = 'Tourist Attraction Name';
-                                                                }
                                                                 $vendorProviderFinal = (string) ($isHotelType ? $hotelNameValue : $vendorProviderValue);
                                                                 if ($isTouristAttractionType) {
                                                                     $vendorProviderFinal = trim((string) ($itemName ?? ''));
@@ -382,7 +378,15 @@
                                                             @endphp
                                                             @if (! $isTouristAttractionType || $hasVendorProvider)
                                                                 <div>
-                                                                    <p class="text-xs font-semibold text-gray-600 dark:text-gray-300">{{ ui_phrase($vendorLabel) }}</p>
+                                                                    <p class="text-xs font-semibold text-gray-600 dark:text-gray-300">
+                                                                        @if($isHotelType)
+                                                                            {{ ui_phrase('Hotel Name') }}
+                                                                        @elseif($isTouristAttractionType)
+                                                                            {{ ui_phrase('Tourist Attraction Name') }}
+                                                                        @else
+                                                                            {{ ui_phrase('Vendors/Provider') }}
+                                                                        @endif
+                                                                    </p>
                                                                     <p class="mt-1 text-sm text-gray-800 dark:text-gray-100">{{ $hasVendorProvider ? $vendorProviderFinal : '-' }}</p>
                                                                 </div>
                                                             @endif
@@ -461,7 +465,15 @@
                                                                 <input type="hidden" name="vendor_provider_item_name" value="{{ $vendorProviderFinal }}">
                                                             @else
                                                                 <div>
-                                                                    <label class="block text-xs font-semibold text-gray-600 dark:text-gray-300">{{ ui_phrase($vendorLabel) }}</label>
+                                                                    <label class="block text-xs font-semibold text-gray-600 dark:text-gray-300">
+                                                                        @if($isHotelType)
+                                                                            {{ ui_phrase('Hotel Name') }}
+                                                                        @elseif($isTouristAttractionType)
+                                                                            {{ ui_phrase('Tourist Attraction Name') }}
+                                                                        @else
+                                                                            {{ ui_phrase('Vendors/Provider') }}
+                                                                        @endif
+                                                                    </label>
                                                                     <input type="text" name="vendor_provider_item_name" class="app-input mt-1" @if($requiresContactFields) required @endif>
                                                                 </div>
                                                             @endif
