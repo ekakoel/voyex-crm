@@ -198,7 +198,7 @@
 
     <div class="grid grid-cols-1 gap-4">
         <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Itinerary') }}</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Itinerary') }} <span class="text-rose-600">*</span></label>
             <div class="mt-1 flex flex-col gap-2 sm:flex-row sm:items-center">
                 <select
                     id="itinerary-select"
@@ -275,13 +275,14 @@
 
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Order Number') }}</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Order Number') }} <span class="text-rose-600">*</span></label>
             <input
                 id="quotation-order-number"
                 name="order_number"
                 value="{{ old('order_number', $quotation->order_number ?? '') }}"
                 class="mt-1 app-input"
                 placeholder="{{ ui_phrase('Example: ABC260423A') }}"
+                required
             >
             <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
                 Use alphanumeric format without spaces.
@@ -291,7 +292,7 @@
             @enderror
         </div>
         <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Pax Adult') }}</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Pax Adult') }} <span class="text-rose-600">*</span></label>
             <input
                 name="pax_adult"
                 type="number"
@@ -312,14 +313,13 @@
                 min="0"
                 value="{{ old('pax_child', isset($quotation->pax_child) ? (int) $quotation->pax_child : 0) }}"
                 class="mt-1 app-input"
-                required
             >
             @error('pax_child')
                 <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
             @enderror
         </div>
         <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Service Date') }}</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Service Date') }} <span class="text-rose-600">*</span></label>
             <input
                 name="service_date"
                 type="date"
@@ -342,7 +342,7 @@
             >
         </div>
         <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Validity Date') }}</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Validity Date') }} <span class="text-rose-600">*</span></label>
             <input
                 name="validity_date"
                 type="date"

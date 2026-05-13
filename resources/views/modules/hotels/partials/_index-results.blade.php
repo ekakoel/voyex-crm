@@ -71,7 +71,9 @@
                                             @method('PATCH')
                                             <button type="submit"
                                                 onclick="return confirm('{{ $isActive ? ui_phrase('confirm deactivate') : ui_phrase('confirm activate') }}')"
-                                                class="{{ $isActive ? 'btn-muted-sm' : 'btn-primary-sm' }}">{{ $isActive ? ui_phrase('Deactivate') : ui_phrase('Activate') }}</button>
+                                                class="{{ $isActive ? 'btn-muted-sm' : 'btn-primary-sm' }}"
+                                                title="{{ $isActive ? ui_phrase('Deactivate') : ui_phrase('Activate') }}"
+                                                aria-label="{{ $isActive ? ui_phrase('Deactivate') : ui_phrase('Activate') }}"><i class="fa-solid {{ $isActive ? 'fa-toggle-off' : 'fa-toggle-on' }}"></i><span class="sr-only">{{ $isActive ? ui_phrase('Deactivate') : ui_phrase('Activate') }}</span></button>
                                         </form>
                                     </div>
                                 </td>
@@ -124,7 +126,9 @@
                             @method('PATCH')
                             <button type="submit"
                                 onclick="return confirm('{{ $isActive ? ui_phrase('confirm deactivate') : ui_phrase('confirm activate') }}')"
-                                class="{{ $isActive ? 'btn-muted-sm' : 'btn-primary-sm' }}">{{ $isActive ? ui_phrase('Deactivate') : ui_phrase('Activate') }}</button>
+                                class="{{ $isActive ? 'btn-muted-sm' : 'btn-primary-sm' }}"
+                                title="{{ $isActive ? ui_phrase('Deactivate') : ui_phrase('Activate') }}"
+                                aria-label="{{ $isActive ? ui_phrase('Deactivate') : ui_phrase('Activate') }}"><i class="fa-solid {{ $isActive ? 'fa-toggle-off' : 'fa-toggle-on' }}"></i><span class="sr-only">{{ $isActive ? ui_phrase('Deactivate') : ui_phrase('Activate') }}</span></button>
                         </form>
                     </div>
                 </div>
@@ -135,7 +139,6 @@
         <div>{{ $hotels->links() }}</div>
     </div>
 </div>
-
 
 
 

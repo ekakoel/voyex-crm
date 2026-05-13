@@ -64,8 +64,8 @@
                             <form action="{{ route('users.destroy', $user) }}" method="POST" class="inline">
                                 @csrf
                                 @method('DELETE')
-                                <button type="submit" onclick="return confirm('{{ ui_phrase('confirm delete employee') }}')"   class="btn-danger-sm">
-                                    {{ ui_phrase('Delete') }}
+                                <button type="submit" onclick="return confirm('{{ ui_phrase('confirm delete employee') }}')"   class="btn-danger-sm" title="{{ ui_phrase('Delete') }}" aria-label="{{ ui_phrase('Delete') }}">
+                                    <i class="fa-solid fa-trash"></i><span class="sr-only">{{ ui_phrase('Delete') }}</span>
                                 </button>
                             </form>
                         @endcan
@@ -115,7 +115,7 @@
                                         <button
                                             type="submit"
                                             onclick="return confirm('{{ ui_phrase('confirm delete employee') }}')"
-                                              class="btn-danger-sm">{{ ui_phrase('Delete') }}
+                                              class="btn-danger-sm" title="{{ ui_phrase('Delete') }}" aria-label="{{ ui_phrase('Delete') }}"><i class="fa-solid fa-trash"></i><span class="sr-only">{{ ui_phrase('Delete') }}</span>
                                         </button>
                                     </form>
                                 @endcan

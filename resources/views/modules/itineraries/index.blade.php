@@ -8,6 +8,7 @@
     <div class="space-y-5 module-page module-page--itineraries" data-service-filter-page data-page-spinner="off">
         <div class="module-grid-9-3 min-w-0">
             <aside class="module-grid-side min-w-0 space-y-3">
+                @include('components.module-index-sidebar-info')
                 <section class="app-card p-4">
                     <div class="mb-3">
                         <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ ui_phrase('Itinerary Logs') }}</h3>

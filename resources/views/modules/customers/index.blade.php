@@ -31,13 +31,6 @@
                         </select>
                         <x-forms.searchable-select name="country" :options="$countries" :value="request('country')"
                             list-id="country-filter-options" placeholder="{{ ui_phrase('Country') }}" />
-                        <select name="created_by" class="app-input" data-service-filter-input>
-                            <option value="">{{ ui_phrase('Creator') }}</option>
-                            @foreach ($creators as $creator)
-                                <option value="{{ $creator->id }}" @selected((string) request('created_by') === (string) $creator->id)>{{ $creator->displayNameFor(auth()->user(), 'System') }}
-                                </option>
-                            @endforeach
-                        </select>
                         <select name="per_page" class="app-input" data-service-filter-input>
                             @foreach ([10, 25, 50, 100] as $size)
                                 <option value="{{ $size }}" @selected((string) request('per_page', 10) === (string) $size)>{{ ui_phrase(':size/page', ['size' => $size]) }}
@@ -118,7 +111,7 @@
                                                 <form action="{{ route('customers.toggle-status', $customer->id) }}" method="POST" class="inline">
                                                     @csrf
                                                     @method('PATCH')
-                                                    <button type="submit" onclick="return confirm('{{ $isActive ? ui_phrase('confirm deactivate') : ui_phrase('confirm activate') }}')" class="{{ $isActive ? 'btn-muted-sm' : 'btn-primary-sm' }}">{{ $isActive ? ui_phrase('Deactivate') : ui_phrase('Activate') }}</button>
+                                                    <button type="submit" onclick="return confirm('{{ $isActive ? ui_phrase('confirm deactivate') : ui_phrase('confirm activate') }}')" class="{{ $isActive ? 'btn-muted-sm' : 'btn-primary-sm' }}" title="{{ $isActive ? ui_phrase('Deactivate') : ui_phrase('Activate') }}" aria-label="{{ $isActive ? ui_phrase('Deactivate') : ui_phrase('Activate') }}"><i class="fa-solid {{ $isActive ? 'fa-toggle-off' : 'fa-toggle-on' }}"></i><span class="sr-only">{{ $isActive ? ui_phrase('Deactivate') : ui_phrase('Activate') }}</span></button>
                                                 </form>
                                             </div>
                                         </td>
@@ -161,7 +154,7 @@
                                 <form action="{{ route('customers.toggle-status', $customer->id) }}" method="POST" class="inline">
                                     @csrf
                                     @method('PATCH')
-                                    <button type="submit" onclick="return confirm('{{ $customer->trashed() ? ui_phrase('confirm activate') : ui_phrase('confirm deactivate') }}')" class="{{ $customer->trashed() ? 'btn-primary-sm' : 'btn-muted-sm' }}">{{ $customer->trashed() ? ui_phrase('Activate') : ui_phrase('Deactivate') }}</button>
+                                    <button type="submit" onclick="return confirm('{{ $customer->trashed() ? ui_phrase('confirm activate') : ui_phrase('confirm deactivate') }}')" class="{{ $customer->trashed() ? 'btn-primary-sm' : 'btn-muted-sm' }}" title="{{ $customer->trashed() ? ui_phrase('Activate') : ui_phrase('Deactivate') }}" aria-label="{{ $customer->trashed() ? ui_phrase('Activate') : ui_phrase('Deactivate') }}"><i class="fa-solid {{ $customer->trashed() ? 'fa-toggle-on' : 'fa-toggle-off' }}"></i><span class="sr-only">{{ $customer->trashed() ? ui_phrase('Activate') : ui_phrase('Deactivate') }}</span></button>
                                 </form>
                             </div>
                         </div>

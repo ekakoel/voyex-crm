@@ -64,7 +64,8 @@ class QuotationItinerarySyncService
         $totals = $this->computeTotals(
             array_merge($generatedItems, $manualItems),
             $quotation->discount_type,
-            (float) ($quotation->discount_value ?? 0)
+            (float) ($quotation->discount_value ?? 0),
+            optional($quotation->service_date)->format('Y-m-d')
         );
 
         DB::transaction(function () use ($quotation, $totals): void {
@@ -97,10 +98,18 @@ class QuotationItinerarySyncService
         return true;
     }
 
-    private function computeTotals(array $items, ?string $discountType, float $discountValue): array
+    private function computeTotals(array $items, ?string $discountType, float $discountValue, ?string $quotationServiceDate = null): array
     {
         $subTotal = 0.0;
         $normalizedItems = [];
+        $serviceDateBase = null;
+        if (is_string($quotationServiceDate) && trim($quotationServiceDate) !== '') {
+            try {
+                $serviceDateBase = \Illuminate\Support\Carbon::parse($quotationServiceDate)->startOfDay();
+            } catch (\Throwable) {
+                $serviceDateBase = null;
+            }
+        }
 
         foreach ($items as $item) {
             $qty = max(1, (int) ($item['qty'] ?? 1));
@@ -146,6 +155,14 @@ class QuotationItinerarySyncService
                 if (array_key_exists($key, $item) && $item[$key] !== null && $item[$key] !== '') {
                     $row[$key] = $item[$key];
                 }
+            }
+            $dayNumber = (int) ($item['day_number'] ?? 0);
+            if ($serviceDateBase) {
+                $serviceDate = $serviceDateBase->copy();
+                if ($dayNumber > 1) {
+                    $serviceDate->addDays($dayNumber - 1);
+                }
+                $row['service_date'] = $serviceDate->toDateString();
             }
             if (isset($item['serviceable_meta']) && is_array($item['serviceable_meta']) && $item['serviceable_meta'] !== []) {
                 $row['serviceable_meta'] = $item['serviceable_meta'];

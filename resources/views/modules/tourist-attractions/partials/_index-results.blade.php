@@ -62,15 +62,13 @@
                                         <form action="{{ route('tourist-attractions.toggle-status', $touristAttraction->id) }}" method="POST" class="inline" data-tourist-attractions-toggle-form>
                                             @csrf
                                             @method('PATCH')
-                                            <button type="submit" onclick="return confirm('{{ $isActive ? ui_phrase('attractions confirm deactivate') : ui_phrase('attractions confirm activate') }}')" class="{{ $isActive ? 'btn-muted-sm' : 'btn-primary-sm' }}">{{ $isActive ? ui_phrase('Deactivate') : ui_phrase('Activate') }}</button>
+                                            <button type="submit" onclick="return confirm('{{ $isActive ? ui_phrase('attractions confirm deactivate') : ui_phrase('attractions confirm activate') }}')" class="{{ $isActive ? 'btn-muted-sm' : 'btn-primary-sm' }}" title="{{ $isActive ? ui_phrase('Deactivate') : ui_phrase('Activate') }}" aria-label="{{ $isActive ? ui_phrase('Deactivate') : ui_phrase('Activate') }}"><i class="fa-solid {{ $isActive ? 'fa-toggle-off' : 'fa-toggle-on' }}"></i><span class="sr-only">{{ $isActive ? ui_phrase('Deactivate') : ui_phrase('Activate') }}</span></button>
                                         </form>
                                         @if ($canDeleteTouristAttraction)
                                             <form action="{{ route('tourist-attractions.destroy', $touristAttraction) }}" method="POST" class="inline" data-tourist-attractions-delete-form>
                                                 @csrf
                                                 @method('DELETE')
-                                                <button type="submit" class="btn-danger-sm">
-                                                    {{ ui_phrase('Delete') }}
-                                                </button>
+                                                <button type="submit" class="btn-danger-sm" title="{{ ui_phrase('Delete') }}" aria-label="{{ ui_phrase('Delete') }}"><i class="fa-solid fa-trash"></i><span class="sr-only">{{ ui_phrase('Delete') }}</span></button>
                                             </form>
                                         @endif
                                     </div>
@@ -113,15 +111,13 @@
                         <form action="{{ route('tourist-attractions.toggle-status', $touristAttraction->id) }}" method="POST" class="inline" data-tourist-attractions-toggle-form>
                             @csrf
                             @method('PATCH')
-                            <button type="submit" onclick="return confirm('{{ $touristAttraction->trashed() ? ui_phrase('attractions confirm activate') : ui_phrase('attractions confirm deactivate') }}')" class="{{ $touristAttraction->trashed() ? 'btn-primary-sm' : 'btn-muted-sm' }}">{{ $touristAttraction->trashed() ? ui_phrase('Activate') : ui_phrase('Deactivate') }}</button>
+                            <button type="submit" onclick="return confirm('{{ $touristAttraction->trashed() ? ui_phrase('attractions confirm activate') : ui_phrase('attractions confirm deactivate') }}')" class="{{ $touristAttraction->trashed() ? 'btn-primary-sm' : 'btn-muted-sm' }}" title="{{ $touristAttraction->trashed() ? ui_phrase('Activate') : ui_phrase('Deactivate') }}" aria-label="{{ $touristAttraction->trashed() ? ui_phrase('Activate') : ui_phrase('Deactivate') }}"><i class="fa-solid {{ $touristAttraction->trashed() ? 'fa-toggle-on' : 'fa-toggle-off' }}"></i><span class="sr-only">{{ $touristAttraction->trashed() ? ui_phrase('Activate') : ui_phrase('Deactivate') }}</span></button>
                         </form>
                         @if ($canDeleteTouristAttraction)
                             <form action="{{ route('tourist-attractions.destroy', $touristAttraction) }}" method="POST" class="inline" data-tourist-attractions-delete-form>
                                 @csrf
                                 @method('DELETE')
-                                <button type="submit" class="btn-danger-sm">
-                                    {{ ui_phrase('Delete') }}
-                                </button>
+                                <button type="submit" class="btn-danger-sm" title="{{ ui_phrase('Delete') }}" aria-label="{{ ui_phrase('Delete') }}"><i class="fa-solid fa-trash"></i><span class="sr-only">{{ ui_phrase('Delete') }}</span></button>
                             </form>
                         @endif
                     </div>

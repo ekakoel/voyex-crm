@@ -55,6 +55,10 @@
                 islandTransfer: @json(ui_phrase('Island Transfer')),
                 touristAttraction: @json(ui_phrase('Tourist Attraction')),
                 transport: @json(ui_phrase('Transport')),
+                fixed: @json(ui_phrase('Fixed')),
+                percent: @json(ui_phrase('Percent')),
+                updatedBy: @json(ui_phrase('Updated by')),
+                updatedAt: @json(ui_phrase('Updated at')),
                 loadDetailFailed: @json(ui_phrase('load detail failed')),
                 contactUpdateFailed: @json(ui_phrase('Failed to update contact details.')),
                 contactUpdateSuccess: @json(ui_phrase('Contact details updated.')),
@@ -98,7 +102,14 @@
                 .replace(/'/g, '&#039;');
             const renderValidationHistory = (logs) => {
                 if (!historyContainer) return;
-                const items = (Array.isArray(logs) ? logs : []).slice(0, 3);
+                const items = (Array.isArray(logs) ? logs : [])
+                    .slice()
+                    .sort((a, b) => {
+                        const aTime = new Date(String(a?.created_at || '')).getTime();
+                        const bTime = new Date(String(b?.created_at || '')).getTime();
+                        return (Number.isFinite(bTime) ? bTime : 0) - (Number.isFinite(aTime) ? aTime : 0);
+                    })
+                    .slice(0, 3);
                 const formatHistoryTime = (isoDate) => {
                     if (!isoDate) return '-';
                     const parsed = new Date(isoDate);
@@ -116,6 +127,9 @@
                 }
                 historyContainer.innerHTML = items.map((entry) => {
                     const action = String(entry?.action || '').trim() || '-';
+                    const actionScope = String(entry?.scope || '').trim() === 'service_item'
+                        ? '{{ ui_phrase('Service Item') }}'
+                        : '{{ ui_phrase('Quotation Item') }}';
                     const validator = String(entry?.validator_name || '-').trim() || '-';
                     const createdAt = formatHistoryTime(entry?.created_at || '');
                     const note = String(entry?.validation_notes || '').trim();
@@ -123,7 +137,7 @@
                     return `
                         <div class="rounded-md border border-gray-200 px-2 py-1.5 dark:border-gray-700">
                             <div class="flex items-center justify-between gap-2">
-                                <span class="font-semibold text-gray-700 dark:text-gray-200">${escapeHtml(action)}</span>
+                                <span class="font-semibold text-gray-700 dark:text-gray-200">${escapeHtml(action)} (${escapeHtml(actionScope)})</span>
                                 <span class="text-gray-500 dark:text-gray-400">${escapeHtml(createdAt)}</span>
                             </div>
                             <p class="mt-0.5 text-gray-600 dark:text-gray-300">${escapeHtml(validator)}</p>
@@ -136,7 +150,7 @@
             const renderDetail = (payload) => {
                 const item = payload.item || {};
                 const contact = payload.contact || {};
-                const historyLogs = payload.history || [];
+                const serviceHistoryLogs = payload.service_history || [];
 
                 if (titleEl) {
                     const dayNumber = Number(item.day_number || 0);
@@ -165,13 +179,14 @@
                     const noteInput = getValidationNoteInput(item.id);
                     communicationNoteInput.value = noteInput?.value || '';
                 }
-                renderValidationHistory(historyLogs);
+                renderValidationHistory(serviceHistoryLogs);
 
                 if (currentEl) {
                     const normalizedMarkupType = String(item.markup_type || 'fixed').toLowerCase() === 'percent' ? 'percent' : 'fixed';
                     const markupDisplay = normalizedMarkupType === 'percent'
                         ? `${Number(item.markup || 0).toLocaleString(appDisplayLocale, { maximumFractionDigits: 2 })}%`
                         : formatMoneyFromIdr(item.markup);
+                    const markupTypeLabel = normalizedMarkupType === 'percent' ? i18n.percent : i18n.fixed;
                     const updatedAtText = (() => {
                         const iso = String(item.updated_at || '').trim();
                         if (!iso) return '-';
@@ -187,10 +202,10 @@
 
                     currentEl.innerHTML = `
                         <div><span class="font-semibold">{{ ui_phrase('Active Contract Rate') }}:</span> ${formatMoneyFromIdr(item.contract_rate)}</div>
-                        <div class="mt-1"><span class="font-semibold">{{ ui_phrase('Active Markup Type') }}:</span> ${normalizedMarkupType}</div>
+                        <div class="mt-1"><span class="font-semibold">{{ ui_phrase('Active Markup Type') }}:</span> ${markupTypeLabel}</div>
                         <div class="mt-1"><span class="font-semibold">{{ ui_phrase('Active Markup') }}:</span> ${markupDisplay}</div>
-                        <div class="mt-1"><span class="font-semibold">{{ ui_phrase('Updated by') }}:</span> ${item.validator || '-'}</div>
-                        <div class="mt-1"><span class="font-semibold">{{ ui_phrase('Updated at') }}:</span> ${updatedAtText}</div>
+                        <div class="mt-1"><span class="font-semibold">${i18n.updatedBy}:</span> ${item.validator || '-'}</div>
+                        <div class="mt-1"><span class="font-semibold">${i18n.updatedAt}:</span> ${updatedAtText}</div>
                     `;
                 }
 
@@ -304,7 +319,7 @@
                     if (contactEmailInput) contactEmailInput.value = contact.contact_email && contact.contact_email !== '-' ? contact.contact_email : '';
                     if (contactWebsiteInput) contactWebsiteInput.value = contact.contact_website && contact.contact_website !== '-' ? contact.contact_website : '';
                     if (contactAddressDisplay) contactAddressDisplay.textContent = contact.contact_address || '-';
-                    renderValidationHistory(result?.history || []);
+                    renderValidationHistory(result?.service_history || []);
 
                     setUpdateContactFeedback(result?.message || i18n.contactUpdateSuccess);
                 } catch (error) {
@@ -441,11 +456,40 @@
             const refreshAllMoneyBadges = () => {
                 setTextForSelectors('[data-contract-rate-badge]', currencyBadgeText);
                 setTextForSelectors('[data-mobile-contract-rate-badge]', currencyBadgeText);
+                setTextForSelectors('[data-confirm-contract-rate-badge]', currencyBadgeText);
                 document.querySelectorAll('[data-canonical-input^="markup_type-"]').forEach((input) => {
                     const itemId = String(input.getAttribute('data-canonical-input') || '').replace('markup_type-', '');
                     if (itemId !== '') {
                         refreshMarkupBadgesForItem(itemId);
                     }
+                });
+                syncConfirmMarkupBadge();
+            };
+            const hydrateValidationDisplaysFromCanonical = () => {
+                document.querySelectorAll('[data-validation-item-row]').forEach((row) => {
+                    const itemId = String(row.getAttribute('data-validation-item-row') || '').trim();
+                    if (!itemId) return;
+
+                    const canonicalRateInput = getCanonicalInput(itemId, 'contract_rate');
+                    const canonicalMarkupTypeInput = getCanonicalInput(itemId, 'markup_type');
+                    const canonicalMarkupInput = getCanonicalInput(itemId, 'markup');
+                    const displayRate = Math.max(0, parseIntegerFromDisplay(canonicalRateInput?.value || 0));
+                    const displayMarkup = Math.max(0, parseIntegerFromDisplay(canonicalMarkupInput?.value || 0));
+                    const markupType = String(canonicalMarkupTypeInput?.value || 'fixed').toLowerCase() === 'percent' ? 'percent' : 'fixed';
+
+                    document.querySelectorAll(`[data-contract-rate-display="${itemId}"], [data-mobile-contract-rate-display="${itemId}"]`).forEach((el) => {
+                        el.textContent = formatMoneyFromIdr(toIdrInteger(displayRate));
+                    });
+                    document.querySelectorAll(`[data-markup-type-display="${itemId}"], [data-mobile-markup-type-display="${itemId}"]`).forEach((el) => {
+                        el.textContent = markupType === 'percent' ? '{{ ui_phrase('Percent') }}' : '{{ ui_phrase('Fixed') }}';
+                    });
+                    document.querySelectorAll(`[data-markup-display="${itemId}"], [data-mobile-markup-display="${itemId}"]`).forEach((el) => {
+                        if (markupType === 'percent') {
+                            el.textContent = `${Number(displayMarkup || 0).toLocaleString(appDisplayLocale, { maximumFractionDigits: 2 })}%`;
+                        } else {
+                            el.textContent = formatMoneyFromIdr(toIdrInteger(displayMarkup));
+                        }
+                    });
                 });
             };
 
@@ -502,14 +546,95 @@
 
             const validateConfirmModalName = 'validate-item-confirm-modal';
             const validateConfirmModal = document.getElementById('validate-item-confirm-modal-content');
-            const confirmItemTypeEl = validateConfirmModal?.querySelector('[data-confirm-item-type]') || null;
-            const confirmItemNameEl = validateConfirmModal?.querySelector('[data-confirm-item-name]') || null;
-            const confirmVendorEl = validateConfirmModal?.querySelector('[data-confirm-vendor-name]') || null;
-            const confirmContractRateEl = validateConfirmModal?.querySelector('[data-confirm-contract-rate]') || null;
-            const confirmMarkupTypeEl = validateConfirmModal?.querySelector('[data-confirm-markup-type]') || null;
-            const confirmMarkupEl = validateConfirmModal?.querySelector('[data-confirm-markup]') || null;
+            const confirmContractRateInput = validateConfirmModal?.querySelector('[data-confirm-contract-rate-input]') || null;
+            const confirmMarkupTypeInput = validateConfirmModal?.querySelector('[data-confirm-markup-type-input]') || null;
+            const confirmMarkupInput = validateConfirmModal?.querySelector('[data-confirm-markup-input]') || null;
+            const confirmQtyInput = validateConfirmModal?.querySelector('[data-confirm-qty-input]') || null;
+            const confirmTotalPriceInput = validateConfirmModal?.querySelector('[data-confirm-total-price-input]') || null;
+            const confirmValidationNoteInput = validateConfirmModal?.querySelector('[data-confirm-validation-note]') || null;
+            const confirmMarkupBadge = validateConfirmModal?.querySelector('[data-confirm-markup-badge]') || null;
             const confirmValidateButton = validateConfirmModal?.querySelector('[data-confirm-validate-btn]') || null;
+            const confirmModalTitle = validateConfirmModal?.querySelector('[data-confirm-modal-title]') || null;
             let pendingSaveButton = null;
+            const syncConfirmMarkupBadge = () => {
+                if (!confirmMarkupBadge) return;
+                const markupType = String(confirmMarkupTypeInput?.value || 'fixed').toLowerCase() === 'percent' ? 'percent' : 'fixed';
+                confirmMarkupBadge.textContent = markupType === 'percent' ? '%' : currencyBadgeText;
+            };
+            const syncConfirmTotalPrice = () => {
+                if (!confirmTotalPriceInput) return;
+                const qty = Math.max(1, Number.parseInt(String(confirmQtyInput?.value || '1'), 10) || 1);
+                const contractRate = Math.max(0, parseIntegerFromDisplay(confirmContractRateInput?.value || 0));
+                const markupType = String(confirmMarkupTypeInput?.value || 'fixed').toLowerCase() === 'percent' ? 'percent' : 'fixed';
+                const markupValue = Math.max(0, parseIntegerFromDisplay(confirmMarkupInput?.value || 0));
+                const unitPrice = markupType === 'percent'
+                    ? (contractRate + ((contractRate * markupValue) / 100))
+                    : (contractRate + markupValue);
+                const totalPrice = Math.max(0, Math.round(qty * unitPrice));
+                confirmTotalPriceInput.value = formatIntegerDisplay(totalPrice);
+            };
+            const syncLatestValidationCardVisibility = () => {
+                const card = validateConfirmModal?.querySelector('[data-confirm-latest-card]');
+                if (!card) return;
+                const byField = validateConfirmModal?.querySelector('[data-confirm-field="last-validation-by"]');
+                const atField = validateConfirmModal?.querySelector('[data-confirm-field="last-validation-at"]');
+                const noteField = validateConfirmModal?.querySelector('[data-confirm-field="last-validation-note"]');
+                const hasAnyData = Boolean(byField && !byField.classList.contains('hidden'))
+                    || Boolean(atField && !atField.classList.contains('hidden'))
+                    || Boolean(noteField && !noteField.classList.contains('hidden'));
+                card.classList.toggle('hidden', !hasAnyData);
+            };
+            const normalizeModalValue = (value) => {
+                const text = String(value ?? '').trim();
+                if (text === '' || text === '-') return '';
+                return text;
+            };
+            const setConfirmFieldValue = (fieldSelector, value) => {
+                const field = validateConfirmModal?.querySelector(`[data-confirm-field="${fieldSelector}"]`);
+                const target = validateConfirmModal?.querySelector(`[data-confirm-${fieldSelector}]`);
+                if (!field || !target) return;
+                const normalized = normalizeModalValue(value);
+                if (normalized === '') {
+                    field.classList.add('hidden');
+                    target.textContent = '';
+                    return;
+                }
+                field.classList.remove('hidden');
+                target.textContent = normalized;
+            };
+            const hydrateConfirmLatestFromServiceHistory = async (itemId) => {
+                if (!itemId || !endpointTemplate) return;
+                const endpoint = endpointTemplate.replace('__ITEM__', String(itemId));
+                try {
+                    const response = await fetch(endpoint, {
+                        headers: {
+                            'Accept': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    });
+                    if (!response.ok) return;
+                    const payload = await response.json();
+                    const logs = Array.isArray(payload?.service_history) ? payload.service_history : [];
+                    const latest = logs.length > 0 ? logs[0] : null;
+                    const latestBy = String(latest?.validator_name || '').trim();
+                    const latestAt = String(latest?.created_at || '').trim();
+                    const latestNote = String(latest?.validation_notes || '').trim();
+
+                    setConfirmFieldValue('last-validation-by', latestBy);
+                    setConfirmFieldValue('last-validation-at', latestAt !== '' ? formatDateTime(latestAt) : '');
+                    setConfirmFieldValue('last-validation-note', latestNote);
+                    syncLatestValidationCardVisibility();
+
+                    if (confirmModalTitle) {
+                        const hasServiceValidation = latestBy !== '' || latestAt !== '' || latestNote !== '';
+                        confirmModalTitle.textContent = hasServiceValidation
+                            ? '{{ ui_phrase('Revalidate Item') }}'
+                            : '{{ ui_phrase('Confirm Validation') }}';
+                    }
+                } catch (e) {
+                    // Keep fallback values from current quotation item state.
+                }
+            };
 
             const openValidateConfirmModal = (button) => {
                 if (!button || !validateConfirmModal) return false;
@@ -520,32 +645,77 @@
                 }
 
                 const itemType = String(button.getAttribute('data-item-type') || '-').trim() || '-';
+                const itemCategory = String(button.getAttribute('data-item-category') || '').trim().toLowerCase();
+                const itemBrand = String(button.getAttribute('data-item-brand') || '-').trim() || '-';
                 const itemName = String(button.getAttribute('data-item-name') || '-').trim() || '-';
                 const vendorName = String(button.getAttribute('data-vendor-name') || '-').trim() || '-';
+                const contactPerson = String(button.getAttribute('data-contact-person') || '-').trim() || '-';
+                const contactPhone = String(button.getAttribute('data-contact-phone') || '-').trim() || '-';
+                const contactEmail = String(button.getAttribute('data-contact-email') || '-').trim() || '-';
+                const contactWebsite = String(button.getAttribute('data-contact-website') || '-').trim() || '-';
+                const itemPax = String(button.getAttribute('data-item-pax') || '-').trim() || '-';
+                const itemServiceDate = String(button.getAttribute('data-item-service-date') || '-').trim() || '-';
+                const itemQtyRaw = String(button.getAttribute('data-item-qty') || '').trim();
+                const lastValidationBy = String(button.getAttribute('data-last-validation-by') || '').trim();
+                const lastValidationAtRaw = String(button.getAttribute('data-last-validation-at') || '').trim();
+                const lastValidationNote = String(button.getAttribute('data-last-validation-note') || '').trim();
                 const contractRateInput = itemId ? getCanonicalInput(itemId, 'contract_rate') : null;
                 const markupTypeInput = itemId ? getCanonicalInput(itemId, 'markup_type') : null;
                 const markupInput = itemId ? getCanonicalInput(itemId, 'markup') : null;
+                const validationNoteInput = itemId ? getValidationNoteInput(itemId) : null;
                 const contractRateDisplay = Math.max(0, parseIntegerFromDisplay(contractRateInput?.value || 0));
                 const markupDisplay = Math.max(0, parseIntegerFromDisplay(markupInput?.value || 0));
                 const markupType = String(markupTypeInput?.value || 'fixed').toLowerCase() === 'percent' ? 'percent' : 'fixed';
 
-                if (confirmItemTypeEl) confirmItemTypeEl.textContent = itemType;
-                if (confirmItemNameEl) confirmItemNameEl.textContent = itemName;
-                if (confirmVendorEl) confirmVendorEl.textContent = vendorName;
-                if (confirmContractRateEl) confirmContractRateEl.textContent = formatMoneyFromIdr(toIdrInteger(contractRateDisplay));
-                if (confirmMarkupTypeEl) confirmMarkupTypeEl.textContent = markupType === 'percent' ? 'Percent' : 'Fixed';
-                if (confirmMarkupEl) {
-                    confirmMarkupEl.textContent = markupType === 'percent'
-                        ? `${Number(markupDisplay || 0).toLocaleString(appDisplayLocale, { maximumFractionDigits: 2 })}%`
-                        : formatMoneyFromIdr(toIdrInteger(markupDisplay));
+                const normalizedBrand = normalizeModalValue(itemBrand);
+                const normalizedName = normalizeModalValue(itemName);
+                const combinedItemName = normalizedBrand !== '' ? `${normalizedBrand} ${normalizedName}`.trim() : normalizedName;
+                const normalizedVendor = normalizeModalValue(vendorName);
+                const vendorOwnedCategories = ['foodbeverage', 'transport', 'transportunit', 'activity', 'islandtransfer'];
+                const isVendorOwnedItem = vendorOwnedCategories.includes(itemCategory);
+                const isDuplicateVendorName = normalizedVendor !== ''
+                    && combinedItemName !== ''
+                    && normalizedVendor.toLowerCase() === combinedItemName.toLowerCase();
+
+                setConfirmFieldValue('item-type', itemType);
+                setConfirmFieldValue('item-name', combinedItemName);
+                setConfirmFieldValue('vendor-name', (!isVendorOwnedItem && isDuplicateVendorName) ? '' : vendorName);
+                setConfirmFieldValue('contact-person', contactPerson);
+                setConfirmFieldValue('contact-phone', contactPhone);
+                setConfirmFieldValue('contact-email', contactEmail);
+                setConfirmFieldValue('contact-website', contactWebsite);
+                setConfirmFieldValue('item-pax', itemPax);
+                setConfirmFieldValue('item-service-date', itemServiceDate);
+                setConfirmFieldValue('last-validation-by', lastValidationBy);
+                setConfirmFieldValue('last-validation-at', lastValidationAtRaw !== '' ? formatDateTime(lastValidationAtRaw) : '');
+                setConfirmFieldValue('last-validation-note', lastValidationNote);
+                syncLatestValidationCardVisibility();
+                if (confirmContractRateInput) confirmContractRateInput.value = formatIntegerDisplay(contractRateDisplay);
+                if (confirmMarkupTypeInput) confirmMarkupTypeInput.value = markupType;
+                if (confirmMarkupInput) confirmMarkupInput.value = formatIntegerDisplay(markupDisplay);
+                if (confirmQtyInput) {
+                    const normalizedQty = Math.max(1, Number.parseInt(itemQtyRaw || '1', 10) || 1);
+                    confirmQtyInput.value = String(normalizedQty);
                 }
+                if (confirmValidationNoteInput) confirmValidationNoteInput.value = String(validationNoteInput?.value || '');
+                syncConfirmMarkupBadge();
+                syncConfirmTotalPrice();
                 if (confirmValidateButton) {
                     const actionLabel = String(button.getAttribute('data-action-label') || '').trim();
                     confirmValidateButton.textContent = actionLabel !== '' ? actionLabel : '{{ ui_phrase('Validate') }}';
                 }
+                if (confirmModalTitle) {
+                    const hasValidatedHistory = lastValidationBy !== '' || lastValidationAtRaw !== '' || lastValidationNote !== '';
+                    confirmModalTitle.textContent = hasValidatedHistory
+                        ? '{{ ui_phrase('Revalidate Item') }}'
+                        : '{{ ui_phrase('Confirm Validation') }}';
+                }
 
+                validateConfirmModal.setAttribute('data-current-item-id', itemId);
+                refreshMarkupBadgesForItem(itemId);
                 pendingSaveButton = button;
                 window.dispatchEvent(new CustomEvent('open-modal', { detail: validateConfirmModalName }));
+                hydrateConfirmLatestFromServiceHistory(itemId);
                 return true;
             };
 
@@ -559,9 +729,11 @@
                 const contractRateInput = getCanonicalInput(itemId, 'contract_rate');
                 const markupTypeInput = getCanonicalInput(itemId, 'markup_type');
                 const markupInput = getCanonicalInput(itemId, 'markup');
+                const qtyInput = getCanonicalInput(itemId, 'qty');
                 const validationNoteInput = getValidationNoteInput(itemId);
                 const normalizedContractRateDisplay = Math.max(0, parseIntegerFromDisplay(contractRateInput?.value || 0));
                 const normalizedMarkupDisplay = Math.max(0, parseIntegerFromDisplay(markupInput?.value || 0));
+                const normalizedQty = Math.max(1, Number.parseInt(String(qtyInput?.value || '1'), 10) || 1);
                 const normalizedContractRate = toIdrInteger(normalizedContractRateDisplay);
                 const normalizedMarkup = toIdrInteger(normalizedMarkupDisplay);
                 const validationNote = String(validationNoteInput?.value || '').trim();
@@ -571,9 +743,13 @@
                 if (markupInput) {
                     markupInput.value = formatIntegerDisplay(normalizedMarkupDisplay);
                 }
+                if (qtyInput) {
+                    qtyInput.value = String(normalizedQty);
+                }
 
                 const payload = {
                     _method: 'PATCH',
+                    qty: normalizedQty,
                     contract_rate: normalizedContractRate,
                     markup_type: markupTypeInput?.value ?? 'fixed',
                     markup: normalizedMarkup,
@@ -616,6 +792,29 @@
             confirmValidateButton?.addEventListener('click', async () => {
                 if (!pendingSaveButton) return;
                 const targetButton = pendingSaveButton;
+                const itemId = String(targetButton.getAttribute('data-save-item') || '').trim();
+                if (itemId !== '') {
+                    const canonicalRateInput = getCanonicalInput(itemId, 'contract_rate');
+                    const canonicalMarkupTypeInput = getCanonicalInput(itemId, 'markup_type');
+                    const canonicalMarkupInput = getCanonicalInput(itemId, 'markup');
+                    const canonicalQtyInput = getCanonicalInput(itemId, 'qty');
+                    const canonicalValidationNoteInput = getValidationNoteInput(itemId);
+                    if (canonicalRateInput && confirmContractRateInput) {
+                        canonicalRateInput.value = formatIntegerDisplay(confirmContractRateInput.value);
+                    }
+                    if (canonicalMarkupTypeInput && confirmMarkupTypeInput) {
+                        canonicalMarkupTypeInput.value = confirmMarkupTypeInput.value || 'fixed';
+                    }
+                    if (canonicalMarkupInput && confirmMarkupInput) {
+                        canonicalMarkupInput.value = formatIntegerDisplay(confirmMarkupInput.value);
+                    }
+                    if (canonicalQtyInput && confirmQtyInput) {
+                        canonicalQtyInput.value = String(Math.max(1, Number.parseInt(String(confirmQtyInput.value || '1'), 10) || 1));
+                    }
+                    if (canonicalValidationNoteInput && confirmValidationNoteInput) {
+                        canonicalValidationNoteInput.value = String(confirmValidationNoteInput.value || '').trim();
+                    }
+                }
                 pendingSaveButton = null;
                 window.dispatchEvent(new CustomEvent('close-modal', { detail: validateConfirmModalName }));
                 await saveItemAjax(targetButton);
@@ -643,24 +842,49 @@
                 });
             });
 
-            document.querySelectorAll('[data-markup-input]').forEach((input) => {
-                convertInputFromIdrToDisplayCurrency(input);
-                input.addEventListener('input', () => {
-                    input.value = formatIntegerDisplay(input.value);
+            if (confirmContractRateInput) {
+                confirmContractRateInput.addEventListener('input', () => {
+                    confirmContractRateInput.value = formatIntegerDisplay(confirmContractRateInput.value);
+                    syncConfirmTotalPrice();
                 });
-                input.addEventListener('blur', () => {
-                    input.value = formatIntegerDisplay(input.value);
+                confirmContractRateInput.addEventListener('blur', () => {
+                    confirmContractRateInput.value = formatIntegerDisplay(confirmContractRateInput.value);
+                    syncConfirmTotalPrice();
                 });
+            }
+            if (confirmMarkupInput) {
+                confirmMarkupInput.addEventListener('input', () => {
+                    confirmMarkupInput.value = formatIntegerDisplay(confirmMarkupInput.value);
+                    syncConfirmTotalPrice();
+                });
+                confirmMarkupInput.addEventListener('blur', () => {
+                    confirmMarkupInput.value = formatIntegerDisplay(confirmMarkupInput.value);
+                    syncConfirmTotalPrice();
+                });
+            }
+            if (confirmQtyInput) {
+                confirmQtyInput.addEventListener('input', () => {
+                    const normalizedQty = Math.max(1, Number.parseInt(String(confirmQtyInput.value || '1'), 10) || 1);
+                    confirmQtyInput.value = String(normalizedQty);
+                    syncConfirmTotalPrice();
+                });
+                confirmQtyInput.addEventListener('blur', () => {
+                    const normalizedQty = Math.max(1, Number.parseInt(String(confirmQtyInput.value || '1'), 10) || 1);
+                    confirmQtyInput.value = String(normalizedQty);
+                    syncConfirmTotalPrice();
+                });
+            }
+            confirmMarkupTypeInput?.addEventListener('change', () => {
+                syncConfirmMarkupBadge();
+                syncConfirmTotalPrice();
             });
 
-            document.querySelectorAll('[data-contract-rate-input]').forEach((input) => {
+            document.querySelectorAll('[data-canonical-input^="markup-"]').forEach((input) => {
                 convertInputFromIdrToDisplayCurrency(input);
-                input.addEventListener('input', () => {
-                    input.value = formatIntegerDisplay(input.value);
-                });
-                input.addEventListener('blur', () => {
-                    input.value = formatIntegerDisplay(input.value);
-                });
+            });
+
+            document.querySelectorAll('[data-canonical-input^="contract_rate-"]').forEach((input) => {
+                convertInputFromIdrToDisplayCurrency(input);
             });
 
             document.querySelectorAll('[data-mobile-markup]').forEach((input) => {
@@ -725,11 +949,11 @@
                     const itemId = input.getAttribute('data-mobile-contract-rate');
                     if (itemId) syncMobileFieldsToCanonical(itemId);
                 });
-                document.querySelectorAll('[data-contract-rate-input]').forEach((input) => {
+                document.querySelectorAll('[data-canonical-input^="contract_rate-"]').forEach((input) => {
                     const normalizedDisplay = Math.max(0, parseIntegerFromDisplay(input.value));
                     input.value = String(toIdrInteger(normalizedDisplay));
                 });
-                document.querySelectorAll('[data-markup-input]').forEach((input) => {
+                document.querySelectorAll('[data-canonical-input^="markup-"]').forEach((input) => {
                     const normalizedDisplay = Math.max(0, parseIntegerFromDisplay(input.value));
                     input.value = String(toIdrInteger(normalizedDisplay));
                 });
@@ -781,6 +1005,14 @@
                 const statusCells = document.querySelectorAll(`[data-item-status="${itemId}"]`);
                 const updatedCells = document.querySelectorAll(`[data-item-updated="${itemId}"]`);
                 const validatedCheckboxes = document.querySelectorAll(`[data-item-validated-checkbox="${itemId}"]`);
+                const qtyDisplays = document.querySelectorAll(`[data-item-qty-display="${itemId}"], [data-mobile-item-qty-display="${itemId}"]`);
+                const contractRateDisplays = document.querySelectorAll(`[data-contract-rate-display="${itemId}"], [data-mobile-contract-rate-display="${itemId}"]`);
+                const markupDisplays = document.querySelectorAll(`[data-markup-display="${itemId}"], [data-mobile-markup-display="${itemId}"]`);
+                const markupTypeDisplays = document.querySelectorAll(`[data-markup-type-display="${itemId}"], [data-mobile-markup-type-display="${itemId}"]`);
+                const canonicalMarkupTypeInput = getCanonicalInput(itemId, 'markup_type');
+                const canonicalRateInput = getCanonicalInput(itemId, 'contract_rate');
+                const canonicalMarkupInput = getCanonicalInput(itemId, 'markup');
+                const canonicalQtyInput = getCanonicalInput(itemId, 'qty');
 
                 statusCells.forEach((statusCell) => {
                     if (item.is_validated) {
@@ -800,11 +1032,54 @@
                     validatedCheckbox.checked = Boolean(item.is_validated);
                 });
 
+                if (canonicalMarkupTypeInput && item.markup_type !== undefined) {
+                    canonicalMarkupTypeInput.value = String(item.markup_type || 'fixed').toLowerCase() === 'percent' ? 'percent' : 'fixed';
+                }
+                if (canonicalRateInput && item.contract_rate !== undefined) {
+                    canonicalRateInput.value = formatIntegerDisplay(fromIdrToDisplayInteger(item.contract_rate));
+                }
+                if (canonicalMarkupInput && item.markup !== undefined) {
+                    canonicalMarkupInput.value = formatIntegerDisplay(fromIdrToDisplayInteger(item.markup));
+                }
+                if (canonicalQtyInput && item.qty !== undefined) {
+                    canonicalQtyInput.value = String(Math.max(1, Number.parseInt(String(item.qty || 1), 10) || 1));
+                }
+                qtyDisplays.forEach((el) => {
+                    const qtyValue = Math.max(1, Number.parseInt(String(item.qty || canonicalQtyInput?.value || 1), 10) || 1);
+                    el.textContent = String(qtyValue);
+                });
+
+                contractRateDisplays.forEach((el) => {
+                    el.textContent = formatMoneyFromIdr(item.contract_rate || 0);
+                });
+                markupDisplays.forEach((el) => {
+                    const markupType = String(item.markup_type || canonicalMarkupTypeInput?.value || 'fixed').toLowerCase() === 'percent' ? 'percent' : 'fixed';
+                    if (markupType === 'percent') {
+                        el.textContent = `${Number(item.markup || 0).toLocaleString(appDisplayLocale, { maximumFractionDigits: 2 })}%`;
+                    } else {
+                        el.textContent = formatMoneyFromIdr(item.markup || 0);
+                    }
+                });
+                markupTypeDisplays.forEach((el) => {
+                    const markupType = String(item.markup_type || canonicalMarkupTypeInput?.value || 'fixed').toLowerCase() === 'percent' ? 'percent' : 'fixed';
+                    el.textContent = markupType === 'percent' ? '{{ ui_phrase('Percent') }}' : '{{ ui_phrase('Fixed') }}';
+                });
+                document.querySelectorAll(`[data-save-item="${itemId}"]`).forEach((btnEl) => {
+                    const hasValidatedHistory = Boolean(item.is_validated);
+                    if (item.qty !== undefined) {
+                        btnEl.setAttribute('data-item-qty', String(Math.max(1, Number.parseInt(String(item.qty || 1), 10) || 1)));
+                    }
+                    btnEl.setAttribute('data-last-validation-by', hasValidatedHistory ? String(item.validator_name || '') : '');
+                    btnEl.setAttribute('data-last-validation-at', hasValidatedHistory ? String(item.updated_at || '') : '');
+                    btnEl.setAttribute('data-last-validation-note', hasValidatedHistory ? String(item.validation_notes || '') : '');
+                });
+
                 applyValidateButtonState(itemId, Boolean(item.is_validated));
                 refreshMarkupBadgesForItem(itemId);
             };
 
             refreshAllMoneyBadges();
+            hydrateValidationDisplaysFromCanonical();
         };
         initQuotationValidationDetailModal(0);
     </script>
@@ -840,6 +1115,56 @@
             }
 
             return $labels;
+        };
+        $resolveValidationContactData = static function ($item): array {
+            $serviceable = $item->serviceable;
+            $serviceableMeta = is_array($item->serviceable_meta ?? null) ? $item->serviceable_meta : [];
+            $contactOverride = is_array($serviceableMeta['validation_contact'] ?? null) ? $serviceableMeta['validation_contact'] : [];
+            $serviceableType = class_basename((string) ($item->serviceable_type ?? ''));
+
+            $vendorName = '-';
+            $contactName = '-';
+            $contactPhone = '-';
+            $contactEmail = '-';
+            $contactWebsite = '-';
+
+            if (in_array($serviceableType, ['Activity', 'FoodBeverage', 'IslandTransfer', 'Transport', 'TransportUnit'], true)) {
+                $vendor = $serviceable?->vendor;
+                $vendorName = trim((string) ($vendor?->name ?? $serviceable?->name ?? '-')) ?: '-';
+                $contactName = trim((string) ($vendor?->contact_name ?? $serviceable?->contact_name ?? '-')) ?: '-';
+                $contactPhone = trim((string) ($vendor?->contact_phone ?? $serviceable?->contact_phone ?? '-')) ?: '-';
+                $contactEmail = trim((string) ($vendor?->contact_email ?? $serviceable?->contact_email ?? '-')) ?: '-';
+                $contactWebsite = trim((string) ($vendor?->website ?? $serviceable?->website ?? $serviceable?->web ?? '-')) ?: '-';
+            } elseif ($serviceableType === 'HotelRoom') {
+                $vendorName = trim((string) ($serviceable?->hotel?->name ?? $serviceable?->rooms ?? '-')) ?: '-';
+                $contactName = trim((string) ($serviceable?->hotel?->contact_person ?? '-')) ?: '-';
+                $contactPhone = trim((string) ($serviceable?->hotel?->phone ?? '-')) ?: '-';
+                $contactWebsite = trim((string) ($serviceable?->hotel?->web ?? $serviceable?->hotel?->website ?? '-')) ?: '-';
+            } elseif ($serviceableType === 'TouristAttraction') {
+                $vendorName = trim((string) ($serviceable?->name ?? '-')) ?: '-';
+                $contactWebsite = trim((string) ($serviceable?->google_maps_url ?? $serviceable?->website ?? $serviceable?->web ?? '-')) ?: '-';
+            }
+
+            $contactName = trim((string) ($contactOverride['contact_name'] ?? $contactName)) ?: '-';
+            $contactPhone = trim((string) ($contactOverride['contact_phone'] ?? $contactPhone)) ?: '-';
+            $contactEmail = trim((string) ($contactOverride['contact_email'] ?? $contactEmail)) ?: '-';
+            $contactWebsite = trim((string) ($contactOverride['contact_website'] ?? $contactWebsite)) ?: '-';
+
+            return [
+                'vendor_name' => $vendorName,
+                'contact_name' => $contactName,
+                'contact_phone' => $contactPhone,
+                'contact_email' => $contactEmail,
+                'contact_website' => $contactWebsite,
+            ];
+        };
+        $resolveItemBrandForValidation = static function ($item): string {
+            $serviceableType = class_basename((string) ($item->serviceable_type ?? ''));
+            if (! in_array($serviceableType, ['Transport', 'TransportUnit'], true)) {
+                return '-';
+            }
+            $brand = trim((string) ($item->serviceable?->brand_model ?? ''));
+            return $brand !== '' ? $brand : '-';
         };
     @endphp
     <div class="space-y-6 module-page module-page--quotations">
@@ -928,6 +1253,7 @@
                     ? trim(($paxAdult > 0 ? ($paxAdult . ' Adult') : '0 Adult') . ' / ' . ($paxChild > 0 ? ($paxChild . ' Child') : '0 Child'))
                     : '-';
                 $serviceDate = $quotation->service_date;
+                $quotationServiceDateBase = $serviceDate ? \Illuminate\Support\Carbon::parse($serviceDate)->startOfDay() : null;
             @endphp
 
             <div class="pt-1 pb-2">
@@ -1035,17 +1361,34 @@
                                                 if (preg_match('/^(\d{1,2}):(\d{2})$/', $startTime, $matches)) {
                                                     $hour = (int) $matches[1];
                                                     if ($hour <= 10) {
-                                                        $mealLabels = ['Breakfast'];
+                                                        $mealLabels = [ui_phrase('Breakfast')];
                                                     } elseif ($hour <= 15) {
-                                                        $mealLabels = ['Lunch'];
+                                                        $mealLabels = [ui_phrase('Lunch')];
                                                     } else {
-                                                        $mealLabels = ['Dinner'];
+                                                        $mealLabels = [ui_phrase('Dinner')];
                                                     }
                                                 }
                                             }
                                             if ($mealLabels !== []) {
                                                 $descriptionLabel .= ' (' . implode(', ', $mealLabels) . ')';
                                             }
+                                        }
+                                    @endphp
+                                    @php
+                                        $contactData = $resolveValidationContactData($item);
+                                        $itemBrand = $resolveItemBrandForValidation($item);
+                                        $itemDayNumber = (int) ($item->day_number ?? 0);
+                                        if ($itemDayNumber <= 0) {
+                                            $itemMeta = is_array($item->serviceable_meta ?? null) ? $item->serviceable_meta : [];
+                                            $itemDayNumber = (int) ($itemMeta['day_number'] ?? 0);
+                                        }
+                                        $itemServiceDateLabel = '-';
+                                        if ($quotationServiceDateBase) {
+                                            $itemServiceDate = $quotationServiceDateBase->copy();
+                                            if ($itemDayNumber > 1) {
+                                                $itemServiceDate->addDays($itemDayNumber - 1);
+                                            }
+                                            $itemServiceDateLabel = $itemServiceDate->format('Y-m-d');
                                         }
                                     @endphp
                                     <div class="responsive-item-card space-y-3" data-validation-item-row="{{ $item->id }}">
@@ -1067,8 +1410,20 @@
                                                     data-save-item="{{ $item->id }}"
                                                     data-save-item-url="{{ route('quotations.validate.save-item', ['quotation' => $quotation, 'item' => $item]) }}"
                                                     data-item-type="{{ $typeLabel }}"
+                                                    data-item-category="{{ $serviceableType }}"
+                                                    data-item-brand="{{ $itemBrand }}"
                                                     data-item-name="{{ $descriptionLabel }}"
-                                                    data-vendor-name="{{ $vendorProviderItemLabel }}"
+                                                    data-vendor-name="{{ $contactData['vendor_name'] }}"
+                                                    data-contact-person="{{ $contactData['contact_name'] }}"
+                                                    data-contact-phone="{{ $contactData['contact_phone'] }}"
+                                                    data-contact-email="{{ $contactData['contact_email'] }}"
+                                                    data-contact-website="{{ $contactData['contact_website'] }}"
+                                                    data-item-qty="{{ (int) ($item->qty ?? 1) }}"
+                                                    data-item-pax="{{ $paxLabel }}"
+                                                    data-item-service-date="{{ $itemServiceDateLabel }}"
+                                                    data-last-validation-by="{{ (bool) ($item->is_validated ?? false) ? ($item->validator?->name ?? '') : '' }}"
+                                                    data-last-validation-at="{{ (bool) ($item->is_validated ?? false) ? optional($item->updated_at)->toIso8601String() : '' }}"
+                                                    data-last-validation-note="{{ (bool) ($item->is_validated ?? false) ? (string) ($item->validation_notes ?? '') : '' }}"
                                                     data-action-label="{{ (bool) ($item->is_validated ?? false) ? ui_phrase('Revalidate') : ui_phrase('Validate') }}"
                                                 >
                                                     <span data-item-spinner="{{ $item->id }}" class="mr-1 hidden inline-block h-3 w-3 animate-spin rounded-full border border-current border-t-transparent align-[-1px]"></span>
@@ -1078,49 +1433,23 @@
                                         </div>
 
                                         <div class="grid grid-cols-2 gap-2 text-xs text-gray-600 dark:text-gray-300">
-                                            <div>{{ ui_phrase('Type') }}</div><div class="text-right text-gray-800 dark:text-gray-100">{{ $typeLabel }}</div>
-                                            <div>{{ ui_phrase('Description') }}</div><div class="text-right text-gray-800 dark:text-gray-100">{{ $descriptionLabel }}</div>
-                                            <div>{{ ui_phrase('Qty') }}</div><div class="text-right text-gray-800 dark:text-gray-100">{{ (int) ($item->qty ?? 0) }}</div>
+                                            <div>{{ ui_phrase('Description') }}</div>
+                                            <div class="text-right text-gray-800 dark:text-gray-100">
+                                                <div class="font-semibold">{{ $typeLabel }}</div>
+                                                <div class="text-xs text-gray-500 dark:text-gray-400">{{ $descriptionLabel }}</div>
+                                            </div>
+                                            <div>{{ ui_phrase('Qty') }}</div><div class="text-right text-gray-800 dark:text-gray-100" data-mobile-item-qty-display="{{ $item->id }}">{{ (int) ($item->qty ?? 0) }}</div>
                                             <div>{{ ui_phrase('Contract Rate') }}</div>
-                                            <div>
-                                                <div class="input-with-left-affix">
-                                                    <input
-                                                        type="text"
-                                                        pattern="[0-9.]*"
-                                                        inputmode="numeric"
-                                                        data-mobile-contract-rate="{{ $item->id }}"
-                                                        value="{{ old('items.' . $item->id . '.contract_rate', number_format((float) ($item->contract_rate ?? 0), 0, ',', '.')) }}"
-                                                        class="app-input pl-14 text-right text-xs"
-                                                    >
-                                                    <span
-                                                        data-mobile-contract-rate-badge="{{ $item->id }}"
-                                                        class="input-left-affix rounded-md border border-gray-200 bg-gray-50 px-1.5 py-0.5 text-[10px] font-semibold text-gray-600 shadow-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
-                                                    ></span>
-                                                </div>
+                                            <div class="text-right text-gray-800 dark:text-gray-100" data-mobile-contract-rate-display="{{ $item->id }}">
+                                                -
                                             </div>
                                             <div>{{ ui_phrase('Markup Type') }}</div>
-                                            <div>
-                                                <select data-mobile-markup-type="{{ $item->id }}" class="app-input text-xs">
-                                                    <option value="fixed" @selected(old('items.' . $item->id . '.markup_type', $item->markup_type) === 'fixed')>{{ ui_phrase('Fixed') }}</option>
-                                                    <option value="percent" @selected(old('items.' . $item->id . '.markup_type', $item->markup_type) === 'percent')>{{ ui_phrase('Percent') }}</option>
-                                                </select>
+                                            <div class="text-right text-gray-800 dark:text-gray-100" data-mobile-markup-type-display="{{ $item->id }}">
+                                                {{ (old('items.' . $item->id . '.markup_type', $item->markup_type) === 'percent') ? ui_phrase('Percent') : ui_phrase('Fixed') }}
                                             </div>
                                             <div>{{ ui_phrase('Markup') }}</div>
-                                            <div>
-                                                <div class="input-with-left-affix">
-                                                    <input
-                                                        type="text"
-                                                        pattern="[0-9.]*"
-                                                        inputmode="numeric"
-                                                        data-mobile-markup="{{ $item->id }}"
-                                                        value="{{ old('items.' . $item->id . '.markup', number_format((float) ($item->markup ?? 0), 0, ',', '.')) }}"
-                                                        class="app-input pl-14 text-right text-xs"
-                                                    >
-                                                    <span
-                                                        data-mobile-markup-badge="{{ $item->id }}"
-                                                        class="input-left-affix rounded-md border border-gray-200 bg-gray-50 px-1.5 py-0.5 text-[10px] font-semibold text-gray-600 shadow-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
-                                                    ></span>
-                                                </div>
+                                            <div class="text-right text-gray-800 dark:text-gray-100" data-mobile-markup-display="{{ $item->id }}">
+                                                -
                                             </div>
                                         </div>
 
@@ -1157,7 +1486,6 @@
                     <thead>
                         <tr>
                             <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('Mark Validated') }}</th>
-                            <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('Type') }}</th>
                             <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('Vendor/Provider/Item') }}</th>
                             <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('Description') }}</th>
                             <th class="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('Qty') }}</th>
@@ -1178,7 +1506,7 @@
                                 $dayText = $groupDayNumber > 0 ? (ui_phrase('Day') . ' ' . $groupDayNumber) : ui_phrase('Without Day');
                             @endphp
                             <tr class="bg-gray-50/90 dark:bg-gray-800/70">
-                                <td colspan="11" class="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-700 dark:text-gray-200">
+                                <td colspan="10" class="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-700 dark:text-gray-200">
                                     {{ $dayText }}
                                 </td>
                             </tr>
@@ -1243,6 +1571,23 @@
                                     }
                                 }
                             @endphp
+                            @php
+                                $contactData = $resolveValidationContactData($item);
+                                $itemBrand = $resolveItemBrandForValidation($item);
+                                $itemDayNumber = (int) ($item->day_number ?? 0);
+                                if ($itemDayNumber <= 0) {
+                                    $itemMeta = is_array($item->serviceable_meta ?? null) ? $item->serviceable_meta : [];
+                                    $itemDayNumber = (int) ($itemMeta['day_number'] ?? 0);
+                                }
+                                $itemServiceDateLabel = '-';
+                                if ($quotationServiceDateBase) {
+                                    $itemServiceDate = $quotationServiceDateBase->copy();
+                                    if ($itemDayNumber > 1) {
+                                        $itemServiceDate->addDays($itemDayNumber - 1);
+                                    }
+                                    $itemServiceDateLabel = $itemServiceDate->format('Y-m-d');
+                                }
+                            @endphp
                             <tr data-validation-item-row="{{ $item->id }}">
                                 <td class="px-3 py-2 align-top">
                                     <div class="space-y-1">
@@ -1259,57 +1604,30 @@
                                         <p data-item-feedback="{{ $item->id }}" class="hidden text-[11px]"></p>
                                     </div>
                                 </td>
-                                <td class="px-3 py-2 align-top text-gray-700 dark:text-gray-200">{{ $typeLabel }}</td>
                                 <td class="px-3 py-2 align-top">
                                     <button type="button" data-open-validation-detail="{{ $item->id }}" class="text-left text-indigo-700 hover:underline dark:text-indigo-300">
                                         {{ $vendorProviderItemLabel }}
                                     </button>
                                 </td>
                                 <td class="px-3 py-2 align-top">
-                                    <span class="text-gray-700 dark:text-gray-200">{{ $descriptionLabel }}</span>
-                                </td>
-                                <td class="px-3 py-2 align-top text-right text-gray-700 dark:text-gray-200">{{ (int) ($item->qty ?? 0) }}</td>
-                                <td class="px-3 py-2 align-top">
-                                    <div class="input-with-left-affix">
-                                        <input
-                                            type="text"
-                                            pattern="[0-9.]*"
-                                            inputmode="numeric"
-                                            name="items[{{ $item->id }}][contract_rate]"
-                                            value="{{ old('items.' . $item->id . '.contract_rate', number_format((float) ($item->contract_rate ?? 0), 0, ',', '.')) }}"
-                                            data-contract-rate-input
-                                            data-canonical-input="contract_rate-{{ $item->id }}"
-                                            class="app-input pl-14 text-right"
-                                        >
-                                        <span
-                                            data-contract-rate-badge="{{ $item->id }}"
-                                            class="input-left-affix rounded-md border border-gray-200 bg-gray-50 px-1.5 py-0.5 text-[10px] font-semibold text-gray-600 shadow-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
-                                        ></span>
+                                    <div class="text-gray-700 dark:text-gray-200">
+                                        <div class="font-semibold">{{ $typeLabel }}</div>
+                                        <div class="text-xs text-gray-500 dark:text-gray-400">{{ $descriptionLabel }}</div>
                                     </div>
                                 </td>
+                                <td class="px-3 py-2 align-top text-right text-gray-700 dark:text-gray-200" data-item-qty-display="{{ $item->id }}">{{ (int) ($item->qty ?? 0) }}</td>
                                 <td class="px-3 py-2 align-top">
-                                    <select name="items[{{ $item->id }}][markup_type]" data-canonical-input="markup_type-{{ $item->id }}" class="app-input">
-                                        <option value="fixed" @selected(old('items.' . $item->id . '.markup_type', $item->markup_type) === 'fixed')>{{ ui_phrase('Fixed') }}</option>
-                                        <option value="percent" @selected(old('items.' . $item->id . '.markup_type', $item->markup_type) === 'percent')>{{ ui_phrase('Percent') }}</option>
-                                    </select>
+                                    <input type="hidden" name="items[{{ $item->id }}][qty]" value="{{ old('items.' . $item->id . '.qty', (int) ($item->qty ?? 1)) }}" data-canonical-input="qty-{{ $item->id }}">
+                                    <input type="hidden" name="items[{{ $item->id }}][contract_rate]" value="{{ old('items.' . $item->id . '.contract_rate', number_format((float) ($item->contract_rate ?? 0), 0, ',', '.')) }}" data-canonical-input="contract_rate-{{ $item->id }}">
+                                    <span class="text-xs text-gray-700 dark:text-gray-200" data-contract-rate-display="{{ $item->id }}">-</span>
                                 </td>
                                 <td class="px-3 py-2 align-top">
-                                    <div class="input-with-left-affix">
-                                        <input
-                                            type="text"
-                                            pattern="[0-9.]*"
-                                            inputmode="numeric"
-                                            name="items[{{ $item->id }}][markup]"
-                                            value="{{ old('items.' . $item->id . '.markup', number_format((float) ($item->markup ?? 0), 0, ',', '.')) }}"
-                                            data-markup-input
-                                            data-canonical-input="markup-{{ $item->id }}"
-                                            class="app-input pl-14 text-right"
-                                        >
-                                        <span
-                                            data-markup-badge="{{ $item->id }}"
-                                            class="input-left-affix rounded-md border border-gray-200 bg-gray-50 px-1.5 py-0.5 text-[10px] font-semibold text-gray-600 shadow-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
-                                        ></span>
-                                    </div>
+                                    <input type="hidden" name="items[{{ $item->id }}][markup_type]" value="{{ old('items.' . $item->id . '.markup_type', $item->markup_type) }}" data-canonical-input="markup_type-{{ $item->id }}">
+                                    <span class="text-xs text-gray-700 dark:text-gray-200" data-markup-type-display="{{ $item->id }}">{{ (old('items.' . $item->id . '.markup_type', $item->markup_type) === 'percent') ? ui_phrase('Percent') : ui_phrase('Fixed') }}</span>
+                                </td>
+                                <td class="px-3 py-2 align-top">
+                                    <input type="hidden" name="items[{{ $item->id }}][markup]" value="{{ old('items.' . $item->id . '.markup', number_format((float) ($item->markup ?? 0), 0, ',', '.')) }}" data-canonical-input="markup-{{ $item->id }}">
+                                    <span class="text-xs text-gray-700 dark:text-gray-200" data-markup-display="{{ $item->id }}">-</span>
                                 </td>
                                 <td class="px-3 py-2 align-top text-xs text-gray-600 dark:text-gray-300" data-item-updated="{{ $item->id }}">
                                     {{ $item->validator?->name ?? '-' }}
@@ -1331,8 +1649,20 @@
                                         data-save-item="{{ $item->id }}"
                                         data-save-item-url="{{ route('quotations.validate.save-item', ['quotation' => $quotation, 'item' => $item]) }}"
                                         data-item-type="{{ $typeLabel }}"
+                                        data-item-category="{{ $serviceableType }}"
+                                        data-item-brand="{{ $itemBrand }}"
                                         data-item-name="{{ $descriptionLabel }}"
-                                        data-vendor-name="{{ $vendorProviderItemLabel }}"
+                                        data-vendor-name="{{ $contactData['vendor_name'] }}"
+                                        data-contact-person="{{ $contactData['contact_name'] }}"
+                                        data-contact-phone="{{ $contactData['contact_phone'] }}"
+                                        data-contact-email="{{ $contactData['contact_email'] }}"
+                                        data-contact-website="{{ $contactData['contact_website'] }}"
+                                        data-item-qty="{{ (int) ($item->qty ?? 1) }}"
+                                        data-item-pax="{{ $paxLabel }}"
+                                        data-item-service-date="{{ $itemServiceDateLabel }}"
+                                        data-last-validation-by="{{ (bool) ($item->is_validated ?? false) ? ($item->validator?->name ?? '') : '' }}"
+                                        data-last-validation-at="{{ (bool) ($item->is_validated ?? false) ? optional($item->updated_at)->toIso8601String() : '' }}"
+                                        data-last-validation-note="{{ (bool) ($item->is_validated ?? false) ? (string) ($item->validation_notes ?? '') : '' }}"
                                         data-action-label="{{ (bool) ($item->is_validated ?? false) ? ui_phrase('Revalidate') : ui_phrase('Validate') }}"
                                     >
                                         <span data-item-spinner="{{ $item->id }}" class="mr-1 hidden inline-block h-3 w-3 animate-spin rounded-full border border-current border-t-transparent align-[-1px]"></span>
@@ -1344,7 +1674,7 @@
                         @endforeach
                         @else
                             <tr>
-                                <td colspan="11" class="px-3 py-4 text-center text-sm text-gray-500 dark:text-gray-400">{{ ui_phrase('no validation required items') }}</td>
+                                <td colspan="10" class="px-3 py-4 text-center text-sm text-gray-500 dark:text-gray-400">{{ ui_phrase('no validation required items') }}</td>
                             </tr>
                         @endif
 
@@ -1451,42 +1781,132 @@
         </div>
     </x-modal>
 
-    <x-modal name="validate-item-confirm-modal" focusable maxWidth="lg">
+    <x-modal name="validate-item-confirm-modal" focusable maxWidth="4xl">
         <div id="validate-item-confirm-modal-content" class="w-full rounded-xl border border-gray-200 bg-white p-5 shadow-xl dark:border-gray-700 dark:bg-gray-900">
             <div class="flex items-center justify-between gap-3">
-                <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ ui_phrase('Confirm Validation') }}</h3>
-                <button type="button" class="btn-ghost px-2 py-1 text-xs" x-data x-on:click.prevent="$dispatch('close-modal', 'validate-item-confirm-modal')">{{ ui_phrase('Close') }}</button>
+                <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100" data-confirm-modal-title>{{ ui_phrase('Confirm Validation') }}</h3>
             </div>
 
-            <p class="mt-2 text-xs text-gray-600 dark:text-gray-300">{{ ui_phrase('Please verify item data before continuing validation.') }}</p>
+            <div class="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
+                <div class="space-y-4">
+                    <div class="rounded-lg border border-amber-200 bg-amber-50/70 p-3 dark:border-amber-800/70 dark:bg-amber-900/15">
+                        <h4 class="text-xs font-semibold uppercase tracking-wide text-amber-800 dark:text-amber-200">{{ ui_phrase('Validation Instructions') }}</h4>
+                        <ol class="mt-2 list-decimal space-y-1 pl-4 text-xs text-amber-900 dark:text-amber-100">
+                            <li>{{ ui_phrase('Confirm vendor/provider and item details before contacting.') }}</li>
+                            <li>{{ ui_phrase('Update Contract Rate, Markup Type, and Markup based on latest vendor confirmation.') }}</li>
+                            <li>{{ ui_phrase('Write communication Note to keep history clear and avoid duplicate follow-up.') }}</li>
+                            <li>{{ ui_phrase('Check last validation info to decide whether re-contact is needed.') }}</li>
+                            <li>{{ ui_phrase('Click Validate/Revalidate to save data and update validation status.') }}</li>
+                        </ol>
+                    </div>
+                    <div class="rounded-lg border border-gray-200 p-3 dark:border-gray-700">
+                        <h4 class="text-xs font-semibold uppercase tracking-wide text-gray-700 dark:text-gray-200">{{ ui_phrase('Vendor / Provider') }}</h4>
+                        <dl class="mt-2 grid grid-cols-1 gap-2 text-xs sm:grid-cols-2">
+                            <div data-confirm-field="item-type">
+                                <dt class="text-gray-500 dark:text-gray-400">{{ ui_phrase('Type') }}</dt>
+                                <dd class="mt-0.5 font-semibold text-gray-800 dark:text-gray-100" data-confirm-item-type></dd>
+                            </div>
+                            <div data-confirm-field="vendor-name">
+                                <dt class="text-gray-500 dark:text-gray-400">{{ ui_phrase('Vendors/Providers Name') }}</dt>
+                                <dd class="mt-0.5 font-semibold text-gray-800 dark:text-gray-100" data-confirm-vendor-name></dd>
+                            </div>
+                            <div data-confirm-field="contact-person">
+                                <dt class="text-gray-500 dark:text-gray-400">{{ ui_phrase('Contact Person') }}</dt>
+                                <dd class="mt-0.5 font-semibold text-gray-800 dark:text-gray-100" data-confirm-contact-person></dd>
+                            </div>
+                            <div data-confirm-field="contact-phone">
+                                <dt class="text-gray-500 dark:text-gray-400">{{ ui_phrase('Phone') }}</dt>
+                                <dd class="mt-0.5 font-semibold text-gray-800 dark:text-gray-100" data-confirm-contact-phone></dd>
+                            </div>
+                            <div data-confirm-field="contact-email">
+                                <dt class="text-gray-500 dark:text-gray-400">{{ ui_phrase('Email') }}</dt>
+                                <dd class="mt-0.5 font-semibold text-gray-800 dark:text-gray-100" data-confirm-contact-email></dd>
+                            </div>
+                            <div data-confirm-field="contact-website" class="sm:col-span-2">
+                                <dt class="text-gray-500 dark:text-gray-400">{{ ui_phrase('Website') }}</dt>
+                                <dd class="mt-0.5 font-semibold text-gray-800 dark:text-gray-100" data-confirm-contact-website></dd>
+                            </div>
+                        </dl>
+                    </div>
+                    <div class="rounded-lg border border-gray-200 p-3 dark:border-gray-700">
+                        <h4 class="text-xs font-semibold uppercase tracking-wide text-gray-700 dark:text-gray-200">{{ ui_phrase('Service Detail') }}</h4>
+                        <dl class="mt-2 grid grid-cols-1 gap-2 text-xs sm:grid-cols-2">
+                            <div data-confirm-field="item-name" class="sm:col-span-2">
+                                <dt class="text-gray-500 dark:text-gray-400">{{ ui_phrase('Name') }}</dt>
+                                <dd class="mt-0.5 font-semibold text-gray-800 dark:text-gray-100" data-confirm-item-name></dd>
+                            </div>
+                            <div data-confirm-field="item-pax">
+                                <dt class="text-gray-500 dark:text-gray-400">{{ ui_phrase('Pax') }}</dt>
+                                <dd class="mt-0.5 font-semibold text-gray-800 dark:text-gray-100" data-confirm-item-pax></dd>
+                            </div>
+                            <div data-confirm-field="item-service-date">
+                                <dt class="text-gray-500 dark:text-gray-400">{{ ui_phrase('Service Date') }}</dt>
+                                <dd class="mt-0.5 font-semibold text-gray-800 dark:text-gray-100" data-confirm-item-service-date></dd>
+                            </div>
+                        </dl>
+                    </div>
+                </div>
 
-            <div class="mt-4 rounded-lg border border-gray-200 p-3 dark:border-gray-700">
-                <dl class="grid grid-cols-1 gap-2 text-xs sm:grid-cols-2">
+                <div class="space-y-4">
+                    <div class="rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-900" data-confirm-latest-card>
+                        <h4 class="text-xs font-semibold uppercase tracking-wide text-gray-700 dark:text-gray-200">{{ ui_phrase('Latest Validation') }}</h4>
+                        <dl class="mt-2 grid grid-cols-1 gap-2 text-xs sm:grid-cols-2">
+                            <div data-confirm-field="last-validation-by">
+                                <dt class="text-gray-500 dark:text-gray-400">{{ ui_phrase('Last Validation By') }}</dt>
+                                <dd class="mt-0.5 font-semibold text-gray-800 dark:text-gray-100" data-confirm-last-validation-by></dd>
+                            </div>
+                            <div data-confirm-field="last-validation-at">
+                                <dt class="text-gray-500 dark:text-gray-400">{{ ui_phrase('Last Validation Date') }}</dt>
+                                <dd class="mt-0.5 font-semibold text-gray-800 dark:text-gray-100" data-confirm-last-validation-at></dd>
+                            </div>
+                            <div data-confirm-field="last-validation-note" class="sm:col-span-2">
+                                <dt class="text-gray-500 dark:text-gray-400">{{ ui_phrase('Validation Note') }}</dt>
+                                <dd class="mt-0.5 font-semibold text-gray-800 dark:text-gray-100 whitespace-pre-line" data-confirm-last-validation-note></dd>
+                            </div>
+                        </dl>
+                    </div>
+                    <div class="rounded-lg border border-gray-200 p-3 dark:border-gray-700">
+                        <h4 class="text-xs font-semibold uppercase tracking-wide text-gray-700 dark:text-gray-200">{{ ui_phrase('Validation Form') }}</h4>
+                        <dl class="mt-2 grid grid-cols-1 gap-2 text-xs sm:grid-cols-2">
                     <div>
-                        <dt class="text-gray-500 dark:text-gray-400">{{ ui_phrase('Item Type') }}</dt>
-                        <dd class="mt-0.5 font-semibold text-gray-800 dark:text-gray-100" data-confirm-item-type>-</dd>
+                        <dt class="text-gray-500 dark:text-gray-400">{{ ui_phrase('Qty') }}</dt>
+                        <input type="number" min="1" step="1" class="mt-1 app-input text-xs text-right" data-confirm-qty-input>
                     </div>
                     <div>
-                        <dt class="text-gray-500 dark:text-gray-400">{{ ui_phrase('Item Name') }}</dt>
-                        <dd class="mt-0.5 font-semibold text-gray-800 dark:text-gray-100" data-confirm-item-name>-</dd>
-                    </div>
-                    <div>
-                        <dt class="text-gray-500 dark:text-gray-400">{{ ui_phrase('Vendor Name') }}</dt>
-                        <dd class="mt-0.5 font-semibold text-gray-800 dark:text-gray-100" data-confirm-vendor-name>-</dd>
-                    </div>
-                    <div>
-                        <dt class="text-gray-500 dark:text-gray-400">{{ ui_phrase('Contract Rate') }}</dt>
-                        <dd class="mt-0.5 font-semibold text-gray-800 dark:text-gray-100" data-confirm-contract-rate>-</dd>
+                        <dt class="text-gray-500 dark:text-gray-400">{{ ui_phrase('Contract Rate /pax') }}</dt>
+                        <div class="mt-1 input-with-left-affix">
+                            <input type="text" pattern="[0-9.]*" inputmode="numeric" class="app-input pl-14 text-right text-xs" data-confirm-contract-rate-input>
+                            <span class="input-left-affix rounded-md border border-gray-200 bg-gray-50 px-1.5 py-0.5 text-[10px] font-semibold text-gray-600 shadow-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200" data-confirm-contract-rate-badge>{{ strtoupper((string) ($currentCurrency ?? 'IDR')) }}</span>
+                        </div>
                     </div>
                     <div>
                         <dt class="text-gray-500 dark:text-gray-400">{{ ui_phrase('Markup Type') }}</dt>
-                        <dd class="mt-0.5 font-semibold text-gray-800 dark:text-gray-100" data-confirm-markup-type>-</dd>
+                        <select class="mt-1 app-input text-xs" data-confirm-markup-type-input>
+                            <option value="fixed">{{ ui_phrase('Fixed') }}</option>
+                            <option value="percent">{{ ui_phrase('Percent') }}</option>
+                        </select>
                     </div>
                     <div>
-                        <dt class="text-gray-500 dark:text-gray-400">{{ ui_phrase('Markup') }}</dt>
-                        <dd class="mt-0.5 font-semibold text-gray-800 dark:text-gray-100" data-confirm-markup>-</dd>
+                        <dt class="text-gray-500 dark:text-gray-400">{{ ui_phrase('Markup /pax') }}</dt>
+                        <div class="mt-1 input-with-left-affix">
+                            <input type="text" pattern="[0-9.]*" inputmode="numeric" class="app-input pl-14 text-right text-xs" data-confirm-markup-input>
+                            <span class="input-left-affix rounded-md border border-gray-200 bg-gray-50 px-1.5 py-0.5 text-[10px] font-semibold text-gray-600 shadow-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200" data-confirm-markup-badge>{{ strtoupper((string) ($currentCurrency ?? 'IDR')) }}</span>
+                        </div>
                     </div>
-                </dl>
+                    <div class="sm:col-span-2">
+                        <dt class="text-gray-500 dark:text-gray-400">{{ ui_phrase('Total Price') }}</dt>
+                        <div class="mt-1 input-with-left-affix">
+                            <input type="text" class="app-input pl-14 text-right text-xs bg-gray-50 dark:bg-gray-800" data-confirm-total-price-input readonly>
+                            <span class="input-left-affix rounded-md border border-gray-200 bg-gray-50 px-1.5 py-0.5 text-[10px] font-semibold text-gray-600 shadow-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200">{{ strtoupper((string) ($currentCurrency ?? 'IDR')) }}</span>
+                        </div>
+                    </div>
+                    <div class="sm:col-span-2">
+                        <dt class="text-gray-500 dark:text-gray-400">{{ ui_phrase('Validation Note') }}</dt>
+                        <textarea rows="3" class="mt-1 app-input text-xs" data-confirm-validation-note placeholder="{{ ui_phrase('Write communication note for this validation...') }}"></textarea>
+                    </div>
+                        </dl>
+                    </div>
+                </div>
             </div>
 
             <div class="mt-4 flex items-center justify-end gap-2">

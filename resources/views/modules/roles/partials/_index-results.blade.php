@@ -52,12 +52,12 @@
                                 <td class="px-4 py-3 text-right text-sm actions-compact">
                                     <div class="flex items-center justify-end gap-2">
                                         <a href="{{ route('roles.edit', $role) }}" class="btn-secondary-sm" title="{{ ui_phrase('Edit') }}" aria-label="{{ ui_phrase('Edit') }}"><i class="fa-solid fa-pen"></i><span class="sr-only">{{ ui_phrase('Edit') }}</span></a>
-                                        <a href="{{ route('roles.create', ['template_role_id' => $role->id]) }}" class="btn-outline-sm"><i class="fa-solid fa-copy mr-1"></i>{{ ui_phrase('Clone') }}</a>
+                                        <a href="{{ route('roles.create', ['template_role_id' => $role->id]) }}" class="btn-outline-sm" title="{{ ui_phrase('Clone') }}" aria-label="{{ ui_phrase('Clone') }}"><i class="fa-solid fa-copy"></i><span class="sr-only">{{ ui_phrase('Clone') }}</span></a>
                                         @can('module.role_manager.delete')
                                             <form action="{{ route('roles.destroy', $role) }}" method="POST" class="inline">
                                                 @csrf
                                                 @method('DELETE')
-                                                <button type="submit" onclick="return confirm('{{ ui_phrase('confirm delete') }}')" class="btn-danger-sm">{{ ui_phrase('Delete') }}</button>
+                                                <button type="submit" onclick="return confirm('{{ ui_phrase('confirm delete') }}')" class="btn-danger-sm" title="{{ ui_phrase('Delete') }}" aria-label="{{ ui_phrase('Delete') }}"><i class="fa-solid fa-trash"></i><span class="sr-only">{{ ui_phrase('Delete') }}</span></button>
                                             </form>
                                         @endcan
                                     </div>
@@ -102,15 +102,15 @@
                         <a href="{{ route('roles.edit', $role) }}" class="btn-secondary-sm" title="{{ ui_phrase('Edit') }}" aria-label="{{ ui_phrase('Edit') }}">
                             <i class="fa-solid fa-pen"></i><span class="sr-only">{{ ui_phrase('Edit') }}</span>
                         </a>
-                        <a href="{{ route('roles.create', ['template_role_id' => $role->id]) }}" class="btn-outline-sm">
-                            <i class="fa-solid fa-copy mr-1"></i>{{ ui_phrase('Clone') }}
+                        <a href="{{ route('roles.create', ['template_role_id' => $role->id]) }}" class="btn-outline-sm" title="{{ ui_phrase('Clone') }}" aria-label="{{ ui_phrase('Clone') }}">
+                            <i class="fa-solid fa-copy"></i><span class="sr-only">{{ ui_phrase('Clone') }}</span>
                         </a>
                         @can('module.role_manager.delete')
                             <form action="{{ route('roles.destroy', $role) }}" method="POST" class="inline">
                                 @csrf
                                 @method('DELETE')
-                                <button type="submit" onclick="return confirm('{{ ui_phrase('confirm delete') }}')" class="btn-danger-sm">
-                                    {{ ui_phrase('Delete') }}
+                                <button type="submit" onclick="return confirm('{{ ui_phrase('confirm delete') }}')" class="btn-danger-sm" title="{{ ui_phrase('Delete') }}" aria-label="{{ ui_phrase('Delete') }}">
+                                    <i class="fa-solid fa-trash"></i><span class="sr-only">{{ ui_phrase('Delete') }}</span>
                                 </button>
                             </form>
                         @endcan

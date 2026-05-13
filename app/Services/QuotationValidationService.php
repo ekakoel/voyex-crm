@@ -11,6 +11,7 @@ use App\Models\IslandTransfer;
 use App\Models\Quotation;
 use App\Models\QuotationItem;
 use App\Models\QuotationItemValidation;
+use App\Models\ServiceItemValidation;
 use App\Models\ServiceRateHistory;
 use App\Models\TouristAttraction;
 use App\Models\Transport;
@@ -215,6 +216,31 @@ class QuotationValidationService
             ->values()
             ->all();
 
+        $serviceableId = (int) ($item->serviceable_id ?? 0);
+        $serviceTypeCandidates = $this->resolveServiceableTypeCandidates((string) ($item->serviceable_type ?? ''));
+        $serviceHistory = ServiceItemValidation::query()
+            ->where('serviceable_id', $serviceableId)
+            ->where(function ($query) use ($serviceTypeCandidates): void {
+                $query->whereIn('serviceable_type', $serviceTypeCandidates);
+            })
+            ->with('validator:id,name')
+            ->latest('id')
+            ->limit(20)
+            ->get()
+            ->map(function (ServiceItemValidation $log): array {
+                return [
+                    'id' => (int) $log->id,
+                    'action' => (string) ($log->action ?? ''),
+                    'is_validated' => (bool) ($log->is_validated ?? false),
+                    'validation_notes' => trim((string) ($log->validation_notes ?? '')),
+                    'validator_name' => (string) ($log->validator?->name ?? '-'),
+                    'created_at' => optional($log->created_at)->toIso8601String(),
+                    'scope' => 'service_item',
+                ];
+            })
+            ->values()
+            ->all();
+
         return [
             'item' => [
                 'id' => (int) $item->id,
@@ -239,6 +265,8 @@ class QuotationValidationService
                 'contact_address' => $contactAddress,
             ],
             'history' => $history,
+            'service_history' => $serviceHistory,
+            'latest_service_validation' => $serviceHistory[0] ?? null,
         ];
     }
 
@@ -578,6 +606,7 @@ class QuotationValidationService
         $oldContractRate = (float) ($item->contract_rate ?? 0);
         $oldMarkupType = $this->normalizeMarkupType($item->markup_type ?? 'fixed');
         $oldMarkup = (float) ($item->markup ?? 0);
+        $oldQty = max(1, (int) ($item->qty ?? 1));
         $oldIsValidated = (bool) ($item->is_validated ?? false);
 
         $newContractRate = array_key_exists('contract_rate', $payload)
@@ -589,6 +618,9 @@ class QuotationValidationService
         $newMarkup = array_key_exists('markup', $payload)
             ? (float) $payload['markup']
             : $oldMarkup;
+        $newQty = array_key_exists('qty', $payload)
+            ? max(1, (int) $payload['qty'])
+            : $oldQty;
 
         if ($newMarkupType === 'percent' && $newMarkup > 100) {
             throw ValidationException::withMessages([
@@ -596,14 +628,18 @@ class QuotationValidationService
             ]);
         }
 
-        $newUnitPrice = $this->computePublishRate($newContractRate, $newMarkupType, $newMarkup);
-        $newDiscountType = $this->normalizeMarkupType($item->discount_type ?? 'fixed');
-        $newDiscount = (float) ($item->discount ?? 0);
-        $newTotal = $this->computeItemTotal((int) ($item->qty ?? 1), $newUnitPrice, $newDiscountType, $newDiscount);
-
+        $computedUnitPrice = $this->computePublishRate($newContractRate, $newMarkupType, $newMarkup);
+        $newUnitPrice = (float) ($item->unit_price ?? 0);
         $hasRateChange = ($newContractRate !== $oldContractRate)
             || ($newMarkupType !== $oldMarkupType)
             || ($newMarkup !== $oldMarkup);
+        if ($hasRateChange) {
+            $newUnitPrice = $computedUnitPrice;
+        }
+        $newDiscountType = $this->normalizeMarkupType($item->discount_type ?? 'fixed');
+        $newDiscount = (float) ($item->discount ?? 0);
+        $newTotal = $this->computeItemTotal($newQty, $newUnitPrice, $newDiscountType, $newDiscount);
+        $hasQtyChange = $newQty !== $oldQty;
 
         $newIsValidated = $oldIsValidated;
         if ($forceValidate) {
@@ -625,6 +661,11 @@ class QuotationValidationService
             $patch['markup_type'] = $newMarkupType;
             $patch['markup'] = $newMarkup;
             $patch['unit_price'] = $newUnitPrice;
+        }
+        if ($hasRateChange || $hasQtyChange) {
+            if ($hasQtyChange) {
+                $patch['qty'] = $newQty;
+            }
             $patch['total'] = $newTotal;
         }
 
@@ -658,7 +699,7 @@ class QuotationValidationService
         $hasValidationChange = $oldIsValidated !== (bool) ($item->is_validated ?? false);
         $hasNotesChange = array_key_exists('validation_notes', $patch);
 
-        if ($hasRateChange || $hasValidationChange || $hasNotesChange) {
+        if ($hasRateChange || $hasQtyChange || $hasValidationChange || $hasNotesChange) {
             QuotationItemValidation::query()->create([
                 'quotation_id' => $quotation->id,
                 'quotation_item_id' => $item->id,
@@ -676,7 +717,109 @@ class QuotationValidationService
                 'source_rate_id' => $sourceUpdate['id'] ?? null,
                 'source_rate_snapshot' => $sourceUpdate['snapshot'] ?? null,
             ]);
+
+            $this->createServiceItemValidationLog(
+                quotation: $quotation,
+                item: $item,
+                actorId: $actorId,
+                action: $action,
+                oldContractRate: $oldContractRate,
+                oldMarkupType: $oldMarkupType,
+                oldMarkup: $oldMarkup,
+                oldQty: $oldQty,
+                newContractRate: (float) ($item->contract_rate ?? 0),
+                newMarkupType: $this->normalizeMarkupType($item->markup_type ?? 'fixed'),
+                newMarkup: (float) ($item->markup ?? 0),
+                newQty: max(1, (int) ($item->qty ?? 1)),
+                notes: (string) ($item->validation_notes ?? ''),
+                sourceSnapshot: $sourceUpdate['snapshot'] ?? null
+            );
         }
+    }
+
+    private function createServiceItemValidationLog(
+        Quotation $quotation,
+        QuotationItem $item,
+        int $actorId,
+        string $action,
+        float $oldContractRate,
+        string $oldMarkupType,
+        float $oldMarkup,
+        int $oldQty,
+        float $newContractRate,
+        string $newMarkupType,
+        float $newMarkup,
+        int $newQty,
+        string $notes,
+        ?array $sourceSnapshot = null
+    ): void {
+        $serviceableType = $this->normalizeServiceableTypeForHistory((string) ($item->serviceable_type ?? ''));
+        $serviceableId = (int) ($item->serviceable_id ?? 0);
+        if ($serviceableType === '' || $serviceableId <= 0) {
+            return;
+        }
+
+        ServiceItemValidation::query()->create([
+            'quotation_id' => (int) $quotation->id,
+            'quotation_item_id' => (int) $item->id,
+            'serviceable_type' => $serviceableType,
+            'serviceable_id' => $serviceableId,
+            'validator_id' => $actorId,
+            'action' => $action,
+            'is_validated' => (bool) ($item->is_validated ?? false),
+            'validation_notes' => trim($notes),
+            'old_contract_rate' => $oldContractRate,
+            'new_contract_rate' => $newContractRate,
+            'old_markup_type' => $oldMarkupType,
+            'new_markup_type' => $newMarkupType,
+            'old_markup' => $oldMarkup,
+            'new_markup' => $newMarkup,
+            'old_qty' => max(1, $oldQty),
+            'new_qty' => max(1, $newQty),
+            'source_rate_snapshot' => $sourceSnapshot,
+        ]);
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function resolveServiceableTypeCandidates(string $serviceableType): array
+    {
+        $normalized = $this->normalizeServiceableTypeForHistory($serviceableType);
+        $trimmed = trim($serviceableType);
+        $basename = class_basename($trimmed);
+
+        return array_values(array_unique(array_filter([
+            $normalized,
+            $trimmed,
+            $basename,
+        ])));
+    }
+
+    private function normalizeServiceableTypeForHistory(string $serviceableType): string
+    {
+        $type = trim($serviceableType);
+        if ($type === '') {
+            return '';
+        }
+
+        $knownTypes = [
+            Activity::class,
+            FoodBeverage::class,
+            IslandTransfer::class,
+            Transport::class,
+            TransportUnit::class,
+            TouristAttraction::class,
+            HotelRoom::class,
+        ];
+
+        foreach ($knownTypes as $knownType) {
+            if ($this->isServiceableType($type, $knownType)) {
+                return $knownType;
+            }
+        }
+
+        return $type;
     }
 
     private function updateMasterRateFromItem(Quotation $quotation, QuotationItem $item, int $actorId, ?string $notes = null): ?array
@@ -893,8 +1036,12 @@ class QuotationValidationService
             ];
         }
 
-        if ($this->isServiceableType($serviceType, TransportUnit::class)) {
-            $transportUnit = TransportUnit::query()->find($serviceableId);
+        if ($this->isServiceableType($serviceType, TransportUnit::class) || $this->isServiceableType($serviceType, Transport::class)) {
+            $isTransportUnitType = $this->isServiceableType($serviceType, TransportUnit::class);
+            $transportModelClass = $isTransportUnitType ? TransportUnit::class : Transport::class;
+            $transportUnit = $isTransportUnitType
+                ? TransportUnit::query()->find($serviceableId)
+                : Transport::query()->find($serviceableId);
             if (! $transportUnit) {
                 return null;
             }
@@ -909,7 +1056,7 @@ class QuotationValidationService
             $history = $this->upsertActiveServiceRateHistory(
                 quotation: $quotation,
                 item: $item,
-                serviceableType: TransportUnit::class,
+                serviceableType: $transportModelClass,
                 serviceableId: $serviceableId,
                 contractRate: $contractRate,
                 markupType: $markupType,
@@ -923,7 +1070,7 @@ class QuotationValidationService
             );
 
             return [
-                'type' => TransportUnit::class,
+                'type' => $transportModelClass,
                 'id' => $transportUnit->id,
                 'snapshot' => [
                     'publish_rate' => $publishRate,

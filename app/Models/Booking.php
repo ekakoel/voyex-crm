@@ -47,11 +47,15 @@ class Booking extends Model
         return $this->morphMany(ActivityLog::class, 'subject');
     }
 
+    public function items()
+    {
+        return $this->hasMany(BookingItem::class);
+    }
+
     public function isFinal(): bool
     {
         return $this->status === self::FINAL_STATUS;
     }
 }
-
 
 

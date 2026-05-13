@@ -132,7 +132,7 @@
                                 <form action="{{ route('food-beverages.toggle-status', $foodBeverage->id) }}" method="POST" class="inline">
                                     @csrf
                                     @method('PATCH')
-                                    <button type="submit" onclick="return confirm('{{ $isActive ? 'Deactivate this F&B service?' : 'Activate this F&B service?' }}')" class="{{ $isActive ? 'btn-muted-sm' : 'btn-primary-sm' }}">{{ $isActive ? 'Deactivate' : 'Activate' }}</button>
+                                                    <button type="submit" onclick="return confirm('{{ $isActive ? 'Deactivate this F&B service?' : 'Activate this F&B service?' }}')" class="{{ $isActive ? 'btn-muted-sm' : 'btn-primary-sm' }}" title="{{ $isActive ? 'Deactivate' : 'Activate' }}" aria-label="{{ $isActive ? 'Deactivate' : 'Activate' }}"><i class="fa-solid {{ $isActive ? 'fa-toggle-off' : 'fa-toggle-on' }}"></i><span class="sr-only">{{ $isActive ? 'Deactivate' : 'Activate' }}</span></button>
                                 </form>
     </div>
 </td>
@@ -203,8 +203,8 @@
                         <form action="{{ route('food-beverages.toggle-status', $foodBeverage->id) }}" method="POST" class="inline">
                             @csrf
                             @method('PATCH')
-                            <button type="submit" onclick="return confirm('{{ $foodBeverage->trashed() ? 'Activate this F&B service?' : 'Deactivate this F&B service?' }}')" class="{{ $foodBeverage->trashed() ? 'btn-primary-sm' : 'btn-muted-sm' }}">{{ $foodBeverage->trashed() ? 'Activate' : 'Deactivate' }}</button>
-                        </form>
+                                    <button type="submit" onclick="return confirm('{{ $foodBeverage->trashed() ? 'Activate this F&B service?' : 'Deactivate this F&B service?' }}')" class="{{ $foodBeverage->trashed() ? 'btn-primary-sm' : 'btn-muted-sm' }}" title="{{ $foodBeverage->trashed() ? 'Activate' : 'Deactivate' }}" aria-label="{{ $foodBeverage->trashed() ? 'Activate' : 'Deactivate' }}"><i class="fa-solid {{ $foodBeverage->trashed() ? 'fa-toggle-on' : 'fa-toggle-off' }}"></i><span class="sr-only">{{ $foodBeverage->trashed() ? 'Activate' : 'Deactivate' }}</span></button>
+                                </form>
                     </div>
                 </div>
             @empty

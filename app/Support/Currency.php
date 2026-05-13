@@ -89,7 +89,7 @@ class Currency
         $value = static::convert((float) $amount, $fromCurrency, $target);
         $meta = static::meta($target);
         $symbol = $meta['symbol'] ?? ($target === 'USD' ? '$' : 'Rp');
-        $decimals = $meta['decimal_places'] ?? 0;
+        $decimals = 0;
 
         if ($target === 'USD') {
             return trim((string) $symbol) . number_format($value, $decimals, '.', ',');

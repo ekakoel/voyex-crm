@@ -76,7 +76,7 @@
                                                 <form action="{{ route('vendors.toggle-status', $vendor) }}" method="POST" class="inline">
                                                     @csrf
                                                     @method('PATCH')
-                                                    <button type="submit" onclick="return confirm('{{ $vendor->is_active ? ui_phrase('confirm deactivate') : ui_phrase('confirm activate') }}')" class="{{ $vendor->is_active ? 'btn-muted-sm' : 'btn-primary-sm' }}">{{ $vendor->is_active ? ui_phrase('Deactivate') : ui_phrase('Activate') }}</button>
+                                                    <button type="submit" onclick="return confirm('{{ $vendor->is_active ? ui_phrase('confirm deactivate') : ui_phrase('confirm activate') }}')" class="{{ $vendor->is_active ? 'btn-muted-sm' : 'btn-primary-sm' }}" title="{{ $vendor->is_active ? ui_phrase('Deactivate') : ui_phrase('Activate') }}" aria-label="{{ $vendor->is_active ? ui_phrase('Deactivate') : ui_phrase('Activate') }}"><i class="fa-solid {{ $vendor->is_active ? 'fa-toggle-off' : 'fa-toggle-on' }}"></i><span class="sr-only">{{ $vendor->is_active ? ui_phrase('Deactivate') : ui_phrase('Activate') }}</span></button>
                                                 </form>
                                             </div>
                                         </td>
@@ -125,7 +125,7 @@
                                 <form action="{{ route('vendors.toggle-status', $vendor) }}" method="POST" class="inline">
                                     @csrf
                                     @method('PATCH')
-                                    <button type="submit" onclick="return confirm('{{ $vendor->is_active ? ui_phrase('confirm deactivate') : ui_phrase('confirm activate') }}')" class="{{ $vendor->is_active ? 'btn-muted-sm' : 'btn-primary-sm' }}">{{ $vendor->is_active ? ui_phrase('Deactivate') : ui_phrase('Activate') }}</button>
+                                    <button type="submit" onclick="return confirm('{{ $vendor->is_active ? ui_phrase('confirm deactivate') : ui_phrase('confirm activate') }}')" class="{{ $vendor->is_active ? 'btn-muted-sm' : 'btn-primary-sm' }}" title="{{ $vendor->is_active ? ui_phrase('Deactivate') : ui_phrase('Activate') }}" aria-label="{{ $vendor->is_active ? ui_phrase('Deactivate') : ui_phrase('Activate') }}"><i class="fa-solid {{ $vendor->is_active ? 'fa-toggle-off' : 'fa-toggle-on' }}"></i><span class="sr-only">{{ $vendor->is_active ? ui_phrase('Deactivate') : ui_phrase('Activate') }}</span></button>
                                 </form>
                             </div>
                         </div>

@@ -20,6 +20,7 @@ class QuotationItem extends Model
         'discount_type',
         'discount',
         'day_number',
+        'service_date',
         'serviceable_meta',
         'itinerary_item_type',
         'is_validation_required',
@@ -42,6 +43,7 @@ class QuotationItem extends Model
         'discount' => 'decimal:2',
         'total' => 'decimal:2',
         'day_number' => 'integer',
+        'service_date' => 'date',
         'serviceable_meta' => 'array',
         'is_validation_required' => 'boolean',
         'is_validated' => 'boolean',
@@ -66,4 +68,3 @@ class QuotationItem extends Model
         return $this->belongsTo(User::class, 'validated_by');
     }
 }
-

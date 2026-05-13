@@ -139,9 +139,8 @@
      * This keeps field-level grids untouched while making whole-page card rhythm
      * consistent without rewriting every Blade view.
      */
-    .app-content .grid:has(> :is(.app-card, .sa-card, .module-card, [class*="app-card"], [class*="sa-card"], [class*="module-card"])),
-    .app-content .flex:has(> :is(.app-card, .sa-card, .module-card, [class*="app-card"], [class*="sa-card"], [class*="module-card"])),
-    .app-content [class*="gap-"]:has(> :is(.app-card, .sa-card, .module-card, [class*="app-card"], [class*="sa-card"], [class*="module-card"])) {
+    .app-content .grid:not([class*="gap-"]):has(> :is(.app-card, .sa-card, .module-card, [class*="app-card"], [class*="sa-card"], [class*="module-card"])),
+    .app-content .flex:not([class*="gap-"]):has(> :is(.app-card, .sa-card, .module-card, [class*="app-card"], [class*="sa-card"], [class*="module-card"])) {
         gap: var(--app-card-gap) !important;
     }
 
@@ -159,11 +158,11 @@
      * Using gap on parent is the canonical spacing; margin-top here causes
      * second/third KPI cards to appear lower than the first card.
      */
-    .app-content :is(.grid, .flex, .app-card-grid, .dashboard-kpi-grid, .module-kpi-grid)
+    /* .app-content :is(.grid, .flex, .app-card-grid, .dashboard-kpi-grid, .module-kpi-grid)
         > :is(.app-card, .sa-card, .module-card, [class*="app-card"], [class*="sa-card"], [class*="module-card"]) {
         margin-top: 0 !important;
         margin-bottom: 0 !important;
-    }
+    } */
 
     .app-card-stack {
         display: grid;
@@ -1010,6 +1009,26 @@
         order: 2;
     }
 
+    /* Customers index: pin explicit grid areas to prevent main/side overlap on mixed breakpoints. */
+    .module-page--customers .module-grid-9-3 {
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-areas:
+            "main"
+            "side";
+    }
+
+    .module-page--customers .module-grid-9-3 > .module-grid-main {
+        grid-area: main;
+        order: 1;
+        min-width: 0;
+    }
+
+    .module-page--customers .module-grid-9-3 > .module-grid-side {
+        grid-area: side;
+        order: 2;
+        min-width: 0;
+    }
+
     /* Responsive data presentation baseline (table desktop + cards mobile/tablet) */
     .responsive-data-shell {
         display: block;
@@ -1162,6 +1181,11 @@
     }
 
     @media (min-width: 1280px) {
+        .module-page--customers .module-grid-9-3 {
+            grid-template-columns: minmax(0, 9fr) minmax(0, 3fr);
+            grid-template-areas: "main side";
+        }
+
         .responsive-data-mobile {
             display: none;
         }
@@ -1181,9 +1205,9 @@
             form[data-roles-index-form],
             form[data-tourist-attractions-index-form]
         ) {
-            flex-wrap: nowrap;
-            overflow-x: auto;
-            padding-bottom: 0.125rem;
+            flex-wrap: wrap;
+            overflow-x: visible;
+            padding-bottom: 0;
         }
 
         .module-grid-main :is(
@@ -1193,9 +1217,9 @@
             form[data-roles-index-form],
             form[data-tourist-attractions-index-form]
         ) > :not(.filter-actions) {
-            flex: 0 0 var(--app-filter-control-w);
-            min-width: var(--app-filter-control-w);
-            max-width: var(--app-filter-control-w);
+            flex: 1 1 var(--app-filter-control-w);
+            min-width: var(--app-filter-control-min-w);
+            max-width: 220px;
         }
     }
 
@@ -1290,22 +1314,22 @@
     }
 
     /* Card spacing is controlled by parent gap only. */
-    :is(.app-card, .module-card, .sa-card, .sa-kpi, .card) {
+    /* :is(.app-card, .module-card, .sa-card, .sa-kpi, .card) {
         margin: 0 !important;
-    }
+    } */
 
     /*
      * Disable Tailwind space-y utilities when attached directly to card containers.
      * Card-to-card spacing must be controlled by parent gap, not by card-local space stacks.
      */
-    :is(.app-card, .module-card, .sa-card, .sa-kpi, .card)[class*="space-y-"] {
+    /* :is(.app-card, .module-card, .sa-card, .sa-kpi, .card)[class*="space-y-"] {
         --tw-space-y-reverse: 0 !important;
     }
 
     :is(.app-card, .module-card, .sa-card, .sa-kpi, .card)[class*="space-y-"] > :not([hidden]) ~ :not([hidden]) {
         margin-top: 0 !important;
         margin-bottom: 0 !important;
-    }
+    } */
 
     .dark .app-card {
         border-color: #374151;

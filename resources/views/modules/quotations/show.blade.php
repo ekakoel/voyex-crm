@@ -81,15 +81,15 @@
                     <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
                         <div class="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/30">
                             <p class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ ui_phrase('Sub Total') }}</p>
-                            <p class="mt-1 text-base font-semibold text-gray-900 dark:text-gray-100"><x-money :amount="$subTotal" currency="IDR" /></p>
+                            <p class="mt-1 text-base font-semibold text-gray-900 dark:text-gray-100"><x-money :amount="$subTotal" :currency="$currentCurrency ?? 'IDR'" /></p>
                         </div>
                         <div class="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/30">
                             <p class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ ui_phrase('Discount') }}</p>
-                            <p class="mt-1 text-base font-semibold text-gray-900 dark:text-gray-100"><x-money :amount="$globalDiscountAmount" currency="IDR" /></p>
+                            <p class="mt-1 text-base font-semibold text-gray-900 dark:text-gray-100"><x-money :amount="$globalDiscountAmount" :currency="$currentCurrency ?? 'IDR'" /></p>
                         </div>
                         <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-700 dark:bg-emerald-900/20">
                             <p class="text-xs uppercase tracking-wide text-emerald-700 dark:text-emerald-300">{{ ui_phrase('Final Amount') }}</p>
-                            <p class="mt-1 text-lg font-semibold text-emerald-800 dark:text-emerald-200"><x-money :amount="$finalAmount" currency="IDR" /></p>
+                            <p class="mt-1 text-lg font-semibold text-emerald-800 dark:text-emerald-200"><x-money :amount="$finalAmount" :currency="$currentCurrency ?? 'IDR'" /></p>
                         </div>
                     </div>
                 </div>
@@ -176,14 +176,14 @@
                                 @forelse ($groupedItemsByDay as $dayKey => $dayItems)
                                     <tr>
                                         <td colspan="6" class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-indigo-700 bg-indigo-50/60 dark:bg-indigo-900/20 dark:text-indigo-300">
-                                            {{ $dayKey === 'without_day' ? ui_phrase('Without Day') : ui_phrase('Day') . ' ' . $dayKey }}
+                                            {{ $dayKey === 'without_day' ? ui_phrase('Additional Services') : ui_phrase('Day') . ' ' . $dayKey }}
                                         </td>
                                     </tr>
                                     @foreach ($dayItems as $item)
                                         @php
                                             $meta = is_array($item->serviceable_meta ?? null) ? $item->serviceable_meta : [];
                                             $paxType = strtolower((string) ($meta['pax_type'] ?? ''));
-                                            $paxBadgeLabel = $paxType === 'adult' ? 'Adult Publish Rate' : ($paxType === 'child' ? 'Child Publish Rate' : '');
+                                            $paxBadgeLabel = $paxType === 'adult' ? ui_phrase('Adult Publish Rate') : ($paxType === 'child' ? ui_phrase('Child Publish Rate') : '');
                                             $cleanDescription = trim((string) ($item->description ?? ''));
                                             $cleanDescription = preg_replace('/^\s*Day\s+\d+\s*-\s*/i', '', $cleanDescription) ?? $cleanDescription;
                                             $cleanDescription = preg_replace('/^\s*Without\s+Day\s*-\s*/i', '', $cleanDescription) ?? $cleanDescription;
@@ -222,18 +222,18 @@
                                                 </div>
                                             </td>
                                             <td class="px-3 py-2 text-right text-gray-700 dark:text-gray-200">
-                                                <x-money :amount="$item->contract_rate ?? 0" currency="IDR" />
+                                                <x-money :amount="$item->contract_rate ?? 0" :currency="$currentCurrency ?? 'IDR'" />
                                             </td>
                                             <td class="px-3 py-2 text-right text-gray-700 dark:text-gray-200">
                                                 @if (($item->markup_type ?? 'fixed') === 'percent')
                                                     {{ number_format($item->markup ?? 0, 2, ',', '.') }}%
                                                 @else
-                                                    <x-money :amount="$item->markup ?? 0" currency="IDR" />
+                                                    <x-money :amount="$item->markup ?? 0" :currency="$currentCurrency ?? 'IDR'" />
                                                 @endif
                                             </td>
-                                            <td class="px-3 py-2 text-right text-gray-700 dark:text-gray-200"><x-money :amount="$item->unit_price ?? 0" currency="IDR" /></td>
+                                            <td class="px-3 py-2 text-right text-gray-700 dark:text-gray-200"><x-money :amount="$item->unit_price ?? 0" :currency="$currentCurrency ?? 'IDR'" /></td>
                                             <td class="px-3 py-2 text-right text-gray-700 dark:text-gray-200">{{ $item->qty }}</td>
-                                            <td class="px-3 py-2 text-right font-medium text-gray-700 dark:text-gray-200"><x-money :amount="$item->total ?? 0" currency="IDR" /></td>
+                                            <td class="px-3 py-2 text-right font-medium text-gray-700 dark:text-gray-200"><x-money :amount="$item->total ?? 0" :currency="$currentCurrency ?? 'IDR'" /></td>
                                         </tr>
                                     @endforeach
                                 @empty
@@ -248,7 +248,7 @@
                                         {{ ui_phrase('Sub Total') }}
                                     </td>
                                     <td class="px-3 py-2 text-right text-sm font-semibold text-gray-800 dark:text-gray-100">
-                                        <x-money :amount="$subTotal" currency="IDR" />
+                                        <x-money :amount="$subTotal" :currency="$currentCurrency ?? 'IDR'" />
                                     </td>
                                 </tr>
                                 <tr>
@@ -256,7 +256,7 @@
                                         {{ ui_phrase('Discount') }}
                                     </td>
                                     <td class="px-3 py-2 text-right text-sm font-semibold text-gray-800 dark:text-gray-100">
-                                        <x-money :amount="$globalDiscountAmount" currency="IDR" />
+                                        <x-money :amount="$globalDiscountAmount" :currency="$currentCurrency ?? 'IDR'" />
                                     </td>
                                 </tr>
                                 <tr>
@@ -264,7 +264,7 @@
                                         {{ ui_phrase('Final Amount') }}
                                     </td>
                                     <td class="px-3 py-2 text-right text-sm font-bold text-emerald-700 dark:text-emerald-300">
-                                        <x-money :amount="$finalAmount" currency="IDR" />
+                                        <x-money :amount="$finalAmount" :currency="$currentCurrency ?? 'IDR'" />
                                     </td>
                                 </tr>
                             </tfoot>
@@ -274,13 +274,13 @@
                     <div class="md:hidden space-y-3">
                         @forelse ($groupedItemsByDay as $dayKey => $dayItems)
                             <div class="rounded-lg border border-indigo-200 bg-indigo-50/60 px-3 py-2 text-xs font-semibold uppercase tracking-wider text-indigo-700 dark:border-indigo-700 dark:bg-indigo-900/20 dark:text-indigo-300">
-                                {{ $dayKey === 'without_day' ? ui_phrase('Without Day') : ui_phrase('Day') . ' ' . $dayKey }}
+                                {{ $dayKey === 'without_day' ? ui_phrase('Additional Services') : ui_phrase('Day') . ' ' . $dayKey }}
                             </div>
                             @foreach ($dayItems as $item)
                                 @php
                                     $meta = is_array($item->serviceable_meta ?? null) ? $item->serviceable_meta : [];
                                     $paxType = strtolower((string) ($meta['pax_type'] ?? ''));
-                                    $paxBadgeLabel = $paxType === 'adult' ? 'Adult Publish Rate' : ($paxType === 'child' ? 'Child Publish Rate' : '');
+                                    $paxBadgeLabel = $paxType === 'adult' ? ui_phrase('Adult Publish Rate') : ($paxType === 'child' ? ui_phrase('Child Publish Rate') : '');
                                     $cleanDescription = trim((string) ($item->description ?? ''));
                                     $cleanDescription = preg_replace('/^\s*Day\s+\d+\s*-\s*/i', '', $cleanDescription) ?? $cleanDescription;
                                     $cleanDescription = preg_replace('/^\s*Without\s+Day\s*-\s*/i', '', $cleanDescription) ?? $cleanDescription;
@@ -317,18 +317,18 @@
                                         @endif
                                     </div>
                                     <div class="mt-3 grid grid-cols-2 gap-2 text-xs text-gray-600 dark:text-gray-300">
-                                        <div>{{ ui_phrase('Contract Rate') }}</div><div class="text-right"><x-money :amount="$item->contract_rate ?? 0" currency="IDR" /></div>
+                                        <div>{{ ui_phrase('Contract Rate') }}</div><div class="text-right"><x-money :amount="$item->contract_rate ?? 0" :currency="$currentCurrency ?? 'IDR'" /></div>
                                         <div>{{ ui_phrase('Markup') }}</div>
                                         <div class="text-right">
                                             @if (($item->markup_type ?? 'fixed') === 'percent')
                                                 {{ number_format($item->markup ?? 0, 2, ',', '.') }}%
                                             @else
-                                                <x-money :amount="$item->markup ?? 0" currency="IDR" />
+                                                <x-money :amount="$item->markup ?? 0" :currency="$currentCurrency ?? 'IDR'" />
                                             @endif
                                         </div>
-                                        <div>{{ ui_phrase('Unit Price') }}</div><div class="text-right"><x-money :amount="$item->unit_price ?? 0" currency="IDR" /></div>
+                                        <div>{{ ui_phrase('Unit Price') }}</div><div class="text-right"><x-money :amount="$item->unit_price ?? 0" :currency="$currentCurrency ?? 'IDR'" /></div>
                                         <div>{{ ui_phrase('Qty') }}</div><div class="text-right">{{ $item->qty }}</div>
-                                        <div class="font-semibold">{{ ui_phrase('Total') }}</div><div class="text-right font-semibold"><x-money :amount="$item->total ?? 0" currency="IDR" /></div>
+                                        <div class="font-semibold">{{ ui_phrase('Total') }}</div><div class="text-right font-semibold"><x-money :amount="$item->total ?? 0" :currency="$currentCurrency ?? 'IDR'" /></div>
                                     </div>
                                 </div>
                             @endforeach
@@ -339,11 +339,11 @@
                         <div class="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
                                 <div class="grid grid-cols-2 gap-2 text-xs text-gray-600 dark:text-gray-300">
                                     <div class="font-semibold">{{ ui_phrase('Sub Total') }}</div>
-                                    <div class="text-right font-semibold"><x-money :amount="$subTotal" currency="IDR" /></div>
+                                    <div class="text-right font-semibold"><x-money :amount="$subTotal" :currency="$currentCurrency ?? 'IDR'" /></div>
                                     <div class="font-semibold">{{ ui_phrase('Discount') }}</div>
-                                    <div class="text-right font-semibold"><x-money :amount="$globalDiscountAmount" currency="IDR" /></div>
+                                    <div class="text-right font-semibold"><x-money :amount="$globalDiscountAmount" :currency="$currentCurrency ?? 'IDR'" /></div>
                                     <div class="font-bold text-emerald-700 dark:text-emerald-300">{{ ui_phrase('Final Amount') }}</div>
-                                    <div class="text-right font-bold text-emerald-700 dark:text-emerald-300"><x-money :amount="$finalAmount" currency="IDR" /></div>
+                                    <div class="text-right font-bold text-emerald-700 dark:text-emerald-300"><x-money :amount="$finalAmount" :currency="$currentCurrency ?? 'IDR'" /></div>
                                 </div>
                         </div>
                     </div>

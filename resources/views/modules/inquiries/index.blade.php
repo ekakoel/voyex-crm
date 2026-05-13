@@ -21,24 +21,10 @@
                     <form method="GET" action="{{ route('inquiries.index') }}" class="grid grid-cols-1 gap-3 sm:grid-cols-2" data-service-filter-form data-disable-submit-lock="1" data-page-spinner="off">
                         <input name="q" value="{{ request('q') }}" placeholder="{{ ui_phrase('Search') }}"
                             class="app-input sm:col-span-2" data-service-filter-input>
-                        <select name="status" class="app-input" data-service-filter-input>
-                            <option value="">{{ ui_phrase('Status') }}</option>
-                            @foreach (\App\Models\Inquiry::STATUS_OPTIONS as $status)
-                                <option value="{{ $status }}" @selected(request('status') === $status)>{{ ui_phrase((string) $status) }}
-                                </option>
-                            @endforeach
-                        </select>
                         <select name="priority" class="app-input" data-service-filter-input>
                             <option value="">{{ ui_phrase('Priority') }}</option>
                             @foreach (['low', 'normal', 'high'] as $priority)
                                 <option value="{{ $priority }}" @selected(request('priority') === $priority)>{{ ui_phrase($priority) }}
-                                </option>
-                            @endforeach
-                        </select>
-                        <select name="assigned_to" class="app-input" data-service-filter-input>
-                            <option value="">{{ ui_phrase('Assigned') }}</option>
-                            @foreach ($assignees as $user)
-                                <option value="{{ $user->id }}" @selected((string) request('assigned_to') === (string) $user->id)>{{ $user->name }}
                                 </option>
                             @endforeach
                         </select>
@@ -142,7 +128,7 @@
                                                     @endif
                                                 @endcan
                                                 <a href="{{ route('itineraries.create', ['inquiry_id' => $inquiry->id]) }}"
-                                                    class="btn-outline-sm">{{ ui_phrase('Create Itinerary') }}</a>
+                                                    class="btn-outline-sm" title="{{ ui_phrase('Create Itinerary') }}" aria-label="{{ ui_phrase('Create Itinerary') }}"><i class="fa-solid fa-route"></i><span class="sr-only">{{ ui_phrase('Create Itinerary') }}</span></a>
 </div>
                                         </td>
                                     </tr>
@@ -218,9 +204,7 @@
                                     @endif
                                 @endcan
                                 <a href="{{ route('itineraries.create', ['inquiry_id' => $inquiry->id]) }}"
-                                    class="btn-outline-sm">
-                                    {{ ui_phrase('Create Itinerary') }}
-                                </a>
+                                    class="btn-outline-sm" title="{{ ui_phrase('Create Itinerary') }}" aria-label="{{ ui_phrase('Create Itinerary') }}"><i class="fa-solid fa-route"></i><span class="sr-only">{{ ui_phrase('Create Itinerary') }}</span></a>
 </div>
                         </div>
                     @empty

@@ -21,12 +21,10 @@
                     <option value="{{ $status }}" @selected(request('status') === $status)>{{ ucfirst($status) }}</option>
                 @endforeach
             </select>
-            <input name="invoice_from" type="date" value="{{ request('invoice_from') }}" class="app-input" data-service-filter-input>
-            <input name="invoice_to" type="date" value="{{ request('invoice_to') }}" class="app-input" data-service-filter-input>
-            <select name="per_page" class="app-input" data-service-filter-input>
-                @foreach ([10,25,50,100] as $size)
-                    <option value="{{ $size }}" @selected((string) request('per_page', 10) === (string) $size)>{{ ui_phrase(':size/page', ['size' => $size]) }}</option>
-                @endforeach
+                        <select name="per_page" class="app-input" data-service-filter-input>
+                            @foreach ([10,25,50,100] as $size)
+                                <option value="{{ $size }}" @selected((string) request('per_page', 10) === (string) $size)>{{ ui_phrase(':size/page', ['size' => $size]) }}</option>
+                            @endforeach
             </select>
             <div class="flex items-center gap-2 sm:col-span-2 filter-actions">
                 <a href="{{ route('invoices.index') }}" class="btn-ghost" data-service-filter-reset>{{ ui_phrase('Reset') }}</a>

@@ -82,6 +82,7 @@ class QuotationValidationController extends Controller
                 'progress' => $progress,
                 'item' => [
                     'id' => (int) $item->id,
+                    'qty' => (int) ($item->qty ?? 1),
                     'is_validated' => (bool) ($item->is_validated ?? false),
                     'validation_notes' => (string) ($item->validation_notes ?? ''),
                     'contract_rate' => (float) ($item->contract_rate ?? 0),
@@ -162,6 +163,7 @@ class QuotationValidationController extends Controller
                 'contact' => $payload['contact'] ?? [],
                 'item' => $payload['item'] ?? [],
                 'history' => $payload['history'] ?? [],
+                'service_history' => $payload['service_history'] ?? [],
             ]);
         }
 

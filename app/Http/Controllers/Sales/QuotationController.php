@@ -299,10 +299,10 @@ class QuotationController extends Controller
                 'integer',
                 'exists:itineraries,id',
             ],
-            'order_number' => ['nullable', 'string', 'max:100', 'regex:/^[A-Za-z0-9]+$/'],
+            'order_number' => ['required', 'string', 'max:100', 'regex:/^[A-Za-z0-9]+$/'],
             'service_date' => ['required', 'date'],
             'pax_adult' => ['required', 'integer', 'min:0'],
-            'pax_child' => ['required', 'integer', 'min:0'],
+            'pax_child' => ['nullable', 'integer', 'min:0'],
             'validity_date' => ['required', 'date'],
             'discount_type' => ['nullable', Rule::in(['percent', 'fixed'])],
             'discount_value' => ['nullable', 'numeric', 'min:0'],
@@ -360,7 +360,12 @@ class QuotationController extends Controller
 
         DB::beginTransaction();
         try {
-            $totals = $this->computeTotals($validated['items'], $validated['discount_type'] ?? null, (float) ($validated['discount_value'] ?? 0));
+            $totals = $this->computeTotals(
+                $validated['items'],
+                $validated['discount_type'] ?? null,
+                (float) ($validated['discount_value'] ?? 0),
+                (string) ($validated['service_date'] ?? '')
+            );
 
             $quotation = Quotation::withoutActivityLogging(function () use ($validated, $inquiryId, $selectedItineraryId, $totals, $normalizedOrderNumber) {
                 return Quotation::query()->create([
@@ -558,10 +563,10 @@ class QuotationController extends Controller
                 'integer',
                 'exists:itineraries,id',
             ],
-            'order_number' => ['nullable', 'string', 'max:100', 'regex:/^[A-Za-z0-9]+$/'],
+            'order_number' => ['required', 'string', 'max:100', 'regex:/^[A-Za-z0-9]+$/'],
             'service_date' => ['required', 'date'],
             'pax_adult' => ['required', 'integer', 'min:0'],
-            'pax_child' => ['required', 'integer', 'min:0'],
+            'pax_child' => ['nullable', 'integer', 'min:0'],
             'validity_date' => ['required', 'date'],
             'discount_type' => ['nullable', Rule::in(['percent', 'fixed'])],
             'discount_value' => ['nullable', 'numeric', 'min:0'],
@@ -623,7 +628,12 @@ class QuotationController extends Controller
 
         DB::beginTransaction();
         try {
-            $totals = $this->computeTotals($validated['items'], $validated['discount_type'] ?? null, (float) ($validated['discount_value'] ?? 0));
+            $totals = $this->computeTotals(
+                $validated['items'],
+                $validated['discount_type'] ?? null,
+                (float) ($validated['discount_value'] ?? 0),
+                (string) ($validated['service_date'] ?? '')
+            );
             $previousItineraryId = (int) ($quotation->itinerary_id ?? 0);
 
             $quotation->loadMissing('items');
@@ -1881,10 +1891,18 @@ SVG;
         return null;
     }
 
-    private function computeTotals(array $items, ?string $discountType, float $discountValue): array
+    private function computeTotals(array $items, ?string $discountType, float $discountValue, ?string $quotationServiceDate = null): array
     {
         $subTotal = 0;
         $normalizedItems = [];
+        $serviceDateBase = null;
+        if (is_string($quotationServiceDate) && trim($quotationServiceDate) !== '') {
+            try {
+                $serviceDateBase = \Illuminate\Support\Carbon::parse($quotationServiceDate)->startOfDay();
+            } catch (\Throwable) {
+                $serviceDateBase = null;
+            }
+        }
 
         foreach ($items as $item) {
             $qty = (int) $item['qty'];
@@ -1946,6 +1964,13 @@ SVG;
             $dayNumber = (int) ($item['day_number'] ?? 0);
             if ($dayNumber > 0) {
                 $normalized['day_number'] = $dayNumber;
+            }
+            if ($serviceDateBase) {
+                $serviceDate = $serviceDateBase->copy();
+                if ($dayNumber > 1) {
+                    $serviceDate->addDays($dayNumber - 1);
+                }
+                $normalized['service_date'] = $serviceDate->toDateString();
             }
             $serviceableMeta = $this->normalizeServiceableMeta($item['serviceable_meta'] ?? null);
             if (! empty($serviceableMeta)) {

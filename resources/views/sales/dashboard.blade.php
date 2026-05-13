@@ -64,7 +64,7 @@
 
         {{-- List of inquiries that require follow-up --}}
         @if($canInquiries)
-            <div class="row">
+            <div class="row g-3">
                 <div class="col-12">
                     <h5>{{ ui_phrase('Pending Inquiries') }}</h5>
                     <div class="card">
@@ -87,4 +87,3 @@
 
     </div>
 @endsection
-

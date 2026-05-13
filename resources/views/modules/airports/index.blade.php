@@ -105,7 +105,11 @@
                                                     @method('PATCH')
                                                     <button type="submit"
                                                         onclick="return confirm('{{ $isActive ? ui_phrase('confirm deactivate') : ui_phrase('confirm activate') }}')"
-                                                        class="{{ $isActive ? 'btn-muted-sm' : 'btn-primary-sm' }}">{{ $isActive ? ui_phrase('Deactivate') : ui_phrase('Activate') }}</button>
+                                                        class="{{ $isActive ? 'btn-muted-sm' : 'btn-primary-sm' }}"
+                                                        title="{{ $isActive ? ui_phrase('Deactivate') : ui_phrase('Activate') }}"
+                                                        aria-label="{{ $isActive ? ui_phrase('Deactivate') : ui_phrase('Activate') }}"><i
+                                                            class="fa-solid {{ $isActive ? 'fa-toggle-off' : 'fa-toggle-on' }}"></i><span
+                                                            class="sr-only">{{ $isActive ? ui_phrase('Deactivate') : ui_phrase('Activate') }}</span></button>
                                                 </form>
                                             </div>
                                         </td>
@@ -161,7 +165,11 @@
                                     @method('PATCH')
                                     <button type="submit"
                                         onclick="return confirm('{{ $airport->trashed() ? ui_phrase('confirm activate') : ui_phrase('confirm deactivate') }}')"
-                                        class="{{ $airport->trashed() ? 'btn-primary-sm' : 'btn-muted-sm' }}">{{ $airport->trashed() ? ui_phrase('Activate') : ui_phrase('Deactivate') }}</button>
+                                        class="{{ $airport->trashed() ? 'btn-primary-sm' : 'btn-muted-sm' }}"
+                                        title="{{ $airport->trashed() ? ui_phrase('Activate') : ui_phrase('Deactivate') }}"
+                                        aria-label="{{ $airport->trashed() ? ui_phrase('Activate') : ui_phrase('Deactivate') }}"><i
+                                            class="fa-solid {{ $airport->trashed() ? 'fa-toggle-on' : 'fa-toggle-off' }}"></i><span
+                                            class="sr-only">{{ $airport->trashed() ? ui_phrase('Activate') : ui_phrase('Deactivate') }}</span></button>
                                 </form>
                             </div>
                         </div>

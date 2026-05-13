@@ -765,6 +765,48 @@ Route::middleware('auth')->group(function () {
                 'permission:module.bookings.access',
                 'module.permission:bookings',
             ]);
+        Route::post('bookings/{booking}/services/{quotationItem}/book', [\App\Http\Controllers\BookingController::class, 'bookServiceItem'])
+            ->name('bookings.services.book')
+            ->middleware([
+                'module:bookings',
+                'permission:module.bookings.access',
+                'module.permission:bookings',
+            ]);
+        Route::patch('bookings/{booking}/services/{quotationItem}/book', [\App\Http\Controllers\BookingController::class, 'updateServiceItem'])
+            ->name('bookings.services.update')
+            ->middleware([
+                'module:bookings',
+                'permission:module.bookings.access',
+                'module.permission:bookings',
+            ]);
+        Route::get('booking-items/{bookingItem}/voucher', [\App\Http\Controllers\BookingItemVoucherController::class, 'edit'])
+            ->name('booking-items.voucher.edit')
+            ->middleware([
+                'module:bookings',
+                'permission:module.bookings.access',
+                'module.permission:bookings',
+            ]);
+        Route::post('booking-items/{bookingItem}/voucher/generate', [\App\Http\Controllers\BookingItemVoucherController::class, 'generate'])
+            ->name('booking-items.voucher.generate')
+            ->middleware([
+                'module:bookings',
+                'permission:module.bookings.access',
+                'module.permission:bookings',
+            ]);
+        Route::match(['post', 'put', 'patch'], 'booking-items/{bookingItem}/voucher', [\App\Http\Controllers\BookingItemVoucherController::class, 'upsert'])
+            ->name('booking-items.voucher.upsert')
+            ->middleware([
+                'module:bookings',
+                'permission:module.bookings.access',
+                'module.permission:bookings',
+            ]);
+        Route::get('booking-items/{bookingItem}/voucher/pdf', [\App\Http\Controllers\BookingItemVoucherController::class, 'pdf'])
+            ->name('booking-items.voucher.pdf')
+            ->middleware([
+                'module:bookings',
+                'permission:module.bookings.access',
+                'module.permission:bookings',
+            ]);
         Route::get('bookings/export/csv', [\App\Http\Controllers\BookingController::class, 'exportCsv'])
             ->name('bookings.export')
             ->middleware([

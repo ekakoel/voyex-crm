@@ -1,167 +1,206 @@
 @extends('layouts.master')
-@section('page_title', ui_phrase('page title'))
-@section('page_subtitle', ui_phrase('page subtitle'))
+
+@section('page_title', ui_phrase('Bookings'))
+@section('page_subtitle', ui_phrase('Manage booking records.'))
+
 @section('page_actions')
     <a href="{{ route('bookings.export', request()->query()) }}" class="btn-secondary">{{ ui_phrase('Export CSV') }}</a>
     <a href="{{ route('bookings.create') }}" class="btn-primary">{{ ui_phrase('Add Booking') }}</a>
 @endsection
+
 @section('content')
-    <div class="space-y-6 module-page module-page--bookings" data-service-filter-page data-page-spinner="off">
+    <div class="space-y-6 module-page module-page--bookings" data-service-filter-page data-service-filter-text-debounce-ms="900" data-page-spinner="off">
         <div class="module-grid-9-3">
             <aside class="module-grid-side">
-                @include('components.module-index-sidebar-info')
+                @include('modules.bookings.partials._index-sidebar', ['sidebarInfo' => $sidebarInfo ?? []])
             </aside>
+
             <div class="module-grid-main" data-service-filter-results>
                 <div class="app-card p-5">
-                    <div class="grid gap-3">
+                    <div>
+                        <h2 class="text-base font-semibold text-gray-800 dark:text-gray-100">{{ ui_phrase('Filters') }}</h2>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">{{ ui_phrase('Refine your list quickly.') }}</p>
+                    </div>
+
+                    <form method="GET" action="{{ route('bookings.index') }}" class="grid grid-cols-1 gap-3 sm:grid-cols-2" data-service-filter-form data-disable-submit-lock="1" data-page-spinner="off">
                         <div>
-                            <h2 class="text-base font-semibold text-gray-800 dark:text-gray-100">{{ ui_phrase('Filters') }}</h2>
-                            <p class="text-sm text-gray-500 dark:text-gray-400">{{ ui_phrase('Refine your list quickly.') }}</p>
-                        </div>
-                        <form method="GET" action="{{ route('bookings.index') }}" class="grid grid-cols-1 gap-3 sm:grid-cols-2" data-service-filter-form data-disable-submit-lock="1" data-page-spinner="off">
-                            <input name="q" value="{{ request('q') }}" placeholder="{{ ui_phrase('search') }}" class="app-input sm:col-span-2" data-service-filter-input>
-                            <select name="status" class="app-input" data-service-filter-input>
-                                <option value="">{{ ui_phrase('Status') }}</option>
-                                @foreach (\App\Models\Booking::STATUS_OPTIONS as $status)
-                                    <option value="{{ $status }}" @selected(request('status') === $status)>{{ ucfirst($status) }}</option>
-                                @endforeach
-                            </select>
-                            <select name="quotation_id" class="app-input" data-service-filter-input>
-                                <option value="">{{ ui_phrase('Quotation') }}</option>
+                            <input
+                                name="order_number"
+                                value="{{ request('order_number') }}"
+                                list="booking-order-number-suggestions"
+                                placeholder="{{ ui_phrase('Order Number') }}"
+                                class="app-input"
+                                data-service-filter-input
+                            >
+                            <datalist id="booking-order-number-suggestions">
                                 @foreach ($quotations as $quotation)
-                                    <option value="{{ $quotation->id }}" @selected((string) request('quotation_id') === (string) $quotation->id)>
-                                        {{ $quotation->quotation_number }} - {{ $quotation->inquiry?->customer?->name ?? '-' }}
+                                    @if (! empty($quotation->order_number))
+                                        <option value="{{ $quotation->order_number }}">
+                                            {{ ($quotation->quotation_number ?? '-') . ' - ' . ($quotation->inquiry?->customer?->name ?? '-') }}
+                                        </option>
+                                    @endif
+                                @endforeach
+                            </datalist>
+                        </div>
+
+                        <div>
+                            <input
+                                name="quotation"
+                                value="{{ request('quotation') }}"
+                                list="booking-quotation-suggestions"
+                                placeholder="{{ ui_phrase('Quotation') }}"
+                                class="app-input"
+                                data-service-filter-input
+                            >
+                            <datalist id="booking-quotation-suggestions">
+                                @foreach ($quotations as $quotation)
+                                    <option value="{{ $quotation->quotation_number }}">
+                                        {{ ($quotation->order_number ?? '-') . ' - ' . ($quotation->inquiry?->customer?->name ?? '-') }}
                                     </option>
                                 @endforeach
-                            </select>
-                            <input name="travel_from" type="date" value="{{ request('travel_from') }}" class="app-input" data-service-filter-input>
-                            <input name="travel_to" type="date" value="{{ request('travel_to') }}" class="app-input" data-service-filter-input>
-                            <select name="per_page" class="app-input" data-service-filter-input>
-                                @foreach ([10,25,50,100] as $size)
-                                    <option value="{{ $size }}" @selected((string) request('per_page', 10) === (string) $size)>{{ ui_phrase(':size/page', ['size' => $size]) }}</option>
-                                @endforeach
-                            </select>
-                            <div class="flex items-center gap-2 sm:col-span-2 filter-actions">
-                                <a href="{{ route('bookings.index') }}" class="btn-ghost" data-service-filter-reset>{{ ui_phrase('Reset') }}</a>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-        @if (session('success'))
-            <div class="rounded-lg mb-6 border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300">
-                {{ session('success') }}
-            </div>
-        @endif
-        @if (session('error'))
-            <div class="rounded-lg mb-6 border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-700 dark:bg-rose-900/20 dark:text-rose-300">
-                {{ session('error') }}
-            </div>
-        @endif
-        <div class="md:hidden space-y-3">
-            @forelse ($bookings as $booking)
-                <div class="app-card p-4">
-                    <div class="flex items-start justify-between gap-3">
-                        <div>
-                            <p class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ $booking->booking_number }}</p>
-                            <p class="text-xs text-gray-500 dark:text-gray-400">
-                                {{ $booking->quotation?->quotation_number ?? '-' }} - {{ $booking->quotation?->inquiry?->customer?->name ?? '-' }}
-                            </p>
+                            </datalist>
                         </div>
-                        <x-status-badge :status="$booking->status" size="xs" />
-                    </div>
-                    <div class="mt-3 grid grid-cols-2 gap-2 text-xs text-gray-600 dark:text-gray-300">
-                        <div>{{ ui_phrase('Travel Date') }}</div>
-                        <div>{{ $booking->travel_date?->format('Y-m-d') ?? '-' }}</div>
-                    </div>
-                    <div class="mt-3 flex flex-wrap gap-2">
-                        <a href="{{ route('bookings.show', $booking) }}"  class="btn-outline-sm" title="{{ ui_phrase('Detail') }}" aria-label="{{ ui_phrase('Detail') }}"><i class="fa-solid fa-eye"></i><span class="sr-only">{{ ui_phrase('Detail') }}</span></a>
-                        @can('update', $booking)
-                            @if (! $booking->isFinal())
-                            <a href="{{ route('bookings.edit', $booking) }}"  class="btn-secondary-sm" title="{{ ui_phrase('Edit') }}" aria-label="{{ ui_phrase('Edit') }}"><i class="fa-solid fa-pen"></i><span class="sr-only">{{ ui_phrase('Edit') }}</span></a>
-                            @endif
-                        @endcan
-                        @can('delete', $booking)
-                            @if (! $booking->isFinal())
-                                <form action="{{ route('bookings.destroy', $booking) }}" method="POST" class="inline">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button type="submit" onclick="return confirm('{{ ui_phrase('confirm delete') }}')"   class="btn-danger-sm">
-                                        {{ ui_phrase('Delete') }}
-                                    </button>
-                                </form>
-                            @endif
-                        @endcan
-                    </div>
+
+                        <select name="per_page" class="app-input" data-service-filter-input>
+                            @foreach ([10, 25, 50, 100] as $size)
+                                <option value="{{ $size }}" @selected((string) request('per_page', 10) === (string) $size)>{{ ui_phrase(':size/page', ['size' => $size]) }}</option>
+                            @endforeach
+                        </select>
+
+                        <div class="flex items-center gap-2 sm:col-span-2 filter-actions">
+                            <a href="{{ route('bookings.index') }}" class="btn-ghost" data-service-filter-reset data-page-spinner="off">{{ ui_phrase('Reset') }}</a>
+                        </div>
+                    </form>
                 </div>
-            @empty
-                <div class="app-card p-6 text-center text-sm text-gray-500 dark:text-gray-400">
-                    {{ ui_phrase('No :entity available.', ['entity' => ui_phrase('Bookings')]) }}
-                </div>
-            @endforelse
-        </div>
-        <div class="hidden md:block app-card overflow-hidden">
-            <div class="overflow-x-auto">
-            <table class="app-table divide-y divide-gray-200 dark:divide-gray-700">
-                <thead>
-                    <tr>
-                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">#</th>
-                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('Booking No') }}</th>
-                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('Quotation') }}</th>
-                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('Travel Date') }}</th>
-                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('Status') }}</th>
-                        <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300 actions-compact">{{ ui_phrase('Actions') }}</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
-                    @forelse ($bookings as $index => $booking)
-                        <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/30">
-                            <td class="px-4 py-3 text-sm text-gray-800 dark:text-gray-100">{{ ++$index }}</td>
-                            <td class="px-4 py-3 text-sm text-gray-800 dark:text-gray-100">{{ $booking->booking_number }}</td>
-                            <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">
-                                {{ $booking->quotation?->quotation_number ?? '-' }} - {{ $booking->quotation?->inquiry?->customer?->name ?? '-' }}
-                            </td>
-                            <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">{{ $booking->travel_date?->format('Y-m-d') ?? '-' }}</td>
-                            <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">
+
+                @if (session('success'))
+                    <div class="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300">
+                        {{ session('success') }}
+                    </div>
+                @endif
+
+                @if (session('error'))
+                    <div class="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-700 dark:bg-rose-900/20 dark:text-rose-300">
+                        {{ session('error') }}
+                    </div>
+                @endif
+
+                <div class="md:hidden space-y-3">
+                    @forelse ($bookings as $booking)
+                        <div class="app-card p-4">
+                            <div class="flex items-start justify-between gap-3">
+                                <div>
+                                    <p class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ $booking->booking_number }}</p>
+                                    <p class="text-xs text-gray-500 dark:text-gray-400">{{ $booking->quotation?->order_number ?? '-' }}</p>
+                                    <p class="text-xs text-gray-500 dark:text-gray-400">{{ $booking->quotation?->quotation_number ?? '-' }}</p>
+                                    <p class="text-xs text-gray-500 dark:text-gray-400">
+                                        {{ ui_phrase('Service') }}: {{ (int) ($booking->quotation?->items_count ?? 0) }} | {{ (int) ($booking->items_with_voucher_count ?? 0) }}
+                                    </p>
+                                </div>
                                 <x-status-badge :status="$booking->status" size="xs" />
-                            </td>
-                            <td class="px-4 py-3 text-right text-sm actions-compact">
-    <div class="flex items-center justify-end gap-2">
-        <a href="{{ route('bookings.show', $booking) }}"  class="btn-outline-sm" title="{{ ui_phrase('Detail') }}" aria-label="{{ ui_phrase('Detail') }}"><i class="fa-solid fa-eye"></i><span class="sr-only">{{ ui_phrase('Detail') }}</span></a>
+                            </div>
+
+                            <div class="mt-3 grid grid-cols-2 gap-2 text-xs text-gray-600 dark:text-gray-300">
+                                <div>{{ ui_phrase('Travel Date') }}</div>
+                                <div>{{ $booking->travel_date?->format('Y-m-d') ?? '-' }}</div>
+                            </div>
+
+                            <div class="mt-3 flex flex-wrap gap-2">
+                                <a href="{{ route('bookings.show', $booking) }}" class="btn-outline-sm" title="{{ ui_phrase('Detail') }}" aria-label="{{ ui_phrase('Detail') }}"><i class="fa-solid fa-eye"></i><span class="sr-only">{{ ui_phrase('Detail') }}</span></a>
+
                                 @can('update', $booking)
                                     @if (! $booking->isFinal())
-                                        <a href="{{ route('bookings.edit', $booking) }}"  class="btn-secondary-sm" title="{{ ui_phrase('Edit') }}" aria-label="{{ ui_phrase('Edit') }}"><i class="fa-solid fa-pen"></i><span class="sr-only">{{ ui_phrase('Edit') }}</span></a>
+                                        <a href="{{ route('bookings.edit', $booking) }}" class="btn-secondary-sm" title="{{ ui_phrase('Edit') }}" aria-label="{{ ui_phrase('Edit') }}"><i class="fa-solid fa-pen"></i><span class="sr-only">{{ ui_phrase('Edit') }}</span></a>
                                     @endif
                                 @endcan
+
                                 @can('delete', $booking)
                                     @if (! $booking->isFinal())
                                         <form action="{{ route('bookings.destroy', $booking) }}" method="POST" class="inline">
                                             @csrf
                                             @method('DELETE')
-                                            <button type="submit" onclick="return confirm('{{ ui_phrase('confirm delete') }}')"   class="btn-danger-sm">{{ ui_phrase('Delete') }}
+                                            <button type="submit" onclick="return confirm('{{ ui_phrase('confirm delete') }}')" class="btn-danger-sm" title="{{ ui_phrase('Delete') }}" aria-label="{{ ui_phrase('Delete') }}">
+                                                <i class="fa-solid fa-trash"></i><span class="sr-only">{{ ui_phrase('Delete') }}</span>
                                             </button>
                                         </form>
                                     @endif
                                 @endcan
-    </div>
-</td>
-                        </tr>
+                            </div>
+                        </div>
                     @empty
-                        <tr>
-                            <td colspan="6" class="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">{{ ui_phrase('No :entity available.', ['entity' => ui_phrase('Bookings')]) }}</td>
-                        </tr>
+                        <div class="app-card p-6 text-center text-sm text-gray-500 dark:text-gray-400">
+                            {{ ui_phrase('No :entity available.', ['entity' => ui_phrase('Bookings')]) }}
+                        </div>
                     @endforelse
-                </tbody>
-            </table>
+                </div>
+
+                <div class="hidden md:block app-card overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="app-table w-full divide-y divide-gray-200 dark:divide-gray-700">
+                            <thead>
+                                <tr>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">#</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('Booking No') }}</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('Service') }}</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('Travel Date') }}</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('Status') }}</th>
+                                    <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300 actions-compact">{{ ui_phrase('Actions') }}</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
+                                @forelse ($bookings as $index => $booking)
+                                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/30">
+                                        <td class="px-4 py-3 text-sm text-gray-800 dark:text-gray-100">{{ ++$index }}</td>
+                                        <td class="px-4 py-3 text-sm text-gray-800 dark:text-gray-100">
+                                            <div class="space-y-0.5">
+                                                <p class="font-semibold">{{ $booking->booking_number }}</p>
+                                                <p class="text-xs text-gray-500 dark:text-gray-400">{{ $booking->quotation?->order_number ?? '-' }}</p>
+                                                <p class="text-xs text-gray-500 dark:text-gray-400">{{ $booking->quotation?->quotation_number ?? '-' }}</p>
+                                            </div>
+                                        </td>
+                                        <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">
+                                            {{ (int) ($booking->quotation?->items_count ?? 0) }} | {{ (int) ($booking->items_with_voucher_count ?? 0) }}
+                                        </td>
+                                        <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">{{ $booking->travel_date?->format('Y-m-d') ?? '-' }}</td>
+                                        <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">
+                                            <x-status-badge :status="$booking->status" size="xs" />
+                                        </td>
+                                        <td class="px-4 py-3 text-right text-sm actions-compact">
+                                            <div class="flex items-center justify-end gap-2">
+                                                <a href="{{ route('bookings.show', $booking) }}" class="btn-outline-sm" title="{{ ui_phrase('Detail') }}" aria-label="{{ ui_phrase('Detail') }}"><i class="fa-solid fa-eye"></i><span class="sr-only">{{ ui_phrase('Detail') }}</span></a>
+
+                                                @can('update', $booking)
+                                                    @if (! $booking->isFinal())
+                                                        <a href="{{ route('bookings.edit', $booking) }}" class="btn-secondary-sm" title="{{ ui_phrase('Edit') }}" aria-label="{{ ui_phrase('Edit') }}"><i class="fa-solid fa-pen"></i><span class="sr-only">{{ ui_phrase('Edit') }}</span></a>
+                                                    @endif
+                                                @endcan
+
+                                                @can('delete', $booking)
+                                                    @if (! $booking->isFinal())
+                                                        <form action="{{ route('bookings.destroy', $booking) }}" method="POST" class="inline">
+                                                            @csrf
+                                                            @method('DELETE')
+                                                            <button type="submit" onclick="return confirm('{{ ui_phrase('confirm delete') }}')" class="btn-danger-sm" title="{{ ui_phrase('Delete') }}" aria-label="{{ ui_phrase('Delete') }}"><i class="fa-solid fa-trash"></i><span class="sr-only">{{ ui_phrase('Delete') }}</span></button>
+                                                        </form>
+                                                    @endif
+                                                @endcan
+                                            </div>
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="6" class="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">
+                                            {{ ui_phrase('No :entity available.', ['entity' => ui_phrase('Bookings')]) }}
+                                        </td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div>{{ $bookings->links() }}</div>
             </div>
         </div>
-        <div>{{ $bookings->links() }}</div>
-            </div>
-        </div>
-</div>
+    </div>
 @endsection
-
-
-
-
-
-

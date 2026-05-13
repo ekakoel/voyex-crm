@@ -122,7 +122,7 @@
                                 <form action="{{ route('currencies.destroy', $currency) }}" method="POST" class="inline">
                                     @csrf
                                     @method('DELETE')
-                                    <button type="submit" onclick="return confirm('{{ ui_phrase('confirm delete') }}')"   class="btn-danger-sm">{{ ui_phrase('Delete') }}</button>
+                                    <button type="submit" onclick="return confirm('{{ ui_phrase('confirm delete') }}')"   class="btn-danger-sm" title="{{ ui_phrase('Delete') }}" aria-label="{{ ui_phrase('Delete') }}"><i class="fa-solid fa-trash"></i><span class="sr-only">{{ ui_phrase('Delete') }}</span></button>
                                 </form>
                                 @endcan
     </div>
@@ -168,7 +168,7 @@
                         <form action="{{ route('currencies.destroy', $currency) }}" method="POST" class="inline">
                             @csrf
                             @method('DELETE')
-                            <button type="submit" onclick="return confirm('{{ ui_phrase('confirm delete') }}')" class="btn-danger-sm">{{ ui_phrase('Delete') }}</button>
+                            <button type="submit" onclick="return confirm('{{ ui_phrase('confirm delete') }}')" class="btn-danger-sm" title="{{ ui_phrase('Delete') }}" aria-label="{{ ui_phrase('Delete') }}"><i class="fa-solid fa-trash"></i><span class="sr-only">{{ ui_phrase('Delete') }}</span></button>
                         </form>
                         @endcan
                     </div>

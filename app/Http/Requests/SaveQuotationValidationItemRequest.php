@@ -15,12 +15,14 @@ class SaveQuotationValidationItemRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'qty' => ['nullable', 'integer', 'min:1'],
             'contract_rate' => ['nullable', 'numeric', 'min:0'],
             'markup_type' => ['nullable', Rule::in(['fixed', 'percent'])],
             'markup' => ['nullable', 'numeric', 'min:0'],
             'validation_notes' => ['nullable', 'string', 'max:2000'],
             'is_validated' => ['nullable', 'boolean'],
             'items' => ['nullable', 'array'],
+            'items.*.qty' => ['nullable', 'integer', 'min:1'],
             'items.*.contract_rate' => ['nullable', 'numeric', 'min:0'],
             'items.*.markup_type' => ['nullable', Rule::in(['fixed', 'percent'])],
             'items.*.markup' => ['nullable', 'numeric', 'min:0'],

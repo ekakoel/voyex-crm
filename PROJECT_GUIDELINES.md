@@ -125,6 +125,18 @@ Aturan: jika `final`, data view-only (tanpa mutasi).
 5. Dashboard atau halaman agregat berat wajib memakai cache aggregate singkat, async widgets, atau progressive reveal sesuai `docs/technical/PERFORMANCE_OPTIMIZATION_STANDARD.md`.
 6. Hindari side-effect DB write pada service yang dipanggil dari layout/sidebar/middleware tanpa guard cache yang eksplisit.
 
+## 4h. Standar Multi-language / I18N (Wajib)
+
+1. Semua perubahan UI dianggap wajib support multi-language secara default, tanpa perlu instruksi ulang.
+2. Dilarang menambah text user-facing hardcoded di Blade/JS inline/controller response message.
+3. Semua label, button, title, subtitle, modal text, helper text, option text, empty/error state wajib menggunakan `ui_phrase(...)` atau key i18n yang setara.
+4. Setiap penambahan phrase baru wajib di-sync minimal ke:
+   - `lang/en/ui_core.php`
+   - `lang/zh_Hant/ui_core.php`
+   - `lang/zh_Hans/ui_core.php`
+5. Pull request/perubahan tidak boleh dianggap selesai jika masih ada text user-facing yang belum bisa diterjemahkan.
+6. Untuk review perubahan UI, i18n compliance menjadi checklist wajib bersama responsive, permission, dan performa.
+
 ## 5. Aturan Dokumentasi Wajib
 
 1. Setiap perubahan code wajib dicatat di `VOYEX_CRM_SYSTEM_ROADMAP.md` bagian `CHANGELOG (LATEST)`.

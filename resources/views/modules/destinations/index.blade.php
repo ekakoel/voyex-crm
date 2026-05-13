@@ -70,7 +70,7 @@
                                 <form action="{{ route('destinations.toggle-status', $destination->id) }}" method="POST" class="inline">
                                     @csrf
                                     @method('PATCH')
-                                    <button type="submit" onclick="return confirm('{{ $isActive ? ui_phrase('confirm deactivate') : ui_phrase('confirm activate') }}')"   class="{{ $isActive ? 'btn-muted-sm' : 'btn-primary-sm' }}">{{ $isActive ? ui_phrase('Deactivate') : ui_phrase('Activate') }}</button>
+                                    <button type="submit" onclick="return confirm('{{ $isActive ? ui_phrase('confirm deactivate') : ui_phrase('confirm activate') }}')"   class="{{ $isActive ? 'btn-muted-sm' : 'btn-primary-sm' }}" title="{{ $isActive ? ui_phrase('Deactivate') : ui_phrase('Activate') }}" aria-label="{{ $isActive ? ui_phrase('Deactivate') : ui_phrase('Activate') }}"><i class="fa-solid {{ $isActive ? 'fa-toggle-off' : 'fa-toggle-on' }}"></i><span class="sr-only">{{ $isActive ? ui_phrase('Deactivate') : ui_phrase('Activate') }}</span></button>
                                 </form>
     </div>
 </td>
@@ -113,7 +113,7 @@
                         <form action="{{ route('destinations.toggle-status', $destination->id) }}" method="POST" class="inline">
                             @csrf
                             @method('PATCH')
-                            <button type="submit" onclick="return confirm('{{ $destination->trashed() ? ui_phrase('confirm activate') : ui_phrase('confirm deactivate') }}')" class="{{ $destination->trashed() ? 'btn-primary-sm' : 'btn-muted-sm' }}">{{ $destination->trashed() ? ui_phrase('Activate') : ui_phrase('Deactivate') }}</button>
+                            <button type="submit" onclick="return confirm('{{ $destination->trashed() ? ui_phrase('confirm activate') : ui_phrase('confirm deactivate') }}')" class="{{ $destination->trashed() ? 'btn-primary-sm' : 'btn-muted-sm' }}" title="{{ $destination->trashed() ? ui_phrase('Activate') : ui_phrase('Deactivate') }}" aria-label="{{ $destination->trashed() ? ui_phrase('Activate') : ui_phrase('Deactivate') }}"><i class="fa-solid {{ $destination->trashed() ? 'fa-toggle-on' : 'fa-toggle-off' }}"></i><span class="sr-only">{{ $destination->trashed() ? ui_phrase('Activate') : ui_phrase('Deactivate') }}</span></button>
                         </form>
                     </div>
                 </div>

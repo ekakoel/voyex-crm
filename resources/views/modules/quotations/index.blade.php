@@ -35,7 +35,7 @@
 @section('page_subtitle', $isMyQuotationPage ? ui_phrase('my page subtitle') : ui_phrase('page subtitle'))
 @section('page_actions')
     <a href="{{ route('quotations.export', array_merge(request()->only(['q', 'per_page', 'needs_my_approval']), ['scope' => $exportScope])) }}"
-        class="btn-secondary">Export CSV</a>
+        class="btn-secondary">{{ ui_phrase('Export CSV') }}</a>
     @if ($isMyQuotationPage)
         <a href="{{ route('quotations.index') }}" class="btn-outline">{{ ui_phrase('Approved/Final List') }}</a>
     @else
@@ -55,7 +55,7 @@
             </div>
         @endif
         <div class="module-grid-9-3">
-            <aside class="module-grid-side space-y-3">
+            <aside class="module-grid-side">
                 @include('components.module-index-sidebar-info')
                 <section class="app-card p-4">
                     <div class="mb-3">
@@ -72,7 +72,7 @@
                                 $logDateTime = optional($log->created_at)->format('d M Y H:i') ?? '-';
                             @endphp
                             <div class="flex items-center gap-2 text-xs text-gray-700 dark:text-gray-200">
-                                <span class="min-w-0 truncate">{{ $logUser }}, {{ $logActionLabel }} quotation id {{ $logSubjectId > 0 ? $logSubjectId : '-' }}</span>
+                                <span class="min-w-0 truncate">{{ $logUser }}, {{ $logActionLabel }} {{ ui_phrase('quotation id') }} {{ $logSubjectId > 0 ? $logSubjectId : '-' }}</span>
                                 <span class="min-w-6 flex-1 border-b border-dotted border-gray-300 dark:border-gray-600"></span>
                                 <span class="shrink-0 text-gray-500 dark:text-gray-400">({{ $logDateTime }})</span>
                             </div>
@@ -137,7 +137,7 @@
                         }
                         $sectionItems = $section['items'];
                     @endphp
-                    <section class="space-y-3">
+                    <section>
                         <div class="md:hidden space-y-3">
                     @forelse ($sectionItems ?? [] as $quotation)
                         <div class="app-card p-4">
@@ -161,7 +161,7 @@
                                 <div>{{ ui_phrase('Validity') }}</div>
                                 <div>{{ $quotation->validity_date?->format('Y-m-d') ?? '-' }}</div>
                                 <div>{{ ui_phrase('Amount') }}</div>
-                                <div><x-money :amount="$quotation->display_final_amount ?? 0" currency="IDR" /></div>
+                                <div><x-money :amount="$quotation->display_final_amount ?? 0" :currency="$currentCurrency ?? 'IDR'" /></div>
                                 <div>{{ ui_phrase('Created by') }}</div>
                                 <div>
                                     <x-masked-user-name :user="$quotation->creator" /><br>
@@ -227,7 +227,7 @@
                                         {{ ui_phrase('Created by') }}</th>
                                     <th
                                         class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">
-                                        Status</th>
+                                        {{ ui_phrase('Status') }}</th>
                                     <th
                                         class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300 actions-compact">
                                         {{ ui_phrase('Actions') }}</th>
@@ -316,4 +316,3 @@
         </div>
     </div>
 @endsection
-

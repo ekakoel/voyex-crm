@@ -2,13 +2,13 @@
 
 @section('page_title', ui_phrase('transfers page title'))
 @section('page_subtitle', ui_phrase('transfers page subtitle'))
+
 @section('page_actions')
     <a href="{{ route('island-transfers.create') }}" class="btn-primary">{{ ui_phrase('transfers add transfer') }}</a>
 @endsection
 
 @section('content')
-    <div class="space-y-5 module-page module-page--island-transfers" data-service-filter-page data-page-spinner="off">
-
+    <div class="space-y-6 module-page module-page--island-transfers" data-service-filter-page data-page-spinner="off">
         <div class="module-grid-9-3">
             <aside class="module-grid-side">
                 @include('components.module-index-sidebar-info')
@@ -47,9 +47,16 @@
                         </div>
                     </form>
                 </div>
+
                 @if (session('success'))
                     <div class="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300">
                         {{ session('success') }}
+                    </div>
+                @endif
+
+                @if (session('error'))
+                    <div class="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-700 dark:bg-rose-900/20 dark:text-rose-300">
+                        {{ session('error') }}
                     </div>
                 @endif
 
@@ -61,10 +68,8 @@
                                     <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('transfers transfer') }}</th>
                                     <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('transfers type') }}</th>
                                     <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('transfers vendor') }}</th>
-                                    <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('transfers route') }}</th>
                                     <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('transfers duration') }}</th>
                                     <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('transfers distance') }}</th>
-                                    <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('transfers pricing') }}</th>
                                     <th class="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('transfers status') }}</th>
                                     <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300 actions-compact">{{ ui_phrase('transfers actions') }}</th>
                                 </tr>
@@ -84,38 +89,29 @@
                                                 <span class="font-semibold">{{ $transfer->name }}</span>
                                             </div>
                                         </td>
-                                        <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">{{ ui_phrase(match ((string) $transfer->transfer_type) {
-                                            'fastboat' => 'Fastboat',
-                                            'ferry' => 'Ferry',
-                                            'speedboat' => 'Speedboat',
-                                            'boat' => 'Boat',
-                                            default => (string) $transfer->transfer_type,
-                                        }) }}</td>
+                                        <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">
+                                            {{ ui_phrase(match ((string) $transfer->transfer_type) {
+                                                'fastboat' => 'Fastboat',
+                                                'ferry' => 'Ferry',
+                                                'speedboat' => 'Speedboat',
+                                                'boat' => 'Boat',
+                                                default => (string) $transfer->transfer_type,
+                                            }) }}
+                                        </td>
                                         <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">
                                             <div>{{ $transfer->vendor?->name ?? '-' }}</div>
                                             <div class="text-xs text-gray-500 dark:text-gray-400">{{ trim((string) (($transfer->vendor?->city ?? '-') . (!empty($transfer->vendor?->province) ? ', '.$transfer->vendor?->province : ''))) }}</div>
                                         </td>
-                                        <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">
-                                            {{ $transfer->departure_point_name ?: '-' }} -> {{ $transfer->arrival_point_name ?: '-' }}
-                                        </td>
                                         <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">{{ ui_phrase('transfers duration short', ['minutes' => (int) ($transfer->duration_minutes ?? 0)]) }}</td>
                                         <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">{{ ui_phrase('transfers distance short', ['distance' => number_format((float) ($transfer->distance_km ?? 0), 2, '.', '')]) }}</td>
-                                        <td class="px-4 py-3 text-xs text-gray-700 dark:text-gray-200">
-                                            <div>{{ ui_phrase('transfers contract rate') }}: <x-money :amount="(float) ($transfer->contract_rate ?? 0)" currency="IDR" /></div>
-                                            <div>
-                                                {{ ui_phrase('transfers markup') }}:
-                                                {{ ($transfer->markup_type ?? 'fixed') === 'percent'
-                                                    ? rtrim(rtrim(number_format((float) ($transfer->markup ?? 0), 2, '.', ''), '0'), '.') . '%'
-                                                    : \App\Support\Currency::format((float) ($transfer->markup ?? 0), 'IDR') }}
-                                            </div>
-                                            <div class="text-gray-500 dark:text-gray-400">{{ ui_phrase('transfers publish rate') }}: <x-money :amount="(float) ($transfer->publish_rate ?? 0)" currency="IDR" /></div>
-                                        </td>
                                         <td class="px-4 py-3 text-center text-sm">
                                             <x-status-badge :status="! $transfer->trashed() ? 'active' : 'inactive'" size="xs" />
                                         </td>
                                         <td class="px-4 py-3 text-right text-sm actions-compact">
                                             <div class="flex items-center justify-end gap-2">
-                                                <a href="{{ route('island-transfers.show', $transfer->id) }}" class="btn-outline-sm">{{ ui_phrase('transfers view details') }}</a>
+                                                <a href="{{ route('island-transfers.show', $transfer->id) }}" class="btn-outline-sm" title="{{ ui_phrase('transfers view details') }}" aria-label="{{ ui_phrase('transfers view details') }}">
+                                                    <i class="fa-solid fa-eye"></i><span class="sr-only">{{ ui_phrase('transfers view details') }}</span>
+                                                </a>
                                                 <form action="{{ route('island-transfers.duplicate', $transfer->id) }}" method="POST" class="inline" onsubmit="if (!confirm('{{ ui_phrase('transfers confirm duplicate') }}')) { return false; } const button = this.querySelector('button[type=submit]'); if (button) { button.disabled = true; button.classList.add('opacity-60', 'cursor-not-allowed'); } return true;">
                                                     @csrf
                                                     <button type="submit" class="btn-ghost-sm" title="{{ ui_phrase('Duplicate') }}" aria-label="{{ ui_phrase('Duplicate') }}">
@@ -126,8 +122,9 @@
                                                 <form action="{{ route('island-transfers.toggle-status', $transfer->id) }}" method="POST" class="inline">
                                                     @csrf
                                                     @method('PATCH')
-                                                    <button type="submit" onclick="return confirm('{{ ! $transfer->trashed() ? ui_phrase('transfers confirm deactivate') : ui_phrase('transfers confirm activate') }}')" class="{{ ! $transfer->trashed() ? 'btn-muted-sm' : 'btn-primary-sm' }}">
-                                                        {{ ! $transfer->trashed() ? ui_phrase('transfers deactivate') : ui_phrase('transfers activate') }}
+                                                    <button type="submit" onclick="return confirm('{{ ! $transfer->trashed() ? ui_phrase('transfers confirm deactivate') : ui_phrase('transfers confirm activate') }}')" class="{{ ! $transfer->trashed() ? 'btn-muted-sm' : 'btn-primary-sm' }}" title="{{ ! $transfer->trashed() ? ui_phrase('transfers deactivate') : ui_phrase('transfers activate') }}" aria-label="{{ ! $transfer->trashed() ? ui_phrase('transfers deactivate') : ui_phrase('transfers activate') }}">
+                                                        <i class="fa-solid {{ ! $transfer->trashed() ? 'fa-toggle-off' : 'fa-toggle-on' }}"></i>
+                                                        <span class="sr-only">{{ ! $transfer->trashed() ? ui_phrase('transfers deactivate') : ui_phrase('transfers activate') }}</span>
                                                     </button>
                                                 </form>
                                             </div>
@@ -135,7 +132,7 @@
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="9" class="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">{{ ui_phrase('transfers no data') }}</td>
+                                        <td colspan="7" class="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">{{ ui_phrase('transfers no data') }}</td>
                                     </tr>
                                 @endforelse
                             </tbody>
@@ -155,6 +152,7 @@
                                     <img src="{{ $transferThumb }}" alt="Island transfer image" class="h-28 w-full object-cover">
                                 </div>
                             @endif
+
                             <div class="flex items-start justify-between gap-3">
                                 <div>
                                     <p class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ $transfer->name }}</p>
@@ -172,29 +170,18 @@
                             </div>
 
                             <div class="mt-3 grid grid-cols-2 gap-2 text-xs text-gray-600 dark:text-gray-300">
-                                <div>{{ ui_phrase('transfers route') }}</div>
-                                <div>{{ $transfer->departure_point_name ?: '-' }} -> {{ $transfer->arrival_point_name ?: '-' }}</div>
                                 <div>{{ ui_phrase('transfers duration') }}</div>
                                 <div>{{ ui_phrase('transfers duration short', ['minutes' => (int) ($transfer->duration_minutes ?? 0)]) }}</div>
                                 <div>{{ ui_phrase('transfers distance') }}</div>
                                 <div>{{ ui_phrase('transfers distance short', ['distance' => number_format((float) ($transfer->distance_km ?? 0), 2, '.', '')]) }}</div>
-                                <div>{{ ui_phrase('transfers pricing') }}</div>
-                                <div>
-                                    <div>{{ ui_phrase('transfers contract rate') }}: <x-money :amount="(float) ($transfer->contract_rate ?? 0)" currency="IDR" /></div>
-                                    <div>
-                                        {{ ui_phrase('transfers markup') }}:
-                                        {{ ($transfer->markup_type ?? 'fixed') === 'percent'
-                                            ? rtrim(rtrim(number_format((float) ($transfer->markup ?? 0), 2, '.', ''), '0'), '.') . '%'
-                                            : \App\Support\Currency::format((float) ($transfer->markup ?? 0), 'IDR') }}
-                                    </div>
-                                    <div>{{ ui_phrase('transfers publish rate') }}: <x-money :amount="(float) ($transfer->publish_rate ?? 0)" currency="IDR" /></div>
-                                </div>
                                 <div>{{ ui_phrase('transfers status') }}</div>
                                 <div><x-status-badge :status="! $transfer->trashed() ? 'active' : 'inactive'" size="xs" /></div>
                             </div>
 
                             <div class="mt-3 flex flex-wrap gap-2">
-                                <a href="{{ route('island-transfers.show', $transfer->id) }}" class="btn-outline-sm">{{ ui_phrase('transfers view details') }}</a>
+                                <a href="{{ route('island-transfers.show', $transfer->id) }}" class="btn-outline-sm" title="{{ ui_phrase('transfers view details') }}" aria-label="{{ ui_phrase('transfers view details') }}">
+                                    <i class="fa-solid fa-eye"></i><span class="sr-only">{{ ui_phrase('transfers view details') }}</span>
+                                </a>
                                 <form action="{{ route('island-transfers.duplicate', $transfer->id) }}" method="POST" class="inline" onsubmit="if (!confirm('{{ ui_phrase('transfers confirm duplicate') }}')) { return false; } const button = this.querySelector('button[type=submit]'); if (button) { button.disabled = true; button.classList.add('opacity-60', 'cursor-not-allowed'); } return true;">
                                     @csrf
                                     <button type="submit" class="btn-ghost-sm" title="{{ ui_phrase('Duplicate') }}" aria-label="{{ ui_phrase('Duplicate') }}">
@@ -205,8 +192,9 @@
                                 <form action="{{ route('island-transfers.toggle-status', $transfer->id) }}" method="POST" class="inline">
                                     @csrf
                                     @method('PATCH')
-                                    <button type="submit" onclick="return confirm('{{ ! $transfer->trashed() ? ui_phrase('transfers confirm deactivate') : ui_phrase('transfers confirm activate') }}')" class="{{ ! $transfer->trashed() ? 'btn-muted-sm' : 'btn-primary-sm' }}">
-                                        {{ ! $transfer->trashed() ? ui_phrase('transfers deactivate') : ui_phrase('transfers activate') }}
+                                    <button type="submit" onclick="return confirm('{{ ! $transfer->trashed() ? ui_phrase('transfers confirm deactivate') : ui_phrase('transfers confirm activate') }}')" class="{{ ! $transfer->trashed() ? 'btn-muted-sm' : 'btn-primary-sm' }}" title="{{ ! $transfer->trashed() ? ui_phrase('transfers deactivate') : ui_phrase('transfers activate') }}" aria-label="{{ ! $transfer->trashed() ? ui_phrase('transfers deactivate') : ui_phrase('transfers activate') }}">
+                                        <i class="fa-solid {{ ! $transfer->trashed() ? 'fa-toggle-off' : 'fa-toggle-on' }}"></i>
+                                        <span class="sr-only">{{ ! $transfer->trashed() ? ui_phrase('transfers deactivate') : ui_phrase('transfers activate') }}</span>
                                     </button>
                                 </form>
                             </div>
@@ -221,8 +209,3 @@
         </div>
     </div>
 @endsection
-
-
-
-
-

@@ -2182,7 +2182,7 @@ function syncServiceFilterForm(form, url) {
     });
 }
 
-async function fetchServiceFilterPage(url) {
+async function fetchServiceFilterPage(url, signal = undefined) {
     const response = await fetch(url, {
         method: 'GET',
         headers: {
@@ -2190,6 +2190,7 @@ async function fetchServiceFilterPage(url) {
             'X-Requested-With': 'XMLHttpRequest',
         },
         credentials: 'same-origin',
+        signal,
     });
 
     if (!response.ok) {
@@ -2211,13 +2212,19 @@ function initServiceFilterPage(root = document) {
         }
         page.dataset.serviceFilterBound = '1';
 
-        const form = page.querySelector('[data-service-filter-form]');
-        const resultsWrap = page.querySelector('[data-service-filter-results]');
+        let form = page.querySelector('[data-service-filter-form]');
+        let resultsWrap = page.querySelector('[data-service-filter-results]');
         if (!form || !resultsWrap) {
             return;
         }
 
         let typingTimer = null;
+        const textDebounceMs = (() => {
+            const raw = Number(page.getAttribute('data-service-filter-text-debounce-ms') || 0);
+            return Number.isFinite(raw) && raw > 0 ? raw : 500;
+        })();
+        let activeController = null;
+        let requestSequence = 0;
 
         const setLoading = (isLoading) => {
             resultsWrap.classList.toggle('opacity-60', isLoading);
@@ -2230,9 +2237,17 @@ function initServiceFilterPage(root = document) {
         };
 
         const requestAndRender = async (url, pushHistory = false) => {
+            if (activeController) {
+                activeController.abort();
+            }
+            activeController = new AbortController();
+            const currentRequest = ++requestSequence;
             setLoading(true);
             try {
-                const html = await fetchServiceFilterPage(url);
+                const html = await fetchServiceFilterPage(url, activeController.signal);
+                if (currentRequest !== requestSequence) {
+                    return;
+                }
                 const parser = new DOMParser();
                 const nextDoc = parser.parseFromString(html, 'text/html');
                 const nextPage = nextDoc.querySelector(SERVICE_FILTER_PAGE_SELECTOR);
@@ -2244,15 +2259,24 @@ function initServiceFilterPage(root = document) {
                 }
 
                 resultsWrap.innerHTML = nextResults.innerHTML;
+                form = page.querySelector('[data-service-filter-form]');
+                resultsWrap = page.querySelector('[data-service-filter-results]');
+                bindFormHandlers();
+                bindResultsHandlers();
                 if (pushHistory) {
                     window.history.pushState({ serviceFilter: true }, '', url);
                 } else {
                     window.history.replaceState({ serviceFilter: true }, '', url);
                 }
-            } catch (_) {
+            } catch (error) {
+                if (error?.name === 'AbortError') {
+                    return;
+                }
                 window.location.href = url;
             } finally {
-                setLoading(false);
+                if (currentRequest === requestSequence) {
+                    setLoading(false);
+                }
             }
         };
 
@@ -2263,67 +2287,132 @@ function initServiceFilterPage(root = document) {
             requestAndRender(url, pushHistory);
         };
 
-        form.addEventListener('submit', (event) => {
-            event.preventDefault();
-            submitFilters(true);
-        });
-
-        form.addEventListener('input', (event) => {
-            const target = event.target;
-            if (!(target instanceof HTMLInputElement) || !target.matches('[data-service-filter-input]')) {
+        const bindFormHandlers = () => {
+            if (!form || form.dataset.serviceFilterEventsBound === '1') {
                 return;
             }
-            clearTimeout(typingTimer);
-            typingTimer = window.setTimeout(() => {
-                submitFilters(false);
-            }, 350);
-        });
+            form.dataset.serviceFilterEventsBound = '1';
 
-        form.addEventListener('change', (event) => {
-            const target = event.target;
-            if (!(target instanceof HTMLInputElement || target instanceof HTMLSelectElement || target instanceof HTMLTextAreaElement)) {
-                return;
-            }
-            if (!target.matches('[data-service-filter-input]')) {
-                return;
-            }
-            submitFilters(false);
-        });
-
-        const resetLink = form.querySelector('[data-service-filter-reset]');
-        if (resetLink) {
-            resetLink.addEventListener('click', (event) => {
+            form.addEventListener('submit', (event) => {
                 event.preventDefault();
-                form.reset();
+                clearTimeout(typingTimer);
+                submitFilters(true);
+            });
+
+            form.addEventListener('input', (event) => {
+                const target = event.target;
+                if (!(target instanceof HTMLInputElement) || !target.matches('[data-service-filter-input]')) {
+                    return;
+                }
+                const inputType = (target.type || '').toLowerCase();
+                const isTypingField = ['text', 'search', 'email', 'tel', 'url', 'number', 'password'].includes(inputType);
+                if (!isTypingField) {
+                    return;
+                }
+                clearTimeout(typingTimer);
+                typingTimer = window.setTimeout(() => {
+                    submitFilters(false);
+                }, textDebounceMs);
+            });
+
+            form.addEventListener('keydown', (event) => {
+                const target = event.target;
+                if (!(target instanceof HTMLInputElement) || !target.matches('[data-service-filter-input]')) {
+                    return;
+                }
+                const inputType = (target.type || '').toLowerCase();
+                const isTypingField = ['text', 'search', 'email', 'tel', 'url', 'number', 'password'].includes(inputType);
+                if (!isTypingField) {
+                    return;
+                }
+
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    clearTimeout(typingTimer);
+                    submitFilters(true);
+                }
+            });
+
+            form.addEventListener('focusout', (event) => {
+                const target = event.target;
+                if (!(target instanceof HTMLInputElement) || !target.matches('[data-service-filter-input]')) {
+                    return;
+                }
+                const inputType = (target.type || '').toLowerCase();
+                const isTypingField = ['text', 'search', 'email', 'tel', 'url', 'number', 'password'].includes(inputType);
+                if (!isTypingField) {
+                    return;
+                }
+
+                clearTimeout(typingTimer);
                 submitFilters(false);
             });
-        }
 
-        resultsWrap.addEventListener('click', (event) => {
-            const link = event.target.closest('a');
-            if (!link) {
+            form.addEventListener('change', (event) => {
+                const target = event.target;
+                if (!(target instanceof HTMLInputElement || target instanceof HTMLSelectElement || target instanceof HTMLTextAreaElement)) {
+                    return;
+                }
+                if (!target.matches('[data-service-filter-input]')) {
+                    return;
+                }
+                if (target instanceof HTMLInputElement) {
+                    const inputType = (target.type || '').toLowerCase();
+                    const isTypingField = ['text', 'search', 'email', 'tel', 'url', 'number', 'password'].includes(inputType);
+                    if (isTypingField) {
+                        return;
+                    }
+                }
+                clearTimeout(typingTimer);
+                submitFilters(false);
+            });
+
+            const resetLink = form.querySelector('[data-service-filter-reset]');
+            if (resetLink) {
+                resetLink.addEventListener('click', (event) => {
+                    event.preventDefault();
+                    form.reset();
+                    clearTimeout(typingTimer);
+                    submitFilters(false);
+                });
+            }
+        };
+
+        const bindResultsHandlers = () => {
+            if (!resultsWrap || resultsWrap.dataset.serviceFilterEventsBound === '1') {
                 return;
             }
-            const href = link.getAttribute('href');
-            if (!href) {
-                return;
-            }
+            resultsWrap.dataset.serviceFilterEventsBound = '1';
 
-            let parsed;
-            try {
-                parsed = new URL(href, window.location.origin);
-            } catch (_) {
-                return;
-            }
+            resultsWrap.addEventListener('click', (event) => {
+                const link = event.target.closest('a');
+                if (!link) {
+                    return;
+                }
+                const href = link.getAttribute('href');
+                if (!href) {
+                    return;
+                }
 
-            if (parsed.origin !== window.location.origin || !parsed.searchParams.has('page')) {
-                return;
-            }
+                let parsed;
+                try {
+                    parsed = new URL(href, window.location.origin);
+                } catch (_) {
+                    return;
+                }
 
-            event.preventDefault();
-            syncServiceFilterForm(form, parsed.toString());
-            requestAndRender(parsed.toString(), true);
-        });
+                if (parsed.origin !== window.location.origin || !parsed.searchParams.has('page')) {
+                    return;
+                }
+
+                event.preventDefault();
+                syncServiceFilterForm(form, parsed.toString());
+                requestAndRender(parsed.toString(), true);
+            });
+        };
+
+        bindFormHandlers();
+        bindResultsHandlers();
 
         if (!window.__serviceFilterPopstateBound) {
             window.__serviceFilterPopstateBound = true;
