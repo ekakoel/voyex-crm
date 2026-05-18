@@ -3,13 +3,14 @@
 namespace App\Models;
 
 use App\Models\Concerns\HasAudit;
+use App\Models\Concerns\HasCancellationPolicy;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
 class Transport extends Model
 {
-    use HasAudit, SoftDeletes;
+    use HasAudit, HasCancellationPolicy, SoftDeletes;
 
     protected static function booted(): void
     {
@@ -74,7 +75,6 @@ class Transport extends Model
         return $code;
     }
 }
-
 
 
 

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\HasAudit;
+use App\Models\Concerns\HasCancellationPolicy;
 use App\Traits\LogsActivity;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -10,6 +11,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class IslandTransfer extends Model
 {
     use HasAudit;
+    use HasCancellationPolicy;
     use LogsActivity;
     use SoftDeletes;
 
@@ -32,6 +34,7 @@ class IslandTransfer extends Model
         'publish_rate',
         'capacity_min',
         'capacity_max',
+        'cancellation_policy',
         'notes',
         'gallery_images',
         'is_active',

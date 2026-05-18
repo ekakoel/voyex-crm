@@ -1,6 +1,20 @@
 @php
-    $buttonLabel = $buttonLabel ?? 'Save';
+    $buttonLabel = $buttonLabel ?? ui_phrase('Save');
+    $quotations = collect($quotations ?? [])->filter()->values();
     $editing = isset($booking) && $booking;
+    $itemsReadonly = (bool) ($itemsReadonly ?? false);
+    $quotationReadonly = (bool) ($quotationReadonly ?? false);
+    $hideItemsSection = (bool) ($hideItemsSection ?? false);
+    $readonlyGeneratedFlow = (bool) ($readonlyGeneratedFlow ?? false);
+    $selectedQuotationId = old('quotation_id');
+    if ($selectedQuotationId === null || $selectedQuotationId === '') {
+        $selectedQuotationId = $booking->quotation_id ?? null;
+    }
+    $selectedQuotation = collect($quotations ?? [])->firstWhere('id', (int) $selectedQuotationId);
+    if (! $selectedQuotation && isset($booking) && $booking?->quotation) {
+        $selectedQuotation = $booking->quotation;
+        $selectedQuotationId = $booking->quotation_id;
+    }
     $existingItems = old('items');
     if (! is_array($existingItems)) {
         $existingItems = $editing && $booking->relationLoaded('items')
@@ -12,22 +26,41 @@
                 'serviceable_type' => $item->serviceable_type,
                 'serviceable_id' => $item->serviceable_id,
                 'day_number' => $item->day_number,
-                'notes' => $item->notes,
             ])->toArray()
             : [];
     }
 
-    $quotationItemsMap = collect($quotations ?? [])->mapWithKeys(function ($quotation) {
+    $activeCurrencyCode = strtoupper((string) (\App\Support\Currency::current() ?: 'IDR'));
+    $activeCurrencyMeta = \App\Support\Currency::meta($activeCurrencyCode);
+    $activeCurrencyLabel = (string) ($activeCurrencyMeta['symbol'] ?? $activeCurrencyCode);
+    $toDisplayMoney = static function ($amount) use ($activeCurrencyCode): float {
+        return round(\App\Support\Currency::convert((float) ($amount ?? 0), 'IDR', $activeCurrencyCode), 0);
+    };
+
+    $quotationItemsMap = collect($quotations ?? [])->mapWithKeys(function ($quotation) use ($toDisplayMoney) {
         $items = collect($quotation->items ?? [])->map(fn ($item) => [
+            'raw_description' => (string) ($item->description ?? ''),
+            'service_name' => (string) ($item->serviceable?->name ?? ''),
+            'vendor_name' => (string) ($item->serviceable?->vendor?->name ?? ''),
+            'hotel_name' => (string) ($item->serviceable?->hotel?->name ?? ''),
             'id' => (int) $item->id,
-            'description' => (string) ($item->description ?? ''),
             'qty' => (int) ($item->qty ?? 1),
-            'unit_price' => (float) ($item->unit_price ?? 0),
+            'unit_price' => $toDisplayMoney((float) ($item->unit_price ?? 0)),
             'serviceable_type' => $item->serviceable_type,
             'serviceable_id' => $item->serviceable_id,
             'day_number' => $item->day_number,
             'serviceable_meta' => is_array($item->serviceable_meta ?? null) ? $item->serviceable_meta : null,
-        ])->values()->all();
+        ])->map(function (array $row): array {
+            $base = trim((string) ($row['service_name'] ?: $row['raw_description'] ?: '-'));
+            $provider = trim((string) ($row['hotel_name'] !== '' ? $row['hotel_name'] : $row['vendor_name']));
+            if ($provider !== '' && ! str_contains(mb_strtolower($base), mb_strtolower($provider))) {
+                $base = trim($base . ' | ' . $provider);
+            }
+            $row['description'] = $base;
+            unset($row['raw_description'], $row['service_name'], $row['vendor_name'], $row['hotel_name']);
+
+            return $row;
+        })->values()->all();
 
         return [(string) $quotation->id => $items];
     })->all();
@@ -42,7 +75,9 @@
         return [(string) $quotation->id => (string) ($quotation->order_number ?? '')];
     })->all();
     $quotationCustomerNameMap = collect($quotations ?? [])->mapWithKeys(function ($quotation) {
-        return [(string) $quotation->id => (string) ($quotation->inquiry?->customer?->name ?? '')];
+        $customer = $quotation->inquiry?->customer;
+        $name = (string) ($customer?->company_name ?: $customer?->name ?: '');
+        return [(string) $quotation->id => $name];
     })->all();
     $quotationPaxAdultMap = collect($quotations ?? [])->mapWithKeys(function ($quotation) {
         return [(string) $quotation->id => (int) ($quotation->pax_adult ?? 0)];
@@ -50,9 +85,6 @@
     $quotationPaxChildMap = collect($quotations ?? [])->mapWithKeys(function ($quotation) {
         return [(string) $quotation->id => (int) ($quotation->pax_child ?? 0)];
     })->all();
-    $activeCurrencyCode = strtoupper((string) (\App\Support\Currency::current() ?: 'IDR'));
-    $activeCurrencyMeta = \App\Support\Currency::meta($activeCurrencyCode);
-    $activeCurrencyLabel = (string) ($activeCurrencyMeta['symbol'] ?? $activeCurrencyCode);
 @endphp
 
 <div class="space-y-5 module-form">
@@ -72,16 +104,30 @@
             <select id="booking-quotation-id" name="quotation_id" class="app-input" required>
                 <option value="">{{ ui_phrase('Select quotation') }}</option>
                 @foreach ($quotations as $quotation)
-                    <option value="{{ $quotation->id }}" @selected(old('quotation_id', $booking->quotation_id ?? null) == $quotation->id)>
+                    <option value="{{ $quotation->id }}" @selected((string) $selectedQuotationId === (string) $quotation->id)>
                         {{ $quotation->order_number ?: '-' }}
                         | {{ ui_phrase((string) ($quotation->status ?? '-')) }}
-                        | {{ method_exists($quotation, 'items') ? $quotation->items->count() : 0 }} {{ ui_phrase('Items') }}
+                        | {{ collect($quotation->items ?? [])->count() }} {{ ui_phrase('Items') }}
                     </option>
                 @endforeach
             </select>
-            <button type="button" id="booking-generate-items" class="btn-outline-sm min-h-[42px] w-full sm:w-auto">
-                {{ ui_phrase('Generate') }}
-            </button>
+            @if ($quotationReadonly)
+                <input type="hidden" name="quotation_id" value="{{ $selectedQuotationId }}">
+                <p class="text-xs text-amber-700 dark:text-amber-300">{{ ui_phrase('Quotation is locked because booking service and voucher history already exists.') }}</p>
+                <script>
+                    document.addEventListener('DOMContentLoaded', () => {
+                        const quotationSelect = document.getElementById('booking-quotation-id');
+                        if (quotationSelect) {
+                            quotationSelect.setAttribute('disabled', 'disabled');
+                        }
+                    });
+                </script>
+            @endif
+            @if (! $itemsReadonly || $readonlyGeneratedFlow)
+                <button type="button" id="booking-generate-items" class="btn-outline-sm min-h-[42px] w-full sm:w-auto">
+                    {{ ui_phrase('Generate') }}
+                </button>
+            @endif
         </div>
         @error('quotation_id')
             <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
@@ -94,17 +140,17 @@
             <input
                 id="booking-order-number"
                 type="text"
-                value="{{ old('order_number', $booking->quotation->order_number ?? '') }}"
+                value="{{ old('order_number', (string) ($selectedQuotation?->order_number ?? '')) }}"
                 class="mt-1 app-input bg-gray-50 dark:bg-gray-900/30"
                 readonly
             >
         </div>
         <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Customer Name') }}</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Tour / Name') }}</label>
             <input
                 id="booking-customer-name"
                 type="text"
-                value="{{ old('customer_name', $booking->quotation?->inquiry?->customer?->name ?? '') }}"
+                value="{{ old('customer_name', (string) ($selectedQuotation?->inquiry?->customer?->company_name ?: $selectedQuotation?->inquiry?->customer?->name ?: '')) }}"
                 class="mt-1 app-input bg-gray-50 dark:bg-gray-900/30"
                 readonly
             >
@@ -114,7 +160,7 @@
             <input
                 id="booking-pax-adult"
                 type="text"
-                value="{{ old('pax_adult', (string) ($booking->quotation->pax_adult ?? '0')) }}"
+                value="{{ old('pax_adult', (string) ($selectedQuotation?->pax_adult ?? '0')) }}"
                 class="mt-1 app-input bg-gray-50 dark:bg-gray-900/30"
                 readonly
             >
@@ -124,21 +170,38 @@
             <input
                 id="booking-pax-child"
                 type="text"
-                value="{{ old('pax_child', (string) ($booking->quotation->pax_child ?? '0')) }}"
+                value="{{ old('pax_child', (string) ($selectedQuotation?->pax_child ?? '0')) }}"
                 class="mt-1 app-input bg-gray-50 dark:bg-gray-900/30"
                 readonly
             >
         </div>
         <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Travel Date') }} <span class="text-rose-600">*</span></label>
-            <input
-                id="booking-travel-date"
-                name="travel_date"
-                type="date"
-                value="{{ old('travel_date', isset($booking->travel_date) ? $booking->travel_date->format('Y-m-d') : '') }}"
-                class="mt-1 app-input"
-                required
-            >
+            @if ($readonlyGeneratedFlow)
+                <input
+                    id="booking-travel-date-display"
+                    type="text"
+                    value="{{ old('travel_date', isset($booking->travel_date) ? $booking->travel_date->format('Y-m-d') : '') }}"
+                    class="mt-1 app-input bg-gray-50 dark:bg-gray-900/30"
+                    readonly
+                >
+                <input
+                    id="booking-travel-date"
+                    name="travel_date"
+                    type="hidden"
+                    value="{{ old('travel_date', isset($booking->travel_date) ? $booking->travel_date->format('Y-m-d') : '') }}"
+                    required
+                >
+            @else
+                <input
+                    id="booking-travel-date"
+                    name="travel_date"
+                    type="date"
+                    value="{{ old('travel_date', isset($booking->travel_date) ? $booking->travel_date->format('Y-m-d') : '') }}"
+                    class="mt-1 app-input"
+                    required
+                >
+            @endif
             @error('travel_date')
                 <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
             @enderror
@@ -146,71 +209,72 @@
 
     </div>
 
-    <div class="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
-        <div class="mb-3 flex items-center justify-between">
-            <p class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ ui_phrase('Items') }} <span class="text-rose-600">*</span></p>
-            <p id="booking-items-summary" class="text-xs text-gray-500 dark:text-gray-400"></p>
-        </div>
-        <div class="overflow-x-auto">
-            <table class="app-table w-full text-sm">
-                <thead>
-                    <tr>
-                        <th class="px-3 py-2 text-left">{{ ui_phrase('Description') }}</th>
-                        <th class="px-3 py-2 text-left">{{ ui_phrase('Qty') }}</th>
-                        <th class="px-3 py-2 text-left">{{ ui_phrase('Rate') }}</th>
-                        <th class="px-3 py-2 text-left">{{ ui_phrase('Total') }}</th>
-                        <th class="px-3 py-2 text-left">{{ ui_phrase('Notes') }}</th>
-                    </tr>
-                </thead>
-                <tbody id="booking-items-body">
-                    @forelse ($existingItems as $i => $item)
-                        @php
-                            $qty = max(1, (int) ($item['qty'] ?? 1));
-                            $unitPrice = max(0, (float) ($item['unit_price'] ?? 0));
-                        @endphp
-                        <tr class="booking-item-row">
-                            <td class="px-3 py-2">
-                                <input type="hidden" name="items[{{ $i }}][quotation_item_id]" value="{{ $item['quotation_item_id'] ?? '' }}">
-                                <input type="hidden" name="items[{{ $i }}][serviceable_type]" value="{{ $item['serviceable_type'] ?? '' }}">
-                                <input type="hidden" name="items[{{ $i }}][serviceable_id]" value="{{ $item['serviceable_id'] ?? '' }}">
-                                <input type="hidden" name="items[{{ $i }}][day_number]" value="{{ $item['day_number'] ?? '' }}">
-                                <input type="hidden" name="items[{{ $i }}][serviceable_meta]" value="{{ isset($item['serviceable_meta']) ? json_encode($item['serviceable_meta']) : '' }}">
-                                <input type="text" name="items[{{ $i }}][description]" value="{{ $item['description'] ?? '' }}" class="app-input" required>
-                            </td>
-                            <td class="px-3 py-2"><input type="number" min="1" name="items[{{ $i }}][qty]" value="{{ $qty }}" class="app-input booking-item-qty" required></td>
-                            <td class="px-3 py-2"><input type="text" inputmode="numeric" name="items[{{ $i }}][unit_price]" value="{{ number_format($unitPrice, 0, ',', '.') }}" class="app-input booking-item-rate text-right" required></td>
-                            <td class="px-3 py-2">
-                                <div class="input-with-left-affix">
-                                    <input type="text" value="{{ number_format($qty * $unitPrice, 0, ',', '.') }}" class="app-input booking-item-rate booking-item-total booking-item-total-value pl-14 text-right bg-gray-50 dark:bg-gray-900/30" readonly>
-                                    <span class="input-left-affix rounded-md border border-gray-200 bg-gray-50 px-1.5 py-0.5 text-[10px] font-semibold text-gray-600 shadow-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200">{{ $activeCurrencyLabel }}</span>
-                                </div>
-                            </td>
-                            <td class="px-3 py-2"><input type="text" name="items[{{ $i }}][notes]" value="{{ $item['notes'] ?? '' }}" class="app-input"></td>
+    @if (! $hideItemsSection)
+        <div class="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
+            <div class="mb-3 flex items-center justify-between">
+                <p class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ ui_phrase('Items') }} <span class="text-rose-600">*</span></p>
+                <p id="booking-items-summary" class="text-xs text-gray-500 dark:text-gray-400"></p>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="app-table w-full text-sm">
+                    <thead>
+                        <tr>
+                            <th class="px-3 py-2 text-left">{{ ui_phrase('Description') }}</th>
+                            <th class="px-3 py-2 text-left">{{ ui_phrase('Qty') }}</th>
+                            <th class="px-3 py-2 text-left">{{ ui_phrase('Rate') }}</th>
+                            <th class="px-3 py-2 text-left">{{ ui_phrase('Total') }}</th>
                         </tr>
-                    @empty
-                        <tr id="booking-items-empty">
-                            <td colspan="5" class="px-3 py-3 text-sm text-gray-500">{{ ui_phrase('No :entity available.', ['entity' => ui_phrase('Items')]) }}</td>
-                        </tr>
-                    @endforelse
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody id="booking-items-body">
+                        @forelse ($existingItems as $i => $item)
+                            @php
+                                $qty = max(1, (int) ($item['qty'] ?? 1));
+                                $unitPrice = $toDisplayMoney(max(0, (float) ($item['unit_price'] ?? 0)));
+                            @endphp
+                            <tr class="booking-item-row">
+                                <td class="px-3 py-2">
+                                    <input type="hidden" name="items[{{ $i }}][quotation_item_id]" value="{{ $item['quotation_item_id'] ?? '' }}">
+                                    <input type="hidden" name="items[{{ $i }}][serviceable_type]" value="{{ $item['serviceable_type'] ?? '' }}">
+                                    <input type="hidden" name="items[{{ $i }}][serviceable_id]" value="{{ $item['serviceable_id'] ?? '' }}">
+                                    <input type="hidden" name="items[{{ $i }}][day_number]" value="{{ $item['day_number'] ?? '' }}">
+                                    <input type="hidden" name="items[{{ $i }}][serviceable_meta]" value="{{ isset($item['serviceable_meta']) ? json_encode($item['serviceable_meta']) : '' }}">
+                                    <input type="text" name="items[{{ $i }}][description]" value="{{ $item['description'] ?? '' }}" class="app-input" required @readonly($itemsReadonly)>
+                                </td>
+                                <td class="px-3 py-2"><input type="number" min="1" name="items[{{ $i }}][qty]" value="{{ $qty }}" class="app-input booking-item-qty" required @readonly($itemsReadonly)></td>
+                                <td class="px-3 py-2"><input type="text" inputmode="numeric" name="items[{{ $i }}][unit_price]" value="{{ number_format($unitPrice, 0, ',', '.') }}" class="app-input booking-item-rate text-right" required @readonly($itemsReadonly)></td>
+                                <td class="px-3 py-2">
+                                    <div class="input-with-left-affix">
+                                        <input type="text" value="{{ number_format($qty * $unitPrice, 0, ',', '.') }}" class="app-input booking-item-rate booking-item-total booking-item-total-value pl-14 text-right bg-gray-50 dark:bg-gray-900/30" readonly>
+                                        <span class="input-left-affix rounded-md border border-gray-200 bg-gray-50 px-1.5 py-0.5 text-[10px] font-semibold text-gray-600 shadow-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200">{{ $activeCurrencyLabel }}</span>
+                                    </div>
+                                </td>
+                            </tr>
+                        @empty
+                            <tr id="booking-items-empty">
+                                <td colspan="4" class="px-3 py-3 text-sm text-gray-500">{{ ui_phrase('No :entity available.', ['entity' => ui_phrase('Items')]) }}</td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+            @error('items')
+                <p class="mt-2 text-xs text-rose-600">{{ $message }}</p>
+            @enderror
         </div>
-        @error('items')
-            <p class="mt-2 text-xs text-rose-600">{{ $message }}</p>
-        @enderror
-    </div>
-
-    <div>
-        <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Notes / Reason') }}</label>
-        <textarea
-            name="notes"
-            rows="3"
-            class="mt-1 w-full app-input"
-        >{{ old('notes', $booking->notes ?? '') }}</textarea>
-        @error('notes')
-            <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
-        @enderror
-    </div>
+    @else
+        <div id="booking-items-body" class="hidden">
+            @foreach ($existingItems as $i => $item)
+                <input type="hidden" name="items[{{ $i }}][quotation_item_id]" value="{{ $item['quotation_item_id'] ?? '' }}">
+                <input type="hidden" name="items[{{ $i }}][description]" value="{{ $item['description'] ?? '' }}">
+                <input type="hidden" name="items[{{ $i }}][qty]" value="{{ max(1, (int) ($item['qty'] ?? 1)) }}">
+                <input type="hidden" name="items[{{ $i }}][unit_price]" value="{{ (float) ($item['unit_price'] ?? 0) }}">
+                <input type="hidden" name="items[{{ $i }}][serviceable_type]" value="{{ $item['serviceable_type'] ?? '' }}">
+                <input type="hidden" name="items[{{ $i }}][serviceable_id]" value="{{ $item['serviceable_id'] ?? '' }}">
+                <input type="hidden" name="items[{{ $i }}][day_number]" value="{{ $item['day_number'] ?? '' }}">
+                <input type="hidden" name="items[{{ $i }}][serviceable_meta]" value="{{ isset($item['serviceable_meta']) ? json_encode($item['serviceable_meta']) : '' }}">
+            @endforeach
+        </div>
+    @endif
 
     <div class="flex items-center gap-2">
         <button type="submit"  class="btn-primary">
@@ -243,7 +307,9 @@
                 const customerNameInput = document.getElementById('booking-customer-name');
                 const paxAdultInput = document.getElementById('booking-pax-adult');
                 const paxChildInput = document.getElementById('booking-pax-child');
-                if (!tbody || !select || !generateBtn) return;
+                const travelDateDisplayInput = document.getElementById('booking-travel-date-display');
+                const readonlyGeneratedFlow = @json($readonlyGeneratedFlow);
+                if (!tbody || !select) return;
 
                 const recalcTotals = () => {
                     let grandTotal = 0;
@@ -281,17 +347,16 @@
                             <input type="hidden" name="items[${idx}][serviceable_id]" value="${item.serviceable_id || ''}">
                             <input type="hidden" name="items[${idx}][day_number]" value="${item.day_number || ''}">
                             <input type="hidden" name="items[${idx}][serviceable_meta]" value='${JSON.stringify(item.serviceable_meta || null)}'>
-                            <input type="text" name="items[${idx}][description]" value="${(item.description || '').replace(/"/g, '&quot;')}" class="app-input" required>
+                            <input type="text" name="items[${idx}][description]" value="${(item.description || '').replace(/"/g, '&quot;')}" class="app-input" required ${readonlyGeneratedFlow ? 'readonly' : ''}>
                         </td>
-                        <td class="px-3 py-2"><input type="number" min="1" name="items[${idx}][qty]" value="${qty}" class="app-input booking-item-qty" required></td>
-                        <td class="px-3 py-2"><input type="text" inputmode="numeric" name="items[${idx}][unit_price]" value="${formatThousands(Math.round(unitPrice))}" class="app-input booking-item-rate text-right" required></td>
+                        <td class="px-3 py-2"><input type="number" min="1" name="items[${idx}][qty]" value="${qty}" class="app-input booking-item-qty" required ${readonlyGeneratedFlow ? 'readonly' : ''}></td>
+                        <td class="px-3 py-2"><input type="text" inputmode="numeric" name="items[${idx}][unit_price]" value="${formatThousands(Math.round(unitPrice))}" class="app-input booking-item-rate text-right" required ${readonlyGeneratedFlow ? 'readonly' : ''}></td>
                         <td class="px-3 py-2">
                             <div class="input-with-left-affix">
                                 <input type="text" value="${formatThousands(Math.round(qty * unitPrice))}" class="app-input booking-item-rate booking-item-total booking-item-total-value pl-14 text-right bg-gray-50 dark:bg-gray-900/30" readonly>
                                 <span class="input-left-affix rounded-md border border-gray-200 bg-gray-50 px-1.5 py-0.5 text-[10px] font-semibold text-gray-600 shadow-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200">${activeCurrencyLabel}</span>
                             </div>
                         </td>
-                        <td class="px-3 py-2"><input type="text" name="items[${idx}][notes]" value="" class="app-input"></td>
                     `;
                     tbody.appendChild(tr);
                 };
@@ -302,7 +367,7 @@
                     const items = quotationItemsMap[quotationId] || [];
                     clearRows();
                     if (!Array.isArray(items) || items.length === 0) {
-                        tbody.innerHTML = `<tr id="booking-items-empty"><td colspan="5" class="px-3 py-3 text-sm text-gray-500">{{ ui_phrase('No items in selected quotation.') }}</td></tr>`;
+                        tbody.innerHTML = `<tr id="booking-items-empty"><td colspan="4" class="px-3 py-3 text-sm text-gray-500">{{ ui_phrase('No items in selected quotation.') }}</td></tr>`;
                         if (summary) summary.textContent = '';
                         return;
                     }
@@ -318,6 +383,9 @@
                     const serviceDate = String(quotationTravelDateMap[quotationId] || '').trim();
                     if (serviceDate !== '') {
                         travelDateInput.value = serviceDate;
+                        if (travelDateDisplayInput) {
+                            travelDateDisplayInput.value = serviceDate;
+                        }
                     }
                 };
 
@@ -362,7 +430,9 @@
                     return `${activeCurrencyLabel} ${normalized}`;
                 }
 
-                generateBtn.addEventListener('click', generateFromQuotation);
+                if (generateBtn) {
+                    generateBtn.addEventListener('click', generateFromQuotation);
+                }
                 select.addEventListener('change', applyTravelDateFromQuotation);
                 select.addEventListener('change', applyOrderNumberFromQuotation);
                 select.addEventListener('change', applyBookingMetaFromQuotation);
@@ -371,12 +441,14 @@
                 applyBookingMetaFromQuotation();
                 recalcTotals();
 
-                tbody.addEventListener('blur', (event) => {
+                if (!@json($itemsReadonly)) {
+                    tbody.addEventListener('blur', (event) => {
                     if (!(event.target instanceof HTMLInputElement)) return;
                     if (!event.target.classList.contains('booking-item-rate')) return;
                     event.target.value = formatThousands(parseIdrNumber(event.target.value));
                     recalcTotals();
-                }, true);
+                    }, true);
+                }
             })();
         </script>
     @endpush

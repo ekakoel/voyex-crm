@@ -15,6 +15,8 @@
                         @csrf
                         @include('modules.bookings._form', [
                             'buttonLabel' => ui_phrase('Save Booking'),
+                            'itemsReadonly' => true,
+                            'readonlyGeneratedFlow' => true,
                         ])
                     </form>
                 </div>
@@ -28,7 +30,6 @@
         </div>
     </div>
 @endsection
-
 
 
 

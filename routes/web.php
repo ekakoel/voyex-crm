@@ -779,6 +779,13 @@ Route::middleware('auth')->group(function () {
                 'permission:module.bookings.access',
                 'module.permission:bookings',
             ]);
+        Route::patch('bookings/{booking}/services/{quotationItem}/cancel', [\App\Http\Controllers\BookingController::class, 'cancelServiceItem'])
+            ->name('bookings.services.cancel')
+            ->middleware([
+                'module:bookings',
+                'permission:module.bookings.access',
+                'module.permission:bookings',
+            ]);
         Route::get('booking-items/{bookingItem}/voucher', [\App\Http\Controllers\BookingItemVoucherController::class, 'edit'])
             ->name('booking-items.voucher.edit')
             ->middleware([

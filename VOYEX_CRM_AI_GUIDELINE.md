@@ -1,6 +1,6 @@
 # VOYEX CRM -- AI SYSTEM GUIDELINE
 
-Last Updated: 2026-04-17
+Last Updated: 2026-05-15
 
 Dokumen ini fokus pada perilaku AI saat mengubah code. Detail sistem ada di `PROJECT_KNOWLEDGE_BASE.md`.
 
@@ -24,6 +24,7 @@ AI harus bertindak sebagai:
 - Prioritaskan permission matrix, hindari role-hardcode pada aksi bisnis.
 - Pertahankan performa query (hindari N+1, gunakan eager loading saat relevan).
 - Pertahankan standar UI komponen global.
+- Pastikan setiap aksi CRUD/mutasi menampilkan notifikasi status ke user (`success/error`) secara konsisten.
 - Pertahankan standar input nominal:
   - gunakan `x-money-input` untuk field uang/rate,
   - badge currency di kiri (left affix),
@@ -33,6 +34,11 @@ AI harus bertindak sebagai:
   - mobile/tablet: card/list,
   - desktop (`xl+`): table,
   - state AJAX sinkron lintas breakpoint.
+- Untuk semua filter text di halaman index/list, patuhi standar global:
+  - minimum 3 karakter agar filter valid,
+  - saat input mencapai 3+ karakter, filter harus langsung terpicu otomatis (live trigger),
+  - `Enter`, `Tab`, `blur`, dan submit eksplisit tetap didukung sebagai fallback trigger,
+  - input text < 3 karakter (non-empty) harus dianggap no-match.
 
 ## 4. Database Safety Rule
 

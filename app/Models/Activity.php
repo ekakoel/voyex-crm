@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\HasAudit;
+use App\Models\Concerns\HasCancellationPolicy;
 use App\Traits\LogsActivity;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -10,6 +11,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class Activity extends Model
 {
     use HasAudit;
+    use HasCancellationPolicy;
     use LogsActivity;
     use SoftDeletes;
     protected $fillable = [
@@ -66,7 +68,6 @@ class Activity extends Model
         return $this->belongsTo(ActivityType::class);
     }
 }
-
 
 
 

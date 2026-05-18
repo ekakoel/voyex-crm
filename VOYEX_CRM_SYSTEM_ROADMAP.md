@@ -1,7 +1,7 @@
 # VOYEX CRM -- SYSTEM ROADMAP
 
 Version: 1.4  
-Last Updated: 2026-04-23
+Last Updated: 2026-05-18
 
 Legend:  
 - DONE = Implemented  
@@ -198,6 +198,96 @@ Kebijakan ini wajib untuk setiap update code (penambahan, perubahan, pengurangan
 ----------------------------------------------------------------------------------------------------
 
 # CHANGELOG (LATEST)
+
+Date: 2026-05-18
+Completed in this cycle:
+
+- Inquiry detail and ownership refactor (remove assignee model from Inquiry):
+  - removed `Assigned to` usage from Inquiry detail/list and replaced ownership display with `Created By`.
+  - refactored Inquiry detail `Related Records` to show only `Related Quotations` (removed related itineraries block).
+  - refactored Inquiry/Quotation/Itinerary/dashboard integrations from `assigned_to`/`assignedUser` to `created_by`/`creator`.
+  - updated `InquiryPolicy::update` to creator-only mutation rule.
+  - added database migration:
+    - `2026_05_18_160000_drop_assigned_to_from_inquiries_table.php`
+    - drops `inquiries.assigned_to` safely (with defensive FK drop).
+  - i18n sync:
+    - added/standardized phrase usage for `Related Records`, `Related Quotations`, and `No related quotations yet.` in `ui_core` dictionaries.
+
+- Booking module notes/reason deprecation rollout:
+  - removed `Notes / Reason` input from booking create/edit form.
+  - removed per-item `notes` input from booking item table generation flow.
+  - removed booking-service `Notes` fields from:
+    - `Book Service Item` modal,
+    - `Edit Booking Service` modal,
+    - `Cancel Item` modal.
+  - removed `Notes` column from booking services table views (edit workspace + detail/show).
+  - removed voucher-form notes input and stopped passing voucher notes payload in booking detail modal trigger.
+  - backend cleanup for booking flow:
+    - removed `notes`/`cancellation_notes` validation and persistence in booking controller/request pipeline.
+    - removed `notes`/`cancellation_notes` from booking-related model fillables and voucher draft payload.
+  - database cleanup migration added:
+    - `2026_05_18_235900_remove_notes_reason_fields_from_booking_module_tables.php`
+    - drops:
+      - `bookings.notes`,
+      - `booking_items.notes`,
+      - `booking_items.cancellation_notes`,
+      - `booking_item_booking_logs.notes`,
+      - `booking_item_vouchers.notes`.
+
+- Booking module documentation consolidation completed:
+  - added dedicated technical document `docs/technical/BOOKING_MODULE.md` as source of truth for Booking flow, cancellation behavior, multi-currency, i18n, and performance baseline.
+  - updated documentation map in:
+    - `docs/README.md`
+    - `README.md`
+    - `PROJECT_KNOWLEDGE_BASE.md`
+    - `PROJECT_GUIDELINES.md`
+
+- Booking architecture/docs alignment highlights:
+  - clarified separation between `Cancellation Policy` text and structured `Cancellation Fee Rules`.
+  - documented hotel-specific rule: cancellation fee policy is managed at hotel-level (not room-level).
+  - documented booking naming rule: service item display must include provider context (`service | vendor/provider`, and `service | hotel` for hotel items).
+  - documented canonical multi-currency behavior for booking inputs (UI display currency, DB persist in IDR).
+  - documented booking performance baseline (controller precompute and no DB query inside Blade loops).
+
+Date: 2026-05-15
+Completed in this cycle:
+
+- Added mandatory filter persistence/reset standard in project guideline:
+  - index/list filters should persist between navigation/refresh (session-backed recommended),
+  - reset must clear backend-stored filter state and return to default list state.
+
+- CRUD status notification policy now enforced globally in UI layer:
+  - added shared flash renderer `resources/views/components/flash-messages.blade.php`.
+  - integrated renderer into `resources/views/layouts/master.blade.php` before page content.
+  - flash uses `session()->pull('success'/'error')` so notification is shown once and prevents duplicate alerts from legacy per-page blocks.
+  - impact: all modules using master layout now consistently show create/update/delete/status mutation feedback.
+
+- Quotation + Itinerary coverage adjustments:
+  - ensured quotation index/form and itinerary index/show conform to success/error flash rendering standard.
+
+- Added mandatory project-wide CRUD notification policy:
+  - every create/update/delete/activate/deactivate/status mutation must provide user feedback.
+  - controller mutation flows must return flash message `success` or `error`.
+  - module pages (list/detail/form) must render status notification feedback consistently.
+  - AJAX/modal mutation flows must provide equivalent visual feedback (toast/inline alert).
+- Documentation baseline updated:
+  - `PROJECT_GUIDELINES.md` new section `4i. Standar Notifikasi CRUD (Wajib)`.
+  - `VOYEX_CRM_AI_GUIDELINE.md` technical guard updated to enforce CRUD status notification behavior.
+
+- Added mandatory text-filter trigger and minimum character policy:
+  - all index/list text filters now follow minimum 3-character validation before filtering is considered valid.
+  - filter execution for text inputs is standardized to trigger live when input reaches 3+ characters.
+  - `Enter`, `Tab`, `blur`, and explicit submit remain supported as fallback triggers.
+  - non-empty text input under 3 characters must be treated as no-match.
+  - policy documented in:
+    - `PROJECT_GUIDELINES.md` section `4k. Standar Trigger & Minimum Karakter Filter Text (Wajib)`.
+    - `VOYEX_CRM_AI_GUIDELINE.md` technical guard update for future filter implementation consistency.
+
+- Inquiry-to-Itinerary reference mapping (without restoring permanent itinerary.inquiry_id):
+  - introduced `inquiry_itinerary_references` table to store inquiry references used during itinerary create/update.
+  - itinerary remains independent (`itineraries.inquiry_id` stays null by policy), but inquiry index can now display referenced itineraries consistently.
+  - inquiry model `itineraries()` relation is now pivot-based (`belongsToMany`) via reference table.
+  - itinerary save flow now syncs reference mapping from form `inquiry_id` to keep inquiry index `Itinerary` column updated.
 
 Date: 2026-05-11
 Completed in this cycle:

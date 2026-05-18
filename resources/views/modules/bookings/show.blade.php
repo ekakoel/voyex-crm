@@ -6,6 +6,7 @@
 @section('content')
     <div
         class="space-y-6 module-page module-page--bookings"
+        data-no-booking-log-text="{{ ui_phrase('No booking log available.') }}"
         x-data="{
             voucher: {
                 number: '-',
@@ -21,11 +22,16 @@
                 vendorName: '-',
                 vendorPhone: '-',
                 vendorEmail: '-',
+                toLocation: '-',
+                toContact: '-',
                 confirmation: '-',
-                notes: '-',
+                contactedPerson: '-',
+                contactChannel: '-',
+                contactDetail: '-',
             },
             openVoucherModal(el) {
                 const text = (value) => String(value ?? '').trim() || '-';
+                const noBookingLogText = text(this.$el.dataset.noBookingLogText);
                 this.voucher.number = text(el.dataset.voucherNumber);
                 this.voucher.status = text(el.dataset.voucherStatus);
                 this.voucher.item = text(el.dataset.voucherItem);
@@ -33,9 +39,13 @@
                 const bookingAt = text(el.dataset.bookingAt);
                 const bookingChannel = text(el.dataset.bookingChannel);
                 const bookingContacted = text(el.dataset.bookingContacted);
+                const bookingContactDetail = text(el.dataset.bookingContactDetail);
                 this.voucher.bookingSummary = bookingSummary !== '-'
                     ? bookingSummary
                     : `${bookingAt} | ${bookingChannel} | ${bookingContacted}`;
+                this.voucher.contactedPerson = bookingContacted;
+                this.voucher.contactChannel = bookingChannel;
+                this.voucher.contactDetail = bookingContactDetail;
                 this.voucher.customer = text(el.dataset.voucherCustomer);
                 this.voucher.tourName = text(el.dataset.voucherTourName);
                 this.voucher.qty = text(el.dataset.voucherQty);
@@ -45,14 +55,18 @@
                 this.voucher.vendorName = text(el.dataset.voucherVendorName);
                 this.voucher.vendorPhone = text(el.dataset.voucherVendorPhone);
                 this.voucher.vendorEmail = text(el.dataset.voucherVendorEmail);
+                this.voucher.toLocation = text(el.dataset.voucherToLocation);
+                this.voucher.toContact = text(el.dataset.voucherToContact);
                 this.voucher.confirmation = text(el.dataset.voucherConfirmation);
-                this.voucher.notes = text(el.dataset.voucherNotes);
                 const bookingSummaryEl = document.getElementById('voucher-booking-summary');
                 if (bookingSummaryEl) {
                     bookingSummaryEl.textContent = this.voucher.bookingSummary !== '-'
                         ? this.voucher.bookingSummary
-                        : 'No booking log available.';
+                        : noBookingLogText;
                 }
+                window.dispatchEvent(new CustomEvent('booking-voucher-preview-updated', {
+                    detail: { ...this.voucher }
+                }));
                 this.$dispatch('open-modal', 'booking-voucher-modal');
             }
         }"
@@ -123,7 +137,6 @@
                                     <th class="px-3 py-2 text-left">{{ ui_phrase('Description') }}</th>
                                     <th class="px-3 py-2 text-left">{{ ui_phrase('Status') }}</th>
                                     <th class="px-3 py-2 text-left">{{ ui_phrase('Qty') }}</th>
-                                    <th class="px-3 py-2 text-left">{{ ui_phrase('Notes') }}</th>
                                     <th class="px-3 py-2 text-right actions-compact">{{ ui_phrase('Actions') }}</th>
                                 </tr>
                             </thead>
@@ -132,10 +145,9 @@
                                     @php
                                         $item = $bookedItemsByQuotationItemId->get($quotationItem->id);
                                         $latestBookingLog = $item?->latestBookingLog;
-                                        $displayBookingLog = $item?->bookingLogs?->first() ?? $latestBookingLog;
+                                        $displayBookingLog = $latestBookingLog;
                                         $isBooked = $latestBookingLog !== null;
                                         $qty = $isBooked ? (int) ($item->qty ?? 0) : (int) ($quotationItem->qty ?? 0);
-                                        $notes = $isBooked ? ($item->notes ?: '-') : '-';
                                         $serviceDate = '-';
                                         $travelDate = $booking->travel_date;
                                         $dayNumber = max(1, (int) ($quotationItem->day_number ?? 1));
@@ -163,7 +175,7 @@
                                             $parts = array_values(array_filter([$vendorName, $transportLabel], fn ($value) => $value !== ''));
                                             $displayDescription = $itemType . ': ' . ($parts !== [] ? implode(' - ', $parts) : '-');
                                         } elseif ($rawItemType === 'HotelRoom') {
-                                            $itemType = ui_phrase('Hotel Room');
+                                            $itemType = ui_phrase('Hotel');
                                             $hotelName = trim((string) ($serviceable?->hotel?->name ?? ''));
                                             $roomName = trim((string) ($serviceable?->rooms ?? ''));
                                             if ($hotelName === '') {
@@ -171,6 +183,14 @@
                                                 if (preg_match('/Hotel:\s*(.+)$/i', $descriptionText, $matches) === 1) {
                                                     $hotelName = trim((string) ($matches[1] ?? ''));
                                                 }
+                                            }
+                                            if ($roomName !== '') {
+                                                $roomName = preg_replace('/^\s*Day\s+\d+\s*[-:]\s*/i', '', $roomName) ?? $roomName;
+                                                $roomName = preg_replace('/^\s*Hotel\s*:\s*/i', '', $roomName) ?? $roomName;
+                                                if ($hotelName !== '') {
+                                                    $roomName = preg_replace('/^\s*' . preg_quote($hotelName, '/') . '\s*[-:|]\s*/i', '', $roomName) ?? $roomName;
+                                                }
+                                                $roomName = trim((string) $roomName);
                                             }
                                             $parts = array_values(array_filter([$hotelName, $roomName], fn ($value) => $value !== ''));
                                             $displayDescription = $itemType . ': ' . ($parts !== [] ? implode(' - ', $parts) : $itemName);
@@ -193,6 +213,34 @@
                                             $parts = array_values(array_filter([$vendorName, $itemName], fn ($value) => $value !== ''));
                                             $displayDescription = ($itemType !== '' ? ($itemType . ': ') : '') . ($parts !== [] ? implode(' - ', $parts) : '-');
                                         }
+                                        $providerDisplayName = $rawItemType === 'HotelRoom'
+                                            ? trim((string) ($serviceable?->hotel?->name ?? ''))
+                                            : trim((string) ($vendorName ?? ''));
+                                        $baseDisplayName = trim((string) ($serviceable?->name ?? $quotationItem->description ?? '-'));
+                                        if ($baseDisplayName === '') {
+                                            $baseDisplayName = '-';
+                                        }
+                                        if ($rawItemType === 'HotelRoom') {
+                                            $hotelName = trim((string) ($serviceable?->hotel?->name ?? ''));
+                                            $roomName = trim((string) ($serviceable?->rooms ?? ''));
+                                            if ($roomName === '') {
+                                                $roomName = trim((string) ($serviceable?->name ?? $quotationItem->description ?? ''));
+                                            }
+                                            if ($roomName !== '') {
+                                                $roomName = preg_replace('/^\s*Day\s+\d+\s*[-:]\s*/i', '', $roomName) ?? $roomName;
+                                                $roomName = preg_replace('/^\s*Hotel\s*:\s*/i', '', $roomName) ?? $roomName;
+                                                if ($hotelName !== '') {
+                                                    $roomName = preg_replace('/^\s*' . preg_quote($hotelName, '/') . '\s*[-:|]\s*/i', '', $roomName) ?? $roomName;
+                                                }
+                                                $roomName = trim((string) $roomName);
+                                            }
+                                            $hotelParts = array_values(array_filter([$hotelName, $roomName], fn ($value) => trim((string) $value) !== ''));
+                                            $baseDisplayName = $hotelParts !== [] ? implode(' - ', $hotelParts) : $baseDisplayName;
+                                            $itemType = ui_phrase('Hotel');
+                                        } elseif ($providerDisplayName !== '' && ! str_contains(mb_strtolower($baseDisplayName), mb_strtolower($providerDisplayName))) {
+                                            $baseDisplayName = trim($baseDisplayName . ' | ' . $providerDisplayName);
+                                        }
+                                        $displayDescription = ($itemType !== '' ? ($itemType . ': ') : '') . $baseDisplayName;
                                         $vendorProviderValue = $vendorName;
                                         $itemTypeValue = $itemType !== '' ? $itemType : '';
                                         $vendorContactDetailValue = '';
@@ -243,11 +291,6 @@
                                         $roomNumberValue = $isHotelType ? (string) ((int) ($quotationItem->qty ?? 0)) : '';
                                         $bookingSummaryForVoucher = '-';
                                         if ($isBooked && $latestBookingLog) {
-                                            $notes = trim(implode(' | ', array_filter([
-                                                optional($latestBookingLog->booked_at)->format('Y-m-d (H:i)'),
-                                                $latestBookingLog->contact_channel ?: null,
-                                                $latestBookingLog->contacted_person_name ?: null,
-                                            ])));
                                             $bookingServiceName = '';
                                             if ($rawItemType === 'TransportUnit') {
                                                 $bookingServiceName = trim((string) $transportServiceName);
@@ -263,7 +306,100 @@
                                             }
                                             $bookingCreatedBy = trim((string) ($displayBookingLog?->creator?->name ?: 'Unknown user'));
                                             $bookingCreatedAt = optional($displayBookingLog?->created_at)->format('Y-m-d (H:i)') ?? '-';
-                                            $bookingSummaryForVoucher = $bookingServiceName . ' was booked by ' . $bookingCreatedBy . ' on ' . $bookingCreatedAt;
+                                            $bookingSummaryForVoucher = ui_phrase(':service was booked by :user on :datetime.', [
+                                                'service' => $bookingServiceName,
+                                                'user' => $bookingCreatedBy,
+                                                'datetime' => $bookingCreatedAt,
+                                            ]);
+                                        }
+                                        $voucherTourName = trim((string) ($item?->voucher?->tour_name ?? ''));
+                                        if ($voucherTourName === '') {
+                                            $orderNumberForTour = trim((string) ($booking->quotation?->order_number ?? ''));
+                                            $customerNameForTour = trim((string) ($booking->quotation?->inquiry?->customer?->name ?? ''));
+                                            $agentNameForTour = trim((string) ($booking->quotation?->inquiry?->customer?->company_name ?? ''));
+                                            $customerOrAgentForTour = $agentNameForTour !== '' ? $agentNameForTour : $customerNameForTour;
+                                            $voucherTourName = trim($orderNumberForTour . ' - ' . $customerOrAgentForTour);
+                                        }
+                                        $voucherServiceDate = optional($latestBookingLog?->service_date)->format('Y-m-d')
+                                            ?? optional($item?->voucher?->service_date)->format('Y-m-d')
+                                            ?? optional($booking->travel_date)->format('Y-m-d')
+                                            ?? '-';
+                                        $voucherServiceItem = trim((string) ($latestBookingLog?->vendor_provider_item_name ?? ''));
+                                        if ($voucherServiceItem === '') {
+                                            $voucherServiceItem = trim((string) ($displayDescription ?: $item?->description ?: $quotationItem->description ?: '-'));
+                                        }
+                                        $voucherVendorName = trim((string) ($latestBookingLog?->vendor_provider_item_name ?? ''));
+                                        if ($voucherVendorName === '') {
+                                            $voucherVendorName = trim((string) ($item?->voucher?->vendor_contact_name ?? $vendorProviderValue ?? '-'));
+                                        }
+                                        $voucherVendorPhone = trim(implode(' | ', array_filter([
+                                            trim((string) ($latestBookingLog?->contact_channel ?? '')),
+                                            trim((string) ($latestBookingLog?->contact_value ?? '')),
+                                        ])));
+                                        if ($voucherVendorPhone === '' && ! $latestBookingLog) {
+                                            $voucherVendorPhone = trim((string) ($item?->voucher?->vendor_contact_phone ?? ''));
+                                        }
+                                        if ($voucherVendorPhone === '' && ! $latestBookingLog) {
+                                            $voucherVendorPhone = trim((string) ($vendorContactDetailValue ?: '-'));
+                                        }
+                                        $voucherVendorEmail = trim((string) ($item?->voucher?->vendor_contact_email ?? '-'));
+                                        if (strtolower(trim((string) ($latestBookingLog?->contact_channel ?? ''))) === 'email' && trim((string) ($latestBookingLog?->contact_value ?? '')) !== '') {
+                                            $voucherVendorEmail = trim((string) $latestBookingLog?->contact_value);
+                                        }
+                                        $voucherConfirmation = trim((string) ($latestBookingLog?->confirmation_number ?? ''));
+                                        if ($voucherConfirmation === '') {
+                                            $voucherConfirmation = trim((string) ($item?->voucher?->confirmation_code ?? '-'));
+                                        }
+                                        $voucherQtyText = (string) (int) ($item?->qty ?? 0);
+                                        if ($latestBookingLog) {
+                                            $voucherQtyText = (string) ((int) ($latestBookingLog->pax_adult ?? 0) + (int) ($latestBookingLog->pax_child ?? 0));
+                                        }
+                                        $bookingAtValue = optional($displayBookingLog?->booked_at)->format('Y-m-d (H:i)') ?? '-';
+                                        $bookingChannelValue = trim((string) ($displayBookingLog?->contact_channel ?? '')) ?: '-';
+                                        $bookingContactedValue = trim((string) ($displayBookingLog?->contacted_person_name ?? '')) ?: '-';
+                                        $bookingContactDetailValue = trim((string) ($displayBookingLog?->contact_value ?? '')) ?: '-';
+                                        $voucherToName = trim((string) ($latestBookingLog?->vendor_provider_item_name ?? ''));
+                                        if ($voucherToName === '') {
+                                            $voucherToName = trim((string) ($voucherVendorName ?: $displayDescription ?: '-'));
+                                        }
+                                        $voucherToLocation = '';
+                                        if ($rawItemType === 'HotelRoom') {
+                                            $voucherToLocation = trim(implode(', ', array_filter([
+                                                trim((string) ($serviceable?->hotel?->address ?? '')),
+                                                trim((string) ($serviceable?->hotel?->city ?? '')),
+                                                trim((string) ($serviceable?->hotel?->province ?? '')),
+                                            ])));
+                                        } elseif (method_exists($serviceable, 'vendor')) {
+                                            $vendorLocationText = trim((string) ($serviceable?->vendor?->location ?? ''));
+                                            $vendorAddressText = trim((string) ($serviceable?->vendor?->address ?? ''));
+                                            $voucherToLocation = $vendorLocationText !== '' ? $vendorLocationText : $vendorAddressText;
+                                        }
+                                        if ($voucherToLocation === '' && ! $latestBookingLog) {
+                                            $voucherToLocation = '-';
+                                        } elseif ($voucherToLocation === '') {
+                                            $voucherToLocation = '-';
+                                        }
+                                        $voucherToContact = trim(implode(' | ', array_filter([
+                                            trim((string) ($latestBookingLog?->contact_channel ?? '')),
+                                            trim((string) ($latestBookingLog?->contact_value ?? '')),
+                                        ])));
+                                        if ($voucherToContact === '' && ! $latestBookingLog) {
+                                            $contactParts = [];
+                                            if ($rawItemType === 'HotelRoom') {
+                                                $contactParts = array_values(array_filter([
+                                                    trim((string) ($serviceable?->hotel?->phone ?? '')),
+                                                    trim((string) ($serviceable?->hotel?->email ?? '')),
+                                                    trim((string) ($serviceable?->hotel?->whatsapp ?? '')),
+                                                ]));
+                                            } elseif (method_exists($serviceable, 'vendor')) {
+                                                $vendor = $serviceable?->vendor;
+                                                $contactParts = array_values(array_filter([
+                                                    trim((string) ($vendor?->contact_phone ?? '')),
+                                                    trim((string) ($vendor?->contact_email ?? '')),
+                                                    trim((string) ($vendor?->website ?? '')),
+                                                ]));
+                                            }
+                                            $voucherToContact = $contactParts !== [] ? implode(' | ', $contactParts) : '-';
                                         }
                                     @endphp
                                     <tr class="odd:bg-gray-50 even:bg-white hover:bg-amber-50 dark:odd:bg-gray-800/40 dark:even:bg-gray-900/40 dark:hover:bg-amber-900/20 transition-colors">
@@ -278,19 +414,9 @@
                                             @endif
                                         </td>
                                         <td class="px-3 py-2">{{ $qty }}</td>
-                                        <td class="px-3 py-2">{{ $notes }}</td>
                                         <td class="px-3 py-2 text-right">
                                             <div class="flex items-center justify-end gap-2">
                                                 @if ($isBooked && $item && $item->voucher)
-                                                    @if (($sourceUpdatedMap[$item->id] ?? false) === true)
-                                                        <span class="inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">{{ ui_phrase('Source Updated') }}</span>
-                                                        <form action="{{ route('booking-items.voucher.generate', $item) }}" method="POST" class="inline">
-                                                            @csrf
-                                                            <button type="submit" class="btn-outline-sm" title="{{ ui_phrase('Regenerate Voucher') }}" aria-label="{{ ui_phrase('Regenerate Voucher') }}">
-                                                                <i class="fa-solid fa-rotate"></i><span class="sr-only">{{ ui_phrase('Regenerate Voucher') }}</span>
-                                                            </button>
-                                                        </form>
-                                                    @endif
                                                     <button
                                                         type="button"
                                                         class="btn-secondary-sm"
@@ -300,374 +426,42 @@
                                                         x-on:click.prevent="openVoucherModal($el)"
                                                         data-voucher-number="{{ $item->voucher->voucher_number }}"
                                                         data-voucher-status="{{ strtoupper((string) $item->voucher->status) }}"
-                                                        data-voucher-item="{{ $item->description }}"
+                                                        data-voucher-item="{{ $voucherServiceItem }}"
                                                         data-booking-summary="{{ $bookingSummaryForVoucher }}"
-                                                        data-voucher-qty="{{ (int) $item->qty }}"
+                                                        data-booking-at="{{ $bookingAtValue }}"
+                                                        data-booking-channel="{{ $bookingChannelValue }}"
+                                                        data-booking-contacted="{{ $bookingContactedValue }}"
+                                                        data-booking-contact-detail="{{ $bookingContactDetailValue }}"
+                                                        data-voucher-qty="{{ $voucherQtyText }}"
                                                         data-voucher-customer="{{ $booking->quotation?->inquiry?->customer?->name ?? '-' }}"
-                                                        data-voucher-tour-name="{{ $item->voucher->tour_name ?: '-' }}"
-                                                        data-voucher-service-date="{{ optional($item->voucher->service_date)->format('Y-m-d') ?? optional($booking->travel_date)->format('Y-m-d') ?? '-' }}"
+                                                        data-voucher-tour-name="{{ $voucherTourName !== '' ? $voucherTourName : '-' }}"
+                                                        data-voucher-service-date="{{ $voucherServiceDate }}"
                                                         data-voucher-service-time="{{ $item->voucher->service_time ?: '-' }}"
                                                         data-voucher-pickup="{{ $item->voucher->pickup_location ?: '-' }}"
-                                                        data-voucher-vendor-name="{{ $item->voucher->vendor_contact_name ?: '-' }}"
-                                                        data-voucher-vendor-phone="{{ $item->voucher->vendor_contact_phone ?: '-' }}"
-                                                        data-voucher-vendor-email="{{ $item->voucher->vendor_contact_email ?: '-' }}"
-                                                        data-voucher-confirmation="{{ $item->voucher->confirmation_code ?: '-' }}"
-                                                        data-voucher-notes="{{ $item->voucher->notes ?: '-' }}"
+                                                        data-voucher-vendor-name="{{ $voucherToName !== '' ? $voucherToName : '-' }}"
+                                                        data-voucher-vendor-phone="{{ $voucherVendorPhone !== '' ? $voucherVendorPhone : '-' }}"
+                                                        data-voucher-vendor-email="{{ $voucherVendorEmail !== '' ? $voucherVendorEmail : '-' }}"
+                                                        data-voucher-to-location="{{ $voucherToLocation }}"
+                                                        data-voucher-to-contact="{{ $voucherToContact }}"
+                                                        data-voucher-confirmation="{{ $voucherConfirmation !== '' ? $voucherConfirmation : '-' }}"
                                                     >
                                                         <i class="fa-solid fa-eye"></i><span class="sr-only">{{ ui_phrase('View Voucher') }}</span>
                                                     </button>
-                                                    <a href="{{ route('booking-items.voucher.pdf', $item) }}" class="btn-outline-sm" title="{{ ui_phrase('Download Voucher PDF') }}" aria-label="{{ ui_phrase('Download Voucher PDF') }}">
-                                                        <i class="fa-solid fa-file-pdf"></i><span class="sr-only">{{ ui_phrase('Download Voucher PDF') }}</span>
+                                                    <a href="{{ route('booking-items.voucher.pdf', $item) }}" target="_blank" rel="noopener" class="btn-outline-sm" title="{{ ui_phrase('Preview Voucher PDF') }}" aria-label="{{ ui_phrase('Preview Voucher PDF') }}">
+                                                        <i class="fa-solid fa-file-pdf"></i><span class="sr-only">{{ ui_phrase('Preview Voucher PDF') }}</span>
                                                     </a>
-                                                    <button
-                                                        type="button"
-                                                        class="btn-outline-sm"
-                                                        title="{{ ui_phrase('Edit Booking Service') }}"
-                                                        aria-label="{{ ui_phrase('Edit Booking Service') }}"
-                                                        x-on:click.prevent="$dispatch('open-modal', 'edit-book-service-modal-{{ $quotationItem->id }}')"
-                                                    >
-                                                        <i class="fa-solid fa-pen"></i><span class="sr-only">{{ ui_phrase('Edit Booking Service') }}</span>
-                                                    </button>
                                                 @elseif ($isBooked && $item)
                                                     <span class="text-xs text-gray-500 dark:text-gray-400">{{ ui_phrase('Voucher is being prepared.') }}</span>
                                                 @else
-                                                    <button
-                                                        type="button"
-                                                        class="btn-secondary-sm"
-                                                        title="{{ ui_phrase('Book') }}"
-                                                        aria-label="{{ ui_phrase('Book') }}"
-                                                        x-on:click.prevent="$dispatch('open-modal', 'book-service-modal-{{ $quotationItem->id }}')"
-                                                    >
-                                                        <i class="fa-solid fa-cart-plus"></i><span class="sr-only">{{ ui_phrase('Book') }}</span>
-                                                    </button>
+                                                    <span class="text-xs text-gray-500 dark:text-gray-400">{{ ui_phrase('Manage booking service from Edit Booking page.') }}</span>
                                                 @endif
                                             </div>
                                         </td>
                                     </tr>
 
-                                    @if (! $isBooked)
-                                        <x-modal name="book-service-modal-{{ $quotationItem->id }}" focusable maxWidth="2xl">
-                                            <div class="p-5">
-                                                <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ ui_phrase('Book Service Item') }}</h3>
-                                                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ $quotationItem->description }}</p>
-
-                                                <form method="POST" action="{{ route('bookings.services.book', ['booking' => $booking, 'quotationItem' => $quotationItem]) }}" class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                                                    @csrf
-
-                                                    <div class="sm:col-span-2 rounded-lg border border-gray-200 p-4 dark:border-gray-700">
-                                                        <h4 class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ ui_phrase('Booking Detail') }}</h4>
-                                                        <div class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                                                            @php
-                                                                $vendorProviderFinal = (string) ($isHotelType ? $hotelNameValue : $vendorProviderValue);
-                                                                if ($isTouristAttractionType) {
-                                                                    $vendorProviderFinal = trim((string) ($itemName ?? ''));
-                                                                }
-                                                                $serviceTypeFinal = (string) ($isHotelType ? ($roomNameValue !== '' ? $roomNameValue : 'Hotel Room') : $itemTypeValue);
-                                                                $serviceDateFinal = (string) $serviceDateValue;
-                                                                $paxAdultFinal = $paxAdultValue !== null ? (string) ((int) $paxAdultValue) : '';
-                                                                $paxChildFinal = $paxChildValue !== null ? (string) ((int) $paxChildValue) : '';
-                                                                $contactChannelFinal = '';
-                                                                $requiresContactFields = ! $isTouristAttractionType;
-                                                                $hasVendorProvider = trim($vendorProviderFinal) !== '';
-                                                                $hasContactDetail = trim((string) $vendorContactDetailValue) !== '';
-                                                                $hasContactPerson = trim((string) $contactedPersonValue) !== '';
-                                                                $hasServiceType = trim($serviceTypeFinal) !== '';
-                                                                $hasServiceDate = trim($serviceDateFinal) !== '';
-                                                                $hasPaxAdult = trim($paxAdultFinal) !== '';
-                                                                $hasPaxChild = trim($paxChildFinal) !== '';
-                                                            @endphp
-                                                            @if (! $isTouristAttractionType || $hasVendorProvider)
-                                                                <div>
-                                                                    <p class="text-xs font-semibold text-gray-600 dark:text-gray-300">
-                                                                        @if($isHotelType)
-                                                                            {{ ui_phrase('Hotel Name') }}
-                                                                        @elseif($isTouristAttractionType)
-                                                                            {{ ui_phrase('Tourist Attraction Name') }}
-                                                                        @else
-                                                                            {{ ui_phrase('Vendors/Provider') }}
-                                                                        @endif
-                                                                    </p>
-                                                                    <p class="mt-1 text-sm text-gray-800 dark:text-gray-100">{{ $hasVendorProvider ? $vendorProviderFinal : '-' }}</p>
-                                                                </div>
-                                                            @endif
-
-                                                            @if (! $isTouristAttractionType || $hasContactDetail)
-                                                                <div>
-                                                                    <p class="text-xs font-semibold text-gray-600 dark:text-gray-300">{{ ui_phrase('Contact Detail') }}</p>
-                                                                    <p class="mt-1 text-sm text-gray-800 dark:text-gray-100">{{ $hasContactDetail ? $vendorContactDetailValue : '-' }}</p>
-                                                                </div>
-                                                            @endif
-
-                                                            @if (! $isTouristAttractionType || $hasContactPerson)
-                                                                <div>
-                                                                    <p class="text-xs font-semibold text-gray-600 dark:text-gray-300">{{ ui_phrase('Contact Person') }}</p>
-                                                                    <p class="mt-1 text-sm text-gray-800 dark:text-gray-100">{{ $hasContactPerson ? $contactedPersonValue : '-' }}</p>
-                                                                </div>
-                                                            @endif
-
-                                                            @if (! $isTouristAttractionType)
-                                                                <div>
-                                                                    <p class="text-xs font-semibold text-gray-600 dark:text-gray-300">{{ ui_phrase('Service Type') }}</p>
-                                                                    <p class="mt-1 text-sm text-gray-800 dark:text-gray-100">{{ $hasServiceType ? $serviceTypeFinal : '-' }}</p>
-                                                                </div>
-                                                            @endif
-
-                                                            <div>
-                                                                <p class="text-xs font-semibold text-gray-600 dark:text-gray-300">{{ ui_phrase('Service Date') }}</p>
-                                                                <p class="mt-1 text-sm text-gray-800 dark:text-gray-100">{{ $hasServiceDate ? $serviceDateReadable : '-' }}</p>
-                                                            </div>
-
-                                                            @if ($isTransportLikeType)
-                                                                <div class="sm:col-span-2">
-                                                                    <p class="text-xs font-semibold text-gray-600 dark:text-gray-300">{{ ui_phrase('Service Name') }}</p>
-                                                                    <p class="mt-1 text-sm text-gray-800 dark:text-gray-100">{{ trim((string) $transportServiceName) !== '' ? $transportServiceName : '-' }}</p>
-                                                                </div>
-                                                            @endif
-
-                                                            @if ($isFoodBeverageType)
-                                                                <div>
-                                                                    <p class="text-xs font-semibold text-gray-600 dark:text-gray-300">{{ ui_phrase('Menu Name') }}</p>
-                                                                    <p class="mt-1 text-sm text-gray-800 dark:text-gray-100">{{ trim((string) $transportServiceName) !== '' ? $transportServiceName : '-' }}</p>
-                                                                </div>
-                                                                <div>
-                                                                    <p class="text-xs font-semibold text-gray-600 dark:text-gray-300">{{ ui_phrase('Meal Period') }}</p>
-                                                                    <p class="mt-1 text-sm text-gray-800 dark:text-gray-100">{{ trim((string) $mealPeriodValue) !== '' ? $mealPeriodValue : '-' }}</p>
-                                                                </div>
-                                                            @endif
-
-                                                            @if ($isHotelType)
-                                                                <div>
-                                                                    <p class="text-xs font-semibold text-gray-600 dark:text-gray-300">{{ ui_phrase('Room Name') }}</p>
-                                                                    <p class="mt-1 text-sm text-gray-800 dark:text-gray-100">{{ trim((string) $roomNameValue) !== '' ? $roomNameValue : '-' }}</p>
-                                                                </div>
-                                                                <div>
-                                                                    <p class="text-xs font-semibold text-gray-600 dark:text-gray-300">{{ ui_phrase('Room Number') }}</p>
-                                                                    <p class="mt-1 text-sm text-gray-800 dark:text-gray-100">{{ trim((string) $roomNumberValue) !== '' ? $roomNumberValue : '-' }}</p>
-                                                                </div>
-                                                            @endif
-
-                                                            <div>
-                                                                <p class="text-xs font-semibold text-gray-600 dark:text-gray-300">{{ ui_phrase('Pax Adult') }}</p>
-                                                                <p class="mt-1 text-sm text-gray-800 dark:text-gray-100">{{ $hasPaxAdult ? $paxAdultFinal : '-' }}</p>
-                                                            </div>
-
-                                                            <div>
-                                                                <p class="text-xs font-semibold text-gray-600 dark:text-gray-300">{{ ui_phrase('Pax Child') }}</p>
-                                                                <p class="mt-1 text-sm text-gray-800 dark:text-gray-100">{{ $hasPaxChild ? $paxChildFinal : '-' }}</p>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-
-                                                    <div class="sm:col-span-2 rounded-lg border border-gray-200 p-4 dark:border-gray-700">
-                                                        <h4 class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ ui_phrase('Required Data') }}</h4>
-                                                        <div class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                                                            @if ($hasVendorProvider)
-                                                                <input type="hidden" name="vendor_provider_item_name" value="{{ $vendorProviderFinal }}">
-                                                            @else
-                                                                <div>
-                                                                    <label class="block text-xs font-semibold text-gray-600 dark:text-gray-300">
-                                                                        @if($isHotelType)
-                                                                            {{ ui_phrase('Hotel Name') }}
-                                                                        @elseif($isTouristAttractionType)
-                                                                            {{ ui_phrase('Tourist Attraction Name') }}
-                                                                        @else
-                                                                            {{ ui_phrase('Vendors/Provider') }}
-                                                                        @endif
-                                                                    </label>
-                                                                    <input type="text" name="vendor_provider_item_name" class="app-input mt-1" @if($requiresContactFields) required @endif>
-                                                                </div>
-                                                            @endif
-
-                                                            <div>
-                                                                <label class="block text-xs font-semibold text-gray-600 dark:text-gray-300">{{ ui_phrase('Contact Channel') }}</label>
-                                                                <select name="contact_channel" class="app-input mt-1" @if($requiresContactFields) required @endif>
-                                                                    <option value="" @if(! $requiresContactFields) selected @endif>{{ ui_phrase('Select one') }}</option>
-                                                                    <option value="Email" @if($requiresContactFields && str_contains(strtolower((string) $vendorContactDetailValue), '@')) selected @endif>Email</option>
-                                                                    <option value="WhatsApp" @if($requiresContactFields && !str_contains(strtolower((string) $vendorContactDetailValue), '@')) selected @endif>WhatsApp</option>
-                                                                    <option value="WeChat">WeChat</option>
-                                                                    <option value="Phone">Phone</option>
-                                                                    <option value="Other">Other</option>
-                                                                </select>
-                                                            </div>
-
-                                                            @if ($hasContactDetail)
-                                                                <input type="hidden" name="contact_value" value="{{ $vendorContactDetailValue }}">
-                                                            @else
-                                                                <div>
-                                                                    <label class="block text-xs font-semibold text-gray-600 dark:text-gray-300">{{ ui_phrase('Contact Detail') }}</label>
-                                                                    <input type="text" name="contact_value" class="app-input mt-1" @if($requiresContactFields) required @endif>
-                                                                </div>
-                                                            @endif
-
-                                                            @if ($hasContactPerson)
-                                                                <input type="hidden" name="contacted_person_name" value="{{ $contactedPersonValue }}">
-                                                            @else
-                                                                <div>
-                                                                    <label class="block text-xs font-semibold text-gray-600 dark:text-gray-300">{{ ui_phrase('Contact Person') }}</label>
-                                                                    <input type="text" name="contacted_person_name" class="app-input mt-1" @if($requiresContactFields) required @endif>
-                                                                </div>
-                                                            @endif
-
-                                                            @if ($hasServiceDate)
-                                                                <input type="hidden" name="service_date" value="{{ $serviceDateFinal }}">
-                                                            @else
-                                                                <div>
-                                                                    <label class="block text-xs font-semibold text-gray-600 dark:text-gray-300">{{ ui_phrase('Service Date') }}</label>
-                                                                    <input type="date" name="service_date" class="app-input mt-1" required>
-                                                                </div>
-                                                            @endif
-
-                                                            <div>
-                                                                <label class="block text-xs font-semibold text-gray-600 dark:text-gray-300">{{ ui_phrase('Confirmation Number') }}</label>
-                                                                <input type="text" name="confirmation_number" class="app-input mt-1" value="{{ old('confirmation_number') }}">
-                                                            </div>
-
-                                                            @if ($hasPaxAdult)
-                                                                <input type="hidden" name="pax_adult" value="{{ $paxAdultFinal }}">
-                                                            @else
-                                                                <div>
-                                                                    <label class="block text-xs font-semibold text-gray-600 dark:text-gray-300">{{ ui_phrase('Pax Adult') }}</label>
-                                                                    <input type="number" name="pax_adult" min="0" class="app-input mt-1" required>
-                                                                </div>
-                                                            @endif
-
-                                                            @if ($hasPaxChild)
-                                                                <input type="hidden" name="pax_child" value="{{ $paxChildFinal }}">
-                                                            @else
-                                                                <div>
-                                                                    <label class="block text-xs font-semibold text-gray-600 dark:text-gray-300">{{ ui_phrase('Pax Child') }}</label>
-                                                                    <input type="number" name="pax_child" min="0" class="app-input mt-1" required>
-                                                                </div>
-                                                            @endif
-                                                        </div>
-                                                    </div>
-
-                                                    <div class="sm:col-span-2">
-                                                        <label class="block text-xs font-semibold text-gray-600 dark:text-gray-300">{{ ui_phrase('Notes') }}</label>
-                                                        <textarea name="notes" rows="2" class="app-input mt-1"></textarea>
-                                                    </div>
-
-                                                    <div class="sm:col-span-2 flex items-center justify-end gap-2">
-                                                        <button type="button" class="btn-ghost" x-on:click.prevent="$dispatch('close-modal', 'book-service-modal-{{ $quotationItem->id }}')">{{ ui_phrase('Cancel') }}</button>
-                                                        <button type="submit" class="btn-primary">{{ ui_phrase('Booking') }}</button>
-                                                    </div>
-                                                </form>
-                                            </div>
-                                        </x-modal>
-                                    @elseif ($item && $latestBookingLog)
-                                        <x-modal name="edit-book-service-modal-{{ $quotationItem->id }}" focusable maxWidth="2xl">
-                                            <div class="p-5">
-                                                <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ ui_phrase('Edit Booking Service') }}</h3>
-                                                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ $displayDescription }}</p>
-
-                                                <form method="POST" action="{{ route('bookings.services.update', ['booking' => $booking, 'quotationItem' => $quotationItem]) }}" class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                                                    @csrf
-                                                    @method('PATCH')
-
-                                                    <div>
-                                                        <label class="block text-xs font-semibold text-gray-600 dark:text-gray-300">{{ ui_phrase('Vendor/Provider') }}</label>
-                                                        <input
-                                                            type="text"
-                                                            name="vendor_provider_item_name"
-                                                            value="{{ old('vendor_provider_item_name', $latestBookingLog->vendor_provider_item_name ?? $vendorProviderValue) }}"
-                                                            class="app-input mt-1"
-                                                        >
-                                                    </div>
-
-                                                    <div>
-                                                        <label class="block text-xs font-semibold text-gray-600 dark:text-gray-300">{{ ui_phrase('Contact Channel') }}</label>
-                                                        <select name="contact_channel" class="app-input mt-1">
-                                                            <option value="">{{ ui_phrase('Select one') }}</option>
-                                                            @php $currentChannel = old('contact_channel', $latestBookingLog->contact_channel ?? ''); @endphp
-                                                            <option value="Email" @selected($currentChannel === 'Email')>Email</option>
-                                                            <option value="WhatsApp" @selected($currentChannel === 'WhatsApp')>WhatsApp</option>
-                                                            <option value="WeChat" @selected($currentChannel === 'WeChat')>WeChat</option>
-                                                            <option value="Phone" @selected($currentChannel === 'Phone')>Phone</option>
-                                                            <option value="Other" @selected($currentChannel === 'Other')>Other</option>
-                                                        </select>
-                                                    </div>
-
-                                                    <div>
-                                                        <label class="block text-xs font-semibold text-gray-600 dark:text-gray-300">{{ ui_phrase('Contact Detail') }}</label>
-                                                        <input
-                                                            type="text"
-                                                            name="contact_value"
-                                                            value="{{ old('contact_value', $latestBookingLog->contact_value ?? $vendorContactDetailValue) }}"
-                                                            class="app-input mt-1"
-                                                        >
-                                                    </div>
-
-                                                    <div>
-                                                        <label class="block text-xs font-semibold text-gray-600 dark:text-gray-300">{{ ui_phrase('Contact Person') }}</label>
-                                                        <input
-                                                            type="text"
-                                                            name="contacted_person_name"
-                                                            value="{{ old('contacted_person_name', $latestBookingLog->contacted_person_name ?? $contactedPersonValue) }}"
-                                                            class="app-input mt-1"
-                                                        >
-                                                    </div>
-
-                                                    <div>
-                                                        <label class="block text-xs font-semibold text-gray-600 dark:text-gray-300">{{ ui_phrase('Service Date') }}</label>
-                                                        <input
-                                                            type="date"
-                                                            name="service_date"
-                                                            value="{{ old('service_date', optional($latestBookingLog->service_date)->format('Y-m-d') ?? $serviceDateValue) }}"
-                                                            class="app-input mt-1"
-                                                            required
-                                                        >
-                                                    </div>
-
-                                                    <div>
-                                                        <label class="block text-xs font-semibold text-gray-600 dark:text-gray-300">{{ ui_phrase('Confirmation Number') }}</label>
-                                                        <input
-                                                            type="text"
-                                                            name="confirmation_number"
-                                                            value="{{ old('confirmation_number', $latestBookingLog->confirmation_number ?? '') }}"
-                                                            class="app-input mt-1"
-                                                        >
-                                                    </div>
-
-                                                    <div>
-                                                        <label class="block text-xs font-semibold text-gray-600 dark:text-gray-300">{{ ui_phrase('Pax Adult') }}</label>
-                                                        <input
-                                                            type="number"
-                                                            name="pax_adult"
-                                                            min="0"
-                                                            value="{{ old('pax_adult', (int) ($latestBookingLog->pax_adult ?? $paxAdultValue ?? 0)) }}"
-                                                            class="app-input mt-1"
-                                                            required
-                                                        >
-                                                    </div>
-
-                                                    <div>
-                                                        <label class="block text-xs font-semibold text-gray-600 dark:text-gray-300">{{ ui_phrase('Pax Child') }}</label>
-                                                        <input
-                                                            type="number"
-                                                            name="pax_child"
-                                                            min="0"
-                                                            value="{{ old('pax_child', (int) ($latestBookingLog->pax_child ?? $paxChildValue ?? 0)) }}"
-                                                            class="app-input mt-1"
-                                                            required
-                                                        >
-                                                    </div>
-
-                                                    <div class="sm:col-span-2">
-                                                        <label class="block text-xs font-semibold text-gray-600 dark:text-gray-300">{{ ui_phrase('Notes') }}</label>
-                                                        <textarea name="notes" rows="2" class="app-input mt-1">{{ old('notes', $latestBookingLog->notes ?? '') }}</textarea>
-                                                    </div>
-
-                                                    <div class="sm:col-span-2 flex items-center justify-end gap-2">
-                                                        <button type="button" class="btn-ghost" x-on:click.prevent="$dispatch('close-modal', 'edit-book-service-modal-{{ $quotationItem->id }}')">{{ ui_phrase('Cancel') }}</button>
-                                                        <button type="submit" class="btn-primary">{{ ui_phrase('Update Booking Service') }}</button>
-                                                    </div>
-                                                </form>
-                                            </div>
-                                        </x-modal>
-                                    @endif
                                 @empty
                                     <tr class="odd:bg-gray-50 even:bg-white hover:bg-amber-50 dark:odd:bg-gray-800/40 dark:even:bg-gray-900/40 dark:hover:bg-amber-900/20 transition-colors">
-                                        <td colspan="7" class="px-3 py-3 text-sm text-gray-500">{{ ui_phrase('No :entity available.', ['entity' => ui_phrase('Items')]) }}</td>
+                                        <td colspan="6" class="px-3 py-3 text-sm text-gray-500">{{ ui_phrase('No :entity available.', ['entity' => ui_phrase('Items')]) }}</td>
                                     </tr>
                                 @endforelse
                             </tbody>
@@ -682,10 +476,40 @@
     </div>
 
     <x-modal name="booking-voucher-modal" focusable maxWidth="2xl">
-        <div class="p-5">
+        <div
+            class="p-5"
+            x-data="{
+                voucher: {
+                    number: '-',
+                    status: '-',
+                    item: '-',
+                    bookingSummary: '-',
+                    customer: '-',
+                    tourName: '-',
+                    qty: '-',
+                    serviceDate: '-',
+                    serviceTime: '-',
+                pickup: '-',
+                vendorName: '-',
+                vendorPhone: '-',
+                vendorEmail: '-',
+                toLocation: '-',
+                toContact: '-',
+                confirmation: '-',
+                contactedPerson: '-',
+                contactChannel: '-',
+                contactDetail: '-',
+                },
+            }"
+            x-init="
+                window.addEventListener('booking-voucher-preview-updated', (event) => {
+                    voucher = { ...voucher, ...(event.detail || {}) };
+                });
+            "
+        >
             <div class="border border-gray-900 text-gray-900 dark:border-gray-200 dark:text-gray-100">
                 <div class="border-b border-gray-900 px-3 py-2 text-xs dark:border-gray-200">
-                    <p id="voucher-booking-summary">No booking log available.</p>
+                    <p id="voucher-booking-summary">{{ ui_phrase('No booking log available.') }}</p>
                 </div>
                 <div class="grid grid-cols-12 border-b border-gray-900 dark:border-gray-200">
                     <div class="col-span-5 border-r border-gray-900 p-3 dark:border-gray-200">
@@ -699,10 +523,11 @@
                             <p class="font-semibold">{{ ui_phrase('TO') }} :</p>
                             <div>
                                 <p class="font-semibold" x-text="voucher.vendorName">-</p>
-                                <p x-text="voucher.vendorPhone">-</p>
+                                <p class="mt-1 text-xs" x-text="voucher.toLocation">-</p>
+                                <p class="text-xs" x-text="voucher.toContact">-</p>
                             </div>
                             <p class="mt-1 font-semibold">{{ ui_phrase('No') }} :</p>
-                            <p class="mt-1 text-2xl font-bold leading-tight" x-text="voucher.number">-</p>
+                            <p class="mt-1 font-bold leading-tight" x-text="voucher.number">-</p>
                         </div>
                     </div>
                 </div>
@@ -748,7 +573,9 @@
                 <div class="grid grid-cols-12 text-sm">
                     <div class="col-span-5 border-r border-gray-900 p-2 dark:border-gray-200">
                         <p class="font-semibold">{{ ui_phrase('Final service to be rendered as') }} :</p>
-                        <p class="mt-4">{{ ui_phrase('Confirmed By') }} : {{ $companyName }}</p>
+                        <p class="mt-4">{{ ui_phrase('Confirmed By') }} : <span x-text="voucher.contactedPerson">-</span></p>
+                        <p class="mt-1">{{ ui_phrase('Contact Channel') }} : <span x-text="voucher.contactChannel">-</span></p>
+                        <p class="mt-1">{{ ui_phrase('Contact Detail') }} : <span x-text="voucher.contactDetail">-</span></p>
                     </div>
                     <div class="col-span-4 border-r border-gray-900 p-2 dark:border-gray-200">
                         <p class="font-semibold">{{ ui_phrase('Tour Guide') }}:</p>

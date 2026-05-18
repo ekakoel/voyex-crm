@@ -2,6 +2,8 @@
     $buttonLabel = $buttonLabel ?? 'Save';
     $itineraries = $itineraries ?? collect();
     $inquiries = $inquiries ?? collect();
+    $customers = $customers ?? collect();
+    $destinations = $destinations ?? collect();
     $prefillItineraryId = $prefillItineraryId ?? null;
     $isEditQuotation = isset($quotation) && $quotation instanceof \App\Models\Quotation;
     $itineraryEditUrlTemplate = route('itineraries.edit', ['itinerary' => '__ITINERARY_ID__']);
@@ -12,6 +14,22 @@
         $durationDaysValue = max(1, (int) ($selectedItineraryForDuration->duration_days ?? 1));
         $durationNightsValue = max(0, (int) ($selectedItineraryForDuration->duration_nights ?? max(0, $durationDaysValue - 1)));
         $initialDurationText = $durationDaysValue . 'D' . ($durationNightsValue > 0 ? '/' . $durationNightsValue . 'N' : '');
+    }
+    $selectedDestinationId = old('destination_id');
+    if ($selectedDestinationId === null || $selectedDestinationId === '') {
+        $selectedDestinationId = $selectedItineraryForDuration?->destination_id ?? '';
+    }
+    $selectedCustomerId = old('customer_id');
+    if ($selectedCustomerId === null || $selectedCustomerId === '') {
+        $selectedCustomerId = $quotation->inquiry?->customer_id
+            ?? $selectedItineraryForDuration?->inquiryReferences?->first()?->customer_id
+            ?? '';
+    }
+    $selectedInquiryId = old('inquiry_id');
+    if ($selectedInquiryId === null || $selectedInquiryId === '') {
+        $selectedInquiryId = $quotation->inquiry_id
+            ?? $selectedItineraryForDuration?->inquiryReferences?->first()?->id
+            ?? '';
     }
 @endphp
 
@@ -179,12 +197,6 @@
 @endphp
 
 <div class="space-y-5 module-form quotation-form-no-labels">
-    @if (session('error'))
-        <div class="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-800 dark:bg-rose-900/20 dark:text-rose-300">
-            {{ session('error') }}
-        </div>
-    @endif
-
     @if ($errors->any())
         <div class="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-800 dark:bg-rose-900/20 dark:text-rose-300">
             <p class="font-semibold">{{ __('Gagal menyimpan quotation. Mohon periksa data berikut:') }}</p>
@@ -196,8 +208,23 @@
         </div>
     @endif
 
-    <div class="grid grid-cols-1 gap-4">
-        <div>
+    <div class="grid grid-cols-1 gap-4 lg:grid-cols-12">
+        <div class="lg:col-span-4">
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Destination') }}</label>
+            <select
+                id="destination-select"
+                name="destination_id"
+                class="mt-1 app-input"
+            >
+                <option value="">{{ ui_phrase('All destinations') }}</option>
+                @foreach ($destinations as $destination)
+                    <option value="{{ $destination->id }}" @selected((string) $selectedDestinationId === (string) $destination->id)>
+                        {{ $destination->name }}
+                    </option>
+                @endforeach
+            </select>
+        </div>
+        <div class="lg:col-span-8">
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Itinerary') }} <span class="text-rose-600">*</span></label>
             <div class="mt-1 flex flex-col gap-2 sm:flex-row sm:items-center">
                 <select
@@ -212,22 +239,15 @@
                     @foreach ($itineraries as $itinerary)
                         <option
                             value="{{ $itinerary->id }}"
-                            data-inquiry-id="{{ $itinerary->inquiry_id ?? '' }}"
-                            data-inquiry-number="{{ $itinerary->inquiry?->inquiry_number ?? '' }}"
+                            data-destination-id="{{ $itinerary->destination_id ?? '' }}"
+                            data-inquiry-id="{{ $itinerary->reference_inquiry_id ?? '' }}"
+                            data-inquiry-number="{{ $itinerary->reference_inquiry_number ?? '' }}"
+                            data-customer-id="{{ $itinerary->reference_customer_id ?? '' }}"
                             data-duration-days="{{ (int) ($itinerary->duration_days ?? 1) }}"
                             data-duration-nights="{{ (int) ($itinerary->duration_nights ?? max(0, ((int) ($itinerary->duration_days ?? 1)) - 1)) }}"
                             @selected((string) old('itinerary_id', $quotation->itinerary_id ?? $prefillItineraryId ?? '') === (string) $itinerary->id)
                         >
                             {{ $itinerary->title }}
-                            @if (!empty($itinerary->destination))
-                                | {{ $itinerary->destination }}
-                            @endif
-                            @if (!empty($itinerary->inquiry?->inquiry_number))
-                                | {{ $itinerary->inquiry?->inquiry_number }}
-                            @endif
-                            @if (!empty($itinerary->inquiry?->customer?->name))
-                                - {{ $itinerary->inquiry?->customer?->name }}
-                            @endif
                         </option>
                     @endforeach
                 </select>
@@ -242,15 +262,6 @@
                     <i class="fa-solid fa-pen-to-square" aria-hidden="true"></i>
                     <span>Itinerary</span>
                 </a>
-                @if ($isEditQuotation)
-                    <button
-                        type="button"
-                        id="itinerary-update-contract-rate-btn"
-                        class="btn-outline-sm min-h-[42px] w-full sm:w-auto"
-                    >
-                        Update Contract Rate
-                    </button>
-                @endif
                 <button
                     type="button"
                     id="itinerary-generate-btn"
@@ -260,20 +271,84 @@
                 </button>
             </div>
             <p id="itinerary-generate-status" class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                Use Generate to fill items from the selected itinerary.@if ($isEditQuotation) Use "Update Contract Rate" to sync the latest rates without replacing the item structure.@endif
+                {{ ui_phrase('Use Generate to fill items from the selected itinerary.') }}
             </p>
             @error('itinerary_id')
                 <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
             @enderror
             @if ($itineraries->isEmpty())
                 <p class="mt-1 text-xs text-amber-600 dark:text-amber-400">
-                    No active itinerary is ready to use for this quotation yet. Please create or activate an itinerary first.
+                    {{ ui_phrase('No active itinerary is ready to use for this quotation yet. Please create or activate an itinerary first.') }}
                 </p>
             @endif
         </div>
     </div>
 
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Inquiry') }}</label>
+            <select
+                id="inquiry-select"
+                name="inquiry_id"
+                class="mt-1 app-input"
+            >
+                <option value="">{{ ui_phrase('Select Inquiry (optional)') }}</option>
+                @foreach ($inquiries as $inquiry)
+                    @php
+                        $customerCode = strtoupper(trim((string) ($inquiry->customer?->code ?? '')));
+                        if ($customerCode === '') {
+                            $customerCode = strtoupper(trim((string) ($inquiry->customer?->name ?? '')));
+                        }
+                        if ($customerCode === '') {
+                            $customerCode = '-';
+                        }
+                        $inquiryNumber = trim((string) ($inquiry->inquiry_number ?? ''));
+                        if ($inquiryNumber === '') {
+                            $inquiryNumber = '#' . $inquiry->id;
+                        }
+                        $inquiryDeadline = $inquiry->deadline ? $inquiry->deadline->format('Y-m-d') : '-';
+                        $inquiryLabel = $customerCode . ' | ' . $inquiryNumber . ' - ' . $inquiryDeadline;
+                    @endphp
+                    <option
+                        value="{{ $inquiry->id }}"
+                        data-customer-id="{{ $inquiry->customer_id ?? '' }}"
+                        @selected((string) $selectedInquiryId === (string) $inquiry->id)
+                    >
+                        {{ $inquiryLabel }}
+                    </option>
+                @endforeach
+            </select>
+            @error('inquiry_id')
+                <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
+            @enderror
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Customer/Agent') }} <span class="text-rose-600">*</span></label>
+            <select
+                id="customer-agent-select"
+                name="customer_id"
+                class="mt-1 app-input"
+                required
+            >
+                <option value="">{{ ui_phrase('Select Customer/Agent') }}</option>
+                @foreach ($customers as $customer)
+                    @php
+                        $customerName = trim((string) ($customer->name ?? ''));
+                        $customerCompany = trim((string) ($customer->company_name ?? ''));
+                        $customerLabel = $customerName !== '' ? $customerName : '-';
+                        if ($customerName !== '' && $customerCompany !== '') {
+                            $customerLabel = $customerName . ' | ' . $customerCompany;
+                        }
+                    @endphp
+                    <option value="{{ $customer->id }}" @selected((string) $selectedCustomerId === (string) $customer->id)>
+                        {{ $customerLabel }}
+                    </option>
+                @endforeach
+            </select>
+            @error('customer_id')
+                <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
+            @enderror
+        </div>
         <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Order Number') }} <span class="text-rose-600">*</span></label>
             <input
@@ -285,7 +360,7 @@
                 required
             >
             <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                Use alphanumeric format without spaces.
+                {{ ui_phrase('Use alphanumeric format without spaces.') }}
             </p>
             @error('order_number')
                 <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
@@ -359,7 +434,7 @@
     <div id="quotation-items-section" class="rounded-xl border border-gray-200 p-4 dark:border-gray-700 {{ $hasItems ? '' : 'hidden' }}">
         @if ($errors->has('items') || $errors->has('items.*.description') || $errors->has('items.*.qty') || $errors->has('items.*.unit_price'))
             <div class="mb-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700 dark:border-rose-800 dark:bg-rose-900/20 dark:text-rose-300">
-                Please review quotation items again. Make sure Description, Qty, and Unit Price are filled correctly.
+                {{ ui_phrase('Please review quotation items again. Make sure Description, Qty, and Unit Price are filled correctly.') }}
             </div>
         @endif
         <div class="flex flex-wrap items-center justify-between gap-2">
@@ -711,9 +786,10 @@
                 if (!itemsContainer || !itemsTemplate || !manualItemsContainer || !manualItemsTemplate) return;
 
                 const itinerarySelect = document.getElementById('itinerary-select');
+                const destinationSelect = document.getElementById('destination-select');
                 const inquirySelect = document.getElementById('inquiry-select');
+                const customerSelect = document.getElementById('customer-agent-select');
                 const generateBtn = document.getElementById('itinerary-generate-btn');
-                const updateContractRateBtn = document.getElementById('itinerary-update-contract-rate-btn');
                 const statusEl = document.getElementById('itinerary-generate-status');
                 const summaryEl = document.getElementById('itinerary-items-summary');
                 const itemsSection = document.getElementById('quotation-items-section');
@@ -728,9 +804,30 @@
 
                 const endpoint = itinerarySelect ? (itinerarySelect.dataset.endpoint || '') : '';
                 const canUseItinerary = Boolean(itinerarySelect && generateBtn);
-                const canUpdateContractRate = Boolean(canUseItinerary && updateContractRateBtn);
+                const itineraryOptionDataset = itinerarySelect
+                    ? Array.from(itinerarySelect.options).map((option, index) => ({
+                        value: String(option.value || ''),
+                        text: option.textContent || '',
+                        destinationId: String(option.dataset.destinationId || ''),
+                        inquiryId: String(option.dataset.inquiryId || ''),
+                        inquiryNumber: String(option.dataset.inquiryNumber || ''),
+                        customerId: String(option.dataset.customerId || ''),
+                        durationDays: String(option.dataset.durationDays || ''),
+                        durationNights: String(option.dataset.durationNights || ''),
+                        isPlaceholder: index === 0,
+                    }))
+                    : [];
                 const currencyCode = String(window.appCurrency || 'IDR').toUpperCase();
                 const rateToIdr = Number(window.appCurrencyRateToIdr || 1);
+                const i18n = {
+                    selectItineraryFirst: @json(ui_phrase('Please select an itinerary first.')),
+                    replaceExistingItemsConfirm: @json(ui_phrase('Existing items will be replaced. Continue?')),
+                    fetchingItems: @json(ui_phrase('Fetching items from itinerary...')),
+                    fetchItemsFailed: @json(ui_phrase('Failed to fetch items from itinerary.')),
+                    itemsLoadedPattern: @json(ui_phrase('Items loaded: :count.')),
+                    missingPricePattern: @json(ui_phrase('Note: :count items have zero price. Please review.')),
+                    manualItemAdded: @json(ui_phrase('Manual item added successfully.')),
+                };
 
                 const parseInteger = (value) => {
                     const raw = String(value ?? '').trim();
@@ -1116,60 +1213,6 @@
                     }
                 };
 
-                const buildItemKey = (payload, includeDay = true) => {
-                    const meta = parseMetaValue(payload?.serviceable_meta ?? null) || {};
-                    const paxType = String(meta?.pax_type || '').trim().toLowerCase();
-                    const itineraryItemType = String(payload?.itinerary_item_type || '').trim().toLowerCase();
-                    const serviceableType = String(payload?.serviceable_type || '').trim().toLowerCase();
-                    const serviceableId = Number(payload?.serviceable_id || 0);
-                    const dayNumberRaw = Number(payload?.day_number || 0);
-                    const dayNumber = Number.isFinite(dayNumberRaw) && dayNumberRaw > 0 ? dayNumberRaw : '';
-                    const keyParts = [
-                        serviceableType,
-                        serviceableId > 0 ? String(serviceableId) : '',
-                        includeDay ? String(dayNumber) : '',
-                        paxType,
-                        itineraryItemType,
-                    ];
-
-                    return keyParts.join('|');
-                };
-
-                const buildRowItemKey = (row, includeDay = true) => {
-                    if (!row) return '';
-                    const payload = {
-                        serviceable_type: row.querySelector('[data-field="serviceable_type"]')?.value || '',
-                        serviceable_id: row.querySelector('[data-field="serviceable_id"]')?.value || '',
-                        day_number: row.querySelector('[data-field="day_number"]')?.value || '',
-                        itinerary_item_type: row.querySelector('[data-field="itinerary_item_type"]')?.value || '',
-                        serviceable_meta: row.querySelector('[data-field="serviceable_meta"]')?.value || '',
-                    };
-
-                    return buildItemKey(payload, includeDay);
-                };
-
-                const buildRateLookupQueue = (items, includeDay = true) => {
-                    const queue = new Map();
-                    (Array.isArray(items) ? items : []).forEach((item) => {
-                        const key = buildItemKey(item, includeDay);
-                        if (!key) return;
-                        if (!queue.has(key)) {
-                            queue.set(key, []);
-                        }
-                        queue.get(key).push(item);
-                    });
-
-                    return queue;
-                };
-
-                const shiftRateFromQueue = (queue, key) => {
-                    if (!queue || !key || !queue.has(key)) return null;
-                    const list = queue.get(key) || [];
-                    if (list.length === 0) return null;
-
-                    return list.shift() || null;
-                };
-
                 const applyPaxTypeBadge = (rowEl, sourceRow = null) => {
                     if (!rowEl) return;
                     const badgeEl = rowEl.querySelector('[data-field="pax_type_badge"]');
@@ -1335,7 +1378,7 @@
                 const updateGenerateButtonState = () => {
                     if (!canUseItinerary) return;
                     const shouldDisable = itinerarySelect.value === '';
-                    [generateBtn, updateContractRateBtn].filter(Boolean).forEach((buttonEl) => {
+                    [generateBtn].filter(Boolean).forEach((buttonEl) => {
                         buttonEl.disabled = shouldDisable;
                         buttonEl.classList.toggle('opacity-60', shouldDisable);
                         buttonEl.classList.toggle('cursor-not-allowed', shouldDisable);
@@ -1383,20 +1426,12 @@
                     const selectedOption = itinerarySelect?.options[itinerarySelect.selectedIndex];
                     const selectedItineraryId = itinerarySelect?.value || '';
                     const itineraryInquiryId = selectedOption?.dataset?.inquiryId || '';
-                    const selectedInquiryId = inquirySelect?.value || '';
                     const detail = {
                         itineraryId: selectedItineraryId,
-                        inquiryId: selectedItineraryId !== '' ? itineraryInquiryId : selectedInquiryId,
+                        inquiryId: itineraryInquiryId,
                         inquiryNumber: selectedOption?.dataset?.inquiryNumber || '',
                     };
                     window.dispatchEvent(new CustomEvent('quotation:itinerary-selected', { detail }));
-                };
-
-                const emitInquirySelection = () => {
-                    const detail = {
-                        inquiryId: inquirySelect?.value || '',
-                    };
-                    window.dispatchEvent(new CustomEvent('quotation:inquiry-selected', { detail }));
                 };
 
                 const setOptionVisibility = (optionEl, isVisible) => {
@@ -1420,88 +1455,86 @@
                     return String(option?.dataset?.inquiryId || '').trim();
                 };
 
-                const getSelectedInquiryLinkedItineraryId = () => {
-                    const option = inquirySelect?.options?.[inquirySelect.selectedIndex];
-                    return String(option?.dataset?.linkedItineraryId || '').trim();
-                };
-
-                const hasSelectedInquiryLinkedItinerary = () => {
-                    const option = inquirySelect?.options?.[inquirySelect.selectedIndex];
-                    return String(option?.dataset?.hasLinkedItinerary || '0') === '1';
-                };
-
                 const applyItineraryInquiryLinkRules = (source = '') => {
                     if (!itinerarySelect) return;
-                    if (!inquirySelect) {
-                        emitItinerarySelection();
-                        return;
-                    }
-
                     resetOptionVisibility(itinerarySelect);
-                    resetOptionVisibility(inquirySelect);
-
                     const selectedItineraryId = String(itinerarySelect.value || '').trim();
-                    let selectedInquiryId = String(inquirySelect.value || '').trim();
+                    const option = itinerarySelect?.options?.[itinerarySelect.selectedIndex];
+                    const linkedInquiryId = String(option?.dataset?.inquiryId || '').trim();
+                    const linkedCustomerId = String(option?.dataset?.customerId || '').trim();
 
-                    if (selectedItineraryId !== '') {
-                        const linkedInquiryId = getSelectedItineraryInquiryId();
-                        if (linkedInquiryId !== '') {
-                            inquirySelect.value = linkedInquiryId;
-                            selectedInquiryId = linkedInquiryId;
-                        } else {
-                            Array.from(inquirySelect.options).forEach((option, index) => {
-                                if (index === 0) return;
-                                const hasLinked = String(option.dataset.hasLinkedItinerary || '0') === '1';
-                                const isSelected = option.value === selectedInquiryId;
-                                setOptionVisibility(option, !hasLinked || isSelected);
-                            });
-
-                            if (selectedInquiryId !== '' && hasSelectedInquiryLinkedItinerary()) {
-                                inquirySelect.value = '';
-                                selectedInquiryId = '';
-                            }
+                    // If itinerary has inquiry reference, prefill inquiry + customer (but still editable).
+                    if (source !== 'inquiry' && source !== 'customer') {
+                        if (inquirySelect) {
+                            inquirySelect.value = linkedInquiryId !== '' ? linkedInquiryId : '';
+                        }
+                        if (customerSelect && linkedCustomerId !== '') {
+                            customerSelect.value = linkedCustomerId;
                         }
                     }
 
-                    if (selectedInquiryId !== '') {
-                        const linkedItineraryId = getSelectedInquiryLinkedItineraryId();
-                        if (linkedItineraryId !== '' && source !== 'itinerary') {
-                            const hasMatchingItinerary = Array.from(itinerarySelect.options).some((option) => option.value === linkedItineraryId);
-                            if (hasMatchingItinerary) {
-                                itinerarySelect.value = linkedItineraryId;
+                    if (customerSelect) {
+                        if (selectedItineraryId !== '') {
+                            // Auto-fill from itinerary only on init/itinerary-driven events.
+                            // Do not overwrite when user manually changes customer.
+                            if (source !== 'customer' && source !== 'inquiry') {
+                                if (linkedCustomerId !== '') {
+                                    customerSelect.value = linkedCustomerId;
+                                }
                             }
                         }
                     }
-
-                    const selectedInquiryLinkedItineraryId = getSelectedInquiryLinkedItineraryId();
-                    if (selectedInquiryId !== '' && selectedInquiryLinkedItineraryId === '' && selectedItineraryId === '') {
-                        Array.from(itinerarySelect.options).forEach((option, index) => {
-                            if (index === 0) return;
-                            const itineraryInquiryId = String(option.dataset.inquiryId || '').trim();
-                            const isSelected = option.value === String(itinerarySelect.value || '');
-                            setOptionVisibility(option, itineraryInquiryId === '' || isSelected);
-                        });
-                    }
-
-                    emitInquirySelection();
                     emitItinerarySelection();
                     updateItineraryDurationDisplay();
+                };
+
+                const filterItinerariesByDestination = () => {
+                    if (!itinerarySelect || !destinationSelect) return;
+                    const selectedDestinationId = String(destinationSelect.value || '').trim();
+                    const currentValue = String(itinerarySelect.value || '').trim();
+                    const filtered = itineraryOptionDataset.filter((entry) => {
+                        if (entry.isPlaceholder) return true;
+                        return selectedDestinationId === '' || String(entry.destinationId || '') === selectedDestinationId;
+                    });
+
+                    itinerarySelect.innerHTML = '';
+                    filtered.forEach((entry) => {
+                        const option = document.createElement('option');
+                        option.value = entry.value;
+                        option.textContent = entry.text;
+                        if (!entry.isPlaceholder) {
+                            option.dataset.destinationId = entry.destinationId;
+                            option.dataset.inquiryId = entry.inquiryId;
+                            option.dataset.inquiryNumber = entry.inquiryNumber;
+                            option.dataset.customerId = entry.customerId;
+                            option.dataset.durationDays = entry.durationDays;
+                            option.dataset.durationNights = entry.durationNights;
+                        }
+                        itinerarySelect.appendChild(option);
+                    });
+
+                    const hasCurrentValue = filtered.some((entry) => entry.value === currentValue && !entry.isPlaceholder);
+                    if (hasCurrentValue) {
+                        itinerarySelect.value = currentValue;
+                    } else {
+                        itinerarySelect.value = '';
+                    }
                 };
 
                 const fetchItems = async () => {
                     if (!canUseItinerary || !itinerarySelect) return;
                     const itineraryId = itinerarySelect.value;
                     if (!itineraryId) {
-                        setStatus('Please select an itinerary first.');
+                        setStatus(i18n.selectItineraryFirst);
                         return;
                     }
                     if (hasFilledItems()) {
-                        const ok = window.confirm('Existing items will be replaced. Continue?');
+                        const ok = window.confirm(i18n.replaceExistingItemsConfirm);
                         if (!ok) return;
                     }
 
                     generateBtn.disabled = true;
-                    setStatus('Fetching items from itinerary...');
+                    setStatus(i18n.fetchingItems);
                     updateSummary('');
                     try {
                         const response = await fetch(`${endpoint}/${itineraryId}`, {
@@ -1511,100 +1544,19 @@
                             },
                         });
                         if (!response.ok) {
-                            setStatus('Failed to fetch items from itinerary.');
+                            setStatus(i18n.fetchItemsFailed);
                             return;
                         }
                         const payload = await response.json();
                         const items = Array.isArray(payload?.items) ? payload.items : [];
                         renderItems(items);
                         const missingCount = Number(payload?.meta?.missing_price_count || 0);
-                        setStatus(`Items loaded: ${items.length}.`);
+                        setStatus(i18n.itemsLoadedPattern.replace(':count', String(items.length)));
                         if (missingCount > 0) {
-                            updateSummary(`Note: ${missingCount} items have zero price. Please review.`);
+                            updateSummary(i18n.missingPricePattern.replace(':count', String(missingCount)));
                         }
                     } catch (err) {
-                        setStatus('Failed to fetch items from itinerary.');
-                    } finally {
-                        updateGenerateButtonState();
-                    }
-                };
-
-                const updateContractRatesOnly = async () => {
-                    if (!canUpdateContractRate || !itinerarySelect) return;
-                    const itineraryId = itinerarySelect.value;
-                    if (!itineraryId) {
-                        setStatus('Please select an itinerary first.');
-                        return;
-                    }
-
-                    const itineraryRows = Array.from(itemsContainer.querySelectorAll('.quotation-item-row'));
-                    if (itineraryRows.length === 0) {
-                        setStatus('No itinerary items are available to update yet.');
-                        return;
-                    }
-
-                    updateContractRateBtn.disabled = true;
-                    updateContractRateBtn.classList.add('opacity-60', 'cursor-not-allowed');
-                    setStatus('Updating contract rates from the latest itinerary...');
-                    updateSummary('');
-
-                    try {
-                        const response = await fetch(`${endpoint}/${itineraryId}`, {
-                            headers: {
-                                'X-Requested-With': 'XMLHttpRequest',
-                                Accept: 'application/json',
-                            },
-                        });
-                        if (!response.ok) {
-                            setStatus('Failed to fetch latest contract rates.');
-                            return;
-                        }
-
-                        const payload = await response.json();
-                        const latestItems = Array.isArray(payload?.items) ? payload.items : [];
-                        const exactQueue = buildRateLookupQueue(latestItems, true);
-                        const fallbackQueue = buildRateLookupQueue(latestItems, false);
-
-                        let updatedCount = 0;
-                        let unchangedCount = 0;
-                        let missingCount = 0;
-
-                        itineraryRows.forEach((row) => {
-                            const contractRateInput = row.querySelector('[data-field="contract_rate"]');
-                            if (!contractRateInput) {
-                                missingCount += 1;
-                                return;
-                            }
-
-                            const exactKey = buildRowItemKey(row, true);
-                            const fallbackKey = buildRowItemKey(row, false);
-                            const matchedItem = shiftRateFromQueue(exactQueue, exactKey)
-                                || shiftRateFromQueue(fallbackQueue, fallbackKey);
-
-                            if (!matchedItem) {
-                                missingCount += 1;
-                                return;
-                            }
-
-                            const latestContractRateIdr = Math.max(0, Math.round(Number(matchedItem?.contract_rate || 0)));
-                            const latestContractRateDisplay = Math.max(0, Math.round(idrToDisplay(latestContractRateIdr)));
-                            const currentContractRateDisplay = parseInteger(contractRateInput.value);
-
-                            if (currentContractRateDisplay !== latestContractRateDisplay) {
-                                setMoneyInputDisplay(contractRateInput, latestContractRateDisplay);
-                                updatedCount += 1;
-                            } else {
-                                unchangedCount += 1;
-                            }
-                        });
-
-                        recalcTotals();
-                        setStatus(`Contract rates updated: ${updatedCount} items.`);
-                        if (missingCount > 0 || unchangedCount > 0) {
-                            updateSummary(`Unchanged: ${unchangedCount} items | Not found: ${missingCount} items.`);
-                        }
-                    } catch (_) {
-                        setStatus('Failed to fetch latest contract rates.');
+                        setStatus(i18n.fetchItemsFailed);
                     } finally {
                         updateGenerateButtonState();
                     }
@@ -1612,7 +1564,6 @@
 
                 if (canUseItinerary) {
                     generateBtn.addEventListener('click', fetchItems);
-                    updateContractRateBtn?.addEventListener('click', updateContractRatesOnly);
                     itinerarySelect.addEventListener('change', () => {
                         applyItineraryInquiryLinkRules('itinerary');
                         updateGenerateButtonState();
@@ -1622,12 +1573,31 @@
                             updateSummary('');
                         }
                     });
+                    destinationSelect?.addEventListener('change', () => {
+                        filterItinerariesByDestination();
+                        applyItineraryInquiryLinkRules('destination');
+                        updateGenerateButtonState();
+                        updateItineraryEditButtonState();
+                        updateItineraryDurationDisplay();
+                    });
+                    filterItinerariesByDestination();
                     applyItineraryInquiryLinkRules('init');
                     updateGenerateButtonState();
                     updateItineraryEditButtonState();
                     updateItineraryDurationDisplay();
                 }
+                customerSelect?.addEventListener('change', () => {
+                    applyItineraryInquiryLinkRules('customer');
+                    updateGenerateButtonState();
+                    updateItineraryEditButtonState();
+                    updateItineraryDurationDisplay();
+                });
                 inquirySelect?.addEventListener('change', () => {
+                    const selectedOption = inquirySelect.options[inquirySelect.selectedIndex];
+                    const linkedCustomerId = String(selectedOption?.dataset?.customerId || '').trim();
+                    if (customerSelect && linkedCustomerId !== '') {
+                        customerSelect.value = linkedCustomerId;
+                    }
                     applyItineraryInquiryLinkRules('inquiry');
                     updateGenerateButtonState();
                     updateItineraryEditButtonState();
@@ -1664,7 +1634,7 @@
                     reindexItems();
                     const firstInput = node.querySelector('[data-field="description"]');
                     if (firstInput) firstInput.focus();
-                    setStatus('Manual item added successfully.');
+                    setStatus(i18n.manualItemAdded);
                     recalcTotals();
                 };
 

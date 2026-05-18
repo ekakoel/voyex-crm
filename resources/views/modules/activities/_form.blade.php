@@ -308,6 +308,8 @@
         @error('notes') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
     </div>
 
+    @include('components.cancellation-policy-editor', ['cancellationPolicyRules' => $cancellationPolicyRules ?? []])
+
     <div class="flex items-center gap-2">
         <input type="checkbox" name="is_active" value="1" class="rounded border-gray-300 text-indigo-600"
             @checked(old('is_active', $activity->is_active ?? true))>
@@ -536,5 +538,4 @@
         </script>
     @endpush
 @endonce
-
 

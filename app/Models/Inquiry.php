@@ -6,7 +6,6 @@ use App\Models\Concerns\HasAudit;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use App\Models\User;
 use App\Models\ActivityLog;
 use App\Traits\LogsActivity;
 use Illuminate\Support\Facades\Cache;
@@ -34,7 +33,6 @@ class Inquiry extends Model
         'status',
         'priority',
         'deadline',
-        'assigned_to',
         'notes',
         'reminder_enabled',
     ];
@@ -58,11 +56,6 @@ class Inquiry extends Model
         return $this->belongsTo(Customer::class);
     }
 
-    public function assignedUser()
-    {
-        return $this->belongsTo(User::class, 'assigned_to');
-    }
-
     public function followUps()
     {
         return $this->hasMany(InquiryFollowUp::class);
@@ -80,21 +73,14 @@ class Inquiry extends Model
 
     public function itineraries()
     {
-        return $this->hasMany(Itinerary::class);
+        return $this->belongsToMany(Itinerary::class, 'inquiry_itinerary_references', 'inquiry_id', 'itinerary_id')
+            ->withPivot(['id', 'created_by', 'created_at', 'updated_at'])
+            ->withTimestamps();
     }
 
     public function isFinal(): bool
     {
         return $this->status === self::FINAL_STATUS;
-    }
-
-    public function isAssignedTo(?User $user): bool
-    {
-        if (! $user) {
-            return false;
-        }
-
-        return (int) ($this->assigned_to ?? 0) === (int) $user->id;
     }
 
     protected static function boot()
@@ -170,6 +156,4 @@ class Inquiry extends Model
         return $letters;
     }
 }
-
-
 

@@ -169,6 +169,8 @@
                 <textarea name="cancellation_policy" rows="3" class="mt-1 app-input">{{ old('cancellation_policy', $hotel->cancellation_policy ?? '') }}</textarea>
             </div>
         </div>
+
+        @include('components.cancellation-policy-editor', ['cancellationPolicyRules' => $cancellationPolicyRules ?? []])
     </div>
 
     @if ($showActions)
@@ -177,7 +179,6 @@
         </div>
     @endif
 </div>
-
 
 
 

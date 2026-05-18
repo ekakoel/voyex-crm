@@ -2,10 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasCancellationPolicy;
+
 use Illuminate\Database\Eloquent\Model;
 
 class HotelRoom extends Model
 {
+    use HasCancellationPolicy;
+
     protected $fillable = [
         'hotels_id',
         'room_view_id',
@@ -48,6 +52,5 @@ class HotelRoom extends Model
         return $this->belongsTo(RoomView::class, 'room_view_id');
     }
 }
-
 
 

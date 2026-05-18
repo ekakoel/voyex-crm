@@ -3,13 +3,14 @@
 namespace App\Models;
 
 use App\Models\Concerns\HasAudit;
+use App\Models\Concerns\HasCancellationPolicy;
 use App\Traits\LogsActivity;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class FoodBeverage extends Model
 {
-    use HasAudit, LogsActivity, SoftDeletes;
+    use HasAudit, HasCancellationPolicy, LogsActivity, SoftDeletes;
     protected $fillable = [
         'vendor_id',
         'name',
@@ -21,6 +22,7 @@ class FoodBeverage extends Model
         'publish_rate',
         'meal_period',
         'menu_highlights',
+        'cancellation_policy',
         'notes',
         'gallery_images',
         'is_active',
@@ -41,8 +43,6 @@ class FoodBeverage extends Model
         return $this->belongsTo(Vendor::class);
     }
 }
-
-
 
 
 

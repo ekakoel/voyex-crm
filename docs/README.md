@@ -1,6 +1,6 @@
 # Documentation Structure
 
-Last Updated: 2026-04-27
+Last Updated: 2026-05-18
 
 ## Canonical Maintenance Rule
 - Canonical docs live in:
@@ -25,6 +25,7 @@ Last Updated: 2026-04-27
 - docs/technical/ITINERARY_CREATE_EDIT_FLOW.md
 - docs/technical/ITINERARY_DETAIL_MAP_ARCHITECTURE.md
 - docs/technical/ISLAND_TRANSFER_MODULE.md
+- docs/technical/BOOKING_MODULE.md
 - docs/technical/QUOTATION_APPROVAL_UAT_MATRIX.md
 - docs/technical/QUOTATION_VALIDATION_UAT_MATRIX.md
 - docs/technical/NOMINAL_INPUT_STANDARD.md

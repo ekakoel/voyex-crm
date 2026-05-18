@@ -19,8 +19,8 @@
                         <p class="text-sm text-gray-500 dark:text-gray-400">{{ ui_phrase('Refine your list quickly.') }}</p>
                     </div>
                     <form method="GET" action="{{ route('inquiries.index') }}" class="grid grid-cols-1 gap-3 sm:grid-cols-2" data-service-filter-form data-disable-submit-lock="1" data-page-spinner="off">
-                        <input name="q" value="{{ request('q') }}" placeholder="{{ ui_phrase('Search') }}"
-                            class="app-input sm:col-span-2" data-service-filter-input>
+                        <input type="text" name="q" value="{{ request('q') }}" placeholder="{{ ui_phrase('Search') }}"
+                            class="app-input sm:col-span-2" data-service-filter-input data-filter-min-text="3">
                         <select name="priority" class="app-input" data-service-filter-input>
                             <option value="">{{ ui_phrase('Priority') }}</option>
                             @foreach (['low', 'normal', 'high'] as $priority)
@@ -61,7 +61,7 @@
                                         {{ ui_phrase('Priority') }}</th>
                                     <th
                                         class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">
-                                        {{ ui_phrase('Assigned') }}</th>
+                                        {{ ui_phrase('Created By') }}</th>
                                     <th
                                         class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">
                                         {{ ui_phrase('Deadline') }}</th>
@@ -85,10 +85,10 @@
                                         <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">
                                             {{ ui_phrase((string) $inquiry->priority) }}</td>
                                         <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">
-                                            @if(($inquiry->assigned_to ?? null) === (auth()->user()?->id ?? null))
+                                            @if(($inquiry->created_by ?? null) === (auth()->user()?->id ?? null))
                                                 {{ ui_phrase('You') }}
                                             @else
-                                                {{ $inquiry->assignedUser->name ?? '-' }}
+                                                {{ $inquiry->creator->name ?? '-' }}
                                             @endif
                                         </td>
                                         <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">
@@ -157,12 +157,12 @@
                             <div class="mt-3 grid grid-cols-2 gap-2 text-xs text-gray-600 dark:text-gray-300">
                                 <div>{{ ui_phrase('Priority') }}</div>
                                 <div>{{ ui_phrase((string) $inquiry->priority) }}</div>
-                                <div>{{ ui_phrase('Assigned') }}</div>
+                                <div>{{ ui_phrase('Created By') }}</div>
                                 <div>
-                                    @if(($inquiry->assigned_to ?? null) === (auth()->user()?->id ?? null))
+                                    @if(($inquiry->created_by ?? null) === (auth()->user()?->id ?? null))
                                         {{ ui_phrase('You') }}
                                     @else
-                                        {{ $inquiry->assignedUser->name ?? '-' }}
+                                        {{ $inquiry->creator->name ?? '-' }}
                                     @endif
                                 </div>
                                 <div>{{ ui_phrase('Deadline') }}</div>
@@ -218,6 +218,7 @@
         </div>
     </div>
 @endsection
+
 
 
 

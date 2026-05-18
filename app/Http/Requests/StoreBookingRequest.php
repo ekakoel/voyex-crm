@@ -25,7 +25,6 @@ class StoreBookingRequest extends FormRequest
         return [
             'quotation_id' => ['required', 'exists:quotations,id', 'unique:bookings,quotation_id'],
             'travel_date' => ['required', 'date'],
-            'notes' => ['nullable', 'string'],
             'items' => ['required', 'array', 'min:1'],
             'items.*.quotation_item_id' => ['nullable', 'integer', 'exists:quotation_items,id'],
             'items.*.description' => ['required', 'string', 'max:255'],
@@ -35,7 +34,6 @@ class StoreBookingRequest extends FormRequest
             'items.*.serviceable_id' => ['nullable', 'integer', 'min:1'],
             'items.*.day_number' => ['nullable', 'integer', 'min:1'],
             'items.*.serviceable_meta' => ['nullable'],
-            'items.*.notes' => ['nullable', 'string'],
         ];
     }
 
@@ -57,21 +55,15 @@ class StoreBookingRequest extends FormRequest
             }
 
             if (! in_array((string) $quotation->status, ['approved', Quotation::FINAL_STATUS], true)) {
-                $validator->errors()->add('quotation_id', ui_phrase('Only approved/final quotation can be converted to booking.'));
+                $validator->errors()->add('quotation_id', ui_phrase('Only approved quotation can be converted to booking.'));
+            }
+
+            if ((string) ($quotation->validation_status ?? 'pending') !== 'valid') {
+                $validator->errors()->add('quotation_id', ui_phrase('Selected quotation validation must be 100% before booking.'));
             }
 
             if ((int) ($quotation->items_count ?? 0) <= 0) {
                 $validator->errors()->add('quotation_id', ui_phrase('Selected quotation has no items to be booked.'));
-            }
-
-            $notValidatedItemsCount = $quotation->items()
-                ->where(function ($q) {
-                    $q->whereNull('is_validated')
-                        ->orWhere('is_validated', false);
-                })
-                ->count();
-            if ($notValidatedItemsCount > 0) {
-                $validator->errors()->add('quotation_id', ui_phrase('Selected quotation still has unvalidated items.'));
             }
 
             if ((int) ($quotation->booking_count ?? 0) > 0) {

@@ -46,7 +46,7 @@
                                 type="button"
                                 class="tourist-gallery-remove-btn absolute right-1 top-1 z-10 inline-flex h-6 w-6 items-center justify-center rounded-full bg-rose-600/95 text-xs font-bold text-white shadow hover:bg-rose-700"
                                 title="{{ ui_phrase('Remove image') }}"
-                                aria-label="Remove image">
+                                aria-label="{{ ui_phrase('Remove image') }}">
                                 X
                             </button>
                             <div class="room-cover-preview image-preview flex w-full items-center justify-center overflow-hidden rounded-lg border-0 bg-gray-50 dark:bg-gray-800/40">
@@ -63,7 +63,7 @@
                                         data-fallback-src="{{ $fallbackSrc ?? '' }}"
                                         onload="this.classList.add('image-loaded');var p=this.closest('.image-preview');if(p){p.classList.add('has-image');}"
                                         onerror="var fallback=this.dataset.fallbackSrc||'';if(this.dataset.fallbackApplied||fallback===''){var p=this.closest('.image-preview');if(p){p.classList.remove('has-image');}this.remove();}else{this.dataset.fallbackApplied='1';this.src=fallback;}"
-                                        alt="Tourist attraction gallery"
+                                        alt="{{ ui_phrase('Tourist attraction gallery') }}"
                                         class="h-full w-full object-cover">
                                 @endif
                             </div>
@@ -114,7 +114,7 @@
     </div>
     
     @include('components.map-standard-section', [
-        'title' => 'Map & Location Standard',
+        'title' => ui_phrase('Map & Location Standard'),
         'mapPartial' => 'modules.hotels.partials._location-map',
         'mapValue' => old('google_maps_url', $touristAttraction->google_maps_url ?? ''),
         'latitudeValue' => old('latitude', $touristAttraction->latitude ?? ''),
@@ -134,7 +134,7 @@
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div>
             <x-money-input
-                label="Contract Rate (per pax)"
+                :label="ui_phrase('Contract Rate (per pax)')"
                 name="contract_rate_per_pax"
                 :value="$contractRateValue"
                 id="tourist-contract-rate"
@@ -153,7 +153,7 @@
         </div>
         <div>
             <x-money-input
-                label="Markup (per pax)"
+                :label="ui_phrase('Markup (per pax)')"
                 name="markup"
                 :value="$defaultMarkup"
                 id="tourist-markup"
@@ -164,7 +164,7 @@
         </div>
         <div>
             <x-money-input
-                label="Publish Rate (Auto / per pax)"
+                :label="ui_phrase('Publish Rate (Auto / per pax)')"
                 name="publish_rate_per_pax"
                 id="tourist-publish-rate"
                 :value="$publishRateValue"
@@ -180,6 +180,13 @@
         <textarea name="description" rows="4" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">{{ old('description', $touristAttraction->description ?? '') }}</textarea>
         @error('description') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
     </div>
+    <div>
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Cancellation Policy') }}</label>
+        <textarea name="cancellation_policy" rows="3" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">{{ old('cancellation_policy', $touristAttraction->cancellation_policy ?? '') }}</textarea>
+        @error('cancellation_policy') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+    </div>
+
+    @include('components.cancellation-policy-editor', ['cancellationPolicyRules' => $cancellationPolicyRules ?? []])
 
     <div class="flex items-center gap-2">
         <input type="checkbox" name="is_active" value="1" class="rounded border-gray-300 text-indigo-600"
@@ -204,6 +211,12 @@
                 const markupInput = document.getElementById('tourist-markup');
                 const publishRateInput = document.getElementById('tourist-publish-rate');
                 if (!input || !preview) return;
+                const i18n = {
+                    selectImagePreview: @json(ui_phrase('Select image to preview')),
+                    attractionGalleryPreview: @json(ui_phrase('Attraction gallery preview')),
+                    newUpload: @json(ui_phrase('New upload')),
+                    deleteImageFailed: @json(ui_phrase('Failed to delete image. Please try again.')),
+                };
 
                 const parseMoney = (value) => {
                     const raw = String(value ?? '').trim();
@@ -255,7 +268,7 @@
                             <path d="M4 7h3l2-2h6l2 2h3a1 1 0 0 1 1 1v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a1 1 0 0 1 1-1z"></path>
                             <circle cx="12" cy="13" r="4"></circle>
                         </svg>
-                        <span>Select image to preview</span>
+                        <span>${i18n.selectImagePreview}</span>
                     </div>
                 `;
 
@@ -292,7 +305,7 @@
                         media.className = 'room-cover-preview image-preview flex w-full items-center justify-center overflow-hidden rounded-lg border-0 bg-gray-50 dark:bg-gray-800/40';
                         media.innerHTML = buildPreviewPlaceholder();
                         const image = document.createElement('img');
-                        image.alt = 'Attraction gallery preview';
+                        image.alt = i18n.attractionGalleryPreview;
                         image.className = 'h-full w-full object-cover';
                         image.addEventListener('load', () => {
                             image.classList.add('image-loaded');
@@ -308,7 +321,7 @@
                         wrapper.appendChild(media);
                         const badge = document.createElement('div');
                         badge.className = 'border-t border-indigo-200 px-2 py-1 text-[11px] font-medium text-indigo-700 dark:border-indigo-700/60 dark:text-indigo-300';
-                        badge.textContent = 'New upload';
+                        badge.textContent = i18n.newUpload;
                         wrapper.appendChild(badge);
                         preview.appendChild(wrapper);
                     });
@@ -358,7 +371,7 @@
                     } catch (_) {
                         button.disabled = false;
                         button.classList.remove('opacity-70');
-                        alert('Failed to delete image. Please try again.');
+                        alert(i18n.deleteImageFailed);
                     }
                 });
 

@@ -34,18 +34,18 @@ class DashboardController extends Controller
         $monthlyRevenue = $canBookings
             ? Booking::join('quotations', 'bookings.quotation_id', '=', 'quotations.id')
                 ->join('inquiries', 'quotations.inquiry_id', '=', 'inquiries.id')
-                ->whereIn('inquiries.assigned_to', $salesTeamIds)
+                ->whereIn('inquiries.created_by', $salesTeamIds)
                 ->whereMonth('bookings.created_at', $now->month)
                 ->whereYear('bookings.created_at', $now->year)
                 ->sum('quotations.final_amount')
             : 0;
 
         // 2. Conversion Rate (team or individual based)
-        $totalInquiry = $canInquiries ? Inquiry::whereIn('assigned_to', $salesTeamIds)->count() : 0;
+        $totalInquiry = $canInquiries ? Inquiry::whereIn('created_by', $salesTeamIds)->count() : 0;
         $totalBooking = $canBookings
             ? Booking::join('quotations', 'bookings.quotation_id', '=', 'quotations.id')
                 ->join('inquiries', 'quotations.inquiry_id', '=', 'inquiries.id')
-                ->whereIn('inquiries.assigned_to', $salesTeamIds)
+                ->whereIn('inquiries.created_by', $salesTeamIds)
                 ->count()
             : 0;
 
@@ -57,7 +57,7 @@ class DashboardController extends Controller
         $pendingInquiries = $canInquiries
             ? Inquiry::with('customer')
                 ->whereIn('status', ['draft', 'processed'])
-                ->whereIn('assigned_to', $salesTeamIds)
+                ->whereIn('created_by', $salesTeamIds)
                 ->orderBy('created_at', 'desc')
                 ->limit(10)
                 ->get()

@@ -110,6 +110,12 @@
                         {{ session('success') }}
                     </div>
                 @endif
+                @if (session('error'))
+                    <div
+                        class="rounded-lg mb-6 border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-700 dark:bg-rose-900/20 dark:text-rose-300">
+                        {{ session('error') }}
+                    </div>
+                @endif
                 @if ($showNeedsMyApproval && request()->boolean('needs_my_approval'))
                     <div
                         class="rounded-lg mb-6 border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-700 dark:border-sky-700 dark:bg-sky-900/20 dark:text-sky-300">

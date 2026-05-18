@@ -7,7 +7,6 @@ use App\Http\Controllers\Controller;
 use App\Models\Customer;
 use App\Models\Inquiry;
 use App\Models\Quotation;
-use App\Models\User;
 use App\Services\ActivityAuditLogger;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -64,30 +63,57 @@ class InquiryController extends Controller
      */
     public function index()
     {
+        $searchKeyword = trim((string) request('q'));
+
         $query = Inquiry::query()
             ->withTrashed()
             ->with([
                 'customer',
-                'assignedUser',
+                'creator',
                 'quotations:id,inquiry_id,status',
-                'itineraries:id,inquiry_id,title,status,is_active,updated_at',
+                'itineraries' => function ($itineraryQuery) {
+                    $itineraryQuery
+                        ->select([
+                            'itineraries.id',
+                            'itineraries.title',
+                            'itineraries.status',
+                            'itineraries.is_active',
+                            'itineraries.updated_at',
+                        ])
+                        ->orderByDesc('itineraries.is_active')
+                        ->orderByDesc('itineraries.updated_at');
+                },
             ])
             ->withCount('itineraries');
 
-        $query->when(request('q'), function ($q) {
-            $term = request('q');
-            $q->where(function ($sub) use ($term) {
-                $sub->where('inquiry_number', 'like', "%{$term}%")
-                    ->orWhereHas('customer', function ($c) use ($term) {
-                        $c->where('name', 'like', "%{$term}%");
-                    });
-            });
-        });
+        if ($searchKeyword !== '') {
+            if (mb_strlen($searchKeyword) < 3) {
+                $query->whereRaw('1 = 0');
+            } else {
+                $query->where(function ($sub) use ($searchKeyword) {
+                    $sub
+                        ->where('inquiry_number', 'like', "%{$searchKeyword}%")
+                        ->orWhere('status', 'like', "%{$searchKeyword}%")
+                        ->orWhere('priority', 'like', "%{$searchKeyword}%")
+                        ->orWhereRaw("DATE_FORMAT(deadline, '%Y-%m-%d') LIKE ?", ["%{$searchKeyword}%"])
+                        ->orWhereHas('customer', function ($c) use ($searchKeyword) {
+                            $c->where('name', 'like', "%{$searchKeyword}%");
+                        })
+                        ->orWhereHas('creator', function ($creatorQuery) use ($searchKeyword) {
+                            $creatorQuery->where('name', 'like', "%{$searchKeyword}%");
+                        })
+                        ->orWhereHas('itineraries', function ($itineraryQuery) use ($searchKeyword) {
+                            $itineraryQuery
+                                ->where('title', 'like', "%{$searchKeyword}%")
+                                ->orWhere('status', 'like', "%{$searchKeyword}%");
+                        });
+                });
+            }
+        }
 
         $query->when(request('status'), fn ($q) => $q->where('status', request('status')));
         $query->when(request('priority'), fn ($q) => $q->where('priority', request('priority')));
         $query->when(request('customer_id'), fn ($q) => $q->where('customer_id', request('customer_id')));
-        $query->when(request('assigned_to'), fn ($q) => $q->where('assigned_to', request('assigned_to')));
         $query->when(request('source'), fn ($q) => $q->where('source', request('source')));
         $query->when(request('deadline_from'), fn ($q) => $q->whereDate('deadline', '>=', request('deadline_from')));
         $query->when(request('deadline_to'), fn ($q) => $q->whereDate('deadline', '<=', request('deadline_to')));
@@ -103,11 +129,9 @@ class InquiryController extends Controller
             ->paginate($perPage)
             ->withQueryString();
         $customers = Customer::query()->orderBy('name')->get();
-        $assignees = User::role(['Reservation', 'Manager', 'Director', 'Marketing'])->orderBy('name')->get();
-
         $sourceLabels = self::SOURCE_LABELS;
 
-        return view('modules.inquiries.index', compact('inquiries', 'customers', 'assignees', 'sourceLabels'));
+        return view('modules.inquiries.index', compact('inquiries', 'customers', 'sourceLabels'));
     }
 
     /**
@@ -136,7 +160,6 @@ class InquiryController extends Controller
         ]);
         $validated['reminder_enabled'] = true;
         $validated['status'] = 'draft';
-        $validated['assigned_to'] = null;
 
         $inquiry = Inquiry::withoutActivityLogging(function () use ($validated) {
             return Inquiry::query()->create($validated);
@@ -153,12 +176,7 @@ class InquiryController extends Controller
      */
     public function show(Request $request, Inquiry $inquiry)
     {
-        $inquiry->load(['customer', 'assignedUser', 'quotations:id,inquiry_id,status']);
-        $itineraries = $inquiry->itineraries()
-            ->select(['id', 'inquiry_id', 'title', 'status', 'is_active', 'updated_at'])
-            ->orderByDesc('is_active')
-            ->orderByDesc('updated_at')
-            ->get();
+        $inquiry->load(['customer', 'creator', 'quotations:id,inquiry_id,status']);
         $quotations = Quotation::query()
             ->where(function ($query) use ($inquiry): void {
                 $query->where('inquiry_id', $inquiry->id)
@@ -167,8 +185,16 @@ class InquiryController extends Controller
                     });
             })
             ->with('itinerary:id,title')
-            ->orderByDesc('updated_at')
-            ->get(['id', 'quotation_number', 'order_number', 'status', 'inquiry_id', 'itinerary_id', 'updated_at']);
+            ->orderByDesc('quotations.updated_at')
+            ->get([
+                'quotations.id',
+                'quotations.quotation_number',
+                'quotations.order_number',
+                'quotations.status',
+                'quotations.inquiry_id',
+                'quotations.itinerary_id',
+                'quotations.updated_at',
+            ]);
         $activities = $inquiry->activities()
             ->with('user:id,name')
             ->latest()
@@ -181,7 +207,7 @@ class InquiryController extends Controller
             return $this->activityTimelineFragmentResponse($activities);
         }
 
-        return view('modules.inquiries.show', compact('inquiry', 'itineraries', 'quotations', 'activities', 'sourceLabels', 'canManageInquiry'));
+        return view('modules.inquiries.show', compact('inquiry', 'quotations', 'activities', 'sourceLabels', 'canManageInquiry'));
     }
 
     /**
@@ -246,7 +272,6 @@ class InquiryController extends Controller
             'notes' => ['nullable', 'string'],
         ]);
         $validated['reminder_enabled'] = true;
-        $validated['assigned_to'] = null;
 
         $beforeAudit = $this->buildInquiryAuditSnapshot($inquiry);
         Inquiry::withoutActivityLogging(function () use ($inquiry, $validated): void {
@@ -339,7 +364,6 @@ class InquiryController extends Controller
             'status' => (string) ($inquiry->status ?? ''),
             'priority' => (string) ($inquiry->priority ?? ''),
             'deadline' => optional($inquiry->deadline)->format('Y-m-d'),
-            'assigned_to' => (int) ($inquiry->assigned_to ?? 0),
             'reminder_enabled' => (bool) ($inquiry->reminder_enabled ?? false),
             'notes' => trim((string) ($inquiry->notes ?? '')),
         ];

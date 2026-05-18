@@ -1,6 +1,6 @@
 # Voyex CRM Project Guidelines
 
-Last Updated: 2026-04-21
+Last Updated: 2026-05-18
 
 Dokumen ini berisi aturan kerja wajib. Untuk detail domain/fitur, rujuk `PROJECT_KNOWLEDGE_BASE.md`.
 
@@ -53,7 +53,7 @@ Aturan: jika `final`, data view-only (tanpa mutasi).
 5. Untuk modul transaksi berbasis owner, aksi mutasi `update/delete` wajib ownership-based dengan permission check:
    - wajib lolos permission terkait, dan
    - wajib lolos ownership check sesuai policy modul.
-   - untuk `Inquiry`: `creator OR assigned user` dapat memutasi inquiry.
+   - untuk `Inquiry`: `creator-only` dapat memutasi inquiry.
    - untuk `Itinerary`, `Quotation`, dan `Booking`: tetap `creator-only`.
 6. Ownership check harus diletakkan di Policy (bukan di Blade saja), dan UI hanya mengikuti hasil Policy via `@can`.
 7. Untuk modul read-only (contoh Invoice saat ini), jangan menambahkan endpoint mutasi (`create/store/edit/update/destroy`) tanpa keputusan arsitektur dan update policy/standar akses.
@@ -136,6 +136,50 @@ Aturan: jika `final`, data view-only (tanpa mutasi).
    - `lang/zh_Hans/ui_core.php`
 5. Pull request/perubahan tidak boleh dianggap selesai jika masih ada text user-facing yang belum bisa diterjemahkan.
 6. Untuk review perubahan UI, i18n compliance menjadi checklist wajib bersama responsive, permission, dan performa.
+
+## 4i. Standar Notifikasi CRUD (Wajib)
+
+1. Setiap aksi `create`, `update`, `delete`, `activate/deactivate`, dan mutasi status wajib menampilkan notifikasi hasil ke user.
+2. Controller wajib mengirim flash message standar:
+   - sukses: `->with('success', ...)`
+   - gagal/ditolak: `->with('error', ...)`
+3. Pesan notifikasi wajib jelas, action-oriented, dan konsisten dengan outcome (contoh: `Booking updated successfully.`).
+4. Semua halaman list/detail/form modul wajib merender flash message `success/error` (atau menggunakan shared partial global yang setara).
+5. Untuk alur AJAX/modal, wajib tampilkan feedback visual setara (toast/alert inline) dengan level `success/error`.
+6. Untuk UI multi-language, pesan notifikasi user-facing wajib menggunakan phrase i18n (`ui_phrase(...)` atau key translation setara), bukan hardcoded.
+
+## 4j. Standar Persistensi Filter Index (Wajib)
+
+1. Untuk halaman index/list modul, pilihan filter user (contoh: `q`, `status`, `destination`, `per_page`) wajib dipertahankan saat user kembali dari halaman lain (show/edit/create) atau saat refresh.
+2. Persistensi filter harus menggunakan state server-side yang konsisten (disarankan `session`) per modul/per halaman.
+3. Tombol `Reset/Clear Filter` wajib:
+   - menghapus seluruh state filter tersimpan modul terkait,
+   - mengembalikan daftar ke kondisi default awal (tanpa filter tersimpan),
+   - mengembalikan `per_page` ke default sistem modul.
+4. Implementasi reset tidak boleh bergantung pada manipulasi UI saja; reset harus memicu clear state di backend.
+5. Setelah reset berhasil, state berikutnya harus dianggap fresh/default sampai user memilih filter lagi.
+
+## 4k. Standar Trigger & Minimum Karakter Filter Text (Wajib)
+
+1. Semua input filter bertipe text/search wajib memiliki minimum 3 karakter sebelum filter dianggap valid.
+2. Untuk input filter text, begitu panjang input mencapai minimal 3 karakter, filter harus langsung terpicu otomatis (live trigger).
+3. Trigger tambahan seperti `Enter`, `Tab`, `blur`, atau submit eksplisit tetap harus didukung sebagai fallback UX, tetapi tidak boleh menurunkan aturan live trigger pada minimum 3 karakter.
+4. Jika karakter input text < 3 (dan tidak kosong), backend wajib menganggap pencarian tidak valid dan tidak menampilkan hasil match.
+5. Aturan ini berlaku lintas modul untuk semua halaman index/list yang memakai filter text.
+6. Saat user menginstruksikan "sesuaikan aturan filter", implementasi default harus mengikuti standar 4j + 4k tanpa perlu redefinisi ulang.
+
+## 4l. Standar Booking Module (Wajib)
+
+1. `Cancellation Policy` dan `Cancellation Fee Rules` wajib dipisahkan:
+   - policy text untuk referensi manusia,
+   - rules terstruktur untuk prefill/perhitungan operasional.
+2. Untuk service item hotel (`HotelRoom`), cancellation fee policy wajib mengikuti level `Hotel` (bukan per room).
+3. Nama service item pada UI Booking wajib menyertakan konteks provider:
+   - `service name | vendor/provider`,
+   - khusus hotel: `service name | hotel name`.
+4. Input nominal booking/cancellation fee di UI mengikuti currency aktif user, namun persistensi DB wajib canonical IDR.
+5. Query fallback policy dan kalkulasi data turunan berat wajib diprecompute di controller/service; dilarang query database di loop Blade booking.
+6. Booking item historical snapshot (booking log/voucher/booking item) tidak boleh berubah retroaktif hanya karena master provider contact berubah.
 
 ## 5. Aturan Dokumentasi Wajib
 

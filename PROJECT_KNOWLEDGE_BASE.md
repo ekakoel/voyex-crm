@@ -1,10 +1,10 @@
 # Voyex CRM - Project Knowledge Base
 
-Last Updated: 2026-04-21
+Last Updated: 2026-05-18
 
 
-Version: 2.6  
-Date: 2026-04-21  
+Version: 2.7  
+Date: 2026-05-18  
 Status: Source of truth aktif
 
 ---
@@ -203,6 +203,7 @@ Technical docs:
 - `docs/technical/ITINERARY_CREATE_EDIT_FLOW.md`
 - `docs/technical/ITINERARY_DETAIL_MAP_ARCHITECTURE.md`
 - `docs/technical/ISLAND_TRANSFER_MODULE.md`
+- `docs/technical/BOOKING_MODULE.md`
 - `docs/technical/QUOTATION_APPROVAL_UAT_MATRIX.md`
 - `docs/technical/QUOTATION_VALIDATION_UAT_MATRIX.md`
 - `docs/technical/NOMINAL_INPUT_STANDARD.md`
@@ -232,37 +233,75 @@ Jika terjadi konflik dokumen, urutan prioritas:
 
 ---
 
-## 12. Booking Service Item Flow
+## 12. Booking Module (Current Behavior)
 
-This section explains the process of booking an individual service item from the booking detail page.
+### 12.1 Booking Create/Edit Baseline
 
-### 12.1 User Interface
+- Sumber booking hanya dari quotation yang eligible (approved + validation complete + belum memiliki booking, kecuali booking saat ini pada mode edit).
+- Satu quotation hanya boleh terhubung ke satu booking (one-to-one operational baseline).
+- Saat create/edit, harga item tampil mengikuti currency aktif user, namun nilai yang disimpan ke DB tetap canonical IDR.
 
-- On the **Booking Detail** page (`bookings.show`), each service item listed from the quotation has a "Book" button if it hasn't been booked yet.
-- Clicking "Book" opens the **Book Service Item** modal.
-- This modal contains a form to input booking details, such as contact information, service date, and a confirmation number from the vendor/provider.
+### 12.2 Booking Service Item Workspace
 
-### 12.2 Data Handling
+- Operasional booking item dipusatkan di halaman `bookings.edit` melalui workspace service item.
+- Per-item tersedia aksi:
+  - Book service item,
+  - Edit booking service,
+  - Cancel item,
+  - Voucher preview/PDF (setelah booked).
+- Detail booking tetap menjadi halaman review/preview, bukan pusat mutasi item.
 
-- The form submission is handled by the `bookServiceItem` method in `App\Http\Controllers\BookingController`.
-- The system uses two main tables for this process:
-    - `booking_items`: This table links a service item from a quotation to a booking. It stores the core details of the item within the context of the booking (e.g., quantity, price).
-    - `booking_item_booking_logs`: This table stores the actual booking confirmation details. Every time a booking is made or updated for a service item, a new record is created here. This provides a complete history of booking actions.
+### 12.3 Booking Log & Voucher
 
-### 12.3 Storage Logic
+- `booking_items` menyimpan linkage item quotation ke booking.
+- `booking_item_booking_logs` menyimpan jejak operasional booking item (audit trail).
+- `booking_item_vouchers` menyimpan snapshot voucher.
+- Setelah proses booking service item sukses, voucher digenerate/refresh otomatis.
 
-1.  When the form is submitted, the `bookServiceItem` method first validates the input.
-2.  It finds or creates a corresponding record in the `booking_items` table to ensure the service item is associated with the current booking.
-3.  It then creates a new record in the `booking_item_booking_logs` table with the data submitted from the form. This includes:
-    - `vendor_provider_item_name`
-    - `contact_channel`
-    - `contact_value`
-    - `contacted_person_name`
-    - `service_date`
-    - `confirmation_number`
-    - `pax_adult` / `pax_child`
-    - `notes`
-    - `created_by` (the user who performed the booking)
-    - `booked_at` (timestamp)
-4.  This design ensures that all booking attempts and updates are logged, providing full auditability, without overwriting previous confirmation data. After a successful booking, a voucher is automatically generated.
+### 12.4 Service Item Naming Rule
 
+Semua nama service item pada UI Booking wajib membawa konteks provider:
+- service vendor/provider: `service name | vendor/provider name`,
+- service hotel: `service name | hotel name`.
+
+Tujuan: mengurangi ambiguity saat service name serupa.
+
+### 12.5 Cancellation Policy vs Cancellation Fee
+
+Separation of concern:
+- `Cancellation Policy` = text/rich text referensi manusia,
+- `Cancellation Fee` = rules terstruktur untuk prefill/kalkulasi operasional.
+
+Rule fee terstruktur:
+- `min_days_before`,
+- `max_days_before`,
+- `fee_type` (`fixed`/`percent`),
+- `fee_value`,
+- `description`.
+
+### 12.6 Cancel Service Item Flow
+
+Saat cancel item:
+1. Modal menampilkan policy text bila tersedia.
+2. Fee type + fee diprefill dari snapshot/rules fallback bila ada.
+3. User bisa override manual.
+4. Jika type `nominal`, input mengikuti currency aktif UI lalu disimpan canonical ke IDR.
+5. Jika type `percent`, fee dihitung dari total item booking.
+6. Jika service item belum punya default fee rules, input cancel user disimpan menjadi default rules service item terkait.
+7. Jika policy text kosong, user dapat mengisi policy text langsung dari modal cancel dan nilainya disimpan ke service item terkait.
+
+Khusus hotel:
+- policy fee target berada di level `Hotel` (bukan per-room),
+- policy text referensi dapat berasal dari `cancellation_policy`, `cancellation_policy_traditional`, `cancellation_policy_simplified`.
+
+### 12.7 Booking Performance Baseline
+
+Optimasi aktif:
+- eager-load morph serviceable + relation provider/hotel untuk create/edit booking,
+- fallback policy query diprecompute di controller (bukan query di Blade loop),
+- fallback policy hanya dihitung untuk item tanpa snapshot rules,
+- detail booking memakai `latestBookingLog` tanpa load full `bookingLogs` collection bila tidak diperlukan.
+
+Lanjutan wajib:
+- hindari query DB dalam loop Blade,
+- gunakan map/precompute di controller untuk data turunan berat.

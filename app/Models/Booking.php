@@ -26,7 +26,6 @@ class Booking extends Model
         'quotation_id',
         'travel_date',
         'status',
-        'notes',
     ];
     protected $casts = [
         'travel_date' => 'date',
@@ -57,5 +56,4 @@ class Booking extends Model
         return $this->status === self::FINAL_STATUS;
     }
 }
-
 

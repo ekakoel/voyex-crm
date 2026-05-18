@@ -1066,6 +1066,43 @@ function initHotelRooms(root = document) {
         container.addEventListener('click', (event) => {
             const button = event.target.closest('[data-remove-room]');
             if (!button) {
+                const addRuleButton = event.target.closest('[data-add-cancel-rule]');
+                if (addRuleButton) {
+                    const card = addRuleButton.closest('[data-room-card]');
+                    const rulesContainer = card?.querySelector('[data-cancel-rules]');
+                    if (!card || !rulesContainer) {
+                        return;
+                    }
+                    const firstNamed = card.querySelector('[name^="rooms["]');
+                    const match = firstNamed?.getAttribute('name')?.match(/^rooms\[(\d+)\]/);
+                    const roomIndex = match ? Number(match[1]) : 0;
+                    const ruleIndex = rulesContainer.children.length;
+                    const wrapper = document.createElement('div');
+                    wrapper.className = 'grid grid-cols-1 gap-2 rounded border border-gray-200 p-2 md:grid-cols-6 dark:border-gray-700';
+                    wrapper.innerHTML = `
+                        <input type="number" min="0" name="rooms[${roomIndex}][cancellation_rules][${ruleIndex}][min_days_before]" class="app-input" placeholder="Min Day">
+                        <input type="number" min="0" name="rooms[${roomIndex}][cancellation_rules][${ruleIndex}][max_days_before]" class="app-input" placeholder="Max Day">
+                        <select name="rooms[${roomIndex}][cancellation_rules][${ruleIndex}][fee_type]" class="app-input">
+                            <option value="fixed">Fixed</option>
+                            <option value="percent">Percent</option>
+                        </select>
+                        <input type="number" min="0" step="0.01" name="rooms[${roomIndex}][cancellation_rules][${ruleIndex}][fee_value]" class="app-input" placeholder="Fee Value">
+                        <input type="text" name="rooms[${roomIndex}][cancellation_rules][${ruleIndex}][description]" class="app-input md:col-span-2" placeholder="Description (optional)">
+                        <div class="md:col-span-6 flex justify-end">
+                            <button type="button" class="btn-ghost-sm" data-remove-cancel-rule>Remove</button>
+                        </div>
+                    `;
+                    rulesContainer.appendChild(wrapper);
+                    return;
+                }
+                const removeRuleButton = event.target.closest('[data-remove-cancel-rule]');
+                if (removeRuleButton) {
+                    const row = removeRuleButton.closest('.grid');
+                    if (row) {
+                        row.remove();
+                        reindexRoomFieldNames();
+                    }
+                }
                 return;
             }
             const card = button.closest('[data-room-card]');
@@ -2287,6 +2324,54 @@ function initServiceFilterPage(root = document) {
             requestAndRender(url, pushHistory);
         };
 
+        const isTypingFieldInput = (input) => {
+            if (!(input instanceof HTMLInputElement)) {
+                return false;
+            }
+            const inputType = (input.type || '').toLowerCase();
+            return ['text', 'search', 'email', 'tel', 'url', 'number', 'password'].includes(inputType);
+        };
+
+        const getInputMinChars = (input) => {
+            const inputRaw = Number(input.getAttribute('data-filter-min-text') || 0);
+            if (Number.isFinite(inputRaw) && inputRaw > 0) {
+                return Math.floor(inputRaw);
+            }
+            const formRaw = Number(form?.getAttribute('data-filter-min-text') || 0);
+            if (Number.isFinite(formRaw) && formRaw > 0) {
+                return Math.floor(formRaw);
+            }
+            return 0;
+        };
+
+        const isTextInputValidForFilter = (input) => {
+            const minChars = getInputMinChars(input);
+            if (minChars <= 0) {
+                return true;
+            }
+            const value = String(input.value || '').trim();
+            return value === '' || value.length >= minChars;
+        };
+
+        const syncTextInputValidity = (input) => {
+            if (!(input instanceof HTMLInputElement) || !isTypingFieldInput(input)) {
+                return true;
+            }
+            if (isTextInputValidForFilter(input)) {
+                input.setCustomValidity('');
+                return true;
+            }
+            const minChars = getInputMinChars(input);
+            input.setCustomValidity(`Please enter at least ${minChars} characters before filtering.`);
+            return false;
+        };
+
+        const hasInvalidTextFilterInput = () => {
+            const typingInputs = Array.from(form.querySelectorAll('input[data-service-filter-input]'))
+                .filter((el) => el instanceof HTMLInputElement && isTypingFieldInput(el));
+            return typingInputs.some((input) => !syncTextInputValidity(input));
+        };
+
         const bindFormHandlers = () => {
             if (!form || form.dataset.serviceFilterEventsBound === '1') {
                 return;
@@ -2295,6 +2380,10 @@ function initServiceFilterPage(root = document) {
 
             form.addEventListener('submit', (event) => {
                 event.preventDefault();
+                if (hasInvalidTextFilterInput()) {
+                    form.reportValidity();
+                    return;
+                }
                 clearTimeout(typingTimer);
                 submitFilters(true);
             });
@@ -2304,9 +2393,11 @@ function initServiceFilterPage(root = document) {
                 if (!(target instanceof HTMLInputElement) || !target.matches('[data-service-filter-input]')) {
                     return;
                 }
-                const inputType = (target.type || '').toLowerCase();
-                const isTypingField = ['text', 'search', 'email', 'tel', 'url', 'number', 'password'].includes(inputType);
-                if (!isTypingField) {
+                if (!isTypingFieldInput(target)) {
+                    return;
+                }
+                if (!syncTextInputValidity(target)) {
+                    clearTimeout(typingTimer);
                     return;
                 }
                 clearTimeout(typingTimer);
@@ -2320,13 +2411,16 @@ function initServiceFilterPage(root = document) {
                 if (!(target instanceof HTMLInputElement) || !target.matches('[data-service-filter-input]')) {
                     return;
                 }
-                const inputType = (target.type || '').toLowerCase();
-                const isTypingField = ['text', 'search', 'email', 'tel', 'url', 'number', 'password'].includes(inputType);
-                if (!isTypingField) {
+                if (!isTypingFieldInput(target)) {
                     return;
                 }
 
                 if (event.key === 'Enter') {
+                    if (!syncTextInputValidity(target)) {
+                        event.preventDefault();
+                        form.reportValidity();
+                        return;
+                    }
                     event.preventDefault();
                     clearTimeout(typingTimer);
                     submitFilters(true);
@@ -2338,9 +2432,10 @@ function initServiceFilterPage(root = document) {
                 if (!(target instanceof HTMLInputElement) || !target.matches('[data-service-filter-input]')) {
                     return;
                 }
-                const inputType = (target.type || '').toLowerCase();
-                const isTypingField = ['text', 'search', 'email', 'tel', 'url', 'number', 'password'].includes(inputType);
-                if (!isTypingField) {
+                if (!isTypingFieldInput(target)) {
+                    return;
+                }
+                if (!syncTextInputValidity(target)) {
                     return;
                 }
 
@@ -2357,11 +2452,13 @@ function initServiceFilterPage(root = document) {
                     return;
                 }
                 if (target instanceof HTMLInputElement) {
-                    const inputType = (target.type || '').toLowerCase();
-                    const isTypingField = ['text', 'search', 'email', 'tel', 'url', 'number', 'password'].includes(inputType);
-                    if (isTypingField) {
+                    if (isTypingFieldInput(target)) {
                         return;
                     }
+                }
+                if (hasInvalidTextFilterInput()) {
+                    form.reportValidity();
+                    return;
                 }
                 clearTimeout(typingTimer);
                 submitFilters(false);

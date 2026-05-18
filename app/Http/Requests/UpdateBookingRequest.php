@@ -29,7 +29,6 @@ class UpdateBookingRequest extends FormRequest
                 \Illuminate\Validation\Rule::unique('bookings', 'quotation_id')->ignore($this->route('booking')?->id),
             ],
             'travel_date' => ['required', 'date'],
-            'notes' => ['nullable', 'string'],
             'items' => ['required', 'array', 'min:1'],
             'items.*.quotation_item_id' => ['nullable', 'integer', 'exists:quotation_items,id'],
             'items.*.description' => ['required', 'string', 'max:255'],
@@ -39,7 +38,6 @@ class UpdateBookingRequest extends FormRequest
             'items.*.serviceable_id' => ['nullable', 'integer', 'min:1'],
             'items.*.day_number' => ['nullable', 'integer', 'min:1'],
             'items.*.serviceable_meta' => ['nullable'],
-            'items.*.notes' => ['nullable', 'string'],
         ];
     }
 
@@ -62,21 +60,15 @@ class UpdateBookingRequest extends FormRequest
             }
 
             if (! in_array((string) $quotation->status, ['approved', Quotation::FINAL_STATUS], true)) {
-                $validator->errors()->add('quotation_id', ui_phrase('Only approved/final quotation can be converted to booking.'));
+                $validator->errors()->add('quotation_id', ui_phrase('Only approved quotation can be converted to booking.'));
+            }
+
+            if ((string) ($quotation->validation_status ?? 'pending') !== 'valid') {
+                $validator->errors()->add('quotation_id', ui_phrase('Selected quotation validation must be 100% before booking.'));
             }
 
             if ((int) ($quotation->items_count ?? 0) <= 0) {
                 $validator->errors()->add('quotation_id', ui_phrase('Selected quotation has no items to be booked.'));
-            }
-
-            $notValidatedItemsCount = $quotation->items()
-                ->where(function ($q) {
-                    $q->whereNull('is_validated')
-                        ->orWhere('is_validated', false);
-                })
-                ->count();
-            if ($notValidatedItemsCount > 0) {
-                $validator->errors()->add('quotation_id', ui_phrase('Selected quotation still has unvalidated items.'));
             }
 
             $linkedBookingId = (int) ($quotation->booking?->id ?? 0);

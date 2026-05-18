@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\HasAudit;
+use App\Models\Concerns\HasCancellationPolicy;
 use App\Traits\LogsActivity;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -11,7 +12,7 @@ use Illuminate\Support\Str;
 
 class TouristAttraction extends Model
 {
-    use HasAudit, LogsActivity, SoftDeletes;
+    use HasAudit, HasCancellationPolicy, LogsActivity, SoftDeletes;
     protected $fillable = [
         'name',
         'ideal_visit_minutes',
@@ -33,6 +34,7 @@ class TouristAttraction extends Model
         'latitude',
         'longitude',
         'description',
+        'cancellation_policy',
         'gallery_images',
         'is_active',
     ];
@@ -136,6 +138,4 @@ class TouristAttraction extends Model
         return $this->belongsTo(Destination::class);
     }
 }
-
-
 

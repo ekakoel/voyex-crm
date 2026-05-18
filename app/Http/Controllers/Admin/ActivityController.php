@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Concerns\NormalizesDisplayCurrencyToIdr;
+use App\Http\Controllers\Concerns\ManagesServiceCancellationPolicy;
 use App\Http\Controllers\Controller;
 use App\Models\Activity;
 use App\Models\ActivityType;
@@ -18,6 +19,7 @@ use Illuminate\Validation\ValidationException;
 class ActivityController extends Controller
 {
     use NormalizesDisplayCurrencyToIdr;
+    use ManagesServiceCancellationPolicy;
 
     public function index(Request $request)
     {
@@ -80,14 +82,16 @@ class ActivityController extends Controller
             ->orderBy('name')
             ->get(['id', 'name', 'is_active']);
 
-        return view('modules.activities.create', compact('vendors', 'destinations', 'activityTypes'));
+        $cancellationPolicyRules = [];
+        return view('modules.activities.create', compact('vendors', 'destinations', 'activityTypes', 'cancellationPolicyRules'));
     }
 
     public function store(Request $request)
     {
         $validated = $this->validatePayload($request, null);
         $validated['gallery_images'] = $this->storeGalleryImages($request->file('gallery_images', []), 'activities');
-        Activity::query()->create($validated);
+        $activity = Activity::query()->create($validated);
+        $this->syncCancellationPolicy($activity, $request->input('cancellation_rules', []), (string) ($activity->name ?? ''));
 
         return redirect()->route('activities.index')->with('success', 'Activity created successfully.');
     }
@@ -108,7 +112,8 @@ class ActivityController extends Controller
             $activity->save();
         }
 
-        return view('modules.activities.edit', compact('activity', 'vendors', 'destinations', 'activityTypes'));
+        $cancellationPolicyRules = $this->resolveCancellationPolicyRules($activity);
+        return view('modules.activities.edit', compact('activity', 'vendors', 'destinations', 'activityTypes', 'cancellationPolicyRules'));
     }
 
     public function show($activity)
@@ -138,6 +143,7 @@ class ActivityController extends Controller
         $validated['gallery_images'] = array_values(array_merge($remainingGallery, $newGallery));
         unset($validated['removed_gallery_images']);
         $activity->update($validated);
+        $this->syncCancellationPolicy($activity, $request->input('cancellation_rules', []), (string) ($activity->name ?? ''));
 
         return redirect()->route('activities.index')->with('success', 'Activity updated successfully.');
     }

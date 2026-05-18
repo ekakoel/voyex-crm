@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Cache;
 
 class CompanySettingsCache
 {
-    private const CACHE_KEY = 'company_settings:view_data:v1';
+    private const CACHE_KEY = 'company_settings:view_data:v2';
     private const CACHE_TTL_SECONDS = 300;
 
     /**
@@ -20,7 +20,17 @@ class CompanySettingsCache
         }
 
         return Cache::remember(self::CACHE_KEY, now()->addSeconds(self::CACHE_TTL_SECONDS), function (): ?CompanySetting {
-            $columns = ['company_name', 'footer_note', 'updated_at'];
+            $columns = [
+                'company_name',
+                'contact_email',
+                'contact_phone',
+                'address',
+                'city',
+                'province',
+                'country',
+                'footer_note',
+                'updated_at',
+            ];
 
             foreach ([
                 'tagline',

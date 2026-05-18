@@ -2,36 +2,37 @@
 
 @section('page_title', ui_phrase('Itinerary Detail'))
 @section('page_subtitle', ui_phrase('Review complete itinerary information.'))
+@section('page_actions')
+    @if (! $itinerary->trashed())
+        <form action="{{ route('itineraries.duplicate', $itinerary) }}" method="POST" class="inline" onsubmit="if (!confirm('{{ ui_phrase('confirm duplicate') }}')) { return false; } const button = this.querySelector('button[type=submit]'); if (button) { button.disabled = true; button.classList.add('opacity-60', 'cursor-not-allowed'); } return true;">
+            @csrf
+            <button type="submit" class="rounded-lg border border-violet-300 px-4 py-2 text-sm font-medium text-violet-700 hover:bg-violet-50 dark:border-violet-700 dark:text-violet-300 dark:hover:bg-violet-900/20">
+                {{ ui_phrase('Duplicate') }}
+            </button>
+        </form>
+    @endif
+    @if (
+        Route::has('quotations.create')
+        && auth()->user()->can('module.quotations.access')
+        && (int) (auth()->id() ?? 0) === (int) ($itinerary->created_by ?? 0)
+    )
+        <a href="{{ route('quotations.create', ['itinerary_id' => $itinerary->id]) }}" class="rounded-lg border border-indigo-300 px-4 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-50 dark:border-indigo-700 dark:text-indigo-300 dark:hover:bg-indigo-900/20">{{ ui_phrase('Generate Quotation') }}</a>
+    @endif
+    <a href="{{ route('itineraries.pdf', [$itinerary, 'mode' => 'stream']) }}" target="_blank" rel="noopener" class="rounded-lg border border-sky-300 px-4 py-2 text-sm font-medium text-sky-700 hover:bg-sky-50 dark:border-sky-700 dark:text-sky-300 dark:hover:bg-sky-900/20">{{ ui_phrase('Preview PDF') }}</a>
+    <a href="{{ route('itineraries.pdf', [$itinerary, 'mode' => 'download']) }}" target="_blank" rel="noopener" class="rounded-lg border border-emerald-300 px-4 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-50 dark:border-emerald-700 dark:text-emerald-300 dark:hover:bg-emerald-900/20">{{ ui_phrase('Download PDF') }}</a>
+    @can('update', $itinerary)
+        <a href="{{ route('itineraries.edit', $itinerary) }}" class="btn-secondary">{{ ui_phrase('Edit') }}</a>
+    @endcan
+    <a href="{{ route('itineraries.index') }}" class="btn-primary" data-page-back-action>{{ ui_phrase('Back') }}</a>
+@endsection
 
 @section('content')
     <div class="space-y-5 itinerary-show-page">
         <div class="app-card p-4 mb-6">
-            @section('page_actions')@if (
-                Route::has('quotations.create')
-                && auth()->user()->can('module.quotations.access')
-                && (int) (auth()->id() ?? 0) === (int) ($itinerary->created_by ?? 0)
-            )
-                        <a href="{{ route('quotations.create', ['itinerary_id' => $itinerary->id]) }}" class="rounded-lg border border-indigo-300 px-4 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-50 dark:border-indigo-700 dark:text-indigo-300 dark:hover:bg-indigo-900/20">{{ ui_phrase('Generate Quotation') }}</a>
-                    @endif
-                    <a href="{{ route('itineraries.pdf', [$itinerary, 'mode' => 'stream']) }}" target="_blank" rel="noopener" class="rounded-lg border border-sky-300 px-4 py-2 text-sm font-medium text-sky-700 hover:bg-sky-50 dark:border-sky-700 dark:text-sky-300 dark:hover:bg-sky-900/20">{{ ui_phrase('Preview PDF') }}</a>
-                    <a href="{{ route('itineraries.pdf', [$itinerary, 'mode' => 'download']) }}" target="_blank" rel="noopener" class="rounded-lg border border-emerald-300 px-4 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-50 dark:border-emerald-700 dark:text-emerald-300 dark:hover:bg-emerald-900/20">{{ ui_phrase('Download PDF') }}</a>
-                    @can('update', $itinerary)
-                        <a href="{{ route('itineraries.edit', $itinerary) }}"  class="btn-secondary">{{ ui_phrase('Edit') }}</a>
-                    @endcan
-                    <a href="{{ route('itineraries.index') }}"  class="btn-primary" data-page-back-action>{{ ui_phrase('Back') }}</a>@endsection
             <div class="my-3 grid grid-cols-1 gap-2 text-sm md:grid-cols-2">
                 <div><span class="text-gray-500 dark:text-gray-400">{{ ui_phrase('Title') }}:</span> <span class="text-gray-800 dark:text-gray-100">{{ $itinerary->title }}</span></div>
                 <div><span class="text-gray-500 dark:text-gray-400">{{ ui_phrase('Duration') }}:</span> <span class="text-gray-800 dark:text-gray-100">{{ $itinerary->duration_days }}D{{ $itinerary->duration_nights > 0 ? "/".$itinerary->duration_nights."N": "" }}</span></div>
                 <div><span class="text-gray-500 dark:text-gray-400">{{ ui_phrase('Destination') }}:</span> <span class="text-gray-800 dark:text-gray-100">{{ $itinerary->destination ?: '-' }}</span></div>
-                <div><span class="text-gray-500 dark:text-gray-400">{{ ui_phrase('Inquiry') }}:</span>
-                    <span class="text-gray-800 dark:text-gray-100">
-                        @if ($itinerary->inquiry)
-                            {{ $itinerary->inquiry?->inquiry_number ?? '-' }}{{ $itinerary->inquiry?->customer?->name ? ' | '.$itinerary->inquiry?->customer?->name : '' }}
-                        @else
-                            {{ ui_phrase('Independent') }}
-                        @endif
-                    </span>
-                </div>
             </div>
             <div>
                 @if ($itinerary->description)
@@ -44,7 +45,12 @@
 
         @php
             $hotelDayPoints = $itinerary->dayPoints
-                ->filter(fn ($point) => (string) ($point->end_point_type ?? '') === 'hotel')
+                ->filter(function ($point) {
+                    $isHotelEndPoint = (string) ($point->end_point_type ?? '') === 'hotel';
+                    $isSelfBooked = strtolower(trim((string) ($point->end_hotel_booking_mode ?? ''))) === 'self';
+                    $hasLinkedHotel = (int) ($point->end_hotel_id ?? 0) > 0;
+                    return $isHotelEndPoint && ! $isSelfBooked && $hasLinkedHotel;
+                })
                 ->sortBy(fn ($point) => (int) ($point->day_number ?? 0))
                 ->values();
         @endphp
@@ -914,10 +920,7 @@
                     </div>
                     <div class="mt-3 space-y-2">
                         @php
-                            $linkedQuotations = $itinerary->quotations
-                                ->filter(fn ($quotation) => strtolower((string) ($quotation->status ?? '')) !== 'final')
-                                ->sortByDesc(fn ($quotation) => optional($quotation->created_at)?->getTimestamp() ?? 0)
-                                ->values();
+                            $linkedQuotations = $itinerary->quotations->values();
                             $canAccessQuotationModule = auth()->user()?->can('module.quotations.access');
                         @endphp
                         @forelse ($linkedQuotations as $quotation)
@@ -940,7 +943,7 @@
                                 <i class="fa-solid fa-eye text-xs" aria-hidden="true"></i>
                             </a>
                         @empty
-                            <p class="text-xs text-gray-500 dark:text-gray-400">{{ ui_phrase('No non-final related quotations.') }}</p>
+                            <p class="text-xs text-gray-500 dark:text-gray-400">{{ ui_phrase('No upcoming related quotations.') }}</p>
                         @endforelse
                     </div>
                 </div>

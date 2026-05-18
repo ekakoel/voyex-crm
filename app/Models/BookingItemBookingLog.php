@@ -17,7 +17,6 @@ class BookingItemBookingLog extends Model
         'confirmation_number',
         'pax_adult',
         'pax_child',
-        'notes',
         'created_by',
     ];
 

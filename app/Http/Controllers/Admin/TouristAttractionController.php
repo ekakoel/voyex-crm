@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Concerns\NormalizesDisplayCurrencyToIdr;
+use App\Http\Controllers\Concerns\ManagesServiceCancellationPolicy;
 use App\Http\Controllers\Controller;
 use App\Models\Destination;
 use App\Models\TouristAttraction;
@@ -18,6 +19,7 @@ use Illuminate\Validation\ValidationException;
 class TouristAttractionController extends Controller
 {
     use NormalizesDisplayCurrencyToIdr;
+    use ManagesServiceCancellationPolicy;
 
     private const GALLERY_DIRECTORY = 'tourist-attractions';
 
@@ -87,7 +89,7 @@ class TouristAttractionController extends Controller
         TouristAttractionGoogleSyncService $syncService
     ) {
         if (! ($request->user()?->isSuperAdmin())) {
-            abort(403, 'Only super admin can use this feature.');
+            abort(403, ui_phrase('Only super admin can use this feature.'));
         }
 
         if (! $googlePlacesService->isConfigured()) {
@@ -156,7 +158,8 @@ class TouristAttractionController extends Controller
             ->orderBy('name')
             ->get(['id', 'name', 'city', 'province']);
 
-        return view('modules.tourist-attractions.create', compact('destinations'));
+        $cancellationPolicyRules = [];
+        return view('modules.tourist-attractions.create', compact('destinations', 'cancellationPolicyRules'));
     }
 
     public function store(Request $request)
@@ -165,7 +168,8 @@ class TouristAttractionController extends Controller
 
         $validated['gallery_images'] = $this->storeGalleryImages($request->file('gallery_images', []), self::GALLERY_DIRECTORY);
 
-        TouristAttraction::query()->create($validated);
+        $touristAttraction = TouristAttraction::query()->create($validated);
+        $this->syncCancellationPolicy($touristAttraction, $request->input('cancellation_rules', []), (string) ($touristAttraction->name ?? ''));
 
         return redirect()->route('tourist-attractions.index')->with('success', ui_phrase('Tourist attraction created successfully.'));
     }
@@ -177,7 +181,8 @@ class TouristAttractionController extends Controller
             ->orderBy('name')
             ->get(['id', 'name', 'city', 'province']);
 
-        return view('modules.tourist-attractions.edit', compact('touristAttraction', 'destinations'));
+        $cancellationPolicyRules = $this->resolveCancellationPolicyRules($touristAttraction);
+        return view('modules.tourist-attractions.edit', compact('touristAttraction', 'destinations', 'cancellationPolicyRules'));
     }
 
     public function update(Request $request, TouristAttraction $touristAttraction)
@@ -200,6 +205,7 @@ class TouristAttractionController extends Controller
         unset($validated['removed_gallery_images']);
 
         $touristAttraction->update($validated);
+        $this->syncCancellationPolicy($touristAttraction, $request->input('cancellation_rules', []), (string) ($touristAttraction->name ?? ''));
 
         return redirect()->route('tourist-attractions.index')->with('success', ui_phrase('Tourist attraction updated successfully.'));
     }
@@ -207,7 +213,7 @@ class TouristAttractionController extends Controller
     public function destroy($touristAttraction)
     {
         if (! (request()->user()?->isSuperAdmin())) {
-            abort(403, 'Only super admin can delete tourist attractions.');
+            abort(403, ui_phrase('Only super admin can delete tourist attractions.'));
         }
 
         $touristAttraction = TouristAttraction::withTrashed()->findOrFail($touristAttraction);
@@ -278,7 +284,7 @@ class TouristAttractionController extends Controller
 
         if (! is_string($image) || $image === '') {
             return response()->json([
-                'message' => 'Image not found in gallery.',
+                'message' => ui_phrase('Image not found in gallery.'),
             ], 404);
         }
 
@@ -287,7 +293,7 @@ class TouristAttractionController extends Controller
         $touristAttraction->update(['gallery_images' => $remaining]);
 
         return response()->json([
-            'message' => 'Image removed successfully.',
+            'message' => ui_phrase('Image removed successfully.'),
             'remaining_count' => count($remaining),
         ]);
     }
@@ -321,6 +327,7 @@ class TouristAttractionController extends Controller
             'latitude' => ['nullable', 'numeric', 'between:-90,90', 'required_with:longitude'],
             'longitude' => ['nullable', 'numeric', 'between:-180,180', 'required_with:latitude'],
             'description' => ['nullable', 'string'],
+            'cancellation_policy' => ['nullable', 'string'],
             'gallery_images' => ['nullable', 'array'],
             'gallery_images.*' => ['image'],
             'removed_gallery_images' => ['nullable', 'array'],
@@ -341,7 +348,7 @@ class TouristAttractionController extends Controller
 
         if ($validated['markup_type'] === 'percent' && $validated['markup'] > 100) {
             throw ValidationException::withMessages([
-                'markup' => 'Markup percent cannot be greater than 100.',
+                'markup' => ui_phrase('Markup percent cannot be greater than 100.'),
             ]);
         }
 

@@ -194,7 +194,7 @@
                                 <x-status-badge :status="$inquiry->status" />
                             </div>
                             <div class="mt-1 flex items-center justify-between text-xs">
-                                <span class="text-slate-500 dark:text-slate-400">{{ ui_phrase('Assigned to:') }} {{ $inquiry->assignedUser->name ?? ui_phrase('N/A') }}</span>
+                                <span class="text-slate-500 dark:text-slate-400">{{ ui_phrase('Created By') }} {{ $inquiry->creator->name ?? ui_phrase('N/A') }}</span>
                                 <span class="text-slate-500 dark:text-slate-400">{{ \App\Support\DateTimeDisplay::date($inquiry->created_at) }}</span>
                             </div>
                         </a>

@@ -14,6 +14,8 @@ use App\Models\Quotation;
 use App\Models\QuotationApproval;
 use App\Models\QuotationComment;
 use App\Models\QuotationItem;
+use App\Models\Customer;
+use App\Models\Destination;
 use App\Models\TouristAttraction;
 use App\Models\TransportUnit;
 use App\Models\User;
@@ -249,10 +251,15 @@ class QuotationController extends Controller
     {
         $prefillItineraryId = request()->integer('itinerary_id') ?: null;
         $itineraries = $this->availableItinerariesQuery()
-            ->orderByDesc('id')
-            ->get(['id', 'title', 'inquiry_id', 'destination', 'duration_days', 'duration_nights', 'is_active', 'status']);
+            ->orderBy('title')
+            ->orderBy('id')
+            ->get(['id', 'title', 'destination_id', 'destination', 'duration_days', 'duration_nights', 'is_active', 'status']);
+        $destinations = Destination::query()
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'name']);
         $itineraryInquiryMap = $itineraries->mapWithKeys(function ($itinerary): array {
-            $inquiry = $itinerary->inquiry;
+            $inquiry = $itinerary->inquiryReferences->first();
             if (! $inquiry) {
                 return [];
             }
@@ -264,22 +271,32 @@ class QuotationController extends Controller
                     'status' => (string) ($inquiry?->status ?? '-'),
                     'priority' => (string) ($inquiry?->priority ?? '-'),
                     'source' => (string) ($inquiry?->source ?? '-'),
-                    'assigned_user_name' => (string) ($inquiry?->assignedUser?->name ?? '-'),
+                    'creator_name' => (string) ($inquiry?->creator?->name ?? '-'),
                     'deadline' => optional($inquiry?->deadline)->format('Y-m-d') ?? '-',
                     'notes' => trim((string) ($inquiry?->notes ?? '')) !== '' ? (string) ($inquiry?->notes ?? '') : '-',
                     'notes_html' => \App\Support\SafeRichText::sanitize((string) ($inquiry?->notes ?? '')),
                 ],
             ];
         })->all();
+        $itineraries->each(function (Itinerary $itinerary): void {
+            $inquiry = $itinerary->inquiryReferences->first();
+            $itinerary->setAttribute('reference_inquiry_id', $inquiry?->id ? (int) $inquiry->id : null);
+            $itinerary->setAttribute('reference_customer_id', $inquiry?->customer_id ? (int) $inquiry->customer_id : null);
+            $itinerary->setAttribute('reference_inquiry_number', (string) ($inquiry?->inquiry_number ?? ''));
+        });
         $inquiries = $this->availableInquiriesQuery()
             ->orderByDesc('id')
-            ->get(['id', 'inquiry_number', 'customer_id', 'status', 'priority', 'source', 'assigned_to', 'deadline', 'notes']);
+            ->get(['id', 'inquiry_number', 'customer_id', 'status', 'priority', 'source', 'deadline', 'notes']);
+        $customers = Customer::query()
+            ->orderBy('name')
+            ->orderBy('company_name')
+            ->get(['id', 'name', 'company_name', 'email', 'phone']);
 
         if ($prefillItineraryId && ! $itineraries->firstWhere('id', $prefillItineraryId)) {
             $prefillItineraryId = null;
         }
 
-        return view('modules.quotations.create', compact('itineraries', 'inquiries', 'prefillItineraryId', 'itineraryInquiryMap'));
+        return view('modules.quotations.create', compact('itineraries', 'inquiries', 'customers', 'destinations', 'prefillItineraryId', 'itineraryInquiryMap'));
     }
 
     /**
@@ -297,8 +314,12 @@ class QuotationController extends Controller
             'itinerary_id' => [
                 'required',
                 'integer',
-                'exists:itineraries,id',
+                Rule::exists('itineraries', 'id')->where(function ($query): void {
+                    $query->where('is_active', true);
+                }),
             ],
+            'customer_id' => ['required', 'integer', 'exists:customers,id'],
+            'inquiry_id' => ['nullable', 'integer', 'exists:inquiries,id'],
             'order_number' => ['required', 'string', 'max:100', 'regex:/^[A-Za-z0-9]+$/'],
             'service_date' => ['required', 'date'],
             'pax_adult' => ['required', 'integer', 'min:0'],
@@ -346,8 +367,10 @@ class QuotationController extends Controller
         }
 
         $selectedItineraryId = (int) ($validated['itinerary_id'] ?? 0);
+        $selectedCustomerId = (int) ($validated['customer_id'] ?? 0);
         $normalizedOrderNumber = $this->normalizeOrderNumber($validated['order_number'] ?? null);
-        $inquiryId = $this->resolveInquiryIdFromItinerary($selectedItineraryId);
+        $selectedInquiryId = (int) ($validated['inquiry_id'] ?? 0);
+        $inquiryId = $this->resolveInquiryIdForQuotation($selectedItineraryId, $selectedCustomerId, $selectedInquiryId);
         if (! $this->canApplyGlobalDiscount()) {
             $validated['discount_type'] = null;
             $validated['discount_value'] = 0;
@@ -479,9 +502,9 @@ class QuotationController extends Controller
         $quotation->load([
             'items',
             'inquiry.customer',
-            'inquiry.assignedUser',
+            'inquiry.creator',
             'itinerary.inquiry.customer',
-            'itinerary.inquiry.assignedUser',
+            'itinerary.inquiry.creator',
             'itinerary.creator',
             'comments.user',
             'approvedBy',
@@ -491,13 +514,22 @@ class QuotationController extends Controller
         $this->quotationValidationService->syncValidationRequirements($quotation);
 
         $itineraries = $this->availableItinerariesQuery((int) ($quotation->itinerary_id ?? 0))
-            ->orderByDesc('id')
-            ->get(['id', 'title', 'inquiry_id', 'destination', 'duration_days', 'duration_nights', 'is_active', 'status']);
+            ->orderBy('title')
+            ->orderBy('id')
+            ->get(['id', 'title', 'destination_id', 'destination', 'duration_days', 'duration_nights', 'is_active', 'status']);
+        $destinations = Destination::query()
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'name']);
         $inquiries = $this->availableInquiriesQuery((int) ($quotation->inquiry_id ?? 0))
             ->orderByDesc('id')
-            ->get(['id', 'inquiry_number', 'customer_id', 'status', 'priority', 'source', 'assigned_to', 'deadline', 'notes']);
+            ->get(['id', 'inquiry_number', 'customer_id', 'status', 'priority', 'source', 'deadline', 'notes']);
+        $customers = Customer::query()
+            ->orderBy('name')
+            ->orderBy('company_name')
+            ->get(['id', 'name', 'company_name', 'email', 'phone']);
         $itineraryInquiryMap = $itineraries->mapWithKeys(function ($itinerary): array {
-            $inquiry = $itinerary->inquiry;
+            $inquiry = $itinerary->inquiryReferences->first();
             if (! $inquiry) {
                 return [];
             }
@@ -509,13 +541,19 @@ class QuotationController extends Controller
                     'status' => (string) ($inquiry?->status ?? '-'),
                     'priority' => (string) ($inquiry?->priority ?? '-'),
                     'source' => (string) ($inquiry?->source ?? '-'),
-                    'assigned_user_name' => (string) ($inquiry?->assignedUser?->name ?? '-'),
+                    'creator_name' => (string) ($inquiry?->creator?->name ?? '-'),
                     'deadline' => optional($inquiry?->deadline)->format('Y-m-d') ?? '-',
                     'notes' => trim((string) ($inquiry?->notes ?? '')) !== '' ? (string) ($inquiry?->notes ?? '') : '-',
                     'notes_html' => \App\Support\SafeRichText::sanitize((string) ($inquiry?->notes ?? '')),
                 ],
             ];
         })->all();
+        $itineraries->each(function (Itinerary $itinerary): void {
+            $inquiry = $itinerary->inquiryReferences->first();
+            $itinerary->setAttribute('reference_inquiry_id', $inquiry?->id ? (int) $inquiry->id : null);
+            $itinerary->setAttribute('reference_customer_id', $inquiry?->customer_id ? (int) $inquiry->customer_id : null);
+            $itinerary->setAttribute('reference_inquiry_number', (string) ($inquiry?->inquiry_number ?? ''));
+        });
         $approvalProgress = $this->buildApprovalProgress($quotation);
         $validationProgress = $this->quotationValidationService->getProgress($quotation);
         $canValidateQuotation = $this->quotationValidationService->isValidationActor($request->user())
@@ -531,7 +569,7 @@ class QuotationController extends Controller
             return $this->activityTimelineFragmentResponse($activities);
         }
 
-        return view('modules.quotations.edit', compact('quotation', 'itineraries', 'inquiries', 'approvalProgress', 'validationProgress', 'canValidateQuotation', 'activities', 'itineraryInquiryMap'));
+        return view('modules.quotations.edit', compact('quotation', 'itineraries', 'inquiries', 'customers', 'destinations', 'approvalProgress', 'validationProgress', 'canValidateQuotation', 'activities', 'itineraryInquiryMap'));
     }
 
     /**
@@ -561,8 +599,12 @@ class QuotationController extends Controller
             'itinerary_id' => [
                 'required',
                 'integer',
-                'exists:itineraries,id',
+                Rule::exists('itineraries', 'id')->where(function ($query): void {
+                    $query->where('is_active', true);
+                }),
             ],
+            'customer_id' => ['required', 'integer', 'exists:customers,id'],
+            'inquiry_id' => ['nullable', 'integer', 'exists:inquiries,id'],
             'order_number' => ['required', 'string', 'max:100', 'regex:/^[A-Za-z0-9]+$/'],
             'service_date' => ['required', 'date'],
             'pax_adult' => ['required', 'integer', 'min:0'],
@@ -610,8 +652,10 @@ class QuotationController extends Controller
         }
 
         $selectedItineraryId = (int) ($validated['itinerary_id'] ?? 0);
+        $selectedCustomerId = (int) ($validated['customer_id'] ?? 0);
         $normalizedOrderNumber = $this->normalizeOrderNumber($validated['order_number'] ?? null);
-        $inquiryId = $this->resolveInquiryIdFromItinerary($selectedItineraryId);
+        $selectedInquiryId = (int) ($validated['inquiry_id'] ?? 0);
+        $inquiryId = $this->resolveInquiryIdForQuotation($selectedItineraryId, $selectedCustomerId, $selectedInquiryId);
         if (! $this->canApplyGlobalDiscount()) {
             $validated['discount_type'] = $quotation->discount_type;
             $validated['discount_value'] = (float) ($quotation->discount_value ?? 0);
@@ -2087,14 +2131,82 @@ SVG;
             return null;
         }
 
-        $itinerary = Itinerary::query()->select(['id', 'inquiry_id'])->find($itineraryId);
+        $itinerary = Itinerary::query()
+            ->with(['inquiryReferences' => function ($query): void {
+                $query->select(['inquiries.id'])
+                    ->orderByDesc('inquiry_itinerary_references.id');
+            }])
+            ->select(['id'])
+            ->find($itineraryId);
         if (! $itinerary) {
             throw ValidationException::withMessages([
                 'itinerary_id' => 'Selected itinerary not found.',
             ]);
         }
 
-        return $itinerary->inquiry_id ? (int) $itinerary->inquiry_id : null;
+        $inquiryId = (int) ($itinerary->inquiryReferences->first()?->id ?? 0);
+        return $inquiryId > 0 ? $inquiryId : null;
+    }
+
+    private function resolveInquiryIdForQuotation(?int $itineraryId, int $customerId, ?int $selectedInquiryId = null): ?int
+    {
+        if ($customerId <= 0) {
+            throw ValidationException::withMessages([
+                'customer_id' => 'Customer/Agent is required.',
+            ]);
+        }
+
+        $manualInquiryId = (int) ($selectedInquiryId ?? 0);
+        if ($manualInquiryId > 0) {
+            return $manualInquiryId;
+        }
+
+        $itineraryInquiryId = (int) ($this->resolveInquiryIdFromItinerary($itineraryId) ?? 0);
+        if ($itineraryInquiryId > 0) {
+            return $itineraryInquiryId;
+        }
+
+        return $this->resolveOrCreateInquiryIdFromCustomer($customerId);
+    }
+
+    private function resolveOrCreateInquiryIdFromCustomer(int $customerId): int
+    {
+        if ($customerId <= 0) {
+            throw ValidationException::withMessages([
+                'customer_id' => 'Customer/Agent is required.',
+            ]);
+        }
+
+        $customer = Customer::query()->find($customerId);
+        if (! $customer) {
+            throw ValidationException::withMessages([
+                'customer_id' => 'Selected Customer/Agent was not found.',
+            ]);
+        }
+
+        $existingInquiryId = Inquiry::query()
+            ->where('customer_id', $customerId)
+            ->where('status', '!=', Inquiry::FINAL_STATUS)
+            ->latest('updated_at')
+            ->value('id');
+
+        if ($existingInquiryId) {
+            return (int) $existingInquiryId;
+        }
+
+        $inquiry = Inquiry::withoutActivityLogging(function () use ($customerId) {
+            return Inquiry::query()->create([
+                'customer_id' => $customerId,
+                'source' => 'other',
+                'status' => 'processed',
+                'priority' => 'normal',
+                'deadline' => null,
+                'notes' => 'Auto-generated from quotation form.',
+                'reminder_enabled' => true,
+            ]);
+        });
+
+        return (int) $inquiry->id;
     }
 
     private function assertInquiryCanLinkToItinerary(int $inquiryId, ?int $itineraryId = null): void
@@ -2104,7 +2216,9 @@ SVG;
         }
 
         $linkedItineraryId = Itinerary::query()
-            ->where('inquiry_id', $inquiryId)
+            ->whereHas('inquiryReferences', function (Builder $query) use ($inquiryId): void {
+                $query->where('inquiries.id', $inquiryId);
+            })
             ->when($itineraryId && $itineraryId > 0, function (Builder $query) use ($itineraryId): void {
                 $query->where('id', '!=', $itineraryId);
             })
@@ -2129,29 +2243,49 @@ SVG;
 
     private function availableItinerariesQuery(?int $includeItineraryId = null): Builder
     {
-        $userId = (int) (auth()->id() ?? 0);
-
         return Itinerary::query()
-            ->with(['inquiry.customer', 'inquiry.assignedUser'])
-            ->where(function (Builder $query) use ($userId, $includeItineraryId): void {
-                $query->where('created_by', $userId);
-                if ($includeItineraryId && $includeItineraryId > 0) {
-                    $query->orWhere('id', $includeItineraryId);
-                }
-            });
+            ->with(['inquiryReferences' => function ($query): void {
+                $query->select([
+                    'inquiries.id',
+                    'inquiries.inquiry_number',
+                    'inquiries.customer_id',
+                    'inquiries.status',
+                    'inquiries.priority',
+                    'inquiries.source',
+                    'inquiries.deadline',
+                    'inquiries.notes',
+                ])
+                    ->with(['customer:id,name,company_name', 'creator:id,name'])
+                    ->orderByDesc('inquiry_itinerary_references.id');
+            }])
+            ->where('is_active', true);
     }
 
     private function availableInquiriesQuery(?int $includeInquiryId = null): Builder
     {
         $query = Inquiry::query()->with([
             'customer',
-            'assignedUser',
+            'creator',
             'itineraries' => function ($query): void {
-                $query->select(['id', 'inquiry_id'])
-                    ->orderByDesc('id');
+                $query->select(['itineraries.id'])
+                    ->orderByDesc('itineraries.id');
             },
         ]);
         $hasIncludedInquiry = $includeInquiryId && $includeInquiryId > 0;
+        $today = now()->toDateString();
+
+        if ($hasIncludedInquiry) {
+            $query->where(function (Builder $builder) use ($today, $includeInquiryId): void {
+                $builder->whereDate('deadline', '>=', $today)
+                    ->orWhereNull('deadline')
+                    ->orWhere('id', $includeInquiryId);
+            });
+        } else {
+            $query->where(function (Builder $builder) use ($today): void {
+                $builder->whereDate('deadline', '>=', $today)
+                    ->orWhereNull('deadline');
+            });
+        }
 
         if (Schema::hasColumn('inquiries', 'status')) {
             if ($hasIncludedInquiry) {
@@ -2317,18 +2451,14 @@ SVG;
         ]);
 
         if ($quotation->itinerary_id) {
-            $currentItineraryInquiryId = Itinerary::query()
-                ->whereKey((int) $quotation->itinerary_id)
-                ->value('inquiry_id');
+            $currentItineraryInquiryId = $this->resolveInquiryIdFromItinerary((int) $quotation->itinerary_id);
             if ($currentItineraryInquiryId) {
                 $inquiryIds->push((int) $currentItineraryInquiryId);
             }
         }
 
         if ($previousItineraryId) {
-            $previousItineraryInquiryId = Itinerary::query()
-                ->whereKey((int) $previousItineraryId)
-                ->value('inquiry_id');
+            $previousItineraryInquiryId = $this->resolveInquiryIdFromItinerary((int) $previousItineraryId);
             if ($previousItineraryInquiryId) {
                 $inquiryIds->push((int) $previousItineraryInquiryId);
             }
@@ -2370,7 +2500,9 @@ SVG;
             ->where(function (Builder $query) use ($inquiryId): void {
                 $query->where('inquiry_id', $inquiryId)
                     ->orWhereHas('itinerary', function (Builder $itineraryQuery) use ($inquiryId): void {
-                        $itineraryQuery->where('inquiry_id', $inquiryId);
+                        $itineraryQuery->whereHas('inquiryReferences', function (Builder $inquiryQuery) use ($inquiryId): void {
+                            $inquiryQuery->where('inquiries.id', $inquiryId);
+                        });
                     });
             })
             ->exists();

@@ -24,6 +24,7 @@
                 </div>
             </div>
             <aside class="module-grid-side">
+                @include('modules.inquiries.partials._form-info')
                 <div class="app-card p-4 space-y-3">
                     <div>
                         <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ ui_phrase('Activity Timeline') }}</h3>
@@ -35,4 +36,3 @@
         </div>
     </div>
 @endsection
-

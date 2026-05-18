@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 
 return array (
   '(dry run: no data saved)' => '(dry run: no data saved)',
@@ -1302,6 +1302,7 @@ return array (
   'item detail modal title' => 'Item Detail',
   'load detail failed' => 'Failed to load item detail.',
   'Update' => 'Update'
+  ,'Related Records' => 'Related Records'
   ,'Related Quotations' => 'Related Quotations'
   ,'Non-final quotations linked to this itinerary.' => 'Non-final quotations linked to this itinerary.'
   ,'No non-final related quotations.' => 'No non-final related quotations.'
@@ -1345,9 +1346,65 @@ return array (
   'Edit Booking Service' => 'Edit Booking Service',
   'Update Booking Service' => 'Update Booking Service',
   'Service item booking updated successfully.' => 'Service item booking updated successfully.',
-  'Service item booking data was not found.' => 'Service item booking data was not found.'
-  ,'Booking History' => 'Booking History'
+  'Service item booking data was not found.' => 'Service item booking data was not found.',
+  'Preview Voucher PDF' => 'Preview Voucher PDF'
+  ,'Booking History' => 'Booking History',
+  'No booking log available.' => 'No booking log available.',
+  ':service was booked by :user on :datetime.' => ':service was booked by :user on :datetime.',
+  'Manage booking service from Edit Booking page.' => 'Manage booking service from Edit Booking page.',
+  'Quotation is locked because booking service and voucher history already exists.' => 'Quotation is locked because booking service and voucher history already exists.',
+  'Quotation cannot be changed because booking service and voucher history already exists.' => 'Quotation cannot be changed because booking service and voucher history already exists.',
+  'Customer Name' => 'Customer Name',
+  'Tour / Name' => 'Tour / Name'
+  ,'Customer/Agent' => 'Customer/Agent'
+  ,'Select Customer/Agent' => 'Select Customer/Agent'
+  ,'Day :day Start Point: please select Hotel Area for Self-booked hotel.' => 'Day :day Start Point: please select Hotel Area for Self-booked hotel.'
+  ,'Day :day End Point: please select Hotel Area for Self-booked hotel.' => 'Day :day End Point: please select Hotel Area for Self-booked hotel.'
+  ,'attractions page title' => 'Tourist Attractions'
+  ,'attractions page subtitle' => 'Manage attraction catalog and pricing.'
+  ,'attractions create page title' => 'Create Tourist Attraction'
+  ,'attractions create page subtitle' => 'Create a new attraction record.'
+  ,'attractions edit page title' => 'Edit Tourist Attraction'
+  ,'attractions edit page subtitle' => 'Update attraction details.'
+  ,'attractions add attraction' => 'Add Attraction'
+  ,'attractions save attraction' => 'Save Attraction'
+  ,'attractions update attraction' => 'Update Attraction'
+  ,'attractions info text' => 'Fill attraction identity, location, and pricing details before saving.'
+  ,'attractions search' => 'Search by name, city, province, or country...'
+  ,'attractions ideal' => 'Ideal Duration'
+  ,'attractions ideal duration' => 'Ideal Duration (minutes)'
+  ,'attractions rates per pax' => 'Rates (per pax)'
+  ,'attractions contract' => 'Contract'
+  ,'attractions markup' => 'Markup'
+  ,'attractions publish' => 'Publish'
+  ,'attractions confirm deactivate' => 'Deactivate this tourist attraction?'
+  ,'attractions confirm activate' => 'Activate this tourist attraction?'
+  ,'attractions ajax refresh failed' => 'Failed to refresh attraction list.'
+  ,'attractions ajax delete confirm' => 'Delete this tourist attraction permanently?'
+  ,'attractions ajax request failed' => 'Failed to process request. Please try again.'
+  ,'attractions ajax delete success' => 'Tourist attraction deleted successfully.'
+  ,'attractions ajax status success' => 'Tourist attraction status updated successfully.'
+  ,'attractions import google title' => 'Google Places Import'
+  ,'attractions import google subtitle' => 'Import attractions from Google Places by destination and category.'
+  ,'attractions import google api key hint' => 'Google Places API key is not configured. Set GOOGLE_MAPS_PLACES_API_KEY in .env first.'
+  ,'attractions import google select destination' => 'Select destination'
+  ,'attractions import google custom query placeholder' => 'Optional custom query (example: temple, beach, museum)'
+  ,'attractions import google all islands' => 'All islands'
+  ,'attractions import google categories' => 'Place categories'
+  ,'attractions import google language fixed en' => 'Language: English (fixed)'
+  ,'attractions import google dry run' => 'Dry run (preview only, no data saved)'
+  ,'attractions import google import now' => 'Import Now'
+  ,'Gallery Images' => 'Gallery Images'
+  ,'Ideal Visit Duration (minutes)' => 'Ideal Visit Duration (minutes)'
+  ,'Tourist attraction gallery' => 'Tourist attraction gallery'
+  ,'Attraction gallery preview' => 'Attraction gallery preview'
+  ,'New upload' => 'New upload'
+  ,'Failed to delete image. Please try again.' => 'Failed to delete image. Please try again.'  ,'Only super admin can use this feature.' => 'Only super admin can use this feature.'
+  ,'Only super admin can delete tourist attractions.' => 'Only super admin can delete tourist attractions.'
+  ,'Image not found in gallery.' => 'Image not found in gallery.'
+  ,'Image removed successfully.' => 'Image removed successfully.'
+  ,'Markup percent cannot be greater than 100.' => 'Markup percent cannot be greater than 100.'
+  ,'Google Places API key is not configured. Please set GOOGLE MAPS PLACES API KEY first.' => 'Google Places API key is not configured. Please set GOOGLE MAPS PLACES API KEY first.'
+  ,'Only approved quotation can be converted to booking.' => 'Only approved quotation can be converted to booking.'
+  ,'Selected quotation validation must be 100% before booking.' => 'Selected quotation validation must be 100% before booking.'
 );
-
-
-

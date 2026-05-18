@@ -135,6 +135,13 @@ class Itinerary extends Model
         return $this->belongsTo(Inquiry::class);
     }
 
+    public function inquiryReferences()
+    {
+        return $this->belongsToMany(Inquiry::class, 'inquiry_itinerary_references', 'itinerary_id', 'inquiry_id')
+            ->withPivot(['id', 'created_by', 'created_at', 'updated_at'])
+            ->withTimestamps();
+    }
+
     public function destination()
     {
         return $this->belongsTo(Destination::class);

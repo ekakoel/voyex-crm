@@ -52,12 +52,12 @@ class DashboardController extends Controller
             : 0;
 
         $inquiryCount = $canInquiries && $userId
-            ? Inquiry::query()->where('assigned_to', $userId)->count()
+            ? Inquiry::query()->where('created_by', $userId)->count()
             : 0;
         $inquiryStatusCounts = $canInquiries && $userId
             ? Inquiry::query()
                 ->select('status', DB::raw('COUNT(*) as total'))
-                ->where('assigned_to', $userId)
+                ->where('created_by', $userId)
                 ->groupBy('status')
                 ->pluck('total', 'status')
                 ->toArray()
@@ -77,13 +77,13 @@ class DashboardController extends Controller
 
         $quotationCount = $canQuotations && $userId
             ? Quotation::query()
-                ->whereHas('inquiry', fn ($query) => $query->where('assigned_to', $userId))
+                ->whereHas('inquiry', fn ($query) => $query->where('created_by', $userId))
                 ->count()
             : 0;
         $quotationStatusCounts = $canQuotations && $userId
             ? Quotation::query()
                 ->select('status', DB::raw('COUNT(*) as total'))
-                ->whereHas('inquiry', fn ($query) => $query->where('assigned_to', $userId))
+                ->whereHas('inquiry', fn ($query) => $query->where('created_by', $userId))
                 ->groupBy('status')
                 ->pluck('total', 'status')
                 ->toArray()

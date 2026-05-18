@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Concerns\NormalizesDisplayCurrencyToIdr;
+use App\Http\Controllers\Concerns\ManagesServiceCancellationPolicy;
 use App\Http\Controllers\Controller;
 use App\Models\Destination;
 use App\Models\Transport;
@@ -15,6 +16,7 @@ use Illuminate\Validation\ValidationException;
 class TransportController extends Controller
 {
     use NormalizesDisplayCurrencyToIdr;
+    use ManagesServiceCancellationPolicy;
 
     public function index(Request $request)
     {
@@ -61,7 +63,8 @@ class TransportController extends Controller
             ->orderBy('name')
             ->get(['id', 'name', 'city', 'province']);
 
-        return view('modules.transports.create', compact('vendors', 'destinations'));
+        $cancellationPolicyRules = [];
+        return view('modules.transports.create', compact('vendors', 'destinations', 'cancellationPolicyRules'));
     }
 
     public function show(Transport $transport)
@@ -76,7 +79,8 @@ class TransportController extends Controller
         $validated = $this->validatePayload($request, null);
         $validated['images'] = $this->storeImages($request->file('images', []));
 
-        Transport::query()->create($validated);
+        $transport = Transport::query()->create($validated);
+        $this->syncCancellationPolicy($transport, $request->input('cancellation_rules', []), (string) ($transport->name ?? ''));
 
         return redirect()->route('transports.index')->with('success', 'Transport created successfully.');
     }
@@ -92,7 +96,8 @@ class TransportController extends Controller
             ->orderBy('name')
             ->get(['id', 'name', 'city', 'province']);
 
-        return view('modules.transports.edit', compact('transport', 'vendors', 'destinations'));
+        $cancellationPolicyRules = $this->resolveCancellationPolicyRules($transport);
+        return view('modules.transports.edit', compact('transport', 'vendors', 'destinations', 'cancellationPolicyRules'));
     }
 
     public function update(Request $request, Transport $transport)
@@ -111,6 +116,7 @@ class TransportController extends Controller
         $validated['images'] = array_slice(array_values(array_unique(array_merge($remaining, $newImages))), 0, 2);
 
         $transport->update($validated);
+        $this->syncCancellationPolicy($transport, $request->input('cancellation_rules', []), (string) ($transport->name ?? ''));
 
         return redirect()->route('transports.index')->with('success', 'Transport updated successfully.');
     }

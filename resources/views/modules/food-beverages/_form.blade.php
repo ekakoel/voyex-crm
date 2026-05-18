@@ -235,10 +235,18 @@
     </div>
 
     <div>
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Cancellation Policy') }}</label>
+        <textarea name="cancellation_policy" rows="3" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">{{ old('cancellation_policy', $foodBeverage->cancellation_policy ?? ($prefill['cancellation_policy'] ?? '')) }}</textarea>
+        @error('cancellation_policy') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+    </div>
+
+    <div>
         <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Notes') }}</label>
         <textarea name="notes" rows="3" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">{{ old('notes', $foodBeverage->notes ?? ($prefill['notes'] ?? '')) }}</textarea>
         @error('notes') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
     </div>
+
+    @include('components.cancellation-policy-editor', ['cancellationPolicyRules' => $cancellationPolicyRules ?? []])
 
     <div class="flex items-center gap-2">
         <input type="checkbox" name="is_active" value="1" class="rounded border-gray-300 text-indigo-600"

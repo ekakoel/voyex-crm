@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Concerns\NormalizesDisplayCurrencyToIdr;
+use App\Http\Controllers\Concerns\ManagesServiceCancellationPolicy;
 use App\Http\Controllers\Controller;
 use App\Models\Destination;
 use App\Models\Hotel;
@@ -21,6 +22,7 @@ use Illuminate\Validation\ValidationException;
 class HotelController extends Controller
 {
     use NormalizesDisplayCurrencyToIdr;
+    use ManagesServiceCancellationPolicy;
 
     public function index(Request $request)
     {
@@ -210,6 +212,7 @@ class HotelController extends Controller
         $validated['author_id'] = $hotel->author_id ?: auth()->id();
 
         $hotel->update($validated);
+        $this->syncCancellationPolicy($hotel, $request->input('cancellation_rules', []), (string) ($hotel->name ?? ''));
 
         if ($coverResult['delete'] !== '') {
             $this->deleteHotelCovers([$coverResult['delete']]);
@@ -250,7 +253,8 @@ class HotelController extends Controller
                 unset($roomData['id']);
 
                 if ($roomId > 0 && $existingRooms->has($roomId)) {
-                    $existingRooms->get($roomId)->update($roomData);
+                    $room = $existingRooms->get($roomId);
+                    $room->update($roomData);
                     $processedIds[] = $roomId;
                     continue;
                 }
@@ -383,6 +387,7 @@ class HotelController extends Controller
                 ->get(['id', 'name', 'province']),
             'roomViews' => RoomView::query()->orderBy('name')->get(['id', 'name']),
             'roomOptions' => $hotel->rooms ?? collect(),
+            'cancellationPolicyRules' => $this->resolveCancellationPolicyRules($hotel),
             'step' => $step,
         ];
     }

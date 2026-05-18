@@ -67,28 +67,12 @@
             <div class="module-grid-side order-2">
                 <div class="app-card p-5">
                     <div>
-                        <h2 class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ ui_phrase('related records') }}</h2>
+                        <h2 class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ ui_phrase('Related Records') }}</h2>
                     </div>
 
                     <div class="mt-4 space-y-4">
                         <div>
-                            <h3 class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ ui_phrase('related itineraries') }}</h3>
-                            <div class="mt-2 space-y-2">
-                                @forelse (($itineraries ?? collect()) as $itinerary)
-                                    <a href="{{ route('itineraries.show', $itinerary) }}" class="block rounded-lg border border-gray-200 px-3 py-2 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-900/30">
-                                        <div class="flex items-center justify-between gap-3">
-                                            <p class="text-sm font-medium text-gray-800 dark:text-gray-100">{{ $itinerary->title ?: '-' }}</p>
-                                            <x-status-badge :status="$itinerary->status" size="xs" />
-                                        </div>
-                                    </a>
-                                @empty
-                                    <p class="text-sm text-gray-500 dark:text-gray-400">{{ ui_phrase('no related itineraries') }}</p>
-                                @endforelse
-                            </div>
-                        </div>
-
-                        <div>
-                            <h3 class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ ui_phrase('related quotations') }}</h3>
+                            <h3 class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ ui_phrase('Related Quotations') }}</h3>
                             <div class="mt-2 space-y-2">
                                 @forelse (($quotations ?? collect()) as $quotation)
                                     <a href="{{ route('quotations.show', $quotation) }}" class="block rounded-lg border border-gray-200 px-3 py-2 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-900/30">
@@ -98,7 +82,7 @@
                                         </div>
                                     </a>
                                 @empty
-                                    <p class="text-sm text-gray-500 dark:text-gray-400">{{ ui_phrase('no related quotations') }}</p>
+                                    <p class="text-sm text-gray-500 dark:text-gray-400">{{ ui_phrase('No related quotations yet.') }}</p>
                                 @endforelse
                             </div>
                         </div>
@@ -143,11 +127,6 @@
                         </div>
 
                         <div>
-                            <dt class="text-gray-500 dark:text-gray-400">{{ ui_phrase('Assigned to') }}:</dt>
-                            <dd class="mt-1 font-medium text-gray-800 dark:text-gray-100">{{ $inquiry->assignedUser->name ?? '-' }}</dd>
-                        </div>
-
-                        <div>
                             <dt class="text-gray-500 dark:text-gray-400">{{ ui_phrase('Deadline') }}:</dt>
                             <dd class="mt-1 font-medium text-gray-800 dark:text-gray-100">{{ $inquiry->deadline?->format('Y-m-d') ?? '-' }}</dd>
                         </div>
@@ -172,7 +151,6 @@
     </div>
 
 @endsection
-
 
 
 

@@ -57,11 +57,6 @@
                                 </div>
                             </div>
 
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Notes') }}</label>
-                                <textarea name="notes" rows="3" class="mt-1 app-input">{{ old('notes', optional($voucher)->notes ?? ($prefill['notes'] ?? '')) }}</textarea>
-                            </div>
-
                             <div class="flex items-center gap-2">
                                 <button type="submit" class="btn-primary">{{ ui_phrase('Save') }}</button>
                                 @if ($voucher)

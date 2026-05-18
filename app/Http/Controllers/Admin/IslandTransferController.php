@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Concerns\NormalizesDisplayCurrencyToIdr;
+use App\Http\Controllers\Concerns\ManagesServiceCancellationPolicy;
 use App\Http\Controllers\Controller;
 use App\Models\IslandTransfer;
 use App\Models\Vendor;
@@ -17,6 +18,7 @@ use Illuminate\Validation\ValidationException;
 class IslandTransferController extends Controller
 {
     use NormalizesDisplayCurrencyToIdr;
+    use ManagesServiceCancellationPolicy;
 
     public function index(Request $request)
     {
@@ -76,14 +78,16 @@ class IslandTransferController extends Controller
             ->orderBy('name')
             ->get(['id', 'name', 'city', 'province']);
 
-        return view('modules.island-transfers.create', compact('vendors'));
+        $cancellationPolicyRules = [];
+        return view('modules.island-transfers.create', compact('vendors', 'cancellationPolicyRules'));
     }
 
     public function store(Request $request)
     {
         $validated = $this->validatePayload($request);
         $validated['gallery_images'] = $this->storeGalleryImages($request->file('gallery_images', []), 'island-transfers');
-        IslandTransfer::query()->create($validated);
+        $islandTransfer = IslandTransfer::query()->create($validated);
+        $this->syncCancellationPolicy($islandTransfer, $request->input('cancellation_rules', []), (string) ($islandTransfer->name ?? ''));
 
         return redirect()->route('island-transfers.index')->with('success', ui_phrase('Island Transfer created successfully.'));
     }
@@ -105,7 +109,8 @@ class IslandTransferController extends Controller
             ->orderBy('name')
             ->get(['id', 'name', 'city', 'province']);
 
-        return view('modules.island-transfers.edit', compact('islandTransfer', 'vendors'));
+        $cancellationPolicyRules = $this->resolveCancellationPolicyRules($islandTransfer);
+        return view('modules.island-transfers.edit', compact('islandTransfer', 'vendors', 'cancellationPolicyRules'));
     }
 
     public function update(Request $request, IslandTransfer $islandTransfer)
@@ -125,6 +130,7 @@ class IslandTransferController extends Controller
         $validated['gallery_images'] = array_values(array_merge($remainingGallery, $newGallery));
         unset($validated['removed_gallery_images']);
         $islandTransfer->update($validated);
+        $this->syncCancellationPolicy($islandTransfer, $request->input('cancellation_rules', []), (string) ($islandTransfer->name ?? ''));
 
         return redirect()->route('island-transfers.index')->with('success', ui_phrase('Island Transfer updated successfully.'));
     }
@@ -224,6 +230,7 @@ class IslandTransferController extends Controller
             'publish_rate' => ['nullable', 'numeric', 'min:0'],
             'capacity_min' => ['nullable', 'integer', 'min:1'],
             'capacity_max' => ['nullable', 'integer', 'min:1', 'gte:capacity_min'],
+            'cancellation_policy' => ['nullable', 'string'],
             'notes' => ['nullable', 'string'],
             'gallery_images' => ['nullable', 'array'],
             'gallery_images.*' => ['image'],

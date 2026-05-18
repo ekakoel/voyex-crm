@@ -26,12 +26,12 @@ class SendInquiryFollowupReminders extends Command
             ->whereHas('inquiry', function ($q) {
                 $q->where('reminder_enabled', true);
             })
-            ->with(['inquiry.customer', 'inquiry.creator', 'inquiry.assignedUser'])
+            ->with(['inquiry.customer', 'inquiry.creator', 'inquiry.creator'])
             ->get();
 
         $sent = 0;
         foreach ($followUps as $followUp) {
-            $user = $followUp->inquiry?->creator ?? $followUp->inquiry?->assignedUser;
+            $user = $followUp->inquiry?->creator;
             if ($user && $user->email) {
                 $user->notify(new InquiryFollowUpReminder($followUp, 'H-0'));
                 $followUp->forceFill([

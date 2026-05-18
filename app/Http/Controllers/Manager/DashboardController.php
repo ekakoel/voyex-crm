@@ -40,12 +40,12 @@ class DashboardController extends Controller
         $currentMonthStart = $now->copy()->startOfMonth();
         $currentMonthEnd = $now->copy()->endOfDay();
 
-        $teamInquiryQuery = Inquiry::query()->whereIn('assigned_to', $teamIds);
-        $teamQuotationQuery = Quotation::query()->whereHas('inquiry', fn (Builder $q) => $q->whereIn('assigned_to', $teamIds));
+        $teamInquiryQuery = Inquiry::query()->whereIn('created_by', $teamIds);
+        $teamQuotationQuery = Quotation::query()->whereHas('inquiry', fn (Builder $q) => $q->whereIn('created_by', $teamIds));
         $teamBookingQuery = Booking::query()
             ->join('quotations', 'bookings.quotation_id', '=', 'quotations.id')
             ->join('inquiries', 'quotations.inquiry_id', '=', 'inquiries.id')
-            ->whereIn('inquiries.assigned_to', $teamIds);
+            ->whereIn('inquiries.created_by', $teamIds);
 
         $excludeCreatorScope = function (Builder $query) use ($user): void {
             if (! Schema::hasColumn('quotations', 'created_by')) {
@@ -69,7 +69,7 @@ class DashboardController extends Controller
             : 0;
 
         $totalItineraries = $canItineraries
-            ? Itinerary::query()->whereHas('inquiry', fn (Builder $q) => $q->whereIn('assigned_to', $teamIds))->count()
+            ? Itinerary::query()->whereHas('inquiry', fn (Builder $q) => $q->whereIn('created_by', $teamIds))->count()
             : 0;
 
         $totalBookings = $canBookings ? (clone $teamBookingQuery)->count('bookings.id') : 0;
@@ -92,7 +92,7 @@ class DashboardController extends Controller
             ? InquiryFollowUp::query()
                 ->where('is_done', false)
                 ->whereDate('due_date', '<', $now->toDateString())
-                ->whereHas('inquiry', fn (Builder $q) => $q->whereIn('assigned_to', $teamIds))
+                ->whereHas('inquiry', fn (Builder $q) => $q->whereIn('created_by', $teamIds))
                 ->count()
             : 0;
 
@@ -237,7 +237,7 @@ class DashboardController extends Controller
         $upcomingFollowUps = $canInquiries
             ? InquiryFollowUp::query()
                 ->where('is_done', false)
-                ->whereHas('inquiry', fn (Builder $query) => $query->whereIn('assigned_to', $teamIds))
+                ->whereHas('inquiry', fn (Builder $query) => $query->whereIn('created_by', $teamIds))
                 ->with('inquiry:id,inquiry_number')
                 ->orderBy('due_date')
                 ->limit(7)
@@ -246,7 +246,7 @@ class DashboardController extends Controller
 
         $recentInquiries = $canInquiries
             ? (clone $teamInquiryQuery)
-                ->with('customer:id,name', 'assignedUser:id,name')
+                ->with('customer:id,name', 'creator:id,name')
                 ->latest()
                 ->limit(5)
                 ->get()

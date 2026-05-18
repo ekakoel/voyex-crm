@@ -30,13 +30,13 @@ class DashboardController extends Controller
 
         // Data for Funnel & KPIs
         $totalInquiries = $canInquiries
-            ? Inquiry::query()->where('assigned_to', $assignedId)->count()
+            ? Inquiry::query()->where('created_by', $assignedId)->count()
             : 0;
         $totalQuotations = $canQuotations
-            ? Quotation::query()->whereHas('inquiry', fn ($q) => $q->where('assigned_to', $assignedId))->count()
+            ? Quotation::query()->whereHas('inquiry', fn ($q) => $q->where('created_by', $assignedId))->count()
             : 0;
         $totalBookings = $canBookings
-            ? Booking::query()->whereHas('quotation.inquiry', fn ($q) => $q->where('assigned_to', $assignedId))->count()
+            ? Booking::query()->whereHas('quotation.inquiry', fn ($q) => $q->where('created_by', $assignedId))->count()
             : 0;
 
         // KPI: My Revenue This Month
@@ -45,7 +45,7 @@ class DashboardController extends Controller
                 ->join('quotations', 'bookings.quotation_id', '=', 'quotations.id')
                 ->join('inquiries', 'quotations.inquiry_id', '=', 'inquiries.id')
                 ->where('bookings.status', 'confirmed')
-                ->where('inquiries.assigned_to', $assignedId)
+                ->where('inquiries.created_by', $assignedId)
                 ->whereMonth('bookings.travel_date', $now->month)
                 ->whereYear('bookings.travel_date', $now->year)
                 ->sum('quotations.final_amount')
@@ -59,7 +59,7 @@ class DashboardController extends Controller
         // KPI: My Active Inquiries (not closed or converted)
         $kpis['active_inquiries'] = $canInquiries
             ? Inquiry::query()
-                ->where('assigned_to', $assignedId)
+                ->where('created_by', $assignedId)
                 ->whereNotIn('status', ['converted', 'closed'])
                 ->count()
             : 0;
@@ -69,7 +69,7 @@ class DashboardController extends Controller
             ? InquiryFollowUp::query()
                 ->where('is_done', false)
                 ->whereDate('due_date', '<', $now->toDateString())
-                ->whereHas('inquiry', fn ($q) => $q->where('assigned_to', $assignedId))
+                ->whereHas('inquiry', fn ($q) => $q->where('created_by', $assignedId))
                 ->count()
             : 0;
 
@@ -89,7 +89,7 @@ class DashboardController extends Controller
         $inquiryByStatus = $canInquiries
             ? Inquiry::query()
                 ->select('status', DB::raw('COUNT(*) as total'))
-                ->where('assigned_to', $assignedId)
+                ->where('created_by', $assignedId)
                 ->groupBy('status')
                 ->pluck('total', 'status')
             : collect();
@@ -98,7 +98,7 @@ class DashboardController extends Controller
         $upcomingFollowUps = $canInquiries
             ? InquiryFollowUp::query()
                 ->where('is_done', false)
-                ->whereHas('inquiry', fn ($query) => $query->where('assigned_to', $assignedId))
+                ->whereHas('inquiry', fn ($query) => $query->where('created_by', $assignedId))
                 ->with('inquiry:id,inquiry_number')
                 ->orderBy('due_date')
                 ->limit(7)
@@ -108,7 +108,7 @@ class DashboardController extends Controller
         $recentInquiries = $canInquiries
             ? Inquiry::query()
                 ->with('customer:id,name')
-                ->where('assigned_to', $assignedId)
+                ->where('created_by', $assignedId)
                 ->latest()
                 ->limit(5)
                 ->get()

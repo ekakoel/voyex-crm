@@ -11,9 +11,30 @@
 @endsection
 
 @push('scripts')
+    @php
+        $inquiryMapForJs = collect($inquiries ?? [])->mapWithKeys(function ($inquiry) {
+            return [
+                (string) $inquiry->id => [
+                    'inquiry_number' => (string) ($inquiry->inquiry_number ?? '-'),
+                    'customer_name' => (string) ($inquiry->customer?->name ?? '-'),
+                    'status' => (string) ($inquiry->status ?? '-'),
+                    'priority' => (string) ($inquiry->priority ?? '-'),
+                    'source' => (string) ($inquiry->source ?? '-'),
+                    'creator_name' => (string) ($inquiry->creator?->name ?? '-'),
+                    'deadline' => optional($inquiry->deadline)->format('Y-m-d') ?? '-',
+                    'notes_html' => \App\Support\SafeRichText::sanitize((string) ($inquiry->notes ?? '')),
+                ],
+            ];
+        })->all();
+    @endphp
     <script>
         (function () {
             const itineraryMap = @json($itineraryInquiryMap ?? []);
+            const inquiryMap = @json($inquiryMapForJs);
+            const customerMap = @json(collect($customers ?? [])->mapWithKeys(function ($customer) {
+                $label = trim((string) (($customer->company_name ?? '') !== '' ? $customer->company_name : ($customer->name ?? '')));
+                return [(string) $customer->id => $label !== '' ? $label : '-'];
+            })->all());
             const card = document.getElementById('quotation-create-inquiry-card');
             if (!card) return;
 
@@ -41,15 +62,35 @@
                 setField('status', data.status);
                 setField('priority', data.priority);
                 setField('source', data.source);
-                setField('assigned_user_name', data.assigned_user_name);
+                setField('creator_name', data.creator_name);
                 setField('deadline', data.deadline);
                 setHtmlField('notes', data.notes_html || '');
                 card.classList.remove('hidden');
             };
 
-            const renderByItineraryId = (itineraryId) => {
+            const renderBySelection = (itineraryId, inquiryId) => {
+                if (inquiryId && inquiryMap[inquiryId]) {
+                    renderInquiryCard(inquiryMap[inquiryId]);
+                    return true;
+                }
                 if (!itineraryId || !itineraryMap[itineraryId]) {
-                    renderInquiryCard(null);
+                    const customerSelect = document.getElementById('customer-agent-select');
+                    const selectedCustomerId = String(customerSelect?.value || '').trim();
+                    const selectedCustomerName = selectedCustomerId !== '' ? (customerMap[selectedCustomerId] || '-') : '-';
+                    if (selectedCustomerId === '') {
+                        renderInquiryCard(null);
+                        return false;
+                    }
+                    renderInquiryCard({
+                        inquiry_number: '-',
+                        customer_name: selectedCustomerName,
+                        status: '-',
+                        priority: '-',
+                        source: '-',
+                        creator_name: '-',
+                        deadline: '-',
+                        notes_html: '-',
+                    });
                     return false;
                 }
 
@@ -58,16 +99,24 @@
             };
 
             const itinerarySelect = document.getElementById('itinerary-select');
+            const inquirySelect = document.getElementById('inquiry-select');
+            const customerSelect = document.getElementById('customer-agent-select');
             if (itinerarySelect) {
-                renderByItineraryId(itinerarySelect.value || '');
+                renderBySelection(itinerarySelect.value || '', inquirySelect?.value || '');
                 itinerarySelect.addEventListener('change', () => {
-                    renderByItineraryId(itinerarySelect.value || '');
+                    renderBySelection(itinerarySelect.value || '', inquirySelect?.value || '');
                 });
             }
+            inquirySelect?.addEventListener('change', () => {
+                renderBySelection(itinerarySelect?.value || '', inquirySelect.value || '');
+            });
+            customerSelect?.addEventListener('change', () => {
+                renderBySelection(itinerarySelect?.value || '', inquirySelect?.value || '');
+            });
 
             window.addEventListener('quotation:itinerary-selected', (event) => {
                 const itineraryId = event?.detail?.itineraryId || '';
-                renderByItineraryId(itineraryId);
+                renderBySelection(itineraryId, inquirySelect?.value || '');
             });
         })();
     </script>
@@ -97,7 +146,6 @@
                         <li>{{ ui_phrase('Pada item itinerary, yang dapat disesuaikan hanya QTY. Publish Rate dan Unit Price ditampilkan sebagai referensi perhitungan.') }}</li>
                         <li>{{ ui_phrase('Gunakan Additional Items untuk menambahkan layanan tambahan (contoh: tip guide, extra service, dan kebutuhan lain di luar itinerary).') }}</li>
                         <li>{{ ui_phrase('Pada Additional Items, isi Description, QTY, dan Rate. Unit Price dihitung otomatis.') }}</li>
-                        <li>{{ ui_phrase('Gunakan Update Contract Rate jika hanya ingin sinkron harga terbaru tanpa mengubah struktur item.') }}</li>
                         <li>{{ ui_phrase('Jika perlu ubah isi itinerary, klik tombol Itinerary (ikon pensil), lalu lakukan Generate ulang agar item quotation sinkron.') }}</li>
                         <li>{{ ui_phrase('Penyesuaian Contract Rate, Markup Type, dan Markup dilakukan pada halaman Validation.') }}</li>
                     </ol>
@@ -129,8 +177,8 @@
                             <p class="mt-1 text-sm font-medium text-gray-800 dark:text-gray-100" data-inquiry-field="source">-</p>
                         </div>
                         <div>
-                            <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ ui_phrase('Assigned') }}:</p>
-                            <p class="mt-1 text-sm font-medium text-gray-800 dark:text-gray-100" data-inquiry-field="assigned_user_name">-</p>
+                            <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ ui_phrase('Created By') }}:</p>
+                            <p class="mt-1 text-sm font-medium text-gray-800 dark:text-gray-100" data-inquiry-field="creator_name">-</p>
                         </div>
                         <div>
                             <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ ui_phrase('Deadline') }}:</p>

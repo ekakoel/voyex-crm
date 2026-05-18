@@ -552,6 +552,7 @@
                     </x-page-header>
                 </section>
             @endunless
+            @include('components.flash-messages')
             @yield('content')
             </div>
         </main>
@@ -773,6 +774,10 @@
         };
 
         fields.forEach((field) => {
+            if (field.dataset.moneySkip === '1') {
+                return;
+            }
+
             if (field.dataset.moneyHintBound === '1') {
                 return;
             }

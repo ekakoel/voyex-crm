@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Concerns\NormalizesDisplayCurrencyToIdr;
+use App\Http\Controllers\Concerns\ManagesServiceCancellationPolicy;
 use App\Http\Controllers\Controller;
 use App\Models\Destination;
 use App\Models\FoodBeverage;
@@ -17,6 +18,7 @@ use Illuminate\Validation\ValidationException;
 class FoodBeverageController extends Controller
 {
     use NormalizesDisplayCurrencyToIdr;
+    use ManagesServiceCancellationPolicy;
 
     public function index(Request $request)
     {
@@ -75,14 +77,16 @@ class FoodBeverageController extends Controller
             }
         }
 
-        return view('modules.food-beverages.create', compact('vendors', 'destinations', 'serviceTypes', 'standardServiceTypes', 'prefill', 'copiedFrom'));
+        $cancellationPolicyRules = [];
+        return view('modules.food-beverages.create', compact('vendors', 'destinations', 'serviceTypes', 'standardServiceTypes', 'prefill', 'copiedFrom', 'cancellationPolicyRules'));
     }
 
     public function store(Request $request)
     {
         $validated = $this->validatePayload($request, null);
         $validated['gallery_images'] = $this->storeGalleryImages($request->file('gallery_images', []), 'food-beverages');
-        FoodBeverage::query()->create($validated);
+        $foodBeverage = FoodBeverage::query()->create($validated);
+        $this->syncCancellationPolicy($foodBeverage, $request->input('cancellation_rules', []), (string) ($foodBeverage->name ?? ''));
 
         return redirect()->route('food-beverages.index')->with('success', 'F&B service created successfully.');
     }
@@ -101,7 +105,8 @@ class FoodBeverageController extends Controller
             $serviceTypes[] = (string) $foodBeverage->service_type;
         }
 
-        return view('modules.food-beverages.edit', compact('foodBeverage', 'vendors', 'destinations', 'serviceTypes', 'standardServiceTypes'));
+        $cancellationPolicyRules = $this->resolveCancellationPolicyRules($foodBeverage);
+        return view('modules.food-beverages.edit', compact('foodBeverage', 'vendors', 'destinations', 'serviceTypes', 'standardServiceTypes', 'cancellationPolicyRules'));
     }
 
     public function update(Request $request, FoodBeverage $foodBeverage)
@@ -121,6 +126,7 @@ class FoodBeverageController extends Controller
         $validated['gallery_images'] = array_values(array_merge($remainingGallery, $newGallery));
         unset($validated['removed_gallery_images']);
         $foodBeverage->update($validated);
+        $this->syncCancellationPolicy($foodBeverage, $request->input('cancellation_rules', []), (string) ($foodBeverage->name ?? ''));
 
         return redirect()->route('food-beverages.index')->with('success', 'F&B service updated successfully.');
     }
@@ -219,6 +225,7 @@ class FoodBeverageController extends Controller
             'meal_periods' => ['nullable', 'array'],
             'meal_periods.*' => ['string', Rule::in(['breakfast', 'lunch', 'dinner'])],
             'menu_highlights' => ['nullable', 'string'],
+            'cancellation_policy' => ['nullable', 'string'],
             'notes' => ['nullable', 'string'],
             'gallery_images' => ['nullable', 'array'],
             'gallery_images.*' => ['image'],

@@ -119,15 +119,19 @@ class BookingVoucherService
         $customer = $inquiry?->customer;
         $itinerary = $quotation?->itinerary;
 
-        $vendorName = null;
+        $latestLog = $bookingItem->latestBookingLog;
+        $vendorName = trim((string) ($latestLog?->vendor_provider_item_name ?? ''));
         $vendorPhone = null;
         $vendorEmail = null;
-        if (method_exists($bookingItem->serviceable, 'vendor')) {
-            $vendorName = $bookingItem->serviceable?->vendor?->name;
-            $vendorPhone = $bookingItem->serviceable?->vendor?->phone;
-            $vendorEmail = $bookingItem->serviceable?->vendor?->email;
+        $channel = strtolower(trim((string) ($latestLog?->contact_channel ?? '')));
+        $contactValue = trim((string) ($latestLog?->contact_value ?? ''));
+        if ($contactValue !== '') {
+            if ($channel === 'email') {
+                $vendorEmail = $contactValue;
+            } else {
+                $vendorPhone = $contactValue;
+            }
         }
-        $latestLog = $bookingItem->latestBookingLog;
 
         $customerAgentName = $this->resolveCustomerAgentName($bookingItem);
         $orderNumber = trim((string) ($quotation?->order_number ?? ''));
@@ -137,13 +141,12 @@ class BookingVoucherService
 
         return [
             'tour_name' => $tourName,
-            'service_date' => $bookingItem->booking?->travel_date,
+            'service_date' => $latestLog?->service_date ?? $bookingItem->booking?->travel_date,
             'service_time' => null,
             'vendor_contact_name' => $vendorName,
             'vendor_contact_phone' => $vendorPhone,
             'vendor_contact_email' => $vendorEmail,
             'pickup_location' => null,
-            'notes' => trim((string) ($bookingItem->notes ?? '')) ?: null,
             'confirmation_code' => trim((string) ($latestLog?->confirmation_number ?? '')) !== ''
                 ? trim((string) $latestLog?->confirmation_number)
                 : strtoupper(substr(hash('sha1', (string) $bookingItem->id . '|' . (string) ($quotation?->order_number ?? '')), 0, 10)),

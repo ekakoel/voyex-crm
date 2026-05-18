@@ -17,7 +17,6 @@ class BookingItemVoucher extends Model
         'vendor_contact_phone',
         'vendor_contact_email',
         'pickup_location',
-        'notes',
         'confirmation_code',
         'source_hash',
         'issued_at',

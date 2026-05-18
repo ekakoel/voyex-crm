@@ -1,8 +1,64 @@
 # Technical Fix Notes
 
-Last Updated: 2026-04-28
+Last Updated: 2026-05-15
 
 Dokumen ini menggabungkan fix-report teknis lintas modul yang berdampak ke arsitektur/standar.
+
+## 46. Itinerary Inquiry Reference-Only Mode (2026-05-15)
+
+Masalah:
+- User membutuhkan `Inquiry` pada form itinerary hanya sebagai referensi saat input.
+- Sebelumnya `inquiry_id` ikut tersimpan permanen pada itinerary sehingga itinerary tetap terhubung ke inquiry.
+
+Perbaikan:
+- Pada `ItineraryController` flow `store/update/duplicate`, field `inquiry_id` dipaksa `null` saat persist.
+- Sinkronisasi status inquiry dari mutasi itinerary dinonaktifkan agar tidak ada side-effect relasi permanen.
+- Hasil akhir: itinerary selalu independent setelah disimpan.
+
+Dampak:
+- Pemilihan inquiry pada form itinerary tetap bisa dipakai untuk referensi/prefill saat input.
+- Setelah save, itinerary tidak lagi menyimpan linkage inquiry permanen.
+
+## 47. Itinerary Self-booked Hotel Link Cleanup (2026-05-15)
+
+Masalah:
+- Pada beberapa data lama, day point dengan mode `self-booked hotel` masih menyimpan `start_hotel_id` / `end_hotel_id`.
+- Hal ini menimbulkan inkonsistensi karena self-booked seharusnya tidak terikat ke master hotel.
+
+Perbaikan:
+- Refactor normalisasi day point di `ItineraryController`:
+  - `start_hotel_id` diset `null` saat `start_hotel_booking_mode = self`.
+  - `end_hotel_id` diset `null` saat `end_hotel_booking_mode = self`.
+- Detail itinerary card `Hotels` difilter agar tidak menampilkan entri self-booked.
+- Menambahkan migration data cleanup:
+  - `2026_05_15_120000_cleanup_self_booked_hotel_links_in_itinerary_day_points.php`
+  - membersihkan data existing dengan men-null-kan hotel link pada row self-booked.
+
+Dampak:
+- Data baru dan lama menjadi konsisten: self-booked tidak terhubung ke hotel master.
+- Card `Hotels` hanya menampilkan hotel arranged/terhubung master.
+
+## 45. Itinerary Transport Table Validation Alignment (2026-05-15)
+
+Masalah:
+- Create/Update Itinerary gagal dengan error:
+  - `SQLSTATE[42S02]: Base table or view not found: 1146 Table '...transport_units' doesn't exist`
+- Validasi request masih menggunakan rule lama:
+  - `exists:transport_units,id`
+  padahal model `TransportUnit` sudah dipetakan ke tabel `transports`.
+
+Perbaikan:
+- Menyelaraskan validasi `daily_transport_units.*.transport_unit_id` di `ItineraryController` agar tidak lagi hardcoded ke tabel lama.
+- Refactor rule menjadi dinamis berdasarkan model:
+  - `$transportTable = (new TransportUnit())->getTable()`
+  - `exists:{$transportTable},id`
+- Diterapkan konsisten pada flow:
+  - `store()`
+  - `update()`
+
+Dampak:
+- Create/Edit Itinerary kembali dapat disimpan pada environment yang sudah migrasi `transport_units -> transports`.
+- Mengurangi risiko regresi bila nama tabel diubah lagi karena validasi mengikuti source of truth model.
 
 ## 44. Itinerary Day Planner F&B Meal Availability Filter (2026-04-29)
 

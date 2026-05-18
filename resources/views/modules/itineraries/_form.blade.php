@@ -447,7 +447,7 @@
             'status' => (string) ($inquiry->status ?? '-'),
             'priority' => (string) ($inquiry->priority ?? '-'),
             'source' => (string) ($inquiry->source ?? '-'),
-            'assigned_to' => (string) ($inquiry->assignedUser?->name ?? '-'),
+            'creator_name' => (string) ($inquiry->creator?->name ?? '-'),
             'itinerary_count' => (int) ($inquiry->itineraries_count ?? 0),
             'deadline' => $inquiry->deadline ? $inquiry->deadline->format('Y-m-d') : '-',
             'created_at_iso' => $inquiry->created_at ? $inquiry->created_at->toIso8601String() : null,
@@ -458,16 +458,6 @@
     }
 @endphp
 
-@if (session('error'))
-    <div class="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-        {{ session('error') }}
-    </div>
-@endif
-@if (session('success'))
-    <div class="mb-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
-        {{ session('success') }}
-    </div>
-@endif
 @if ($errors->any())
     <div class="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
         <p class="font-semibold">{{ ui_phrase('Please fix the following errors:') }}</p>
@@ -1953,7 +1943,7 @@
                     detailField('inq-detail-status').textContent = detail.status || '-';
                     detailField('inq-detail-priority').textContent = detail.priority || '-';
                     detailField('inq-detail-source').textContent = detail.source || '-';
-                    detailField('inq-detail-assigned').textContent = detail.assigned_to || '-';
+                    detailField('inq-detail-assigned').textContent = detail.creator_name || '-';
                     detailField('inq-detail-deadline').textContent = detail.deadline || '-';
                     detailField('inq-detail-created').textContent = localizeIso(detail.created_at_iso);
                     detailField('inq-detail-notes').innerHTML = detail.notes || '-';
@@ -2069,6 +2059,8 @@
                     failedCreateFnb: @json(ui_phrase('Failed to create F&B')),
                     estimateNextItem: @json(ui_phrase('Estimated travel time to the next item (minutes)')),
                     estimateEndPoint: @json(ui_phrase('Estimated travel time to end point (minutes)')),
+                    selfBookedStartAreaRequired: @json(ui_phrase('Day :day Start Point: please select Hotel Area for Self-booked hotel.')),
+                    selfBookedEndAreaRequired: @json(ui_phrase('Day :day End Point: please select Hotel Area for Self-booked hotel.')),
                     dayLabelPattern: @json(ui_phrase('Day :day')),
                     dayStartPointPattern: @json(ui_phrase('Day :day Start Point')),
                     dayEndPointPattern: @json(ui_phrase('Day :day End Point')),
@@ -2534,6 +2526,50 @@
                         }
                     }
                     return true;
+                };
+                const normalizeValidationMessage = (value, fallback = '') => {
+                    const text = String(value || '').trim();
+                    return text !== '' ? text : fallback;
+                };
+                const clearValidationFieldState = (field) => {
+                    if (!(field instanceof HTMLElement)) return;
+                    field.classList.remove('border-rose-500', 'focus:border-rose-500', 'focus:ring-rose-500');
+                };
+                const markValidationFieldState = (field) => {
+                    if (!(field instanceof HTMLElement)) return;
+                    field.classList.add('border-rose-500', 'focus:border-rose-500', 'focus:ring-rose-500');
+                };
+                const focusValidationIssue = (issue) => {
+                    if (!issue || !(issue.field instanceof HTMLElement)) return;
+                    issue.field.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    issue.field.focus();
+                };
+                const validateWizardStepOneDetailed = () => {
+                    const panel = wizardRoot?.querySelector('[data-wizard-step="1"]');
+                    if (!panel) return { valid: true };
+                    const candidates = [...panel.querySelectorAll('input, select, textarea')]
+                        .filter((field) => field instanceof HTMLInputElement || field instanceof HTMLSelectElement || field instanceof HTMLTextAreaElement);
+                    for (const field of candidates) {
+                        if (field.hasAttribute('required') && !field.disabled) {
+                            clearValidationFieldState(field);
+                            if (typeof field.checkValidity === 'function' && !field.checkValidity()) {
+                                markValidationFieldState(field);
+                                return {
+                                    valid: false,
+                                    issue: {
+                                        step: 1,
+                                        day: null,
+                                        field,
+                                        message: normalizeValidationMessage(
+                                            typeof field.validationMessage === 'string' ? field.validationMessage : '',
+                                            @json(ui_phrase('Please complete required fields in Basic Info.'))
+                                        ),
+                                    },
+                                };
+                            }
+                        }
+                    }
+                    return { valid: true };
                 };
                 const setWizardStep = (targetStep) => {
                     if (!wizardRoot) return;
@@ -3455,6 +3491,11 @@
                     if (slot === 'dinner') return 'Dinner';
                     return '';
                 };
+                const mealSlotDefaultStartTimes = {
+                    breakfast: '08:00',
+                    lunch: '12:30',
+                    dinner: '19:00',
+                };
                 const getFnbMealSlotForRow = (row) => resolveMealSlotFromTimeValue(row?.querySelector('.item-start')?.value || '');
                 const isFnbOptionAllowedForMealSlot = (option, mealSlot) => {
                     if (!option) return false;
@@ -3599,9 +3640,10 @@
                     const payload = await response.json();
                     return Array.isArray(payload?.data) ? payload.data : [];
                 };
-                const createFnbFromKeyword = async (keyword) => {
+                const createFnbFromKeywordForRow = async (row, keyword) => {
                     const trimmed = String(keyword || '').trim();
                     if (trimmed === '') return null;
+                    const mealSlot = getFnbMealSlotForRow(row);
                     const response = await fetch(fnbCreateEndpoint, {
                         method: 'POST',
                         headers: {
@@ -3613,6 +3655,7 @@
                         body: JSON.stringify({
                             name: trimmed,
                             duration_minutes: 60,
+                            meal_period: mealSlot || '',
                         }),
                     });
                     if (!response.ok) {
@@ -3682,6 +3725,19 @@
                 const applyFnbSelection = (row, fnbItem) => {
                     const { select, input } = getFnbElements(row);
                     if (!select || !fnbItem) return;
+                    const startInput = row?.querySelector('.item-start');
+                    const startInputValue = String(startInput?.value || '').trim();
+                    const selectedMealSlots = Array.isArray(fnbItem?.meal_period_tokens)
+                        ? fnbItem.meal_period_tokens
+                        : normalizeMealPeriodTokens(String(fnbItem?.meal_period || ''));
+                    if (startInput && startInputValue === '' && selectedMealSlots.length > 0) {
+                        const primarySlot = String(selectedMealSlots[0] || '').toLowerCase();
+                        const defaultStartTime = mealSlotDefaultStartTimes[primarySlot] || '';
+                        if (defaultStartTime !== '') {
+                            startInput.value = defaultStartTime;
+                            startInput.dispatchEvent(new Event('change', { bubbles: true }));
+                        }
+                    }
                     const selectedOption = upsertFnbOption(select, fnbItem, true);
                     const fnbId = String(fnbItem.id ?? '').trim();
                     if (fnbId !== '') {
@@ -3767,7 +3823,7 @@
                         if (activeOption.dataset.fnbOption === 'create' && !creating) {
                             creating = true;
                             try {
-                                const created = await createFnbFromKeyword(activeOption.dataset.fnbKeyword || input.value || '');
+                                const created = await createFnbFromKeywordForRow(row, activeOption.dataset.fnbKeyword || input.value || '');
                                 if (created) {
                                     applyFnbSelection(row, created);
                                     setFnbNotice(row, 'New F&B saved successfully.', 'success');
@@ -3792,7 +3848,7 @@
                         if (target.dataset.fnbOption === 'create' && !creating) {
                             creating = true;
                             try {
-                                const created = await createFnbFromKeyword(target.dataset.fnbKeyword || input.value || '');
+                                const created = await createFnbFromKeywordForRow(row, target.dataset.fnbKeyword || input.value || '');
                                 if (created) {
                                     applyFnbSelection(row, created);
                                     setFnbNotice(row, 'New F&B saved successfully.', 'success');
@@ -5399,6 +5455,24 @@
                         }
                     });
                 };
+                const sortPointItemOptionsAlphabetically = (select) => {
+                    if (!(select instanceof HTMLSelectElement)) return;
+                    const options = Array.from(select.options);
+                    if (options.length <= 2) return;
+                    const placeholder = options[0];
+                    const rest = options.slice(1);
+
+                    rest.sort((left, right) => {
+                        const leftText = String(left.textContent || '').trim().toLowerCase();
+                        const rightText = String(right.textContent || '').trim().toLowerCase();
+                        if (leftText === rightText) return 0;
+                        return leftText < rightText ? -1 : 1;
+                    });
+
+                    select.innerHTML = '';
+                    select.appendChild(placeholder);
+                    rest.forEach((option) => select.appendChild(option));
+                };
                 const syncPointItemVisibility = () => {
                     daySections.querySelectorAll('.day-section').forEach((section) => {
                         const startType = section.querySelector('.day-start-point-type');
@@ -5428,6 +5502,33 @@
                             const supportsItem = selectedType === 'airport' || isHotelPointType(selectedType);
                             const requiresItem = selectedType === 'airport' || (isHotelPointType(selectedType) && !isHotelSelfBooking);
 
+                            const selectedValue = String(itemSelect.value || '');
+                            let selectedOptionStillValid = selectedValue === '';
+                            Array.from(itemSelect.options).forEach((option, idx) => {
+                                if (idx === 0) {
+                                    option.hidden = false;
+                                    option.disabled = false;
+                                    return;
+                                }
+
+                                const optionType = normalizePointType(option.dataset.pointType || '');
+                                const typeMatches = supportsItem && optionType === selectedType;
+                                const destinationMatches = typeMatches ? matchesDestinationOption(option) : false;
+                                const isVisible = typeMatches && destinationMatches;
+                                const isSelected = String(option.value || '') === selectedValue;
+
+                                option.hidden = !isVisible && !isSelected;
+                                option.disabled = !isVisible;
+
+                                if (isSelected && isVisible) {
+                                    selectedOptionStillValid = true;
+                                }
+                            });
+
+                            if (!selectedOptionStillValid) {
+                                itemSelect.value = '';
+                            }
+
                             itemSelect.disabled = !supportsItem;
                             itemSelect.required = supportsItem && requiresItem;
                             if (!supportsItem) {
@@ -5437,6 +5538,7 @@
 
                         const startHotel = isHotelPointType(startType?.value || '');
                         const startHotelSelfBooking = startHotel && isSelfBookedHotelMode(startBookingSelect?.value || 'arranged');
+                        sortPointItemOptionsAlphabetically(startItem);
                         applyFilter(startType, startItem, startHotelSelfBooking);
                         if (startItemWrap) startItemWrap.classList.toggle('hidden', startHotel && startHotelSelfBooking);
                         if (startRoomWrap) startRoomWrap.classList.toggle('hidden', !(startHotel && !startHotelSelfBooking));
@@ -5489,6 +5591,7 @@
 
                         const endHotel = isHotelPointType(endType?.value || '');
                         const endHotelSelfBooking = endHotel && isSelfBookedHotelMode(endBookingSelect?.value || 'arranged');
+                        sortPointItemOptionsAlphabetically(endItem);
                         applyFilter(endType, endItem, endHotelSelfBooking);
                         if (endItemWrap) endItemWrap.classList.toggle('hidden', endHotel && endHotelSelfBooking);
                         if (endRoomWrap) endRoomWrap.classList.toggle('hidden', !(endHotel && !endHotelSelfBooking));
@@ -6028,9 +6131,14 @@
                 wizardStepChips.forEach((chip) => {
                     chip.addEventListener('click', () => {
                         const targetStep = clampWizardStep(chip.dataset.wizardStepChip || WIZARD_STEP_MIN);
-                        if (targetStep > wizardStep && wizardStep === 1 && !validateWizardStepOne()) {
-                            return;
+                        if (targetStep > wizardStep) {
+                            const validationResult = validateWizardUntilStep(targetStep - 1);
+                            if (!validationResult.valid) {
+                                handleWizardValidationFailure(validationResult);
+                                return;
+                            }
                         }
+                        clearItineraryValidationNotice();
                         setWizardStep(targetStep);
                     });
                 });
@@ -6038,9 +6146,12 @@
                     setWizardStep(wizardStep - 1);
                 });
                 wizardNextButton?.addEventListener('click', () => {
-                    if (wizardStep === 1 && !validateWizardStepOne()) {
+                    const validationResult = validateWizardUntilStep(wizardStep);
+                    if (!validationResult.valid) {
+                        handleWizardValidationFailure(validationResult);
                         return;
                     }
+                    clearItineraryValidationNotice();
                     setWizardStep(wizardStep + 1);
                 });
                 dayWizardPrevButton?.addEventListener('click', () => {
@@ -6245,7 +6356,10 @@
                                     recalcNoConnectorRebuild();
                                 });
                             c.querySelector('.day-start-point-area')?.addEventListener('change',
-                                recalcNoConnectorRebuild);
+                                (event) => {
+                                    event.target.classList.remove('border-rose-500', 'focus:border-rose-500', 'focus:ring-rose-500');
+                                    recalcNoConnectorRebuild();
+                                });
                             c.querySelector('.day-start-room-count')?.addEventListener('input',
                                 recalcNoConnectorRebuild);
                             c.querySelector('.day-end-point-type')?.addEventListener('change', () => {
@@ -6260,7 +6374,10 @@
                             c.querySelector('.day-end-point-item')?.addEventListener('change',
                                 syncPointItemVisibility);
                             c.querySelector('.day-end-point-area')?.addEventListener('change',
-                                recalcNoConnectorRebuild);
+                                (event) => {
+                                    event.target.classList.remove('border-rose-500', 'focus:border-rose-500', 'focus:ring-rose-500');
+                                    recalcNoConnectorRebuild();
+                                });
                             c.querySelector('.day-end-room-select')?.addEventListener('change',
                                 recalcNoConnectorRebuild);
                             c.querySelector('.day-end-booking-mode')?.addEventListener('change',
@@ -6300,12 +6417,135 @@
                     commitDays: true
                 });
                 refreshRequiredAsterisks();
+                const showItineraryValidationNotice = (message) => {
+                    if (!form) return;
+                    let box = form.querySelector('[data-itinerary-validation-notice]');
+                    if (!box) {
+                        box = document.createElement('div');
+                        box.setAttribute('data-itinerary-validation-notice', '1');
+                        box.className = 'mb-3 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-800 dark:bg-rose-900/20 dark:text-rose-300';
+                        form.prepend(box);
+                    }
+                    box.textContent = message;
+                };
+                const clearItineraryValidationNotice = () => {
+                    if (!form) return;
+                    const box = form.querySelector('[data-itinerary-validation-notice]');
+                    if (box) box.remove();
+                };
+                const getDayPlannerRows = (section) => [...section.querySelectorAll('.schedule-row')];
+                const validateSinglePlannerDay = (section) => {
+                    const day = Number.parseInt(String(section.dataset.day || '0'), 10) || 1;
+                    const validatePoint = (pointKind) => {
+                        const typeSelect = section.querySelector(pointKind === 'start' ? '.day-start-point-type' : '.day-end-point-type');
+                        const itemSelect = section.querySelector(pointKind === 'start' ? '.day-start-point-item' : '.day-end-point-item');
+                        const modeSelect = section.querySelector(pointKind === 'start' ? '.day-start-booking-mode' : '.day-end-booking-mode');
+                        const areaSelect = section.querySelector(pointKind === 'start' ? '.day-start-point-area' : '.day-end-point-area');
+                        if (!typeSelect) return null;
+                        clearValidationFieldState(typeSelect);
+                        clearValidationFieldState(itemSelect);
+                        clearValidationFieldState(areaSelect);
+                        const type = String(typeSelect.value || '').trim();
+                        if (type === '') {
+                            markValidationFieldState(typeSelect);
+                            return {
+                                step: 2,
+                                day,
+                                field: typeSelect,
+                                message: pointKind === 'start'
+                                    ? normalizeValidationMessage(i18n.incompleteReasonStartPoint, @json(ui_phrase('Start point is not fully configured.')))
+                                    : normalizeValidationMessage(i18n.incompleteReasonEndPoint, @json(ui_phrase('End point is not fully configured.'))),
+                            };
+                        }
+                        if (type === 'airport' && itemSelect && !itemSelect.disabled && String(itemSelect.value || '').trim() === '') {
+                            markValidationFieldState(itemSelect);
+                            return {
+                                step: 2,
+                                day,
+                                field: itemSelect,
+                                message: pointKind === 'start'
+                                    ? normalizeValidationMessage(i18n.incompleteReasonStartPoint, @json(ui_phrase('Start point is not fully configured.')))
+                                    : normalizeValidationMessage(i18n.incompleteReasonEndPoint, @json(ui_phrase('End point is not fully configured.'))),
+                            };
+                        }
+                        if (type === 'hotel') {
+                            const mode = String(modeSelect?.value || '').trim().toLowerCase();
+                            if (isSelfBookedHotelMode(mode)) {
+                                if (areaSelect && !areaSelect.disabled && String(areaSelect.value || '').trim() === '') {
+                                    markValidationFieldState(areaSelect);
+                                    return {
+                                        step: 2,
+                                        day,
+                                        field: areaSelect,
+                                        message: pointKind === 'start'
+                                            ? normalizeValidationMessage(String(i18n.selfBookedStartAreaRequired || '').replace(':day', String(day)), @json(ui_phrase('Please select Hotel Area for self-booked hotel.')))
+                                            : normalizeValidationMessage(String(i18n.selfBookedEndAreaRequired || '').replace(':day', String(day)), @json(ui_phrase('Please select Hotel Area for self-booked hotel.'))),
+                                    };
+                                }
+                            } else if (itemSelect && !itemSelect.disabled && String(itemSelect.value || '').trim() === '') {
+                                markValidationFieldState(itemSelect);
+                                return {
+                                    step: 2,
+                                    day,
+                                    field: itemSelect,
+                                    message: pointKind === 'start'
+                                        ? normalizeValidationMessage(i18n.incompleteReasonStartPoint, @json(ui_phrase('Start point is not fully configured.')))
+                                        : normalizeValidationMessage(i18n.incompleteReasonEndPoint, @json(ui_phrase('End point is not fully configured.'))),
+                                };
+                            }
+                        }
+                        return null;
+                    };
+                    const startPointIssue = validatePoint('start');
+                    if (startPointIssue) return { valid: false, issue: startPointIssue };
+                    const endPointIssue = validatePoint('end');
+                    if (endPointIssue) return { valid: false, issue: endPointIssue };
+                    return { valid: true };
+                };
+                const validateWizardStepTwoDetailed = () => {
+                    const sections = normalizeWizardDaySections();
+                    for (const section of sections) {
+                        const result = validateSinglePlannerDay(section);
+                        if (!result.valid) return result;
+                    }
+                    return { valid: true };
+                };
+                const validateWizardUntilStep = (targetStep) => {
+                    const parsedStep = clampWizardStep(targetStep);
+                    if (parsedStep >= 1) {
+                        const stepOne = validateWizardStepOneDetailed();
+                        if (!stepOne.valid) return stepOne;
+                    }
+                    if (parsedStep >= 2) {
+                        const stepTwo = validateWizardStepTwoDetailed();
+                        if (!stepTwo.valid) return stepTwo;
+                    }
+                    return { valid: true };
+                };
+                const handleWizardValidationFailure = (result) => {
+                    if (!result || result.valid !== false || !result.issue) return;
+                    const issue = result.issue;
+                    const issueStep = clampWizardStep(issue.step || WIZARD_STEP_MIN);
+                    clearItineraryValidationNotice();
+                    setWizardStep(issueStep);
+                    if (issueStep === 2 && Number.isFinite(Number(issue.day))) {
+                        setWizardDay(Number(issue.day));
+                    }
+                    showItineraryValidationNotice(normalizeValidationMessage(issue.message, @json(ui_phrase('Please complete required data before continuing.'))));
+                    focusValidationIssue(issue);
+                };
                 let isSubmittingItineraryForm = false;
                 form?.addEventListener('submit', (e) => {
                     if (isSubmittingItineraryForm) {
                         return;
                     }
                     e.preventDefault();
+                    clearItineraryValidationNotice();
+                    const validationResult = validateWizardUntilStep(WIZARD_STEP_MAX);
+                    if (!validationResult.valid) {
+                        handleWizardValidationFailure(validationResult);
+                        return;
+                    }
                     isSubmittingItineraryForm = true;
                     reindex();
                     if (dayPointsPayloadInput) {
@@ -6527,12 +6767,17 @@
 
                 destinationInput.addEventListener('input', () => {
                     applyDestinationFilter();
+                    syncPointItemVisibility();
                     fetchSuggestionsDebounced(destinationInput.value.trim());
                 });
-                destinationInput.addEventListener('change', applyDestinationFilter);
+                destinationInput.addEventListener('change', () => {
+                    applyDestinationFilter();
+                    syncPointItemVisibility();
+                });
                 document.addEventListener('change', (event) => {
                     if (event.target.matches('.day-start-point-type, .day-end-point-type, .item-region, .item-type')) {
                         applyDestinationFilter();
+                        syncPointItemVisibility();
                     }
                 });
                 destinationInput.addEventListener('focus', () => {
