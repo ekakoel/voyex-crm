@@ -160,20 +160,38 @@
             <input
                 id="booking-pax-adult"
                 type="text"
-                value="{{ old('pax_adult', (string) ($selectedQuotation?->pax_adult ?? '0')) }}"
+                value="{{ old('pax_adult', (string) (optional($booking)->pax_adult ?? $selectedQuotation?->pax_adult ?? '0')) }}"
                 class="mt-1 app-input bg-gray-50 dark:bg-gray-900/30"
                 readonly
             >
+            <input
+                id="booking-pax-adult-hidden"
+                name="pax_adult"
+                type="hidden"
+                value="{{ old('pax_adult', (string) (optional($booking)->pax_adult ?? $selectedQuotation?->pax_adult ?? '0')) }}"
+            >
+            @error('pax_adult')
+                <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
+            @enderror
         </div>
         <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Pax Child') }}</label>
             <input
                 id="booking-pax-child"
                 type="text"
-                value="{{ old('pax_child', (string) ($selectedQuotation?->pax_child ?? '0')) }}"
+                value="{{ old('pax_child', (string) (optional($booking)->pax_child ?? $selectedQuotation?->pax_child ?? '0')) }}"
                 class="mt-1 app-input bg-gray-50 dark:bg-gray-900/30"
                 readonly
             >
+            <input
+                id="booking-pax-child-hidden"
+                name="pax_child"
+                type="hidden"
+                value="{{ old('pax_child', (string) (optional($booking)->pax_child ?? $selectedQuotation?->pax_child ?? '0')) }}"
+            >
+            @error('pax_child')
+                <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
+            @enderror
         </div>
         <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Travel Date') }} <span class="text-rose-600">*</span></label>
@@ -307,6 +325,8 @@
                 const customerNameInput = document.getElementById('booking-customer-name');
                 const paxAdultInput = document.getElementById('booking-pax-adult');
                 const paxChildInput = document.getElementById('booking-pax-child');
+                const paxAdultHiddenInput = document.getElementById('booking-pax-adult-hidden');
+                const paxChildHiddenInput = document.getElementById('booking-pax-child-hidden');
                 const travelDateDisplayInput = document.getElementById('booking-travel-date-display');
                 const readonlyGeneratedFlow = @json($readonlyGeneratedFlow);
                 if (!tbody || !select) return;
@@ -407,8 +427,14 @@
                     if (paxAdultInput) {
                         paxAdultInput.value = quotationId ? String(quotationPaxAdultMap[quotationId] ?? 0) : '0';
                     }
+                    if (paxAdultHiddenInput) {
+                        paxAdultHiddenInput.value = quotationId ? String(quotationPaxAdultMap[quotationId] ?? 0) : '0';
+                    }
                     if (paxChildInput) {
                         paxChildInput.value = quotationId ? String(quotationPaxChildMap[quotationId] ?? 0) : '0';
+                    }
+                    if (paxChildHiddenInput) {
+                        paxChildHiddenInput.value = quotationId ? String(quotationPaxChildMap[quotationId] ?? 0) : '0';
                     }
                 };
 

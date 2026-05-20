@@ -55,24 +55,24 @@
 
         <dl class="mt-3 space-y-2 text-sm text-gray-600 dark:text-gray-300">
             <div class="flex items-center justify-between gap-2">
-                <dt>{{ ui_phrase('Draft') }}</dt>
-                <dd class="font-semibold text-gray-800 dark:text-gray-100">{{ (int) ($statusCounts['draft'] ?? 0) }}</dd>
+                <dt>{{ ui_phrase('Pending Confirmation') }}</dt>
+                <dd class="font-semibold text-gray-800 dark:text-gray-100">{{ (int) ($statusCounts['pending_confirmation'] ?? 0) }}</dd>
             </div>
             <div class="flex items-center justify-between gap-2">
-                <dt>{{ ui_phrase('Pending') }}</dt>
-                <dd class="font-semibold text-gray-800 dark:text-gray-100">{{ (int) ($statusCounts['pending'] ?? 0) }}</dd>
+                <dt>{{ ui_phrase('Awaiting DP') }}</dt>
+                <dd class="font-semibold text-gray-800 dark:text-gray-100">{{ (int) ($statusCounts['awaiting_dp'] ?? 0) }}</dd>
             </div>
             <div class="flex items-center justify-between gap-2">
-                <dt>{{ ui_phrase('Processed') }}</dt>
-                <dd class="font-semibold text-gray-800 dark:text-gray-100">{{ (int) ($statusCounts['processed'] ?? 0) }}</dd>
+                <dt>{{ ui_phrase('Confirmed') }}</dt>
+                <dd class="font-semibold text-gray-800 dark:text-gray-100">{{ (int) ($statusCounts['confirmed'] ?? 0) }}</dd>
             </div>
             <div class="flex items-center justify-between gap-2">
-                <dt>{{ ui_phrase('Approved') }}</dt>
-                <dd class="font-semibold text-gray-800 dark:text-gray-100">{{ (int) ($statusCounts['approved'] ?? 0) }}</dd>
+                <dt>{{ ui_phrase('Ready to Operate') }}</dt>
+                <dd class="font-semibold text-gray-800 dark:text-gray-100">{{ (int) ($statusCounts['ready_to_operate'] ?? 0) }}</dd>
             </div>
             <div class="flex items-center justify-between gap-2">
-                <dt>{{ ui_phrase('Final') }}</dt>
-                <dd class="font-semibold text-gray-800 dark:text-gray-100">{{ (int) ($statusCounts['final'] ?? 0) }}</dd>
+                <dt>{{ ui_phrase('Closed') }}</dt>
+                <dd class="font-semibold text-gray-800 dark:text-gray-100">{{ (int) ($statusCounts['closed'] ?? 0) }}</dd>
             </div>
         </dl>
 

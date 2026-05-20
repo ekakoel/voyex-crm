@@ -111,6 +111,15 @@
                                 @can('update', $booking)
                                     @if (! $booking->isFinal())
                                         <a href="{{ route('bookings.edit', $booking) }}" class="btn-secondary-sm" title="{{ ui_phrase('Edit') }}" aria-label="{{ ui_phrase('Edit') }}"><i class="fa-solid fa-pen"></i><span class="sr-only">{{ ui_phrase('Edit') }}</span></a>
+
+                                        @if (($booking->status ?? '') !== 'cancelled')
+                                            <form action="{{ route('bookings.cancel', $booking) }}" method="POST" class="inline">
+                                                @csrf
+                                                <button type="submit" onclick="return confirm('{{ ui_phrase('confirm cancel booking') }}')" class="btn-danger-sm" title="{{ ui_phrase('Cancel Booking') }}" aria-label="{{ ui_phrase('Cancel Booking') }}">
+                                                    <i class="fa-solid fa-ban"></i><span class="sr-only">{{ ui_phrase('Cancel Booking') }}</span>
+                                                </button>
+                                            </form>
+                                        @endif
                                     @endif
                                 @endcan
 
@@ -172,6 +181,13 @@
                                                 @can('update', $booking)
                                                     @if (! $booking->isFinal())
                                                         <a href="{{ route('bookings.edit', $booking) }}" class="btn-secondary-sm" title="{{ ui_phrase('Edit') }}" aria-label="{{ ui_phrase('Edit') }}"><i class="fa-solid fa-pen"></i><span class="sr-only">{{ ui_phrase('Edit') }}</span></a>
+
+                                                        @if (($booking->status ?? '') !== 'cancelled')
+                                                            <form action="{{ route('bookings.cancel', $booking) }}" method="POST" class="inline">
+                                                                @csrf
+                                                                <button type="submit" onclick="return confirm('{{ ui_phrase('confirm cancel booking') }}')" class="btn-danger-sm" title="{{ ui_phrase('Cancel Booking') }}" aria-label="{{ ui_phrase('Cancel Booking') }}"><i class="fa-solid fa-ban"></i><span class="sr-only">{{ ui_phrase('Cancel Booking') }}</span></button>
+                                                            </form>
+                                                        @endif
                                                     @endif
                                                 @endcan
 

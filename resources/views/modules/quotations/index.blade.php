@@ -21,7 +21,7 @@
         ],
         [
             'key' => 'final',
-            'title' => ui_phrase('Final Quotations'),
+            'title' => ui_phrase('Converted Quotations'),
             'items' => $finalQuotations,
         ],
     ];
@@ -37,7 +37,7 @@
     <a href="{{ route('quotations.export', array_merge(request()->only(['q', 'per_page', 'needs_my_approval']), ['scope' => $exportScope])) }}"
         class="btn-secondary">{{ ui_phrase('Export CSV') }}</a>
     @if ($isMyQuotationPage)
-        <a href="{{ route('quotations.index') }}" class="btn-outline">{{ ui_phrase('Approved/Final List') }}</a>
+        <a href="{{ route('quotations.index') }}" class="btn-outline">{{ ui_phrase('Accepted/Converted List') }}</a>
     @else
         <a href="{{ route('quotations.my') }}" class="btn-outline">{{ ui_phrase('My Quotations') }}</a>
     @endif
@@ -178,18 +178,18 @@
                                 <a href="{{ route('quotations.show', $quotation) }}" class="btn-ghost-sm" title="{{ ui_phrase('View') }}"
                                     aria-label="{{ ui_phrase('View') }}"><i class="fa-solid fa-eye"></i><span class="sr-only">{{ ui_phrase('View') }}</span></a>
                                 @can('update', $quotation)
-                                    @if (($quotation->status ?? '') !== 'final')
+                                    @if (! in_array((string) ($quotation->status ?? ''), ['sent', 'accepted', \App\Models\Quotation::FINAL_STATUS], true))
                                         <a href="{{ route('quotations.edit', $quotation) }}" class="btn-secondary-sm"
                                             title="{{ ui_phrase('Edit') }}" aria-label="{{ ui_phrase('Edit') }}"><i class="fa-solid fa-pen"></i><span
                                                 class="sr-only">{{ ui_phrase('Edit') }}</span></a>
                                     @endif
                                 @endcan
-                                @if (in_array(($quotation->status ?? ''), ['approved', 'final'], true))
+                                @if (in_array((string) ($quotation->status ?? ''), ['accepted', \App\Models\Quotation::FINAL_STATUS], true))
                                     <a href="{{ route('quotations.pdf', $quotation) }}" target="_blank" rel="noopener"
                                         class="btn-outline-sm">PDF</a>
                                 @endif
                                 @can('delete', $quotation)
-                                    @if (!in_array($quotation->status ?? '', ['approved', 'final'], true))
+                                    @if (!in_array((string) ($quotation->status ?? ''), ['accepted', \App\Models\Quotation::FINAL_STATUS], true))
                                         <form action="{{ route('quotations.toggle-status', $quotation->id) }}" method="POST"
                                             class="inline">
                                             @csrf
@@ -273,19 +273,19 @@
                                                     title="{{ ui_phrase('View') }}" aria-label="{{ ui_phrase('View') }}"><i class="fa-solid fa-eye"></i><span
                                                         class="sr-only">{{ ui_phrase('View') }}</span></a>
                                                 @can('update', $quotation)
-                                                    @if (($quotation->status ?? '') !== 'final')
+                                                    @if (! in_array((string) ($quotation->status ?? ''), ['sent', 'accepted', \App\Models\Quotation::FINAL_STATUS], true))
                                                         <a href="{{ route('quotations.edit', $quotation) }}"
                                                             class="btn-secondary-sm" title="{{ ui_phrase('Edit') }}" aria-label="{{ ui_phrase('Edit') }}"><i
                                                                 class="fa-solid fa-pen"></i><span
                                                                 class="sr-only">{{ ui_phrase('Edit') }}</span></a>
                                                     @endif
                                                 @endcan
-                                                @if (in_array(($quotation->status ?? ''), ['approved', 'final'], true))
+                                                @if (in_array((string) ($quotation->status ?? ''), ['accepted', \App\Models\Quotation::FINAL_STATUS], true))
                                                     <a href="{{ route('quotations.pdf', $quotation) }}" target="_blank"
                                                         rel="noopener" class="btn-outline-sm">PDF</a>
                                                 @endif
                                                 @can('delete', $quotation)
-                                                    @if (!in_array($quotation->status ?? '', ['approved', 'final'], true))
+                                                    @if (!in_array((string) ($quotation->status ?? ''), ['accepted', \App\Models\Quotation::FINAL_STATUS], true))
                                                         <form action="{{ route('quotations.toggle-status', $quotation->id) }}"
                                                             method="POST" class="inline">
                                                             @csrf

@@ -8,12 +8,17 @@ use App\Http\Requests\UpdateFeatureAccessRequest;
 
 class FeatureAccessController extends Controller
 {
+    private function featureAccessDisabledResponse()
+    {
+        abort(404);
+    }
+
     /**
      * Display a listing of the resource.
      */
     public function index()
     {
-        //
+        return $this->featureAccessDisabledResponse();
     }
 
     /**
@@ -21,7 +26,7 @@ class FeatureAccessController extends Controller
      */
     public function create()
     {
-        //
+        return $this->featureAccessDisabledResponse();
     }
 
     /**
@@ -29,7 +34,7 @@ class FeatureAccessController extends Controller
      */
     public function store(StoreFeatureAccessRequest $request)
     {
-        //
+        return $this->featureAccessDisabledResponse();
     }
 
     /**
@@ -37,7 +42,7 @@ class FeatureAccessController extends Controller
      */
     public function show(FeatureAccess $featureAccess)
     {
-        //
+        return $this->featureAccessDisabledResponse();
     }
 
     /**
@@ -45,7 +50,7 @@ class FeatureAccessController extends Controller
      */
     public function edit(FeatureAccess $featureAccess)
     {
-        //
+        return $this->featureAccessDisabledResponse();
     }
 
     /**
@@ -53,7 +58,7 @@ class FeatureAccessController extends Controller
      */
     public function update(UpdateFeatureAccessRequest $request, FeatureAccess $featureAccess)
     {
-        //
+        return $this->featureAccessDisabledResponse();
     }
 
     /**
@@ -61,6 +66,6 @@ class FeatureAccessController extends Controller
      */
     public function destroy(FeatureAccess $featureAccess)
     {
-        //
+        return $this->featureAccessDisabledResponse();
     }
 }

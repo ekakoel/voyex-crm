@@ -15,12 +15,14 @@ use App\Models\HotelRoom;
 use App\Models\Hotel;
 use App\Http\Controllers\Concerns\NormalizesDisplayCurrencyToIdr;
 use App\Support\CompanySettingsCache;
+use App\Services\BookingSnapshotService;
 use App\Services\BookingVoucherService;
 use App\Services\InvoiceService;
 use App\Http\Requests\StoreBookingRequest;
 use App\Http\Requests\UpdateBookingRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class BookingController extends Controller
@@ -29,7 +31,8 @@ class BookingController extends Controller
 
     public function __construct(
         private readonly InvoiceService $invoiceService,
-        private readonly BookingVoucherService $voucherService
+        private readonly BookingVoucherService $voucherService,
+        private readonly BookingSnapshotService $bookingSnapshotService
     )
     {
     }
@@ -90,12 +93,17 @@ class BookingController extends Controller
         $validated = $request->validated();
         $items = $validated['items'] ?? [];
         unset($validated['items']);
+        $this->applyBookingSnapshotPayload($validated);
         $validated['status'] = $this->resolveAutoStatus((string) ($validated['travel_date'] ?? ''));
         $validated['booking_number'] = $this->generateBookingNumber();
 
-        $booking = Booking::query()->create($validated);
-        $this->syncBookingItems($booking, $items);
-        $this->invoiceService->generateForBooking($booking);
+        $booking = DB::transaction(function () use ($validated, $items): Booking {
+            $booking = Booking::query()->create($validated);
+            $this->syncBookingItems($booking, $items);
+            $this->invoiceService->generateForBooking($booking);
+
+            return $booking;
+        });
 
         return redirect()
             ->route('bookings.edit', $booking)
@@ -115,6 +123,11 @@ class BookingController extends Controller
             'items.serviceable',
             'items.voucher',
             'items.latestBookingLog.creator',
+            'items.vendorConfirmer',
+            'invoices.payments',
+            'adjustments.generatedInvoice',
+            'settlement.reviewer',
+            'settlement.finalizer',
         ]);
         $booking->quotation?->items?->loadMorph('serviceable', [
             Activity::class => ['vendor'],
@@ -145,6 +158,24 @@ class BookingController extends Controller
             'companyAddress',
             'companyEmail'
         ));
+    }
+
+    public function showSpk(Booking $booking)
+    {
+        if (! request()->user()?->can('bookings.operation.spk.view')) {
+            abort(403);
+        }
+
+        $booking->load([
+            'quotation.inquiry.customer',
+            'items.serviceable',
+            'items.latestBookingLog',
+        ]);
+        $booking->logActivity('operation.spk_viewed', $booking, [
+            'booking_id' => $booking->id,
+        ]);
+
+        return view('modules.bookings.spk', compact('booking'));
     }
 
     /**
@@ -239,12 +270,15 @@ class BookingController extends Controller
         if ($hasOperationalLock) {
             $validated['quotation_id'] = $booking->quotation_id;
         }
+        $this->applyBookingSnapshotPayload($validated);
         $validated['status'] = $this->resolveAutoStatus((string) ($validated['travel_date'] ?? ''), (string) $booking->status);
-        $booking->update($validated);
-        if (! $hasOperationalLock) {
-            $this->syncBookingItems($booking, $items);
-        }
-        $this->invoiceService->generateForBooking($booking);
+        DB::transaction(function () use ($booking, $validated, $hasOperationalLock, $items): void {
+            $booking->update($validated);
+            if (! $hasOperationalLock) {
+                $this->syncBookingItems($booking, $items);
+            }
+            $this->invoiceService->generateForBooking($booking);
+        });
 
         return redirect()
             ->route('bookings.index')
@@ -269,6 +303,297 @@ class BookingController extends Controller
         return redirect()
             ->route('bookings.index')
             ->with('success', ui_phrase('Booking deleted successfully.'));
+    }
+
+    public function cancel(Booking $booking)
+    {
+        if (! $this->canManageBooking($booking, 'update')) {
+            return $this->denyBookingMutation($booking);
+        }
+        if ($booking->isFinal()) {
+            return redirect()
+                ->route('bookings.show', $booking)
+                ->with('error', ui_phrase('Booking is final and cannot be cancelled.'));
+        }
+
+        $invoiceStatus = (string) ($booking->invoice?->status ?? '');
+        if (in_array($invoiceStatus, ['partially_paid', 'paid', 'overpaid'], true)) {
+            return redirect()
+                ->route('bookings.show', $booking)
+                ->with('error', ui_phrase('Booking cannot be cancelled because invoice already has payment records.'));
+        }
+
+        if ((string) ($booking->status ?? '') === 'cancelled') {
+            return redirect()
+                ->route('bookings.show', $booking)
+                ->with('success', ui_phrase('Booking is already cancelled.'));
+        }
+
+        $booking->update(['status' => 'cancelled']);
+
+        return redirect()
+            ->route('bookings.show', $booking)
+            ->with('success', ui_phrase('Booking cancelled successfully.'));
+    }
+
+    public function close(Booking $booking)
+    {
+        return redirect()
+            ->route('bookings.settlement.show', $booking)
+            ->with('error', ui_phrase('Close booking is controlled by settlement gate. Review settlement first.'));
+    }
+
+    public function markReadyToOperate(Request $request, Booking $booking)
+    {
+        if (! $request->user()?->can('bookings.operation.prepare')) {
+            abort(403);
+        }
+        if ($booking->isFinal() || (string) ($booking->status ?? '') === 'cancelled') {
+            return redirect()->route('bookings.show', $booking)
+                ->with('error', ui_phrase('Booking is final and cannot be edited.'));
+        }
+        if (! in_array((string) ($booking->status ?? ''), ['confirmed', 'awaiting_dp', 'dp_received', 'awaiting_balance'], true)) {
+            return redirect()->route('bookings.show', $booking)
+                ->with('error', ui_phrase('Booking status is not eligible to be marked as ready to operate.'));
+        }
+        if (! $this->isOperationPaymentSatisfied($booking)) {
+            return redirect()->route('bookings.show', $booking)
+                ->with('error', ui_phrase('Booking cannot be marked ready to operate because payment requirement is not satisfied.'));
+        }
+
+        $fromStatus = (string) ($booking->status ?? '');
+        $booking->update(['status' => 'ready_to_operate']);
+        $booking->logActivity('operation.ready_to_operate', $booking, [
+            'from_status' => $fromStatus,
+            'to_status' => 'ready_to_operate',
+        ]);
+
+        return redirect()->route('bookings.show', $booking)
+            ->with('success', ui_phrase('Booking marked as ready to operate.'));
+    }
+
+    public function startOperation(Request $request, Booking $booking)
+    {
+        if (! $request->user()?->can('bookings.operation.start')) {
+            abort(403);
+        }
+        if ((string) ($booking->status ?? '') !== 'ready_to_operate') {
+            return redirect()->route('bookings.show', $booking)
+                ->with('error', ui_phrase('Only ready to operate booking can start operation.'));
+        }
+
+        $fromStatus = (string) ($booking->status ?? '');
+        $booking->update(['status' => 'in_operation']);
+        $booking->logActivity('operation.started', $booking, [
+            'from_status' => $fromStatus,
+            'to_status' => 'in_operation',
+        ]);
+
+        return redirect()->route('bookings.show', $booking)
+            ->with('success', ui_phrase('Booking operation has started.'));
+    }
+
+    public function completeService(Request $request, Booking $booking)
+    {
+        if (! $request->user()?->can('bookings.operation.complete')) {
+            abort(403);
+        }
+        if ((string) ($booking->status ?? '') !== 'in_operation') {
+            return redirect()->route('bookings.show', $booking)
+                ->with('error', ui_phrase('Only in operation booking can be marked as service completed.'));
+        }
+
+        $fromStatus = (string) ($booking->status ?? '');
+        $booking->update(['status' => 'service_completed']);
+        $booking->logActivity('operation.service_completed', $booking, [
+            'from_status' => $fromStatus,
+            'to_status' => 'service_completed',
+        ]);
+
+        return redirect()->route('bookings.show', $booking)
+            ->with('success', ui_phrase('Booking service marked as completed.'));
+    }
+
+    public function reportOperationIssue(Request $request, Booking $booking)
+    {
+        if (! $request->user()?->can('bookings.operation.issue')) {
+            abort(403);
+        }
+
+        $validated = $request->validate([
+            'issue_note' => ['required', 'string', 'max:5000'],
+            'booking_item_id' => ['nullable', 'integer'],
+        ]);
+
+        $bookingItemId = (int) ($validated['booking_item_id'] ?? 0);
+        if ($bookingItemId > 0 && ! $booking->items()->whereKey($bookingItemId)->exists()) {
+            return redirect()->route('bookings.show', $booking)
+                ->with('error', ui_phrase('Selected booking item is not part of this booking.'));
+        }
+
+        $booking->logActivity('operation.issue_reported', $booking, [
+            'issue_note' => trim((string) $validated['issue_note']),
+            'booking_item_id' => $bookingItemId > 0 ? $bookingItemId : null,
+        ]);
+
+        return redirect()->route('bookings.show', $booking)
+            ->with('success', ui_phrase('Operation issue has been reported.'));
+    }
+
+    public function confirmItemVendor(Request $request, Booking $booking, BookingItem $bookingItem)
+    {
+        if (! $request->user()?->can('bookings.operation.vendor_confirm')) {
+            abort(403);
+        }
+        if ((int) $bookingItem->booking_id !== (int) $booking->id) {
+            abort(404);
+        }
+
+        $bookingItem->update([
+            'vendor_confirmation_status' => BookingItem::VENDOR_CONFIRMATION_CONFIRMED,
+            'vendor_confirmed_at' => now(),
+            'vendor_confirmed_by' => auth()->id(),
+        ]);
+        $booking->logActivity('operation.item_vendor_confirmed', $booking, [
+            'booking_item_id' => $bookingItem->id,
+            'description' => $bookingItem->description,
+        ]);
+
+        return redirect()->route('bookings.show', $booking)
+            ->with('success', ui_phrase('Vendor confirmation has been recorded.'));
+    }
+
+    public function updateItemDispatch(Request $request, Booking $booking, BookingItem $bookingItem)
+    {
+        if (! $request->user()?->can('bookings.operation.dispatch')) {
+            abort(403);
+        }
+        if ((int) $bookingItem->booking_id !== (int) $booking->id) {
+            abort(404);
+        }
+
+        $validated = $request->validate([
+            'operation_notes' => ['nullable', 'string', 'max:5000'],
+            'assigned_driver_name' => ['nullable', 'string', 'max:255'],
+            'assigned_driver_phone' => ['nullable', 'string', 'max:255'],
+            'assigned_guide_name' => ['nullable', 'string', 'max:255'],
+            'assigned_guide_phone' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        if (! $request->user()?->can('bookings.operation.assign_driver')) {
+            unset($validated['assigned_driver_name'], $validated['assigned_driver_phone']);
+        }
+        if (! $request->user()?->can('bookings.operation.assign_guide')) {
+            unset($validated['assigned_guide_name'], $validated['assigned_guide_phone']);
+        }
+
+        $before = [
+            'assigned_driver_name' => (string) ($bookingItem->assigned_driver_name ?? ''),
+            'assigned_driver_phone' => (string) ($bookingItem->assigned_driver_phone ?? ''),
+            'assigned_guide_name' => (string) ($bookingItem->assigned_guide_name ?? ''),
+            'assigned_guide_phone' => (string) ($bookingItem->assigned_guide_phone ?? ''),
+            'operation_notes' => (string) ($bookingItem->operation_notes ?? ''),
+        ];
+        $bookingItem->update($validated);
+        $booking->logActivity('operation.item_dispatch_updated', $booking, [
+            'booking_item_id' => $bookingItem->id,
+            'changes' => $validated,
+        ]);
+        if (
+            (($validated['assigned_driver_name'] ?? '') !== '' || ($validated['assigned_driver_phone'] ?? '') !== '')
+            && (
+                ($before['assigned_driver_name'] ?? '') !== (string) ($bookingItem->assigned_driver_name ?? '')
+                || ($before['assigned_driver_phone'] ?? '') !== (string) ($bookingItem->assigned_driver_phone ?? '')
+            )
+        ) {
+            $booking->logActivity('operation.item_driver_assigned', $booking, [
+                'booking_item_id' => $bookingItem->id,
+                'driver_name' => $bookingItem->assigned_driver_name,
+                'driver_phone' => $bookingItem->assigned_driver_phone,
+            ]);
+        }
+        if (
+            (($validated['assigned_guide_name'] ?? '') !== '' || ($validated['assigned_guide_phone'] ?? '') !== '')
+            && (
+                ($before['assigned_guide_name'] ?? '') !== (string) ($bookingItem->assigned_guide_name ?? '')
+                || ($before['assigned_guide_phone'] ?? '') !== (string) ($bookingItem->assigned_guide_phone ?? '')
+            )
+        ) {
+            $booking->logActivity('operation.item_guide_assigned', $booking, [
+                'booking_item_id' => $bookingItem->id,
+                'guide_name' => $bookingItem->assigned_guide_name,
+                'guide_phone' => $bookingItem->assigned_guide_phone,
+            ]);
+        }
+
+        return redirect()->route('bookings.show', $booking)
+            ->with('success', ui_phrase('Dispatch information has been updated.'));
+    }
+
+    public function markItemDispatchReady(Request $request, Booking $booking, BookingItem $bookingItem)
+    {
+        if (! $request->user()?->can('bookings.operation.dispatch')) {
+            abort(403);
+        }
+        if ((int) $bookingItem->booking_id !== (int) $booking->id) {
+            abort(404);
+        }
+
+        $bookingItem->update([
+            'dispatch_status' => BookingItem::DISPATCH_READY,
+        ]);
+        $booking->logActivity('operation.item_ready', $booking, [
+            'booking_item_id' => $bookingItem->id,
+        ]);
+
+        return redirect()->route('bookings.show', $booking)
+            ->with('success', ui_phrase('Booking item marked as ready.'));
+    }
+
+    public function markItemDispatchCompleted(Request $request, Booking $booking, BookingItem $bookingItem)
+    {
+        if (! $request->user()?->can('bookings.operation.dispatch')) {
+            abort(403);
+        }
+        if ((int) $bookingItem->booking_id !== (int) $booking->id) {
+            abort(404);
+        }
+
+        $bookingItem->update([
+            'dispatch_status' => BookingItem::DISPATCH_COMPLETED,
+        ]);
+        $booking->logActivity('operation.item_completed', $booking, [
+            'booking_item_id' => $bookingItem->id,
+        ]);
+
+        return redirect()->route('bookings.show', $booking)
+            ->with('success', ui_phrase('Booking item marked as completed.'));
+    }
+
+    public function reportItemDispatchIssue(Request $request, Booking $booking, BookingItem $bookingItem)
+    {
+        if (! $request->user()?->can('bookings.operation.dispatch')) {
+            abort(403);
+        }
+        if ((int) $bookingItem->booking_id !== (int) $booking->id) {
+            abort(404);
+        }
+
+        $validated = $request->validate([
+            'issue_note' => ['required', 'string', 'max:5000'],
+        ]);
+
+        $bookingItem->update([
+            'dispatch_status' => BookingItem::DISPATCH_ISSUE,
+            'issue_note' => trim((string) $validated['issue_note']),
+        ]);
+        $booking->logActivity('operation.item_issue_reported', $booking, [
+            'booking_item_id' => $bookingItem->id,
+            'issue_note' => $bookingItem->issue_note,
+        ]);
+
+        return redirect()->route('bookings.show', $booking)
+            ->with('success', ui_phrase('Booking item issue has been reported.'));
     }
 
     public function bookServiceItem(Request $request, Booking $booking, QuotationItem $quotationItem)
@@ -779,7 +1104,7 @@ class BookingController extends Controller
     {
         return Quotation::query()
             ->with(['inquiry.customer', 'items'])
-            ->whereIn('status', ['approved', Quotation::FINAL_STATUS])
+            ->whereIn('status', ['accepted', Quotation::FINAL_STATUS])
             ->where('validation_status', 'valid')
             ->whereHas('items')
             ->where(function ($q) use ($ignoreBookingId) {
@@ -923,23 +1248,100 @@ class BookingController extends Controller
 
     private function resolveAutoStatus(string $travelDate, ?string $currentStatus = null): string
     {
-        if (in_array((string) $currentStatus, [Booking::FINAL_STATUS, 'rejected'], true)) {
+        if (in_array((string) $currentStatus, [Booking::FINAL_STATUS, 'cancelled'], true)) {
+            return (string) $currentStatus;
+        }
+        if (trim((string) $currentStatus) !== '') {
             return (string) $currentStatus;
         }
 
-        if (trim($travelDate) === '') {
-            return 'draft';
+        return 'confirmed';
+    }
+
+    private function isOperationPaymentSatisfied(Booking $booking): bool
+    {
+        $booking->loadMissing('invoices.payments');
+        $invoices = $booking->invoices ?? collect();
+        if ($invoices->isEmpty()) {
+            return false;
         }
 
-        $today = now()->toDateString();
-        if ($travelDate > $today) {
-            return 'pending';
-        }
-        if ($travelDate === $today) {
-            return 'approved';
+        foreach ($invoices as $invoice) {
+            $status = (string) ($invoice->status ?? '');
+            if (in_array($status, ['paid', 'overpaid'], true)) {
+                return true;
+            }
+
+            $hasConfirmedPayment = $invoice->payments->contains(function ($payment) {
+                return (string) ($payment->status ?? '') === 'confirmed';
+            });
+            if ($hasConfirmedPayment) {
+                return true;
+            }
         }
 
-        return 'processed';
+        return false;
+    }
+
+    private function evaluateSettlementReadiness(Booking $booking): array
+    {
+        if (! in_array((string) ($booking->status ?? ''), ['service_completed', 'completed_settled'], true)) {
+            return [
+                'ready' => false,
+                'message' => ui_phrase('Booking can only be closed after service is completed.'),
+            ];
+        }
+
+        $invoiceStatus = (string) ($booking->invoice?->status ?? '');
+        if ($invoiceStatus === '') {
+            return [
+                'ready' => false,
+                'message' => ui_phrase('Booking cannot be closed because invoice is not generated.'),
+            ];
+        }
+        if (! in_array($invoiceStatus, ['paid', 'overpaid'], true)) {
+            return [
+                'ready' => false,
+                'message' => ui_phrase('Booking cannot be closed because invoice is not settled yet.'),
+            ];
+        }
+
+        $hasActiveItems = $booking->items->contains(fn ($item) => (string) ($item->status ?? '') !== BookingItem::STATUS_CANCELLED);
+        if (! $hasActiveItems) {
+            return [
+                'ready' => false,
+                'message' => ui_phrase('Booking cannot be closed because all service items are cancelled.'),
+            ];
+        }
+
+        return [
+            'ready' => true,
+            'message' => '',
+        ];
+    }
+
+    private function applyBookingSnapshotPayload(array &$validated): void
+    {
+        $quotationId = (int) ($validated['quotation_id'] ?? 0);
+        if ($quotationId <= 0) {
+            return;
+        }
+
+        $quotation = Quotation::query()
+            ->with(['itinerary.destination'])
+            ->find($quotationId);
+        if (! $quotation) {
+            return;
+        }
+
+        $pax = $this->bookingSnapshotService->resolvePaxSnapshot(
+            $quotation,
+            isset($validated['pax_adult']) ? (int) $validated['pax_adult'] : null,
+            isset($validated['pax_child']) ? (int) $validated['pax_child'] : null
+        );
+        $validated['pax_adult'] = (int) $pax['pax_adult'];
+        $validated['pax_child'] = (int) $pax['pax_child'];
+        $validated['itinerary_snapshot'] = $this->bookingSnapshotService->resolveItinerarySnapshot($quotation);
     }
 
     private function buildBookingSidebarInfo(\Illuminate\Database\Eloquent\Builder $filteredQuery): array
@@ -964,15 +1366,15 @@ class BookingController extends Controller
                 ->count(),
             'pending_past_travel_date' => (clone $filteredQuery)
                 ->whereDate('travel_date', '<', $today)
-                ->whereIn('status', ['draft', 'pending'])
+                ->whereIn('status', ['pending_confirmation', 'awaiting_dp', 'awaiting_balance'])
                 ->count(),
             'status_counts' => [
-                'draft' => (int) ($statusCounts['draft'] ?? 0),
-                'processed' => (int) ($statusCounts['processed'] ?? 0),
-                'pending' => (int) ($statusCounts['pending'] ?? 0),
-                'approved' => (int) ($statusCounts['approved'] ?? 0),
-                'rejected' => (int) ($statusCounts['rejected'] ?? 0),
-                'final' => (int) ($statusCounts[Booking::FINAL_STATUS] ?? 0),
+                'pending_confirmation' => (int) ($statusCounts['pending_confirmation'] ?? 0),
+                'confirmed' => (int) ($statusCounts['confirmed'] ?? 0),
+                'awaiting_dp' => (int) ($statusCounts['awaiting_dp'] ?? 0),
+                'ready_to_operate' => (int) ($statusCounts['ready_to_operate'] ?? 0),
+                'cancelled' => (int) ($statusCounts['cancelled'] ?? 0),
+                'closed' => (int) ($statusCounts[Booking::FINAL_STATUS] ?? 0),
             ],
             'focus' => $focus,
         ];
@@ -1011,14 +1413,14 @@ class BookingController extends Controller
                     [
                         'label' => 'Pending Aging >= 2 Days',
                         'value' => (clone $filteredQuery)
-                            ->where('status', 'pending')
+                            ->where('status', 'awaiting_dp')
                             ->whereDate('updated_at', '<=', now()->subDays(2)->toDateString())
                             ->count(),
                     ],
                     [
                         'label' => 'Draft Aging >= 2 Days',
                         'value' => (clone $filteredQuery)
-                            ->where('status', 'draft')
+                            ->where('status', 'pending_confirmation')
                             ->whereDate('updated_at', '<=', now()->subDays(2)->toDateString())
                             ->count(),
                     ],
@@ -1037,7 +1439,7 @@ class BookingController extends Controller
                     [
                         'label' => 'Approved, Not Final',
                         'value' => (clone $filteredQuery)
-                            ->where('status', 'approved')
+                            ->where('status', 'ready_to_operate')
                             ->count(),
                     ],
                 ],
@@ -1049,7 +1451,7 @@ class BookingController extends Controller
             'items' => [
                 [
                     'label' => 'Pending',
-                    'value' => (clone $filteredQuery)->where('status', 'pending')->count(),
+                    'value' => (clone $filteredQuery)->where('status', 'awaiting_dp')->count(),
                 ],
                 [
                     'label' => 'Not Final Yet',

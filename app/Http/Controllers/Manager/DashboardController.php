@@ -97,7 +97,7 @@ class DashboardController extends Controller
             : 0;
 
         $teamPendingQuotations = $canQuotations
-            ? (clone $teamQuotationQuery)->where('status', 'pending')
+            ? (clone $teamQuotationQuery)->where('status', 'pending_validation')
             : Quotation::query()->whereRaw('1 = 0');
 
         $nonCreatorApprovalCountSql = Schema::hasColumn('quotations', 'created_by')

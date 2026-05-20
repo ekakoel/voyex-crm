@@ -18,14 +18,20 @@ class Itinerary extends Model
     use HasAudit;
     use LogsActivity;
 
-    public const STATUS_PENDING = 'pending';
-    public const STATUS_PROCESSED = 'processed';
-    public const STATUS_FINAL = 'final';
+    public const STATUS_PENDING = 'draft';
+    public const STATUS_PROCESSED = 'quotation_generated';
+    public const STATUS_FINAL = 'converted_to_booking';
 
     public const STATUS_OPTIONS = [
-        self::STATUS_PENDING,
-        self::STATUS_PROCESSED,
-        self::STATUS_FINAL,
+        'draft',
+        'in_review',
+        'approved',
+        'quotation_generated',
+        'revised',
+        'confirmed',
+        'converted_to_booking',
+        'cancelled',
+        'archived',
     ];
 
     public const FINAL_STATUS = self::STATUS_FINAL;

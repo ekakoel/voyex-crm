@@ -36,7 +36,7 @@ class SendReservationDraftDeadlineReminder extends Command
         }
 
         $inquiries = Inquiry::query()
-            ->where('status', 'draft')
+            ->where('status', 'pending_confirmation')
             ->whereDate('deadline', $targetDeadlineDate)
             ->with(['customer:id,name'])
             ->get(['id', 'inquiry_number', 'customer_id', 'status', 'priority', 'deadline']);

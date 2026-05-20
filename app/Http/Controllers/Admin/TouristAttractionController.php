@@ -89,7 +89,7 @@ class TouristAttractionController extends Controller
         TouristAttractionGoogleSyncService $syncService
     ) {
         if (! ($request->user()?->isSuperAdmin())) {
-            abort(403, ui_phrase('Only super admin can use this feature.'));
+            abort(403, ui_phrase('You do not have permission to perform this action.'));
         }
 
         if (! $googlePlacesService->isConfigured()) {
@@ -213,7 +213,7 @@ class TouristAttractionController extends Controller
     public function destroy($touristAttraction)
     {
         if (! (request()->user()?->isSuperAdmin())) {
-            abort(403, ui_phrase('Only super admin can delete tourist attractions.'));
+            abort(403, ui_phrase('You do not have permission to perform this action.'));
         }
 
         $touristAttraction = TouristAttraction::withTrashed()->findOrFail($touristAttraction);

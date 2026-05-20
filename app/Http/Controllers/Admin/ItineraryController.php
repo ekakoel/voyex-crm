@@ -19,6 +19,7 @@ use App\Models\Quotation;
 use App\Models\TouristAttraction;
 use App\Models\TransportUnit;
 use App\Services\ActivityAuditLogger;
+use App\Services\QuotationItinerarySyncService;
 use App\Models\Vendor;
 use App\Support\ImageThumbnailGenerator;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -40,7 +41,8 @@ class ItineraryController extends Controller
     use HandlesActivityTimelineAjax;
 
     public function __construct(
-        private readonly ActivityAuditLogger $activityAuditLogger
+        private readonly ActivityAuditLogger $activityAuditLogger,
+        private readonly QuotationItinerarySyncService $quotationItinerarySyncService
     ) {
     }
 
@@ -1314,7 +1316,7 @@ class ItineraryController extends Controller
             'dayPoints.endHotelRoom:id,hotels_id,rooms,view,cover',
             'quotations' => function ($query) use ($today): void {
                 $query->select(['id', 'itinerary_id', 'status', 'quotation_number', 'order_number', 'service_date', 'created_at'])
-                    ->where('status', '!=', 'final')
+                    ->where('status', '!=', Quotation::FINAL_STATUS)
                     ->whereDate('service_date', '>=', $today)
                     ->orderByDesc('created_at');
             },
@@ -2165,40 +2167,59 @@ SVG;
         $this->validateFoodBeverageItems($foodBeverageItems, (int) $validated['duration_days']);
 
         $beforeAudit = $this->buildItineraryAuditSnapshot($itinerary);
+        $quotationSynced = false;
         try {
-            Itinerary::withoutActivityLogging(function () use ($itinerary, $validated): void {
-                $itinerary->update($validated);
+            DB::transaction(function () use (
+                $itinerary,
+                $validated,
+                $items,
+                $activityItems,
+                $islandTransferItems,
+                $foodBeverageItems,
+                $dayPoints,
+                $hotelStays,
+                $transportUnitsByDay,
+                $requestedInquiryId,
+                $beforeAudit,
+                &$quotationSynced
+            ): void {
+                Itinerary::withoutActivityLogging(function () use ($itinerary, $validated): void {
+                    $itinerary->update($validated);
+                });
+                $itinerary->touristAttractions()->sync($this->buildSyncPayload($items));
+                $this->syncItineraryActivities($itinerary, $activityItems);
+                $this->syncItineraryIslandTransfers($itinerary, $islandTransferItems);
+                $this->syncItineraryFoodBeverages($itinerary, $foodBeverageItems);
+                $this->syncDayPoints($itinerary, $dayPoints);
+                Log::info('itineraries.update.day_points_saved', [
+                    'itinerary_id' => (int) $itinerary->id,
+                    'saved_day_points' => $itinerary->dayPoints()
+                        ->orderBy('day_number')
+                        ->get([
+                            'day_number',
+                            'start_point_type',
+                            'start_airport_id',
+                            'start_hotel_id',
+                            'start_hotel_room_id',
+                            'start_hotel_booking_mode',
+                            'start_hotel_area',
+                            'end_point_type',
+                            'end_airport_id',
+                            'end_hotel_id',
+                            'end_hotel_room_id',
+                            'end_hotel_booking_mode',
+                            'end_hotel_area',
+                        ])->toArray(),
+                ]);
+                $this->syncHotelStays($itinerary, $hotelStays);
+                $this->syncDailyTransportUnits($itinerary, $transportUnitsByDay);
+                $this->syncInquiryReference($itinerary, $requestedInquiryId > 0 ? $requestedInquiryId : null);
+                $itinerary->refresh();
+                $this->activityAuditLogger->logUpdated($itinerary, $beforeAudit, $this->buildItineraryAuditSnapshot($itinerary), 'Itinerary');
+
+                // Safe sync only affects latest mutable quotation (draft/revised/pending_validation).
+                $quotationSynced = $this->quotationItinerarySyncService->syncLinkedQuotationFromItinerary($itinerary);
             });
-            $itinerary->touristAttractions()->sync($this->buildSyncPayload($items));
-            $this->syncItineraryActivities($itinerary, $activityItems);
-            $this->syncItineraryIslandTransfers($itinerary, $islandTransferItems);
-            $this->syncItineraryFoodBeverages($itinerary, $foodBeverageItems);
-            $this->syncDayPoints($itinerary, $dayPoints);
-            Log::info('itineraries.update.day_points_saved', [
-                'itinerary_id' => (int) $itinerary->id,
-                'saved_day_points' => $itinerary->dayPoints()
-                    ->orderBy('day_number')
-                    ->get([
-                        'day_number',
-                        'start_point_type',
-                        'start_airport_id',
-                        'start_hotel_id',
-                        'start_hotel_room_id',
-                        'start_hotel_booking_mode',
-                        'start_hotel_area',
-                        'end_point_type',
-                        'end_airport_id',
-                        'end_hotel_id',
-                        'end_hotel_room_id',
-                        'end_hotel_booking_mode',
-                        'end_hotel_area',
-                    ])->toArray(),
-            ]);
-            $this->syncHotelStays($itinerary, $hotelStays);
-            $this->syncDailyTransportUnits($itinerary, $transportUnitsByDay);
-            $this->syncInquiryReference($itinerary, $requestedInquiryId > 0 ? $requestedInquiryId : null);
-            $itinerary->refresh();
-            $this->activityAuditLogger->logUpdated($itinerary, $beforeAudit, $this->buildItineraryAuditSnapshot($itinerary), 'Itinerary');
 
         } catch (\Throwable $exception) {
             Log::error('itineraries.update.persist_failed', [
@@ -2212,7 +2233,9 @@ SVG;
                 ->with('error', $this->formatItineraryUpdateErrorMessage($exception));
         }
 
-        $successMessage = ui_phrase('Itinerary updated successfully. Quotation items remain unchanged until Generate is clicked in Quotation form.');
+        $successMessage = $quotationSynced
+            ? ui_phrase('Itinerary updated. Linked draft quotation items were regenerated safely.')
+            : ui_phrase('Itinerary updated successfully. Quotation items remain unchanged until Generate is clicked in Quotation form.');
 
         return redirect()->route('itineraries.show', $itinerary)->with('success', $successMessage);
     }
@@ -2261,7 +2284,7 @@ SVG;
         if ($itinerary->quotations->isNotEmpty()) {
             $reasons = ['quotation'];
             if ($this->isItineraryLockedByQuotation($itinerary)) {
-                $reasons[0] = ui_phrase('Related quotation is approved/final.');
+                $reasons[0] = ui_phrase('Related quotation is accepted/final.');
             }
             if ($itinerary->quotations->contains(fn ($quotation) => (bool) $quotation->booking)) {
                 $reasons[] = ui_phrase('booking');
@@ -2335,7 +2358,7 @@ SVG;
     {
         $itinerary->loadMissing('quotations:id,itinerary_id,status');
         return $itinerary->quotations->contains(
-            fn ($quotation) => in_array((string) ($quotation->status ?? ''), ['approved', Quotation::FINAL_STATUS], true)
+            fn ($quotation) => in_array((string) ($quotation->status ?? ''), ['accepted', Quotation::FINAL_STATUS], true)
         );
     }
 
@@ -2348,8 +2371,8 @@ SVG;
         if (! $inquiry || $inquiry->isFinal()) {
             return;
         }
-        if (($inquiry->status ?? '') === 'draft') {
-            $inquiry->update(['status' => 'processed']);
+        if (($inquiry->status ?? '') === 'new_request') {
+            $inquiry->update(['status' => 'quotation_in_progress']);
         }
     }
 

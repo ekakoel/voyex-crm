@@ -25,6 +25,6 @@ class QuotationPolicy
     public function validateQuotation(User $user, Quotation $quotation): bool
     {
         return $user->can('quotations.validate')
-            && ! $quotation->isFinal();
+            && ! in_array((string) ($quotation->status ?? ''), ['sent', 'accepted', Quotation::FINAL_STATUS], true);
     }
 }

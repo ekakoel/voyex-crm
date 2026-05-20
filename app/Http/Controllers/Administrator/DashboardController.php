@@ -241,7 +241,7 @@ class DashboardController extends Controller
         return Cache::remember("administrator-dashboard:{$userId}:pending-quotations", now()->addSeconds(60), function () use ($canQuotations) {
             return $canQuotations
                 ? Quotation::query()
-                    ->where('status', 'pending')
+                    ->where('status', 'issued')
                     ->latest()
                     ->limit(5)
                     ->with('inquiry:id,customer_id', 'inquiry.customer:id,name')

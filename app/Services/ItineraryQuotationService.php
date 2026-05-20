@@ -519,7 +519,11 @@ class ItineraryQuotationService
         $items = array_values(array_map(fn (array $row) => $row['item'], $dayRows));
 
         return array_values(array_filter($items, function (array $item): bool {
-            return trim((string) ($item['description'] ?? '')) !== '';
+            $description = trim((string) ($item['description'] ?? ''));
+            $unitPrice = (float) ($item['unit_price'] ?? 0);
+
+            // Only chargeable + included itinerary lines should become quotation lines.
+            return $description !== '' && $unitPrice > 0;
         }));
     }
 

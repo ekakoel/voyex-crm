@@ -21,11 +21,18 @@ class Quotation extends Model
 
     public const STATUS_OPTIONS = [
         'draft',
-        'processed',
-        'pending',
-        'approved',
+        'pending_validation',
+        'validated',
+        'sent',
+        'revision_requested',
+        'revised',
+        'accepted',
         'rejected',
-        'final',
+        'expired',
+        'converted',
+        'superseded',
+        'amended',
+        'cancelled',
     ];
     public const VALIDATION_STATUS_OPTIONS = [
         'pending',
@@ -33,12 +40,14 @@ class Quotation extends Model
         'valid',
     ];
 
-    public const FINAL_STATUS = 'final';
+    public const FINAL_STATUS = 'converted';
     protected $fillable = [
         'quotation_number',
         'order_number',
         'inquiry_id',
         'itinerary_id',
+        'revision_of_id',
+        'revision_number',
         'status',
         'validation_status',
         'validity_date',
@@ -125,6 +134,21 @@ class Quotation extends Model
     public function isFinal(): bool
     {
         return $this->status === self::FINAL_STATUS;
+    }
+
+    public function isLockedForDirectEdit(): bool
+    {
+        return in_array((string) ($this->status ?? ''), ['sent', 'accepted', self::FINAL_STATUS], true);
+    }
+
+    public function revisionOf()
+    {
+        return $this->belongsTo(self::class, 'revision_of_id');
+    }
+
+    public function revisions()
+    {
+        return $this->hasMany(self::class, 'revision_of_id');
     }
 
 }

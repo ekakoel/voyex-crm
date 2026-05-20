@@ -159,7 +159,7 @@ class InquiryController extends Controller
             'notes' => ['nullable', 'string'],
         ]);
         $validated['reminder_enabled'] = true;
-        $validated['status'] = 'draft';
+        $validated['status'] = 'new_request';
 
         $inquiry = Inquiry::withoutActivityLogging(function () use ($validated) {
             return Inquiry::query()->create($validated);
@@ -344,7 +344,7 @@ class InquiryController extends Controller
     {
         $inquiry->loadMissing('quotations:id,inquiry_id,status');
         return $inquiry->quotations->contains(
-            fn ($quotation) => in_array((string) ($quotation->status ?? ''), ['approved', Quotation::FINAL_STATUS], true)
+            fn ($quotation) => in_array((string) ($quotation->status ?? ''), ['accepted', Quotation::FINAL_STATUS], true)
         );
     }
 

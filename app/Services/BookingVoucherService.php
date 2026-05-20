@@ -102,10 +102,10 @@ class BookingVoucherService
     {
         $bookingStatus = (string) ($bookingItem->booking?->status ?? '');
 
-        if (in_array($bookingStatus, ['rejected', 'cancelled'], true)) {
+        if (in_array($bookingStatus, ['cancelled'], true)) {
             return 'cancelled';
         }
-        if (in_array($bookingStatus, ['draft', 'pending'], true)) {
+        if (in_array($bookingStatus, ['pending_confirmation', 'awaiting_dp', 'awaiting_balance'], true)) {
             return 'draft';
         }
 
