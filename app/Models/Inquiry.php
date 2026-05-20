@@ -17,21 +17,33 @@ class Inquiry extends Model
     use HasFactory, HasAudit, LogsActivity;
 
     public const STATUS_OPTIONS = [
-        'draft',
-        'processed',
-        'pending',
-        'approved',
-        'rejected',
-        'final',
+        'new_request',
+        'need_customer_data',
+        'registered',
+        'assigned',
+        'contacted',
+        'waiting_customer',
+        'qualified',
+        'unqualified',
+        'itinerary_in_progress',
+        'quotation_in_progress',
+        'quotation_sent',
+        'under_negotiation',
+        'accepted',
+        'converted_to_booking',
+        'lost',
+        'cancelled',
+        'expired',
     ];
 
-    public const FINAL_STATUS = 'final';
+    public const FINAL_STATUS = 'converted_to_booking';
     protected $fillable = [
         'inquiry_number',
         'customer_id',
         'source',
         'status',
         'priority',
+        'assigned_to',
         'deadline',
         'notes',
         'reminder_enabled',
@@ -156,4 +168,5 @@ class Inquiry extends Model
         return $letters;
     }
 }
+
 

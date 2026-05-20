@@ -18,7 +18,7 @@ class DashboardController extends Controller
     {
         $user = auth()->user();
         $userId = $user?->id;
-        $activeBookingStatuses = ['processed', 'approved', 'final'];
+        $activeBookingStatuses = ['confirmed', 'ready_to_operate', 'in_operation', 'service_completed', 'completed_unsettled', 'completed_settled', 'closed'];
         $canInquiries = (bool) $user?->can('module.inquiries.access');
         $canItineraries = (bool) $user?->can('module.itineraries.access');
         $canQuotations = (bool) $user?->can('module.quotations.access');
@@ -39,7 +39,7 @@ class DashboardController extends Controller
 
         $kpis['pending_closure'] = $canBookings
             ? Booking::query()
-                ->whereNotIn('status', ['final', 'rejected'])
+                ->whereNotIn('status', ['closed', 'cancelled'])
                 ->whereDate('travel_date', '<', $now->toDateString())
                 ->count()
             : 0;
@@ -90,7 +90,7 @@ class DashboardController extends Controller
             : [];
 
         $readyToBookQuery = Quotation::query()
-            ->where('status', 'approved')
+            ->where('status', 'accepted')
             ->whereDoesntHave('booking');
 
         $readyToBookQuotations = $canQuotations
@@ -144,14 +144,18 @@ class DashboardController extends Controller
                     ->count();
             });
 
-            $confirmedCount = (int) ($bookingStatusCounts['approved'] ?? 0)
-                + (int) ($bookingStatusCounts['final'] ?? 0)
-                + (int) ($bookingStatusCounts['processed'] ?? 0);
+            $confirmedCount = (int) ($bookingStatusCounts['confirmed'] ?? 0)
+                + (int) ($bookingStatusCounts['ready_to_operate'] ?? 0)
+                + (int) ($bookingStatusCounts['in_operation'] ?? 0)
+                + (int) ($bookingStatusCounts['service_completed'] ?? 0)
+                + (int) ($bookingStatusCounts['completed_unsettled'] ?? 0)
+                + (int) ($bookingStatusCounts['completed_settled'] ?? 0)
+                + (int) ($bookingStatusCounts['closed'] ?? 0);
 
             $bookingStatusBreakdown = [
-                ['label' => ui_phrase('pending'), 'count' => (int) ($bookingStatusCounts['pending'] ?? 0), 'bg' => 'bg-amber-100', 'text' => 'text-amber-700'],
+                ['label' => ui_phrase('pending'), 'count' => (int) ($bookingStatusCounts['awaiting_dp'] ?? 0), 'bg' => 'bg-amber-100', 'text' => 'text-amber-700'],
                 ['label' => ui_phrase('confirmed'), 'count' => $confirmedCount, 'bg' => 'bg-emerald-100', 'text' => 'text-emerald-700'],
-                ['label' => ui_phrase('cancelled'), 'count' => (int) ($bookingStatusCounts['rejected'] ?? 0), 'bg' => 'bg-rose-100', 'text' => 'text-rose-700'],
+                ['label' => ui_phrase('cancelled'), 'count' => (int) ($bookingStatusCounts['cancelled'] ?? 0), 'bg' => 'bg-rose-100', 'text' => 'text-rose-700'],
             ];
 
             $topDestinationSummary = Cache::remember("reservation:top_destination:{$startOfMonth->toDateString()}", 120, function () use ($startOfMonth, $now) {
@@ -182,7 +186,7 @@ class DashboardController extends Controller
             $overdueCloseCount = Cache::remember("reservation:overdue_close_count:{$now->toDateString()}", 120, function () use ($now) {
                 return Booking::query()
                     ->whereDate('travel_date', '<', $now->toDateString())
-                    ->whereNotIn('status', ['final', 'rejected'])
+                    ->whereNotIn('status', ['closed', 'cancelled'])
                     ->count();
             });
 

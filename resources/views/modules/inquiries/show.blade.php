@@ -10,7 +10,7 @@
 
     @can('update', $inquiry)
 
-        @if (! $inquiry->quotations->contains(fn ($quotation) => in_array((string) ($quotation->status ?? ''), ['approved', \App\Models\Quotation::FINAL_STATUS], true)) && ! $inquiry->isFinal())
+        @if (! $inquiry->quotations->contains(fn ($quotation) => in_array((string) ($quotation->status ?? ''), ['accepted', \App\Models\Quotation::FINAL_STATUS], true)) && ! $inquiry->isFinal())
 
             <a href="{{ route('inquiries.edit', $inquiry) }}"  class="btn-secondary">
 
@@ -151,7 +151,6 @@
     </div>
 
 @endsection
-
 
 
 

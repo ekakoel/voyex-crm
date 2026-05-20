@@ -56,7 +56,7 @@ class DashboardController extends Controller
         // 4. Inquiries that need follow-up (status 'draft' or 'processed')
         $pendingInquiries = $canInquiries
             ? Inquiry::with('customer')
-                ->whereIn('status', ['draft', 'processed'])
+                ->whereIn('status', ['new_request', 'contacted'])
                 ->whereIn('created_by', $salesTeamIds)
                 ->orderBy('created_at', 'desc')
                 ->limit(10)

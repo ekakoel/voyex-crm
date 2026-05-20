@@ -1,8 +1,39 @@
 # Technical Fix Notes
 
-Last Updated: 2026-05-15
+Last Updated: 2026-05-18
 
 Dokumen ini menggabungkan fix-report teknis lintas modul yang berdampak ke arsitektur/standar.
+
+## 48. Cross-Module Status Standardization Baseline (2026-05-18)
+
+Masalah:
+- Status bisnis lintas modul masih campur antara skema lama (`draft/processed/pending/approved/rejected/final`) dan skema baru.
+- Risiko inkonsistensi tinggi pada validasi, dashboard, serta transisi lifecycle inquiry -> itinerary -> quotation -> booking -> invoice.
+
+Perbaikan:
+- Menambahkan sumber kebenaran terpusat pada `config/statuses.php` untuk modul:
+  - inquiry
+  - itinerary
+  - quotation
+  - booking
+  - invoice
+  - payment
+- Menambahkan helper `App\Support\StatusCatalog` untuk:
+  - daftar status valid
+  - status default
+  - terminal status
+  - legacy-to-new mapping
+  - class badge UI
+- Menambahkan migration baru untuk migrasi data status existing secara aman:
+  - `2026_05_18_170000_standardize_business_statuses.php`
+  - melakukan mapping status lama -> status target per modul sebelum ubah enum.
+- Menyelaraskan model status options dan final status constants pada model utama.
+- Menyelaraskan validasi/flow kritikal pada booking-quotation agar menggunakan status target.
+
+Dampak:
+- Fondasi status lintas modul menjadi konsisten dan lebih aman untuk pengembangan berikutnya.
+- Data existing dimigrasikan tanpa menghapus data historis.
+- UI badge status dapat mengikuti katalog terpusat.
 
 ## 46. Itinerary Inquiry Reference-Only Mode (2026-05-15)
 

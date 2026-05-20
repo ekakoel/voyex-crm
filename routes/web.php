@@ -26,6 +26,9 @@ use App\Http\Controllers\Editor\DashboardController as EditorDashboardController
 use App\Http\Controllers\Director\CompanySettingController as DirectorCompanySettingController;
 use App\Http\Controllers\Finance\DashboardController as FinanceDashboardController;
 use App\Http\Controllers\Finance\InvoiceController as FinanceInvoiceController;
+use App\Http\Controllers\Finance\PaymentController as FinancePaymentController;
+use App\Http\Controllers\BookingAdjustmentController;
+use App\Http\Controllers\BookingSettlementController;
 use App\Http\Controllers\Manager\DashboardController as ManagerDashboardController;
 use App\Http\Controllers\Marketing\DashboardController as MarketingDashboardController;
 use App\Http\Controllers\Reservation\DashboardController as ReservationDashboardController;
@@ -54,41 +57,42 @@ Route::post('/locale', [LocaleController::class, 'set'])
     ->name('locale.set')
     ->middleware('auth');
 
-// Debug route for menu filtering with detailed output
-Route::get('/debug-menu/{userId}', function ($userId) {
-    $user = \App\Models\User::find($userId);
-    
-    if (!$user) {
-        return 'User not found';
-    }
-    
-    $composer = new \App\Http\View\SidebarComposer();
-    
-    // Get the filtered menu using reflection
-    $reflection = new ReflectionClass($composer);
-    $getMenuItems = $reflection->getMethod('getMenuItems');
-    $getMenuItems->setAccessible(true);
-    $filterMenuItems = $reflection->getMethod('filterMenuItems');
-    $filterMenuItems->setAccessible(true);
-    
-    $items = $getMenuItems->invoke($composer);
-    $filtered = $filterMenuItems->invoke($composer, $items, $user);
-    
-    $html = "<h2>User: " . $user->name . " | Roles: " . $user->getRoleNames()->join(', ') . "</h2>";
-    
-    $html .= "<h3>Filtered Menu Items (" . count($filtered) . " items):</h3>";
-    $html .= "<table border='1' cellpadding='10'><tr><th>Title</th><th>Route</th><th>Route Exists</th></tr>";
-    
-    foreach ($filtered as $item) {
-        $routeExists = \Route::has($item['route']);
-        $routeStatus = $routeExists ? "<span style='color:green;font-weight:bold'>YES</span>" : "<span style='color:red;font-weight:bold'>NO</span>";
-        $html .= "<tr><td>" . $item['title'] . "</td><td>" . $item['route'] . "</td><td>" . $routeStatus . "</td></tr>";
-    }
-    
-    $html .= "</table>";
-    
-    return $html;
-});
+if (app()->environment('local') && config('app.debug')) {
+    Route::get('/debug-menu/{userId}', function ($userId) {
+        $user = \App\Models\User::find($userId);
+
+        if (! $user) {
+            return 'User not found';
+        }
+
+        $composer = new \App\Http\View\SidebarComposer();
+
+        // Get the filtered menu using reflection
+        $reflection = new ReflectionClass($composer);
+        $getMenuItems = $reflection->getMethod('getMenuItems');
+        $getMenuItems->setAccessible(true);
+        $filterMenuItems = $reflection->getMethod('filterMenuItems');
+        $filterMenuItems->setAccessible(true);
+
+        $items = $getMenuItems->invoke($composer);
+        $filtered = $filterMenuItems->invoke($composer, $items, $user);
+
+        $html = "<h2>User: " . $user->name . " | Roles: " . $user->getRoleNames()->join(', ') . "</h2>";
+
+        $html .= "<h3>Filtered Menu Items (" . count($filtered) . " items):</h3>";
+        $html .= "<table border='1' cellpadding='10'><tr><th>Title</th><th>Route</th><th>Route Exists</th></tr>";
+
+        foreach ($filtered as $item) {
+            $routeExists = \Route::has($item['route']);
+            $routeStatus = $routeExists ? "<span style='color:green;font-weight:bold'>YES</span>" : "<span style='color:red;font-weight:bold'>NO</span>";
+            $html .= "<tr><td>" . $item['title'] . "</td><td>" . $item['route'] . "</td><td>" . $routeStatus . "</td></tr>";
+        }
+
+        $html .= "</table>";
+
+        return $html;
+    })->middleware(['auth', 'role:Super Admin']);
+}
 
 // This route acts as the gateway for role-based dashboard redirection
 Route::get('/dashboard', DashboardRedirectController::class)->middleware(['auth'])->name('dashboard');
@@ -99,7 +103,8 @@ Route::middleware('auth')->group(function () {
     Route::patch('/profile/theme', [ProfileController::class, 'updateTheme'])->name('profile.theme');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
     Route::get('location/resolve-google-map', [AdminLocationResolverController::class, 'resolve'])
-        ->name('location.resolve-google-map');
+        ->name('location.resolve-google-map')
+        ->middleware(['permission:locations.resolve_google_map']);
 
     Route::prefix('superadmin')->name('superadmin.')->group(function () {
         Route::get('/dashboard', [SuperAdminDashboardController::class, 'index'])
@@ -743,6 +748,90 @@ Route::middleware('auth')->group(function () {
                 'permission:module.invoices.access',
                 'module.permission:invoices',
             ]);
+        Route::get('invoices/{invoice}/edit', [FinanceInvoiceController::class, 'edit'])
+            ->name('invoices.edit')
+            ->middleware([
+                'module:invoices',
+                'permission:module.invoices.access',
+                'module.permission:invoices',
+            ]);
+        Route::patch('invoices/{invoice}', [FinanceInvoiceController::class, 'update'])
+            ->name('invoices.update')
+            ->middleware([
+                'module:invoices',
+                'permission:module.invoices.access',
+                'module.permission:invoices',
+            ]);
+        Route::post('invoices/{invoice}/issue', [FinanceInvoiceController::class, 'issue'])
+            ->name('invoices.issue')
+            ->middleware([
+                'module:invoices',
+                'permission:module.invoices.access',
+                'module.permission:invoices',
+            ]);
+        Route::post('invoices/{invoice}/void', [FinanceInvoiceController::class, 'void'])
+            ->name('invoices.void')
+            ->middleware([
+                'module:invoices',
+                'permission:module.invoices.access',
+                'module.permission:invoices',
+            ]);
+        Route::post('invoices/{invoice}/cancel', [FinanceInvoiceController::class, 'cancel'])
+            ->name('invoices.cancel')
+            ->middleware([
+                'module:invoices',
+                'permission:module.invoices.access',
+                'module.permission:invoices',
+            ]);
+        Route::get('payments', [FinancePaymentController::class, 'index'])
+            ->name('payments.index')
+            ->middleware([
+                'module:invoices',
+                'permission:module.invoices.access',
+                'permission:payments.view',
+            ]);
+        Route::get('payments/create', [FinancePaymentController::class, 'create'])
+            ->name('payments.create')
+            ->middleware([
+                'module:invoices',
+                'permission:module.invoices.access',
+                'permission:payments.create',
+            ]);
+        Route::post('payments', [FinancePaymentController::class, 'store'])
+            ->name('payments.store')
+            ->middleware([
+                'module:invoices',
+                'permission:module.invoices.access',
+                'permission:payments.create',
+            ]);
+        Route::get('payments/{payment}', [FinancePaymentController::class, 'show'])
+            ->name('payments.show')
+            ->middleware([
+                'module:invoices',
+                'permission:module.invoices.access',
+                'permission:payments.view',
+            ]);
+        Route::post('payments/{payment}/confirm', [FinancePaymentController::class, 'confirm'])
+            ->name('payments.confirm')
+            ->middleware([
+                'module:invoices',
+                'permission:module.invoices.access',
+                'permission:payments.confirm',
+            ]);
+        Route::post('payments/{payment}/reject', [FinancePaymentController::class, 'reject'])
+            ->name('payments.reject')
+            ->middleware([
+                'module:invoices',
+                'permission:module.invoices.access',
+                'permission:payments.reject',
+            ]);
+        Route::post('payments/{payment}/cancel', [FinancePaymentController::class, 'cancel'])
+            ->name('payments.cancel')
+            ->middleware([
+                'module:invoices',
+                'permission:module.invoices.access',
+                'permission:payments.cancel',
+            ]);
     });
     // ----------------------------------------------------------------------------------------------------------
     // Director
@@ -765,6 +854,94 @@ Route::middleware('auth')->group(function () {
                 'permission:module.bookings.access',
                 'module.permission:bookings',
             ]);
+        Route::get('bookings/{booking}/adjustments', [BookingAdjustmentController::class, 'index'])
+            ->name('bookings.adjustments.index')
+            ->middleware([
+                'module:bookings',
+                'permission:module.bookings.access',
+                'permission:booking_adjustments.view',
+                'module.permission:bookings',
+            ]);
+        Route::get('bookings/{booking}/adjustments/create', [BookingAdjustmentController::class, 'create'])
+            ->name('bookings.adjustments.create')
+            ->middleware([
+                'module:bookings',
+                'permission:module.bookings.access',
+                'permission:booking_adjustments.create',
+                'module.permission:bookings',
+            ]);
+        Route::post('bookings/{booking}/adjustments', [BookingAdjustmentController::class, 'store'])
+            ->name('bookings.adjustments.store')
+            ->middleware([
+                'module:bookings',
+                'permission:module.bookings.access',
+                'permission:booking_adjustments.create',
+                'module.permission:bookings',
+            ]);
+        Route::get('booking-adjustments/{adjustment}', [BookingAdjustmentController::class, 'show'])
+            ->name('booking-adjustments.show')
+            ->middleware([
+                'module:bookings',
+                'permission:module.bookings.access',
+                'permission:booking_adjustments.view',
+                'module.permission:bookings',
+            ]);
+        Route::get('booking-adjustments/{adjustment}/edit', [BookingAdjustmentController::class, 'edit'])
+            ->name('booking-adjustments.edit')
+            ->middleware([
+                'module:bookings',
+                'permission:module.bookings.access',
+                'permission:booking_adjustments.update',
+                'module.permission:bookings',
+            ]);
+        Route::patch('booking-adjustments/{adjustment}', [BookingAdjustmentController::class, 'update'])
+            ->name('booking-adjustments.update')
+            ->middleware([
+                'module:bookings',
+                'permission:module.bookings.access',
+                'permission:booking_adjustments.update',
+                'module.permission:bookings',
+            ]);
+        Route::post('booking-adjustments/{adjustment}/submit', [BookingAdjustmentController::class, 'submit'])
+            ->name('booking-adjustments.submit')
+            ->middleware([
+                'module:bookings',
+                'permission:module.bookings.access',
+                'permission:booking_adjustments.submit',
+                'module.permission:bookings',
+            ]);
+        Route::post('booking-adjustments/{adjustment}/approve', [BookingAdjustmentController::class, 'approve'])
+            ->name('booking-adjustments.approve')
+            ->middleware([
+                'module:bookings',
+                'permission:module.bookings.access',
+                'permission:booking_adjustments.approve',
+                'module.permission:bookings',
+            ]);
+        Route::post('booking-adjustments/{adjustment}/reject', [BookingAdjustmentController::class, 'reject'])
+            ->name('booking-adjustments.reject')
+            ->middleware([
+                'module:bookings',
+                'permission:module.bookings.access',
+                'permission:booking_adjustments.reject',
+                'module.permission:bookings',
+            ]);
+        Route::post('booking-adjustments/{adjustment}/apply', [BookingAdjustmentController::class, 'apply'])
+            ->name('booking-adjustments.apply')
+            ->middleware([
+                'module:bookings',
+                'permission:module.bookings.access',
+                'permission:booking_adjustments.apply',
+                'module.permission:bookings',
+            ]);
+        Route::post('booking-adjustments/{adjustment}/cancel', [BookingAdjustmentController::class, 'cancel'])
+            ->name('booking-adjustments.cancel')
+            ->middleware([
+                'module:bookings',
+                'permission:module.bookings.access',
+                'permission:booking_adjustments.cancel',
+                'module.permission:bookings',
+            ]);
         Route::post('bookings/{booking}/services/{quotationItem}/book', [\App\Http\Controllers\BookingController::class, 'bookServiceItem'])
             ->name('bookings.services.book')
             ->middleware([
@@ -784,6 +961,140 @@ Route::middleware('auth')->group(function () {
             ->middleware([
                 'module:bookings',
                 'permission:module.bookings.access',
+                'module.permission:bookings',
+            ]);
+        Route::post('bookings/{booking}/cancel', [\App\Http\Controllers\BookingController::class, 'cancel'])
+            ->name('bookings.cancel')
+            ->middleware([
+                'module:bookings',
+                'permission:module.bookings.access',
+                'module.permission:bookings',
+            ]);
+        Route::post('bookings/{booking}/close', [\App\Http\Controllers\BookingController::class, 'close'])
+            ->name('bookings.close')
+            ->middleware([
+                'module:bookings',
+                'permission:module.bookings.access',
+                'module.permission:bookings',
+            ]);
+        Route::get('bookings/{booking}/settlement', [BookingSettlementController::class, 'show'])
+            ->name('bookings.settlement.show')
+            ->middleware([
+                'module:bookings',
+                'permission:module.bookings.access',
+                'permission:booking_settlements.view',
+                'module.permission:bookings',
+            ]);
+        Route::post('bookings/{booking}/settlement/review', [BookingSettlementController::class, 'review'])
+            ->name('bookings.settlement.review')
+            ->middleware([
+                'module:bookings',
+                'permission:module.bookings.access',
+                'permission:booking_settlements.review',
+                'module.permission:bookings',
+            ]);
+        Route::post('bookings/{booking}/settlement/mark-settled', [BookingSettlementController::class, 'markSettled'])
+            ->name('bookings.settlement.mark-settled')
+            ->middleware([
+                'module:bookings',
+                'permission:module.bookings.access',
+                'permission:booking_settlements.mark_settled',
+                'module.permission:bookings',
+            ]);
+        Route::post('bookings/{booking}/settlement/close', [BookingSettlementController::class, 'close'])
+            ->name('bookings.settlement.close')
+            ->middleware([
+                'module:bookings',
+                'permission:module.bookings.access',
+                'permission:booking_settlements.close_booking',
+                'module.permission:bookings',
+            ]);
+        Route::post('bookings/{booking}/operation/ready', [\App\Http\Controllers\BookingController::class, 'markReadyToOperate'])
+            ->name('bookings.operation.ready')
+            ->middleware([
+                'module:bookings',
+                'permission:module.bookings.access',
+                'permission:bookings.operation.prepare',
+                'module.permission:bookings',
+            ]);
+        Route::post('bookings/{booking}/operation/start', [\App\Http\Controllers\BookingController::class, 'startOperation'])
+            ->name('bookings.operation.start')
+            ->middleware([
+                'module:bookings',
+                'permission:module.bookings.access',
+                'permission:bookings.operation.start',
+                'module.permission:bookings',
+            ]);
+        Route::post('bookings/{booking}/operation/complete', [\App\Http\Controllers\BookingController::class, 'completeService'])
+            ->name('bookings.operation.complete')
+            ->middleware([
+                'module:bookings',
+                'permission:module.bookings.access',
+                'permission:bookings.operation.complete',
+                'module.permission:bookings',
+            ]);
+        Route::post('bookings/{booking}/operation/issue', [\App\Http\Controllers\BookingController::class, 'reportOperationIssue'])
+            ->name('bookings.operation.issue')
+            ->middleware([
+                'module:bookings',
+                'permission:module.bookings.access',
+                'permission:bookings.operation.issue',
+                'module.permission:bookings',
+            ]);
+        Route::get('bookings/{booking}/spk', [\App\Http\Controllers\BookingController::class, 'showSpk'])
+            ->name('bookings.spk')
+            ->middleware([
+                'module:bookings',
+                'permission:module.bookings.access',
+                'permission:bookings.operation.spk.view',
+                'module.permission:bookings',
+            ]);
+        Route::get('bookings/{booking}/spk/print', [\App\Http\Controllers\BookingController::class, 'showSpk'])
+            ->name('bookings.spk.print')
+            ->middleware([
+                'module:bookings',
+                'permission:module.bookings.access',
+                'permission:bookings.operation.spk.print',
+                'module.permission:bookings',
+            ]);
+        Route::post('bookings/{booking}/items/{bookingItem}/vendor-confirm', [\App\Http\Controllers\BookingController::class, 'confirmItemVendor'])
+            ->name('bookings.items.vendor-confirm')
+            ->middleware([
+                'module:bookings',
+                'permission:module.bookings.access',
+                'permission:bookings.operation.vendor_confirm',
+                'module.permission:bookings',
+            ]);
+        Route::patch('bookings/{booking}/items/{bookingItem}/dispatch', [\App\Http\Controllers\BookingController::class, 'updateItemDispatch'])
+            ->name('bookings.items.dispatch.update')
+            ->middleware([
+                'module:bookings',
+                'permission:module.bookings.access',
+                'permission:bookings.operation.dispatch',
+                'module.permission:bookings',
+            ]);
+        Route::post('bookings/{booking}/items/{bookingItem}/dispatch/ready', [\App\Http\Controllers\BookingController::class, 'markItemDispatchReady'])
+            ->name('bookings.items.dispatch.ready')
+            ->middleware([
+                'module:bookings',
+                'permission:module.bookings.access',
+                'permission:bookings.operation.dispatch',
+                'module.permission:bookings',
+            ]);
+        Route::post('bookings/{booking}/items/{bookingItem}/dispatch/complete', [\App\Http\Controllers\BookingController::class, 'markItemDispatchCompleted'])
+            ->name('bookings.items.dispatch.complete')
+            ->middleware([
+                'module:bookings',
+                'permission:module.bookings.access',
+                'permission:bookings.operation.dispatch',
+                'module.permission:bookings',
+            ]);
+        Route::post('bookings/{booking}/items/{bookingItem}/dispatch/issue', [\App\Http\Controllers\BookingController::class, 'reportItemDispatchIssue'])
+            ->name('bookings.items.dispatch.issue')
+            ->middleware([
+                'module:bookings',
+                'permission:module.bookings.access',
+                'permission:bookings.operation.dispatch',
                 'module.permission:bookings',
             ]);
         Route::get('booking-items/{bookingItem}/voucher', [\App\Http\Controllers\BookingItemVoucherController::class, 'edit'])

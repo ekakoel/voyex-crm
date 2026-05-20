@@ -1269,8 +1269,8 @@ class QuotationValidationService
 
         if ($canAutoApprove) {
             $patch = [];
-            if ((string) ($quotation->status ?? '') !== 'approved') {
-                $patch['status'] = 'approved';
+            if ((string) ($quotation->status ?? '') !== 'accepted') {
+                $patch['status'] = 'accepted';
             }
             if ((int) ($quotation->approved_by ?? 0) !== $creatorId) {
                 $patch['approved_by'] = $creatorId > 0 ? $creatorId : null;
@@ -1287,9 +1287,9 @@ class QuotationValidationService
             return;
         }
 
-        if ((string) ($quotation->status ?? '') === 'approved') {
+        if ((string) ($quotation->status ?? '') === 'accepted') {
             $quotation->update([
-                'status' => 'pending',
+                'status' => 'pending_validation',
                 'approved_by' => null,
                 'approved_at' => null,
             ]);
@@ -1642,7 +1642,7 @@ class QuotationValidationService
             'validator_id' => $actorId,
             'action' => 'final_validate',
             'is_validated' => true,
-            'validation_notes' => 'Quotation final validation completed.',
+            'validation_notes' => 'Quotation validation completed.',
         ]);
     }
 }

@@ -67,8 +67,8 @@ class QuotationController extends Controller
         $this->applyQuotationKeywordFilter($query, (string) request('q'));
         if ($showNeedsMyApproval) {
             $this->applyNeedsMyApprovalFilter($query, auth()->user());
-            $statusFilterOptions = ['pending'];
-            $statsCards = $this->buildQuotationStatsCards(null, ['pending'], false);
+            $statusFilterOptions = ['pending_validation'];
+            $statsCards = $this->buildQuotationStatsCards(null, ['pending_validation'], false);
         } else {
             $statusFilterOptions = Quotation::STATUS_OPTIONS;
             $statsCards = $this->buildQuotationStatsCards(null, null, false);
@@ -399,7 +399,7 @@ class QuotationController extends Controller
                     'service_date' => $validated['service_date'],
                     'pax_adult' => (int) ($validated['pax_adult'] ?? 0),
                     'pax_child' => (int) ($validated['pax_child'] ?? 0),
-                    'status' => 'pending',
+                    'status' => 'pending_validation',
                     'validity_date' => $validated['validity_date'],
                     'sub_total' => $totals['sub_total'],
                     'discount_type' => $validated['discount_type'] ?? null,
@@ -557,7 +557,7 @@ class QuotationController extends Controller
         $approvalProgress = $this->buildApprovalProgress($quotation);
         $validationProgress = $this->quotationValidationService->getProgress($quotation);
         $canValidateQuotation = $this->quotationValidationService->isValidationActor($request->user())
-            && ! in_array((string) ($quotation->status ?? ''), [Quotation::FINAL_STATUS], true)
+            && ! in_array((string) ($quotation->status ?? ''), ['sent', 'accepted', Quotation::FINAL_STATUS], true)
             && (bool) ($validationProgress['requires_validation'] ?? false);
         $activities = $quotation->activities()
             ->with('user:id,name')
@@ -587,7 +587,8 @@ class QuotationController extends Controller
         if (! $this->canManageQuotation($quotation, 'update')) {
             return $this->denyQuotationMutation($quotation);
         }
-        $wasApprovedBeforeUpdate = ((string) ($quotation->status ?? '') === 'approved');
+        $mustCreateRevision = in_array((string) ($quotation->status ?? ''), ['sent', 'accepted'], true);
+        $wasApprovedBeforeUpdate = ((string) ($quotation->status ?? '') === 'accepted');
 
         $items = collect($request->input('items', []))
             ->filter(fn ($row) => trim((string) ($row['description'] ?? '')) !== '')
@@ -680,48 +681,60 @@ class QuotationController extends Controller
             );
             $previousItineraryId = (int) ($quotation->itinerary_id ?? 0);
 
-            $quotation->loadMissing('items');
-            $beforeAudit = $this->buildQuotationAuditSnapshot($quotation);
+            if ($mustCreateRevision) {
+                $quotation = $this->createQuotationRevision(
+                    $quotation,
+                    $inquiryId,
+                    $selectedItineraryId,
+                    $validated,
+                    $totals,
+                    $normalizedOrderNumber
+                );
+                $this->syncLinkedLifecycleStatusesForQuotation($quotation, $previousItineraryId);
+            } else {
+                $quotation->loadMissing('items');
+                $beforeAudit = $this->buildQuotationAuditSnapshot($quotation);
 
-            Quotation::withoutActivityLogging(function () use ($quotation, $inquiryId, $selectedItineraryId, $validated, $totals, $normalizedOrderNumber): void {
-                $quotation->update([
-                    'order_number' => $normalizedOrderNumber,
-                    'inquiry_id' => $inquiryId,
-                    'itinerary_id' => $selectedItineraryId,
-                    'service_date' => $validated['service_date'],
-                    'pax_adult' => (int) ($validated['pax_adult'] ?? 0),
-                    'pax_child' => (int) ($validated['pax_child'] ?? 0),
-                    'validity_date' => $validated['validity_date'],
-                    'sub_total' => $totals['sub_total'],
-                    'discount_type' => $validated['discount_type'] ?? null,
-                    'discount_value' => (float) ($validated['discount_value'] ?? 0),
-                    'final_amount' => $totals['final_amount'],
-                ]);
-            });
-            $quotation->items()->delete();
-            foreach ($totals['items'] as $item) {
-                $quotation->items()->create($item);
-            }
-            $this->quotationValidationService->syncValidationRequirementsAndMasterRates($quotation);
-            $skipApprovalWorkflow = $this->quotationUsesApprovalBypass($quotation);
-            if ($skipApprovalWorkflow) {
-                $quotation->approvals()->delete();
-                $this->applyPrivilegedCreatorApprovalStatus($quotation);
-            } elseif ($wasApprovedBeforeUpdate) {
-                $quotation->approvals()->delete();
-                Quotation::withoutActivityLogging(function () use ($quotation): void {
+                Quotation::withoutActivityLogging(function () use ($quotation, $inquiryId, $selectedItineraryId, $validated, $totals, $normalizedOrderNumber): void {
                     $quotation->update([
-                        'status' => 'pending',
-                        'approved_by' => null,
-                        'approved_at' => null,
-                        'approval_note' => null,
-                        'approval_note_by' => null,
+                        'order_number' => $normalizedOrderNumber,
+                        'inquiry_id' => $inquiryId,
+                        'itinerary_id' => $selectedItineraryId,
+                        'service_date' => $validated['service_date'],
+                        'pax_adult' => (int) ($validated['pax_adult'] ?? 0),
+                        'pax_child' => (int) ($validated['pax_child'] ?? 0),
+                        'validity_date' => $validated['validity_date'],
+                        'sub_total' => $totals['sub_total'],
+                        'discount_type' => $validated['discount_type'] ?? null,
+                        'discount_value' => (float) ($validated['discount_value'] ?? 0),
+                        'final_amount' => $totals['final_amount'],
                     ]);
                 });
+                $quotation->items()->delete();
+                foreach ($totals['items'] as $item) {
+                    $quotation->items()->create($item);
+                }
+                $this->quotationValidationService->syncValidationRequirementsAndMasterRates($quotation);
+                $skipApprovalWorkflow = $this->quotationUsesApprovalBypass($quotation);
+                if ($skipApprovalWorkflow) {
+                    $quotation->approvals()->delete();
+                    $this->applyPrivilegedCreatorApprovalStatus($quotation);
+                } elseif ($wasApprovedBeforeUpdate) {
+                    $quotation->approvals()->delete();
+                    Quotation::withoutActivityLogging(function () use ($quotation): void {
+                        $quotation->update([
+                            'status' => 'pending_validation',
+                            'approved_by' => null,
+                            'approved_at' => null,
+                            'approval_note' => null,
+                            'approval_note_by' => null,
+                        ]);
+                    });
+                }
+                $this->syncLinkedLifecycleStatusesForQuotation($quotation, $previousItineraryId);
+                $quotation->load('items');
+                $this->activityAuditLogger->logUpdated($quotation, $beforeAudit, $this->buildQuotationAuditSnapshot($quotation), 'Quotation');
             }
-            $this->syncLinkedLifecycleStatusesForQuotation($quotation, $previousItineraryId);
-            $quotation->load('items');
-            $this->activityAuditLogger->logUpdated($quotation, $beforeAudit, $this->buildQuotationAuditSnapshot($quotation), 'Quotation');
 
             DB::commit();
         } catch (\Throwable $e) {
@@ -737,6 +750,12 @@ class QuotationController extends Controller
                 ->with('error', 'Failed to save quotation. Please check the data.');
         }
 
+        if ($mustCreateRevision) {
+            return redirect()
+                ->route('quotations.show', $quotation)
+                ->with('success', 'Locked quotation preserved. New quotation revision created.');
+        }
+
         return redirect()
             ->route('quotations.show', $quotation)
             ->with('success', $wasApprovedBeforeUpdate ? 'Quotation updated. Status changed to pending for re-approval.' : 'Quotation updated successfully.');
@@ -746,7 +765,7 @@ class QuotationController extends Controller
     {
         $this->autoFinalizeApprovedQuotationIfExpired($quotation);
         if ($quotation->isFinal()) {
-            return redirect()->back()->with('error', 'Final quotation cannot be modified.');
+            return redirect()->back()->with('error', 'Converted quotation cannot be modified.');
         }
         $user = $request->user();
         if (! $user) {
@@ -861,7 +880,7 @@ class QuotationController extends Controller
                 ->route('quotations.show', $quotation)
                 ->with('error', 'Final quotation cannot be deleted.');
         }
-        if (($quotation->status ?? '') === 'approved') {
+        if (($quotation->status ?? '') === 'accepted') {
             return redirect()
                 ->route('quotations.show', $quotation)
                 ->with('error', 'Approved quotation cannot be deleted.');
@@ -886,7 +905,7 @@ class QuotationController extends Controller
                 ->route('quotations.show', $quotation)
                 ->with('error', 'Final quotation cannot be changed.');
         }
-        if (($quotation->status ?? '') === 'approved') {
+        if (($quotation->status ?? '') === 'accepted') {
             return redirect()
                 ->route('quotations.show', $quotation)
                 ->with('error', 'Approved quotation cannot be deactivated.');
@@ -921,10 +940,10 @@ class QuotationController extends Controller
 
         try {
         $this->autoFinalizeApprovedQuotationIfExpired($quotation);
-        if (! in_array((string) ($quotation->status ?? ''), ['approved', Quotation::FINAL_STATUS], true)) {
+        if (! in_array((string) ($quotation->status ?? ''), ['accepted', Quotation::FINAL_STATUS], true)) {
             return redirect()
                 ->route('quotations.show', $quotation)
-                ->with('error', 'PDF hanya tersedia untuk quotation dengan status approved atau final.');
+                ->with('error', 'PDF hanya tersedia untuk quotation dengan status accepted atau converted.');
         }
 
         $quotation->load(['inquiry.customer', 'items', 'itinerary']);
@@ -965,7 +984,7 @@ class QuotationController extends Controller
         $query = Quotation::query()->withTrashed()->with(['inquiry.customer']);
         $scope = strtolower(trim((string) request('scope')));
         if ($scope === 'published') {
-            $query->whereIn('status', ['approved', Quotation::FINAL_STATUS]);
+            $query->whereIn('status', ['accepted', Quotation::FINAL_STATUS]);
         } elseif ($scope === 'my') {
             if (Schema::hasColumn('quotations', 'created_by')) {
                 $query->where('created_by', (int) auth()->id());
@@ -978,7 +997,7 @@ class QuotationController extends Controller
 
         $status = strtolower(trim((string) request('status')));
         if ($scope === 'published') {
-            if (in_array($status, ['approved', Quotation::FINAL_STATUS], true)) {
+            if (in_array($status, ['accepted', Quotation::FINAL_STATUS], true)) {
                 $query->where('status', $status);
             }
         } elseif ($scope === 'my') {
@@ -1648,7 +1667,7 @@ SVG;
         if (! $this->quotationValidationService->canBeApproved($quotation)) {
             return redirect()
                 ->route('quotations.show', $quotation)
-                ->with('error', 'Quotation cannot be approved because validation is not completed.');
+                ->with('error', 'Quotation cannot be accepted because validation is not completed.');
         }
         $user = $request->user();
         if (! $user) {
@@ -1670,7 +1689,7 @@ SVG;
         if ($alreadyApprovedByUser) {
             return redirect()
                 ->route('quotations.show', $quotation)
-                ->with('error', ui_phrase('You have already approved this quotation.'));
+                ->with('error', ui_phrase('You have already accepted this quotation.'));
         }
 
         $validated = $request->validate([
@@ -1707,7 +1726,7 @@ SVG;
 
             return redirect()
                 ->route('quotations.show', $quotation)
-                ->with('success', 'Quotation approved. All required approvals are complete.');
+                ->with('success', 'Quotation accepted. All required approvals are complete.');
         }
 
         $missing = implode(', ', $progress['missing_labels']);
@@ -1759,14 +1778,14 @@ SVG;
             return redirect()->back()->with('error', 'You do not have permission to set quotation to pending.');
         }
 
-        if (! in_array((string) ($quotation->status ?? ''), ['approved', Quotation::FINAL_STATUS], true)) {
-            return redirect()->back()->with('error', 'Only approved or final quotation can be set to pending.');
+        if (! in_array((string) ($quotation->status ?? ''), ['accepted', Quotation::FINAL_STATUS], true)) {
+            return redirect()->back()->with('error', 'Only accepted or converted quotation can be set to pending.');
         }
 
         $payload = [
             'approved_by' => null,
             'approved_at' => null,
-            'status' => 'pending',
+            'status' => 'pending_validation',
         ];
         if ($request->has('approval_note')) {
             $validated = $request->validate([
@@ -1794,20 +1813,20 @@ SVG;
         if ($quotation->isFinal()) {
             return redirect()
                 ->route('quotations.show', $quotation)
-                ->with('success', 'Quotation is already final.');
+                ->with('success', 'Quotation is already converted.');
         }
 
         $user = $request->user();
         if (! $user || ! $quotation->isCreator($user)) {
             return redirect()
                 ->route('quotations.show', $quotation)
-                ->with('error', 'Only quotation creator can set status to final.');
+                ->with('error', 'Only quotation creator can set status to converted.');
         }
 
-        if ((string) ($quotation->status ?? '') !== 'approved') {
+        if ((string) ($quotation->status ?? '') !== 'accepted') {
             return redirect()
                 ->route('quotations.show', $quotation)
-                ->with('error', 'Only approved quotation can be set to final.');
+                ->with('error', 'Only accepted quotation can be set to converted.');
         }
 
         $quotation->update([
@@ -1817,7 +1836,7 @@ SVG;
 
         return redirect()
             ->route('quotations.show', $quotation)
-            ->with('success', 'Quotation status changed to final.');
+            ->with('success', 'Quotation status changed to converted.');
     }
 
     public function updateGlobalDiscount(Request $request, Quotation $quotation)
@@ -1859,7 +1878,7 @@ SVG;
             $discountAmount = $discountValue;
         }
 
-        $wasApproved = ((string) ($quotation->status ?? '') === 'approved');
+        $wasApproved = ((string) ($quotation->status ?? '') === 'accepted');
         $quotation->update([
             'discount_type' => $discountType,
             'discount_value' => $discountValue,
@@ -1870,7 +1889,7 @@ SVG;
             $quotation->approvals()->delete();
             Quotation::withoutActivityLogging(function () use ($quotation): void {
                 $quotation->update([
-                    'status' => 'pending',
+                    'status' => 'pending_validation',
                     'approved_by' => null,
                     'approved_at' => null,
                     'approval_note' => null,
@@ -2136,7 +2155,7 @@ SVG;
                 $query->select(['inquiries.id'])
                     ->orderByDesc('inquiry_itinerary_references.id');
             }])
-            ->select(['id'])
+            ->select(['id', 'inquiry_id'])
             ->find($itineraryId);
         if (! $itinerary) {
             throw ValidationException::withMessages([
@@ -2144,7 +2163,12 @@ SVG;
             ]);
         }
 
+        // Primary source-of-truth: inquiry_itinerary_references.
+        // Legacy fallback: itineraries.inquiry_id (for backward-compatible historical rows).
         $inquiryId = (int) ($itinerary->inquiryReferences->first()?->id ?? 0);
+        if ($inquiryId <= 0) {
+            $inquiryId = (int) ($itinerary->inquiry_id ?? 0);
+        }
         return $inquiryId > 0 ? $inquiryId : null;
     }
 
@@ -2198,7 +2222,7 @@ SVG;
             return Inquiry::query()->create([
                 'customer_id' => $customerId,
                 'source' => 'other',
-                'status' => 'processed',
+                'status' => 'registered',
                 'priority' => 'normal',
                 'deadline' => null,
                 'notes' => 'Auto-generated from quotation form.',
@@ -2239,6 +2263,102 @@ SVG;
         }
 
         return strtoupper($trimmed);
+    }
+
+    private function createQuotationRevision(
+        Quotation $sourceQuotation,
+        ?int $inquiryId,
+        int $selectedItineraryId,
+        array $validated,
+        array $totals,
+        ?string $normalizedOrderNumber
+    ): Quotation {
+        $revisionRootId = (int) ($sourceQuotation->revision_of_id ?? 0);
+        if ($revisionRootId <= 0) {
+            $revisionRootId = (int) $sourceQuotation->id;
+        }
+        $nextRevisionNumber = $this->nextRevisionNumber($revisionRootId);
+        $revisionQuotationNumber = $this->buildRevisionQuotationNumber((string) ($sourceQuotation->quotation_number ?? ''), $nextRevisionNumber);
+
+        $payload = [
+            'quotation_number' => $revisionQuotationNumber,
+            'order_number' => $normalizedOrderNumber,
+            'inquiry_id' => $inquiryId,
+            'itinerary_id' => $selectedItineraryId,
+            'service_date' => $validated['service_date'],
+            'pax_adult' => (int) ($validated['pax_adult'] ?? 0),
+            'pax_child' => (int) ($validated['pax_child'] ?? 0),
+            'status' => 'revised',
+            'validation_status' => QuotationValidationService::STATUS_PENDING,
+            'validity_date' => $validated['validity_date'],
+            'sub_total' => (float) ($totals['sub_total'] ?? 0),
+            'discount_type' => $validated['discount_type'] ?? null,
+            'discount_value' => (float) ($validated['discount_value'] ?? 0),
+            'final_amount' => (float) ($totals['final_amount'] ?? 0),
+            'approved_by' => null,
+            'approved_at' => null,
+            'approval_note' => null,
+            'approval_note_by' => null,
+            'approval_note_at' => null,
+            'validated_at' => null,
+            'validated_by' => null,
+        ];
+        if (Schema::hasColumn('quotations', 'created_by')) {
+            $payload['created_by'] = (int) (auth()->id() ?? 0) ?: null;
+        }
+        if (Schema::hasColumn('quotations', 'updated_by')) {
+            $payload['updated_by'] = (int) (auth()->id() ?? 0) ?: null;
+        }
+        if (Schema::hasColumn('quotations', 'revision_of_id')) {
+            $payload['revision_of_id'] = $revisionRootId;
+        }
+        if (Schema::hasColumn('quotations', 'revision_number')) {
+            $payload['revision_number'] = $nextRevisionNumber;
+        }
+
+        $revision = Quotation::withoutActivityLogging(fn () => Quotation::query()->create($payload));
+        foreach (($totals['items'] ?? []) as $item) {
+            $revision->items()->create($item);
+        }
+        $this->quotationValidationService->syncValidationRequirementsAndMasterRates($revision);
+        $this->activityAuditLogger->logCreated($revision, $this->buildQuotationAuditSnapshot($revision), 'Quotation Revision');
+
+        return $revision;
+    }
+
+    private function nextRevisionNumber(int $revisionRootId): int
+    {
+        if (! Schema::hasColumn('quotations', 'revision_number')) {
+            return 1;
+        }
+
+        $maxRevision = (int) Quotation::query()
+            ->where(function (Builder $query) use ($revisionRootId): void {
+                $query->where('id', $revisionRootId);
+                if (Schema::hasColumn('quotations', 'revision_of_id')) {
+                    $query->orWhere('revision_of_id', $revisionRootId);
+                }
+            })
+            ->max('revision_number');
+
+        return max(1, $maxRevision + 1);
+    }
+
+    private function buildRevisionQuotationNumber(string $baseQuotationNumber, int $revisionNumber): string
+    {
+        $baseQuotationNumber = trim($baseQuotationNumber);
+        if ($baseQuotationNumber === '') {
+            $baseQuotationNumber = $this->generateQuotationNumber();
+        }
+
+        $rootNumber = preg_replace('/-R\d+$/', '', $baseQuotationNumber) ?: $baseQuotationNumber;
+        $candidate = $rootNumber . '-R' . $revisionNumber;
+        while (Quotation::query()->where('quotation_number', $candidate)->exists()) {
+            $revisionNumber++;
+            $candidate = $rootNumber . '-R' . $revisionNumber;
+        }
+
+        return $candidate;
     }
 
     private function availableItinerariesQuery(?int $includeItineraryId = null): Builder
@@ -2340,7 +2460,7 @@ SVG;
     {
         $expiredApprovedQuotationIds = Quotation::query()
             ->whereNull('deleted_at')
-            ->where('status', 'approved')
+            ->where('status', 'accepted')
             ->whereDate('validity_date', '<', now()->toDateString())
             ->pluck('id');
 
@@ -2366,7 +2486,7 @@ SVG;
 
     private function autoFinalizeApprovedQuotationIfExpired(Quotation $quotation): bool
     {
-        if ((string) ($quotation->status ?? '') !== 'approved') {
+        if ((string) ($quotation->status ?? '') !== 'accepted') {
             return false;
         }
 
@@ -2491,7 +2611,7 @@ SVG;
     private function resolveInquiryStatusFromLinkedQuotations(int $inquiryId): string
     {
         if ($inquiryId <= 0) {
-            return 'processed';
+            return 'quotation_in_progress';
         }
 
         $hasFinalQuotation = Quotation::query()
@@ -2507,7 +2627,7 @@ SVG;
             })
             ->exists();
 
-        return $hasFinalQuotation ? Inquiry::FINAL_STATUS : 'processed';
+        return $hasFinalQuotation ? Inquiry::FINAL_STATUS : 'quotation_in_progress';
     }
 
     private function applyNeedsMyApprovalFilter(Builder $query, $user): void
@@ -2523,7 +2643,7 @@ SVG;
             return;
         }
 
-        $query->where('status', 'pending')
+        $query->where('status', 'pending_validation')
             ->whereNull('deleted_at');
 
         if (Schema::hasColumn('quotations', 'created_by')) {
@@ -2556,7 +2676,7 @@ SVG;
         if (! $user || ! $approvalRole) {
             return false;
         }
-        if ((string) ($quotation->status ?? '') !== 'pending') {
+        if ((string) ($quotation->status ?? '') !== 'pending_validation') {
             return false;
         }
         if (method_exists($quotation, 'trashed') && $quotation->trashed()) {
@@ -2616,7 +2736,7 @@ SVG;
             'tone' => 'bg-slate-50 text-slate-700 border-slate-100',
         ]];
 
-        $preferredOrder = ['pending', 'approved', 'rejected', 'final', 'draft', 'processed'];
+        $preferredOrder = ['pending_validation', 'accepted', 'rejected', 'converted', 'draft', 'revised'];
         $statusOrder = collect($preferredOrder)
             ->filter(fn (string $status) => (int) ($counts[$status] ?? 0) > 0)
             ->merge(
@@ -2661,12 +2781,12 @@ SVG;
     private function toneForQuotationStatus(string $status): string
     {
         return match (strtolower($status)) {
-            'pending' => 'bg-sky-50 text-sky-700 border-sky-100',
-            'approved' => 'bg-emerald-50 text-emerald-700 border-emerald-100',
+            'pending_validation' => 'bg-sky-50 text-sky-700 border-sky-100',
+            'accepted' => 'bg-emerald-50 text-emerald-700 border-emerald-100',
             'rejected' => 'bg-rose-50 text-rose-700 border-rose-100',
-            'final' => 'bg-violet-50 text-violet-700 border-violet-100',
+            'converted' => 'bg-violet-50 text-violet-700 border-violet-100',
             'draft' => 'bg-slate-50 text-slate-700 border-slate-100',
-            'processed' => 'bg-amber-50 text-amber-700 border-amber-100',
+            'revised' => 'bg-amber-50 text-amber-700 border-amber-100',
             default => 'bg-slate-50 text-slate-700 border-slate-100',
         };
     }
@@ -2812,14 +2932,14 @@ SVG;
 
         if ($progress['is_ready']) {
             $quotation->update([
-                'status' => 'approved',
+                'status' => 'accepted',
                 'approved_by' => $progress['latest_non_creator_approver_id'],
                 'approved_at' => now(),
             ]);
             $this->autoFinalizeApprovedQuotationIfExpired($quotation);
         } else {
             $quotation->update([
-                'status' => 'pending',
+                'status' => 'pending_validation',
                 'approved_by' => null,
                 'approved_at' => null,
             ]);
@@ -2863,7 +2983,7 @@ SVG;
         Quotation::withoutActivityLogging(function () use ($quotation, $canAutoApprove, $approvedBy): void {
             if ($canAutoApprove) {
                 $quotation->update([
-                    'status' => 'approved',
+                    'status' => 'accepted',
                     'approved_by' => $approvedBy > 0 ? $approvedBy : null,
                     'approved_at' => now(),
                     'approval_note' => null,
@@ -2874,7 +2994,7 @@ SVG;
             }
 
             $quotation->update([
-                'status' => 'pending',
+                'status' => 'pending_validation',
                 'approved_by' => null,
                 'approved_at' => null,
             ]);

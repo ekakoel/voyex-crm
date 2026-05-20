@@ -122,7 +122,7 @@
                                                 <a href="{{ route('inquiries.show', $inquiry) }}"
                                                     class="btn-secondary-sm" title="{{ ui_phrase('Detail') }}" aria-label="{{ ui_phrase('Detail') }}"><i class="fa-solid fa-eye"></i><span class="sr-only">{{ ui_phrase('Detail') }}</span></a>
                                                 @can('update', $inquiry)
-                                                    @if (! $inquiry->quotations->contains(fn ($quotation) => in_array((string) ($quotation->status ?? ''), ['approved', \App\Models\Quotation::FINAL_STATUS], true)) && !$inquiry->isFinal())
+                                                    @if (! $inquiry->quotations->contains(fn ($quotation) => in_array((string) ($quotation->status ?? ''), ['accepted', \App\Models\Quotation::FINAL_STATUS], true)) && !$inquiry->isFinal())
                                                         <a href="{{ route('inquiries.edit', $inquiry) }}"
                                                             class="btn-secondary-sm" title="{{ ui_phrase('Edit') }}" aria-label="{{ ui_phrase('Edit') }}"><i class="fa-solid fa-pen"></i><span class="sr-only">{{ ui_phrase('Edit') }}</span></a>
                                                     @endif
@@ -199,7 +199,7 @@
                             <div class="mt-3 flex flex-wrap gap-2">
                                 <a href="{{ route('inquiries.show', $inquiry) }}" class="btn-outline-sm" title="{{ ui_phrase('Detail') }}" aria-label="{{ ui_phrase('Detail') }}"><i class="fa-solid fa-eye"></i><span class="sr-only">{{ ui_phrase('Detail') }}</span></a>
                                 @can('update', $inquiry)
-                                    @if (! $inquiry->quotations->contains(fn ($quotation) => in_array((string) ($quotation->status ?? ''), ['approved', \App\Models\Quotation::FINAL_STATUS], true)) && !$inquiry->isFinal())
+                                    @if (! $inquiry->quotations->contains(fn ($quotation) => in_array((string) ($quotation->status ?? ''), ['accepted', \App\Models\Quotation::FINAL_STATUS], true)) && !$inquiry->isFinal())
                                         <a href="{{ route('inquiries.edit', $inquiry) }}" class="btn-secondary-sm" title="{{ ui_phrase('Edit') }}" aria-label="{{ ui_phrase('Edit') }}"><i class="fa-solid fa-pen"></i><span class="sr-only">{{ ui_phrase('Edit') }}</span></a>
                                     @endif
                                 @endcan

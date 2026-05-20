@@ -25,6 +25,8 @@ class StoreBookingRequest extends FormRequest
         return [
             'quotation_id' => ['required', 'exists:quotations,id', 'unique:bookings,quotation_id'],
             'travel_date' => ['required', 'date'],
+            'pax_adult' => ['required', 'integer', 'min:0'],
+            'pax_child' => ['required', 'integer', 'min:0'],
             'items' => ['required', 'array', 'min:1'],
             'items.*.quotation_item_id' => ['nullable', 'integer', 'exists:quotation_items,id'],
             'items.*.description' => ['required', 'string', 'max:255'],
@@ -54,8 +56,8 @@ class StoreBookingRequest extends FormRequest
                 return;
             }
 
-            if (! in_array((string) $quotation->status, ['approved', Quotation::FINAL_STATUS], true)) {
-                $validator->errors()->add('quotation_id', ui_phrase('Only approved quotation can be converted to booking.'));
+            if (! in_array((string) $quotation->status, ['accepted', Quotation::FINAL_STATUS], true)) {
+                $validator->errors()->add('quotation_id', ui_phrase('Only accepted or converted quotation can be converted to booking.'));
             }
 
             if ((string) ($quotation->validation_status ?? 'pending') !== 'valid') {
@@ -64,6 +66,12 @@ class StoreBookingRequest extends FormRequest
 
             if ((int) ($quotation->items_count ?? 0) <= 0) {
                 $validator->errors()->add('quotation_id', ui_phrase('Selected quotation has no items to be booked.'));
+            }
+
+            $paxAdult = (int) $this->input('pax_adult', 0);
+            $paxChild = (int) $this->input('pax_child', 0);
+            if (($paxAdult + $paxChild) <= 0) {
+                $validator->errors()->add('pax_adult', ui_phrase('Pax adult and child cannot both be zero.'));
             }
 
             if ((int) ($quotation->booking_count ?? 0) > 0) {

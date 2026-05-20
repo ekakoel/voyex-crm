@@ -21,6 +21,12 @@
                     <option value="{{ $status }}" @selected(request('status') === $status)>{{ ucfirst($status) }}</option>
                 @endforeach
             </select>
+            <select name="invoice_type" class="app-input" data-service-filter-input>
+                <option value="">{{ ui_phrase('Invoice Type') }}</option>
+                @foreach (\App\Models\Invoice::TYPE_OPTIONS as $type)
+                    <option value="{{ $type }}" @selected(request('invoice_type') === $type)>{{ ui_phrase($type) }}</option>
+                @endforeach
+            </select>
                         <select name="per_page" class="app-input" data-service-filter-input>
                             @foreach ([10,25,50,100] as $size)
                                 <option value="{{ $size }}" @selected((string) request('per_page', 10) === (string) $size)>{{ ui_phrase(':size/page', ['size' => $size]) }}</option>
@@ -43,6 +49,7 @@
                         <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('Invoice Date') }}</th>
                         <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('Due Date') }}</th>
                         <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('Amount') }}</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('Invoice Type') }}</th>
                         <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('Status') }}</th>
                         <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300 actions-compact">{{ ui_phrase('Actions') }}</th>
                     </tr>
@@ -57,6 +64,7 @@
                             <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">{{ $invoice->invoice_date?->format('Y-m-d') ?? '-' }}</td>
                             <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">{{ $invoice->due_date?->format('Y-m-d') ?? '-' }}</td>
                             <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200"><x-money :amount="$invoice->total_amount ?? 0" currency="IDR" /></td>
+                            <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">{{ ui_phrase((string) ($invoice->invoice_type ?? 'full_payment')) }}</td>
                             <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200"><x-status-badge :status="$invoice->status" size="xs" /></td>
                             <td class="px-4 py-3 text-right text-sm actions-compact">
     <div class="flex items-center justify-end gap-2">
@@ -66,7 +74,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="9" class="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">{{ ui_phrase('No :entity available.', ['entity' => ui_phrase('Invoices')]) }}</td>
+                            <td colspan="10" class="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">{{ ui_phrase('No :entity available.', ['entity' => ui_phrase('Invoices')]) }}</td>
                         </tr>
                     @endforelse
                 </tbody>

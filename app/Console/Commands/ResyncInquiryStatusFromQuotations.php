@@ -12,7 +12,7 @@ class ResyncInquiryStatusFromQuotations extends Command
                             {--dry-run : Preview changes without updating data}
                             {--chunk=200 : Chunk size for processing inquiries}';
 
-    protected $description = 'Resync inquiry status from linked quotation lifecycle (final/processed).';
+    protected $description = 'Resync inquiry status from linked quotation lifecycle (converted/quotation_in_progress).';
 
     public function handle(): int
     {
@@ -76,7 +76,6 @@ class ResyncInquiryStatusFromQuotations extends Command
             })
             ->exists();
 
-        return $hasFinalQuotation ? Inquiry::FINAL_STATUS : 'processed';
+        return $hasFinalQuotation ? Inquiry::FINAL_STATUS : 'quotation_in_progress';
     }
 }
-

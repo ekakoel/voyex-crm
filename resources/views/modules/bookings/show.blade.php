@@ -72,6 +72,47 @@
         }"
     >
         @section('page_actions')
+            @can('bookings.operation.spk.view')
+                <a href="{{ route('bookings.spk', $booking) }}" target="_blank" rel="noopener" class="btn-secondary">{{ ui_phrase('View SPK') }}</a>
+            @endcan
+            @can('bookings.operation.spk.print')
+                <a href="{{ route('bookings.spk.print', $booking) }}" target="_blank" rel="noopener" class="btn-secondary">{{ ui_phrase('Print SPK') }}</a>
+            @endcan
+            @can('bookings.operation.prepare')
+                @if (in_array((string) ($booking->status ?? ''), ['confirmed', 'awaiting_dp', 'dp_received', 'awaiting_balance'], true))
+                    <form method="POST" action="{{ route('bookings.operation.ready', $booking) }}" class="inline">
+                        @csrf
+                        <button type="submit" class="btn-secondary">{{ ui_phrase('Mark Ready to Operate') }}</button>
+                    </form>
+                @endif
+            @endcan
+            @can('bookings.operation.start')
+                @if ((string) ($booking->status ?? '') === 'ready_to_operate')
+                    <form method="POST" action="{{ route('bookings.operation.start', $booking) }}" class="inline">
+                        @csrf
+                        <button type="submit" class="btn-secondary">{{ ui_phrase('Start Operation') }}</button>
+                    </form>
+                @endif
+            @endcan
+            @can('bookings.operation.complete')
+                @if ((string) ($booking->status ?? '') === 'in_operation')
+                    <form method="POST" action="{{ route('bookings.operation.complete', $booking) }}" class="inline">
+                        @csrf
+                        <button type="submit" class="btn-secondary">{{ ui_phrase('Complete Service') }}</button>
+                    </form>
+                @endif
+            @endcan
+            @can('booking_settlements.view')
+                <a href="{{ route('bookings.settlement.show', $booking) }}" class="btn-secondary">{{ ui_phrase('Settlement Review') }}</a>
+            @endcan
+            @can('booking_settlements.close_booking')
+                @if ((string) ($booking->settlement?->status ?? '') === 'settled' && ! $booking->isFinal())
+                    <form method="POST" action="{{ route('bookings.settlement.close', $booking) }}" class="inline">
+                        @csrf
+                        <button type="submit" class="btn-danger">{{ ui_phrase('Close Booking') }}</button>
+                    </form>
+                @endif
+            @endcan
             @can('update', $booking)
                 @if (! $booking->isFinal())
                     <a href="{{ route('bookings.edit', $booking) }}"  class="btn-primary">
@@ -84,6 +125,7 @@
 
         <div class="module-grid-8-4">
             <div class="module-grid-main">
+                @can('bookings.operation.view')
                 <div class="module-card p-6 space-y-3">
                     <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ ui_phrase('Detail Quotation') }}</h3>
                     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -107,18 +149,205 @@
                         </div>
                         <div>
                             <p class="text-xs uppercase text-gray-500">{{ ui_phrase('Pax (Adult/Child)') }}</p>
-                            <p class="text-sm text-gray-800 dark:text-gray-100">{{ (int) ($booking->quotation?->pax_adult ?? 0) }} / {{ (int) ($booking->quotation?->pax_child ?? 0) }}</p>
+                            <p class="text-sm text-gray-800 dark:text-gray-100">{{ (int) ($booking->pax_adult ?? $booking->quotation?->pax_adult ?? 0) }} / {{ (int) ($booking->pax_child ?? $booking->quotation?->pax_child ?? 0) }}</p>
                         </div>
                         <div>
                             <p class="text-xs uppercase text-gray-500">{{ ui_phrase('Destination') }}</p>
-                            <p class="text-sm text-gray-800 dark:text-gray-100">{{ $booking->quotation?->itinerary?->destination?->name ?? $booking->quotation?->itinerary?->destination ?? '-' }}</p>
+                            <p class="text-sm text-gray-800 dark:text-gray-100">{{ data_get($booking->itinerary_snapshot, 'destination_name') ?? $booking->quotation?->itinerary?->destination?->name ?? $booking->quotation?->itinerary?->destination ?? '-' }}</p>
                         </div>
                         <div>
                             <p class="text-xs uppercase text-gray-500">{{ ui_phrase('Itinerary') }}</p>
-                            <p class="text-sm text-gray-800 dark:text-gray-100">{{ $booking->quotation?->itinerary?->title ?? '-' }}</p>
+                            <p class="text-sm text-gray-800 dark:text-gray-100">{{ data_get($booking->itinerary_snapshot, 'title') ?? $booking->quotation?->itinerary?->title ?? '-' }}</p>
                         </div>
                     </div>
                 </div>
+
+                @php
+                    $invoiceCount = $booking->invoices->count();
+                    $confirmedPaymentCount = $booking->invoices->sum(fn ($invoice) => $invoice->payments->where('status', 'confirmed')->count());
+                    $paidInvoiceCount = $booking->invoices->whereIn('status', ['paid', 'overpaid'])->count();
+                    $paymentSatisfied = $paidInvoiceCount > 0 || $confirmedPaymentCount > 0;
+                @endphp
+                <div class="module-card p-6 space-y-3">
+                    <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ ui_phrase('Operation Summary') }}</h3>
+                    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        <div>
+                            <p class="text-xs uppercase text-gray-500">{{ ui_phrase('Booking Status') }}</p>
+                            <p class="mt-1"><x-status-badge :status="(string) ($booking->status ?? 'pending_confirmation')" size="xs" /></p>
+                        </div>
+                        <div>
+                            <p class="text-xs uppercase text-gray-500">{{ ui_phrase('Payment Eligibility') }}</p>
+                            @if ($paymentSatisfied)
+                                <p class="text-sm text-emerald-700 dark:text-emerald-300">{{ ui_phrase('Payment requirement satisfied for operation.') }}</p>
+                            @else
+                                <p class="text-sm text-rose-700 dark:text-rose-300">{{ ui_phrase('Payment requirement is not satisfied yet.') }}</p>
+                            @endif
+                        </div>
+                        <div>
+                            <p class="text-xs uppercase text-gray-500">{{ ui_phrase('Invoices') }}</p>
+                            <p class="text-sm text-gray-800 dark:text-gray-100">{{ $invoiceCount }}</p>
+                        </div>
+                        <div>
+                            <p class="text-xs uppercase text-gray-500">{{ ui_phrase('Confirmed Payments') }}</p>
+                            <p class="text-sm text-gray-800 dark:text-gray-100">{{ (int) $confirmedPaymentCount }}</p>
+                        </div>
+                    </div>
+                    @can('bookings.operation.issue')
+                        <form method="POST" action="{{ route('bookings.operation.issue', $booking) }}" class="space-y-2">
+                            @csrf
+                            <label class="block text-xs font-semibold text-gray-600 dark:text-gray-300">{{ ui_phrase('Operation Issue Note') }}</label>
+                            <textarea name="issue_note" rows="2" class="app-input" placeholder="{{ ui_phrase('Describe the operational issue...') }}" required></textarea>
+                            <button type="submit" class="btn-ghost">{{ ui_phrase('Report Operation Issue') }}</button>
+                        </form>
+                    @endcan
+                </div>
+                @endcan
+
+                @can('booking_adjustments.view')
+                <div class="module-card p-6 space-y-3">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ ui_phrase('Adjustment Summary') }}</h3>
+                        <div class="flex items-center gap-2">
+                            <a href="{{ route('bookings.adjustments.index', $booking) }}" class="btn-ghost">{{ ui_phrase('View All') }}</a>
+                            @can('booking_adjustments.create')
+                                <a href="{{ route('bookings.adjustments.create', $booking) }}" class="btn-secondary">{{ ui_phrase('Create Adjustment') }}</a>
+                            @endcan
+                        </div>
+                    </div>
+                    @php
+                        $adjustmentSummary = [
+                            'total' => $booking->adjustments->count(),
+                            'pending_approval' => $booking->adjustments->where('status', 'pending_approval')->count(),
+                            'approved' => $booking->adjustments->where('status', 'approved')->count(),
+                            'applied' => $booking->adjustments->where('status', 'applied')->count(),
+                        ];
+                    @endphp
+                    <div class="grid grid-cols-1 gap-4 sm:grid-cols-4">
+                        <div><p class="text-xs uppercase text-gray-500">{{ ui_phrase('Total') }}</p><p>{{ (int) $adjustmentSummary['total'] }}</p></div>
+                        <div><p class="text-xs uppercase text-gray-500">{{ ui_phrase('Pending Approval') }}</p><p>{{ (int) $adjustmentSummary['pending_approval'] }}</p></div>
+                        <div><p class="text-xs uppercase text-gray-500">{{ ui_phrase('Approved') }}</p><p>{{ (int) $adjustmentSummary['approved'] }}</p></div>
+                        <div><p class="text-xs uppercase text-gray-500">{{ ui_phrase('Applied') }}</p><p>{{ (int) $adjustmentSummary['applied'] }}</p></div>
+                    </div>
+                </div>
+                @endcan
+
+                @can('booking_settlements.view')
+                <div class="module-card p-6 space-y-3">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ ui_phrase('Settlement Summary') }}</h3>
+                        <a href="{{ route('bookings.settlement.show', $booking) }}" class="btn-ghost">{{ ui_phrase('Open Settlement') }}</a>
+                    </div>
+                    @php
+                        $settlementStatus = (string) ($booking->settlement?->status ?? 'pending_review');
+                        $settlementBlockers = (array) data_get($booking->settlement?->metadata, 'blockers', []);
+                    @endphp
+                    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        <div>
+                            <p class="text-xs uppercase text-gray-500">{{ ui_phrase('Settlement Status') }}</p>
+                            <p class="mt-1"><x-status-badge :status="$settlementStatus" size="xs" /></p>
+                        </div>
+                        <div>
+                            <p class="text-xs uppercase text-gray-500">{{ ui_phrase('Outstanding Amount') }}</p>
+                            <p class="text-sm text-gray-800 dark:text-gray-100">{{ number_format((float) ($booking->settlement?->outstanding_amount ?? 0), 2, '.', ',') }}</p>
+                        </div>
+                        <div>
+                            <p class="text-xs uppercase text-gray-500">{{ ui_phrase('Overpaid Amount') }}</p>
+                            <p class="text-sm text-gray-800 dark:text-gray-100">{{ number_format((float) ($booking->settlement?->overpaid_amount ?? 0), 2, '.', ',') }}</p>
+                        </div>
+                        <div>
+                            <p class="text-xs uppercase text-gray-500">{{ ui_phrase('Blockers') }}</p>
+                            <p class="text-sm text-gray-800 dark:text-gray-100">{{ count($settlementBlockers) }}</p>
+                        </div>
+                    </div>
+                    @if ($settlementBlockers !== [])
+                        <div class="rounded border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+                            {{ ui_phrase('Settlement blockers: :list', ['list' => implode(', ', $settlementBlockers)]) }}
+                        </div>
+                    @endif
+                </div>
+                @endcan
+
+                @can('bookings.operation.dispatch')
+                <div class="module-card p-6 mb-5">
+                    <h3 class="mb-3 text-sm font-semibold text-gray-800 dark:text-gray-100">{{ ui_phrase('Service Dispatch Checklist') }}</h3>
+                    <div class="overflow-x-auto">
+                        <table class="app-table w-full text-sm">
+                            <thead>
+                                <tr>
+                                    <th class="px-3 py-2 text-left">#</th>
+                                    <th class="px-3 py-2 text-left">{{ ui_phrase('Service Item') }}</th>
+                                    <th class="px-3 py-2 text-left">{{ ui_phrase('Vendor Confirmation') }}</th>
+                                    <th class="px-3 py-2 text-left">{{ ui_phrase('Dispatch Status') }}</th>
+                                    <th class="px-3 py-2 text-left">{{ ui_phrase('Driver / Guide') }}</th>
+                                    <th class="px-3 py-2 text-right">{{ ui_phrase('Actions') }}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @forelse($booking->items as $dispatchIndex => $dispatchItem)
+                                    @php
+                                        $dispatchVendorStatus = (string) ($dispatchItem->vendor_confirmation_status ?? 'pending');
+                                        $dispatchStatus = (string) ($dispatchItem->dispatch_status ?? 'pending');
+                                        $dispatchAssigned = trim(implode(' | ', array_filter([
+                                            trim((string) ($dispatchItem->assigned_driver_name ?? '')),
+                                            trim((string) ($dispatchItem->assigned_guide_name ?? '')),
+                                        ])));
+                                    @endphp
+                                    <tr>
+                                        <td class="px-3 py-2">{{ $dispatchIndex + 1 }}</td>
+                                        <td class="px-3 py-2">{{ $dispatchItem->description }}</td>
+                                        <td class="px-3 py-2">{{ ui_phrase($dispatchVendorStatus) }}</td>
+                                        <td class="px-3 py-2">{{ ui_phrase($dispatchStatus) }}</td>
+                                        <td class="px-3 py-2">{{ $dispatchAssigned !== '' ? $dispatchAssigned : '-' }}</td>
+                                        <td class="px-3 py-2 text-right">
+                                            <div class="flex flex-wrap justify-end gap-2">
+                                                @can('bookings.operation.vendor_confirm')
+                                                    @if ($dispatchVendorStatus !== 'confirmed')
+                                                        <form method="POST" action="{{ route('bookings.items.vendor-confirm', ['booking' => $booking, 'bookingItem' => $dispatchItem]) }}">
+                                                            @csrf
+                                                            <button type="submit" class="btn-outline-sm">{{ ui_phrase('Confirm Vendor') }}</button>
+                                                        </form>
+                                                    @endif
+                                                @endcan
+                                                <form method="POST" action="{{ route('bookings.items.dispatch.ready', ['booking' => $booking, 'bookingItem' => $dispatchItem]) }}">
+                                                    @csrf
+                                                    <button type="submit" class="btn-outline-sm">{{ ui_phrase('Mark Item Ready') }}</button>
+                                                </form>
+                                                <form method="POST" action="{{ route('bookings.items.dispatch.complete', ['booking' => $booking, 'bookingItem' => $dispatchItem]) }}">
+                                                    @csrf
+                                                    <button type="submit" class="btn-outline-sm">{{ ui_phrase('Mark Item Completed') }}</button>
+                                                </form>
+                                            </div>
+                                            <form method="POST" action="{{ route('bookings.items.dispatch.update', ['booking' => $booking, 'bookingItem' => $dispatchItem]) }}" class="mt-2 grid grid-cols-1 gap-2">
+                                                @csrf
+                                                @method('PATCH')
+                                                @can('bookings.operation.assign_driver')
+                                                    <input type="text" name="assigned_driver_name" class="app-input" placeholder="{{ ui_phrase('Driver Name') }}" value="{{ (string) ($dispatchItem->assigned_driver_name ?? '') }}">
+                                                    <input type="text" name="assigned_driver_phone" class="app-input" placeholder="{{ ui_phrase('Driver Phone') }}" value="{{ (string) ($dispatchItem->assigned_driver_phone ?? '') }}">
+                                                @endcan
+                                                @can('bookings.operation.assign_guide')
+                                                    <input type="text" name="assigned_guide_name" class="app-input" placeholder="{{ ui_phrase('Guide Name') }}" value="{{ (string) ($dispatchItem->assigned_guide_name ?? '') }}">
+                                                    <input type="text" name="assigned_guide_phone" class="app-input" placeholder="{{ ui_phrase('Guide Phone') }}" value="{{ (string) ($dispatchItem->assigned_guide_phone ?? '') }}">
+                                                @endcan
+                                                <textarea name="operation_notes" class="app-input" rows="2" placeholder="{{ ui_phrase('Operation notes') }}">{{ (string) ($dispatchItem->operation_notes ?? '') }}</textarea>
+                                                <button type="submit" class="btn-ghost">{{ ui_phrase('Update Dispatch') }}</button>
+                                            </form>
+                                            <form method="POST" action="{{ route('bookings.items.dispatch.issue', ['booking' => $booking, 'bookingItem' => $dispatchItem]) }}" class="mt-2 flex gap-2">
+                                                @csrf
+                                                <input type="text" name="issue_note" class="app-input" placeholder="{{ ui_phrase('Item issue note') }}" required>
+                                                <button type="submit" class="btn-danger">{{ ui_phrase('Report Item Issue') }}</button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="6" class="px-3 py-3 text-sm text-gray-500">{{ ui_phrase('No :entity available.', ['entity' => ui_phrase('Items')]) }}</td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                @endcan
 
                 <div class="module-card p-6">
                     <h3 class="mb-3 text-sm font-semibold text-gray-800 dark:text-gray-100">{{ ui_phrase('Booking Services') }}</h3>

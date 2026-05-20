@@ -3,7 +3,7 @@
 @section('page_title', ui_phrase('show page title'))
 @section('page_subtitle', ui_phrase('show page subtitle'))
 @section('page_actions')
-    @if (in_array(($quotation->status ?? ''), ['approved', 'final'], true))
+    @if (in_array((string) ($quotation->status ?? ''), ['accepted', \App\Models\Quotation::FINAL_STATUS], true))
         <a href="{{ route('quotations.pdf', $quotation) }}" target="_blank" rel="noopener" class="btn-outline">{{ ui_phrase('Preview PDF') }}</a>
     @endif
     <a href="{{ route('quotations.index') }}" class="btn-ghost" data-page-back-action>{{ ui_phrase('Back') }}</a>
@@ -342,7 +342,7 @@
                 @php
                     $canAccessItineraryModule = auth()->user()?->can('module.itineraries.access');
                     $canEditLinkedItinerary = (bool) (auth()->user()?->can('update', $quotation->itinerary) ?? false);
-                    $canEditQuotation = auth()->user()?->can('update', $quotation) && (($quotation->status ?? '') !== 'final');
+                    $canEditQuotation = auth()->user()?->can('update', $quotation) && !in_array((string) ($quotation->status ?? ''), ['sent', 'accepted', \App\Models\Quotation::FINAL_STATUS], true);
                     $canValidateCurrentQuotation = (bool) ($canValidateQuotation ?? false);
                     $hasItineraryQuickActions = $quotation->itinerary && $canAccessItineraryModule;
                     $showQuickActions = $hasItineraryQuickActions || $canEditQuotation || $canValidateCurrentQuotation;
@@ -350,8 +350,8 @@
                     $isValidationComplete = (bool) ($validationProgress['is_complete'] ?? false);
                     $requiredApprovals = (int) ($approvalProgress['required_non_creator_approvals'] ?? 2);
                     $approvedCount = (int) ($approvalProgress['non_creator_approval_count'] ?? 0);
-                    $isApprovedStage = in_array($quotationStatus, ['approved', 'final'], true);
-                    $isFinalStage = $quotationStatus === 'final';
+                    $isApprovedStage = in_array($quotationStatus, ['accepted', 'converted'], true);
+                    $isFinalStage = $quotationStatus === 'converted';
                     $workflowSteps = [
                         [
                             'label' => ui_phrase('Itinerary Ready'),
@@ -361,7 +361,7 @@
                         ],
                         [
                             'label' => ui_phrase('Draft & Review'),
-                            'done' => in_array($quotationStatus, ['approved', 'final'], true) || $isValidationComplete,
+                            'done' => in_array($quotationStatus, ['accepted', 'converted'], true) || $isValidationComplete,
                             'desc' => ui_phrase('Review quotation items, quantities, and pricing before validation.'),
                             'process_url' => $canEditQuotation ? route('quotations.edit', $quotation) : null,
                         ],
@@ -380,21 +380,21 @@
                         [
                             'label' => ui_phrase('Quotation Final'),
                             'done' => $isFinalStage,
-                            'desc' => ui_phrase('Quotation is locked and ready for final operational usage.'),
+                            'desc' => ui_phrase('Quotation is locked and ready for converted operational usage.'),
                             'process_url' => '#quotation-approval-section',
                         ],
                     ];
                     $nextActionText = ui_phrase('Review quotation details and continue the process.');
                     if (! $quotation->itinerary) {
                         $nextActionText = ui_phrase('Link or create itinerary first before proceeding.');
-                    } elseif ($quotationStatus === 'final') {
-                        $nextActionText = ui_phrase('Quotation is already final. Only set pending if revision is needed.');
-                    } elseif ($quotationStatus === 'approved') {
-                        $nextActionText = ui_phrase('Creator should set quotation to final when ready.');
+                    } elseif ($quotationStatus === 'converted') {
+                        $nextActionText = ui_phrase('Quotation is already converted. Create revision if changes are needed.');
+                    } elseif ($quotationStatus === 'accepted') {
+                        $nextActionText = ui_phrase('Accepted quotation is locked. Create revision to apply changes.');
                     } elseif (! $isValidationComplete) {
                         $nextActionText = ui_phrase('Complete quotation validation before requesting approval.');
                     } elseif ($approvedCount < $requiredApprovals) {
-                        $nextActionText = ui_phrase('Collect required non-creator approvals to move to approved status.');
+                        $nextActionText = ui_phrase('Collect required non-creator approvals to move to accepted status.');
                     } else {
                         $nextActionText = ui_phrase('Proceed with approval action according to your role.');
                     }
@@ -566,7 +566,7 @@
                     </div>
 
                     <dl class="grid grid-cols-1 gap-2 text-xs text-gray-700 dark:text-gray-200">
-                        @if (in_array(($quotation->status ?? ''), ['approved', 'final'], true))
+                        @if (in_array((string) ($quotation->status ?? ''), ['accepted', \App\Models\Quotation::FINAL_STATUS], true))
                             <div class="flex items-center justify-between gap-3">
                                 <dt class="text-gray-500 dark:text-gray-400">{{ ui_phrase('Approved by') }}</dt>
                                 <dd class="font-medium text-right">{{ $quotation->approvedBy?->name ?? '-' }}</dd>
@@ -645,11 +645,11 @@
                                 $canApproveWithValidation = $canApproveByRole && (! $requiresValidation || $isValidationComplete);
                             @endphp
                             <div class="flex flex-wrap items-center gap-2 border-t border-gray-200 pt-3 dark:border-gray-700">
-                                @if (($quotation->status ?? '') === 'approved')
+                                @if (($quotation->status ?? '') === 'accepted')
                                     @if ($quotation->isCreator(auth()->user()))
                                         <form method="POST" action="{{ route('quotations.set-final', $quotation) }}">
                                             @csrf
-                                            <button type="submit" class="btn-primary-sm">{{ ui_phrase('Set Final') }}</button>
+                                            <button type="submit" class="btn-primary-sm">{{ ui_phrase('Set Converted') }}</button>
                                         </form>
                                     @endif
                                     @if (auth()->user()?->can('quotations.set_pending'))
@@ -658,7 +658,7 @@
                                             <button type="submit" class="btn-warning-sm">{{ ui_phrase('Set Pending') }}</button>
                                         </form>
                                     @endif
-                                @elseif (($quotation->status ?? '') === 'final')
+                                @elseif (($quotation->status ?? '') === \App\Models\Quotation::FINAL_STATUS)
                                     @if (auth()->user()?->can('quotations.set_pending'))
                                         <form method="POST" action="{{ route('quotations.set-pending', $quotation) }}">
                                             @csrf
@@ -677,7 +677,7 @@
                                     @endcan
                                 @endif
                             </div>
-                            @if (! $canApproveByRole && ! in_array((string) ($quotation->status ?? ''), ['approved', 'final'], true))
+                            @if (! $canApproveByRole && ! in_array((string) ($quotation->status ?? ''), ['accepted', \App\Models\Quotation::FINAL_STATUS], true))
                                 <p class="text-xs text-amber-700 dark:text-amber-300">
                                     @if ($alreadyApprovedByUser)
                                         {{ ui_phrase('approval already done') }}
@@ -686,7 +686,7 @@
                                     @endif
                                 </p>
                             @endif
-                            @if ($canApproveByRole && ! $canApproveWithValidation && ! in_array((string) ($quotation->status ?? ''), ['approved', 'final'], true))
+                            @if ($canApproveByRole && ! $canApproveWithValidation && ! in_array((string) ($quotation->status ?? ''), ['accepted', \App\Models\Quotation::FINAL_STATUS], true))
                                 <p class="text-xs text-rose-600 dark:text-rose-300">
                                     {{ ui_phrase('approval requires validation') }}
                                 </p>
@@ -694,7 +694,7 @@
                         </div>
                     @endif
 
-                    @if (auth()->user()?->can('quotations.reject') && ($quotation->status ?? '') !== 'approved' && ($quotation->status ?? '') !== 'final')
+                    @if (auth()->user()?->can('quotations.reject') && ($quotation->status ?? '') !== 'accepted' && ($quotation->status ?? '') !== \App\Models\Quotation::FINAL_STATUS)
                         <x-modal name="show-reject-modal" :show="$errors->has('approval_note')" focusable maxWidth="lg">
                             <div class="w-full rounded-xl border border-gray-200 bg-white p-5 shadow-xl dark:border-gray-700 dark:bg-gray-900">
                                 <div class="flex items-center justify-between gap-3">

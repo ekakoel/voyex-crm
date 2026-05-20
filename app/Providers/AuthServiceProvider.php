@@ -3,10 +3,12 @@
 namespace App\Providers;
 
 use App\Models\Booking;
+use App\Models\FeatureAccess;
 use App\Models\Inquiry;
 use App\Models\Itinerary;
 use App\Models\Quotation;
 use App\Policies\BookingPolicy;
+use App\Policies\FeatureAccessPolicy;
 use App\Policies\InquiryPolicy;
 use App\Policies\ItineraryPolicy;
 use App\Policies\QuotationPolicy;
@@ -25,6 +27,7 @@ class AuthServiceProvider extends ServiceProvider
         Itinerary::class => ItineraryPolicy::class,
         Quotation::class => QuotationPolicy::class,
         Booking::class => BookingPolicy::class,
+        FeatureAccess::class => FeatureAccessPolicy::class,
     ];
 
     /**

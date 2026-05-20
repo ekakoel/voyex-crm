@@ -89,19 +89,19 @@ class DashboardController extends Controller
 
         $needsReservationApprovalCount = $canQuotations
             ? Quotation::query()
-                ->where('status', 'pending')
+                ->where('status', 'pending_validation')
                 ->whereRaw("{$nonCreatorApprovalCountSql} = 0")
                 ->count()
             : 0;
         $needsManagerApprovalCount = $canQuotations
             ? Quotation::query()
-                ->where('status', 'pending')
+                ->where('status', 'pending_validation')
                 ->whereRaw("{$nonCreatorApprovalCountSql} = 1")
                 ->count()
             : 0;
         $needsDirectorApprovalCount = $canQuotations
             ? Quotation::query()
-                ->where('status', 'pending')
+                ->where('status', 'pending_validation')
                 ->where(function (Builder $q) use ($user): void {
                     $q->whereNull('created_by')
                         ->orWhere('created_by', '!=', (int) ($user?->id ?? 0));
@@ -114,7 +114,7 @@ class DashboardController extends Controller
         $pendingApprovals = $canQuotations
             ? Quotation::query()
                 ->with(['inquiry.customer'])
-                ->where('status', 'pending')
+                ->where('status', 'pending_validation')
                 ->where(function (Builder $q) use ($user): void {
                     $q->whereNull('created_by')
                         ->orWhere('created_by', '!=', (int) ($user?->id ?? 0));

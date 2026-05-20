@@ -24,7 +24,7 @@ class DashboardController extends Controller
 
         $pendingInvoices = $canInvoices
             ? Invoice::query()
-                ->where('status', 'pending')
+                ->where('status', 'issued')
                 ->count()
             : 0;
 
@@ -32,7 +32,7 @@ class DashboardController extends Controller
             ? Invoice::query()
                 ->whereNotNull('due_date')
                 ->whereDate('due_date', '<', $now->toDateString())
-                ->whereNotIn('status', ['final', 'approved'])
+                ->whereNotIn('status', ['paid', 'overpaid'])
                 ->count()
             : 0;
 

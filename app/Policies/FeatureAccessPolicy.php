@@ -4,8 +4,6 @@ namespace App\Policies;
 
 use App\Models\FeatureAccess;
 use App\Models\User;
-use Illuminate\Auth\Access\Response;
-
 class FeatureAccessPolicy
 {
     /**
@@ -13,7 +11,7 @@ class FeatureAccessPolicy
      */
     public function viewAny(User $user): bool
     {
-        //
+        return false;
     }
 
     /**
@@ -21,7 +19,7 @@ class FeatureAccessPolicy
      */
     public function view(User $user, FeatureAccess $featureAccess): bool
     {
-        //
+        return false;
     }
 
     /**
@@ -29,7 +27,7 @@ class FeatureAccessPolicy
      */
     public function create(User $user): bool
     {
-        //
+        return false;
     }
 
     /**
@@ -37,7 +35,7 @@ class FeatureAccessPolicy
      */
     public function update(User $user, FeatureAccess $featureAccess): bool
     {
-        //
+        return false;
     }
 
     /**
@@ -45,7 +43,7 @@ class FeatureAccessPolicy
      */
     public function delete(User $user, FeatureAccess $featureAccess): bool
     {
-        //
+        return false;
     }
 
     /**
@@ -53,7 +51,7 @@ class FeatureAccessPolicy
      */
     public function restore(User $user, FeatureAccess $featureAccess): bool
     {
-        //
+        return false;
     }
 
     /**
@@ -61,6 +59,6 @@ class FeatureAccessPolicy
      */
     public function forceDelete(User $user, FeatureAccess $featureAccess): bool
     {
-        //
+        return false;
     }
 }

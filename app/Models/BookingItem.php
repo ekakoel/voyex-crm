@@ -3,12 +3,19 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Models\User;
 
 class BookingItem extends Model
 {
     public const STATUS_ACTIVE = 'active';
     public const STATUS_BOOKED = 'booked';
     public const STATUS_CANCELLED = 'cancelled';
+    public const VENDOR_CONFIRMATION_PENDING = 'pending';
+    public const VENDOR_CONFIRMATION_CONFIRMED = 'confirmed';
+    public const DISPATCH_PENDING = 'pending';
+    public const DISPATCH_READY = 'ready';
+    public const DISPATCH_COMPLETED = 'completed';
+    public const DISPATCH_ISSUE = 'issue_reported';
 
     protected $fillable = [
         'booking_id',
@@ -18,6 +25,16 @@ class BookingItem extends Model
         'unit_price',
         'total',
         'status',
+        'vendor_confirmation_status',
+        'vendor_confirmed_at',
+        'vendor_confirmed_by',
+        'assigned_driver_name',
+        'assigned_driver_phone',
+        'assigned_guide_name',
+        'assigned_guide_phone',
+        'operation_notes',
+        'dispatch_status',
+        'issue_note',
         'cancellation_fee',
         'cancellation_fee_calculated',
         'cancellation_fee_overridden',
@@ -37,6 +54,7 @@ class BookingItem extends Model
         'cancellation_fee_calculated' => 'decimal:2',
         'cancellation_fee_overridden' => 'boolean',
         'cancelled_at' => 'datetime',
+        'vendor_confirmed_at' => 'datetime',
         'cancellation_policy_snapshot' => 'array',
         'day_number' => 'integer',
         'serviceable_meta' => 'array',
@@ -75,5 +93,15 @@ class BookingItem extends Model
     public function latestBookingLog()
     {
         return $this->hasOne(BookingItemBookingLog::class)->latestOfMany('booked_at');
+    }
+
+    public function vendorConfirmer()
+    {
+        return $this->belongsTo(User::class, 'vendor_confirmed_by');
+    }
+
+    public function adjustments()
+    {
+        return $this->hasMany(BookingAdjustment::class);
     }
 }
