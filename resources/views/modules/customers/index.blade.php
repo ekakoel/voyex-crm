@@ -19,9 +19,9 @@
                         <h2 class="text-base font-semibold text-gray-800 dark:text-gray-100">{{ ui_phrase('Filters') }}</h2>
                         <p class="text-sm text-gray-500 dark:text-gray-400">{{ ui_phrase('Refine your list quickly.') }}</p>
                     </div>
-                    <form method="GET" action="{{ route('customers.index') }}" class="grid grid-cols-1 gap-3" data-service-filter-form data-disable-submit-lock="1" data-page-spinner="off">
+                    <form method="GET" action="{{ route('customers.index') }}" class="grid grid-cols-1 gap-3 sm:grid-cols-2" data-service-filter-form data-disable-submit-lock="1" data-page-spinner="off">
                         <input name="q" value="{{ request('q') }}"
-                            placeholder="{{ ui_phrase('Search') }}" class="app-input" data-service-filter-input>
+                            placeholder="{{ ui_phrase('Search') }}" class="app-input sm:col-span-2" data-service-filter-input>
                         <select name="customer_type" class="app-input" data-service-filter-input>
                             <option value="">{{ ui_phrase('Type') }}</option>
                             @foreach (['individual' => ui_phrase('type individual'), 'company' => ui_phrase('type company')] as $value => $label)
@@ -37,7 +37,7 @@
                                 </option>
                             @endforeach
                         </select>
-                        <div class="flex items-center gap-2 filter-actions">
+                        <div class="flex items-center gap-2 sm:col-span-2 filter-actions">
                             <a href="{{ route('customers.index') }}" class="btn-ghost" data-service-filter-reset>{{ ui_phrase('Reset') }}</a>
                         </div>
                     </form>
