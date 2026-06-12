@@ -741,35 +741,55 @@ window.AppLoading = {
     setActionLoading: (element, isLoading, text) => setActionLoading(element, isLoading, text),
 };
 
-
-const HOTELS_EDITOR_SELECTOR = '[data-hotels-editor]';
-
-function buildHotelsFlashMarkup(messages, type = 'success') {
-    const items = Array.isArray(messages) ? messages.filter(Boolean) : [messages].filter(Boolean);
-    if (items.length === 0) {
-        return '';
+function ensureGlobalFlashContainer() {
+    let container = document.getElementById('app-ajax-flash');
+    if (container) {
+        return container;
     }
+    container = document.createElement('div');
+    container.id = 'app-ajax-flash';
+    container.className = 'fixed right-4 top-4 z-[120] w-full max-w-sm space-y-2 pointer-events-none';
+    document.body.appendChild(container);
+    return container;
+}
 
+function buildGlobalFlashItem(message, type = 'success') {
     const tone = type === 'error'
         ? 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-700 dark:bg-rose-900/20 dark:text-rose-300'
         : type === 'warning'
             ? 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-300'
             : 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300';
 
-    return `
-        <div class="rounded-lg border px-4 py-3 text-sm ${tone}">
-            ${items.map((message) => `<div>${escapeHtml(String(message))}</div>`).join('')}
-        </div>
-    `;
+    const item = document.createElement('div');
+    item.className = `pointer-events-auto rounded-lg border px-4 py-3 text-sm shadow-sm transition ${tone}`;
+    item.innerHTML = `<div>${escapeHtml(String(message || ''))}</div>`;
+    return item;
 }
 
-function setHotelsFlash(editor, messages, type = 'success') {
-    const flashArea = editor.querySelector('[data-hotels-flash-area]');
-    if (!flashArea) {
+function showGlobalFlash(messages, type = 'success', timeoutMs = 5000) {
+    const list = Array.isArray(messages) ? messages.filter(Boolean) : [messages].filter(Boolean);
+    if (list.length === 0) {
         return;
     }
-    flashArea.innerHTML = buildHotelsFlashMarkup(messages, type);
+
+    const container = ensureGlobalFlashContainer();
+    list.forEach((message) => {
+        const item = buildGlobalFlashItem(message, type);
+        container.appendChild(item);
+
+        window.setTimeout(() => {
+            item.classList.add('opacity-0');
+            window.setTimeout(() => item.remove(), 200);
+        }, timeoutMs);
+    });
 }
+
+window.AppFlash = {
+    show: (messages, type = 'success', timeoutMs = 5000) => showGlobalFlash(messages, type, timeoutMs),
+};
+
+
+const HOTELS_EDITOR_SELECTOR = '[data-hotels-editor]';
 
 function replaceHotelsEditor(currentEditor, html) {
     const wrapper = document.createElement('div');
@@ -912,7 +932,7 @@ function initHotelsEditor(root = document) {
                 const nextEditor = replaceHotelsEditor(editor, payload?.html || '');
                 syncHotelsHistory(payload?.url || link.href);
                 if (payload?.warning) {
-                    setHotelsFlash(nextEditor, payload.warning, 'warning');
+                    window.AppFlash?.show?.(payload.warning, 'warning');
                 }
                 hydrateHotelsEditorUI(nextEditor);
             } catch (_) {
@@ -952,13 +972,13 @@ function initHotelsEditor(root = document) {
                 const nextEditor = replaceHotelsEditor(editor, payload?.html || '');
                 syncHotelsHistory(payload?.url || `${window.location.pathname}${window.location.search}`, false);
                 if (payload?.message) {
-                    setHotelsFlash(nextEditor, payload.message, 'success');
+                    window.AppFlash?.show?.(payload.message, 'success');
                 }
                 hydrateHotelsEditorUI(nextEditor);
             } catch (error) {
                 if (error?.response?.status === 422 && error?.payload?.errors) {
                     const messages = Object.values(error.payload.errors).flat();
-                    setHotelsFlash(editor, messages, 'error');
+                    window.AppFlash?.show?.(messages, 'error');
                 } else {
                     form.submit();
                     return;

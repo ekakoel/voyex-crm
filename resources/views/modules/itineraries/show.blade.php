@@ -3,118 +3,126 @@
 @section('page_title', ui_phrase('Itinerary Detail'))
 @section('page_subtitle', ui_phrase('Review complete itinerary information.'))
 @section('page_actions')
+    @php
+        $hasRenderableItineraryItems = $itinerary->touristAttractions->isNotEmpty()
+            || $itinerary->itineraryActivities->isNotEmpty()
+            || $itinerary->itineraryIslandTransfers->isNotEmpty()
+            || $itinerary->itineraryFoodBeverages->isNotEmpty()
+            || $itinerary->itineraryTransportUnits->isNotEmpty();
+        $canGenerateQuotation = Route::has('quotations.create')
+            && auth()->user()?->can('module.quotations.access')
+            && ! $itinerary->trashed()
+            && $hasRenderableItineraryItems;
+    @endphp
     @if (! $itinerary->trashed())
-        <form action="{{ route('itineraries.duplicate', $itinerary) }}" method="POST" class="inline" onsubmit="if (!confirm('{{ ui_phrase('confirm duplicate') }}')) { return false; } const button = this.querySelector('button[type=submit]'); if (button) { button.disabled = true; button.classList.add('opacity-60', 'cursor-not-allowed'); } return true;">
-            @csrf
-            <button type="submit" class="rounded-lg border border-violet-300 px-4 py-2 text-sm font-medium text-violet-700 hover:bg-violet-50 dark:border-violet-700 dark:text-violet-300 dark:hover:bg-violet-900/20">
-                {{ ui_phrase('Duplicate') }}
-            </button>
-        </form>
+        <x-ui.confirm-action
+            :action="route('itineraries.duplicate', $itinerary)"
+            method="POST"
+            :modal-name="'itinerary-duplicate-' . $itinerary->id"
+            :title="ui_phrase('Duplicate Itinerary')"
+            :message="ui_phrase('confirm duplicate')"
+            :impact-title="__('confirm.what_will_happen')"
+            :impact-items="[
+                __('confirm.duplicate_itinerary_info_1'),
+                __('confirm.duplicate_itinerary_info_2'),
+                __('confirm.duplicate_itinerary_info_3'),
+            ]"
+            :notice-message="__('confirm.notification_after_action')"
+            notice-tone="info"
+            :confirm-label="ui_phrase('Duplicate')"
+            :trigger-label="ui_phrase('Duplicate')"
+            trigger-icon="fa-solid fa-copy"
+            trigger-class="btn-secondary"
+            confirm-class="btn-primary-sm"
+        />
     @endif
-    @if (
-        Route::has('quotations.create')
-        && auth()->user()->can('module.quotations.access')
-        && (int) (auth()->id() ?? 0) === (int) ($itinerary->created_by ?? 0)
-    )
-        <a href="{{ route('quotations.create', ['itinerary_id' => $itinerary->id]) }}" class="rounded-lg border border-indigo-300 px-4 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-50 dark:border-indigo-700 dark:text-indigo-300 dark:hover:bg-indigo-900/20">{{ ui_phrase('Generate Quotation') }}</a>
+    @if ($canGenerateQuotation)
+        <a href="{{ route('quotations.create', ['itinerary_id' => $itinerary->id]) }}" class="btn-primary">
+            <i class="fa-solid fa-file-invoice-dollar" aria-hidden="true"></i>
+            <span>{{ ui_phrase('Generate Quotation') }}</span>
+        </a>
     @endif
-    <a href="{{ route('itineraries.pdf', [$itinerary, 'mode' => 'stream']) }}" target="_blank" rel="noopener" class="rounded-lg border border-sky-300 px-4 py-2 text-sm font-medium text-sky-700 hover:bg-sky-50 dark:border-sky-700 dark:text-sky-300 dark:hover:bg-sky-900/20">{{ ui_phrase('Preview PDF') }}</a>
-    <a href="{{ route('itineraries.pdf', [$itinerary, 'mode' => 'download']) }}" target="_blank" rel="noopener" class="rounded-lg border border-emerald-300 px-4 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-50 dark:border-emerald-700 dark:text-emerald-300 dark:hover:bg-emerald-900/20">{{ ui_phrase('Download PDF') }}</a>
+    @if (auth()->user()?->hasAnyRole(['Reservation', 'Manager', 'Director']))
+        <a href="{{ route('itineraries.pdf', [$itinerary, 'mode' => 'stream']) }}" target="_blank" rel="noopener" class="btn-secondary">
+            <i class="fa-solid fa-file-pdf" aria-hidden="true"></i>
+            <span>{{ ui_phrase('Generate PDF') }}</span>
+        </a>
+    @endif
     @can('update', $itinerary)
-        <a href="{{ route('itineraries.edit', $itinerary) }}" class="btn-secondary">{{ ui_phrase('Edit') }}</a>
+        <a href="{{ route('itineraries.edit', $itinerary) }}" class="btn-secondary">
+            <i class="fa-solid fa-pen" aria-hidden="true"></i>
+            <span>{{ ui_phrase('Edit') }}</span>
+        </a>
     @endcan
-    <a href="{{ route('itineraries.index') }}" class="btn-primary" data-page-back-action>{{ ui_phrase('Back') }}</a>
+    <a href="{{ route('itineraries.index') }}" class="btn-ghost" data-page-back-action>
+        <i class="fa-solid fa-arrow-left" aria-hidden="true"></i>
+        <span>{{ ui_phrase('Back') }}</span>
+    </a>
 @endsection
 
 @section('content')
     <div class="space-y-5 itinerary-show-page">
-        <div class="app-card p-4 mb-6">
-            <div class="my-3 grid grid-cols-1 gap-2 text-sm md:grid-cols-2">
-                <div><span class="text-gray-500 dark:text-gray-400">{{ ui_phrase('Title') }}:</span> <span class="text-gray-800 dark:text-gray-100">{{ $itinerary->title }}</span></div>
-                <div><span class="text-gray-500 dark:text-gray-400">{{ ui_phrase('Duration') }}:</span> <span class="text-gray-800 dark:text-gray-100">{{ $itinerary->duration_days }}D{{ $itinerary->duration_nights > 0 ? "/".$itinerary->duration_nights."N": "" }}</span></div>
-                <div><span class="text-gray-500 dark:text-gray-400">{{ ui_phrase('Destination') }}:</span> <span class="text-gray-800 dark:text-gray-100">{{ $itinerary->destination ?: '-' }}</span></div>
-            </div>
-            <div>
-                @if ($itinerary->description)
-                    <x-rich-text :content="$itinerary->description" class="text-sm text-gray-700 dark:text-gray-200" />
-                @endif
-            </div>
-        </div>
-
-        
-
         @php
-            $hotelDayPoints = $itinerary->dayPoints
-                ->filter(function ($point) {
-                    $isHotelEndPoint = (string) ($point->end_point_type ?? '') === 'hotel';
-                    $isSelfBooked = strtolower(trim((string) ($point->end_hotel_booking_mode ?? ''))) === 'self';
-                    $hasLinkedHotel = (int) ($point->end_hotel_id ?? 0) > 0;
-                    return $isHotelEndPoint && ! $isSelfBooked && $hasLinkedHotel;
-                })
-                ->sortBy(fn ($point) => (int) ($point->day_number ?? 0))
-                ->values();
+            $hotelSummaries = collect($hotelSummaries ?? []);
         @endphp
-        @if ($hotelDayPoints->isNotEmpty())
-            <div class="app-card p-4">
-                <h2 class="text-sm font-semibold uppercase tracking-wide text-gray-700 dark:text-gray-200">{{ ui_phrase('Hotels') }}</h2>
-                <div class="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3 lg:grid-cols-4">
-                    @foreach($hotelDayPoints as $stayPoint)
-                        @php
-                            $hotel = $stayPoint->endHotel;
-                            $stayDay = (int) ($stayPoint->day_number ?? 1);
-                            $hotelRegionRaw = trim((string) ($hotel?->region ?? ''));
-                            $hotelRegion = $hotelRegionRaw;
-                            if ($hotelRegionRaw !== '' && ctype_digit($hotelRegionRaw)) {
-                                $hotelRegion = trim((string) ($hotel?->destination?->province ?? $hotel?->destination?->name ?? ''));
-                            }
-                            if ($hotelRegion === '') {
-                                $hotelRegion = trim((string) ($hotel?->destination?->province ?? ''));
-                            }
-                            if ($hotelRegion === '') {
-                                $hotelRegion = trim((string) ($hotel?->city ?? ''));
-                            }
-                            if ($hotelRegion === '') {
-                                $hotelRegion = trim((string) ($hotel?->province ?? ''));
-                            }
-                            $hotelDestination = trim((string) ($hotel?->destination?->name ?? ''));
-                            $hotelCity = trim((string) ($hotel?->city ?? ''));
-                            $roomName = (string) ($stayPoint?->endHotelRoom?->rooms ?? '');
-                            $roomType = (string) ($stayPoint?->endHotelRoom?->view ?? '');
-                            $nightCount = 1;
-                            $bookingModeLabel = ((string) ($stayPoint?->end_hotel_booking_mode ?? 'arranged')) === 'self'
-                                ? ui_phrase('Self-booked hotel')
-                                : ui_phrase('Hotel arranged by us');
-                            $areaLabel = trim((string) ($stayPoint?->end_hotel_area ?? ''));
-                        @endphp
-                        <div class="rounded-lg mb-6 border border-gray-200 px-3 py-2 text-sm dark:border-gray-700">
-                            <p class="font-semibold text-gray-800 dark:text-gray-100">{{ $hotel?->name ?? ui_phrase('Self-booked hotel') }}</p>
-                            <p class="text-xs text-gray-500 dark:text-gray-400">
-                                {{ $hotelCity !== '' ? $hotelCity : ($hotelRegion !== '' ? $hotelRegion : ($areaLabel !== '' ? $areaLabel : '-')) }} | {{ $hotelDestination !== '' ? $hotelDestination : '-' }}
-                            </p>
-                            @if ($roomName !== '')
-                                <p class="mt-1 text-xs text-gray-600 dark:text-gray-300">
-                                    {{ ui_phrase('Room') }}: {{ $roomName }}{{ $roomType !== '' ? ' ('.$roomType.')' : '' }}
-                                </p>
-                            @endif
-                            @if ($areaLabel !== '')
-                                <p class="mt-1 text-xs text-gray-600 dark:text-gray-300">
-                                    {{ ui_phrase('Area') }}: {{ $areaLabel }}
-                                </p>
-                            @endif
-                            <p class="mt-1 text-xs font-medium text-indigo-600 dark:text-indigo-300">
-                                Day {{ $stayDay }} | {{ $nightCount }} {{ $nightCount > 1 ? ui_phrase('nights') : ui_phrase('night') }}
-                            </p>
-                            <p class="mt-1 text-xs text-gray-600 dark:text-gray-300">
-                                {{ ui_phrase('Booking mode') }}: {{ $bookingModeLabel }}
-                            </p>
-                        </div>
-                    @endforeach
-                </div>
-            </div>
-        @endif
 
         <div class="module-grid-8-4 min-w-0">
             <div class="module-grid-main">
+                <div class="grid grid-cols-1 gap-4 xl:grid-cols-5">
+                    <div class="app-card p-5 xl:col-span-3">
+                        <div class="flex items-center justify-between">
+                            <h2 class="text-sm font-semibold uppercase tracking-wide text-gray-700 dark:text-gray-200">{{ ui_phrase('Itinerary Detail') }}</h2>
+                            <span class="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-700 dark:bg-slate-800 dark:text-slate-300">{{ $itinerary->duration_days }}D{{ $itinerary->duration_nights > 0 ? '/' . $itinerary->duration_nights . 'N' : '' }}</span>
+                        </div>
+                        <div class="mt-4 grid grid-cols-1 gap-3 text-sm md:grid-cols-2">
+                            <div class="rounded-lg border border-slate-200/80 bg-slate-50 px-3 py-2 dark:border-slate-700 dark:bg-slate-900/40">
+                                <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-300">{{ ui_phrase('Title') }}</p>
+                                <p class="mt-1 text-slate-800 dark:text-slate-100">{{ $itinerary->title ?: '-' }}</p>
+                            </div>
+                            <div class="rounded-lg border border-slate-200/80 bg-slate-50 px-3 py-2 dark:border-slate-700 dark:bg-slate-900/40">
+                                <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-300">{{ ui_phrase('Destination') }}</p>
+                                <p class="mt-1 text-slate-800 dark:text-slate-100">{{ $itinerary->destination ?: '-' }}</p>
+                            </div>
+                        </div>
+                        @if ($itinerary->description)
+                            <div class="mt-4 rounded-xl border border-slate-200/80 bg-white px-3 py-3 dark:border-slate-700 dark:bg-slate-900/40">
+                                <x-rich-text :content="$itinerary->description" class="text-sm text-gray-700 dark:text-gray-200" />
+                            </div>
+                        @endif
+                    </div>
+                    <div class="app-card p-5 xl:col-span-2">
+                        <div class="flex items-center justify-between">
+                            <h2 class="text-sm font-semibold uppercase tracking-wide text-gray-700 dark:text-gray-200">{{ ui_phrase('Hotels') }}</h2>
+                            <span class="rounded-full bg-indigo-50 px-2.5 py-1 text-[11px] font-semibold text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300">{{ $hotelSummaries->count() }} {{ ui_phrase('items') }}</span>
+                        </div>
+                        @if ($hotelSummaries->isNotEmpty())
+                            <div class="mt-3 space-y-2">
+                                @foreach($hotelSummaries as $hotelSummary)
+                                    <div class="rounded-xl border border-slate-200 px-3 py-2.5 text-sm shadow-sm dark:border-slate-700">
+                                        <p class="font-semibold text-gray-800 dark:text-gray-100">{{ $hotelSummary['hotel_name'] ?: ui_phrase('Hotel') }}</p>
+                                        @if (!empty($hotelSummary['address_label']) && ($hotelSummary['address_label'] ?? '-') !== '-')
+                                            <p class="mt-1 text-xs text-gray-600 dark:text-gray-300">{{ ui_phrase('Address') }}: {{ $hotelSummary['address_label'] }}</p>
+                                        @endif
+                                        @if (!empty($hotelSummary['room_label']))
+                                            <p class="mt-1 text-xs text-gray-600 dark:text-gray-300">{{ ui_phrase('Room') }}: {{ $hotelSummary['room_label'] }}</p>
+                                        @endif
+                                        @if (!empty($hotelSummary['area_label']))
+                                            <p class="mt-1 text-xs text-gray-600 dark:text-gray-300">{{ ui_phrase('Area') }}: {{ $hotelSummary['area_label'] }}</p>
+                                        @endif
+                                        <p class="mt-1 text-xs font-medium text-indigo-600 dark:text-indigo-300">
+                                            {{ $hotelSummary['day_label'] ?? '-' }} | {{ (int) ($hotelSummary['night_count'] ?? 0) }} {{ ((int) ($hotelSummary['night_count'] ?? 0) > 1) ? ui_phrase('nights') : ui_phrase('night') }}
+                                        </p>
+                                        <p class="mt-1 text-xs text-gray-600 dark:text-gray-300">
+                                            {{ ui_phrase('Booking mode') }}: {{ $hotelSummary['booking_mode_label'] ?? ui_phrase('Hotel arranged by us') }}
+                                        </p>
+                                    </div>
+                                @endforeach
+                            </div>
+                        @else
+                            <p class="mt-3 text-xs text-gray-500 dark:text-gray-400">{{ ui_phrase('No hotel has been configured for this itinerary yet.') }}</p>
+                        @endif
+                    </div>
+                </div>
                 <div class="app-card min-w-0 p-4">
                 <h2 class="text-sm font-semibold uppercase tracking-wide text-gray-700 dark:text-gray-200">{{ ui_phrase('Schedule by Day') }}</h2>
                 <div class="mt-3 space-y-4 text-sm text-gray-700 dark:text-gray-200">
@@ -309,14 +317,13 @@
                     @endphp
                     @if ((int) $itinerary->duration_days > 1)
                         <div class="mb-3">
-                            <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ ui_phrase('Display By Day') }}</p>
-                            <div id="itinerary-schedule-day-tabs" class="mt-2 flex flex-wrap gap-2" role="tablist" aria-label="{{ ui_phrase('Schedule by Day') }}">
+                            <div id="itinerary-schedule-day-tabs" class="app-tabs mt-2" role="tablist" aria-label="{{ ui_phrase('Schedule by Day') }}">
                                 @for ($day = 1; $day <= $itinerary->duration_days; $day++)
                                     <button
                                         type="button"
                                         id="itinerary-schedule-day-tab-{{ $day }}"
                                         data-day="{{ $day }}"
-                                        class="itinerary-schedule-day-tab {{ $day === 1 ? 'btn-primary-sm' : 'btn-outline-sm' }}"
+                                        class="app-tab itinerary-schedule-day-tab {{ $day === 1 ? 'is-active' : '' }}"
                                         role="tab"
                                         aria-selected="{{ $day === 1 ? 'true' : 'false' }}"
                                         aria-controls="itinerary-schedule-day-panel-{{ $day }}"
@@ -422,7 +429,7 @@
                                     'meal_period' => $mealPeriod,
                                     'meal_sessions' => $resolveMealSessionLabels($mealType, $mealPeriod),
                                     'service_type' => $foodBeverage->service_type ?? null,
-                                    'publish_rate' => $foodBeverage->publish_rate ?? null,
+                                    'publish_rate' => $foodBeverage->adult_publish_rate ?? $foodBeverage->publish_rate ?? null,
                                     'currency' => 'IDR',
                                     'pax' => $foodBeverageItem->pax,
                                     'start_time' => $foodBeverageItem->start_time,
@@ -469,6 +476,35 @@
                             $dayStartTime = $dayPoint && !empty($dayPoint->day_start_time)
                                 ? substr((string) $dayPoint->day_start_time, 0, 5)
                                 : (!empty($firstItem['start_time']) ? substr((string) $firstItem['start_time'], 0, 5) : null);
+                            $breakStartTime = $dayPoint && !empty($dayPoint->break_start_time)
+                                ? substr((string) $dayPoint->break_start_time, 0, 5)
+                                : null;
+                            $breakEndTime = $dayPoint && !empty($dayPoint->break_end_time)
+                                ? substr((string) $dayPoint->break_end_time, 0, 5)
+                                : null;
+                            $hasBreakSlot = filled($breakStartTime) && filled($breakEndTime);
+                            $breakInsertAfterIndex = null;
+                            if ($hasBreakSlot && $dayItems->isNotEmpty()) {
+                                $breakStartMinutes = $toMinutes($breakStartTime);
+                                $breakEndMinutes = $toMinutes($breakEndTime);
+                                if ($breakStartMinutes !== null && $breakEndMinutes !== null && $breakEndMinutes > $breakStartMinutes) {
+                                    foreach ($dayItems as $breakIndex => $breakItem) {
+                                        $itemEndMinutes = $toMinutes($breakItem['end_time'] ?? null);
+                                        if ($itemEndMinutes === null || $breakStartMinutes < $itemEndMinutes) {
+                                            continue;
+                                        }
+                                        $nextItem = $dayItems->get($breakIndex + 1);
+                                        $nextStartMinutes = $nextItem ? $toMinutes($nextItem['start_time'] ?? null) : null;
+                                        $breakInsertAfterIndex = $breakIndex;
+                                        if ($nextStartMinutes === null || $breakStartMinutes <= $nextStartMinutes) {
+                                            break;
+                                        }
+                                    }
+                                    if ($breakInsertAfterIndex === null) {
+                                        $breakInsertAfterIndex = max(0, $dayItems->count() - 1);
+                                    }
+                                }
+                            }
                             $dayStartTravelMinutes = $dayPoint && $dayPoint->day_start_travel_minutes !== null
                                 ? max(0, (int) $dayPoint->day_start_travel_minutes)
                                 : null;
@@ -573,6 +609,10 @@
                                 <p class="app-day-header-title">Day {{ $day }}</p>
                                 <p class="app-day-header-meta">
                                     {{ ui_phrase('Start Tour') }}: {{ $dayStartTime ?? '--:--' }} | {{ ui_phrase('End Tour') }}: {{ $dayEndTime ?? '--:--' }}
+                                </p>
+                                <p class="text-[11px] text-gray-500 dark:text-gray-400">
+                                    {{ ui_phrase('Break Time') }}:
+                                    {{ $breakStartTime && $breakEndTime ? $breakStartTime . ' - ' . $breakEndTime : '-' }}
                                 </p>
                             </div>
 
@@ -826,9 +866,48 @@
                                                     </div>
                                                 </div>
                                             </div>
+                                            @if ($hasBreakSlot && $breakInsertAfterIndex !== null && $index === $breakInsertAfterIndex)
+                                                <div class="mt-2 rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5 dark:border-slate-700 dark:bg-slate-800/30">
+                                                    <div class="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
+                                                        <i class="fa-solid fa-mug-hot"></i>
+                                                        <span>{{ ui_phrase('Break Time') }}</span>
+                                                    </div>
+                                                    <p class="mt-1 text-xs font-medium text-gray-800 dark:text-gray-100">{{ $breakStartTime }} - {{ $breakEndTime }}</p>
+                                                </div>
+                                            @endif
                                         </div>
                                     </li>
                                 @empty
+                                    @if ($hasBreakSlot)
+                                        <li class="flex items-start gap-0">
+                                            <div class="timeline-node-col w-10 flex flex-col items-center">
+                                                <span class="timeline-node inline-flex h-7 w-7 items-center justify-center rounded-full bg-slate-500 text-[11px] font-semibold text-white">
+                                                    <i class="fa-solid fa-mug-hot"></i>
+                                                </span>
+                                            </div>
+                                            <span class="mt-3 h-px w-5 shrink-0 bg-gray-300 dark:bg-gray-600"></span>
+                                            <div class="ml-2 flex-1 rounded-lg border border-gray-200 bg-slate-50/70 px-2 py-2 dark:border-gray-700 dark:bg-slate-800/30">
+                                                <div class="grid grid-cols-1 gap-2.5 sm:grid-cols-[9rem_minmax(0,1fr)]">
+                                                    <div class="overflow-hidden rounded-md border border-gray-200 bg-gray-100 dark:border-gray-700 dark:bg-gray-800/60">
+                                                        <div class="relative aspect-[16/9] h-full overflow-hidden">
+                                                            <div class="flex h-full w-full items-center justify-center text-gray-500 dark:text-gray-300">
+                                                                <i class="fa-solid fa-mug-hot text-sm"></i>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="min-w-0">
+                                                        <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">{{ ui_phrase('Break Time') }}</p>
+                                                        <div class="mt-0.5 flex flex-wrap items-center gap-1">
+                                                            <span class="font-medium text-gray-800 dark:text-gray-100">{{ $breakStartTime }} - {{ $breakEndTime }}</span>
+                                                        </div>
+                                                        <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                                            {{ ui_phrase('Rest time between activities') }}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </li>
+                                    @endif
                                 @endforelse
                                 <li class="flex items-start gap-0">
                                     <div class="timeline-node-col w-10 flex flex-col items-center">
@@ -916,7 +995,7 @@
                 <div class="app-card p-4">
                     <div>
                         <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ ui_phrase('Related Quotations') }}</h3>
-                        <p class="text-xs text-gray-600 dark:text-gray-300">{{ ui_phrase('Non-final quotations linked to this itinerary.') }}</p>
+                        <p class="text-xs text-gray-600 dark:text-gray-300">{{ ui_phrase('All quotations generated from this itinerary.') }}</p>
                     </div>
                     <div class="mt-3 space-y-2">
                         @php
@@ -925,26 +1004,43 @@
                         @endphp
                         @forelse ($linkedQuotations as $quotation)
                             @php
-                                $orderNumberLabel = trim((string) ($quotation->order_number ?? ''));
-                                if ($orderNumberLabel === '') {
-                                    $orderNumberLabel = trim((string) ($quotation->quotation_number ?? ''));
+                                $quotationNumberLabel = trim((string) ($quotation->quotation_number ?? ''));
+                                if ($quotationNumberLabel === '') {
+                                    $quotationNumberLabel = '#'.$quotation->id;
                                 }
-                                if ($orderNumberLabel === '') {
-                                    $orderNumberLabel = '#'.$quotation->id;
-                                }
+                                $orderNumberLabel = trim((string) ($quotation->order_number ?? '-'));
                                 $quotationUrl = $canAccessQuotationModule ? route('quotations.show', $quotation) : '#';
                             @endphp
-                            <a
-                                href="{{ $quotationUrl }}"
-                                class="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 transition hover:border-indigo-300 hover:bg-indigo-50/60 hover:text-indigo-700 dark:border-gray-700 dark:text-gray-200 dark:hover:border-indigo-600 dark:hover:bg-indigo-900/20 dark:hover:text-indigo-300 {{ $canAccessQuotationModule ? '' : 'pointer-events-none opacity-70' }}"
-                                @if (! $canAccessQuotationModule) aria-disabled="true" @endif
-                            >
-                                <span class="truncate pr-3" title="{{ $orderNumberLabel }}">{{ $orderNumberLabel }}</span>
-                                <i class="fa-solid fa-eye text-xs" aria-hidden="true"></i>
-                            </a>
+                            <div class="rounded-lg border border-gray-200 px-3 py-2 text-sm dark:border-gray-700">
+                                <div class="flex items-start justify-between gap-3">
+                                    <div class="min-w-0">
+                                        <p class="truncate font-semibold text-gray-800 dark:text-gray-100" title="{{ $quotationNumberLabel }}">{{ $quotationNumberLabel }}</p>
+                                        <p class="truncate text-xs text-gray-500 dark:text-gray-400">{{ ui_phrase('Order Number') }}: {{ $orderNumberLabel }}</p>
+                                    </div>
+                                    <a
+                                        href="{{ $quotationUrl }}"
+                                        class="inline-flex items-center rounded-md border border-gray-200 px-2 py-1 text-xs text-gray-700 hover:border-indigo-300 hover:text-indigo-700 dark:border-gray-700 dark:text-gray-200 dark:hover:border-indigo-600 dark:hover:text-indigo-300 {{ $canAccessQuotationModule ? '' : 'pointer-events-none opacity-70' }}"
+                                        @if (! $canAccessQuotationModule) aria-disabled="true" @endif
+                                    >
+                                        <i class="fa-solid fa-eye mr-1" aria-hidden="true"></i>{{ ui_phrase('View') }}
+                                    </a>
+                                </div>
+                                <div class="mt-2 grid grid-cols-2 gap-2 text-xs text-gray-600 dark:text-gray-300">
+                                    <div>{{ ui_phrase('Status') }}: {{ ui_phrase((string) ($quotation->status ?? '-')) }}</div>
+                                    <div>{{ ui_phrase('Validation') }}: {{ ui_phrase((string) ($quotation->validation_status ?? '-')) }}</div>
+                                    <div>{{ ui_phrase('Final Amount') }}: <x-ui.money :amount="(float) ($quotation->final_amount ?? 0)" :currency="$currentCurrency ?? 'IDR'" /></div>
+                                    <div>{{ ui_phrase('Created At') }}: <x-local-time :value="$quotation->created_at" /></div>
+                                    <div class="col-span-2">{{ ui_phrase('Created by') }}: <x-masked-user-name :user="$quotation->creator" /></div>
+                                </div>
+                            </div>
                         @empty
-                            <p class="text-xs text-gray-500 dark:text-gray-400">{{ ui_phrase('No upcoming related quotations.') }}</p>
+                            <p class="text-xs text-gray-500 dark:text-gray-400">{{ ui_phrase('No quotation has been created from this itinerary yet.') }}</p>
                         @endforelse
+                        @if ($canGenerateQuotation)
+                            <a href="{{ route('quotations.create', ['itinerary_id' => $itinerary->id]) }}" class="btn-primary-sm w-full justify-center">
+                                {{ ui_phrase('Generate Quotation') }}
+                            </a>
+                        @endif
                     </div>
                 </div>
                 <div class="app-card min-w-0 h-fit p-4 lg:self-start xl:sticky xl:top-6">
@@ -1183,12 +1279,22 @@
             return null;
         };
 
+        $mapTimeToMinutes = static function ($value): ?int {
+            $time = substr((string) $value, 0, 5);
+            if (!preg_match('/^\d{2}:\d{2}$/', $time)) {
+                return null;
+            }
+
+            return ((int) substr($time, 0, 2) * 60) + (int) substr($time, 3, 2);
+        };
+
         $mapPoints = collect();
         $previousEndCoordinates = null;
         for ($day = 1; $day <= (int) $itinerary->duration_days; $day++) {
             $dayPoint = $dayPointByDayForMap[$day] ?? null;
             $startData = $resolveMapPoint($dayPoint, 'start', $previousEndCoordinates);
             $endData = $resolveMapPoint($dayPoint, 'end');
+            $dayPointCandidates = collect();
 
             if ($startData && is_numeric($startData['lat'] ?? null) && is_numeric($startData['lng'] ?? null)) {
                 $mapPoints->push([
@@ -1233,6 +1339,13 @@
                         ? max(0, (int) $attraction->pivot->travel_minutes_to_next)
                         : null,
                 ]);
+                $dayPointCandidates->push([
+                    'map_order' => ((int) ($attraction->pivot->visit_order ?? 999999)) * 10,
+                    'end_time' => !empty($attraction->pivot->end_time) ? substr((string) $attraction->pivot->end_time, 0, 5) : null,
+                    'lat' => (float) $attraction->latitude,
+                    'lng' => (float) $attraction->longitude,
+                    'location' => (string) ($attraction->location ?? '-'),
+                ]);
             }
             foreach (($activityDayGroups[$day] ?? collect()) as $activityItem) {
                 $lat = $activityItem->activity->vendor->latitude ?? null;
@@ -1255,6 +1368,13 @@
                     'travel_minutes_to_next' => $activityItem->travel_minutes_to_next !== null
                         ? max(0, (int) $activityItem->travel_minutes_to_next)
                         : null,
+                ]);
+                $dayPointCandidates->push([
+                    'map_order' => ((int) ($activityItem->visit_order ?? 999999)) * 10,
+                    'end_time' => !empty($activityItem->end_time) ? substr((string) $activityItem->end_time, 0, 5) : null,
+                    'lat' => (float) $lat,
+                    'lng' => (float) $lng,
+                    'location' => (string) ($activityItem->activity->vendor->location ?? '-'),
                 ]);
             }
             foreach (($islandTransferDayGroups[$day] ?? collect()) as $transferItem) {
@@ -1317,6 +1437,13 @@
                             ? max(0, (int) $transferItem->travel_minutes_to_next)
                             : null,
                     ]);
+                    $dayPointCandidates->push([
+                        'map_order' => (((int) ($transferItem->visit_order ?? 999999)) * 10) + 1,
+                        'end_time' => !empty($transferItem->end_time) ? substr((string) $transferItem->end_time, 0, 5) : null,
+                        'lat' => (float) $arrivalLat,
+                        'lng' => (float) $arrivalLng,
+                        'location' => (string) ($transfer->arrival_point_name ?? '-'),
+                    ]);
                 }
             }
             foreach (($foodBeverageDayGroups[$day] ?? collect()) as $foodBeverageItem) {
@@ -1341,6 +1468,59 @@
                         ? max(0, (int) $foodBeverageItem->travel_minutes_to_next)
                         : null,
                 ]);
+                $dayPointCandidates->push([
+                    'map_order' => ((int) ($foodBeverageItem->visit_order ?? 999999)) * 10,
+                    'end_time' => !empty($foodBeverageItem->end_time) ? substr((string) $foodBeverageItem->end_time, 0, 5) : null,
+                    'lat' => (float) $lat,
+                    'lng' => (float) $lng,
+                    'location' => (string) ($foodBeverageItem->foodBeverage->vendor->location ?? '-'),
+                ]);
+            }
+
+            $breakStartTime = $dayPoint && !empty($dayPoint->break_start_time)
+                ? substr((string) $dayPoint->break_start_time, 0, 5)
+                : null;
+            $breakEndTime = $dayPoint && !empty($dayPoint->break_end_time)
+                ? substr((string) $dayPoint->break_end_time, 0, 5)
+                : null;
+            $hasBreak = filled($breakStartTime) && filled($breakEndTime);
+
+            if ($hasBreak && $dayPointCandidates->isNotEmpty()) {
+                $breakStartMinutes = $mapTimeToMinutes($breakStartTime);
+                $anchorCandidate = null;
+                foreach ($dayPointCandidates->sortBy('map_order')->values() as $candidate) {
+                    $candidateEndMinutes = $mapTimeToMinutes($candidate['end_time'] ?? null);
+                    if ($breakStartMinutes !== null && $candidateEndMinutes !== null && $candidateEndMinutes <= $breakStartMinutes) {
+                        $anchorCandidate = $candidate;
+                        continue;
+                    }
+                    if ($anchorCandidate === null) {
+                        $anchorCandidate = $candidate;
+                    }
+                    break;
+                }
+                if ($anchorCandidate === null) {
+                    $anchorCandidate = $dayPointCandidates->sortByDesc('map_order')->first();
+                }
+
+                if (is_array($anchorCandidate) && is_numeric($anchorCandidate['lat'] ?? null) && is_numeric($anchorCandidate['lng'] ?? null)) {
+                    $anchorMapOrder = (int) ($anchorCandidate['map_order'] ?? 0);
+                    $mapPoints->push([
+                        'type' => 'break',
+                        'name' => ui_phrase('Break Time'),
+                        'map_focus_key' => 'day-' . $day . '-break-time',
+                        'location' => (string) ($anchorCandidate['location'] ?? '-'),
+                        'lat' => ((float) $anchorCandidate['lat']) + 0.0002,
+                        'lng' => ((float) $anchorCandidate['lng']) + 0.0002,
+                        'day_number' => $day,
+                        'visit_order' => $anchorMapOrder,
+                        'map_order' => $anchorMapOrder + 0.5,
+                        'break_anchor_map_order' => $anchorMapOrder,
+                        'start_time' => $breakStartTime,
+                        'end_time' => $breakEndTime,
+                        'travel_minutes_to_next' => 0,
+                    ]);
+                }
             }
 
             if ($endData && is_numeric($endData['lat'] ?? null) && is_numeric($endData['lng'] ?? null)) {
@@ -1424,8 +1604,7 @@
                 scheduleDayTabs.forEach((tab) => {
                     const tabDay = Number(tab.dataset.day || 0);
                     const active = tabDay === dayNumber;
-                    tab.classList.toggle('btn-primary-sm', active);
-                    tab.classList.toggle('btn-outline-sm', !active);
+                    tab.classList.toggle('is-active', active);
                     tab.setAttribute('aria-selected', active ? 'true' : 'false');
                     tab.setAttribute('tabindex', active ? '0' : '-1');
                 });
@@ -1475,7 +1654,7 @@
 
             const normalizeType = (type) => {
                 const value = String(type || '').toLowerCase().trim();
-                return ['attraction', 'activity', 'transfer', 'fnb', 'hotel', 'airport'].includes(value) ? value : 'attraction';
+                return ['attraction', 'activity', 'transfer', 'fnb', 'hotel', 'airport', 'break'].includes(value) ? value : 'attraction';
             };
             const iconByType = (type) => {
                 const normalized = normalizeType(type);
@@ -1484,6 +1663,7 @@
                 if (normalized === 'fnb') return 'fa-solid fa-utensils';
                 if (normalized === 'airport') return 'fa-solid fa-plane';
                 if (normalized === 'hotel') return 'fa-solid fa-bed';
+                if (normalized === 'break') return 'fa-solid fa-mug-hot';
                 return 'fa-solid fa-location-dot';
             };
             const normalizeLatLng = (lat, lng) => {
@@ -1524,7 +1704,9 @@
                         ? '#d97706'
                         : (markerType === 'airport'
                             ? '#0284c7'
-                            : (markerType === 'hotel' ? '#0f766e' : '#1d4ed8'))));
+                            : (markerType === 'hotel'
+                                ? '#0f766e'
+                                : (markerType === 'break' ? '#6b7280' : '#1d4ed8')))));
                 return L.divIcon({
                     className: 'itinerary-show-map-marker-icon',
                     html: `<span style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:9999px;background:${color};color:#fff;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.25);font-size:12px;position:relative"><i class="${iconByType(markerType)}"></i><span style="position:absolute;right:-5px;bottom:-5px;min-width:14px;height:14px;border-radius:9999px;background:#111827;color:#fff;border:1px solid #fff;font-size:9px;line-height:14px;text-align:center;padding:0 3px">${order}</span></span>`,
@@ -1583,6 +1765,7 @@
                         transfer_role: String(point?.transfer_role || ''),
                         transfer_pair_key: String(point?.transfer_pair_key || ''),
                         map_focus_key: String(point?.map_focus_key || ''),
+                        break_anchor_map_order: Number(point?.break_anchor_map_order ?? NaN),
                         start_time: String(point?.start_time || ''),
                         end_time: String(point?.end_time || ''),
                     };
@@ -1610,10 +1793,19 @@
             let activeRouteFetchController = null;
             let mapBusy = false;
             let renderPendingAfterMove = false;
+            let renderedDayKey = null;
+            let renderInFlight = null;
+            let renderInFlightKey = null;
             let markerGroupsByFocusKey = new Map();
+            const roadRouteGeometryCache = new Map();
             const highlightedSegmentState = {
                 markerElements: [],
                 haloLayers: [],
+            };
+            const renderKeyForDay = (day) => {
+                if (day === null || day === undefined || day === '') return 'all';
+                const parsed = Number(day);
+                return Number.isFinite(parsed) && parsed > 0 ? String(parsed) : 'all';
             };
 
             map.on('zoomstart movestart', () => {
@@ -1623,7 +1815,7 @@
                 mapBusy = false;
                 if (renderPendingAfterMove) {
                     renderPendingAfterMove = false;
-                    requestSafeRender(selectedDay);
+                    requestSafeRender(selectedDay, 0, true, true);
                 }
             });
 
@@ -1632,6 +1824,9 @@
                 const coordinateString = latLngPoints
                     .map((point) => `${point.lng},${point.lat}`)
                     .join(';');
+                if (roadRouteGeometryCache.has(coordinateString)) {
+                    return roadRouteGeometryCache.get(coordinateString);
+                }
                 const endpoint = `https://router.project-osrm.org/route/v1/driving/${coordinateString}?overview=full&geometries=geojson`;
                 const response = await fetch(endpoint, {
                     method: 'GET',
@@ -1648,7 +1843,9 @@
                     const latLng = toLatLng(coord[1], coord[0]);
                     if (latLng) routePoints.push(latLng);
                 });
-                return routePoints.length >= 2 ? routePoints : null;
+                if (routePoints.length < 2) return null;
+                roadRouteGeometryCache.set(coordinateString, routePoints);
+                return routePoints;
             };
             const midpointOfRoute = (routeCoords) => {
                 if (!Array.isArray(routeCoords) || routeCoords.length === 0) return null;
@@ -1693,8 +1890,27 @@
                     highlightedSegmentState.haloLayers.push(halo);
                 });
             };
+            const markerCollisionBucketKey = (lat, lng, dayNumber) => {
+                const precision = 5;
+                return `${Number(dayNumber)}|${Number(lat).toFixed(precision)}|${Number(lng).toFixed(precision)}`;
+            };
+            const offsetLatLngForCollision = (baseLatLng, collisionIndex) => {
+                if (!baseLatLng || collisionIndex <= 0) return baseLatLng;
+                const ring = Math.floor((collisionIndex - 1) / 8) + 1;
+                const slot = (collisionIndex - 1) % 8;
+                const angle = (Math.PI * 2 * slot) / 8;
+                const meterStep = 12;
+                const radiusMeters = ring * meterStep;
+                const earthMeterPerDegreeLat = 111320;
+                const safeCos = Math.max(0.25, Math.cos((baseLatLng.lat * Math.PI) / 180));
+                const earthMeterPerDegreeLng = earthMeterPerDegreeLat * safeCos;
+                const deltaLat = (radiusMeters * Math.sin(angle)) / earthMeterPerDegreeLat;
+                const deltaLng = (radiusMeters * Math.cos(angle)) / earthMeterPerDegreeLng;
+                return toLatLng(baseLatLng.lat + deltaLat, baseLatLng.lng + deltaLng) || baseLatLng;
+            };
 
-            const renderMarkers = async (day = null) => {
+            const renderMarkers = async (day = null, preserveViewport = false) => {
+                const renderKey = renderKeyForDay(day);
                 const currentToken = ++routeRenderToken;
                 try {
                     activeRouteFetchController?.abort();
@@ -1708,7 +1924,8 @@
                     : validPoints.filter((point) => Number(point.day_number) === Number(day));
                 if (!activePoints.length) {
                     map.setView([-2.5, 118], 4);
-                    return;
+                    renderedDayKey = renderKey;
+                    return true;
                 }
 
                 const bounds = [];
@@ -1717,13 +1934,40 @@
                 const dayLabel = 'Day';
                 const minuteLabel = @json(ui_phrase('minute'));
                 markerGroupsByFocusKey = new Map();
+                const markerCollisionBuckets = new Map();
+                const dayPlacedPoints = {};
                 activePoints.forEach((point) => {
                     dayCounter[point.day_number] = (dayCounter[point.day_number] || 0) + 1;
                     const index = dayCounter[point.day_number];
-                    const latLng = toLatLng(point.lat, point.lng);
-                    if (!latLng) return;
-                    bounds.push([latLng.lat, latLng.lng]);
-                    const marker = L.marker(latLng, { icon: markerBadge(index, point.type) }).addTo(mapDataLayer);
+                    const sourceLatLng = toLatLng(point.lat, point.lng);
+                    if (!sourceLatLng) return;
+                    bounds.push([sourceLatLng.lat, sourceLatLng.lng]);
+                    let displayLatLng = sourceLatLng;
+                    const isBreakPoint = normalizeType(point.type) === 'break';
+                    if (isBreakPoint) {
+                        const dayKey = String(point.day_number);
+                        const placedForDay = Array.isArray(dayPlacedPoints[dayKey]) ? dayPlacedPoints[dayKey] : [];
+                        let anchorPlaced = placedForDay
+                            .filter((entry) => Number.isFinite(entry?.map_order) && normalizeType(entry?.type) !== 'break')
+                            .find((entry) => entry.map_order === Number(point.break_anchor_map_order));
+                        if (!anchorPlaced && placedForDay.length) {
+                            anchorPlaced = placedForDay
+                                .filter((entry) => normalizeType(entry?.type) !== 'break')
+                                .slice()
+                                .reverse()[0] || null;
+                        }
+                        if (anchorPlaced?.displayLatLng) {
+                            const anchorPixel = map.latLngToLayerPoint(anchorPlaced.displayLatLng);
+                            const breakPixel = L.point(anchorPixel.x + 24, anchorPixel.y);
+                            displayLatLng = map.layerPointToLatLng(breakPixel);
+                        }
+                    } else {
+                        const bucketKey = markerCollisionBucketKey(sourceLatLng.lat, sourceLatLng.lng, point.day_number);
+                        const collisionIndex = Number(markerCollisionBuckets.get(bucketKey) || 0);
+                        markerCollisionBuckets.set(bucketKey, collisionIndex + 1);
+                        displayLatLng = offsetLatLngForCollision(sourceLatLng, collisionIndex);
+                    }
+                    const marker = L.marker(displayLatLng, { icon: markerBadge(index, point.type) }).addTo(mapDataLayer);
                     const startTimeText = formatPopupTime(point.start_time);
                     const endTimeText = formatPopupTime(point.end_time);
                     const isBoundaryPoint = String(point.map_focus_key || '').endsWith('-start-point')
@@ -1732,9 +1976,11 @@
                         ? startTimeText
                         : endTimeText;
                     marker.bindPopup(
-                        isBoundaryPoint
+                        isBreakPoint
+                            ? `#${index} | ${dayLabel} ${point.day_number} | ${escapeHtml(point.name || 'Break Time')}<br>${escapeHtml(point.location || '-')}<br>Break: ${escapeHtml(startTimeText)} - ${escapeHtml(endTimeText)}`
+                            : (isBoundaryPoint
                             ? `#${index} | ${dayLabel} ${point.day_number} | ${escapeHtml(point.name || '-')}<br>${escapeHtml(point.location || '-')}<br>Time: ${escapeHtml(boundaryTimeText)}`
-                            : `#${index} | ${dayLabel} ${point.day_number} | ${escapeHtml(point.name || '-')}<br>${escapeHtml(point.location || '-')}<br>Start: ${escapeHtml(startTimeText)} | End: ${escapeHtml(endTimeText)}`
+                            : `#${index} | ${dayLabel} ${point.day_number} | ${escapeHtml(point.name || '-')}<br>${escapeHtml(point.location || '-')}<br>Start: ${escapeHtml(startTimeText)} | End: ${escapeHtml(endTimeText)}`)
                     );
                     const focusKey = String(point.map_focus_key || '').trim();
                     if (focusKey !== '') {
@@ -1745,6 +1991,12 @@
                     const dayKey = String(point.day_number);
                     if (!dayMarkers[dayKey]) dayMarkers[dayKey] = [];
                     dayMarkers[dayKey].push(marker);
+                    if (!dayPlacedPoints[dayKey]) dayPlacedPoints[dayKey] = [];
+                    dayPlacedPoints[dayKey].push({
+                        map_order: Number(point.map_order ?? 0),
+                        type: point.type,
+                        displayLatLng,
+                    });
                 });
 
                 const pointsByDay = activePoints.reduce((carry, point) => {
@@ -1797,7 +2049,7 @@
                         if (!segment) {
                             try {
                                 segment = await fetchRoadRouteGeometry([from, to], routeSignal);
-                                if (currentToken !== routeRenderToken) return;
+                                if (currentToken !== routeRenderToken) return false;
                             } catch (_) {
                                 segment = null;
                             }
@@ -1861,33 +2113,63 @@
                     Number.isFinite(coord[0]) &&
                     Number.isFinite(coord[1])
                 );
-                if (safeBounds.length === 0) {
-                    map.setView([-2.5, 118], 4);
-                } else if (safeBounds.length === 1) {
-                    map.setView(safeBounds[0], 13);
-                } else {
-                    map.fitBounds(safeBounds, { padding: [24, 24] });
+                if (!preserveViewport) {
+                    if (safeBounds.length === 0) {
+                        map.setView([-2.5, 118], 4);
+                    } else if (safeBounds.length === 1) {
+                        map.setView(safeBounds[0], 13);
+                    } else {
+                        map.fitBounds(safeBounds, { padding: [24, 24] });
+                    }
                 }
+                renderedDayKey = renderKey;
+                return true;
             };
             const canRenderMapNow = () => {
                 if (!mapElement.isConnected) return false;
                 const rect = mapElement.getBoundingClientRect();
                 return Number.isFinite(rect.width) && Number.isFinite(rect.height) && rect.width > 8 && rect.height > 8;
             };
-            const requestSafeRender = async (day = null, retry = 0) => {
+            const requestSafeRender = async (day = null, retry = 0, preserveViewport = false, forceRender = false) => {
+                const requestedRenderKey = renderKeyForDay(day);
                 if (!canRenderMapNow()) {
                     if (retry >= 8) return;
                     window.setTimeout(() => {
-                        requestSafeRender(day, retry + 1);
+                        requestSafeRender(day, retry + 1, preserveViewport, forceRender);
                     }, 120);
                     return;
                 }
+                map.invalidateSize(false);
+                if (!forceRender && renderedDayKey === requestedRenderKey && markerGroupsByFocusKey.size > 0) {
+                    return true;
+                }
+                if (renderInFlight && renderInFlightKey === requestedRenderKey) {
+                    return renderInFlight;
+                }
+                if (mapBusy && forceRender) {
+                    try {
+                        map.stop();
+                    } catch (_) {}
+                    mapBusy = false;
+                }
                 if (mapBusy) {
                     renderPendingAfterMove = true;
-                    return;
+                    return false;
                 }
-                map.invalidateSize(false);
-                await renderMarkers(day);
+                renderInFlightKey = requestedRenderKey;
+                renderInFlight = renderMarkers(day, preserveViewport).finally(() => {
+                    renderInFlight = null;
+                    renderInFlightKey = null;
+                });
+                return renderInFlight;
+            };
+            const ensureMapRenderedForDay = async (day = selectedDay) => {
+                const requestedRenderKey = renderKeyForDay(day);
+                if (renderedDayKey === requestedRenderKey && markerGroupsByFocusKey.size > 0) {
+                    map.invalidateSize(false);
+                    return true;
+                }
+                return requestSafeRender(day);
             };
             const focusMapByItemKey = async (focusKey) => {
                 const normalizedKey = String(focusKey || '').trim();
@@ -1906,6 +2188,9 @@
                     }
                     map.flyTo(latLng, Math.max(map.getZoom(), 13), { duration: 0.45 });
                     window.setTimeout(() => marker.openPopup?.(), 220);
+                    if (typeof mapElement.scrollIntoView === 'function') {
+                        mapElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    }
                     return true;
                 }
 
@@ -1924,6 +2209,9 @@
                     const groupBounds = L.latLngBounds(latLngs);
                     map.flyToBounds(groupBounds, { padding: [36, 36], duration: 0.45 });
                     window.setTimeout(() => first.openPopup?.(), 240);
+                    if (typeof mapElement.scrollIntoView === 'function') {
+                        mapElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    }
                     return true;
                 }
                 return false;
@@ -1931,7 +2219,7 @@
             onScheduleDayChange = async (dayNumber) => {
                 if (!Number.isFinite(dayNumber) || dayNumber < 1) return;
                 selectedDay = dayNumber;
-                await requestSafeRender(selectedDay);
+                await requestSafeRender(selectedDay, 0, false, true);
             };
             const mapFocusCards = Array.from(document.querySelectorAll('.js-itinerary-map-focus'));
             const handleMapFocusCard = async (cardElement) => {
@@ -1942,12 +2230,11 @@
                 const dayNumber = Number(cardElement.dataset.day || 0);
                 if (Number.isFinite(dayNumber) && dayNumber > 0 && dayNumber !== Number(activeScheduleDay || 0)) {
                     setActiveScheduleDay(dayNumber);
-                    window.setTimeout(() => {
-                        focusMapByItemKey(focusKey);
-                    }, 260);
+                    await requestSafeRender(dayNumber, 0, false, true);
+                    focusMapByItemKey(focusKey);
                     return;
                 }
-                await requestSafeRender(selectedDay);
+                await ensureMapRenderedForDay(selectedDay);
                 focusMapByItemKey(focusKey);
             };
             mapFocusCards.forEach((cardElement) => {
@@ -1973,8 +2260,12 @@
             map.whenReady(() => {
                 requestSafeRender(selectedDay);
             });
+            let resizeRenderTimer = null;
             window.addEventListener('resize', () => {
-                requestSafeRender(selectedDay);
+                window.clearTimeout(resizeRenderTimer);
+                resizeRenderTimer = window.setTimeout(() => {
+                    requestSafeRender(selectedDay, 0, true);
+                }, 120);
             });
                 isInitialized = true;
                 return true;

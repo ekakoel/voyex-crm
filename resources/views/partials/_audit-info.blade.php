@@ -9,7 +9,7 @@
         <dl class="space-y-2 text-xs text-gray-700 dark:text-gray-200">
             <div class="flex justify-between gap-3">
                 <dt class="text-gray-500 dark:text-gray-400">{{ ui_phrase('Created by') }}</dt>
-                <dd class="font-medium text-right">{{ $record->creator?->name ?? '-' }}</dd>
+                <dd class="font-medium text-right">{{ ui_user_name($record->creator) }}</dd>
             </div>
             <div class="flex justify-between gap-3">
                 <dt class="text-gray-500 dark:text-gray-400">{{ ui_phrase('Created At') }}</dt>
@@ -17,7 +17,7 @@
             </div>
             <div class="flex justify-between gap-3">
                 <dt class="text-gray-500 dark:text-gray-400">{{ ui_phrase('Updated by') }}</dt>
-                <dd class="font-medium text-right">{{ $record->updater?->name ?? '-' }}</dd>
+                <dd class="font-medium text-right">{{ ui_user_name($record->updater) }}</dd>
             </div>
             <div class="flex justify-between gap-3">
                 <dt class="text-gray-500 dark:text-gray-400">{{ ui_phrase('Updated at') }}</dt>
@@ -26,4 +26,3 @@
         </dl>
     </div>
 @endif
-

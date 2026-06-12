@@ -22,6 +22,10 @@ class IslandTransferController extends Controller
 
     public function index(Request $request)
     {
+        $validated = $request->validate([
+            'status' => ['nullable', Rule::in(['active', 'inactive'])],
+        ]);
+
         $transferTypeOptions = [
             ['value' => 'fastboat', 'label' => ui_phrase('Fast Boat')],
             ['value' => 'ferry', 'label' => ui_phrase('Ferry')],
@@ -34,12 +38,24 @@ class IslandTransferController extends Controller
             ->with('vendor:id,name,city,province,latitude,longitude')
             ->latest('id');
 
+        $search = trim((string) $request->string('q'));
+        if (mb_strlen($search) >= 3) {
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                    ->orWhere('departure_point_name', 'like', "%{$search}%")
+                    ->orWhere('arrival_point_name', 'like', "%{$search}%")
+                    ->orWhereHas('vendor', fn ($vendorQ) => $vendorQ->where('name', 'like', "%{$search}%"));
+            });
+        }
+
         if ($request->filled('vendor_id')) {
             $query->where('vendor_id', (int) $request->integer('vendor_id'));
         }
         if ($request->filled('transfer_type')) {
             $query->where('transfer_type', (string) $request->string('transfer_type'));
         }
+        $query->when(($validated['status'] ?? null) === 'active', fn ($q) => $q->whereNull('deleted_at'));
+        $query->when(($validated['status'] ?? null) === 'inactive', fn ($q) => $q->onlyTrashed());
 
         $perPage = (int) $request->input('per_page', 10);
         $perPage = in_array($perPage, [10, 25, 50, 100], true) ? $perPage : 10;

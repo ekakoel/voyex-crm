@@ -6,8 +6,7 @@
 @endsection
 @section('content')
     <div class="space-y-6 module-page module-page--tourist-attractions" data-tourist-attractions-index data-page-spinner="off">
-        <div class="module-grid-9-3">
-            <aside class="module-grid-side">
+        <div class="module-grid-main">
                 @if (($googleImportDefaults['can_import'] ?? false) === true)
                     <div class="app-card p-5">
                         <div>
@@ -69,16 +68,9 @@
                         </form>
                     </div>
                 @endif
-                @include('components.module-index-sidebar-info')
-            </aside>
-            <div class="module-grid-main" data-tourist-attractions-index-results-wrap>
                 <div class="app-card p-5">
-                    <div>
-                        <h2 class="text-base font-semibold text-gray-800 dark:text-gray-100">{{ ui_phrase('Filters') }}</h2>
-                        <p class="text-sm text-gray-500 dark:text-gray-400">{{ ui_phrase('Refine your list quickly.') }}</p>
-                    </div>
-                    <form method="GET" action="{{ route('tourist-attractions.index') }}" class="grid grid-cols-1 gap-3 sm:grid-cols-2" data-tourist-attractions-index-form data-disable-submit-lock="1" data-page-spinner="off">
-                        <input name="q" value="{{ request('q') }}" placeholder="{{ ui_phrase('attractions search') }}" class="app-input sm:col-span-2" data-tourist-attractions-filter-input>
+                    <form method="GET" action="{{ route('tourist-attractions.index') }}" class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3" data-tourist-attractions-index-form data-filter-min-text="3" data-disable-submit-lock="1" data-page-spinner="off">
+                        <input name="q" value="{{ request('q') }}" placeholder="{{ ui_phrase('Search') }}" class="app-input sm:col-span-2 lg:col-span-2" data-tourist-attractions-filter-input data-filter-min-text="3">
                         <select name="destination_id" class="app-input sm:col-span-2" data-tourist-attractions-filter-input>
                             <option value="">{{ ui_phrase('All destinations') }}</option>
                             @foreach (($destinations ?? collect()) as $destination)
@@ -87,18 +79,24 @@
                                 </option>
                             @endforeach
                         </select>
+                        <select name="status" class="app-input" data-tourist-attractions-filter-input>
+                            <option value="">{{ ui_phrase('Status') }}</option>
+                            <option value="active" @selected((string) request('status') === 'active')>{{ ui_phrase('Active') }}</option>
+                            <option value="inactive" @selected((string) request('status') === 'inactive')>{{ ui_phrase('Inactive') }}</option>
+                        </select>
                         <select name="per_page" class="app-input" data-tourist-attractions-filter-input>
                             @foreach ([10,25,50,100] as $size)
                                 <option value="{{ $size }}" @selected((string) request('per_page', 10) === (string) $size)>{{ ui_phrase(':size/page', ['size' => $size]) }}</option>
                             @endforeach
                         </select>
-                        <div class="flex items-center gap-2 sm:col-span-2 filter-actions">
-                            <a href="{{ route('tourist-attractions.index') }}" class="btn-ghost" data-tourist-attractions-filter-reset>{{ ui_phrase('Reset') }}</a>
+                        <div class="flex items-center gap-2 sm:col-span-2 lg:col-span-3 filter-actions h-[42px]">
+                            <a href="{{ route('tourist-attractions.index') }}" class="btn-secondary h-[42px] rounded-[var(--app-radius-sm)] px-4" data-tourist-attractions-filter-reset>{{ ui_phrase('Reset') }}</a>
                         </div>
                     </form>
                 </div>
-                @include('modules.tourist-attractions.partials._index-results', ['touristAttractions' => $touristAttractions])
-            </div>
+                <div data-tourist-attractions-index-results-wrap>
+                    @include('modules.tourist-attractions.partials._index-results', ['touristAttractions' => $touristAttractions])
+                </div>
         </div>
     </div>
 @endsection
@@ -117,7 +115,6 @@
             const deleteFormSelector = '[data-tourist-attractions-delete-form]';
             const touristAttractionAjaxMessages = {
                 refreshFailed: @json(ui_phrase('attractions ajax refresh failed')),
-                deleteConfirm: @json(ui_phrase('attractions ajax delete confirm')),
                 requestFailed: @json(ui_phrase('attractions ajax request failed')),
                 deleteSuccess: @json(ui_phrase('attractions ajax delete success')),
                 statusSuccess: @json(ui_phrase('attractions ajax status success')),
@@ -127,22 +124,6 @@
                 if (!resultsWrap) return;
                 resultsWrap.classList.toggle('opacity-60', loading);
                 resultsWrap.classList.toggle('pointer-events-none', loading);
-            };
-
-            const showNotice = (resultsWrap, message, tone = 'success') => {
-                if (!resultsWrap || !message) return;
-                const existing = resultsWrap.querySelector('[data-tourist-attractions-ajax-notice]');
-                if (existing) {
-                    existing.remove();
-                }
-
-                const notice = document.createElement('div');
-                notice.setAttribute('data-tourist-attractions-ajax-notice', '1');
-                notice.className = tone === 'error'
-                    ? 'rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-700 dark:bg-rose-900/20 dark:text-rose-300'
-                    : 'rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300';
-                notice.textContent = message;
-                resultsWrap.prepend(notice);
             };
 
             const refreshResults = async (resultsWrap) => {
@@ -175,13 +156,6 @@
                     return;
                 }
 
-                if (isDeleteForm) {
-                    const confirmed = window.confirm(touristAttractionAjaxMessages.deleteConfirm);
-                    if (!confirmed) {
-                        return;
-                    }
-                }
-
                 event.preventDefault();
 
                 const submitButton = form.querySelector('button[type="submit"]');
@@ -209,9 +183,15 @@
                     }
 
                     await refreshResults(resultsWrap);
-                    showNotice(resultsWrap, String(payload.message || (isDeleteForm ? touristAttractionAjaxMessages.deleteSuccess : touristAttractionAjaxMessages.statusSuccess)), 'success');
+                    window.AppFlash?.show?.(
+                        String(payload.message || (isDeleteForm ? touristAttractionAjaxMessages.deleteSuccess : touristAttractionAjaxMessages.statusSuccess)),
+                        'success'
+                    );
                 } catch (error) {
-                    showNotice(resultsWrap, error instanceof Error ? error.message : touristAttractionAjaxMessages.requestFailed, 'error');
+                    window.AppFlash?.show?.(
+                        error instanceof Error ? error.message : touristAttractionAjaxMessages.requestFailed,
+                        'error'
+                    );
                 } finally {
                     setLoading(resultsWrap, false);
                     if (submitButton instanceof HTMLButtonElement) {
@@ -223,7 +203,3 @@
         })();
     </script>
 @endpush
-
-
-
-

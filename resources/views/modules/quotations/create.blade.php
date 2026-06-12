@@ -16,7 +16,7 @@
                     'status' => (string) ($inquiry->status ?? '-'),
                     'priority' => (string) ($inquiry->priority ?? '-'),
                     'source' => (string) ($inquiry->source ?? '-'),
-                    'creator_name' => (string) ($inquiry->creator?->name ?? '-'),
+                    'creator_name' => ui_user_name($inquiry->creator),
                     'deadline' => optional($inquiry->deadline)->format('Y-m-d') ?? '-',
                     'notes_html' => \App\Support\SafeRichText::sanitize((string) ($inquiry->notes ?? '')),
                 ],
@@ -132,19 +132,6 @@
                 </div>
             </div>
             <div class="space-y-6 xl:col-span-3">
-                <div class="module-card p-4">
-                    <p class="text-xs font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-300">{{ ui_phrase('Important Notes') }}</p>
-                    <ol class="mt-2 list-decimal pl-5 text-sm text-gray-700 dark:text-gray-200 space-y-1">
-                        <li>{{ ui_phrase('Pilih Itinerary yang sesuai, lalu klik Generate untuk memuat item otomatis.') }}</li>
-                        <li>{{ ui_phrase('Isi Service Date, Pax Adult, Pax Child, dan Validity Date sebelum menyimpan quotation.') }}</li>
-                        <li>{{ ui_phrase('Pada item itinerary, yang dapat disesuaikan hanya QTY. Publish Rate dan Unit Price ditampilkan sebagai referensi perhitungan.') }}</li>
-                        <li>{{ ui_phrase('Gunakan Additional Items untuk menambahkan layanan tambahan (contoh: tip guide, extra service, dan kebutuhan lain di luar itinerary).') }}</li>
-                        <li>{{ ui_phrase('Pada Additional Items, isi Description, QTY, dan Rate. Unit Price dihitung otomatis.') }}</li>
-                        <li>{{ ui_phrase('Jika perlu ubah isi itinerary, klik tombol Itinerary (ikon pensil), lalu lakukan Generate ulang agar item quotation sinkron.') }}</li>
-                        <li>{{ ui_phrase('Penyesuaian Contract Rate, Markup Type, dan Markup dilakukan pada halaman Validation.') }}</li>
-                    </ol>
-                </div>
-
                 <div id="quotation-create-inquiry-card" class="module-card p-6 hidden">
                     <div class="mb-3">
                         <p class="text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300">{{ ui_phrase('Inquiry Detail') }}</p>

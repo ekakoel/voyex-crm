@@ -327,6 +327,32 @@
     }
     $dailyMainExperienceTypes = old('daily_main_experience_types');
     $dailyMainExperienceItems = old('daily_main_experience_items');
+    $dailyBreakStartTimes = old('break_start_times');
+    $dailyBreakEndTimes = old('break_end_times');
+    if (!is_array($dailyBreakStartTimes)) {
+        $dailyBreakStartTimes = [];
+    }
+    if (!is_array($dailyBreakEndTimes)) {
+        $dailyBreakEndTimes = [];
+    }
+    if (isset($itinerary) && $itinerary->dayPoints->isNotEmpty()) {
+        foreach ($itinerary->dayPoints as $dayPoint) {
+            $day = (int) ($dayPoint->day_number ?? 0);
+            if ($day <= 0) {
+                continue;
+            }
+            if (!array_key_exists($day, $dailyBreakStartTimes)) {
+                $dailyBreakStartTimes[$day] = $dayPoint->break_start_time
+                    ? substr((string) $dayPoint->break_start_time, 0, 5)
+                    : '';
+            }
+            if (!array_key_exists($day, $dailyBreakEndTimes)) {
+                $dailyBreakEndTimes[$day] = $dayPoint->break_end_time
+                    ? substr((string) $dayPoint->break_end_time, 0, 5)
+                    : '';
+            }
+        }
+    }
     if (!is_array($dailyMainExperienceTypes) || !is_array($dailyMainExperienceItems)) {
         $dailyMainExperienceTypes = [];
         $dailyMainExperienceItems = [];
@@ -447,7 +473,7 @@
             'status' => (string) ($inquiry->status ?? '-'),
             'priority' => (string) ($inquiry->priority ?? '-'),
             'source' => (string) ($inquiry->source ?? '-'),
-            'creator_name' => (string) ($inquiry->creator?->name ?? '-'),
+            'creator_name' => ui_user_name($inquiry->creator),
             'itinerary_count' => (int) ($inquiry->itineraries_count ?? 0),
             'deadline' => $inquiry->deadline ? $inquiry->deadline->format('Y-m-d') : '-',
             'created_at_iso' => $inquiry->created_at ? $inquiry->created_at->toIso8601String() : null,
@@ -508,7 +534,7 @@
                     @if (!empty($inquiry->customer?->name))
                         | {{ $inquiry->customer->name }}
                     @endif
-                    | Itineraries: {{ (int) ($inquiry->itineraries_count ?? 0) }}
+                    - {{ ui_phrase($inquiry->status?? "") }} | Itineraries: {{ (int) ($inquiry->itineraries_count ?? 0) }}
                 </option>
             @endforeach
         </select>
@@ -652,6 +678,8 @@
                                 ? (string) ($existingDayPoint->day_start_travel_minutes ?? '')
                                 : '',
                         );
+                        $breakStart = (string) ($dailyBreakStartTimes[$day] ?? '');
+                        $breakEnd = (string) ($dailyBreakEndTimes[$day] ?? '');
                         $mainExperienceType = (string) ($dailyMainExperienceTypes[$day] ?? '');
                         $mainExperienceItem = (string) ($dailyMainExperienceItems[$day] ?? '');
                     @endphp
@@ -677,6 +705,12 @@
                                 readonly>
                         </div>
                     </div>
+                    <input type="hidden" value="{{ $breakStart }}"
+                        name="break_start_times[{{ $day }}]"
+                        class="day-break-start-time app-input">
+                    <input type="hidden" value="{{ $breakEnd }}"
+                        name="break_end_times[{{ $day }}]"
+                        class="day-break-end-time app-input">
                     <div class="mb-3">
                         @php
                             $dayTransportRows = $dailyTransportUnitItems[$day] ?? [];
@@ -825,20 +859,25 @@
                             </div>
                         </div>
                     </div>
-                    <div class="travel-connector mb-3 w-full md:w-1/2">
-                        <div class="input-with-left-affix">
-                            <span class="input-left-affix">
-                                <svg viewBox="0 0 24 24" class="h-4 w-4 fill-current" aria-hidden="true" focusable="false">
-                                    <path d="M5.5 11.5L7.3 6.9C7.6 6.1 8.3 5.5 9.2 5.5h5.6c.9 0 1.6.6 1.9 1.4l1.8 4.6c1 .2 1.8 1.1 1.8 2.2v2.3c0 .8-.7 1.5-1.5 1.5h-.5a2.3 2.3 0 01-4.6 0h-4.4a2.3 2.3 0 01-4.6 0h-.5c-.8 0-1.5-.7-1.5-1.5v-2.3c0-1.1.8-2 1.8-2.2zm3.1-4.2L7.2 11h9.6l-1.4-3.7a.8.8 0 00-.7-.5H9.3c-.3 0-.6.2-.7.5zM8.2 18.9c.5 0 .9-.4.9-.9s-.4-.9-.9-.9-.9.4-.9.9.4.9.9.9zm7.6 0c.5 0 .9-.4.9-.9s-.4-.9-.9-.9-.9.4-.9.9.4.9.9.9z"/>
-                                </svg>
+                    <div class="travel-connector mb-3 w-full">
+                        <div class="flex flex-wrap items-center gap-2 md:flex-nowrap">
+                            <div class="input-with-left-affix w-full md:w-1/2">
+                                <span class="input-left-affix">
+                                    <svg viewBox="0 0 24 24" class="h-4 w-4 fill-current" aria-hidden="true" focusable="false">
+                                        <path d="M5.5 11.5L7.3 6.9C7.6 6.1 8.3 5.5 9.2 5.5h5.6c.9 0 1.6.6 1.9 1.4l1.8 4.6c1 .2 1.8 1.1 1.8 2.2v2.3c0 .8-.7 1.5-1.5 1.5h-.5a2.3 2.3 0 01-4.6 0h-4.4a2.3 2.3 0 01-4.6 0h-.5c-.8 0-1.5-.7-1.5-1.5v-2.3c0-1.1.8-2 1.8-2.2zm3.1-4.2L7.2 11h9.6l-1.4-3.7a.8.8 0 00-.7-.5H9.3c-.3 0-.6.2-.7.5zM8.2 18.9c.5 0 .9-.4.9-.9s-.4-.9-.9-.9-.9.4-.9.9.4.9.9.9zm7.6 0c.5 0 .9-.4.9-.9s-.4-.9-.9-.9-.9.4-.9.9.4.9.9.9z"/>
+                                    </svg>
+                                </span>
+                                <input type="number" min="0" step="5"
+                                    name="day_start_travel_minutes[{{ $day }}]"
+                                    value="{{ $dayStartTravelMinutes }}"
+                                    class="day-start-travel dark:border-gray-600 app-input"
+                                    placeholder="{{ ui_phrase('Estimated travel time to the next item (minutes)') }}"
+                                    data-next-placeholder="{{ ui_phrase('Estimated travel time to the next item (minutes)') }}"
+                                    data-endpoint-placeholder="{{ ui_phrase('Estimated travel time to end point (minutes)') }}">
+                            </div>
+                            <span class="day-start-travel-warning hidden text-xs font-medium text-amber-700 dark:text-amber-300">
+                                {{ __('itinerary_form.validation.connector_estimate_hint') }}
                             </span>
-                            <input type="number" min="0" step="5"
-                                name="day_start_travel_minutes[{{ $day }}]"
-                                value="{{ $dayStartTravelMinutes }}"
-                                class="day-start-travel dark:border-gray-600 app-input"
-                                placeholder="{{ ui_phrase('Estimated travel time to the next item (minutes)') }}"
-                                data-next-placeholder="{{ ui_phrase('Estimated travel time to the next item (minutes)') }}"
-                                data-endpoint-placeholder="{{ ui_phrase('Estimated travel time to end point (minutes)') }}">
                         </div>
                     </div>
 
@@ -861,7 +900,7 @@
                             @endphp
                             <div class="schedule-row rounded-lg border border-slate-200 bg-slate-50/70 p-2.5 dark:border-slate-600 dark:bg-slate-900/30"
                                 data-item-type="{{ $r['item_type'] }}">
-                                <div class="mb-2 flex flex-wrap items-start justify-between gap-2">
+                                <div class="schedule-row-header mb-2 flex flex-wrap items-start justify-between gap-2">
                                     <button type="button"
                                          class="drag-handle inline-flex h-7 w-7 items-center justify-center rounded-lg border border-gray-300 text-base leading-none text-gray-600 dark:border-gray-600 dark:text-gray-300"
                                         title="{{ ui_phrase('Drag to reorder') }}" aria-label="{{ ui_phrase('Drag to reorder') }}">::</button>
@@ -876,23 +915,26 @@
                                         <input type="hidden" value="{{ $r['end_time'] ?? '' }}"
                                             class="item-end app-input">
                                         <label
-                                            class="inline-flex items-center gap-1.5 text-xs font-medium text-amber-700 dark:text-amber-300">
+                                            class="item-highlight-wrap inline-flex items-center gap-1.5 text-xs font-medium text-amber-700 dark:text-amber-300">
                                             <input type="checkbox"
                                                 class="item-main-experience rounded border-amber-400 text-amber-600 focus:ring-amber-500"
                                                 @checked($isRowMainExperience)>
                                             <span>{{ ui_phrase('Highlight') }}</span>
                                         </label>
+                                        <span class="item-break-label hidden text-xs font-semibold text-gray-700 dark:text-gray-200">
+                                            {{ ui_phrase('Break Time') }}
+                                        </span>
                                         <button type="button"
                                              class="remove-row inline-flex h-7 w-7 items-center justify-center rounded-md border border-rose-300 text-sm font-semibold leading-none text-rose-700"
                                             title="{{ ui_phrase('Remove item') }}" aria-label="{{ ui_phrase('Remove item') }}">&times;</button>
                                     </div>
                                 </div>
-                                <div class="grid grid-cols-1 gap-2 lg:grid-cols-12 lg:items-end">
+                                <div class="schedule-row-body grid grid-cols-1 gap-2 lg:grid-cols-12 lg:items-end">
                                     <div class="lg:col-span-1">
                                         <span
                                             class="item-seq-badge inline-flex h-7 w-7 items-center justify-center rounded-full bg-slate-700 text-xs font-semibold text-white">-</span>
                                     </div>
-                                    <div class="lg:col-span-2">
+                                    <div class="item-type-wrap lg:col-span-2">
                                         <select
                                             class="item-type dark:border-gray-600 app-input">
                                             <option value="attraction" @selected($r['item_type'] === 'attraction')>{{ ui_phrase('Attraction') }}</option>
@@ -901,7 +943,7 @@
                                             <option value="fnb" @selected($r['item_type'] === 'fnb')>{{ ui_phrase('F&B') }}</option>
                                         </select>
                                     </div>
-                                    <div class="lg:col-span-3">
+                                    <div class="item-region-wrap lg:col-span-3">
                                         <select class="item-region dark:border-gray-600 app-input">
                                             <option value="">{{ ui_phrase('All Regions') }}</option>
                                             @foreach ($itemRegions as $region)
@@ -1011,7 +1053,23 @@
                                                 @endforeach
                                             </select>
                                         </div>
+                                        <div class="item-break-wrap hidden w-full">
+                                            <div class="flex items-center gap-2 whitespace-nowrap">
+                                                <select class="item-break-duration dark:border-gray-600 app-input w-36 shrink-0">
+                                                    <option value="30" data-duration="30">{{ ui_phrase('30 Minutes') }}</option>
+                                                    <option value="60" data-duration="60">{{ ui_phrase('1 Hour') }}</option>
+                                                    <option value="120" data-duration="120">{{ ui_phrase('2 Hours') }}</option>
+                                                </select>
+                                                <p class="item-break-time-text min-w-0 truncate text-xs font-medium text-gray-700 dark:text-gray-200">
+                                                    {{ ui_phrase('Start Time') }}: <span class="item-break-start-text">--:-- --</span>
+                                                    <span class="mx-1">|</span>
+                                                    {{ ui_phrase('End Time') }}: <span class="item-break-end-text">--:-- --</span>
+                                                </p>
+                                            </div>
+                                        </div>
                                         <input type="hidden" value="{{ $r['pax'] ?? 1 }}" class="item-pax app-input">
+                                        <input type="hidden" value="{{ $r['pax_adult'] ?? ($r['pax'] ?? 1) }}" class="item-pax-adult app-input">
+                                        <input type="hidden" value="{{ $r['pax_child'] ?? 0 }}" class="item-pax-child app-input">
                                     </div>
                                 </div>
 
@@ -1023,7 +1081,7 @@
                         @empty
                             <div class="schedule-row schedule-row-template hidden rounded-lg border border-blue-200 bg-blue-50/60 p-2.5 dark:border-blue-700/60 dark:bg-blue-900/25"
                                 data-item-type="attraction" data-row-template="1">
-                                <div class="mb-2 flex flex-wrap items-start justify-between gap-2">
+                                <div class="schedule-row-header mb-2 flex flex-wrap items-start justify-between gap-2">
                                     <button type="button"
                                          class="drag-handle inline-flex h-7 w-7 items-center justify-center rounded-lg border border-gray-300 text-base leading-none text-gray-600 dark:border-gray-600 dark:text-gray-300"
                                         title="{{ ui_phrase('Drag to reorder') }}" aria-label="{{ ui_phrase('Drag to reorder') }}">::</button>
@@ -1038,22 +1096,25 @@
                                         <input type="hidden"
                                             class="item-end app-input">
                                         <label
-                                            class="inline-flex items-center gap-1.5 text-xs font-medium text-amber-700 dark:text-amber-300">
+                                            class="item-highlight-wrap inline-flex items-center gap-1.5 text-xs font-medium text-amber-700 dark:text-amber-300">
                                             <input type="checkbox"
                                                 class="item-main-experience rounded border-amber-400 text-amber-600 focus:ring-amber-500">
                                             <span>{{ ui_phrase('Highlight') }}</span>
                                         </label>
+                                        <span class="item-break-label hidden text-xs font-semibold text-gray-700 dark:text-gray-200">
+                                            {{ ui_phrase('Break Time') }}
+                                        </span>
                                         <button type="button"
                                              class="remove-row inline-flex h-7 w-7 items-center justify-center rounded-md border border-rose-300 text-sm font-semibold leading-none text-rose-700"
                                             title="{{ ui_phrase('Remove item') }}" aria-label="{{ ui_phrase('Remove item') }}">&times;</button>
                                     </div>
                                 </div>
-                                <div class="grid grid-cols-1 gap-2 lg:grid-cols-12 lg:items-end">
+                                <div class="schedule-row-body grid grid-cols-1 gap-2 lg:grid-cols-12 lg:items-end">
                                     <div class="lg:col-span-1">
                                         <span
                                             class="item-seq-badge inline-flex h-7 w-7 items-center justify-center rounded-full bg-slate-700 text-xs font-semibold text-white">-</span>
                                     </div>
-                                    <div class="lg:col-span-2">
+                                    <div class="item-type-wrap lg:col-span-2">
                                         <select
                                             class="item-type dark:border-gray-600 app-input">
                                             <option value="attraction">{{ ui_phrase('Attraction') }}</option>
@@ -1062,7 +1123,7 @@
                                             <option value="fnb">{{ ui_phrase('F&B') }}</option>
                                         </select>
                                     </div>
-                                    <div class="lg:col-span-3">
+                                    <div class="item-region-wrap lg:col-span-3">
                                         <select class="item-region dark:border-gray-600 app-input">
                                             <option value="">{{ ui_phrase('All Regions') }}</option>
                                             @foreach ($itemRegions as $region)
@@ -1171,7 +1232,23 @@
                                                 @endforeach
                                             </select>
                                         </div>
+                                        <div class="item-break-wrap hidden w-full">
+                                            <div class="flex items-center gap-2 whitespace-nowrap">
+                                                <select class="item-break-duration dark:border-gray-600 app-input w-36 shrink-0">
+                                                    <option value="30" data-duration="30">{{ ui_phrase('30 Minutes') }}</option>
+                                                    <option value="60" data-duration="60">{{ ui_phrase('1 Hour') }}</option>
+                                                    <option value="120" data-duration="120">{{ ui_phrase('2 Hours') }}</option>
+                                                </select>
+                                                <p class="item-break-time-text min-w-0 truncate text-xs font-medium text-gray-700 dark:text-gray-200">
+                                                    {{ ui_phrase('Start Time') }}: <span class="item-break-start-text">--:-- --</span>
+                                                    <span class="mx-1">|</span>
+                                                    {{ ui_phrase('End Time') }}: <span class="item-break-end-text">--:-- --</span>
+                                                </p>
+                                            </div>
+                                        </div>
                                         <input type="hidden" value="1" class="item-pax app-input">
+                                        <input type="hidden" value="1" class="item-pax-adult app-input">
+                                        <input type="hidden" value="0" class="item-pax-child app-input">
                                     </div>
                                 </div>
 
@@ -1186,12 +1263,20 @@
                         <div class="rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-800 dark:border-sky-800 dark:bg-sky-900/20 dark:text-sky-200">
                             {{ ui_phrase('You can add new items (Attraction, Activity, Inter Island Transfer, or F&B) to this itinerary.') }}
                         </div>
-                        <button
-                            type="button"
-                            class="add-item btn-outline-sm min-h-[42px] h-[42px] w-full md:w-auto"
-                        >
-                            + {{ ui_phrase('Add Item') }}
-                        </button>
+                        <div class="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+                            <button
+                                type="button"
+                                class="add-break-item btn-secondary-sm min-h-[42px] h-[42px] w-full md:w-auto"
+                            >
+                                + {{ ui_phrase('Add Break Time') }}
+                            </button>
+                            <button
+                                type="button"
+                                class="add-item btn-outline-sm min-h-[42px] h-[42px] w-full md:w-auto"
+                            >
+                                + {{ ui_phrase('Add Item') }}
+                            </button>
+                        </div>
                     </div>
                     <div
                         class="mt-3 mb-3 rounded-lg border border-slate-200 bg-slate-50/60 p-3 day-end-point-card dark:border-slate-600 dark:bg-slate-900/25">
@@ -1427,6 +1512,14 @@
         </div>
     </section>
 
+    <div class="itinerary-day-wizard hidden rounded-lg border border-gray-200 bg-gray-50 p-2 dark:border-gray-700 dark:bg-gray-900/40" data-day-wizard-bottom>
+        <div class="flex flex-wrap items-center justify-between gap-2">
+            <button type="button" class="btn-secondary-sm" data-day-wizard-prev>{{ __('itinerary_form.wizard.previous_day') }}</button>
+            <div class="itinerary-day-wizard-tabs flex flex-wrap items-center justify-center gap-2" data-day-wizard-tabs></div>
+            <button type="button" class="btn-secondary-sm" data-day-wizard-next>{{ __('itinerary_form.wizard.next_day') }}</button>
+        </div>
+    </div>
+
     <div class="flex items-center gap-2">
         <button type="button" class="btn-secondary hidden" data-wizard-prev>{{ __('itinerary_form.buttons.back') }}</button>
         <button type="button" class="btn-primary" data-wizard-next>{{ __('itinerary_form.buttons.next') }}</button>
@@ -1661,6 +1754,18 @@
             .day-section[data-day-hidden="1"] {
                 display: none !important;
             }
+            @keyframes itineraryValidationBlink {
+                0%, 100% { opacity: 1; transform: translateY(0); }
+                50% { opacity: 0.35; transform: translateY(-1px); }
+            }
+            .itinerary-validation-blink-target {
+                animation: itineraryValidationBlink 0.34s ease-in-out 4;
+                box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.3);
+                border-radius: 0.5rem;
+            }
+            .itinerary-validation-blink-notice {
+                animation: itineraryValidationBlink 0.34s ease-in-out 4;
+            }
             .dark .itinerary-wizard-step {
                 border-color: #475569;
                 background: #0f172a;
@@ -1716,6 +1821,91 @@
                 border-color: #fde68a !important;
                 background-color: rgba(245, 158, 11, 0.12) !important;
             }
+            .schedule-row.schedule-break-row {
+                border-color: #d1d5db !important;
+                background-color: #e5e7eb !important;
+                position: relative !important;
+                display: flex !important;
+                align-items: center !important;
+                gap: 0.5rem !important;
+                flex-wrap: nowrap !important;
+                padding-right: 3.25rem !important;
+            }
+            .schedule-row.schedule-break-row .schedule-row-header {
+                margin-bottom: 0 !important;
+                width: auto !important;
+                flex: 0 0 auto !important;
+                align-items: center !important;
+            }
+            .schedule-row.schedule-break-row .schedule-row-header > .grid {
+                display: block !important;
+                width: 0 !important;
+                overflow: visible !important;
+                grid-template-columns: none !important;
+            }
+            .schedule-row.schedule-break-row .schedule-row-body {
+                display: flex !important;
+                align-items: center !important;
+                gap: 0.5rem !important;
+                flex: 1 1 auto !important;
+                grid-template-columns: none !important;
+            }
+            .schedule-row.schedule-break-row .schedule-row-body > .min-w-0 {
+                flex: 1 1 auto !important;
+            }
+            .schedule-row.schedule-break-row .drag-handle {
+                width: 2.25rem !important;
+                height: 2.25rem !important;
+                flex: 0 0 auto !important;
+            }
+            .schedule-row.schedule-break-row .item-break-wrap {
+                display: block !important;
+            }
+            .schedule-row.schedule-break-row .item-break-wrap > div {
+                display: flex !important;
+                flex-wrap: nowrap !important;
+                align-items: center !important;
+                gap: 0.5rem !important;
+                white-space: nowrap !important;
+            }
+            .schedule-row.schedule-break-row .item-break-duration {
+                width: 9rem !important;
+                flex-shrink: 0 !important;
+            }
+            .schedule-row.schedule-break-row .item-break-time-text {
+                margin: 0 !important;
+                white-space: nowrap !important;
+                color: #1f2937 !important;
+            }
+            .schedule-row.schedule-break-row .item-break-label {
+                display: inline-flex !important;
+                align-items: center !important;
+                position: absolute !important;
+                right: 3rem !important;
+                top: 50% !important;
+                transform: translateY(-50%) !important;
+                color: #1f2937 !important;
+                white-space: nowrap !important;
+            }
+            .schedule-row.schedule-break-row .remove-row {
+                position: absolute !important;
+                right: 0.5rem !important;
+                top: 50% !important;
+                transform: translateY(-50%) !important;
+                width: 2.25rem !important;
+                height: 2.25rem !important;
+                display: inline-flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                line-height: 1 !important;
+            }
+            .schedule-row.schedule-break-row .item-highlight-wrap,
+            .schedule-row.schedule-break-row .item-seq-badge,
+            .schedule-row.schedule-break-row .item-time-text,
+            .schedule-row.schedule-break-row .item-type-wrap,
+            .schedule-row.schedule-break-row .item-region-wrap {
+                display: none !important;
+            }
             .day-items {
                 position: relative;
             }
@@ -1750,6 +1940,14 @@
             .dark .schedule-row.item-theme-fnb {
                 border-color: rgba(245, 158, 11, 0.5) !important;
                 background-color: rgba(120, 53, 15, 0.35) !important;
+            }
+            .dark .schedule-row.schedule-break-row {
+                border-color: #475569 !important;
+                background-color: #374151 !important;
+            }
+            .dark .schedule-row.schedule-break-row .item-break-time-text,
+            .dark .schedule-row.schedule-break-row .item-break-label {
+                color: #f3f4f6 !important;
             }
             .day-start-point-card.theme-airport,
             .day-end-point-card.theme-airport {
@@ -2001,9 +2199,12 @@
                 const wizardPrevButton = wizardRoot?.querySelector('[data-wizard-prev]') || null;
                 const wizardNextButton = wizardRoot?.querySelector('[data-wizard-next]') || null;
                 const wizardSubmitButton = wizardRoot?.querySelector('[data-wizard-submit]') || null;
-                const dayWizardPrevButton = wizardRoot?.querySelector('[data-day-wizard-prev]') || null;
-                const dayWizardNextButton = wizardRoot?.querySelector('[data-day-wizard-next]') || null;
-                const dayWizardTabs = wizardRoot?.querySelector('#itinerary-day-wizard-tabs') || null;
+                const dayWizardPrevButtons = wizardRoot ? [...wizardRoot.querySelectorAll('[data-day-wizard-prev]')] : [];
+                const dayWizardNextButtons = wizardRoot ? [...wizardRoot.querySelectorAll('[data-day-wizard-next]')] : [];
+                const dayWizardTabsContainers = wizardRoot
+                    ? [...wizardRoot.querySelectorAll('#itinerary-day-wizard-tabs, [data-day-wizard-tabs]')]
+                    : [];
+                const dayWizardBottomContainer = wizardRoot?.querySelector('[data-day-wizard-bottom]') || null;
                 const itineraryTitleInput = wizardRoot?.querySelector('input[name="title"]') || null;
                 const itineraryDestinationInput = wizardRoot?.querySelector('#itinerary-destination') || null;
                 const itineraryDescriptionInput = wizardRoot?.querySelector('textarea[name="description"]') || null;
@@ -2042,6 +2243,8 @@
                     rowTypeActivity: @json(__('itinerary_form.row_types.activity')),
                     rowTypeTransfer: @json(__('itinerary_form.row_types.transfer')),
                     rowTypeFnb: @json(__('itinerary_form.row_types.fnb')),
+                    breakTime: @json(ui_phrase('Break Time')),
+                    connectorTimePattern: @json(__('itinerary_form.review.connector_time_to')),
                     selectedItemsPattern: @json(__('itinerary_form.patterns.selected_items')),
                     durationPattern: @json(__('itinerary_form.patterns.duration')),
                     travelMinutesPattern: @json(__('itinerary_form.labels.travel_minutes')),
@@ -2067,6 +2270,8 @@
                     incompleteReasonStartTime: @json(ui_phrase('Day start time is not set.')),
                     incompleteReasonStartPoint: @json(ui_phrase('Start point is not fully configured.')),
                     incompleteReasonEndPoint: @json(ui_phrase('End point is not fully configured.')),
+                    incompleteReasonConnector: @json(__('itinerary_form.validation.connector_incomplete')),
+                    connectorEstimateHint: @json(__('itinerary_form.validation.connector_estimate_hint')),
                     incompleteReasonsTitle: @json(ui_phrase('Incomplete reasons')),
                 };
                 let wizardStep = 1;
@@ -2088,12 +2293,24 @@
                     return Math.max(1, Math.min(totalDays, parsed));
                 };
                 const hasInputValue = (field) => String(field?.value || '').trim() !== '';
+                const isBreakRowSimple = (row) =>
+                    row?.classList?.contains('schedule-break-row')
+                    || String(row?.dataset?.breakRow || '') === '1';
                 const getRowSelectedValue = (row) => {
                     const type = String(row.querySelector('.item-type')?.value || 'attraction');
                     if (type === 'activity') return String(row.querySelector('.item-activity')?.value || '').trim();
                     if (type === 'transfer') return String(row.querySelector('.item-transfer')?.value || '').trim();
                     if (type === 'fnb') return String(row.querySelector('.item-fnb')?.value || '').trim();
                     return String(row.querySelector('.item-attraction')?.value || '').trim();
+                };
+                const hasRowSelectionSimple = (row) => {
+                    if (!row || row.classList.contains('schedule-row-template') || row.classList.contains('hidden')) {
+                        return false;
+                    }
+                    if (isBreakRowSimple(row)) {
+                        return String(row.querySelector('.item-break-duration')?.value || '').trim() !== '';
+                    }
+                    return getRowSelectedValue(row) !== '';
                 };
                 const isPointConfigured = (pointType, itemSet, roomSet, selfBooked, areaSet = false) => {
                     if (pointType === 'airport') {
@@ -2147,8 +2364,30 @@
                     if (!endConfigured) {
                         reasons.push(i18n.incompleteReasonEndPoint);
                     }
+                    const selectedRows = [...section.querySelectorAll('.schedule-row')]
+                        .filter((row) => hasRowSelectionSimple(row));
+                    let connectorReady = true;
+                    if (selectedRows.length > 0) {
+                        const startConnector = String(section.querySelector('.day-start-travel')?.value || '').trim();
+                        if (startConnector === '') {
+                            connectorReady = false;
+                        }
+                        if (connectorReady) {
+                            for (const row of selectedRows) {
+                                if (isBreakRowSimple(row)) continue;
+                                const rowConnector = String(row.querySelector('.item-travel')?.value || '').trim();
+                                if (rowConnector === '') {
+                                    connectorReady = false;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    if (!connectorReady) {
+                        reasons.push(i18n.incompleteReasonConnector);
+                    }
                     return {
-                        complete: startTimeSet && startConfigured && endConfigured,
+                        complete: startTimeSet && startConfigured && endConfigured && connectorReady,
                         reasons,
                     };
                 };
@@ -2276,6 +2515,28 @@
                     }
                     return i18n.notSet;
                 };
+                const findNextReviewScheduleRow = (rows, startIndex) => {
+                    for (let index = startIndex; index < rows.length; index += 1) {
+                        const candidate = rows[index] || null;
+                        if (candidate && !isBreakRow(candidate)) {
+                            return candidate;
+                        }
+                    }
+                    return null;
+                };
+                const reviewItemNameFromRow = (row, fallback = i18n.unnamedItem) => {
+                    if (!row) return fallback;
+                    const selection = getRowSelection(row);
+                    const itemName = selection?.option?.textContent
+                        ? String(selection.option.textContent).trim()
+                        : '';
+                    return reviewText(itemName, fallback);
+                };
+                const formatReviewConnectorText = (targetName, minutes) => {
+                    return String(i18n.connectorTimePattern || 'Estimated time to :target: :minutes min')
+                        .replace(':target', targetName)
+                        .replace(':minutes', minutes);
+                };
                 const updateWizardReview = () => {
                     if (!wizardRoot) return;
                     const inquiryOptionText = String(inquirySelect?.selectedOptions?.[0]?.textContent || '').trim();
@@ -2346,66 +2607,101 @@
                                     !row.classList.contains('schedule-row-template')
                                     && !row.classList.contains('hidden')
                                     && selected(row));
-                            const firstSelectedRow = selectedRows[0] || null;
-                            const firstSelection = firstSelectedRow ? getRowSelection(firstSelectedRow) : null;
-                            const startConnectorTargetName = firstSelection?.option?.textContent
-                                ? String(firstSelection.option.textContent).trim()
+                            const firstSelectedRow = findNextReviewScheduleRow(selectedRows, 0);
+                            const startConnectorTargetName = firstSelectedRow
+                                ? reviewItemNameFromRow(firstSelectedRow, endPointText)
                                 : endPointText;
+                            const startConnectorText = formatReviewConnectorText(startConnectorTargetName, startTravelTextRaw);
                             const startConnectorItem = startTravelTextRaw !== '' && firstSelectedRow
                                 ? `
                                     <li class="list-none px-0.5 py-0.5">
                                         <p class="text-[11px] italic text-gray-500 dark:text-gray-400">
-                                            Estimated time to ${escapeHtml(startConnectorTargetName)}: ${escapeHtml(startTravelTextRaw)} min
+                                            ${escapeHtml(startConnectorText)}
                                         </p>
                                     </li>
                                 `
                                 : '';
                             const scheduleItemsHtml = selectedRows.length
-                                ? `${startConnectorItem}${selectedRows.map((row, rowIndex) => {
-                                    const selection = getRowSelection(row);
-                                    const type = selection.type;
-                                    const typeLabel = reviewRowTypeLabel(type);
-                                    const typeClass = reviewRowTypeBadgeClass(type);
-                                    const itemName = reviewText(selection.option?.textContent, i18n.unnamedItem);
-                                    const itemStart = reviewText(row.querySelector('.item-start')?.value, '--:--');
-                                    const itemEnd = reviewText(row.querySelector('.item-end')?.value, '--:--');
-                                    const mealSlot = type === 'fnb'
-                                        ? resolveMealSlotFromTimeValue(row.querySelector('.item-start')?.value || '')
-                                        : null;
-                                    const mealSlotBadge = (type === 'fnb' && mealSlot)
-                                        ? `<span class="${reviewAttractionBadgeClass}">${escapeHtml(toMealSlotLabel(mealSlot))}</span>`
-                                        : '';
-                                    const travelText = String(row.querySelector('.item-travel')?.value || '').trim();
-                                    const nextRow = selectedRows[rowIndex + 1] || null;
-                                    const nextSelection = nextRow ? getRowSelection(nextRow) : null;
-                                    const nextItemName = nextSelection?.option?.textContent
-                                        ? String(nextSelection.option.textContent).trim()
-                                        : endPointText;
-                                    const connectorCard = travelText !== ''
-                                        ? `
-                                            <li class="list-none px-0.5 py-0.5">
-                                                <p class="text-[11px] italic text-gray-500 dark:text-gray-400">
-                                                    Estimated time to ${escapeHtml(nextItemName)}: ${escapeHtml(travelText)} min
-                                                </p>
-                                            </li>
-                                        `
-                                        : '';
-                                    const itemCard = `
-                                        <li class="list-none rounded-md border border-gray-200 bg-white px-2.5 py-2 dark:border-gray-700 dark:bg-gray-900/50">
-                                            <div class="flex items-start justify-between gap-2">
-                                                <div class="min-w-0 flex-1">
-                                                    <div class="flex flex-wrap items-center gap-1.5">
-                                                        <p class="text-xs font-semibold text-gray-800 dark:text-gray-100">${escapeHtml(itemName)}</p>
-                                                        ${mealSlotBadge}
+                                ? (() => {
+                                    const rowsHtml = [];
+                                    let deferredConnectorHtml = '';
+                                    selectedRows.forEach((row, rowIndex) => {
+                                        const selection = getRowSelection(row);
+                                        const type = selection.type;
+                                        const itemStart = reviewText(row.querySelector('.item-start')?.value, '--:--');
+                                        const itemEnd = reviewText(row.querySelector('.item-end')?.value, '--:--');
+                                        const travelText = String(row.querySelector('.item-travel')?.value || '').trim();
+                                        const nextRow = selectedRows[rowIndex + 1] || null;
+                                        const nextScheduleRow = findNextReviewScheduleRow(selectedRows, rowIndex + 1);
+                                        const nextItemName = nextScheduleRow
+                                            ? reviewItemNameFromRow(nextScheduleRow, endPointText)
+                                            : endPointText;
+                                        const connectorText = formatReviewConnectorText(nextItemName, travelText);
+                                        const connectorCard = travelText !== ''
+                                            ? `
+                                                <li class="list-none px-0.5 py-0.5">
+                                                    <p class="text-[11px] italic text-gray-500 dark:text-gray-400">
+                                                        ${escapeHtml(connectorText)}
+                                                    </p>
+                                                </li>
+                                            `
+                                            : '';
+
+                                        if (type === 'break') {
+                                            const durationLabel = reviewText(selection.option?.textContent, i18n.breakTime);
+                                            rowsHtml.push(`
+                                                <li class="list-none rounded-md border border-gray-200 bg-gray-100 px-2.5 py-2 dark:border-gray-700 dark:bg-gray-800/60">
+                                                    <div class="flex items-center justify-between gap-2">
+                                                        <p class="text-xs font-semibold text-gray-800 dark:text-gray-100">${escapeHtml(i18n.breakTime)}</p>
+                                                        <span class="text-[11px] font-medium text-gray-700 dark:text-gray-200">${escapeHtml(durationLabel)}</span>
                                                     </div>
+                                                    <p class="mt-1 text-[11px] text-gray-600 dark:text-gray-300">${escapeHtml(itemStart)} - ${escapeHtml(itemEnd)}</p>
+                                                </li>
+                                            `);
+                                            if (deferredConnectorHtml !== '') {
+                                                rowsHtml.push(deferredConnectorHtml);
+                                                deferredConnectorHtml = '';
+                                            }
+                                            return;
+                                        }
+
+                                        const typeLabel = reviewRowTypeLabel(type);
+                                        const typeClass = reviewRowTypeBadgeClass(type);
+                                        const itemName = reviewText(selection.option?.textContent, i18n.unnamedItem);
+                                        const mealSlot = type === 'fnb'
+                                            ? resolveMealSlotFromTimeValue(row.querySelector('.item-start')?.value || '')
+                                            : null;
+                                        const mealSlotBadge = (type === 'fnb' && mealSlot)
+                                            ? `<span class="${reviewAttractionBadgeClass}">${escapeHtml(toMealSlotLabel(mealSlot))}</span>`
+                                            : '';
+                                        rowsHtml.push(`
+                                            <li class="list-none rounded-md border border-gray-200 bg-white px-2.5 py-2 dark:border-gray-700 dark:bg-gray-900/50">
+                                                <div class="flex items-start justify-between gap-2">
+                                                    <div class="min-w-0 flex-1">
+                                                        <div class="flex flex-wrap items-center gap-1.5">
+                                                            <p class="text-xs font-semibold text-gray-800 dark:text-gray-100">${escapeHtml(itemName)}</p>
+                                                            ${mealSlotBadge}
+                                                        </div>
+                                                    </div>
+                                                    <span class="${typeClass}">${typeLabel}</span>
                                                 </div>
-                                                <span class="${typeClass}">${typeLabel}</span>
-                                            </div>
-                                            <p class="mt-1 text-[11px] text-gray-600 dark:text-gray-300">${escapeHtml(itemStart)} - ${escapeHtml(itemEnd)}</p>
-                                        </li>
-                                    `;
-                                    return `${itemCard}${connectorCard}`;
-                                }).join('')}`
+                                                <p class="mt-1 text-[11px] text-gray-600 dark:text-gray-300">${escapeHtml(itemStart)} - ${escapeHtml(itemEnd)}</p>
+                                            </li>
+                                        `);
+
+                                        if (nextRow && isBreakRow(nextRow)) {
+                                            deferredConnectorHtml = connectorCard;
+                                        } else {
+                                            if (deferredConnectorHtml !== '') {
+                                                rowsHtml.push(deferredConnectorHtml);
+                                                deferredConnectorHtml = '';
+                                            }
+                                            if (connectorCard !== '') rowsHtml.push(connectorCard);
+                                        }
+                                    });
+                                    if (deferredConnectorHtml !== '') rowsHtml.push(deferredConnectorHtml);
+                                    return `${startConnectorItem}${rowsHtml.join('')}`;
+                                })()
                                 : (isComplete
                                     ? ''
                                     : `<p class="rounded-md border border-dashed border-gray-300 px-2.5 py-2 text-xs text-gray-500 dark:border-gray-700 dark:text-gray-400">${i18n.noScheduleItems}</p>`);
@@ -2473,7 +2769,7 @@
                     }
                 };
                 const renderDayWizardTabs = () => {
-                    if (!dayWizardTabs) return;
+                    if (!dayWizardTabsContainers.length) return;
                     applyDayCompletionIndicators();
                     const totalDays = clampDurationDays(durationInput.value || MIN_DURATION_DAYS);
                     let html = '';
@@ -2484,7 +2780,9 @@
                         const stateClass = isComplete ? 'is-complete' : 'is-incomplete';
                         html += `<button type="button" class="itinerary-day-wizard-tab${activeClass}" data-day-wizard-tab="${day}"><span>${i18n.day} ${day}</span><span class="itinerary-day-wizard-tab__state ${stateClass}">${stateLabel}</span></button>`;
                     }
-                    dayWizardTabs.innerHTML = html;
+                    dayWizardTabsContainers.forEach((container) => {
+                        container.innerHTML = html;
+                    });
                 };
                 const setWizardDay = (day) => {
                     if (!wizardRoot) return;
@@ -2496,14 +2794,14 @@
                         const dayNumber = Number(section.dataset.day || '0');
                         section.dataset.dayHidden = wizardStep === 2 && dayNumber !== wizardActiveDay ? '1' : '0';
                     });
-                    if (dayWizardPrevButton) {
-                        dayWizardPrevButton.classList.toggle('hidden', !showDayNavButtons);
-                        dayWizardPrevButton.disabled = wizardActiveDay <= 1;
-                    }
-                    if (dayWizardNextButton) {
-                        dayWizardNextButton.classList.toggle('hidden', !showDayNavButtons);
-                        dayWizardNextButton.disabled = wizardActiveDay >= totalDays;
-                    }
+                    dayWizardPrevButtons.forEach((button) => {
+                        button.classList.toggle('hidden', !showDayNavButtons);
+                        button.disabled = wizardActiveDay <= 1;
+                    });
+                    dayWizardNextButtons.forEach((button) => {
+                        button.classList.toggle('hidden', !showDayNavButtons);
+                        button.disabled = wizardActiveDay >= totalDays;
+                    });
                     renderDayWizardTabs();
                     setTimeout(() => {
                         try {
@@ -2539,9 +2837,45 @@
                     if (!(field instanceof HTMLElement)) return;
                     field.classList.add('border-rose-500', 'focus:border-rose-500', 'focus:ring-rose-500');
                 };
+                let activeValidationBlinkCleanup = null;
+                const runBlinkFeedback = (elements = [], cssClass = 'itinerary-validation-blink-target') => {
+                    const targets = elements.filter((element) => element instanceof HTMLElement);
+                    if (targets.length === 0) return;
+                    if (typeof activeValidationBlinkCleanup === 'function') {
+                        activeValidationBlinkCleanup();
+                    }
+                    targets.forEach((target) => {
+                        target.classList.remove(cssClass);
+                        void target.offsetWidth;
+                        target.classList.add(cssClass);
+                    });
+                    activeValidationBlinkCleanup = () => {
+                        targets.forEach((target) => target.classList.remove(cssClass));
+                    };
+                    window.setTimeout(() => {
+                        if (typeof activeValidationBlinkCleanup === 'function') {
+                            activeValidationBlinkCleanup();
+                            activeValidationBlinkCleanup = null;
+                        }
+                    }, 1700);
+                };
+                const resolveValidationHighlightTarget = (field) => {
+                    if (!(field instanceof HTMLElement)) return null;
+                    return field.closest('.travel-connector')
+                        || field.closest('.schedule-row')
+                        || field.closest('.point-card')
+                        || field.closest('.day-section')
+                        || field;
+                };
                 const focusValidationIssue = (issue) => {
                     if (!issue || !(issue.field instanceof HTMLElement)) return;
-                    issue.field.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    const highlightTarget = resolveValidationHighlightTarget(issue.field);
+                    if (highlightTarget) {
+                        highlightTarget.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        runBlinkFeedback([highlightTarget], 'itinerary-validation-blink-target');
+                    } else {
+                        issue.field.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
                     issue.field.focus();
                 };
                 const validateWizardStepOneDetailed = () => {
@@ -2595,6 +2929,9 @@
                     if (wizardSubmitButton) {
                         wizardSubmitButton.disabled = wizardStep !== WIZARD_STEP_MAX;
                     }
+                    if (dayWizardBottomContainer) {
+                        dayWizardBottomContainer.classList.toggle('hidden', wizardStep !== 2);
+                    }
                     setWizardDay(wizardActiveDay);
                     updateWizardReview();
                     if (wizardStep === WIZARD_STEP_MAX) {
@@ -2632,7 +2969,20 @@
                     return mode === 'self' || mode === 'self-booked' || mode === 'self_booked' || mode === 'delft-booked' || mode === 'delft_booked';
                 };
                 const isHotelPointType = (value) => normalizePointType(value) === 'hotel';
+                const isBreakRow = (row) =>
+                    row?.classList?.contains('schedule-break-row')
+                    || String(row?.dataset?.breakRow || '') === '1';
                 const getRowSelection = (row) => {
+                    if (isBreakRow(row)) {
+                        const select = row.querySelector('.item-break-duration');
+                        const option = select?.selectedOptions?.[0] || null;
+                        return {
+                            type: 'break',
+                            select,
+                            option,
+                            source: 'break-row',
+                        };
+                    }
                     const typeFieldValue = String(row.querySelector('.item-type')?.value || '').trim();
                     const datasetTypeValue = String(row.dataset.itemType || '').trim();
                     const candidates = [{
@@ -3895,7 +4245,7 @@
                     });
                 };
                 const toggleType = (r, t, reset = true) => {
-                    const type = t === 'activity' || t === 'transfer' || t === 'fnb' ? t : 'attraction';
+                    const type = t === 'activity' || t === 'transfer' || t === 'fnb' || t === 'break' ? t : 'attraction';
                     r.dataset.itemType = type;
                     r.querySelector('.item-type').value = type;
                     const a = r.querySelector('.item-attraction');
@@ -3911,7 +4261,24 @@
                     const fWrap = r.querySelector('.item-fnb-wrap');
                     const fSearch = r.querySelector('.item-fnb-search');
                     const fDropdown = r.querySelector('.item-fnb-dropdown');
+                    const typeWrap = r.querySelector('.item-type-wrap');
+                    const typeSelect = r.querySelector('.item-type');
+                    const timeTextWrap = r.querySelector('.item-time-text');
+                    const seqBadge = r.querySelector('.item-seq-badge');
+                    const highlightWrap = r.querySelector('.item-highlight-wrap');
+                    const regionWrap = r.querySelector('.item-region-wrap');
+                    const regionSelect = r.querySelector('.item-region');
+                    const breakWrap = r.querySelector('.item-break-wrap');
+                    const breakDuration = r.querySelector('.item-break-duration');
                     if (type === 'activity') {
+                        r.classList.remove('schedule-break-row');
+                        regionWrap?.classList.remove('hidden');
+                        if (regionSelect) regionSelect.disabled = false;
+                        typeWrap?.classList.remove('hidden');
+                        if (typeSelect) typeSelect.disabled = false;
+                        timeTextWrap?.classList.remove('hidden');
+                        seqBadge?.classList.remove('hidden');
+                        highlightWrap?.classList.remove('hidden');
                         aWrap?.classList.add('hidden');
                         aDropdown?.classList.add('hidden');
                         bWrap?.classList.remove('hidden');
@@ -3919,6 +4286,7 @@
                         fWrap?.classList.add('hidden');
                         fDropdown?.classList.add('hidden');
                         f.classList.add('hidden');
+                        breakWrap?.classList.add('hidden');
                         if (reset) {
                             a.value = '';
                             if (aSearch) aSearch.value = '';
@@ -3930,6 +4298,14 @@
                         setFnbNotice(r, '', 'info');
                         syncActivityInputFromSelect(r);
                     } else if (type === 'transfer') {
+                        r.classList.remove('schedule-break-row');
+                        regionWrap?.classList.remove('hidden');
+                        if (regionSelect) regionSelect.disabled = false;
+                        typeWrap?.classList.remove('hidden');
+                        if (typeSelect) typeSelect.disabled = false;
+                        timeTextWrap?.classList.remove('hidden');
+                        seqBadge?.classList.remove('hidden');
+                        highlightWrap?.classList.remove('hidden');
                         aWrap?.classList.add('hidden');
                         aDropdown?.classList.add('hidden');
                         bWrap?.classList.add('hidden');
@@ -3938,6 +4314,7 @@
                         fWrap?.classList.add('hidden');
                         fDropdown?.classList.add('hidden');
                         f.classList.add('hidden');
+                        breakWrap?.classList.add('hidden');
                         if (reset) {
                             a.value = '';
                             if (aSearch) aSearch.value = '';
@@ -3949,6 +4326,14 @@
                         setAttractionNotice(r, '', 'info');
                         setFnbNotice(r, '', 'info');
                     } else if (type === 'fnb') {
+                        r.classList.remove('schedule-break-row');
+                        regionWrap?.classList.remove('hidden');
+                        if (regionSelect) regionSelect.disabled = false;
+                        typeWrap?.classList.remove('hidden');
+                        if (typeSelect) typeSelect.disabled = false;
+                        timeTextWrap?.classList.remove('hidden');
+                        seqBadge?.classList.remove('hidden');
+                        highlightWrap?.classList.remove('hidden');
                         aWrap?.classList.add('hidden');
                         aDropdown?.classList.add('hidden');
                         bWrap?.classList.add('hidden');
@@ -3956,6 +4341,7 @@
                         tr.classList.add('hidden');
                         fWrap?.classList.remove('hidden');
                         f.classList.add('hidden');
+                        breakWrap?.classList.add('hidden');
                         if (reset) {
                             a.value = '';
                             if (aSearch) aSearch.value = '';
@@ -3967,7 +4353,65 @@
                         setAttractionNotice(r, '', 'info');
                         syncFnbInputFromSelect(r);
                         applyFnbMealSlotFilter(r, { clearInvalidSelection: false });
+                    } else if (type === 'break') {
+                        r.classList.add('schedule-break-row');
+                        r.dataset.breakRow = '1';
+                        regionWrap?.classList.add('hidden');
+                        typeWrap?.classList.add('hidden');
+                        if (typeSelect) typeSelect.disabled = true;
+                        timeTextWrap?.classList.add('hidden');
+                        seqBadge?.classList.add('hidden');
+                        highlightWrap?.classList.add('hidden');
+                        if (regionSelect) {
+                            const section = r.closest('.day-section');
+                            const rows = section ? [...section.querySelectorAll('.schedule-row')] : [];
+                            const index = rows.indexOf(r);
+                            let inheritedRegion = '';
+                            for (let i = index - 1; i >= 0; i--) {
+                                const previousRow = rows[i];
+                                if (!previousRow || rowType(previousRow) === 'break') continue;
+                                const previousRegion = String(previousRow.querySelector('.item-region')?.value || '').trim();
+                                if (previousRegion !== '') {
+                                    inheritedRegion = previousRegion;
+                                    break;
+                                }
+                            }
+                            regionSelect.value = inheritedRegion;
+                            regionSelect.disabled = true;
+                        }
+                        aWrap?.classList.add('hidden');
+                        aDropdown?.classList.add('hidden');
+                        bWrap?.classList.add('hidden');
+                        bDropdown?.classList.add('hidden');
+                        tr.classList.add('hidden');
+                        fWrap?.classList.add('hidden');
+                        fDropdown?.classList.add('hidden');
+                        f.classList.add('hidden');
+                        breakWrap?.classList.remove('hidden');
+                        if (reset) {
+                            a.value = '';
+                            if (aSearch) aSearch.value = '';
+                            b.value = '';
+                            if (bSearch) bSearch.value = '';
+                            tr.value = '';
+                            f.value = '';
+                            if (fSearch) fSearch.value = '';
+                            if (breakDuration && String(breakDuration.value || '').trim() === '') {
+                                breakDuration.value = '30';
+                            }
+                        }
+                        setAttractionNotice(r, '', 'info');
+                        setFnbNotice(r, '', 'info');
                     } else {
+                        r.classList.remove('schedule-break-row');
+                        delete r.dataset.breakRow;
+                        regionWrap?.classList.remove('hidden');
+                        if (regionSelect) regionSelect.disabled = false;
+                        typeWrap?.classList.remove('hidden');
+                        if (typeSelect) typeSelect.disabled = false;
+                        timeTextWrap?.classList.remove('hidden');
+                        seqBadge?.classList.remove('hidden');
+                        highlightWrap?.classList.remove('hidden');
                         aWrap?.classList.remove('hidden');
                         bWrap?.classList.add('hidden');
                         bDropdown?.classList.add('hidden');
@@ -3975,6 +4419,7 @@
                         fWrap?.classList.add('hidden');
                         fDropdown?.classList.add('hidden');
                         f.classList.add('hidden');
+                        breakWrap?.classList.add('hidden');
                         if (reset) {
                             b.value = '';
                             if (bSearch) bSearch.value = '';
@@ -3985,6 +4430,7 @@
                         syncAttractionInputFromSelect(r);
                         setFnbNotice(r, '', 'info');
                     }
+                    updateScheduleRowTheme(r);
                 };
                 const markRegionManualState = (row, isManual) => {
                     if (!row) return;
@@ -4421,6 +4867,7 @@
                     const rows = [...section.querySelectorAll('.schedule-row')];
                     rows.forEach((row) => {
                         if (!selected(row)) return;
+                        if (isBreakRow(row)) return;
                         const selection = getRowSelection(row);
                         const option = selection.option;
                         if (selection.type === 'transfer' && option) {
@@ -4530,6 +4977,7 @@
                             !row.classList.contains('hidden')
                         );
                     rows.forEach((row) => {
+                        if (isBreakRow(row)) return;
                         const hiddenTravel = row.querySelector('.item-travel');
                         if (!hiddenTravel) return;
                         const connectorInput = row.nextElementSibling?.classList?.contains('travel-connector')
@@ -4784,6 +5232,32 @@
                         setTimeout(runner, 0);
                     }
                 };
+                const setConnectorWarningState = (inputEl, warningEl, message = i18n.connectorEstimateHint) => {
+                    if (!(inputEl instanceof HTMLElement) || !(warningEl instanceof HTMLElement)) return;
+                    const rawValue = String(inputEl.value || '').trim();
+                    const hasValue = rawValue !== '';
+                    warningEl.textContent = message;
+                    warningEl.classList.toggle('hidden', hasValue);
+                    inputEl.classList.toggle('bg-amber-50', !hasValue);
+                    inputEl.classList.toggle('border-amber-400', !hasValue);
+                    inputEl.classList.toggle('text-amber-900', !hasValue);
+                    inputEl.classList.toggle('placeholder-amber-500', !hasValue);
+                };
+                const syncConnectorWarningStatesForSection = (section) => {
+                    if (!section) return;
+                    const startInput = section.querySelector('.day-start-travel');
+                    const startWarning = section.querySelector('.day-start-travel-warning');
+                    if (startInput && startWarning) {
+                        setConnectorWarningState(startInput, startWarning);
+                    }
+                    section.querySelectorAll('.travel-connector').forEach((connector) => {
+                        const visibleInput = connector.querySelector('.travel-connector-input');
+                        const warning = connector.querySelector('.travel-connector-warning');
+                        if (visibleInput && warning) {
+                            setConnectorWarningState(visibleInput, warning);
+                        }
+                    });
+                };
                 const rebuildTravelConnectors = (sec) => {
                     const container = sec.querySelector('.day-items');
                     if (!container) return;
@@ -4794,23 +5268,34 @@
                             !row.classList.contains('hidden')
                         );
                     rows.forEach((row, index) => {
+                        if (isBreakRow(row)) {
+                            return;
+                        }
                         const hiddenTravel = row.querySelector('.item-travel');
                         if (!hiddenTravel) return;
+                        const nextRow = rows[index + 1] || null;
                         const isLast = index === rows.length - 1;
-                const connector = document.createElement('div');
-                connector.className = 'travel-connector mt-2 w-full md:w-1/2';
+                        const connector = document.createElement('div');
+                connector.className = 'travel-connector mt-2 w-full';
                 connector.innerHTML = `
-                <div class="input-with-left-affix">
-                    <span class="input-left-affix">
-                        <svg viewBox="0 0 24 24" class="h-4 w-4 fill-current" aria-hidden="true" focusable="false">
-                            <path d="M5.5 11.5L7.3 6.9C7.6 6.1 8.3 5.5 9.2 5.5h5.6c.9 0 1.6.6 1.9 1.4l1.8 4.6c1 .2 1.8 1.1 1.8 2.2v2.3c0 .8-.7 1.5-1.5 1.5h-.5a2.3 2.3 0 01-4.6 0h-4.4a2.3 2.3 0 01-4.6 0h-.5c-.8 0-1.5-.7-1.5-1.5v-2.3c0-1.1.8-2 1.8-2.2zm3.1-4.2L7.2 11h9.6l-1.4-3.7a.8.8 0 00-.7-.5H9.3c-.3 0-.6.2-.7.5zM8.2 18.9c.5 0 .9-.4.9-.9s-.4-.9-.9-.9-.9.4-.9.9.4.9.9.9zm7.6 0c.5 0 .9-.4.9-.9s-.4-.9-.9-.9-.9.4-.9.9.4.9.9.9z"/>
-                        </svg>
-                    </span>
-                    <input type="number" min="0" step="5" class="travel-connector-input dark:border-gray-600 app-input" placeholder="${isLast ? i18n.estimateEndPoint : i18n.estimateNextItem}">
+                <div class="flex flex-wrap items-center gap-2 md:flex-nowrap">
+                    <div class="input-with-left-affix w-full md:w-1/2">
+                        <span class="input-left-affix">
+                            <svg viewBox="0 0 24 24" class="h-4 w-4 fill-current" aria-hidden="true" focusable="false">
+                                <path d="M5.5 11.5L7.3 6.9C7.6 6.1 8.3 5.5 9.2 5.5h5.6c.9 0 1.6.6 1.9 1.4l1.8 4.6c1 .2 1.8 1.1 1.8 2.2v2.3c0 .8-.7 1.5-1.5 1.5h-.5a2.3 2.3 0 01-4.6 0h-4.4a2.3 2.3 0 01-4.6 0h-.5c-.8 0-1.5-.7-1.5-1.5v-2.3c0-1.1.8-2 1.8-2.2zm3.1-4.2L7.2 11h9.6l-1.4-3.7a.8.8 0 00-.7-.5H9.3c-.3 0-.6.2-.7.5zM8.2 18.9c.5 0 .9-.4.9-.9s-.4-.9-.9-.9-.9.4-.9.9.4.9.9.9zm7.6 0c.5 0 .9-.4.9-.9s-.4-.9-.9-.9-.9.4-.9.9.4.9.9.9z"/>
+                            </svg>
+                        </span>
+                        <input type="number" min="0" step="5" class="travel-connector-input dark:border-gray-600 app-input" placeholder="${isLast ? i18n.estimateEndPoint : i18n.estimateNextItem}">
+                    </div>
+                    <span class="travel-connector-warning hidden text-xs font-medium text-amber-700 dark:text-amber-300">${i18n.connectorEstimateHint}</span>
                 </div>
             `;
                         const input = connector.querySelector('.travel-connector-input');
+                        const warning = connector.querySelector('.travel-connector-warning');
                         input.value = hiddenTravel.value || '';
+                        if (warning) {
+                            setConnectorWarningState(input, warning);
+                        }
                         input.addEventListener('input', () => {
                             const rawValue = String(input.value || '').trim();
                             const parsed = parseInt(rawValue, 10);
@@ -4824,10 +5309,15 @@
                                 hiddenTravel.value = '';
                                 delete hiddenTravel.dataset.travelManual;
                             }
+                            if (warning) {
+                                setConnectorWarningState(input, warning);
+                            }
                             recalcNoConnectorRebuildSkipAuto();
                         });
-                        row.insertAdjacentElement('afterend', connector);
+                        const insertAfterRow = nextRow && isBreakRow(nextRow) ? nextRow : row;
+                        insertAfterRow.insertAdjacentElement('afterend', connector);
                     });
+                    syncConnectorWarningStatesForSection(sec);
                 };
                 const syncDayStartTravelPlaceholder = (section, activeRows = null) => {
                     if (!section) return;
@@ -4878,8 +5368,12 @@
                     const endInput = row.querySelector('.item-end');
                     const startText = row.querySelector('.item-start-text');
                     const endText = row.querySelector('.item-end-text');
+                    const breakStartText = row.querySelector('.item-break-start-text');
+                    const breakEndText = row.querySelector('.item-break-end-text');
                     if (startText) startText.textContent = (startInput?.value || '').trim() || '--:-- --';
                     if (endText) endText.textContent = (endInput?.value || '').trim() || '--:-- --';
+                    if (breakStartText) breakStartText.textContent = (startInput?.value || '').trim() || '--:-- --';
+                    if (breakEndText) breakEndText.textContent = (endInput?.value || '').trim() || '--:-- --';
                 };
                 const resetRowAsTemplate = (row) => {
                     if (!row) return;
@@ -4904,7 +5398,10 @@
                     const activityDropdown = row.querySelector('.item-activity-dropdown');
                     const transferSelect = row.querySelector('.item-transfer');
                     const fnbSelect = row.querySelector('.item-fnb');
+                    const breakDurationSelect = row.querySelector('.item-break-duration');
                     const paxInput = row.querySelector('.item-pax');
+                    const paxAdultInput = row.querySelector('.item-pax-adult');
+                    const paxChildInput = row.querySelector('.item-pax-child');
                     const startInput = row.querySelector('.item-start');
                     const endInput = row.querySelector('.item-end');
                     const travelInput = row.querySelector('.item-travel');
@@ -4930,7 +5427,10 @@
                     setActivityNotice(row, '', 'info');
                     if (transferSelect) transferSelect.value = '';
                     if (fnbSelect) fnbSelect.value = '';
+                    if (breakDurationSelect) breakDurationSelect.value = '30';
                     if (paxInput) paxInput.value = '1';
+                    if (paxAdultInput) paxAdultInput.value = '1';
+                    if (paxChildInput) paxChildInput.value = '0';
                     if (startInput) startInput.value = '';
                     if (endInput) endInput.value = '';
                     if (travelInput) travelInput.value = '';
@@ -4986,6 +5486,10 @@
                     const endsAtLabel = sec.querySelector('.day-ends-at-label');
                     const dayEndTimeInput = sec.querySelector('.day-end-time');
                     const dayEndTimeEndpointText = sec.querySelector('.day-end-time-endpoint-text');
+                    const dayBreakStartInput = sec.querySelector('.day-break-start-time');
+                    const dayBreakEndInput = sec.querySelector('.day-break-end-time');
+                    let dayBreakStartValue = '';
+                    let dayBreakEndValue = '';
                     if (startAtLabel) startAtLabel.textContent = startPointLabel;
                     if (endsAtLabel) endsAtLabel.textContent = endPointLabel;
                     let cur = start;
@@ -4999,18 +5503,29 @@
                             if (seq) seq.textContent = '-';
                         }
                     });
-                    chosen.forEach((r, i) => {
-                        r.querySelector('.item-order').value = String(i + 1);
+                    let logicalOrder = 0;
+                    chosen.forEach((r) => {
+                        const orderInput = r.querySelector('.item-order');
                         const seq = r.querySelector('.item-seq-badge');
-                        if (seq) seq.textContent = String(i + 1);
+                        if (isBreakRow(r)) {
+                            if (orderInput) orderInput.value = '';
+                            if (seq) seq.textContent = '-';
+                            return;
+                        }
+                        logicalOrder += 1;
+                        if (orderInput) orderInput.value = String(logicalOrder);
+                        if (seq) seq.textContent = String(logicalOrder);
                     });
                     const dayRoutePoints = collectDayRoutePoints(day);
                     const startRouteIndex = dayRoutePoints.findIndex((point) => point.role === 'start');
                     const endRouteIndex = dayRoutePoints.findIndex((point) => point.role === 'end');
                     const itemDisplayBase = startRouteIndex >= 0 ? 2 : 1;
-                    chosen.forEach((r, i) => {
+                    let logicalDisplayIndex = 0;
+                    chosen.forEach((r) => {
+                        if (isBreakRow(r)) return;
                         const seq = r.querySelector('.item-seq-badge');
-                        if (seq) seq.textContent = String(itemDisplayBase + i);
+                        if (seq) seq.textContent = String(itemDisplayBase + logicalDisplayIndex);
+                        logicalDisplayIndex += 1;
                     });
                     const startPointSeq = sec.querySelector('.day-start-point-seq');
                     const endPointSeq = sec.querySelector('.day-end-point-seq');
@@ -5021,31 +5536,78 @@
                         endPointSeq.textContent = endRouteIndex >= 0 ? String(endRouteIndex + 1) : '-';
                     }
                     if (start === null) {
+                        if (dayBreakStartInput) dayBreakStartInput.value = '';
+                        if (dayBreakEndInput) dayBreakEndInput.value = '';
                         if (dayEndTimeInput) dayEndTimeInput.value = '';
                         if (dayEndTimeEndpointText) dayEndTimeEndpointText.textContent = '-';
                         return;
                     }
                     if (!chosen.length) {
+                        if (dayBreakStartInput) dayBreakStartInput.value = '';
+                        if (dayBreakEndInput) dayBreakEndInput.value = '';
                         const onlyPointEndTime = fromMin(start + (Number.isFinite(startTravelMinutes) ? startTravelMinutes : 0));
                         if (dayEndTimeInput) dayEndTimeInput.value = onlyPointEndTime || '';
                         if (dayEndTimeEndpointText) dayEndTimeEndpointText.textContent = onlyPointEndTime || '-';
                         return;
                     }
                     cur = start + (Number.isFinite(startTravelMinutes) ? startTravelMinutes : 0);
-                    chosen.forEach((r) => {
+                    let deferredTravelAfterBreak = 0;
+                    chosen.forEach((r, rowIndex) => {
                         const previousStartValue = String(r.querySelector('.item-start')?.value || '');
                         const hasSelection = selected(r);
+                        const itemType = rowType(r);
                         const opt = activeSelect(r)?.selectedOptions?.[0];
-                        const dur = hasSelection ? Math.max(1, parseInt(opt?.dataset?.duration || '120', 10)) : 0;
+                        const fallbackDuration = itemType === 'break' ? 30 : 120;
+                        const dur = hasSelection ? Math.max(1, parseInt(opt?.dataset?.duration || String(fallbackDuration), 10)) : 0;
                         const nextStartValue = fromMin(cur);
                         r.querySelector('.item-start').value = nextStartValue;
                         r.querySelector('.item-end').value = dur > 0 ? fromMin(cur + dur) : '';
+                        if (itemType === 'break' && dayBreakStartValue === '' && dur > 0) {
+                            dayBreakStartValue = nextStartValue || '';
+                            dayBreakEndValue = fromMin(cur + dur) || '';
+                            const regionSelect = r.querySelector('.item-region');
+                            if (regionSelect) {
+                                let inheritedRegion = '';
+                                for (let previousIndex = rowIndex - 1; previousIndex >= 0; previousIndex--) {
+                                    const previousRow = chosen[previousIndex];
+                                    if (!previousRow || rowType(previousRow) === 'break') continue;
+                                    const previousRegion = String(previousRow.querySelector('.item-region')?.value || '').trim();
+                                    if (previousRegion !== '') {
+                                        inheritedRegion = previousRegion;
+                                        break;
+                                    }
+                                }
+                                regionSelect.value = inheritedRegion;
+                            }
+                        }
                         resetFnbSelectionIfMealSlotChanged(r, previousStartValue, nextStartValue);
                         syncRowTimeText(r);
-                        const travel = Math.max(0, parseInt(r.querySelector('.item-travel').value || '0',
-                            10));
+                        let travel = itemType === 'break'
+                            ? 0
+                            : Math.max(0, parseInt(r.querySelector('.item-travel').value || '0', 10));
+
+                        if (itemType !== 'break') {
+                            const nextRow = chosen[rowIndex + 1] || null;
+                            if (nextRow && isBreakRow(nextRow)) {
+                                deferredTravelAfterBreak = travel;
+                                travel = 0;
+                            }
+                        } else if (deferredTravelAfterBreak > 0) {
+                            travel = deferredTravelAfterBreak;
+                            deferredTravelAfterBreak = 0;
+                        }
+
+                        if (itemType === 'break') {
+                            const travelInput = r.querySelector('.item-travel');
+                            if (travelInput) {
+                                travelInput.value = '';
+                                delete travelInput.dataset.travelManual;
+                            }
+                        }
                         cur += dur + travel;
                     });
+                    if (dayBreakStartInput) dayBreakStartInput.value = dayBreakStartValue;
+                    if (dayBreakEndInput) dayBreakEndInput.value = dayBreakEndValue;
                     const endTimeText = fromMin(cur);
                     if (dayEndTimeInput) dayEndTimeInput.value = endTimeText;
                     if (dayEndTimeEndpointText) dayEndTimeEndpointText.textContent = endTimeText || '-';
@@ -5069,20 +5631,28 @@
                                 tr = r.querySelector('.item-transfer'),
                                 f = r.querySelector('.item-fnb'),
                                 p = r.querySelector('.item-pax'),
+                                pa = r.querySelector('.item-pax-adult'),
+                                pc = r.querySelector('.item-pax-child'),
                                 d = r.querySelector('.item-day'),
                                 s = r.querySelector('.item-start'),
                                 e = r.querySelector('.item-end'),
                                 t = r.querySelector('.item-travel'),
                                 o = r.querySelector('.item-order');
-                            [a, b, tr, f, p, d, s, e, t, o].forEach((el) => el?.removeAttribute('name'));
+                            [a, b, tr, f, p, pa, pc, d, s, e, t, o].forEach((el) => el?.removeAttribute('name'));
                             d.value = String(day);
                             if (!selected(r)) return;
+                            if (rowType(r) === 'break') {
+                                o.value = '';
+                                return;
+                            }
                             order += 1;
                             o.value = String(order);
                             if (rowType(r) === 'activity') {
                                 if (b) b.name = `itinerary_activity_items[${bi}][activity_id]`;
                                 d.name = `itinerary_activity_items[${bi}][day_number]`;
                                 p.name = `itinerary_activity_items[${bi}][pax]`;
+                                if (pa) pa.name = `itinerary_activity_items[${bi}][pax_adult]`;
+                                if (pc) pc.name = `itinerary_activity_items[${bi}][pax_child]`;
                                 s.name = `itinerary_activity_items[${bi}][start_time]`;
                                 e.name = `itinerary_activity_items[${bi}][end_time]`;
                                 t.name = `itinerary_activity_items[${bi}][travel_minutes_to_next]`;
@@ -5101,6 +5671,8 @@
                                 f.name = `itinerary_food_beverage_items[${fi}][food_beverage_id]`;
                                 d.name = `itinerary_food_beverage_items[${fi}][day_number]`;
                                 p.name = `itinerary_food_beverage_items[${fi}][pax]`;
+                                if (pa) pa.name = `itinerary_food_beverage_items[${fi}][pax_adult]`;
+                                if (pc) pc.name = `itinerary_food_beverage_items[${fi}][pax_child]`;
                                 s.name = `itinerary_food_beverage_items[${fi}][start_time]`;
                                 e.name = `itinerary_food_beverage_items[${fi}][end_time]`;
                                 t.name = `itinerary_food_beverage_items[${fi}][travel_minutes_to_next]`;
@@ -5227,6 +5799,8 @@
                         const endBookingSelect = section.querySelector('.day-end-booking-mode');
                         const endRoom = section.querySelector('.day-end-room-count');
                         const dayStartTimeInput = section.querySelector('.day-start-time');
+                        const dayBreakStartTimeInput = section.querySelector('.day-break-start-time');
+                        const dayBreakEndTimeInput = section.querySelector('.day-break-end-time');
                         const startTravelInput = section.querySelector('.day-start-travel');
                         const mainExperienceTypeInput = section.querySelector('.day-main-experience-type');
                         const mainExperienceItemInput = section.querySelector('.day-main-experience-item');
@@ -5245,6 +5819,8 @@
                         if (endBookingSelect) endBookingSelect.name = `daily_end_hotel_booking_modes[${day}]`;
                         if (endRoom) endRoom.name = `daily_end_point_room_counts[${day}]`;
                         if (dayStartTimeInput) dayStartTimeInput.name = `day_start_times[${day}]`;
+                        if (dayBreakStartTimeInput) dayBreakStartTimeInput.name = `break_start_times[${day}]`;
+                        if (dayBreakEndTimeInput) dayBreakEndTimeInput.name = `break_end_times[${day}]`;
                         if (startTravelInput) startTravelInput.name = `day_start_travel_minutes[${day}]`;
                         if (mainExperienceTypeInput) mainExperienceTypeInput.name =
                             `daily_main_experience_types[${day}]`;
@@ -5348,13 +5924,15 @@
                 const updateScheduleRowTheme = (row) => {
                     if (!row) return;
                     const type = rowType(row);
-                    row.classList.remove('item-theme-attraction', 'item-theme-activity', 'item-theme-transfer', 'item-theme-fnb');
+                    row.classList.remove('item-theme-attraction', 'item-theme-activity', 'item-theme-transfer', 'item-theme-fnb', 'item-theme-break');
                     if (type === 'activity') {
                         row.classList.add('item-theme-activity');
                     } else if (type === 'transfer') {
                         row.classList.add('item-theme-transfer');
                     } else if (type === 'fnb') {
                         row.classList.add('item-theme-fnb');
+                    } else if (type === 'break') {
+                        row.classList.add('item-theme-break');
                     } else {
                         row.classList.add('item-theme-attraction');
                     }
@@ -5779,6 +6357,8 @@
                                 start_room_count: String(section.querySelector('.day-start-room-count')?.value || ''),
                                 start_booking_mode: String(section.querySelector('.day-start-booking-mode')?.value || ''),
                                 day_start_time: String(section.querySelector('.day-start-time')?.value || ''),
+                                break_start_time: String(section.querySelector('.day-break-start-time')?.value || ''),
+                                break_end_time: String(section.querySelector('.day-break-end-time')?.value || ''),
                                 day_start_travel_minutes: String(section.querySelector('.day-start-travel')?.value || ''),
                                 end_type: String(section.querySelector('.day-end-point-type')?.value || ''),
                                 end_item: String(section.querySelector('.day-end-point-item')?.value || ''),
@@ -5963,6 +6543,9 @@
                         syncMainExperienceSelection(section, r);
                         recalcNoConnectorRebuild();
                     });
+                    r.querySelector('.item-break-duration')?.addEventListener('change', () => {
+                        recalc();
+                    });
                     r.querySelector('.remove-row')?.addEventListener('click', () => {
                         const section = r.closest('.day-section');
                         if (!section) return;
@@ -5986,7 +6569,10 @@
                     syncRowTimeText(r);
                     applyFnbMealSlotFilter(r, { clearInvalidSelection: false });
                 };
-                const cloneRow = (sec, type) => {
+                const cloneRow = (sec, type, options = {}) => {
+                    const silent = options && options.silent === true;
+                    const durationMinutes = Number.parseInt(String(options?.durationMinutes ?? ''), 10);
+                    const insertAfterRow = options?.insertAfterRow || null;
                     const src = sec.querySelector('.schedule-row');
                     if (!src) return;
                     const r = src.cloneNode(true);
@@ -6015,6 +6601,7 @@
                     const transferSelect = r.querySelector('.item-transfer');
                     if (transferSelect) transferSelect.value = '';
                     const fnbSelect = r.querySelector('.item-fnb');
+                    const breakDurationSelect = r.querySelector('.item-break-duration');
                     if (fnbSelect) fnbSelect.value = '';
                     const fnbSearchInput = r.querySelector('.item-fnb-search');
                     if (fnbSearchInput) fnbSearchInput.value = '';
@@ -6028,23 +6615,108 @@
                     r.querySelector('.item-start').value = '';
                     r.querySelector('.item-end').value = '';
                     r.querySelector('.item-travel').value = '';
+                    if (breakDurationSelect) breakDurationSelect.value = '30';
                     delete r.querySelector('.item-travel').dataset.travelManual;
                     r.querySelector('.item-order').value = '';
                     const mainCheckbox = r.querySelector('.item-main-experience');
                     if (mainCheckbox) mainCheckbox.checked = false;
                     const seq = r.querySelector('.item-seq-badge');
                     if (seq) seq.textContent = '-';
-                    sec.querySelector('.day-items').appendChild(r);
+                    const dayItemsContainer = sec.querySelector('.day-items');
+                    if (!dayItemsContainer) return;
+                    if (type === 'break') {
+                        const activeRows = [...dayItemsContainer.querySelectorAll('.schedule-row')]
+                            .filter((row) => !row.classList.contains('schedule-row-template') && !row.classList.contains('hidden'));
+                        const preferredAnchor = insertAfterRow && insertAfterRow.parentNode === dayItemsContainer
+                            ? insertAfterRow
+                            : null;
+                        const lastNonBreakRow = [...activeRows].reverse().find((row) => !isBreakRow(row));
+                        const anchorRow = preferredAnchor || lastNonBreakRow;
+                        if (anchorRow && anchorRow.parentNode === dayItemsContainer) {
+                            anchorRow.insertAdjacentElement('afterend', r);
+                        } else {
+                            dayItemsContainer.appendChild(r);
+                        }
+                    } else {
+                        dayItemsContainer.appendChild(r);
+                    }
                     bindRow(r);
                     toggleType(r, type, false);
+                    if (type === 'break' && Number.isFinite(durationMinutes) && durationMinutes > 0) {
+                        const breakDurationSelect = r.querySelector('.item-break-duration');
+                        if (breakDurationSelect) {
+                            const normalizedDuration = durationMinutes <= 45
+                                ? '30'
+                                : (durationMinutes <= 90 ? '60' : '120');
+                            breakDurationSelect.value = normalizedDuration;
+                        }
+                    }
                     applyFnbMealSlotFilter(r, { clearInvalidSelection: false });
-                    recalc();
+                    if (!silent) {
+                        recalc();
+                    }
                 };
                 const getNextItemType = (section) => {
                     const rows = [...(section?.querySelectorAll('.schedule-row') || [])];
                     const lastSelected = [...rows].reverse().find((row) => selected(row));
                     const currentType = rowType(lastSelected || rows[rows.length - 1]);
                     return ['attraction', 'activity', 'transfer', 'fnb'].includes(currentType) ? currentType : 'attraction';
+                };
+                const hasBreakRow = (section) => {
+                    if (!section) return false;
+                    return [...section.querySelectorAll('.schedule-row')]
+                        .some((row) => !row.classList.contains('schedule-row-template') && !row.classList.contains('hidden') && rowType(row) === 'break');
+                };
+                const resolveBreakDurationMinutes = (startValue, endValue) => {
+                    const startMinutes = toMin(String(startValue || ''));
+                    const endMinutes = toMin(String(endValue || ''));
+                    if (!Number.isFinite(startMinutes) || !Number.isFinite(endMinutes) || endMinutes <= startMinutes) {
+                        return 30;
+                    }
+                    return endMinutes - startMinutes;
+                };
+                const restorePersistedBreakRows = () => {
+                    let restoredCount = 0;
+                    daySections.querySelectorAll('.day-section').forEach((section) => {
+                        if (!section || hasBreakRow(section)) return;
+                        const persistedBreakStart = String(section.querySelector('.day-break-start-time')?.value || '').trim();
+                        const persistedBreakEnd = String(section.querySelector('.day-break-end-time')?.value || '').trim();
+                        if (!/^\d{2}:\d{2}$/.test(persistedBreakStart) || !/^\d{2}:\d{2}$/.test(persistedBreakEnd)) return;
+
+                        const activeNonBreakRows = [...section.querySelectorAll('.schedule-row')]
+                            .filter((row) => !row.classList.contains('schedule-row-template') && !row.classList.contains('hidden') && !isBreakRow(row));
+                        if (!activeNonBreakRows.length) return;
+
+                        const breakStartMinutes = toMin(persistedBreakStart);
+                        let anchorRow = activeNonBreakRows[0];
+                        if (Number.isFinite(breakStartMinutes)) {
+                            for (let index = 0; index < activeNonBreakRows.length; index++) {
+                                const currentRow = activeNonBreakRows[index];
+                                const currentEndMinutes = toMin(String(currentRow.querySelector('.item-end')?.value || ''));
+                                const nextRow = activeNonBreakRows[index + 1] || null;
+                                const nextStartMinutes = nextRow
+                                    ? toMin(String(nextRow.querySelector('.item-start')?.value || ''))
+                                    : null;
+                                if (Number.isFinite(currentEndMinutes) && breakStartMinutes >= currentEndMinutes) {
+                                    anchorRow = currentRow;
+                                    if (!nextRow) break;
+                                    if (!Number.isFinite(nextStartMinutes) || breakStartMinutes <= nextStartMinutes) {
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+
+                        cloneRow(section, 'break', {
+                            silent: true,
+                            insertAfterRow: anchorRow,
+                            durationMinutes: resolveBreakDurationMinutes(persistedBreakStart, persistedBreakEnd),
+                        });
+                        restoredCount += 1;
+                    });
+                    if (restoredCount > 0) {
+                        recalcNoConnectorRebuildSkipAuto();
+                    }
                 };
                 const syncDurationNights = ({
                     commitDays = false
@@ -6064,6 +6736,10 @@
                 daySections.querySelectorAll('.day-section').forEach((sec) => {
                     sec.querySelectorAll('.schedule-row').forEach(bindRow);
                     sec.querySelector('.add-item')?.addEventListener('click', () => cloneRow(sec, getNextItemType(sec)));
+                    sec.querySelector('.add-break-item')?.addEventListener('click', () => {
+                        if (hasBreakRow(sec)) return;
+                        cloneRow(sec, 'break');
+                    });
                     bindTransportEvents(sec);
                     sec.querySelector('.day-start-point-type')?.addEventListener('change', () => {
                         updateDayPointTheme(sec);
@@ -6100,10 +6776,14 @@
                         recalcNoConnectorRebuild();
                     });
                     sec.querySelector('.day-end-room-count')?.addEventListener('input', recalcNoConnectorRebuild);
-                    sec.querySelector('.day-start-travel')?.addEventListener('input', recalcNoConnectorRebuildSkipAuto);
+                    sec.querySelector('.day-start-travel')?.addEventListener('input', () => {
+                        syncConnectorWarningStatesForSection(sec);
+                        recalcNoConnectorRebuildSkipAuto();
+                    });
                     sec.querySelector('.day-start-time')?.addEventListener('change', recalc);
                     initSortable(sec);
                     updateDayPointTheme(sec);
+                    syncConnectorWarningStatesForSection(sec);
                 });
                 document.addEventListener('click', (event) => {
                     const target = event.target instanceof HTMLElement ? event.target : null;
@@ -6154,17 +6834,23 @@
                     clearItineraryValidationNotice();
                     setWizardStep(wizardStep + 1);
                 });
-                dayWizardPrevButton?.addEventListener('click', () => {
-                    setWizardDay(wizardActiveDay - 1);
+                dayWizardPrevButtons.forEach((button) => {
+                    button.addEventListener('click', () => {
+                        setWizardDay(wizardActiveDay - 1);
+                    });
                 });
-                dayWizardNextButton?.addEventListener('click', () => {
-                    setWizardDay(wizardActiveDay + 1);
+                dayWizardNextButtons.forEach((button) => {
+                    button.addEventListener('click', () => {
+                        setWizardDay(wizardActiveDay + 1);
+                    });
                 });
-                dayWizardTabs?.addEventListener('click', (event) => {
-                    const target = event.target instanceof HTMLElement ? event.target.closest('[data-day-wizard-tab]') : null;
-                    if (!target) return;
-                    const selectedDay = Number.parseInt(String(target.dataset.dayWizardTab || ''), 10);
-                    setWizardDay(selectedDay);
+                dayWizardTabsContainers.forEach((container) => {
+                    container.addEventListener('click', (event) => {
+                        const target = event.target instanceof HTMLElement ? event.target.closest('[data-day-wizard-tab]') : null;
+                        if (!target) return;
+                        const selectedDay = Number.parseInt(String(target.dataset.dayWizardTab || ''), 10);
+                        setWizardDay(selectedDay);
+                    });
                 });
                 inquirySelect?.addEventListener('change', updateWizardReview);
                 itineraryTitleInput?.addEventListener('input', updateWizardReview);
@@ -6204,6 +6890,16 @@
                             }
                             const cloneDayEndTime = c.querySelector('.day-end-time');
                             if (cloneDayEndTime) cloneDayEndTime.value = '';
+                            const cloneBreakStartTime = c.querySelector('.day-break-start-time');
+                            if (cloneBreakStartTime) {
+                                cloneBreakStartTime.value = '';
+                                cloneBreakStartTime.name = `break_start_times[${i}]`;
+                            }
+                            const cloneBreakEndTime = c.querySelector('.day-break-end-time');
+                            if (cloneBreakEndTime) {
+                                cloneBreakEndTime.value = '';
+                                cloneBreakEndTime.name = `break_end_times[${i}]`;
+                            }
                             const cloneDayEndTimeText = c.querySelector('.day-end-time-endpoint-text');
                             if (cloneDayEndTimeText) cloneDayEndTimeText.textContent = '-';
                             const startsAtLabel = c.querySelector('.day-starts-at-label');
@@ -6339,6 +7035,10 @@
                             daySections.appendChild(c);
                             c.querySelectorAll('.schedule-row').forEach(bindRow);
                             c.querySelector('.add-item')?.addEventListener('click', () => cloneRow(c, getNextItemType(c)));
+                            c.querySelector('.add-break-item')?.addEventListener('click', () => {
+                                if (hasBreakRow(c)) return;
+                                cloneRow(c, 'break');
+                            });
                             bindTransportEvents(c);
                             c.querySelector('.day-start-point-type')?.addEventListener('change', () => {
                                 syncPointItemVisibility();
@@ -6387,11 +7087,14 @@
                                 });
                             c.querySelector('.day-end-room-count')?.addEventListener('input',
                                 recalcNoConnectorRebuild);
-                            c.querySelector('.day-start-travel')?.addEventListener('input',
-                                recalcNoConnectorRebuildSkipAuto);
+                            c.querySelector('.day-start-travel')?.addEventListener('input', () => {
+                                syncConnectorWarningStatesForSection(c);
+                                recalcNoConnectorRebuildSkipAuto();
+                            });
                             c.querySelector('.day-start-time')?.addEventListener('change', recalc);
                             initSortable(c);
                             standardizeDaySectionVisual(c);
+                            syncConnectorWarningStatesForSection(c);
                         }
                     } [...daySections.querySelectorAll('.day-section')].forEach((s) => {
                         if (Number(s.dataset.day) > d) s.remove();
@@ -6427,6 +7130,7 @@
                         form.prepend(box);
                     }
                     box.textContent = message;
+                    runBlinkFeedback([box], 'itinerary-validation-blink-notice');
                 };
                 const clearItineraryValidationNotice = () => {
                     if (!form) return;
@@ -6500,6 +7204,60 @@
                     if (startPointIssue) return { valid: false, issue: startPointIssue };
                     const endPointIssue = validatePoint('end');
                     if (endPointIssue) return { valid: false, issue: endPointIssue };
+
+                    const selectedRows = [...section.querySelectorAll('.schedule-row')]
+                        .filter((row) =>
+                            !row.classList.contains('schedule-row-template')
+                            && !row.classList.contains('hidden')
+                            && selected(row));
+                    if (selectedRows.length > 0) {
+                        const dayStartConnectorInput = section.querySelector('.day-start-travel');
+                        if (dayStartConnectorInput instanceof HTMLElement) {
+                            clearValidationFieldState(dayStartConnectorInput);
+                            if (String(dayStartConnectorInput.value || '').trim() === '') {
+                                markValidationFieldState(dayStartConnectorInput);
+                                return {
+                                    valid: false,
+                                    issue: {
+                                        step: 2,
+                                        day,
+                                        field: dayStartConnectorInput,
+                                        message: normalizeValidationMessage(i18n.incompleteReasonConnector, @json(__('itinerary_form.validation.connector_incomplete'))),
+                                    },
+                                };
+                            }
+                        }
+
+                        for (const row of selectedRows) {
+                            if (isBreakRow(row)) continue;
+                            const hiddenConnectorInput = row.querySelector('.item-travel');
+                            if (!(hiddenConnectorInput instanceof HTMLElement)) continue;
+                            const visibleConnectorInput = row.nextElementSibling?.classList?.contains('travel-connector')
+                                ? row.nextElementSibling.querySelector('.travel-connector-input')
+                                : null;
+                            if (visibleConnectorInput instanceof HTMLElement) {
+                                clearValidationFieldState(visibleConnectorInput);
+                            }
+                            clearValidationFieldState(hiddenConnectorInput);
+                            if (String(hiddenConnectorInput.value || '').trim() === '') {
+                                if (visibleConnectorInput instanceof HTMLElement) {
+                                    markValidationFieldState(visibleConnectorInput);
+                                } else {
+                                    markValidationFieldState(hiddenConnectorInput);
+                                }
+                                return {
+                                    valid: false,
+                                    issue: {
+                                        step: 2,
+                                        day,
+                                        field: visibleConnectorInput instanceof HTMLElement ? visibleConnectorInput : hiddenConnectorInput,
+                                        message: normalizeValidationMessage(i18n.incompleteReasonConnector, @json(__('itinerary_form.validation.connector_incomplete'))),
+                                    },
+                                };
+                            }
+                        }
+                    }
+
                     return { valid: true };
                 };
                 const validateWizardStepTwoDetailed = () => {
@@ -6532,7 +7290,9 @@
                         setWizardDay(Number(issue.day));
                     }
                     showItineraryValidationNotice(normalizeValidationMessage(issue.message, @json(ui_phrase('Please complete required data before continuing.'))));
-                    focusValidationIssue(issue);
+                    window.setTimeout(() => {
+                        focusValidationIssue(issue);
+                    }, 180);
                 };
                 let isSubmittingItineraryForm = false;
                 form?.addEventListener('submit', (e) => {
@@ -6558,7 +7318,11 @@
                     clearEndPointValidationState();
                     HTMLFormElement.prototype.submit.call(form);
                 });
+                restorePersistedBreakRows();
                 recalc();
+                normalizeWizardDaySections().forEach((section) => {
+                    syncConnectorWarningStatesForSection(section);
+                });
                 const initialWizardStep = (() => {
                     const firstError = wizardRoot?.querySelector('[data-wizard-step] .text-rose-600');
                     if (!firstError) return WIZARD_STEP_MIN;

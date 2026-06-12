@@ -136,17 +136,18 @@
                 <div class="app-card p-5">
                     <p class="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{{ ui_phrase('transfers quick actions') }}</p>
                     <a href="{{ route('island-transfers.edit', $islandTransfer) }}" class="btn-primary mb-3 w-full justify-center">{{ ui_phrase('transfers edit transfer') }}</a>
-                    <form action="{{ route('island-transfers.toggle-status', $islandTransfer->id) }}" method="POST" class="w-full">
-                        @csrf
-                        @method('PATCH')
-                        <button
-                            type="submit"
-                            onclick="return confirm('{{ $isActive ? ui_phrase('transfers confirm deactivate') : ui_phrase('transfers confirm activate') }}')"
-                            class="{{ $isActive ? 'btn-muted' : 'btn-primary' }} w-full justify-center"
-                        >
-                            {{ $isActive ? ui_phrase('transfers deactivate') : ui_phrase('transfers activate') }}
-                        </button>
-                    </form>
+                    <x-ui.confirm-action
+                        :action="route('island-transfers.toggle-status', $islandTransfer->id)"
+                        method="PATCH"
+                        :modal-name="'island-transfers-show-toggle-' . $islandTransfer->id"
+                        :title="$isActive ? ui_phrase('transfers deactivate') . ' ' . ui_phrase('Island Transfer') : ui_phrase('transfers activate') . ' ' . ui_phrase('Island Transfer')"
+                        :message="$isActive ? ui_phrase('transfers confirm deactivate') : ui_phrase('transfers confirm activate')"
+                        :notice-message="__('confirm.notification_after_action')"
+                        :confirm-label="$isActive ? ui_phrase('transfers deactivate') : ui_phrase('transfers activate')"
+                        :trigger-label="$isActive ? ui_phrase('transfers deactivate') : ui_phrase('transfers activate')"
+                        :trigger-class="$isActive ? 'btn-muted w-full justify-center' : 'btn-primary w-full justify-center'"
+                        confirm-class="btn-primary-sm"
+                    />
                 </div>
 
                 @include('modules.island-transfers.partials._route-map', [

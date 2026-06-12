@@ -19,9 +19,11 @@ class ItineraryQuotationService
     {
         $itinerary->loadMissing([
             'touristAttractions:id,name,contract_rate_per_pax,markup_type,markup,publish_rate_per_pax',
-            'itineraryActivities.activity:id,name,adult_contract_rate,child_contract_rate,adult_markup_type,adult_markup,child_markup_type,child_markup,adult_publish_rate,child_publish_rate',
+            'itineraryActivities.activity:id,vendor_id,name,adult_contract_rate,child_contract_rate,adult_markup_type,adult_markup,child_markup_type,child_markup,adult_publish_rate,child_publish_rate',
+            'itineraryActivities.activity.vendor:id,name,city,province',
             'itineraryIslandTransfers.islandTransfer:id,name,contract_rate,markup_type,markup,publish_rate',
-            'itineraryFoodBeverages.foodBeverage:id,name,contract_rate,markup_type,markup,publish_rate',
+            'itineraryFoodBeverages.foodBeverage:id,vendor_id,name,adult_contract_rate,child_contract_rate,adult_markup_type,adult_markup,child_markup_type,child_markup,adult_publish_rate,child_publish_rate,contract_rate,markup_type,markup,publish_rate',
+            'itineraryFoodBeverages.foodBeverage.vendor:id,name,city,province',
             'itineraryTransportUnits.transportUnit:id,name,contract_rate,markup_type,markup,publish_rate',
             'dayPoints.endHotelRoom:id,hotels_id,rooms,view',
             'dayPoints.endHotelRoom.prices:id,rooms_id,start_date,end_date,contract_rate,markup_type,markup,publish_rate',
@@ -43,9 +45,6 @@ class ItineraryQuotationService
             $publishRate = (float) ($unit->publish_rate ?? 0);
             if ($contractRate <= 0 && $publishRate > 0) {
                 $contractRate = $publishRate;
-            }
-            if ($publishRate <= 0) {
-                $publishRate = $contractRate;
             }
             $markupType = ($unit->markup_type ?? 'fixed') === 'percent' ? 'percent' : 'fixed';
             $markup = (float) ($unit->markup ?? 0);
@@ -88,11 +87,6 @@ class ItineraryQuotationService
             $price = (float) ($attraction->publish_rate_per_pax ?? 0);
             if ($contractRate <= 0 && $price > 0) {
                 $contractRate = $price;
-            }
-            if ($price <= 0) {
-                $price = $markupType === 'percent'
-                    ? ($contractRate + ($contractRate * ($markup / 100)))
-                    : ($contractRate + $markup);
             }
             $item = $this->makeItem(
                 $this->dayPrefix($day) . 'Attraction: ' . $attraction->name,
@@ -145,7 +139,13 @@ class ItineraryQuotationService
                 'end_time' => $this->normalizeTime($activityItem->end_time ?? null),
                 'travel_minutes_to_next' => $this->normalizeInt($activityItem->travel_minutes_to_next ?? null),
                 'visit_order' => $this->normalizeInt($activityItem->visit_order ?? null),
+                'vendor_name' => trim((string) ($activity->vendor?->name ?? '')),
+                'vendor_region' => $this->resolveRegionLabel(
+                    (string) ($activity->vendor?->city ?? ''),
+                    (string) ($activity->vendor?->province ?? ''),
+                ),
             ];
+            $activityDescription = $this->formatDescriptionWithVendor('Activity', (string) ($activity->name ?? ''), (string) ($activity->vendor?->name ?? ''));
 
             if ($adultQty > 0) {
                 $adultContract = (float) ($activity->adult_contract_rate ?? 0);
@@ -155,13 +155,8 @@ class ItineraryQuotationService
                 if ($adultContract <= 0 && $adultPublish > 0) {
                     $adultContract = $adultPublish;
                 }
-                if ($adultPublish <= 0) {
-                    $adultPublish = $adultMarkupType === 'percent'
-                        ? ($adultContract + ($adultContract * ($adultMarkup / 100)))
-                        : ($adultContract + $adultMarkup);
-                }
                 $adultItem = $this->makeItem(
-                    $this->dayPrefix($day) . 'Activity: ' . $activity->name,
+                    $this->dayPrefix($day) . $activityDescription,
                     $adultQty,
                     $adultPublish,
                     0,
@@ -196,13 +191,8 @@ class ItineraryQuotationService
                 if ($childContract <= 0 && $childPublish > 0) {
                     $childContract = $childPublish;
                 }
-                if ($childPublish <= 0) {
-                    $childPublish = $childMarkupType === 'percent'
-                        ? ($childContract + ($childContract * ($childMarkup / 100)))
-                        : ($childContract + $childMarkup);
-                }
                 $childItem = $this->makeItem(
-                    $this->dayPrefix($day) . 'Activity: ' . $activity->name,
+                    $this->dayPrefix($day) . $activityDescription,
                     $childQty,
                     $childPublish,
                     0,
@@ -244,11 +234,6 @@ class ItineraryQuotationService
             if ($contractRate <= 0 && $price > 0) {
                 $contractRate = $price;
             }
-            if ($price <= 0) {
-                $price = $markupType === 'percent'
-                    ? ($contractRate + ($contractRate * ($markup / 100)))
-                    : ($contractRate + $markup);
-            }
             $item = $this->makeItem(
                 $this->dayPrefix($day) . 'Island Transfer: ' . $transfer->name,
                 $qty,
@@ -287,50 +272,62 @@ class ItineraryQuotationService
                 continue;
             }
             $day = (int) ($foodItem->day_number ?? 0);
-            $qty = max(1, (int) ($foodItem->pax ?? 1));
-            $contractRate = (float) ($food->contract_rate ?? 0);
-            $markupType = ($food->markup_type ?? 'fixed') === 'percent' ? 'percent' : 'fixed';
-            $markup = (float) ($food->markup ?? 0);
-            $price = (float) ($food->publish_rate ?? 0);
-            if ($contractRate <= 0 && $price > 0) {
-                $contractRate = $price;
+            $adultQty = max(0, (int) ($foodItem->pax_adult ?? 0));
+            $childQty = max(0, (int) ($foodItem->pax_child ?? 0));
+            $totalQty = max(1, (int) ($foodItem->pax ?? ($adultQty + $childQty) ?: 1));
+            if (($adultQty + $childQty) > 0) {
+                $totalQty = max(1, $adultQty + $childQty);
             }
-            if ($price <= 0) {
-                $price = $markupType === 'percent'
-                    ? ($contractRate + ($contractRate * ($markup / 100)))
-                    : ($contractRate + $markup);
+
+            $foodDescription = $this->formatDescriptionWithVendor('F&B', (string) ($food->name ?? ''));
+            $foodVendorRegion = $this->resolveRegionLabel(
+                (string) ($food->vendor?->city ?? ''),
+                (string) ($food->vendor?->province ?? ''),
+            );
+            $foodMeta = [
+                'day_number' => $day,
+                'meal_type' => $this->normalizeMealField($foodItem->meal_type ?? null),
+                'meal_period' => $this->normalizeMealField($food->meal_period ?? null),
+                'vendor_name' => trim((string) ($food->vendor?->name ?? '')),
+                'vendor_region' => $foodVendorRegion,
+                'start_time' => $this->normalizeTime($foodItem->start_time ?? null),
+                'end_time' => $this->normalizeTime($foodItem->end_time ?? null),
+                'travel_minutes_to_next' => $this->normalizeInt($foodItem->travel_minutes_to_next ?? null),
+                'visit_order' => $this->normalizeInt($foodItem->visit_order ?? null),
+            ];
+
+            $adultContract = (float) ($food->adult_contract_rate ?? $food->contract_rate ?? 0);
+            $adultMarkupType = ($food->adult_markup_type ?? $food->markup_type ?? 'fixed') === 'percent' ? 'percent' : 'fixed';
+            $adultMarkup = (float) ($food->adult_markup ?? $food->markup ?? 0);
+            $adultPublish = (float) ($food->adult_publish_rate ?? $food->publish_rate ?? 0);
+            if ($adultContract <= 0 && $adultPublish > 0) {
+                $adultContract = $adultPublish;
             }
-            $item = $this->makeItem(
-                $this->dayPrefix($day) . 'F&B: ' . $food->name,
-                $qty,
-                $price,
+            $adultItem = $this->makeItem(
+                $this->dayPrefix($day) . $foodDescription,
+                $totalQty,
+                $adultPublish,
                 0,
                 FoodBeverage::class,
                 (int) $food->id,
                 $day,
-                [
-                    'day_number' => $day,
-                    'pax' => $qty,
-                    'meal_type' => $this->normalizeMealField($foodItem->meal_type ?? null),
-                    'meal_period' => $this->normalizeMealField($food->meal_period ?? null),
-                    'start_time' => $this->normalizeTime($foodItem->start_time ?? null),
-                    'end_time' => $this->normalizeTime($foodItem->end_time ?? null),
-                    'travel_minutes_to_next' => $this->normalizeInt($foodItem->travel_minutes_to_next ?? null),
-                    'visit_order' => $this->normalizeInt($foodItem->visit_order ?? null),
-                ],
+                array_merge($foodMeta, [
+                    'pax' => $totalQty,
+                    'pax_type' => 'adult',
+                ]),
                 'fnb'
             );
-            $item['contract_rate'] = max(0, $contractRate);
-            $item['markup_type'] = $markupType;
-            $item['markup'] = max(0, $markup);
-            $item['unit_price'] = max(0, $price);
+            $adultItem['contract_rate'] = max(0, $adultContract);
+            $adultItem['markup_type'] = $adultMarkupType;
+            $adultItem['markup'] = max(0, $adultMarkup);
+            $adultItem['unit_price'] = max(0, $adultPublish);
             $dayRows[] = [
                 'day' => $day,
                 'bucket_order' => 1,
                 'visit_order' => $this->normalizeInt($foodItem->visit_order ?? null),
                 'start_minutes' => $this->timeToMinutes($foodItem->start_time ?? null),
                 'sequence' => $sequence++,
-                'item' => $item,
+                'item' => $adultItem,
             ];
         }
 
@@ -432,11 +429,6 @@ class ItineraryQuotationService
             if ($contractRate <= 0 && $publishRate > 0) {
                 $contractRate = $publishRate;
             }
-            if ($publishRate <= 0) {
-                $publishRate = $markupType === 'percent'
-                    ? ($contractRate + ($contractRate * ($markup / 100)))
-                    : ($contractRate + $markup);
-            }
             if ($isSelfBookedHotel) {
                 $contractRate = 0;
                 $markupType = 'fixed';
@@ -519,17 +511,63 @@ class ItineraryQuotationService
         $items = array_values(array_map(fn (array $row) => $row['item'], $dayRows));
 
         return array_values(array_filter($items, function (array $item): bool {
-            $description = trim((string) ($item['description'] ?? ''));
-            $unitPrice = (float) ($item['unit_price'] ?? 0);
-
-            // Only chargeable + included itinerary lines should become quotation lines.
-            return $description !== '' && $unitPrice > 0;
+            return $this->shouldImportQuotationItem($item);
         }));
+    }
+
+    private function shouldImportQuotationItem(array $item): bool
+    {
+        $description = trim((string) ($item['description'] ?? ''));
+        if ($description === '') {
+            return false;
+        }
+
+        $unitPrice = (float) ($item['unit_price'] ?? 0);
+        if ($unitPrice > 0) {
+            return true;
+        }
+
+        $itineraryItemType = (string) ($item['itinerary_item_type'] ?? '');
+        if (in_array($itineraryItemType, ['transport_day', 'attraction', 'activity', 'transfer', 'fnb'], true)) {
+            return true;
+        }
+
+        if ($itineraryItemType === 'hotel_day_end') {
+            $meta = is_array($item['serviceable_meta'] ?? null) ? $item['serviceable_meta'] : [];
+            return (string) ($meta['end_hotel_booking_mode'] ?? '') !== 'self';
+        }
+
+        return false;
     }
 
     private function dayPrefix(int $day): string
     {
         return $day > 0 ? 'Day ' . $day . ' - ' : '';
+    }
+
+    private function formatDescriptionWithVendor(string $serviceType, string $serviceName, ?string $vendorName = null): string
+    {
+        $cleanType = trim($serviceType) !== '' ? trim($serviceType) : 'Service';
+        $cleanName = trim($serviceName) !== '' ? trim($serviceName) : '-';
+        $cleanVendor = trim((string) $vendorName);
+
+        if ($cleanVendor !== '') {
+            $cleanName .= ' - ' . $cleanVendor;
+        }
+
+        return $cleanType . ': ' . $cleanName;
+    }
+
+    private function resolveRegionLabel(?string ...$parts): string
+    {
+        foreach ($parts as $part) {
+            $clean = trim((string) $part);
+            if ($clean !== '') {
+                return $clean;
+            }
+        }
+
+        return '';
     }
 
     /**

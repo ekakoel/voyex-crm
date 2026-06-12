@@ -110,3 +110,29 @@ if (! function_exists('ui_choice')) {
         return $original;
     }
 }
+
+if (! function_exists('ui_user_name')) {
+    /**
+     * Display the current authenticated user as "You" while keeping other
+     * user names visible for audit and assignment fields.
+     */
+    function ui_user_name($user = null, mixed $fallback = '-'): string
+    {
+        $fallbackText = is_string($fallback) ? $fallback : (string) $fallback;
+        if (! $user) {
+            return $fallbackText;
+        }
+
+        $userId = is_object($user) ? (int) ($user->id ?? 0) : (int) $user;
+        if ($userId > 0 && $userId === (int) (auth()->id() ?? 0)) {
+            return ui_phrase('You');
+        }
+
+        if (is_object($user)) {
+            $name = trim((string) ($user->name ?? ''));
+            return $name !== '' ? $name : $fallbackText;
+        }
+
+        return $fallbackText;
+    }
+}

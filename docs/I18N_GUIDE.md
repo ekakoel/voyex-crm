@@ -58,6 +58,34 @@ Configured in: `config/app.php` under `supported_locales`.
 3. Sync the same phrase entries to `zh_Hant` and `zh_Hans` files.
 4. Keep wording concise and consistent with existing tone.
 
+## Mandatory I18N Audit for Every Update
+
+Setiap perubahan code (UI maupun message backend) wajib melalui audit i18n sebelum dianggap selesai.
+
+Checklist audit minimum:
+1. Audit semua text/paragraf/kalimat user-facing pada file yang diubah:
+   - Blade view,
+   - JavaScript (inline/module),
+   - Controller flash/error/success message,
+   - Validation/custom message,
+   - Modal/empty-state/helper text.
+2. Pastikan tidak ada hardcoded user-facing text baru.
+3. Pastikan seluruh text memakai helper/key i18n (`ui_phrase`, `ui_choice`, `__`, `trans`, atau key setara sesuai konteks).
+4. Untuk phrase baru, wajib sync ke:
+   - `lang/en/ui_core.php`
+   - `lang/zh_Hant/ui_core.php`
+   - `lang/zh_Hans/ui_core.php`
+5. Jika ada text yang sengaja belum diterjemahkan, perubahan tidak boleh ditutup sampai phrase i18n dilengkapi.
+
+## Mandatory UI Compatibility Audit (Wajib Setiap Update)
+
+Selain audit i18n, setiap perubahan halaman wajib lolos audit berikut:
+1. Multi-language: semua text user-facing tetap translatable.
+2. Multi-currency (jika halaman menampilkan nominal): semua nominal wajib lewat formatter/komponen currency existing.
+3. Light/Dark mode: UI yang disentuh wajib tetap readable dan usable di kedua mode.
+
+Perubahan dianggap belum selesai jika salah satu audit di atas belum terpenuhi.
+
 ## PDF Chinese Support (Traditional / Simplified)
 
 PDF rendering uses DOMPDF and requires a CJK-compatible font to display Chinese characters correctly.

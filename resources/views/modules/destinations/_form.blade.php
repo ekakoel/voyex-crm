@@ -22,16 +22,7 @@
         </div>
     </div>
 
-    <div class="grid grid-cols-1 gap-4 md:grid-cols-1">
-        <div>
-            <x-google-maps-autofill-row
-                name="google_maps_url"
-                :value="old('google_maps_url', $destination->google_maps_url ?? '')"
-            />
-        </div>
-    </div>
     <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-        
         <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Slug') }}</label>
             <input name="slug" value="{{ old('slug', $destination->slug ?? '') }}"
@@ -40,39 +31,25 @@
             @error('slug') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
         </div>
         <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Location') }}</label>
-            <input name="location" data-location-field="location" value="{{ old('location', $destination->location ?? '') }}"
-                class="mt-1 dark:border-gray-600 app-input">
-        </div>
-        <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('City/Region (Optional)') }}</label>
-            <input name="city" data-location-field="city" value="{{ old('city', $destination->city ?? '') }}"
-                class="mt-1 dark:border-gray-600 app-input">
-        </div>
-        <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Address') }}</label>
-            <input name="address" data-location-field="address" value="{{ old('address', $destination->address ?? '') }}"
-                class="mt-1 dark:border-gray-600 app-input">
-        </div>
-    </div>
-
-    <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Country') }}</label>
-            <input name="country" data-location-field="country" value="{{ old('country', $destination->country ?? '') }}"
-                class="mt-1 dark:border-gray-600 app-input">
-        </div>
-        <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Timezone') }}</label>
             <input name="timezone" data-location-field="timezone" value="{{ old('timezone', $destination->timezone ?? '') }}"
                 class="mt-1 dark:border-gray-600 app-input">
         </div>
     </div>
-    <x-location-coordinate-row
-        :latitude-value="old('latitude', $destination->latitude ?? '')"
-        :longitude-value="old('longitude', $destination->longitude ?? '')"
-    />
-    <p data-location-status class="hidden text-xs"></p>
+
+    @include('components.map-standard-section', [
+        'title' => ui_phrase('Map & Location Standard'),
+        'mapPartial' => 'modules.destinations.partials._location-map',
+        'mapValue' => old('google_maps_url', $destination->google_maps_url ?? ''),
+        'latitudeValue' => old('latitude', $destination->latitude ?? ''),
+        'longitudeValue' => old('longitude', $destination->longitude ?? ''),
+        'addressValue' => old('address', $destination->address ?? ''),
+        'cityValue' => old('city', $destination->city ?? ''),
+        'provinceValue' => old('province', $destination->province ?? ''),
+        'countryValue' => old('country', $destination->country ?? ''),
+        'showDestinationField' => false,
+    ])
+    <input type="hidden" name="location" data-location-field="location" value="{{ old('location', $destination->location ?? '') }}">
 
     <div>
         <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Description') }}</label>
@@ -87,8 +64,8 @@
     </div>
 
     <div class="flex items-center gap-2">
-        <button  class="btn-primary">{{ $buttonLabel }}</button>
+        <button class="btn-primary">{{ $buttonLabel }}</button>
         <a href="{{ route('destinations.index') }}"
-             class="btn-secondary">Cancel</a>
+            class="btn-secondary">{{ ui_phrase('Cancel') }}</a>
     </div>
 </div>

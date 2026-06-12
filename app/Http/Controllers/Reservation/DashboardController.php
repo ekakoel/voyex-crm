@@ -8,261 +8,257 @@ use App\Models\Inquiry;
 use App\Models\Itinerary;
 use App\Models\Quotation;
 use App\Services\ModuleService;
+use App\Support\Concerns\ResolvesInquiryHandler;
+use App\Support\InquiryDeadlineReminder;
+use App\Support\SchemaInspector;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Cache;
 
 class DashboardController extends Controller
 {
+    use ResolvesInquiryHandler;
+
     public function index()
     {
         $user = auth()->user();
-        $userId = $user?->id;
-        $activeBookingStatuses = ['confirmed', 'ready_to_operate', 'in_operation', 'service_completed', 'completed_unsettled', 'completed_settled', 'closed'];
+        $userId = (int) ($user?->id ?? 0);
+        $now = Carbon::now();
+        $today = $now->copy()->startOfDay();
+        $startOfMonth = $now->copy()->startOfMonth();
+        $endOfMonth = $now->copy()->endOfMonth();
+
         $canInquiries = (bool) $user?->can('module.inquiries.access');
         $canItineraries = (bool) $user?->can('module.itineraries.access');
         $canQuotations = (bool) $user?->can('module.quotations.access');
-        $bookingsModuleEnabled = ModuleService::isEnabledStatic('bookings');
-        $canBookings = $bookingsModuleEnabled && (bool) $user?->can('module.bookings.access');
-        $now = Carbon::now();
-        $startOfMonth = $now->copy()->startOfMonth();
-        $kpis = [];
-        $bookingStatusCounts = [];
-        $bookingStatusBreakdown = [];
-        $bookingCountMonth = 0;
-        $topDestinationSummary = null;
-        $slaDaysAvg = null;
-        $overdueCloseCount = 0;
-        $weeklyBookingTrend = [];
-        $bookingByStaff = collect();
-        $topCustomers = collect();
+        $canBookings = ModuleService::isEnabledStatic('bookings') && (bool) $user?->can('module.bookings.access');
 
-        $kpis['pending_closure'] = $canBookings
-            ? Booking::query()
-                ->whereNotIn('status', ['closed', 'cancelled'])
-                ->whereDate('travel_date', '<', $now->toDateString())
+        $activeBookingStatuses = ['created', 'vendor_confirmation', 'voucher_preparation', 'pending_confirmation', 'confirmed', 'awaiting_dp', 'dp_received', 'awaiting_balance', 'ready_to_operate', 'in_operation', 'service_completed', 'reconciliation', 'invoiced', 'completed_unsettled', 'completed_settled'];
+        $needValidationStatuses = [Quotation::STATUS_NEED_VALIDATION, Quotation::STATUS_PENDING_VALIDATION];
+        $readyToSendStatuses = [Quotation::STATUS_READY_TO_SEND, Quotation::STATUS_VALIDATED];
+        $approvedStatuses = [Quotation::STATUS_APPROVED, Quotation::STATUS_CUSTOMER_APPROVED];
+        $openQuotationStatuses = array_merge([Quotation::STATUS_DRAFT, Quotation::STATUS_SENT], $needValidationStatuses, $readyToSendStatuses, $approvedStatuses);
+        $activeInquiryStatuses = ['new_request', 'need_customer_data', 'registered', 'assigned', 'contacted', 'waiting_customer', 'qualified', 'itinerary_in_progress', 'quotation_in_progress', 'quotation_sent', 'under_negotiation', 'accepted'];
+
+        $myInquiryQuery = $canInquiries && $userId > 0
+            ? $this->myInquiryQuery($user)->whereIn('status', $activeInquiryStatuses)
+            : null;
+        $myQuotationQuery = $canQuotations && $userId > 0
+            ? $this->myQuotationQuery($user)
+            : null;
+        $myBookingQuery = $canBookings && $userId > 0
+            ? $this->myBookingQuery($user)
+            : null;
+
+        $deadlineWatch = $canInquiries && $userId > 0
+            ? InquiryDeadlineReminder::queryForUser($user)
+                ->with(['customer:id,name,company_name', 'handledBy:id,name', 'assignedTo:id,name'])
+                ->orderBy('deadline')
+                ->latest('id')
+                ->limit(6)
+                ->get(['id', 'inquiry_number', 'customer_id', 'status', 'priority', 'deadline', 'handled_by', 'assigned_to'])
+            : collect();
+
+        $activeInquiryCount = $myInquiryQuery ? (clone $myInquiryQuery)->count() : 0;
+        $unquotedInquiryCount = $myInquiryQuery
+            ? (clone $myInquiryQuery)->whereDoesntHave('quotation')->count()
+            : 0;
+        $deadlineWatchCount = $canInquiries && $userId > 0
+            ? InquiryDeadlineReminder::queryForUser($user)->count()
+            : 0;
+        $overdueInquiryCount = $myInquiryQuery
+            ? (clone $myInquiryQuery)
+                ->whereDoesntHave('quotation')
+                ->whereNotNull('deadline')
+                ->whereDate('deadline', '<', $today->toDateString())
                 ->count()
             : 0;
-        
-        $kpis['total_booked_value'] = $canBookings
-            ? Booking::query()
-                ->join('quotations', 'bookings.quotation_id', '=', 'quotations.id')
-                ->whereIn('bookings.status', $activeBookingStatuses)
-                ->sum('quotations.final_amount')
-            : 0;
 
-        $inquiryCount = $canInquiries && $userId
-            ? Inquiry::query()->where('created_by', $userId)->count()
-            : 0;
-        $inquiryStatusCounts = $canInquiries && $userId
-            ? Inquiry::query()
-                ->select('status', DB::raw('COUNT(*) as total'))
-                ->where('created_by', $userId)
-                ->groupBy('status')
-                ->pluck('total', 'status')
-                ->toArray()
-            : [];
-
-        $itineraryCount = $canItineraries && $userId
-            ? Itinerary::query()->where('created_by', $userId)->count()
-            : 0;
-        $itineraryStatusCounts = $canItineraries && $userId
+        $itineraryCount = $canItineraries && $userId > 0
             ? Itinerary::query()
-                ->select('status', DB::raw('COUNT(*) as total'))
                 ->where('created_by', $userId)
-                ->groupBy('status')
-                ->pluck('total', 'status')
-                ->toArray()
-            : [];
-
-        $quotationCount = $canQuotations && $userId
-            ? Quotation::query()
-                ->whereHas('inquiry', fn ($query) => $query->where('created_by', $userId))
+                ->whereNull('deleted_at')
                 ->count()
             : 0;
-        $quotationStatusCounts = $canQuotations && $userId
-            ? Quotation::query()
-                ->select('status', DB::raw('COUNT(*) as total'))
-                ->whereHas('inquiry', fn ($query) => $query->where('created_by', $userId))
-                ->groupBy('status')
-                ->pluck('total', 'status')
-                ->toArray()
-            : [];
+        $itineraryDraftCount = $canItineraries && $userId > 0
+            ? Itinerary::query()
+                ->where('created_by', $userId)
+                ->whereNull('deleted_at')
+                ->whereIn('status', ['draft', 'in_progress', 'revised'])
+                ->count()
+            : 0;
 
-        $readyToBookQuery = Quotation::query()
-            ->where('status', 'accepted')
-            ->whereDoesntHave('booking');
+        $openQuotationCount = $myQuotationQuery
+            ? (clone $myQuotationQuery)->whereIn('status', $openQuotationStatuses)->count()
+            : 0;
+        $quotationDraftCount = $myQuotationQuery
+            ? (clone $myQuotationQuery)->where('status', Quotation::STATUS_DRAFT)->count()
+            : 0;
+        $quotationPendingValidationCount = $myQuotationQuery
+            ? (clone $myQuotationQuery)->whereIn('status', $needValidationStatuses)->count()
+            : 0;
+        $quotationSentCount = $myQuotationQuery
+            ? (clone $myQuotationQuery)->where('status', Quotation::STATUS_SENT)->count()
+            : 0;
 
-        $readyToBookQuotations = $canQuotations
+        $readyToBookQuery = $myQuotationQuery
+            ? (clone $myQuotationQuery)
+                ->whereIn('status', $approvedStatuses)
+                ->whereDoesntHave('booking')
+            : null;
+        $readyToBookCount = $readyToBookQuery ? (clone $readyToBookQuery)->count() : 0;
+        $readyToBookQuotations = $readyToBookQuery
             ? (clone $readyToBookQuery)
-                ->with('inquiry.customer:id,name')
-                ->latest()
-                ->limit(7)
-                ->get()
+                ->with(['inquiry.customer:id,name,company_name'])
+                ->latest('updated_at')
+                ->limit(6)
+                ->get(['id', 'quotation_number', 'order_number', 'inquiry_id', 'status', 'final_amount', 'updated_at'])
             : collect();
 
-        $kpis['ready_to_book'] = $canQuotations
-            ? (clone $readyToBookQuery)->count()
-            : 0;
-        
-        $upcomingTrips = $canBookings
-            ? Booking::query()
+        $upcomingTripsQuery = $myBookingQuery
+            ? (clone $myBookingQuery)
                 ->whereIn('status', $activeBookingStatuses)
-                ->whereDate('travel_date', '>=', $now)
-                ->whereDate('travel_date', '<=', $now->copy()->addDays(30))
-                ->with('quotation.inquiry.customer:id,name')
+                ->whereDate('travel_date', '>=', $today->toDateString())
+                ->whereDate('travel_date', '<=', $today->copy()->addDays(14)->toDateString())
+            : null;
+        $upcomingTrips = $upcomingTripsQuery
+            ? (clone $upcomingTripsQuery)
+                ->with(['quotation.inquiry.customer:id,name,company_name'])
                 ->orderBy('travel_date')
-                ->limit(5)
-                ->get()
+                ->limit(6)
+                ->get(['id', 'booking_number', 'quotation_id', 'travel_date', 'status'])
             : collect();
+        $upcomingTripsCount = $upcomingTripsQuery ? (clone $upcomingTripsQuery)->count() : 0;
 
-        $kpis['upcoming_trips'] = $canBookings
-            ? $upcomingTrips->count()
+        $pendingClosureCount = $myBookingQuery
+            ? (clone $myBookingQuery)
+                ->whereNotIn('status', ['closed', 'cancelled'])
+                ->whereDate('travel_date', '<', $today->toDateString())
+                ->count()
             : 0;
-        
-        $recentBookings = $canBookings
-            ? Booking::query()
-                ->whereIn('status', $activeBookingStatuses)
-                ->with('quotation.inquiry.customer:id,name')
-                ->latest()
-                ->limit(5)
-                ->get()
+        $monthlyBookingCount = $myBookingQuery
+            ? (clone $myBookingQuery)
+                ->whereBetween('bookings.created_at', [$startOfMonth, $now])
+                ->count('bookings.id')
+            : 0;
+        $monthlyBookedValue = $myBookingQuery
+            ? (float) (clone $myBookingQuery)
+                ->join('quotations as booking_quotations', 'bookings.quotation_id', '=', 'booking_quotations.id')
+                ->whereBetween('bookings.created_at', [$startOfMonth, $now])
+                ->sum('booking_quotations.final_amount')
+            : 0.0;
+
+        $pipelineStages = [
+            ['label' => ui_phrase('Assigned Inquiries'), 'value' => $activeInquiryCount, 'icon' => 'inbox', 'color' => 'amber'],
+            ['label' => ui_phrase('Itineraries'), 'value' => $itineraryCount, 'icon' => 'route', 'color' => 'indigo'],
+            ['label' => ui_phrase('Open Quotations'), 'value' => $openQuotationCount, 'icon' => 'file-invoice-dollar', 'color' => 'teal'],
+            ['label' => ui_phrase('Ready to Book'), 'value' => $readyToBookCount, 'icon' => 'calendar-plus', 'color' => 'emerald'],
+            ['label' => ui_phrase('Upcoming Trips'), 'value' => $upcomingTripsCount, 'icon' => 'plane-departure', 'color' => 'sky'],
+        ];
+
+        $statsCards = [
+            ['label' => ui_phrase('Deadline Watch'), 'value' => $deadlineWatchCount, 'caption' => ui_phrase('Needs action by priority'), 'icon' => 'hourglass-half', 'color' => $deadlineWatchCount > 0 ? 'rose' : 'slate'],
+            ['label' => ui_phrase('Unquoted Inquiries'), 'value' => $unquotedInquiryCount, 'caption' => ui_phrase('Assigned and no quotation'), 'icon' => 'file-circle-plus', 'color' => 'amber'],
+            ['label' => ui_phrase('Ready to Book'), 'value' => $readyToBookCount, 'caption' => ui_phrase('Customer approved'), 'icon' => 'calendar-check', 'color' => 'emerald'],
+            ['label' => ui_phrase('Trips Next 14 Days'), 'value' => $upcomingTripsCount, 'caption' => ui_phrase('Operational attention'), 'icon' => 'plane-departure', 'color' => 'sky'],
+        ];
+
+        $quotationWorkbench = [
+            ['label' => ui_phrase('Draft'), 'value' => $quotationDraftCount, 'color' => 'slate'],
+            ['label' => ui_phrase('Pending Validation'), 'value' => $quotationPendingValidationCount, 'color' => 'amber'],
+            ['label' => ui_phrase('Sent'), 'value' => $quotationSentCount, 'color' => 'sky'],
+            ['label' => ui_phrase('Ready to Book'), 'value' => $readyToBookCount, 'color' => 'emerald'],
+        ];
+
+        $travelBars = $this->buildTravelBars($upcomingTripsQuery, $today);
+        $recentInquiries = $myInquiryQuery
+            ? (clone $myInquiryQuery)
+                ->with(['customer:id,name,company_name', 'quotation:id,inquiry_id,status'])
+                ->latest('updated_at')
+                ->limit(6)
+                ->get(['id', 'inquiry_number', 'customer_id', 'status', 'priority', 'deadline', 'updated_at'])
             : collect();
-
-        if ($canBookings) {
-            $bookingStatusCounts = Cache::remember("reservation:booking_status_counts:{$startOfMonth->toDateString()}", 120, function () {
-                return Booking::query()
-                    ->select('status', DB::raw('COUNT(*) as total'))
-                    ->groupBy('status')
-                    ->pluck('total', 'status')
-                    ->toArray();
-            });
-
-            $bookingCountMonth = Cache::remember("reservation:booking_count_month:{$startOfMonth->toDateString()}", 120, function () use ($startOfMonth, $now) {
-                return Booking::query()
-                    ->whereBetween('created_at', [$startOfMonth, $now])
-                    ->count();
-            });
-
-            $confirmedCount = (int) ($bookingStatusCounts['confirmed'] ?? 0)
-                + (int) ($bookingStatusCounts['ready_to_operate'] ?? 0)
-                + (int) ($bookingStatusCounts['in_operation'] ?? 0)
-                + (int) ($bookingStatusCounts['service_completed'] ?? 0)
-                + (int) ($bookingStatusCounts['completed_unsettled'] ?? 0)
-                + (int) ($bookingStatusCounts['completed_settled'] ?? 0)
-                + (int) ($bookingStatusCounts['closed'] ?? 0);
-
-            $bookingStatusBreakdown = [
-                ['label' => ui_phrase('pending'), 'count' => (int) ($bookingStatusCounts['awaiting_dp'] ?? 0), 'bg' => 'bg-amber-100', 'text' => 'text-amber-700'],
-                ['label' => ui_phrase('confirmed'), 'count' => $confirmedCount, 'bg' => 'bg-emerald-100', 'text' => 'text-emerald-700'],
-                ['label' => ui_phrase('cancelled'), 'count' => (int) ($bookingStatusCounts['cancelled'] ?? 0), 'bg' => 'bg-rose-100', 'text' => 'text-rose-700'],
-            ];
-
-            $topDestinationSummary = Cache::remember("reservation:top_destination:{$startOfMonth->toDateString()}", 120, function () use ($startOfMonth, $now) {
-                $topDestinationRow = Booking::query()
-                    ->join('quotations', 'bookings.quotation_id', '=', 'quotations.id')
-                    ->join('itineraries', 'quotations.itinerary_id', '=', 'itineraries.id')
-                    ->leftJoin('destinations', 'itineraries.destination_id', '=', 'destinations.id')
-                    ->whereBetween('bookings.created_at', [$startOfMonth, $now])
-                    ->selectRaw("COALESCE(destinations.name, itineraries.destination, '".ui_phrase('unknown')."') as destination_name, COUNT(*) as total")
-                    ->groupBy('destination_name')
-                    ->orderByDesc('total')
-                    ->first();
-
-                if ($topDestinationRow) {
-                    return $topDestinationRow->destination_name . ' (' . $topDestinationRow->total . ')';
-                }
-
-                return null;
-            });
-
-            $slaDaysAvg = Cache::remember("reservation:sla_avg:{$startOfMonth->toDateString()}", 120, function () {
-                return Booking::query()
-                    ->join('quotations', 'bookings.quotation_id', '=', 'quotations.id')
-                    ->whereNotNull('quotations.approved_at')
-                    ->avg(DB::raw('DATEDIFF(bookings.created_at, quotations.approved_at)'));
-            });
-
-            $overdueCloseCount = Cache::remember("reservation:overdue_close_count:{$now->toDateString()}", 120, function () use ($now) {
-                return Booking::query()
-                    ->whereDate('travel_date', '<', $now->toDateString())
-                    ->whereNotIn('status', ['closed', 'cancelled'])
-                    ->count();
-            });
-
-            $weekStart = $now->copy()->startOfWeek()->subWeeks(5);
-            $weekKeys = collect(range(0, 5))
-                ->map(fn ($offset) => $weekStart->copy()->addWeeks($offset));
-
-            $weeklyBookingTrend = Cache::remember("reservation:weekly_trend:{$weekStart->toDateString()}", 120, function () use ($weekStart) {
-                $weeklyCounts = Booking::query()
-                    ->where('created_at', '>=', $weekStart)
-                    ->selectRaw('YEARWEEK(created_at, 1) as year_week, COUNT(*) as total')
-                    ->groupBy('year_week')
-                    ->pluck('total', 'year_week')
-                    ->toArray();
-
-                return collect(range(0, 5))
-                    ->map(function ($offset) use ($weekStart, $weeklyCounts) {
-                        $weekDate = $weekStart->copy()->addWeeks($offset);
-                        $key = $weekDate->format('oW');
-                        return [
-                            'label' => $weekDate->format('Y-m-d'),
-                            'count' => (int) ($weeklyCounts[$key] ?? 0),
-                        ];
-                    })
-                    ->toArray();
-            });
-
-            $bookingByStaff = Cache::remember("reservation:booking_by_staff:{$startOfMonth->toDateString()}", 120, function () use ($startOfMonth, $now) {
-                return Booking::query()
-                    ->join('users', 'bookings.created_by', '=', 'users.id')
-                    ->whereBetween('bookings.created_at', [$startOfMonth, $now])
-                    ->select('users.name', DB::raw('COUNT(*) as total'))
-                    ->groupBy('users.name')
-                    ->orderByDesc('total')
-                    ->limit(5)
-                    ->get();
-            });
-
-            $topCustomers = Cache::remember("reservation:top_customers:{$startOfMonth->toDateString()}", 120, function () use ($startOfMonth, $now) {
-                return Booking::query()
-                    ->join('quotations', 'bookings.quotation_id', '=', 'quotations.id')
-                    ->join('inquiries', 'quotations.inquiry_id', '=', 'inquiries.id')
-                    ->join('customers', 'inquiries.customer_id', '=', 'customers.id')
-                    ->whereBetween('bookings.created_at', [$startOfMonth, $now])
-                    ->select('customers.name', DB::raw('SUM(quotations.final_amount) as total_value'), DB::raw('COUNT(*) as total_bookings'))
-                    ->groupBy('customers.name')
-                    ->orderByDesc('total_value')
-                    ->limit(3)
-                    ->get();
-            });
-        }
 
         return view('reservation.dashboard', compact(
-            'kpis',
             'canInquiries',
             'canItineraries',
             'canQuotations',
             'canBookings',
-            'inquiryCount',
-            'itineraryCount',
-            'quotationCount',
-            'inquiryStatusCounts',
-            'itineraryStatusCounts',
-            'quotationStatusCounts',
+            'statsCards',
+            'pipelineStages',
+            'quotationWorkbench',
+            'deadlineWatch',
             'readyToBookQuotations',
             'upcomingTrips',
-            'recentBookings',
-            'bookingStatusCounts',
-            'bookingStatusBreakdown',
-            'bookingCountMonth',
-            'topDestinationSummary',
-            'slaDaysAvg',
-            'overdueCloseCount',
-            'weeklyBookingTrend',
-            'bookingByStaff',
-            'topCustomers'
+            'recentInquiries',
+            'travelBars',
+            'activeInquiryCount',
+            'unquotedInquiryCount',
+            'overdueInquiryCount',
+            'itineraryDraftCount',
+            'openQuotationCount',
+            'monthlyBookingCount',
+            'monthlyBookedValue',
+            'pendingClosureCount'
         ));
+    }
+
+    private function myInquiryQuery($user): Builder
+    {
+        return Inquiry::query()
+            ->whereNull('deleted_at')
+            ->where(function (Builder $query) use ($user): void {
+                $this->applyInquiryHandlerScope($query, (int) $user->id, 'inquiries');
+            });
+    }
+
+    private function myQuotationQuery($user): Builder
+    {
+        return Quotation::query()
+            ->whereNull('quotations.deleted_at')
+            ->whereHas('inquiry', function (Builder $query) use ($user): void {
+                $this->applyInquiryOwnershipScope($query, $user);
+            });
+    }
+
+    private function myBookingQuery($user): Builder
+    {
+        return Booking::query()
+            ->whereHas('quotation.inquiry', function (Builder $query) use ($user): void {
+                $this->applyInquiryOwnershipScope($query, $user);
+            });
+    }
+
+    private function applyInquiryOwnershipScope(Builder $query, $user): void
+    {
+        $this->applyInquiryHandlerScope($query, (int) $user->id, 'inquiries');
+    }
+
+    private function buildTravelBars(?Builder $upcomingTripsQuery, Carbon $today): array
+    {
+        if (! $upcomingTripsQuery) {
+            return [];
+        }
+
+        $days = collect(range(0, 13))
+            ->map(fn (int $offset) => $today->copy()->addDays($offset));
+        $counts = (clone $upcomingTripsQuery)
+            ->selectRaw('DATE(travel_date) as travel_day, COUNT(*) as total')
+            ->groupBy('travel_day')
+            ->pluck('total', 'travel_day')
+            ->toArray();
+        $max = max(array_map('intval', array_values($counts)) ?: [0]);
+
+        return $days
+            ->map(function (Carbon $date) use ($counts, $max): array {
+                $count = (int) ($counts[$date->toDateString()] ?? 0);
+
+                return [
+                    'label' => $date->format('d M'),
+                    'count' => $count,
+                    'height' => $max > 0 ? max(10, (int) round(($count / $max) * 78)) : 10,
+                ];
+            })
+            ->all();
     }
 }

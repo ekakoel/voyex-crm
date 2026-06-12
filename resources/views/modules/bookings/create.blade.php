@@ -10,7 +10,7 @@
     <div class="space-y-6 module-page module-page--bookings">
         <div class="module-grid-8-4">
             <div class="module-grid-main">
-                <div class="module-form-wrap">
+                <x-ui.section-card :title="ui_phrase('Create Booking')" :description="ui_phrase('Create operational booking from approved quotation.')">
                     <form method="POST" action="{{ route('bookings.store') }}">
                         @csrf
                         @include('modules.bookings._form', [
@@ -19,7 +19,7 @@
                             'readonlyGeneratedFlow' => true,
                         ])
                     </form>
-                </div>
+                </x-ui.section-card>
             </div>
             <aside class="module-grid-side">
                 <div class="module-card p-5 text-sm text-slate-600 dark:text-slate-300">
@@ -30,6 +30,5 @@
         </div>
     </div>
 @endsection
-
 
 

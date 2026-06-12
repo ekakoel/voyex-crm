@@ -1,7 +1,7 @@
 # VOYEX CRM -- SYSTEM ROADMAP
 
-Version: 1.4  
-Last Updated: 2026-05-18
+Version: 1.5  
+Last Updated: 2026-06-12
 
 Legend:  
 - DONE = Implemented  
@@ -25,6 +25,7 @@ Module Toggle (Service Manager) | DONE | Module enable/disable control
 CRUD Permission Enforcement | DONE | `module.permission:{moduleKey}` middleware
 Friendly 403 Page | DONE | User-friendly 403 with actions
 User Activity Log | PARTIAL | Activity log UI exists, full audit trail not yet
+Current User Alias | DONE | Created/Assigned/Updated user fields render current viewer as `You`
 
 ## Customer & Inquiry
 
@@ -36,7 +37,7 @@ Inquiry Creation | DONE | Includes inquiry number auto-format
 Inquiry Assignment | DONE | Assign to Manager/Marketing
 Inquiry Status Tracking | DONE | Unified statuses + Final lock
 Inquiry Deactivate/Activate | DONE | Soft delete on inquiries, toggle status in index
-Follow-up Reminder | TODO | Auto reminder not yet
+Follow-up Reminder | PARTIAL | Top navigation deadline reminder follows inquiry priority window before quotation exists
 Inquiry History Log | PARTIAL | Communications & follow-ups exist
 
 ----------------------------------------------------------------------------------------------------
@@ -82,6 +83,7 @@ Versioning | TODO | Not implemented
 Feature | Status | Notes
 --- | --- | ---
 Create Quotation | DONE | Full CRUD
+Inquiry ↔ Quotation Relationship | DONE | One-to-one enforced by form availability, server validation, and unique `quotations.inquiry_id`
 Auto Number Generator | DONE | Quotation number
 Price Calculation | DONE | Final amount calc
 Discount Workflow | DONE | Discount + approval guard
@@ -128,6 +130,7 @@ Financial Reports | TODO | Not implemented
 Feature | Status | Notes
 --- | --- | ---
 Role Dashboards | DONE | Separate dashboard per role (except Super Admin)
+Reservation Dashboard | DONE | Focused KPI, funnel, deadline watch, quotation workbench, and upcoming trip views for assigned Reservation work
 Revenue Dashboard | PARTIAL | KPI only, no advanced analytics
 Conversion Rate | PARTIAL | Basic KPI on Manager/Director
 Booking Trend | TODO | Not implemented
@@ -198,6 +201,227 @@ Kebijakan ini wajib untuk setiap update code (penambahan, perubahan, pengurangan
 ----------------------------------------------------------------------------------------------------
 
 # CHANGELOG (LATEST)
+
+- 2026-06-12
+  - Saat module `Booking` di-disable oleh Super Admin, action dan tampilan booking pada detail quotation sekarang ikut disembunyikan, termasuk `Create Booking`, `View Booking`, status booking/operation, dan field ringkasan booking.
+  - Reservation dashboard juga tidak lagi menampilkan wording atau alert booking saat module booking nonaktif, sehingga UI tetap konsisten dengan route middleware yang sudah memblokir akses booking.
+  - Referensi booking di halaman invoice, payment, status quotation, dan helper copy inquiry juga ikut disamarkan/dihilangkan agar secara visual modul booking benar-benar terasa tidak tersedia untuk user.
+
+- 2026-06-12
+  - Flow `Create Booking` dari quotation approved sekarang dikunci hanya untuk user yang menjadi handler quotation/inquiry sesuai fallback `handled_by -> assigned_to -> created_by`.
+  - Select quotation pada halaman create booking sekarang hanya menampilkan quotation approved, valid, memiliki item, belum terhubung ke booking aktif, dan memang di-handle user yang login.
+  - Guard backend booking create/update dan visibility action `Create Booking` juga diselaraskan agar direct URL atau manual submit tidak bisa memakai quotation milik handler lain.
+
+- 2026-06-12
+  - Duplikasi `Valid Until` pada metadata `Service Date` di PDF quotation dihapus karena informasi tersebut sudah ditampilkan pada metadata `Version`.
+
+- 2026-06-12
+  - Susunan metadata compact pada PDF quotation diubah menjadi dua baris dengan urutan: `Version`, `Service Date`, `Pax`, lalu `Customer`, `Inquiry`, `Itinerary`.
+
+- 2026-06-12
+  - Header paling atas PDF quotation diringkas agar hanya menampilkan `Quotation` dan `Number`; baris duplikat `Order Number`, `Date`, dan `Valid Until` dihapus dari area header atas.
+  - Bagian `Itinerary` sekarang menampilkan nama itinerary dengan ringkasan `Duration`, bukan lagi `#id`, dan bagian `Pax` disederhanakan menjadi format `Adult: N | Child: N`.
+
+- 2026-06-12
+  - Metadata compact pada header PDF quotation diperluas agar juga menampilkan `Service Date`, `Pax (Adult / Child)`, `Number Itinerary` memakai format `#id`, serta `Nama Itinerary`.
+  - Layout tetap dijaga ringkas dengan tabel metadata 2 baris sehingga konteks quotation lebih lengkap tanpa mendorong konten service terlalu jauh ke bawah.
+
+- 2026-06-12
+  - Header PDF quotation sekarang menampilkan metadata `Customer`, `Inquiry`, dan `Version` dalam satu baris compact agar konteks utama tetap terlihat tanpa memakan tinggi halaman terlalu besar.
+  - Informasi customer memakai nama/customer code dan konteks kontak singkat bila tersedia, sementara inquiry menampilkan nomor + source/deadline dan version menampilkan label revision aktif.
+
+- 2026-06-12
+  - Tombol `Preview / Download PDF` pada action bar quotation sekarang membuka PDF di tab baru agar user tetap mempertahankan halaman kerja saat preview/download.
+
+- 2026-06-12
+  - Preview / download PDF quotation sekarang selalu menampilkan quotation saja; bagian itinerary tidak lagi ikut dirender walaupun quotation terhubung ke itinerary.
+  - Urutan dan grouping service item pada PDF sekarang mengikuti halaman detail quotation melalui helper sorting yang sama (`Day N` lalu `Additional Services` dengan prioritas `sort_order`).
+  - Kolom internal `Status`, `Contract Rate`, dan `Markup` dihapus dari PDF karena tidak boleh ikut tampil ke customer; PDF hanya menampilkan `Description`, `Unit Price`, `Qty`, dan `Total`.
+
+- 2026-06-12
+  - Memperbaiki tampilan `Follow-up History` pada detail quotation agar membaca arti event follow-up dari `follow_up_type`, bukan hanya menampilkan raw `channel`.
+  - Follow-up otomatis `quotation_sent` sekarang tetap tampil sebagai event system yang benar, sementara follow-up manual disimpan eksplisit sebagai `customer_follow_up`.
+  - Card detail follow-up sekarang menampilkan urutan event berdasarkan waktu follow-up yang efektif serta membedakan konteks `By` dan `Handled By` saat datanya tersedia.
+
+- 2026-06-12
+  - Menyamakan implementasi `Adult/Child rate` untuk service `Activity` dengan pola `F&B` pada flow quotation create/generate/edit/detail/validate.
+  - Picker `Add Service` quotation untuk `Activity` sekarang mendukung pilihan pax type dan membaca `adult_*` / `child_*` publish rate, contract rate, serta markup dari master service secara benar.
+  - Normalisasi deskripsi item `Activity` sekarang ikut membawa label pax dan region vendor agar tampilan detail serta validate quotation konsisten dengan metadata rate yang dipakai.
+  - Menambahkan test unit untuk memastikan itinerary quotation item `Activity` terpecah benar antara adult dan child beserta rate masing-masing.
+
+- 2026-06-12
+  - Menambahkan persistensi urutan service quotation melalui kolom `quotation_items.sort_order`.
+  - Form create/edit quotation sekarang mengirim urutan item sesuai posisi akhir hasil generate, drag-drop, dan reindex.
+  - Halaman detail quotation sekarang membaca urutan tersimpan tersebut agar susunan service tetap konsisten dengan yang diatur user saat penyusunan quotation.
+  - Menambahkan migration backfill agar quotation lama tetap mempertahankan urutan visual existing setelah rollout.
+
+- 2026-06-11
+  - Menetapkan `resources/views/modules/inquiries/index.blade.php` sebagai baseline resmi standard UI index lintas modul.
+  - Standard index diperluas menjadi: satu compact filter card yang selalu visible di mobile/tablet/desktop, pola desktop table + mobile card list, AJAX filter/pagination, dan empty state yang konsisten.
+  - Refactor index pages utama (`vendors`, `airports`, `destinations`, `bookings`, `invoices`, `transports`, `food-beverages`, `users`, `currencies`, `island-transfers`, `quotations`, `itineraries`) agar mengikuti baseline `Inquiries`.
+  - Merapikan dokumentasi standar UI agar seluruh referensi baseline filter berpindah dari `Customers / Agents` ke `Inquiries`.
+  - Menetapkan aturan baru bahwa semua halaman index modul tidak menggunakan sidebar; sisa sidebar index dipindahkan/dihapus dan layout index distandardisasi menjadi full-width.
+
+Date: 2026-06-08
+Completed in this cycle:
+
+- Inquiry edit lock when quotation exists:
+  - added reusable `Inquiry::hasLinkedQuotation()` helper.
+  - inquiry edit/update is now blocked once the inquiry has any linked quotation, regardless of quotation status.
+  - Edit Inquiry actions are hidden on inquiry detail, desktop index action dropdown, and mobile index cards when a quotation exists.
+  - documentation updated in `docs/standards/inquiry-standard.md` and `docs/technical/VOYEX_UI_REFACTOR_CHANGELOG.md`.
+
+- Quotation create/edit item management refactor:
+  - generated itinerary items and Add Service items now use one editable row behavior.
+  - users can edit description, day, quantity, and rate before saving.
+  - users can remove generated itinerary items and Add Service items before saving.
+  - users can drag generated itinerary items and Add Service items into any available quotation Day group.
+  - item `day_number` now follows drag/drop movement and remains bounded by `duration_days`.
+  - Inquiry and Itinerary selectors are now independent: itinerary selection/generation does not clear or overwrite selected inquiry.
+  - backend quotation validation now keeps the explicitly selected inquiry even when itinerary has a different reference inquiry.
+  - generated and Add Service item descriptions now follow `Service Type: Service name`, with hotel rows using `Hotel: Hotel Name - Room Name`.
+  - visible Day column/input removed from quotation item rows because Day is represented by grouped sections.
+  - quotation item row controls, drag handles, and remove buttons now share a consistent top-aligned 42px height.
+  - drag handles and remove actions now use square icon-only controls while preserving the standard one-item-per-row layout.
+  - quotation item rows now share the same column spans and horizontal padding as their headers for cleaner alignment.
+  - Adult/Child Publish Rate badges removed from quotation item rows; pax type metadata remains hidden for data processing.
+  - Add Service controls now align in one desktop row with the action button on the far right at matching input height.
+  - removed obsolete quotation form JavaScript helpers tied to no-longer-visible markup/discount display controls and pax badges.
+  - optimized item total recalculation by scheduling typing-driven recalculation through `requestAnimationFrame`.
+  - completed a quotation form i18n pass for remaining money-input labels and manual remove actions.
+  - Add Service is available even after an itinerary is selected/generated.
+  - removed obsolete manual-only Add Service template and drag/drop code path from the quotation form.
+  - Generate now asks for confirmation before replacing existing generated/service item rows.
+- Documentation updates completed for this cycle:
+  - `docs/technical/VOYEX_UI_REFACTOR_CHANGELOG.md`
+  - `docs/standards/quotation-standard.md`
+  - `VOYEX_CRM_SYSTEM_ROADMAP.md`
+
+Date: 2026-06-04
+Completed in this cycle:
+
+- Itineraries index Item List quotation action refinement:
+  - renamed Item List popover action to `Generate Quotation`.
+  - preserved navigation to `quotations.create` with selected `itinerary_id` so quotation create/generate flow receives itinerary context.
+  - restricted action visibility to creator-owned itineraries only for users with quotation access and role Reservation, Manager, or Director.
+  - applied consistently on desktop table and mobile card Item List popovers.
+- Itinerary create/edit Review tab connector refinement:
+  - fixed Break Time review sequencing so break rows are treated as rest time, not as travel connector targets.
+  - connector text now skips Break Time rows and targets the next real schedule item, preserving the standard `Estimated time to <item>: <minutes> min` format.
+  - synced the connector text pattern through itinerary form locale dictionaries.
+- Itinerary detail map focus optimization:
+  - Schedule by Day cards now focus/highlight their matching Itinerary map marker through the existing `map_focus_key` payload.
+  - repeated card clicks reuse the current Leaflet marker registry instead of rebuilding markers, route lines, and travel badges.
+  - day changes remain the only normal trigger for a full map layer refresh.
+  - cached OSRM route geometry per coordinate pair and debounced resize handling to reduce duplicate network/render work.
+- Documentation updates completed for this cycle:
+  - `docs/technical/VOYEX_UI_REFACTOR_CHANGELOG.md`
+  - `VOYEX_CRM_SYSTEM_ROADMAP.md`
+
+Date: 2026-05-28
+Completed in this cycle:
+
+- Header action button standardization rollout (Itinerary detail + UI documentation):
+  - standardized `page_actions` buttons on itinerary detail to include relevant icons for each action:
+    - Duplicate (`fa-copy`)
+    - Generate Quotation (`fa-file-invoice-dollar`)
+    - Generate PDF (`fa-file-pdf`)
+    - Edit (`fa-pen`)
+    - Back (`fa-arrow-left`)
+  - enforced global button class usage (`btn-primary`, `btn-secondary`, `btn-ghost`) for header actions (removed custom inline visual button styles in this scope).
+  - documented mandatory header action icon rule in:
+    - `docs/core/LAYOUT_GUIDE.md` (new section: Header Action Button Standard),
+    - `docs/blueprint/VOYEX_UI_COMPONENT_GUIDE.md` (new section: Header Action Buttons + icon mapping).
+  - objective: consistent visual hierarchy, faster action recognition, and stronger cross-module UI contract.
+- Confirmation modal standardization kickoff:
+  - introduced reusable confirmation modal component:
+    - `resources/views/components/ui/confirm-action.blade.php`
+  - migrated itinerary `Duplicate` and `Delete` confirmations (index desktop/mobile + detail header) from browser `confirm()` into standardized modal flow.
+  - documented mandatory rule:
+    - no browser-native `confirm()` for core module actions,
+    - use `x-ui.confirm-action` for consistent confirmation UX across modules.
+
+Date: 2026-05-22
+Completed in this cycle:
+
+- Customers/Agents index filter standardization kickoff (baseline for module-wide index filtering pattern):
+  - merged filter controls into one unified modern card on `customers.index` (type tabs + search + type + status + country + sort + per-page + reset).
+  - preserved AJAX filtering and AJAX pagination behavior using existing `data-service-filter-*` engine so list updates no longer reload full page.
+  - enforced text filter minimum character rule (`>= 3`) on both UI contract (`data-filter-min-text`) and backend query guard (short non-empty input returns no-match).
+  - added modern sort options for list usability:
+    - latest updated,
+    - oldest updated,
+    - name A-Z,
+    - name Z-A.
+  - aligned row numbering to pagination offset (`firstItem + index`) for accurate numbering across pages.
+  - synced new UI phrases to i18n dictionaries:
+    - `lang/en/ui_core.php`
+    - `lang/zh_Hant/ui_core.php`
+    - `lang/zh_Hans/ui_core.php`
+- Documentation updates completed for this cycle:
+  - `docs/technical/VOYEX_UI_REFACTOR_CHANGELOG.md`
+  - `docs/blueprint/VOYEX_UI_STANDARDIZATION_CHECKLIST.md`
+  - `VOYEX_CRM_SYSTEM_ROADMAP.md`
+- Customers/Agents filter simplification revision (same cycle):
+  - removed non-required filters on customers index:
+    - `status`,
+    - `country`,
+    - `latest updated/sort`.
+  - removed nested-card layout in filter area by rendering type tabs inline within the same filter card.
+  - aligned backend filter query processing with simplified UI inputs while preserving AJAX filter + pagination behavior.
+- Customers/Agents filter UI cleanup (same cycle):
+  - removed filter card title/description to keep filter area compact.
+  - removed quick buttons `All`, `Type Individual`, and `Type Company` because type filtering is already handled via `Type` select.
+  - no behavior regression on AJAX filter flow.
+- Customers/Agents filter reset-action alignment update (same cycle):
+  - aligned `Reset` button height with form controls (`42px`) so action row sits level with input fields.
+  - changed `Reset` button to secondary style with border radius matched to `app-input` (`var(--app-radius-sm)`).
+  - preserved AJAX filter reset behavior.
+- Main index filter standard lock (same cycle):
+  - set `Customers / Agents` filter implementation as baseline utama dan patokan wajib lintas modul.
+  - menetapkan aturan wajib bahwa semua modul index harus mengikuti kontrak style/UX filter baseline:
+    - single compact filter card,
+    - tanpa nested card pada area filter,
+    - AJAX filter + AJAX pagination,
+    - minimum 3 karakter untuk text filter,
+    - reset button secondary style sejajar tinggi input dan radius setara input.
+  - menegaskan bahwa field filter boleh berbeda per modul sesuai kebutuhan bisnis, namun kontrak style/UX wajib konsisten.
+- Inquiries filter standardization rollout (same cycle):
+  - aligned `inquiries.index` filter to the locked main standard from `customers.index`.
+  - active inquiry index filters now limited to:
+    - text search,
+    - priority,
+    - per page (10/25/50/100).
+  - removed non-required filter UI controls:
+    - filter header description block,
+    - quick priority tab buttons,
+    - apply submit button.
+  - reset action now follows standard style/UX contract:
+    - secondary button style,
+    - input-aligned height,
+    - matching input radius.
+  - preserved AJAX filter + pagination behavior and aligned backend query filters to active UI controls.
+- Mandatory multi-language audit rule activation (same cycle):
+  - added governance rule that every update must support multi-language by default.
+  - added mandatory audit step for all user-facing text/paragraf/kalimat in change scope (Blade/JS/controller messages/modal/empty-state/helper text).
+  - changes are not considered complete until i18n audit is passed and synchronized to required locale dictionaries.
+
+Date: 2026-05-21
+Completed in this cycle:
+
+- Operational-commercial refactor alignment kickoff (Phase 13 blueprint + checklist):
+  - added technical blueprint:
+    - `docs/technical/PHASE_13_OPERATIONAL_COMMERCIAL_FLOW_REFACTOR.md`
+  - added implementation checklist:
+    - `docs/technical/PHASE_13_OPERATIONAL_COMMERCIAL_FLOW_REFACTOR_CHECKLIST.md`
+  - aligned canonical docs map:
+    - updated `docs/README.md` to include new Phase 13 docs.
+  - refreshed knowledge base business flow snapshot:
+    - updated `PROJECT_KNOWLEDGE_BASE.md` identity flow to include voucher/operation, payment, settlement, and closed lifecycle.
+- Refactor scope statement (non-destructive):
+  - preserve existing structure and old data,
+  - use additive migration only when required,
+  - execute in staged sub-phases (13A-13E) with mandatory documentation/checklist update in each step.
 
 Date: 2026-05-18
 Completed in this cycle:

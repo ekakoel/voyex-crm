@@ -10,6 +10,9 @@ use App\Http\Requests\ValidateSelectedQuotationItemsRequest;
 use App\Models\Quotation;
 use App\Models\QuotationItem;
 use App\Services\QuotationValidationService;
+use App\Services\Quotation\QuotationStatusService;
+use App\Services\Quotation\QuotationWorkflowService;
+use App\Support\Workflow\QuotationStatusNormalizer;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
@@ -17,7 +20,9 @@ use Illuminate\Http\JsonResponse;
 class QuotationValidationController extends Controller
 {
     public function __construct(
-        private readonly QuotationValidationService $quotationValidationService
+        private readonly QuotationValidationService $quotationValidationService,
+        private readonly QuotationWorkflowService $quotationWorkflowService,
+        private readonly QuotationStatusService $quotationStatusService
     ) {
     }
 
@@ -27,7 +32,7 @@ class QuotationValidationController extends Controller
         if ($this->isValidationLocked($quotation)) {
             return redirect()
                 ->route('quotations.show', $quotation)
-                ->with('error', 'Validation changes are locked for sent/accepted/converted quotation.');
+                ->with('error', $this->validationLockedMessage($quotation));
         }
 
         $data = $this->quotationValidationService->prepareValidationPageData($quotation);
@@ -45,7 +50,7 @@ class QuotationValidationController extends Controller
     {
         $this->authorizeValidation($request, $quotation);
         if ($this->isValidationLocked($quotation)) {
-            return redirect()->route('quotations.show', $quotation)->with('error', 'Validation changes are locked for sent/accepted/converted quotation.');
+            return redirect()->route('quotations.show', $quotation)->with('error', $this->validationLockedMessage($quotation));
         }
 
         $payload = (array) ($request->validated('items') ?? []);
@@ -62,35 +67,52 @@ class QuotationValidationController extends Controller
         if ($this->isValidationLocked($quotation)) {
             if ($request->expectsJson() || $request->ajax()) {
                 return response()->json([
-                    'message' => 'Validation changes are locked for sent/accepted/converted quotation.',
+                    'message' => $this->validationLockedMessage($quotation),
                 ], 422);
             }
 
-            return redirect()->route('quotations.show', $quotation)->with('error', 'Validation changes are locked for sent/accepted/converted quotation.');
+            return redirect()->route('quotations.show', $quotation)->with('error', $this->validationLockedMessage($quotation));
         }
 
         $validated = $request->validated();
         $payload = (array) ($validated['items'][(string) $item->id] ?? $validated['items'][(int) $item->id] ?? $validated);
 
-        $progress = $this->quotationValidationService->saveItem($quotation, $item, $payload, (int) $request->user()->id);
+        $result = $this->quotationValidationService->saveItem($quotation, $item, $payload, (int) $request->user()->id);
+        $progress = (array) ($result['progress'] ?? []);
 
         if ($request->expectsJson() || $request->ajax()) {
-            $item->refresh()->loadMissing('validator:id,name');
+            $affectedItems = collect($result['items'] ?? [$item])
+                ->map(function ($affectedItem) {
+                    if ($affectedItem instanceof QuotationItem) {
+                        return $affectedItem->fresh()->loadMissing('validator:id,name');
+                    }
+
+                    return null;
+                })
+                ->filter()
+                ->values();
+
+            $serializeItem = static function (QuotationItem $affectedItem): array {
+                return [
+                    'id' => (int) $affectedItem->id,
+                    'qty' => (int) ($affectedItem->qty ?? 1),
+                    'is_validated' => (bool) ($affectedItem->is_validated ?? false),
+                    'validation_notes' => (string) ($affectedItem->validation_notes ?? ''),
+                    'contract_rate' => (float) ($affectedItem->contract_rate ?? 0),
+                    'markup_type' => (string) ($affectedItem->markup_type ?? 'fixed'),
+                    'markup' => (float) ($affectedItem->markup ?? 0),
+                    'updated_at' => optional($affectedItem->updated_at)->toIso8601String(),
+                    'validator_name' => $affectedItem->validator?->name,
+                ];
+            };
+
+            $primaryItem = $affectedItems->firstWhere('id', (int) $item->id) ?? $item->refresh()->loadMissing('validator:id,name');
 
             return response()->json([
                 'message' => 'Item validation saved.',
                 'progress' => $progress,
-                'item' => [
-                    'id' => (int) $item->id,
-                    'qty' => (int) ($item->qty ?? 1),
-                    'is_validated' => (bool) ($item->is_validated ?? false),
-                    'validation_notes' => (string) ($item->validation_notes ?? ''),
-                    'contract_rate' => (float) ($item->contract_rate ?? 0),
-                    'markup_type' => (string) ($item->markup_type ?? 'fixed'),
-                    'markup' => (float) ($item->markup ?? 0),
-                    'updated_at' => optional($item->updated_at)->toIso8601String(),
-                    'validator_name' => $item->validator?->name,
-                ],
+                'item' => $serializeItem($primaryItem),
+                'items' => $affectedItems->map($serializeItem)->values()->all(),
             ]);
         }
 
@@ -103,7 +125,7 @@ class QuotationValidationController extends Controller
     {
         $this->authorizeValidation($request, $quotation);
         if ($this->isValidationLocked($quotation)) {
-            return redirect()->route('quotations.show', $quotation)->with('error', 'Validation changes are locked for sent/accepted/converted quotation.');
+            return redirect()->route('quotations.show', $quotation)->with('error', $this->validationLockedMessage($quotation));
         }
 
         $itemIds = array_map('intval', (array) ($request->validated('selected_item_ids') ?? []));
@@ -118,10 +140,17 @@ class QuotationValidationController extends Controller
     {
         $this->authorizeValidation($request, $quotation);
         if ($this->isValidationLocked($quotation)) {
-            return redirect()->route('quotations.show', $quotation)->with('error', 'Validation changes are locked for sent/accepted/converted quotation.');
+            return redirect()->route('quotations.show', $quotation)->with('error', $this->validationLockedMessage($quotation));
         }
 
         $this->quotationValidationService->finalize($quotation, (int) $request->user()->id);
+        $this->quotationStatusService->syncStatus($quotation);
+        $quotation->refresh();
+        $current = Quotation::normalizeStatus((string) ($quotation->status ?? ''));
+        $this->quotationWorkflowService->syncDimensions($quotation, (int) $request->user()->id, [
+            'action' => 'validation_finalize',
+            'status' => $current,
+        ]);
 
         return redirect()
             ->route('quotations.show', $quotation)
@@ -143,11 +172,11 @@ class QuotationValidationController extends Controller
         if ($this->isValidationLocked($quotation)) {
             if ($request->expectsJson() || $request->ajax()) {
                 return response()->json([
-                    'message' => 'Validation changes are locked for sent/accepted/converted quotation.',
+                    'message' => $this->validationLockedMessage($quotation),
                 ], 422);
             }
 
-            return redirect()->route('quotations.show', $quotation)->with('error', 'Validation changes are locked for sent/accepted/converted quotation.');
+            return redirect()->route('quotations.show', $quotation)->with('error', $this->validationLockedMessage($quotation));
         }
 
         $payload = $this->quotationValidationService->updateItemContact(
@@ -183,6 +212,36 @@ class QuotationValidationController extends Controller
 
     private function isValidationLocked(Quotation $quotation): bool
     {
-        return in_array((string) ($quotation->status ?? ''), ['sent', 'accepted', Quotation::FINAL_STATUS], true);
+        return in_array(QuotationStatusNormalizer::normalize((string) ($quotation->status ?? '')), [
+            Quotation::STATUS_SENT,
+            Quotation::STATUS_APPROVED,
+            Quotation::STATUS_CUSTOMER_APPROVED,
+            Quotation::STATUS_CONVERTED_TO_BOOKING,
+            Quotation::STATUS_BOOKING_CREATED,
+            Quotation::STATUS_IN_OPERATION,
+            Quotation::STATUS_COMPLETED,
+            Quotation::STATUS_CANCELLED,
+            Quotation::STATUS_LOST,
+            Quotation::STATUS_REJECTED,
+        ], true);
+    }
+
+    private function validationLockedMessage(Quotation $quotation): string
+    {
+        $status = QuotationStatusNormalizer::normalize((string) ($quotation->status ?? ''));
+
+        return match ($status) {
+            Quotation::STATUS_SENT => ui_phrase('Validation is locked because the quotation has been sent. Record follow-up or customer response to continue.'),
+            Quotation::STATUS_APPROVED,
+            Quotation::STATUS_CUSTOMER_APPROVED => ui_phrase('Validation is locked because the customer has approved this quotation. Continue with booking preparation.'),
+            Quotation::STATUS_CONVERTED_TO_BOOKING,
+            Quotation::STATUS_BOOKING_CREATED => ui_phrase('Validation is locked because this quotation is already connected to booking. Manage service changes from the booking workflow.'),
+            Quotation::STATUS_IN_OPERATION => ui_phrase('Validation is locked because this quotation has moved into operation. Use operation adjustment if changes are required.'),
+            Quotation::STATUS_COMPLETED => ui_phrase('Validation is locked because this quotation workflow is completed.'),
+            Quotation::STATUS_CANCELLED,
+            Quotation::STATUS_LOST,
+            Quotation::STATUS_REJECTED => ui_phrase('Validation is locked because this quotation is closed as :status.', ['status' => \App\Support\Workflow\QuotationWorkflow::label($status)]),
+            default => ui_phrase('Validation is locked for the current quotation status: :status.', ['status' => \App\Support\Workflow\QuotationWorkflow::label($status)]),
+        };
     }
 }

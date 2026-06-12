@@ -28,6 +28,7 @@ use App\Http\Controllers\Finance\DashboardController as FinanceDashboardControll
 use App\Http\Controllers\Finance\InvoiceController as FinanceInvoiceController;
 use App\Http\Controllers\Finance\PaymentController as FinancePaymentController;
 use App\Http\Controllers\BookingAdjustmentController;
+use App\Http\Controllers\BookingReconciliationController;
 use App\Http\Controllers\BookingSettlementController;
 use App\Http\Controllers\Manager\DashboardController as ManagerDashboardController;
 use App\Http\Controllers\Marketing\DashboardController as MarketingDashboardController;
@@ -37,6 +38,9 @@ use App\Http\Controllers\SuperAdmin\DashboardController as SuperAdminDashboardCo
 use App\Http\Controllers\SuperAdmin\AccessMatrixController as SuperAdminAccessMatrixController;
 use App\Http\Controllers\Sales\CustomerImportController as SalesCustomerImportController;
 use App\Http\Controllers\Sales\InquiryController as SalesInquiryController;
+use App\Http\Controllers\Sales\QuotationCustomerResponseController as SalesQuotationCustomerResponseController;
+use App\Http\Controllers\Sales\QuotationFollowUpController as SalesQuotationFollowUpController;
+use App\Http\Controllers\Sales\QuotationFollowUpNotificationController as SalesQuotationFollowUpNotificationController;
 use App\Http\Controllers\Sales\QuotationValidationController as SalesQuotationValidationController;
 use App\Http\Controllers\Sales\QuotationController as SalesQuotationController;
 use Illuminate\Support\Facades\Route;
@@ -102,9 +106,8 @@ Route::middleware('auth')->group(function () {
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::patch('/profile/theme', [ProfileController::class, 'updateTheme'])->name('profile.theme');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
-    Route::get('location/resolve-google-map', [AdminLocationResolverController::class, 'resolve'])
-        ->name('location.resolve-google-map')
-        ->middleware(['permission:locations.resolve_google_map']);
+    Route::post('location/resolve-google-map', [AdminLocationResolverController::class, 'resolve'])
+        ->name('location.resolve-google-map');
 
     Route::prefix('superadmin')->name('superadmin.')->group(function () {
         Route::get('/dashboard', [SuperAdminDashboardController::class, 'index'])
@@ -196,6 +199,20 @@ Route::middleware('auth')->group(function () {
             'permission:module.quotations.access',
             'module.permission:quotations',
         ]);
+    Route::get('quotations/{quotation}/revise', [SalesQuotationController::class, 'edit'])
+        ->name('quotations.revise')
+        ->middleware([
+            'module:quotations',
+            'permission:module.quotations.access',
+            'module.permission:quotations',
+        ]);
+    Route::post('quotations/{quotation}/start-itinerary-revision', [SalesQuotationController::class, 'startItineraryRevision'])
+        ->name('quotations.start-itinerary-revision')
+        ->middleware([
+            'module:quotations',
+            'permission:module.quotations.access',
+            'module.permission:quotations',
+        ]);
     Route::patch('quotations/{quotation}/toggle-status', [SalesQuotationController::class, 'toggleStatus'])
         ->name('quotations.toggle-status')
         ->middleware([
@@ -231,6 +248,70 @@ Route::middleware('auth')->group(function () {
         ->middleware([
             'module:quotations',
             'permission:quotations.approve',
+            'permission:module.quotations.access',
+            'module.permission:quotations',
+        ]);
+    Route::post('quotations/{quotation}/mark-sent', [SalesQuotationController::class, 'markAsSent'])
+        ->name('quotations.mark-sent')
+        ->middleware([
+            'module:quotations',
+            'permission:module.quotations.access',
+            'module.permission:quotations',
+        ]);
+    Route::post('quotations/{quotation}/mark-customer-approved', [SalesQuotationController::class, 'markAsCustomerApproved'])
+        ->name('quotations.mark-customer-approved')
+        ->middleware([
+            'module:quotations',
+            'permission:quotations.approve',
+            'permission:module.quotations.access',
+            'module.permission:quotations',
+        ]);
+    Route::post('quotations/{quotation}/request-revision', [SalesQuotationController::class, 'requestRevision'])
+        ->name('quotations.request-revision')
+        ->middleware([
+            'module:quotations',
+            'permission:module.quotations.access',
+            'module.permission:quotations',
+        ]);
+    Route::post('quotations/{quotation}/cancel', [SalesQuotationController::class, 'cancel'])
+        ->name('quotations.cancel')
+        ->middleware([
+            'module:quotations',
+            'permission:module.quotations.access',
+            'module.permission:quotations',
+        ]);
+    Route::post('quotations/{quotation}/follow-ups', [SalesQuotationFollowUpController::class, 'store'])
+        ->name('quotations.follow-ups.store')
+        ->middleware([
+            'module:quotations',
+            'permission:module.quotations.access',
+            'module.permission:quotations',
+        ]);
+    Route::post('quotations/{quotation}/customer-responses', [SalesQuotationCustomerResponseController::class, 'store'])
+        ->name('quotations.customer-responses.store')
+        ->middleware([
+            'module:quotations',
+            'permission:module.quotations.access',
+            'module.permission:quotations',
+        ]);
+    Route::post('quotations/{quotation}/customer-responses/mark-selected-used-for-revision', [SalesQuotationCustomerResponseController::class, 'markSelectedUsedForRevision'])
+        ->name('quotations.customer-responses.mark-selected-used-for-revision')
+        ->middleware([
+            'module:quotations',
+            'permission:module.quotations.access',
+            'module.permission:quotations',
+        ]);
+    Route::post('quotations/{quotation}/items/{item}/cancel-free', [SalesQuotationController::class, 'cancelItemFree'])
+        ->name('quotations.items.cancel-free')
+        ->middleware([
+            'module:quotations',
+            'permission:module.quotations.access',
+            'module.permission:quotations',
+        ]);
+    Route::post('quotations/{quotation}/items/{item}/cancel-with-charge', [SalesQuotationController::class, 'cancelItemWithCharge'])
+        ->name('quotations.items.cancel-with-charge')
+        ->middleware([
+            'module:quotations',
             'permission:module.quotations.access',
             'module.permission:quotations',
         ]);
@@ -322,15 +403,15 @@ Route::middleware('auth')->group(function () {
             'permission:module.quotations.access',
             'module.permission:quotations',
         ]);
-    Route::post('quotations/{quotation}/comments', [SalesQuotationController::class, 'storeComment'])
-        ->name('quotations.comments.store')
+    Route::get('quotation-follow-up-notifications/poll', [SalesQuotationFollowUpNotificationController::class, 'poll'])
+        ->name('quotation-follow-up-notifications.poll')
         ->middleware([
             'module:quotations',
             'permission:module.quotations.access',
             'module.permission:quotations',
         ]);
-    Route::get('quotations/approval-notifications/poll', [SalesQuotationController::class, 'approvalNotifications'])
-        ->name('quotations.approval-notifications.poll')
+    Route::post('quotation-follow-up-notifications/{notification}/read', [SalesQuotationFollowUpNotificationController::class, 'read'])
+        ->name('quotation-follow-up-notifications.read')
         ->middleware([
             'module:quotations',
             'permission:module.quotations.access',
@@ -341,6 +422,13 @@ Route::middleware('auth')->group(function () {
         ->middleware([
             'module:itineraries',
             'permission:itineraries.manual_item_queue.view',
+        ]);
+    Route::get('inquiries/deadline-reminder-notifications/poll', [SalesInquiryController::class, 'deadlineReminderNotifications'])
+        ->name('inquiries.deadline-reminder-notifications.poll')
+        ->middleware([
+            'module:inquiries',
+            'permission:module.inquiries.access',
+            'module.permission:inquiries',
         ]);
     Route::get('itineraries/manual-item-validation-queue', [AdminItineraryController::class, 'manualItemValidationQueue'])
         ->name('itineraries.manual-item-validation-queue')
@@ -354,21 +442,6 @@ Route::middleware('auth')->group(function () {
             'module:itineraries',
             'permission:itineraries.manual_item_queue.validate',
         ]);
-    Route::put('quotations/{quotation}/comments/{comment}', [SalesQuotationController::class, 'updateComment'])
-        ->name('quotations.comments.update')
-        ->middleware([
-            'module:quotations',
-            'permission:module.quotations.access',
-            'module.permission:quotations',
-        ]);
-    Route::delete('quotations/{quotation}/comments/{comment}', [SalesQuotationController::class, 'destroyComment'])
-        ->name('quotations.comments.destroy')
-        ->middleware([
-            'module:quotations',
-            'permission:module.quotations.access',
-            'module.permission:quotations',
-        ]);
-
     // Admin routes group (no role prefix in route names)
     Route::group([], function () {
         Route::get('/administrator-dashboard', [AdministratorDashboardController::class, 'index'])
@@ -1065,6 +1138,14 @@ Route::middleware('auth')->group(function () {
                 'permission:bookings.operation.vendor_confirm',
                 'module.permission:bookings',
             ]);
+        Route::post('bookings/{booking}/items/{bookingItem}/vendor-not-available', [\App\Http\Controllers\BookingController::class, 'markItemVendorNotAvailable'])
+            ->name('bookings.items.vendor-not-available')
+            ->middleware([
+                'module:bookings',
+                'permission:module.bookings.access',
+                'permission:bookings.operation.vendor_confirm',
+                'module.permission:bookings',
+            ]);
         Route::patch('bookings/{booking}/items/{bookingItem}/dispatch', [\App\Http\Controllers\BookingController::class, 'updateItemDispatch'])
             ->name('bookings.items.dispatch.update')
             ->middleware([
@@ -1097,6 +1178,41 @@ Route::middleware('auth')->group(function () {
                 'permission:bookings.operation.dispatch',
                 'module.permission:bookings',
             ]);
+        Route::get('bookings/{booking}/reconciliation', [BookingReconciliationController::class, 'show'])
+            ->name('bookings.reconciliation.show')
+            ->middleware([
+                'module:bookings',
+                'permission:module.bookings.access',
+                'module.permission:bookings',
+            ]);
+        Route::patch('bookings/{booking}/reconciliation/items/{bookingItem}', [BookingReconciliationController::class, 'updateItem'])
+            ->name('bookings.reconciliation.items.update')
+            ->middleware([
+                'module:bookings',
+                'permission:module.bookings.access',
+                'module.permission:bookings',
+            ]);
+        Route::post('bookings/{booking}/reconciliation/finalize', [BookingReconciliationController::class, 'finalize'])
+            ->name('bookings.reconciliation.finalize')
+            ->middleware([
+                'module:bookings',
+                'permission:module.bookings.access',
+                'module.permission:bookings',
+            ]);
+        Route::post('bookings/{booking}/invoices/proforma', [\App\Http\Controllers\BookingController::class, 'generateProformaInvoice'])
+            ->name('bookings.invoices.proforma')
+            ->middleware([
+                'module:bookings',
+                'permission:module.bookings.access',
+                'module.permission:bookings',
+            ]);
+        Route::post('bookings/{booking}/invoices/final', [\App\Http\Controllers\BookingController::class, 'generateFinalInvoice'])
+            ->name('bookings.invoices.final')
+            ->middleware([
+                'module:bookings',
+                'permission:module.bookings.access',
+                'module.permission:bookings',
+            ]);
         Route::get('booking-items/{bookingItem}/voucher', [\App\Http\Controllers\BookingItemVoucherController::class, 'edit'])
             ->name('booking-items.voucher.edit')
             ->middleware([
@@ -1106,6 +1222,13 @@ Route::middleware('auth')->group(function () {
             ]);
         Route::post('booking-items/{bookingItem}/voucher/generate', [\App\Http\Controllers\BookingItemVoucherController::class, 'generate'])
             ->name('booking-items.voucher.generate')
+            ->middleware([
+                'module:bookings',
+                'permission:module.bookings.access',
+                'module.permission:bookings',
+            ]);
+        Route::post('booking-items/{bookingItem}/voucher/reissue', [\App\Http\Controllers\BookingItemVoucherController::class, 'reissue'])
+            ->name('booking-items.voucher.reissue')
             ->middleware([
                 'module:bookings',
                 'permission:module.bookings.access',

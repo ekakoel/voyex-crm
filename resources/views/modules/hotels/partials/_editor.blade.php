@@ -26,8 +26,6 @@
     $prevStep = $availableIndex > 0 ? $availableSteps[$availableIndex - 1] : null;
     $nextStep = $availableIndex < count($availableSteps) - 1 ? $availableSteps[$availableIndex + 1] : null;
 
-    $flashMessage = session('success') ?? session('warning');
-    $flashType = session('success') ? 'success' : (session('warning') ? 'warning' : null);
 @endphp
 
 <div class="space-y-6 module-page--hotels" data-hotels-editor data-hotels-editor-step="{{ $step }}" data-hotel-id="{{ $hotel->getKey() }}" data-page-spinner="off">
@@ -77,14 +75,6 @@
         </div>
     </div>
 
-    <div data-hotels-flash-area>
-        @if ($flashMessage && $flashType)
-            <div class="rounded-lg border px-4 py-3 text-sm {{ $flashType === 'success' ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300' : 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-300' }}">
-                {{ $flashMessage }}
-            </div>
-        @endif
-    </div>
-
     <div data-hotels-step-panel>
         @if ($step === 'info')
             <form method="POST" action="{{ route('hotels.update-info', $hotel) }}" enctype="multipart/form-data" data-hotels-ajax-form data-hotels-step-form="info" data-disable-submit-lock="1" data-page-spinner="off">
@@ -110,6 +100,5 @@
         @endif
     </div>
 </div>
-
 
 

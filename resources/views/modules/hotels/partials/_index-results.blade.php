@@ -1,35 +1,30 @@
 <div data-hotels-index-results>
     <div class="space-y-4">
-        @if (session('success'))
-            <div
-                class="rounded-lg mb-6 border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300">
-                {{ session('success') }}</div>
-        @endif
         <div class="hidden md:block app-card overflow-hidden">
             <div class="overflow-x-auto">
                 <table class="app-table w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">
-                    <thead>
+                    <thead class="table-header">
                         <tr>
                             <th
-                                class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">
+                                class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white dark:text-gray-300">
                                 #</th>
                             <th
-                                class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">
+                                class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white dark:text-gray-300">
                                 {{ ui_phrase('Hotel') }}</th>
                             <th
-                                class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">
+                                class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white dark:text-gray-300">
                                 {{ ui_phrase('Location') }}</th>
                             <th
-                                class="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">
+                                class="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-white dark:text-gray-300">
                                 {{ ui_phrase('Rooms') }}</th>
                             <th
-                                class="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">
+                                class="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-white dark:text-gray-300">
                                 {{ ui_phrase('Rates') }}</th>
                             <th
-                                class="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">
+                                class="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-white dark:text-gray-300">
                                 {{ ui_phrase('Status') }}</th>
                             <th
-                                class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300 actions-compact">
+                                class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-white dark:text-gray-300 actions-compact">
                                 {{ ui_phrase('Actions') }}</th>
                         </tr>
                     </thead>
@@ -55,33 +50,43 @@
                                 <td class="px-4 py-3 text-center text-sm text-gray-700 dark:text-gray-200">
                                     {{ $hotel->prices_count }}</td>
                                 <td class="px-4 py-3 text-center text-sm">
-                                    <x-status-badge :status="$isActive ? 'active' : 'inactive'" size="xs" />
+                                    <x-ui.status-badge :status="$isActive ? 'active' : 'inactive'" size="xs" />
                                 </td>
                                 <td class="px-4 py-3 text-right text-sm actions-compact">
-                                    <div class="flex items-center justify-end gap-2">
-                                        <a href="{{ route('hotels.show', $hotel) }}" class="btn-outline-sm"
-                                            title="{{ ui_phrase('View') }}" aria-label="{{ ui_phrase('View') }}"><i class="fa-solid fa-eye"></i><span
-                                                class="sr-only">{{ ui_phrase('View') }}</span></a>
-                                        <a href="{{ route('hotels.edit', $hotel) }}" class="btn-secondary-sm"
-                                            title="{{ ui_phrase('Edit') }}" aria-label="{{ ui_phrase('Edit') }}"><i class="fa-solid fa-pen"></i><span
-                                                class="sr-only">{{ ui_phrase('Edit') }}</span></a>
-                                        <form action="{{ route('hotels.toggle-status', $hotel->id) }}"
-                                            method="POST" class="inline">
-                                            @csrf
-                                            @method('PATCH')
-                                            <button type="submit"
-                                                onclick="return confirm('{{ $isActive ? ui_phrase('confirm deactivate') : ui_phrase('confirm activate') }}')"
-                                                class="{{ $isActive ? 'btn-muted-sm' : 'btn-primary-sm' }}"
-                                                title="{{ $isActive ? ui_phrase('Deactivate') : ui_phrase('Activate') }}"
-                                                aria-label="{{ $isActive ? ui_phrase('Deactivate') : ui_phrase('Activate') }}"><i class="fa-solid {{ $isActive ? 'fa-toggle-off' : 'fa-toggle-on' }}"></i><span class="sr-only">{{ $isActive ? ui_phrase('Deactivate') : ui_phrase('Activate') }}</span></button>
-                                        </form>
-                                    </div>
+                                    <x-ui.table-action-dropdown :label="ui_phrase('Actions')">
+                                        <a href="{{ route('hotels.show', $hotel) }}" class="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800">
+                                            <i class="fa-solid fa-eye w-4 text-gray-500 dark:text-gray-400"></i>
+                                            <span>{{ ui_phrase('View') }}</span>
+                                        </a>
+                                        <a href="{{ route('hotels.edit', $hotel) }}" class="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800">
+                                            <i class="fa-solid fa-pen w-4 text-gray-500 dark:text-gray-400"></i>
+                                            <span>{{ ui_phrase('Edit') }}</span>
+                                        </a>
+                                        <div class="my-1 border-t border-gray-200 dark:border-gray-700"></div>
+                                        <x-ui.confirm-action
+                                            :action="route('hotels.toggle-status', $hotel->id)"
+                                            method="PATCH"
+                                            :modal-name="'hotels-index-toggle-desktop-' . $hotel->id"
+                                            :title="$isActive ? ui_phrase('Deactivate') . ' ' . ui_phrase('Hotel') : ui_phrase('Activate') . ' ' . ui_phrase('Hotel')"
+                                            :message="$isActive ? ui_phrase('confirm deactivate') : ui_phrase('confirm activate')"
+                                            :notice-message="__('confirm.notification_after_action')"
+                                            :confirm-label="$isActive ? ui_phrase('Deactivate') : ui_phrase('Activate')"
+                                            :trigger-label="$isActive ? ui_phrase('Deactivate') : ui_phrase('Activate')"
+                                            :trigger-icon="$isActive ? 'fa-solid fa-toggle-off w-4' : 'fa-solid fa-toggle-on w-4'"
+                                            :trigger-class="$isActive ? 'flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-amber-700 hover:bg-amber-50 dark:text-amber-300 dark:hover:bg-amber-900/20' : 'flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-emerald-700 hover:bg-emerald-50 dark:text-emerald-300 dark:hover:bg-emerald-900/20'"
+                                            confirm-class="btn-primary-sm"
+                                        />
+                                    </x-ui.table-action-dropdown>
                                 </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="7"
-                                    class="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">{{ ui_phrase('No :entity available.', ['entity' => ui_phrase('Hotels')]) }}</td>
+                                <td colspan="7" class="px-4 py-6">
+                                    <x-ui.empty-state
+                                        :title="ui_phrase('No hotels found.')"
+                                        :description="ui_phrase('Create a new hotel or adjust your filters.')"
+                                    />
+                                </td>
                             </tr>
                         @endforelse
                     </tbody>
@@ -94,14 +99,39 @@
                     $rawStatus = strtolower((string) ($hotel->status ?? 'active'));
                     $isActive = !$hotel->trashed() && $rawStatus === 'active';
                 @endphp
-                <div class="app-card p-4">
-                    <div class="flex items-start justify-between gap-3">
-                        <div>
-                            <p class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ $hotel->code }}
+                <div class="app-card relative p-4 pt-5">
+                    <div class="absolute right-3 top-3 z-10">
+                        <x-ui.table-action-dropdown :label="ui_phrase('Actions')">
+                            <a href="{{ route('hotels.show', $hotel) }}" class="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800">
+                                <i class="fa-solid fa-eye w-4 text-gray-500 dark:text-gray-400"></i>
+                                <span>{{ ui_phrase('View') }}</span>
+                            </a>
+                            <a href="{{ route('hotels.edit', $hotel) }}" class="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800">
+                                <i class="fa-solid fa-pen w-4 text-gray-500 dark:text-gray-400"></i>
+                                <span>{{ ui_phrase('Edit') }}</span>
+                            </a>
+                            <div class="my-1 border-t border-gray-200 dark:border-gray-700"></div>
+                            <x-ui.confirm-action
+                                :action="route('hotels.toggle-status', $hotel->id)"
+                                method="PATCH"
+                                :modal-name="'hotels-index-toggle-mobile-' . $hotel->id"
+                                :title="$isActive ? ui_phrase('Deactivate') . ' ' . ui_phrase('Hotel') : ui_phrase('Activate') . ' ' . ui_phrase('Hotel')"
+                                :message="$isActive ? ui_phrase('confirm deactivate') : ui_phrase('confirm activate')"
+                                :notice-message="__('confirm.notification_after_action')"
+                                :confirm-label="$isActive ? ui_phrase('Deactivate') : ui_phrase('Activate')"
+                                :trigger-label="$isActive ? ui_phrase('Deactivate') : ui_phrase('Activate')"
+                                :trigger-icon="$isActive ? 'fa-solid fa-toggle-off w-4' : 'fa-solid fa-toggle-on w-4'"
+                                :trigger-class="$isActive ? 'flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-amber-700 hover:bg-amber-50 dark:text-amber-300 dark:hover:bg-amber-900/20' : 'flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-emerald-700 hover:bg-emerald-50 dark:text-emerald-300 dark:hover:bg-emerald-900/20'"
+                                confirm-class="btn-primary-sm"
+                            />
+                        </x-ui.table-action-dropdown>
+                    </div>
+                    <div class="flex items-start justify-between gap-3 pr-12">
+                        <div class="min-w-0">
+                            <p class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ $hotel->name }}
                             </p>
-                            <p class="text-xs text-gray-500 dark:text-gray-400">{{ $hotel->name }}</p>
                         </div>
-                        <x-status-badge :status="$isActive ? 'active' : 'inactive'" size="xs" />
+                        <x-ui.status-badge :status="$isActive ? 'active' : 'inactive'" size="xs" />
                     </div>
                     <div class="mt-3 grid grid-cols-2 gap-2 text-xs text-gray-600 dark:text-gray-300">
                         <div>{{ ui_phrase('Location') }}</div>
@@ -115,30 +145,18 @@
                         <div>{{ ui_phrase('Rates') }}</div>
                         <div>{{ $hotel->prices_count }}</div>
                     </div>
-                    <div class="mt-3 flex flex-wrap gap-2">
-                        <a href="{{ route('hotels.show', $hotel) }}" class="btn-outline-sm" title="{{ ui_phrase('View') }}"
-                            aria-label="{{ ui_phrase('View') }}"><i class="fa-solid fa-eye"></i><span class="sr-only">{{ ui_phrase('View') }}</span></a>
-                        <a href="{{ route('hotels.edit', $hotel) }}" class="btn-secondary-sm" title="{{ ui_phrase('Edit') }}"
-                            aria-label="{{ ui_phrase('Edit') }}"><i class="fa-solid fa-pen"></i><span class="sr-only">{{ ui_phrase('Edit') }}</span></a>
-                        <form action="{{ route('hotels.toggle-status', $hotel->id) }}" method="POST"
-                            class="inline">
-                            @csrf
-                            @method('PATCH')
-                            <button type="submit"
-                                onclick="return confirm('{{ $isActive ? ui_phrase('confirm deactivate') : ui_phrase('confirm activate') }}')"
-                                class="{{ $isActive ? 'btn-muted-sm' : 'btn-primary-sm' }}"
-                                title="{{ $isActive ? ui_phrase('Deactivate') : ui_phrase('Activate') }}"
-                                aria-label="{{ $isActive ? ui_phrase('Deactivate') : ui_phrase('Activate') }}"><i class="fa-solid {{ $isActive ? 'fa-toggle-off' : 'fa-toggle-on' }}"></i><span class="sr-only">{{ $isActive ? ui_phrase('Deactivate') : ui_phrase('Activate') }}</span></button>
-                        </form>
-                    </div>
                 </div>
             @empty
-                <div class="app-card p-6 text-center text-sm text-gray-500 dark:text-gray-400">{{ ui_phrase('No :entity available.', ['entity' => ui_phrase('Hotels')]) }}</div>
+                <x-module-empty-state
+                    :title="ui_phrase('No hotels found.')"
+                    :message="ui_phrase('Create a new hotel or adjust your filters.')"
+                />
             @endforelse
         </div>
         <div>{{ $hotels->links() }}</div>
     </div>
 </div>
+
 
 
 

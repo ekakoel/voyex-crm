@@ -37,6 +37,10 @@ class Itinerary extends Model
     public const FINAL_STATUS = self::STATUS_FINAL;
 
     protected $fillable = [
+        'revision_of_id',
+        'revision_number',
+        'revision_reason',
+        'revised_from_quotation_id',
         'inquiry_id',
         'created_by',
         'title',
@@ -56,6 +60,7 @@ class Itinerary extends Model
 
     protected $casts = [
         'is_active' => 'boolean',
+        'revision_number' => 'integer',
     ];
 
     protected static function booted(): void
@@ -80,7 +85,7 @@ class Itinerary extends Model
         $nextStatus = self::STATUS_PENDING;
         if ($this->quotations->isNotEmpty()) {
             $hasFinalQuotation = $this->quotations->contains(
-                fn (Quotation $quotation): bool => (string) ($quotation->status ?? '') === Quotation::FINAL_STATUS
+                fn (Quotation $quotation): bool => Quotation::normalizeStatus((string) ($quotation->status ?? '')) === Quotation::STATUS_COMPLETED
             );
             $nextStatus = $hasFinalQuotation ? self::STATUS_FINAL : self::STATUS_PROCESSED;
         }
@@ -141,6 +146,21 @@ class Itinerary extends Model
         return $this->belongsTo(Inquiry::class);
     }
 
+    public function revisionOf()
+    {
+        return $this->belongsTo(self::class, 'revision_of_id');
+    }
+
+    public function revisions()
+    {
+        return $this->hasMany(self::class, 'revision_of_id');
+    }
+
+    public function revisedFromQuotation()
+    {
+        return $this->belongsTo(Quotation::class, 'revised_from_quotation_id');
+    }
+
     public function inquiryReferences()
     {
         return $this->belongsToMany(Inquiry::class, 'inquiry_itinerary_references', 'itinerary_id', 'inquiry_id')
@@ -160,13 +180,18 @@ class Itinerary extends Model
 
     public function quotation()
     {
-        // Backward-compatible alias: latest linked quotation.
-        return $this->hasOne(Quotation::class)->latestOfMany('id');
+        // Backward-compatible alias.
+        return $this->latestQuotation();
+    }
+
+    public function latestQuotation()
+    {
+        return $this->hasOne(Quotation::class, 'itinerary_id')->latestOfMany('id');
     }
 
     public function quotations()
     {
-        return $this->hasMany(Quotation::class);
+        return $this->hasMany(Quotation::class, 'itinerary_id');
     }
 
     public function activities()

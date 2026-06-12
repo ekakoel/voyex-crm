@@ -32,6 +32,7 @@ return [
         'end_point' => 'End Point',
         'unnamed_item' => 'Unnamed item',
         'independent_itinerary' => 'Independent itinerary',
+        'connector_time_to' => 'Estimated time to :target: :minutes min',
     ],
     'status' => [
         'complete' => 'Complete',
@@ -64,6 +65,10 @@ return [
         'back' => 'Back',
         'next' => 'Next',
         'cancel' => 'Cancel',
+    ],
+    'validation' => [
+        'connector_incomplete' => 'Travel connector is incomplete. Please fill all connector values.',
+        'connector_estimate_hint' => 'Please fill estimated travel time to the next location.',
     ],
     'sidebar' => [
         'inquiry_detail' => [

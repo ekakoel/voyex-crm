@@ -1,36 +1,50 @@
 @php
-    $buttonLabel = $buttonLabel ?? 'Save';
+    $buttonLabel = $buttonLabel ?? ui_phrase('Save');
     $itineraries = $itineraries ?? collect();
     $inquiries = $inquiries ?? collect();
     $customers = $customers ?? collect();
     $destinations = $destinations ?? collect();
+    $serviceCatalogs = $serviceCatalogs ?? [];
     $prefillItineraryId = $prefillItineraryId ?? null;
+    $prefillInquiryId = $prefillInquiryId ?? null;
     $isEditQuotation = isset($quotation) && $quotation instanceof \App\Models\Quotation;
-    $itineraryEditUrlTemplate = route('itineraries.edit', ['itinerary' => '__ITINERARY_ID__']);
+    $isRevisionMode = (bool) ($isRevisionMode ?? false);
     $selectedItineraryIdForDuration = (string) old('itinerary_id', $quotation->itinerary_id ?? $prefillItineraryId ?? '');
     $selectedItineraryForDuration = $itineraries->firstWhere('id', (int) $selectedItineraryIdForDuration);
-    $initialDurationText = '-';
+    $initialDurationDays = 1;
+    $initialDurationNights = 0;
     if ($selectedItineraryForDuration) {
         $durationDaysValue = max(1, (int) ($selectedItineraryForDuration->duration_days ?? 1));
         $durationNightsValue = max(0, (int) ($selectedItineraryForDuration->duration_nights ?? max(0, $durationDaysValue - 1)));
-        $initialDurationText = $durationDaysValue . 'D' . ($durationNightsValue > 0 ? '/' . $durationNightsValue . 'N' : '');
+        $initialDurationDays = $durationDaysValue;
+        $initialDurationNights = $durationNightsValue;
     }
+    $initialDurationDays = (int) old('duration_days', $initialDurationDays);
+    $initialDurationDays = max(1, $initialDurationDays);
+    $initialDurationNights = (int) old('duration_nights', max(0, $initialDurationDays - 1));
+    $initialDurationNights = max(0, $initialDurationNights);
     $selectedDestinationId = old('destination_id');
     if ($selectedDestinationId === null || $selectedDestinationId === '') {
         $selectedDestinationId = $selectedItineraryForDuration?->destination_id ?? '';
     }
     $selectedCustomerId = old('customer_id');
+    $prefillInquiryCustomerId = '';
+    if ((string) ($prefillInquiryId ?? '') !== '') {
+        $prefillInquiryMatch = $inquiries->firstWhere('id', (int) $prefillInquiryId);
+        $prefillInquiryCustomerId = (string) ($prefillInquiryMatch->customer_id ?? '');
+    }
     if ($selectedCustomerId === null || $selectedCustomerId === '') {
         $selectedCustomerId = $quotation->inquiry?->customer_id
-            ?? $selectedItineraryForDuration?->inquiryReferences?->first()?->customer_id
+            ?? $prefillInquiryCustomerId
             ?? '';
     }
     $selectedInquiryId = old('inquiry_id');
     if ($selectedInquiryId === null || $selectedInquiryId === '') {
         $selectedInquiryId = $quotation->inquiry_id
-            ?? $selectedItineraryForDuration?->inquiryReferences?->first()?->id
+            ?? $prefillInquiryId
             ?? '';
     }
+    $isPrefillInquiryLocked = ! $isEditQuotation && (string) ($prefillInquiryId ?? '') !== '';
 @endphp
 
 @php
@@ -141,6 +155,8 @@
         }
 
         return [
+            'id' => $item->id,
+            'source_item_id' => $item->id,
             'description' => $item->description,
             'qty' => $item->qty,
             'contract_rate' => $contractRate,
@@ -152,11 +168,22 @@
             'serviceable_type' => $item->serviceable_type,
             'serviceable_id' => $item->serviceable_id,
             'day_number' => $item->day_number,
+            'sort_order' => $item->sort_order,
             'serviceable_meta' => $serviceableMeta,
             'itinerary_item_type' => $item->itinerary_item_type,
         ];
     })->toArray() : []);
     $allItems = array_values($allItems);
+    usort($allItems, function (array $left, array $right): int {
+        $leftSortOrder = (int) ($left['sort_order'] ?? 0);
+        $rightSortOrder = (int) ($right['sort_order'] ?? 0);
+
+        if ($leftSortOrder > 0 && $rightSortOrder > 0 && $leftSortOrder !== $rightSortOrder) {
+            return $leftSortOrder <=> $rightSortOrder;
+        }
+
+        return (int) ($left['id'] ?? 0) <=> (int) ($right['id'] ?? 0);
+    });
     $manualItems = collect($allItems)
         ->filter(fn ($row) => ($row['itinerary_item_type'] ?? '') === 'manual')
         ->values()
@@ -199,12 +226,26 @@
 <div class="space-y-5 module-form quotation-form-no-labels">
     @if ($errors->any())
         <div class="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-800 dark:bg-rose-900/20 dark:text-rose-300">
-            <p class="font-semibold">{{ __('Gagal menyimpan quotation. Mohon periksa data berikut:') }}</p>
+            <p class="font-semibold">{{ ui_phrase('Failed to save quotation. Please review the following data:') }}</p>
             <ul class="mt-2 list-disc pl-5 space-y-1 text-xs sm:text-sm">
                 @foreach ($errors->all() as $message)
                     <li>{{ $message }}</li>
                 @endforeach
             </ul>
+        </div>
+    @endif
+
+    @if ($isRevisionMode && ! ($isEditQuotation && $quotation->isLockedForDirectEdit()))
+        <div class="rounded-lg border border-sky-200 bg-sky-50 px-4 py-3 dark:border-sky-800 dark:bg-sky-900/20">
+            <p class="text-sm font-semibold text-sky-800 dark:text-sky-200">{{ ui_phrase('Revision mode') }}</p>
+            <p class="mt-1 text-xs text-sky-700 dark:text-sky-300">{{ ui_phrase('Update requested changes, adjust service items, then save the revision so the quotation can continue to revalidation or ready to send.') }}</p>
+        </div>
+    @endif
+
+    @if ($isEditQuotation && $quotation->isLockedForDirectEdit())
+        <div class="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-700 dark:bg-amber-900/20">
+            <p class="text-sm font-semibold text-amber-800 dark:text-amber-200">{{ ui_phrase('Locked quotation will be revised') }}</p>
+            <p class="mt-1 text-xs text-amber-700 dark:text-amber-300">{{ ui_phrase('Saving changes will create a new quotation revision and keep the current quotation unchanged.') }}</p>
         </div>
     @endif
 
@@ -225,17 +266,15 @@
             </select>
         </div>
         <div class="lg:col-span-8">
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Itinerary') }} <span class="text-rose-600">*</span></label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Itinerary') }} <span class="text-xs text-gray-500">{{ ui_phrase('(Optional)') }}</span></label>
             <div class="mt-1 flex flex-col gap-2 sm:flex-row sm:items-center">
                 <select
                     id="itinerary-select"
                     name="itinerary_id"
                     class="app-input"
                     data-endpoint="{{ url('quotations/itinerary-items') }}"
-                    data-itinerary-edit-url-template="{{ $itineraryEditUrlTemplate }}"
-                    required
                 >
-                    <option value="">{{ ui_phrase('Select itinerary (required)') }}</option>
+                    <option value="">{{ ui_phrase('Select itinerary (optional)') }}</option>
                     @foreach ($itineraries as $itinerary)
                         <option
                             value="{{ $itinerary->id }}"
@@ -251,23 +290,12 @@
                         </option>
                     @endforeach
                 </select>
-                <a
-                    href="#"
-                    id="itinerary-edit-btn"
-                    class="btn-secondary-sm min-h-[42px] w-full sm:w-auto hidden inline-flex items-center gap-1.5"
-                    aria-hidden="true"
-                    target="_blank"
-                    rel="noopener"
-                >
-                    <i class="fa-solid fa-pen-to-square" aria-hidden="true"></i>
-                    <span>Itinerary</span>
-                </a>
                 <button
                     type="button"
                     id="itinerary-generate-btn"
                     class="btn-outline-sm min-h-[42px] w-full sm:w-auto"
                 >
-                    Generate
+                    {{ ui_phrase('Generate') }}
                 </button>
             </div>
             <p id="itinerary-generate-status" class="mt-1 text-xs text-gray-500 dark:text-gray-400">
@@ -286,13 +314,20 @@
 
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Inquiry') }}</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Inquiry') }} <span class="text-rose-600">*</span></label>
+            @if ($isEditQuotation)
+                <input type="hidden" name="inquiry_id" value="{{ $selectedInquiryId }}">
+            @endif
             <select
                 id="inquiry-select"
-                name="inquiry_id"
+                name="{{ $isEditQuotation ? '' : 'inquiry_id' }}"
                 class="mt-1 app-input"
+                data-prefill-lock="{{ $isPrefillInquiryLocked ? '1' : '0' }}"
+                data-prefill-id="{{ (string) ($prefillInquiryId ?? '') }}"
+                @disabled($isEditQuotation)
+                required
             >
-                <option value="">{{ ui_phrase('Select Inquiry (optional)') }}</option>
+                <option value="">{{ ui_phrase('Select Inquiry (required)') }}</option>
                 @foreach ($inquiries as $inquiry)
                     @php
                         $customerCode = strtoupper(trim((string) ($inquiry->customer?->code ?? '')));
@@ -307,7 +342,8 @@
                             $inquiryNumber = '#' . $inquiry->id;
                         }
                         $inquiryDeadline = $inquiry->deadline ? $inquiry->deadline->format('Y-m-d') : '-';
-                        $inquiryLabel = $customerCode . ' | ' . $inquiryNumber . ' - ' . $inquiryDeadline;
+                        $quotationCount = (int) ($inquiry->quotation_count ?? 0);
+                        $inquiryLabel = $customerCode . ' | ' . $inquiryNumber . ' - ' . $inquiryDeadline . ' | ' . ui_phrase('Quotation') . ': ' . $quotationCount;
                     @endphp
                     <option
                         value="{{ $inquiry->id }}"
@@ -407,14 +443,34 @@
             @enderror
         </div>
         <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Duration') }}</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Duration (Days)') }} <span class="text-rose-600">*</span></label>
             <input
-                id="quotation-duration-display"
-                type="text"
-                value="{{ $initialDurationText }}"
+                id="quotation-duration-days"
+                name="duration_days"
+                type="number"
+                min="1"
+                value="{{ $initialDurationDays }}"
+                class="mt-1 app-input"
+                required
+            >
+            @error('duration_days')
+                <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
+            @enderror
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Duration (Nights)') }}</label>
+            <input
+                id="quotation-duration-nights"
+                name="duration_nights"
+                type="number"
+                min="0"
+                value="{{ $initialDurationNights }}"
                 class="mt-1 app-input bg-gray-50 dark:bg-gray-900/40"
                 readonly
             >
+            @error('duration_nights')
+                <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
+            @enderror
         </div>
         <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Validity Date') }} <span class="text-rose-600">*</span></label>
@@ -442,144 +498,223 @@
             <span id="itinerary-items-summary" class="text-xs text-gray-500 dark:text-gray-400"></span>
         </div>
         <div id="quotation-items" class="mt-3 divide-y divide-gray-200 dark:divide-gray-700">
-            <div class="hidden sm:grid sm:grid-cols-6 sm:gap-2 sticky top-0 z-10 mb-2 rounded-md border border-slate-800 px-2 py-2 text-[11px] font-semibold uppercase tracking-wide text-white bg-slate-900">
-                <div class="sm:col-span-2">Description</div>
-                <div>Qty</div>
-                <div>Publish Rate</div>
-                <div class="sm:col-span-2">Unit Price</div>
+            <div class="hidden sm:grid sm:grid-cols-12 sm:gap-2 sticky top-0 z-10 mb-2 rounded-md border border-slate-800 px-2 py-2 text-[11px] font-semibold uppercase tracking-wide text-white bg-slate-900">
+                <div></div>
+                <div class="sm:col-span-4">{{ ui_phrase('Description') }}</div>
+                <div>{{ ui_phrase('Qty') }}</div>
+                <div class="sm:col-span-2">{{ ui_phrase('Rate') }}</div>
+                <div class="sm:col-span-3">{{ ui_phrase('Unit Price') }}</div>
+                <div></div>
             </div>
             @for ($i = 0; $i < max($minRows, count($items)); $i++)
                 @php
                     $row = $items[$i] ?? ['description' => '', 'qty' => 1, 'contract_rate' => 0, 'markup_type' => 'fixed', 'markup' => 0, 'unit_price' => 0, 'discount_type' => 'fixed', 'discount' => 0];
                     $serviceableMetaValue = $row['serviceable_meta'] ?? '';
-                    $serviceableMetaArray = [];
-                    if (is_array($serviceableMetaValue)) {
-                        $serviceableMetaArray = $serviceableMetaValue;
-                    } elseif (is_string($serviceableMetaValue) && $serviceableMetaValue !== '') {
-                        $decodedMeta = json_decode($serviceableMetaValue, true);
-                        if (json_last_error() === JSON_ERROR_NONE && is_array($decodedMeta)) {
-                            $serviceableMetaArray = $decodedMeta;
-                        }
-                    }
-                    $paxType = strtolower((string) ($serviceableMetaArray['pax_type'] ?? ''));
-                    $paxBadgeLabel = $paxType === 'adult' ? 'Adult Publish Rate' : ($paxType === 'child' ? 'Child Publish Rate' : '');
                     if (is_array($serviceableMetaValue)) {
                         $serviceableMetaValue = json_encode($serviceableMetaValue);
                     }
                 @endphp
-                <div class="grid grid-cols-1 gap-2 py-2 sm:grid-cols-6 quotation-item-row" data-row-mode="itinerary">
-                    <div class="sm:col-span-2">
+                <div class="grid grid-cols-1 gap-2 px-2 py-2 sm:grid-cols-12 sm:items-start quotation-item-row" data-row-mode="quotation_item">
+                    <div class="hidden sm:flex sm:items-start sm:justify-center">
+                        <button
+                            type="button"
+                            data-quotation-item-drag-handle="1"
+                            class="inline-flex h-[42px] min-h-[42px] w-[42px] cursor-grab items-center justify-center rounded-md border border-dashed border-gray-300 bg-gray-50 text-gray-500 active:cursor-grabbing dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300"
+                            title="{{ ui_phrase('Drag to reorder or move between days') }}"
+                            aria-label="{{ ui_phrase('Drag to reorder or move between days') }}"
+                        >
+                            <i class="fa-solid fa-grip-vertical" aria-hidden="true"></i>
+                        </button>
+                    </div>
+                    <div class="sm:col-span-4">
                         <label class="block text-xs text-gray-500 sm:hidden">{{ ui_phrase('Description') }}</label>
-                        <div
-                            data-role="description-text"
-                            class="quotation-item-control flex min-h-[42px] items-center rounded-lg border border-gray-200 bg-gray-50 px-3 text-sm text-gray-800 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
-                        >
-                            {{ $row['description'] ?? '-' }}
-                        </div>
-                        <input type="hidden" data-field="description" name="items[{{ $i }}][description]" value="{{ $row['description'] ?? '' }}">
-                        <span
-                            data-field="pax_type_badge"
-                            class="{{ $paxBadgeLabel !== '' ? 'inline-flex' : 'hidden' }} mt-1 items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide {{ $paxType === 'child' ? 'border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-900/30 dark:text-amber-300' : 'border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300' }}"
-                        >
-                            {{ $paxBadgeLabel }}
-                        </span>
+                        <input data-field="description" name="items[{{ $i }}][description]" value="{{ $row['description'] ?? '' }}" class="quotation-item-control dark:border-gray-600 app-input" required>
                     </div>
                     <div>
                         <label class="block text-xs text-gray-500 sm:hidden">{{ ui_phrase('Qty') }}</label>
                         <input data-field="qty" name="items[{{ $i }}][qty]" type="number" min="1" value="{{ $row['qty'] ?? 1 }}" class="quotation-item-control dark:border-gray-600 app-input" required>
                     </div>
-                    <div>
-                        <x-money-input
-                            label="Publish Rate"
-                            label-class="block text-xs text-gray-500 sm:hidden"
-                            wrapper-class="quotation-item-money-field"
-                            :value="max(0, ((float) ($row['unit_price'] ?? 0)) / max(1, (int) ($row['qty'] ?? 1)))"
-                            data-role="publish_rate_display"
-                            input-class="quotation-item-control"
-                            step="0.01"
-                            readonly
-                            compact
-                        />
-                    </div>
                     <div class="sm:col-span-2">
                         <x-money-input
-                            label="Unit Price"
+                            label="{{ ui_phrase('Rate') }}"
                             label-class="block text-xs text-gray-500 sm:hidden"
                             wrapper-class="quotation-item-money-field"
                             :value="$row['unit_price'] ?? 0"
-                            data-role="unit_price_display"
+                            data-field="rate"
+                            input-class="quotation-item-control"
+                            step="0.01"
+                            :readonly="(float) ($row['unit_price'] ?? 0) > 0"
+                            compact
+                        />
+                    </div>
+                    <div class="sm:col-span-3">
+                        <x-money-input
+                            label="{{ ui_phrase('Unit Price') }}"
+                            label-class="block text-xs text-gray-500 sm:hidden"
+                            wrapper-class="quotation-item-money-field"
+                            :value="max(1, (int) ($row['qty'] ?? 1)) * (float) ($row['unit_price'] ?? 0)"
+                            data-field="unit_price"
                             input-class="quotation-item-control"
                             step="0.01"
                             readonly
                             compact
                         />
                     </div>
+                    <div class="flex items-start sm:justify-center">
+                        <button
+                            type="button"
+                            data-remove-service-item="1"
+                            class="btn-danger-sm inline-flex h-[42px] min-h-[42px] w-[42px] items-center justify-center"
+                            title="{{ ui_phrase('Remove') }}"
+                            aria-label="{{ ui_phrase('Remove') }}"
+                        >
+                            <i class="fa-solid fa-trash-can" aria-hidden="true"></i>
+                        </button>
+                    </div>
+                    <input type="hidden" data-field="day_number" name="items[{{ $i }}][day_number]" value="{{ $row['day_number'] ?? '' }}" class="app-input">
+                    <input type="hidden" data-field="sort_order" name="items[{{ $i }}][sort_order]" value="{{ $row['sort_order'] ?? ($i + 1) }}">
+                    <input type="hidden" data-field="id" name="items[{{ $i }}][id]" value="{{ $row['id'] ?? '' }}">
                     <input type="hidden" data-field="contract_rate" name="items[{{ $i }}][contract_rate]" value="{{ $row['contract_rate'] ?? 0 }}">
+                    <input type="hidden" data-field="source_item_id" name="items[{{ $i }}][source_item_id]" value="{{ $row['source_item_id'] ?? '' }}">
                     <input type="hidden" data-field="markup_type" name="items[{{ $i }}][markup_type]" value="{{ ($row['markup_type'] ?? 'fixed') === 'percent' ? 'percent' : 'fixed' }}">
                     <input type="hidden" data-field="markup" name="items[{{ $i }}][markup]" value="{{ $row['markup'] ?? 0 }}">
                     <input type="hidden" data-field="discount_type" name="items[{{ $i }}][discount_type]" value="{{ ($row['discount_type'] ?? 'fixed') === 'percent' ? 'percent' : 'fixed' }}">
                     <input type="hidden" data-field="discount" name="items[{{ $i }}][discount]" value="{{ $row['discount'] ?? 0 }}">
-                    <input type="hidden" data-field="unit_price" name="items[{{ $i }}][unit_price]" value="{{ $row['unit_price'] ?? 0 }}">
+                    <input type="hidden" value="{{ $row['unit_price'] ?? 0 }}">
                     <input type="hidden" data-field="serviceable_type" name="items[{{ $i }}][serviceable_type]" value="{{ $row['serviceable_type'] ?? '' }}" class="app-input">
                     <input type="hidden" data-field="serviceable_id" name="items[{{ $i }}][serviceable_id]" value="{{ $row['serviceable_id'] ?? '' }}" class="app-input">
-                    <input type="hidden" data-field="day_number" name="items[{{ $i }}][day_number]" value="{{ $row['day_number'] ?? '' }}" class="app-input">
                     <input type="hidden" data-field="serviceable_meta" name="items[{{ $i }}][serviceable_meta]" value="{{ $serviceableMetaValue }}" class="app-input">
                     <input type="hidden" data-field="itinerary_item_type" name="items[{{ $i }}][itinerary_item_type]" value="{{ $row['itinerary_item_type'] ?? '' }}" class="app-input">
                 </div>
             @endfor
         </div>
         <template id="quotation-item-row-template">
-                <div class="grid grid-cols-1 gap-2 py-2 sm:grid-cols-6 quotation-item-row" data-row-mode="itinerary">
-                <div class="sm:col-span-2">
+            <div class="grid grid-cols-1 gap-2 px-2 py-2 sm:grid-cols-12 sm:items-start quotation-item-row" data-row-mode="quotation_item">
+                <div class="hidden sm:flex sm:items-start sm:justify-center">
+                    <button
+                        type="button"
+                        data-quotation-item-drag-handle="1"
+                        class="inline-flex h-[42px] min-h-[42px] w-[42px] cursor-grab items-center justify-center rounded-md border border-dashed border-gray-300 bg-gray-50 text-gray-500 active:cursor-grabbing dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300"
+                        title="{{ ui_phrase('Drag to reorder or move between days') }}"
+                        aria-label="{{ ui_phrase('Drag to reorder or move between days') }}"
+                    >
+                        <i class="fa-solid fa-grip-vertical" aria-hidden="true"></i>
+                    </button>
+                </div>
+                <div class="sm:col-span-4">
                     <label class="block text-xs text-gray-500 sm:hidden">{{ ui_phrase('Description') }}</label>
-                    <div
-                        data-role="description-text"
-                        class="quotation-item-control flex min-h-[42px] items-center rounded-lg border border-gray-200 bg-gray-50 px-3 text-sm text-gray-800 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
-                    >-</div>
-                    <input type="hidden" data-field="description">
-                    <span data-field="pax_type_badge" class="hidden mt-1 items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide"></span>
+                    <input data-field="description" class="quotation-item-control dark:border-gray-600 app-input" required>
                 </div>
                 <div>
                     <label class="block text-xs text-gray-500 sm:hidden">{{ ui_phrase('Qty') }}</label>
                     <input data-field="qty" type="number" min="1" class="quotation-item-control dark:border-gray-600 app-input" required>
                 </div>
-                <div>
-                    <x-money-input
-                        label="Publish Rate"
-                        label-class="block text-xs text-gray-500 sm:hidden"
-                        wrapper-class="quotation-item-money-field"
-                        data-role="publish_rate_display"
-                        input-class="quotation-item-control"
-                        step="0.01"
-                        readonly
-                        compact
-                    />
-                </div>
                 <div class="sm:col-span-2">
                     <x-money-input
-                        label="Unit Price"
+                        label="{{ ui_phrase('Rate') }}"
                         label-class="block text-xs text-gray-500 sm:hidden"
                         wrapper-class="quotation-item-money-field"
-                        data-role="unit_price_display"
+                        data-field="rate"
+                        input-class="quotation-item-control"
+                        step="0.01"
+                        compact
+                    />
+                </div>
+                <div class="sm:col-span-3">
+                    <x-money-input
+                        label="{{ ui_phrase('Unit Price') }}"
+                        label-class="block text-xs text-gray-500 sm:hidden"
+                        wrapper-class="quotation-item-money-field"
+                        data-field="unit_price"
                         input-class="quotation-item-control"
                         step="0.01"
                         readonly
                         compact
                     />
                 </div>
+                <div class="flex items-start sm:justify-center">
+                    <button
+                        type="button"
+                        data-remove-service-item="1"
+                        class="btn-danger-sm inline-flex h-[42px] min-h-[42px] w-[42px] items-center justify-center"
+                        title="{{ ui_phrase('Remove') }}"
+                        aria-label="{{ ui_phrase('Remove') }}"
+                    >
+                        <i class="fa-solid fa-trash-can" aria-hidden="true"></i>
+                    </button>
+                </div>
+                <input type="hidden" data-field="day_number" class="app-input">
+                <input type="hidden" data-field="sort_order" value="">
+                <input type="hidden" data-field="id" value="">
                 <input type="hidden" data-field="contract_rate" value="0">
+                <input type="hidden" data-field="source_item_id" value="">
                 <input type="hidden" data-field="markup_type" value="fixed">
                 <input type="hidden" data-field="markup" value="0">
                 <input type="hidden" data-field="discount_type" value="fixed">
                 <input type="hidden" data-field="discount" value="0">
-                <input type="hidden" data-field="unit_price" value="0">
                 <input type="hidden" data-field="serviceable_type" class="app-input">
                 <input type="hidden" data-field="serviceable_id" class="app-input">
-                <input type="hidden" data-field="day_number" class="app-input">
                 <input type="hidden" data-field="serviceable_meta" class="app-input">
                 <input type="hidden" data-field="itinerary_item_type" class="app-input">
             </div>
         </template>
+    </div>
+
+    <div id="quotation-service-items-section" class="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+            <p class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ ui_phrase('Service Items') }}</p>
+        </div>
+        <div class="mt-3 grid grid-cols-1 items-start gap-3 md:grid-cols-12">
+            <div class="md:col-span-2">
+                <label class="block text-xs font-medium text-gray-600 dark:text-gray-300">{{ ui_phrase('Service Type') }}</label>
+                <select id="service-item-type-select" class="mt-1 app-input">
+                    <option value="">{{ ui_phrase('Select Service Type') }}</option>
+                    <option value="activity">{{ ui_phrase('Activities') }}</option>
+                    <option value="island_transfer">{{ ui_phrase('Island Transfer') }}</option>
+                    <option value="fnb">{{ ui_phrase('F&B') }}</option>
+                    <option value="hotel_room">{{ ui_phrase('Hotels') }}</option>
+                    <option value="transport">{{ ui_phrase('Transport') }}</option>
+                    <option value="attraction">{{ ui_phrase('Tourist Attraction') }}</option>
+                </select>
+            </div>
+            <div class="md:col-span-3">
+                <label class="block text-xs font-medium text-gray-600 dark:text-gray-300">{{ ui_phrase('Service Item') }}</label>
+                <div class="relative">
+                    <input
+                        id="service-item-input"
+                        type="text"
+                        class="mt-1 app-input"
+                        placeholder="{{ ui_phrase('Type or select item') }}"
+                        autocomplete="off"
+                    >
+                    <div
+                        id="service-item-dropdown"
+                        class="absolute z-20 mt-1 hidden max-h-56 w-full overflow-auto rounded-md border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-700 dark:bg-gray-900"
+                    ></div>
+                </div>
+            </div>
+            <div class="md:col-span-2">
+                <label class="block text-xs font-medium text-gray-600 dark:text-gray-300">{{ ui_phrase('Qty') }}</label>
+                <input id="service-item-qty" type="number" min="1" value="1" class="mt-1 app-input">
+            </div>
+            <div id="service-item-pax-type-wrap" class="hidden md:col-span-2">
+                <label class="block text-xs font-medium text-gray-600 dark:text-gray-300">{{ ui_phrase('Passenger Type') }}</label>
+                <select id="service-item-pax-type" class="mt-1 app-input">
+                    <option value="adult">{{ ui_phrase('Adult') }}</option>
+                    <option value="child">{{ ui_phrase('Child') }}</option>
+                </select>
+            </div>
+            <div class="md:col-span-1">
+                <label class="block text-xs font-medium text-gray-600 dark:text-gray-300">{{ ui_phrase('Day') }}</label>
+                <select id="service-item-day" class="mt-1 app-input"></select>
+            </div>
+            <div class="md:col-span-2 md:self-start">
+                <span class="hidden h-4 text-xs font-medium md:block" aria-hidden="true">&nbsp;</span>
+                <button type="button" id="service-item-add-btn" class="btn-outline-sm mt-2 flex h-[42px] min-h-[42px] w-full items-center justify-center">
+                    {{ ui_phrase('Add Service') }}
+                </button>
+            </div>
+        </div>
     </div>
 
     <div id="quotation-manual-items-section" class="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
@@ -590,16 +725,16 @@
                 id="quotation-add-item-btn"
                 class="btn-outline-sm"
             >
-                Add Item
+                {{ ui_phrase('Add Item') }}
             </button>
         </div>
 
         <div id="quotation-manual-items" class="mt-3 divide-y divide-gray-200 dark:divide-gray-700">
             <div class="hidden sm:grid sm:grid-cols-12 sm:gap-2 sticky top-0 z-10 mb-2 rounded-md border border-slate-800 px-2 py-2 text-[11px] font-semibold uppercase tracking-wide text-white bg-slate-900">
-                <div class="sm:col-span-5">Description</div>
-                <div class="sm:col-span-2">Qty</div>
-                <div class="sm:col-span-2">Rate</div>
-                <div class="sm:col-span-2">Unit Price</div>
+                <div class="sm:col-span-5">{{ ui_phrase('Description') }}</div>
+                <div class="sm:col-span-2">{{ ui_phrase('Qty') }}</div>
+                <div class="sm:col-span-2">{{ ui_phrase('Rate') }}</div>
+                <div class="sm:col-span-2">{{ ui_phrase('Unit Price') }}</div>
                 <div class="sm:col-span-1"></div>
             </div>
             @for ($j = 0; $j < count($manualItems); $j++)
@@ -613,15 +748,14 @@
                 <div class="grid grid-cols-1 gap-2 py-2 sm:grid-cols-12 quotation-manual-row" data-row-mode="manual">
                     <div class="sm:col-span-5">
                         <label class="block text-xs text-gray-500 sm:hidden">{{ ui_phrase('Description') }}</label>
-                        <input data-field="description" name="items[{{ $idx }}][description]" value="{{ $row['description'] ?? '' }}" class="quotation-item-control dark:border-gray-600 app-input" required>
-                    </div>
+                        <input data-field="description" name="items[{{ $idx }}][description]" value="{{ $row['description'] ?? '' }}" class="quotation-item-control dark:border-gray-600 app-input" required></div>
                     <div class="sm:col-span-2">
                         <label class="block text-xs text-gray-500 sm:hidden">{{ ui_phrase('Qty') }}</label>
                         <input data-field="qty" name="items[{{ $idx }}][qty]" type="number" min="1" value="{{ $manualQty }}" class="quotation-item-control dark:border-gray-600 app-input" required>
                     </div>
                     <div class="sm:col-span-2">
                         <x-money-input
-                            label="Rate"
+                            label="{{ ui_phrase('Rate') }}"
                             label-class="block text-xs text-gray-500 sm:hidden"
                             wrapper-class="quotation-item-money-field w-full"
                             name="items[{{ $idx }}][rate]"
@@ -634,7 +768,7 @@
                     </div>
                     <div class="sm:col-span-2">
                         <x-money-input
-                            label="Unit Price"
+                            label="{{ ui_phrase('Unit Price') }}"
                             label-class="block text-xs text-gray-500 sm:hidden"
                             wrapper-class="quotation-item-money-field w-full"
                             :value="$manualTotal"
@@ -652,10 +786,12 @@
                             data-remove-manual-item="1"
                             class="btn-danger-sm inline-flex h-[42px] min-h-[42px] w-full items-center justify-center"
                         >
-                            Remove
+                            {{ ui_phrase('Remove') }}
                         </button>
                     </div>
                     <input type="hidden" data-field="contract_rate" value="">
+                    <input type="hidden" data-field="id" name="items[{{ $idx }}][id]" value="{{ $row['id'] ?? '' }}">
+                    <input type="hidden" data-field="source_item_id" name="items[{{ $idx }}][source_item_id]" value="{{ $row['source_item_id'] ?? '' }}">
                     <input type="hidden" data-field="markup_type" value="fixed">
                     <input type="hidden" data-field="markup" value="0">
                     <input type="hidden" data-field="discount_type" value="fixed">
@@ -663,6 +799,7 @@
                     <input type="hidden" data-field="serviceable_type" name="items[{{ $idx }}][serviceable_type]" value="{{ $row['serviceable_type'] ?? '' }}" class="app-input">
                     <input type="hidden" data-field="serviceable_id" name="items[{{ $idx }}][serviceable_id]" value="{{ $row['serviceable_id'] ?? '' }}" class="app-input">
                     <input type="hidden" data-field="day_number" name="items[{{ $idx }}][day_number]" value="{{ $row['day_number'] ?? '' }}" class="app-input">
+                    <input type="hidden" data-field="sort_order" name="items[{{ $idx }}][sort_order]" value="{{ $row['sort_order'] ?? ($idx + 1) }}">
                     <input type="hidden" data-field="serviceable_meta" name="items[{{ $idx }}][serviceable_meta]" value="{{ is_array($row['serviceable_meta'] ?? null) ? json_encode($row['serviceable_meta']) : ($row['serviceable_meta'] ?? '') }}" class="app-input">
                     <input type="hidden" data-field="itinerary_item_type" name="items[{{ $idx }}][itinerary_item_type]" value="manual" class="app-input">
                 </div>
@@ -673,15 +810,14 @@
             <div class="grid grid-cols-1 gap-2 py-2 sm:grid-cols-12 quotation-manual-row" data-row-mode="manual">
                 <div class="sm:col-span-5">
                     <label class="block text-xs text-gray-500 sm:hidden">{{ ui_phrase('Description') }}</label>
-                    <input data-field="description" class="quotation-item-control dark:border-gray-600 app-input" required>
-                </div>
+                    <input data-field="description" class="quotation-item-control dark:border-gray-600 app-input" required></div>
                 <div class="sm:col-span-2">
                     <label class="block text-xs text-gray-500 sm:hidden">{{ ui_phrase('Qty') }}</label>
                     <input data-field="qty" type="number" min="1" class="quotation-item-control dark:border-gray-600 app-input" required>
                 </div>
                 <div class="sm:col-span-2">
                     <x-money-input
-                        label="Rate"
+                        label="{{ ui_phrase('Rate') }}"
                         label-class="block text-xs text-gray-500 sm:hidden"
                         wrapper-class="quotation-item-money-field w-full"
                         data-field="rate"
@@ -692,7 +828,7 @@
                 </div>
                 <div class="sm:col-span-2">
                     <x-money-input
-                        label="Unit Price"
+                        label="{{ ui_phrase('Unit Price') }}"
                         label-class="block text-xs text-gray-500 sm:hidden"
                         wrapper-class="quotation-item-money-field w-full"
                         data-field="unit_price"
@@ -709,10 +845,12 @@
                         data-remove-manual-item="1"
                         class="btn-danger-sm inline-flex h-[42px] min-h-[42px] w-full items-center justify-center"
                     >
-                        Remove
+                        {{ ui_phrase('Remove') }}
                     </button>
                 </div>
                 <input type="hidden" data-field="contract_rate" value="">
+                <input type="hidden" data-field="id" value="">
+                <input type="hidden" data-field="source_item_id" value="">
                 <input type="hidden" data-field="markup_type" value="fixed">
                 <input type="hidden" data-field="markup" value="0">
                 <input type="hidden" data-field="discount_type" value="fixed">
@@ -720,6 +858,7 @@
                 <input type="hidden" data-field="serviceable_type" class="app-input">
                 <input type="hidden" data-field="serviceable_id" class="app-input">
                 <input type="hidden" data-field="day_number" class="app-input">
+                <input type="hidden" data-field="sort_order" value="">
                 <input type="hidden" data-field="serviceable_meta" class="app-input">
                 <input type="hidden" data-field="itinerary_item_type" value="manual" class="app-input">
             </div>
@@ -731,7 +870,7 @@
         <input type="hidden" id="main-global-discount-value" name="discount_value" value="{{ old('discount_value', $quotation->discount_value ?? 0) }}">
         <div>
             <x-money-input
-                label="Final Amount (Auto)"
+                label="{{ ui_phrase('Final Amount (Auto)') }}"
                 name="final_amount"
                 id="quotation-final-amount"
                 step="0.01"
@@ -744,11 +883,13 @@
         </div>
     </div>
     <div class="flex items-center gap-2">
-        <button type="submit"  class="btn-primary">
-            {{ $buttonLabel }}
+        <button type="submit" class="btn-primary inline-flex items-center gap-2">
+            <i class="fa-solid fa-floppy-disk w-4 text-center"></i>
+            <span>{{ $buttonLabel }}</span>
         </button>
-        <a href="{{ route('quotations.index') }}"  class="btn-secondary">
-            Cancel
+        <a href="{{ route('quotations.index') }}" class="btn-secondary inline-flex items-center gap-2">
+            <i class="fa-solid fa-xmark w-4 text-center"></i>
+            <span>{{ ui_phrase('Cancel') }}</span>
         </a>
     </div>
 </div>
@@ -770,6 +911,33 @@
             .quotation-form-no-labels #quotation-manual-items-section .quotation-item-money-field {
                 min-width: 0 !important;
                 width: 100% !important;
+            }
+
+            .quotation-form-no-labels .quotation-item-row {
+                align-items: flex-start;
+            }
+
+            .quotation-form-no-labels .quotation-item-row .quotation-item-control,
+            .quotation-form-no-labels .quotation-item-row .quotation-item-money-field,
+            .quotation-form-no-labels .quotation-item-row [data-quotation-item-drag-handle="1"],
+            .quotation-form-no-labels .quotation-item-row [data-remove-service-item="1"] {
+                min-height: 42px;
+                height: 42px;
+            }
+
+            .quotation-form-no-labels .quotation-item-row [data-quotation-item-drag-handle="1"],
+            .quotation-form-no-labels .quotation-item-row [data-remove-service-item="1"] {
+                min-width: 42px;
+                width: 42px;
+                max-width: 42px;
+                padding-left: 0;
+                padding-right: 0;
+            }
+
+            .quotation-form-no-labels .quotation-item-row .quotation-item-money-field {
+                display: block;
+                min-width: 0;
+                width: 100%;
             }
         </style>
     @endpush
@@ -794,6 +962,15 @@
                 const summaryEl = document.getElementById('itinerary-items-summary');
                 const itemsSection = document.getElementById('quotation-items-section');
                 const addItemBtn = document.getElementById('quotation-add-item-btn');
+                const serviceItemsSection = document.getElementById('quotation-service-items-section');
+                const serviceItemTypeSelect = document.getElementById('service-item-type-select');
+                const serviceItemInput = document.getElementById('service-item-input');
+                const serviceItemDropdown = document.getElementById('service-item-dropdown');
+                const serviceItemQtyInput = document.getElementById('service-item-qty');
+                const serviceItemPaxTypeWrap = document.getElementById('service-item-pax-type-wrap');
+                const serviceItemPaxTypeSelect = document.getElementById('service-item-pax-type');
+                const serviceItemDaySelect = document.getElementById('service-item-day');
+                const serviceItemAddBtn = document.getElementById('service-item-add-btn');
                 const itemDiscountTotalInput = document.getElementById('quotation-item-discount-total');
                 const subTotalInput = document.getElementById('quotation-sub-total');
                 const discountAmountInput = document.getElementById('quotation-global-discount-amount');
@@ -827,6 +1004,66 @@
                     itemsLoadedPattern: @json(ui_phrase('Items loaded: :count.')),
                     missingPricePattern: @json(ui_phrase('Note: :count items have zero price. Please review.')),
                     manualItemAdded: @json(ui_phrase('Manual item added successfully.')),
+                    selectServiceTypeFirst: @json(ui_phrase('Please select service type first.')),
+                    selectServiceItemFirst: @json(ui_phrase('Please type/select service item first.')),
+                    serviceItemNotFound: @json(ui_phrase('Service item not found. Please choose from suggestion list.')),
+                    serviceItemAmbiguous: @json(ui_phrase('Multiple service items match. Please type more specific name.')),
+                    serviceItemAdded: @json(ui_phrase('Service item added successfully.')),
+                    descriptionLabel: @json(ui_phrase('Description')),
+                    qtyLabel: @json(ui_phrase('Qty')),
+                    rateLabel: @json(ui_phrase('Rate')),
+                    unitPriceLabel: @json(ui_phrase('Unit Price')),
+                    paxTypeLabel: @json(ui_phrase('Passenger Type')),
+                    adultLabel: @json(ui_phrase('Adult')),
+                    childLabel: @json(ui_phrase('Child')),
+                    activityLabelPrefix: @json(ui_phrase('Activity') . ': '),
+                    islandTransferLabelPrefix: @json(ui_phrase('Island Transfer') . ': '),
+                    fnbLabelPrefix: @json(ui_phrase('F&B') . ': '),
+                    hotelLabelPrefix: @json(ui_phrase('Hotel') . ': '),
+                    transportLabelPrefix: @json(ui_phrase('Transport') . ': '),
+                    attractionLabelPrefix: @json(ui_phrase('Attraction') . ': '),
+                };
+                const serviceCatalogs = @json($serviceCatalogs);
+                let currentServiceItemOptions = [];
+                const serviceTypeConfig = {
+                    activity: {
+                        key: 'activities',
+                        labelPrefix: i18n.activityLabelPrefix,
+                        serviceableType: @json(\App\Models\Activity::class),
+                        itineraryItemType: 'activity',
+                        supportsPaxType: true,
+                    },
+                    island_transfer: {
+                        key: 'island_transfers',
+                        labelPrefix: i18n.islandTransferLabelPrefix,
+                        serviceableType: @json(\App\Models\IslandTransfer::class),
+                        itineraryItemType: 'transfer',
+                    },
+                    fnb: {
+                        key: 'food_beverages',
+                        labelPrefix: i18n.fnbLabelPrefix,
+                        serviceableType: @json(\App\Models\FoodBeverage::class),
+                        itineraryItemType: 'fnb',
+                        supportsPaxType: true,
+                    },
+                    hotel_room: {
+                        key: 'hotel_rooms',
+                        labelPrefix: i18n.hotelLabelPrefix,
+                        serviceableType: @json(\App\Models\HotelRoom::class),
+                        itineraryItemType: 'hotel_day_end',
+                    },
+                    transport: {
+                        key: 'transport_units',
+                        labelPrefix: i18n.transportLabelPrefix,
+                        serviceableType: @json(\App\Models\TransportUnit::class),
+                        itineraryItemType: 'transport_day',
+                    },
+                    attraction: {
+                        key: 'tourist_attractions',
+                        labelPrefix: i18n.attractionLabelPrefix,
+                        serviceableType: @json(\App\Models\TouristAttraction::class),
+                        itineraryItemType: 'attraction',
+                    },
                 };
 
                 const parseInteger = (value) => {
@@ -906,91 +1143,6 @@
                     input.value = formatMoneyDisplay(safeValue);
                 };
 
-                const setBadge = (input, text) => {
-                    if (!input) return;
-                    const badge = input.parentElement?.querySelector('[data-money-badge="1"]');
-                    if (badge) {
-                        badge.textContent = text;
-                    }
-                };
-
-                const updateRowDiscountBadge = (row) => {
-                    const currency = window.appCurrencySymbol || window.appCurrency || 'IDR';
-                    const discountType = (row.querySelector('[data-field="discount_type"]')?.value || 'fixed');
-                    const discountInput = row.querySelector('[data-field="discount"]');
-                    setBadge(discountInput, discountType === 'percent' ? '%' : currency);
-                };
-
-                const updateRowMarkupBadge = (row) => {
-                    const currency = window.appCurrencySymbol || window.appCurrency || 'IDR';
-                    const markupType = (row.querySelector('[data-field="markup_type"]')?.value || 'fixed');
-                    const markupInput = row.querySelector('[data-field="markup"]');
-                    setBadge(markupInput, markupType === 'percent' ? '%' : currency);
-                };
-
-                const syncMarkupTypeDisplay = (row) => {
-                    if (!row) return;
-                    const hiddenType = row.querySelector('[data-field="markup_type"]')?.value || 'fixed';
-                    const displaySelect = row.querySelector('[data-markup-type-display]');
-                    if (displaySelect) {
-                        displaySelect.value = hiddenType === 'percent' ? 'percent' : 'fixed';
-                    }
-                };
-
-                const updateOverallDiscountBadge = () => {
-                    if (!discountValueInput || String(discountValueInput.type || '').toLowerCase() === 'hidden') {
-                        return;
-                    }
-                    const currency = window.appCurrencySymbol || window.appCurrency || 'IDR';
-                    const type = discountTypeInput?.value || '';
-                    const badgeText = type === 'percent' ? '%' : currency;
-                    setBadge(discountValueInput, badgeText);
-                };
-
-                const convertDiscountValue = (row, fromType, toType) => {
-                    if (!row || fromType === toType) return;
-                    const total = Math.max(0, computeRowBaseAmount(row));
-                    const discountInput = row.querySelector('[data-field="discount"]');
-                    if (!discountInput) return;
-                    let value = fromType === 'percent'
-                        ? parsePercent(discountInput.value)
-                        : parseInteger(discountInput.value);
-
-                    if (fromType === 'percent' && toType === 'fixed') {
-                        value = total * (value / 100);
-                        setMoneyInputDisplay(discountInput, value);
-                    } else if (fromType === 'fixed' && toType === 'percent') {
-                        if (total <= 0) {
-                            discountInput.value = '0';
-                        } else {
-                            value = Math.min(100, (value / total) * 100);
-                            discountInput.value = String(Math.round(value));
-                        }
-                    }
-                };
-
-                const convertMarkupValue = (row, fromType, toType) => {
-                    if (!row || fromType === toType) return;
-                    const contractRate = parseInteger(row.querySelector('[data-field="contract_rate"]')?.value);
-                    const markupInput = row.querySelector('[data-field="markup"]');
-                    if (!markupInput) return;
-                    let value = fromType === 'percent'
-                        ? parsePercent(markupInput.value)
-                        : parseInteger(markupInput.value);
-
-                    if (fromType === 'percent' && toType === 'fixed') {
-                        value = contractRate * (value / 100);
-                        setMoneyInputDisplay(markupInput, value);
-                    } else if (fromType === 'fixed' && toType === 'percent') {
-                        if (contractRate <= 0) {
-                            markupInput.value = '0';
-                        } else {
-                            value = Math.min(100, (value / contractRate) * 100);
-                            markupInput.value = String(Math.round(value));
-                        }
-                    }
-                };
-
                 const computeRowBaseAmount = (row) => {
                     const contractRate = parseInteger(row.querySelector('[data-field="contract_rate"]')?.value);
                     const qty = Math.max(1, parseInteger(row.querySelector('[data-field="qty"]')?.value) || 1);
@@ -1029,8 +1181,9 @@
                 };
 
                 const computeRowUnitPrice = (row) => {
-                    const isManualRow = (row?.dataset?.rowMode || '') === 'manual';
-                    if (isManualRow) {
+                    const rowMode = (row?.dataset?.rowMode || '');
+                    const isRateBasedRow = rowMode === 'manual' || rowMode === 'quotation_item';
+                    if (isRateBasedRow) {
                         const qty = Math.max(1, parseInteger(row.querySelector('[data-field="qty"]')?.value) || 1);
                         const rate = parseInteger(row.querySelector('[data-field="rate"]')?.value);
                         const totalRate = Math.max(0, qty * rate);
@@ -1053,32 +1206,19 @@
                     return unitPrice;
                 };
 
-                const syncItineraryRowPriceDisplays = (row, unitPrice) => {
-                    if (!row || (row?.dataset?.rowMode || '') !== 'itinerary') return;
-                    const qty = Math.max(1, parseInteger(row.querySelector('[data-field="qty"]')?.value) || 1);
-                    const safeUnitPrice = Math.max(0, Math.round(Number(unitPrice) || 0));
-                    const publishRate = Math.max(0, Math.round(safeUnitPrice / qty));
-                    const publishRateInput = row.querySelector('[data-role="publish_rate_display"]');
-                    const unitPriceDisplayInput = row.querySelector('[data-role="unit_price_display"]');
-                    setMoneyInputDisplay(publishRateInput, publishRate);
-                    setMoneyInputDisplay(unitPriceDisplayInput, safeUnitPrice);
-                };
-
                 const recalcTotals = () => {
                     let subTotal = 0;
                     let itemDiscountTotal = 0;
                     getAllRows().forEach((row) => {
-                        const isManualRow = (row?.dataset?.rowMode || '') === 'manual';
-                        updateRowDiscountBadge(row);
-                        updateRowMarkupBadge(row);
+                        const rowMode = (row?.dataset?.rowMode || '');
+                        const isRateBasedRow = rowMode === 'manual' || rowMode === 'quotation_item';
                         const unitPrice = computeRowUnitPrice(row);
-                        syncItineraryRowPriceDisplays(row, unitPrice);
-                        const baseAmount = isManualRow
+                        const baseAmount = isRateBasedRow
                             ? unitPrice
                             : computeRowBaseAmount(row);
                         const rowDiscount = computeRowDiscountAmount(row, baseAmount);
                         itemDiscountTotal += rowDiscount;
-                        const rowTotal = isManualRow
+                        const rowTotal = isRateBasedRow
                             ? Math.max(0, unitPrice - rowDiscount)
                             : Math.max(0, unitPrice);
                         subTotal += rowTotal;
@@ -1106,8 +1246,20 @@
                     if (subTotalInput) setMoneyInputDisplay(subTotalInput, subTotal);
                     if (discountAmountInput) setMoneyInputDisplay(discountAmountInput, discountAmount);
                     if (finalAmountInput) setMoneyInputDisplay(finalAmountInput, finalAmount);
+                };
 
-                    updateOverallDiscountBadge();
+                let recalcFrameId = null;
+                const scheduleRecalcTotals = () => {
+                    if (recalcFrameId !== null) return;
+                    const run = () => {
+                        recalcFrameId = null;
+                        recalcTotals();
+                    };
+                    if (typeof window.requestAnimationFrame === 'function') {
+                        recalcFrameId = window.requestAnimationFrame(run);
+                    } else {
+                        recalcFrameId = window.setTimeout(run, 0);
+                    }
                 };
 
                 const getAllRows = () => {
@@ -1127,12 +1279,35 @@
                     itemsSection.classList.toggle('hidden', !hasFilledItems());
                 };
 
+                const syncServiceItemsMode = () => {
+                    if (serviceItemsSection) {
+                        serviceItemsSection.classList.remove('hidden');
+                    }
+                    [serviceItemTypeSelect, serviceItemInput, serviceItemQtyInput, serviceItemPaxTypeSelect, serviceItemDaySelect, serviceItemAddBtn].forEach((el) => {
+                        if (!el) return;
+                        el.disabled = false;
+                    });
+                };
+
+                const syncServiceItemPaxTypeVisibility = () => {
+                    const type = String(serviceItemTypeSelect?.value || '').trim();
+                    const config = serviceTypeConfig[type] || null;
+                    const shouldShow = Boolean(config?.supportsPaxType);
+                    serviceItemPaxTypeWrap?.classList.toggle('hidden', !shouldShow);
+                    if (serviceItemPaxTypeSelect && !shouldShow) {
+                        serviceItemPaxTypeSelect.value = 'adult';
+                    }
+                };
+
                 const reindexItems = () => {
                     const rows = getAllRows();
                     rows.forEach((row, index) => {
                         row.querySelectorAll('[data-field]').forEach((input) => {
                             const field = input.dataset.field;
                             input.name = `items[${index}][${field}]`;
+                            if (field === 'sort_order') {
+                                input.value = String(index + 1);
+                            }
                         });
                     });
                 };
@@ -1144,24 +1319,134 @@
                     }
                     return 'Without Day';
                 };
+                let draggedQuotationItemRow = null;
 
-                const descriptionForDisplay = (value) => {
-                    const text = String(value || '').trim();
-                    if (text === '') return '-';
-                    const cleaned = text.replace(/^day\s+\d+\s*[:\-]\s*/i, '').trim();
-                    return cleaned !== '' ? cleaned : '-';
+                const normalizeDayNumber = (value) => {
+                    const parsed = Number.parseInt(String(value || ''), 10);
+                    return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+                };
+
+                const availableDayKeys = () => {
+                    const days = Number.parseInt(String(durationDaysInput?.value || '1'), 10);
+                    const safeDays = Number.isFinite(days) && days > 0 ? days : 1;
+                    return Array.from({ length: safeDays }, (_, index) => String(index + 1));
+                };
+
+                const getDropTargetRow = (container, y, draggingRow) => {
+                    const candidates = Array.from(container.querySelectorAll('.quotation-item-row'))
+                        .filter((row) => row !== draggingRow);
+                    let closest = { offset: Number.NEGATIVE_INFINITY, element: null };
+                    candidates.forEach((row) => {
+                        const box = row.getBoundingClientRect();
+                        const offset = y - box.top - (box.height / 2);
+                        if (offset < 0 && offset > closest.offset) {
+                            closest = { offset, element: row };
+                        }
+                    });
+                    return closest.element;
+                };
+
+                const setRowDayNumber = (row, dayNumber) => {
+                    if (!row) return;
+                    const day = normalizeDayNumber(dayNumber);
+                    const dayInput = row.querySelector('[data-field="day_number"]');
+                    if (dayInput && day !== null) {
+                        dayInput.value = String(day);
+                    }
+                };
+
+                const syncQuotationItemDayInputBounds = () => {
+                    const maxDay = availableDayKeys().length || 1;
+                    itemsContainer.querySelectorAll('.quotation-item-row [data-field="day_number"]').forEach((input) => {
+                        input.min = '1';
+                        input.max = String(maxDay);
+                        const day = normalizeDayNumber(input.value);
+                        if (day !== null && day > maxDay) {
+                            input.value = String(maxDay);
+                        }
+                    });
+                };
+
+                const clearDropZoneStates = () => {
+                    itemsContainer.querySelectorAll('[data-role="day-body"][data-accept-quotation-item="1"]').forEach((zone) => {
+                        zone.classList.remove('ring-2', 'ring-indigo-300', 'ring-offset-1', 'bg-indigo-50/50', 'dark:bg-indigo-900/10');
+                    });
+                };
+
+                const wireQuotationItemDragAndDrop = () => {
+                    itemsContainer.querySelectorAll('.quotation-item-row').forEach((row) => {
+                        if (row.dataset.dndBound === '1') return;
+                        row.dataset.dndBound = '1';
+                        row.draggable = true;
+                        const dragHandle = row.querySelector('[data-quotation-item-drag-handle="1"]');
+                        if (dragHandle) {
+                            dragHandle.addEventListener('mousedown', () => {
+                                row.dataset.dragFromHandle = '1';
+                            });
+                            dragHandle.addEventListener('mouseup', () => {
+                                row.dataset.dragFromHandle = '0';
+                            });
+                            dragHandle.addEventListener('mouseleave', () => {
+                                row.dataset.dragFromHandle = '0';
+                            });
+                        }
+                        row.addEventListener('dragstart', (event) => {
+                            if (row.dataset.dragFromHandle !== '1') {
+                                event.preventDefault();
+                                return;
+                            }
+                            draggedQuotationItemRow = row;
+                            row.classList.add('opacity-60');
+                            event.dataTransfer.effectAllowed = 'move';
+                            event.dataTransfer.setData('text/plain', row.querySelector('[data-field="description"]')?.value || '');
+                        });
+                        row.addEventListener('dragend', () => {
+                            row.classList.remove('opacity-60');
+                            row.dataset.dragFromHandle = '0';
+                            draggedQuotationItemRow = null;
+                            clearDropZoneStates();
+                            reindexItems();
+                            recalcTotals();
+                        });
+                    });
+
+                    itemsContainer.querySelectorAll('[data-role="day-body"]').forEach((zone) => {
+                        if (zone.dataset.dropBound === '1') return;
+                        zone.dataset.dropBound = '1';
+                        zone.addEventListener('dragover', (event) => {
+                            if (!draggedQuotationItemRow) return;
+                            event.preventDefault();
+                            zone.classList.add('ring-2', 'ring-indigo-300', 'ring-offset-1', 'bg-indigo-50/50', 'dark:bg-indigo-900/10');
+                            const nextRow = getDropTargetRow(zone, event.clientY, draggedQuotationItemRow);
+                            if (nextRow) {
+                                zone.insertBefore(draggedQuotationItemRow, nextRow);
+                            } else {
+                                zone.appendChild(draggedQuotationItemRow);
+                            }
+                            setRowDayNumber(draggedQuotationItemRow, zone.dataset.dayNumber);
+                            reindexItems();
+                        });
+                        zone.addEventListener('dragleave', (event) => {
+                            if (zone.contains(event.relatedTarget)) return;
+                            zone.classList.remove('ring-2', 'ring-indigo-300', 'ring-offset-1', 'bg-indigo-50/50', 'dark:bg-indigo-900/10');
+                        });
+                        zone.addEventListener('drop', (event) => {
+                            if (!draggedQuotationItemRow) return;
+                            event.preventDefault();
+                            setRowDayNumber(draggedQuotationItemRow, zone.dataset.dayNumber);
+                            clearDropZoneStates();
+                            reindexItems();
+                            recalcTotals();
+                        });
+                    });
                 };
 
                 const regroupItemsByDay = () => {
                     const rows = Array.from(itemsContainer.querySelectorAll('.quotation-item-row'));
-                    if (rows.length === 0) {
-                        itemsContainer.innerHTML = '';
-                        return;
-                    }
-
                     const groups = new Map();
+                    availableDayKeys().forEach((key) => groups.set(key, []));
                     rows.forEach((row) => {
-                        const key = String(row.querySelector('[data-field="day_number"]')?.value || '');
+                        const key = String(normalizeDayNumber(row.querySelector('[data-field="day_number"]')?.value) || '');
                         if (!groups.has(key)) {
                             groups.set(key, []);
                         }
@@ -1179,63 +1464,31 @@
                         card.appendChild(heading);
 
                         const tableHeader = document.createElement('div');
-                        tableHeader.className = 'hidden sm:grid sm:grid-cols-6 sm:gap-2 sticky top-0 z-10 mb-2 rounded-md border border-slate-800 px-2 py-2 text-[11px] font-semibold uppercase tracking-wide text-white';
+                        tableHeader.className = 'hidden sm:grid sm:grid-cols-12 sm:gap-2 sticky top-0 z-10 mb-2 rounded-md border border-slate-800 px-2 py-2 text-[11px] font-semibold uppercase tracking-wide text-white';
                         tableHeader.style.setProperty('--tw-bg-opacity', '1');
                         tableHeader.style.backgroundColor = 'rgb(15 23 42 / var(--tw-bg-opacity, 1))';
                         tableHeader.innerHTML = `
-                            <div class="sm:col-span-2">Description</div>
-                            <div>Qty</div>
-                            <div>Publish Rate</div>
-                            <div class="sm:col-span-2">Unit Price</div>
+                            <div></div>
+                            <div class="sm:col-span-4">${i18n.descriptionLabel}</div>
+                            <div>${i18n.qtyLabel}</div>
+                            <div class="sm:col-span-2">${i18n.rateLabel}</div>
+                            <div class="sm:col-span-3">${i18n.unitPriceLabel}</div>
+                            <div></div>
                         `;
                         card.appendChild(tableHeader);
 
                         const body = document.createElement('div');
-                        body.className = 'divide-y divide-gray-200 dark:divide-gray-700';
+                        body.className = 'min-h-[54px] divide-y divide-gray-200 rounded-md transition-colors dark:divide-gray-700';
+                        body.dataset.role = 'day-body';
+                        body.dataset.dayNumber = key;
+                        body.dataset.acceptQuotationItem = key !== '' ? '1' : '0';
                         groupRows.forEach((row) => body.appendChild(row));
                         card.appendChild(body);
 
                         itemsContainer.appendChild(card);
                     });
-                };
-
-                const parseMetaValue = (value) => {
-                    if (value && typeof value === 'object') {
-                        return value;
-                    }
-                    const raw = String(value ?? '').trim();
-                    if (!raw) return null;
-                    try {
-                        const parsed = JSON.parse(raw);
-                        return parsed && typeof parsed === 'object' ? parsed : null;
-                    } catch (e) {
-                        return null;
-                    }
-                };
-
-                const applyPaxTypeBadge = (rowEl, sourceRow = null) => {
-                    if (!rowEl) return;
-                    const badgeEl = rowEl.querySelector('[data-field="pax_type_badge"]');
-                    if (!badgeEl) return;
-
-                    const metaFromSource = sourceRow?.serviceable_meta ?? null;
-                    const metaInputValue = rowEl.querySelector('[data-field="serviceable_meta"]')?.value ?? null;
-                    const meta = parseMetaValue(metaFromSource) || parseMetaValue(metaInputValue);
-                    const paxType = String(meta?.pax_type ?? '').toLowerCase();
-
-                    if (paxType !== 'adult' && paxType !== 'child') {
-                        badgeEl.textContent = '';
-                        badgeEl.className = 'hidden mt-1 items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide';
-                        return;
-                    }
-
-                    const isChild = paxType === 'child';
-                    badgeEl.textContent = isChild ? 'Child Publish Rate' : 'Adult Publish Rate';
-                    badgeEl.className = `inline-flex mt-1 items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
-                        isChild
-                            ? 'border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-900/30 dark:text-amber-300'
-                            : 'border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300'
-                    }`;
+                    syncQuotationItemDayInputBounds();
+                    wireQuotationItemDragAndDrop();
                 };
 
                 const buildRow = (index, row) => {
@@ -1249,6 +1502,8 @@
                         normalizedRow.markup_type = 'fixed';
                         normalizedRow.markup = Number.isFinite(rawMarkup) && rawMarkup > 0 ? rawMarkup : 0;
                     }
+                    const masterRate = Number(normalizedRow?.rate ?? normalizedRow?.unit_price ?? 0);
+                    const lockRate = Number.isFinite(masterRate) && masterRate > 0;
                     const setValue = (input, value, fallback) => {
                         const v = value !== undefined && value !== null ? value : fallback;
                         input.value = v;
@@ -1259,6 +1514,14 @@
                         if (field === 'qty') {
                             const qty = Number(row?.qty);
                             setValue(input, Number.isFinite(qty) && qty > 0 ? qty : 1, 1);
+                            return;
+                        }
+                        if (field === 'rate') {
+                            const rateValue = Number(normalizedRow?.rate ?? normalizedRow?.unit_price ?? normalizedRow?.contract_rate ?? 0);
+                            const idrValue = Number.isFinite(rateValue) ? rateValue : 0;
+                            const displayValue = idrToDisplay(idrValue);
+                            setValue(input, String(Math.max(0, Math.round(displayValue))), '0');
+                            input.readOnly = lockRate;
                             return;
                         }
                         if (field === 'contract_rate' || field === 'markup' || field === 'unit_price' || field === 'discount') {
@@ -1296,15 +1559,8 @@
                         }
                         setValue(input, normalizedRow?.[field] ?? '', '');
                     });
-                    const descriptionInput = node.querySelector('[data-field="description"]');
-                    const descriptionText = node.querySelector('[data-role="description-text"]');
-                    if (descriptionText) {
-                        descriptionText.textContent = descriptionForDisplay(descriptionInput?.value);
-                    }
-                    applyPaxTypeBadge(node, normalizedRow);
                     const markupType = node.querySelector('[data-field="markup_type"]')?.value || 'fixed';
                     const discountType = node.querySelector('[data-field="discount_type"]')?.value || 'fixed';
-                    syncMarkupTypeDisplay(node);
                     if (markupType === 'percent') {
                         const markupInput = node.querySelector('[data-field="markup"]');
                         if (markupInput) {
@@ -1349,6 +1605,21 @@
                             return;
                         }
 
+                        const isQuotationItemRow = (row?.dataset?.rowMode || '') === 'quotation_item';
+                        if (isQuotationItemRow) {
+                            const qty = Math.max(1, parseInteger(row.querySelector('[data-field="qty"]')?.value) || 1);
+                            const rateInput = row.querySelector('[data-field="rate"]');
+                            const unitPriceInput = row.querySelector('[data-field="unit_price"]');
+                            let perUnitDisplay = idrToDisplay(parseInteger(rateInput?.value));
+                            if (perUnitDisplay <= 0) {
+                                const fallbackTotalDisplay = idrToDisplay(parseInteger(unitPriceInput?.value));
+                                perUnitDisplay = qty > 0 ? (fallbackTotalDisplay / qty) : fallbackTotalDisplay;
+                            }
+                            if (rateInput) setMoneyInputDisplay(rateInput, perUnitDisplay);
+                            setMoneyInputDisplay(unitPriceInput, perUnitDisplay * qty);
+                            return;
+                        }
+
                         const contractInput = row.querySelector('[data-field="contract_rate"]');
                         const markupInput = row.querySelector('[data-field="markup"]');
                         const unitPriceInput = row.querySelector('[data-field="unit_price"]');
@@ -1371,7 +1642,6 @@
                             setMoneyInputDisplay(discountInput, idrToDisplay(parseInteger(discountInput?.value)));
                         }
 
-                        syncMarkupTypeDisplay(row);
                     });
                 };
 
@@ -1392,34 +1662,49 @@
                 const updateSummary = (message) => {
                     if (summaryEl) summaryEl.textContent = message || '';
                 };
-                const updateItineraryDurationDisplay = () => {
-                    const durationInput = document.getElementById('quotation-duration-display');
-                    if (!durationInput || !itinerarySelect) return;
-                    const selectedOption = itinerarySelect.options[itinerarySelect.selectedIndex];
-                    const days = Number.parseInt(String(selectedOption?.dataset?.durationDays || ''), 10);
-                    const nights = Number.parseInt(String(selectedOption?.dataset?.durationNights || ''), 10);
-                    if (!Number.isFinite(days) || days <= 0) {
-                        durationInput.value = '-';
-                        return;
+                const durationDaysInput = document.getElementById('quotation-duration-days');
+                const durationNightsInput = document.getElementById('quotation-duration-nights');
+                const syncServiceItemDayOptions = () => {
+                    if (!serviceItemDaySelect || !durationDaysInput) return;
+                    const days = Number.parseInt(String(durationDaysInput.value || '1'), 10);
+                    const safeDays = Number.isFinite(days) && days > 0 ? days : 1;
+                    const currentValue = String(serviceItemDaySelect.value || '1');
+                    serviceItemDaySelect.innerHTML = '';
+                    for (let day = 1; day <= safeDays; day++) {
+                        const option = document.createElement('option');
+                        option.value = String(day);
+                        option.textContent = `Day ${day}`;
+                        serviceItemDaySelect.appendChild(option);
                     }
-                    const safeNights = Number.isFinite(nights) && nights > 0 ? nights : Math.max(0, days - 1);
-                    durationInput.value = `${days}D${safeNights > 0 ? `/${safeNights}N` : ''}`;
+                    const normalizedCurrent = Number.parseInt(currentValue, 10);
+                    if (Number.isFinite(normalizedCurrent) && normalizedCurrent >= 1 && normalizedCurrent <= safeDays) {
+                        serviceItemDaySelect.value = String(normalizedCurrent);
+                    } else {
+                        serviceItemDaySelect.value = '1';
+                    }
                 };
 
-                const updateItineraryEditButtonState = () => {
-                    const itineraryEditBtn = document.getElementById('itinerary-edit-btn');
-                    if (!itinerarySelect || !itineraryEditBtn) return;
-                    const selectedItineraryId = String(itinerarySelect.value || '').trim();
-                    const templateUrl = String(itinerarySelect.dataset.itineraryEditUrlTemplate || '').trim();
-                    if (selectedItineraryId === '' || templateUrl === '') {
-                        itineraryEditBtn.classList.add('hidden');
-                        itineraryEditBtn.setAttribute('aria-hidden', 'true');
-                        itineraryEditBtn.setAttribute('href', '#');
+                const syncDurationNightsFromDays = () => {
+                    if (!durationDaysInput || !durationNightsInput) return;
+                    const days = Number.parseInt(String(durationDaysInput.value || '1'), 10);
+                    const safeDays = Number.isFinite(days) && days > 0 ? days : 1;
+                    durationDaysInput.value = String(safeDays);
+                    durationNightsInput.value = String(Math.max(0, safeDays - 1));
+                    syncServiceItemDayOptions();
+                    regroupItemsByDay();
+                    reindexItems();
+                };
+
+                const updateItineraryDurationDisplay = () => {
+                    if (!itinerarySelect || !durationDaysInput) return;
+                    const selectedOption = itinerarySelect.options[itinerarySelect.selectedIndex];
+                    const days = Number.parseInt(String(selectedOption?.dataset?.durationDays || ''), 10);
+                    if (!Number.isFinite(days) || days <= 0) {
+                        syncDurationNightsFromDays();
                         return;
                     }
-                    itineraryEditBtn.classList.remove('hidden');
-                    itineraryEditBtn.setAttribute('aria-hidden', 'false');
-                    itineraryEditBtn.setAttribute('href', templateUrl.replace('__ITINERARY_ID__', encodeURIComponent(selectedItineraryId)));
+                    durationDaysInput.value = String(days);
+                    syncDurationNightsFromDays();
                 };
 
                 const emitItinerarySelection = () => {
@@ -1434,61 +1719,22 @@
                     window.dispatchEvent(new CustomEvent('quotation:itinerary-selected', { detail }));
                 };
 
-                const setOptionVisibility = (optionEl, isVisible) => {
-                    if (!optionEl) return;
-                    optionEl.hidden = !isVisible;
-                };
-
-                const resetOptionVisibility = (selectEl) => {
-                    if (!selectEl) return;
-                    Array.from(selectEl.options).forEach((option, index) => {
-                        if (index === 0) {
-                            option.hidden = false;
-                            return;
-                        }
-                        option.hidden = false;
-                    });
-                };
-
-                const getSelectedItineraryInquiryId = () => {
-                    const option = itinerarySelect?.options?.[itinerarySelect.selectedIndex];
-                    return String(option?.dataset?.inquiryId || '').trim();
-                };
-
-                const applyItineraryInquiryLinkRules = (source = '') => {
+                const syncItinerarySelectionContext = () => {
                     if (!itinerarySelect) return;
-                    resetOptionVisibility(itinerarySelect);
-                    const selectedItineraryId = String(itinerarySelect.value || '').trim();
-                    const option = itinerarySelect?.options?.[itinerarySelect.selectedIndex];
-                    const linkedInquiryId = String(option?.dataset?.inquiryId || '').trim();
-                    const linkedCustomerId = String(option?.dataset?.customerId || '').trim();
-
-                    // If itinerary has inquiry reference, prefill inquiry + customer (but still editable).
-                    if (source !== 'inquiry' && source !== 'customer') {
-                        if (inquirySelect) {
-                            inquirySelect.value = linkedInquiryId !== '' ? linkedInquiryId : '';
-                        }
-                        if (customerSelect && linkedCustomerId !== '') {
-                            customerSelect.value = linkedCustomerId;
-                        }
-                    }
-
-                    if (customerSelect) {
-                        if (selectedItineraryId !== '') {
-                            // Auto-fill from itinerary only on init/itinerary-driven events.
-                            // Do not overwrite when user manually changes customer.
-                            if (source !== 'customer' && source !== 'inquiry') {
-                                if (linkedCustomerId !== '') {
-                                    customerSelect.value = linkedCustomerId;
-                                }
-                            }
-                        }
-                    }
                     emitItinerarySelection();
                     updateItineraryDurationDisplay();
                 };
 
-                const filterItinerariesByDestination = () => {
+                const syncDestinationFromSelectedItinerary = () => {
+                    if (!destinationSelect || !itinerarySelect) return;
+                    const option = itinerarySelect.options[itinerarySelect.selectedIndex];
+                    const linkedDestinationId = String(option?.dataset?.destinationId || '').trim();
+                    if (linkedDestinationId !== '' && String(destinationSelect.value || '').trim() !== linkedDestinationId) {
+                        destinationSelect.value = linkedDestinationId;
+                    }
+                };
+
+                const filterItinerariesByDestination = (preserveCurrent = true) => {
                     if (!itinerarySelect || !destinationSelect) return;
                     const selectedDestinationId = String(destinationSelect.value || '').trim();
                     const currentValue = String(itinerarySelect.value || '').trim();
@@ -1513,7 +1759,7 @@
                         itinerarySelect.appendChild(option);
                     });
 
-                    const hasCurrentValue = filtered.some((entry) => entry.value === currentValue && !entry.isPlaceholder);
+                    const hasCurrentValue = preserveCurrent && filtered.some((entry) => entry.value === currentValue && !entry.isPlaceholder);
                     if (hasCurrentValue) {
                         itinerarySelect.value = currentValue;
                     } else {
@@ -1528,12 +1774,16 @@
                         setStatus(i18n.selectItineraryFirst);
                         return;
                     }
+                    // Ensure duration fields always follow selected itinerary when generating quotation items.
+                    updateItineraryDurationDisplay();
                     if (hasFilledItems()) {
-                        const ok = window.confirm(i18n.replaceExistingItemsConfirm);
-                        if (!ok) return;
+                        if (!window.confirm(i18n.replaceExistingItemsConfirm)) {
+                            return;
+                        }
                     }
 
                     generateBtn.disabled = true;
+                    syncItinerarySelectionContext();
                     setStatus(i18n.fetchingItems);
                     updateSummary('');
                     try {
@@ -1550,6 +1800,7 @@
                         const payload = await response.json();
                         const items = Array.isArray(payload?.items) ? payload.items : [];
                         renderItems(items);
+                        updateItineraryDurationDisplay();
                         const missingCount = Number(payload?.meta?.missing_price_count || 0);
                         setStatus(i18n.itemsLoadedPattern.replace(':count', String(items.length)));
                         if (missingCount > 0) {
@@ -1565,31 +1816,33 @@
                 if (canUseItinerary) {
                     generateBtn.addEventListener('click', fetchItems);
                     itinerarySelect.addEventListener('change', () => {
-                        applyItineraryInquiryLinkRules('itinerary');
+                        syncDestinationFromSelectedItinerary();
+                        filterItinerariesByDestination(true);
+                        syncItinerarySelectionContext();
+                        populateServiceItemOptions(false);
                         updateGenerateButtonState();
-                        updateItineraryEditButtonState();
                         updateItineraryDurationDisplay();
+                        syncServiceItemsMode();
                         if (itinerarySelect.value === '') {
                             updateSummary('');
                         }
                     });
                     destinationSelect?.addEventListener('change', () => {
-                        filterItinerariesByDestination();
-                        applyItineraryInquiryLinkRules('destination');
+                        filterItinerariesByDestination(false);
+                        syncItinerarySelectionContext();
+                        populateServiceItemOptions(false);
                         updateGenerateButtonState();
-                        updateItineraryEditButtonState();
                         updateItineraryDurationDisplay();
+                        syncServiceItemsMode();
                     });
                     filterItinerariesByDestination();
-                    applyItineraryInquiryLinkRules('init');
+                    syncItinerarySelectionContext();
                     updateGenerateButtonState();
-                    updateItineraryEditButtonState();
                     updateItineraryDurationDisplay();
+                    syncServiceItemsMode();
                 }
                 customerSelect?.addEventListener('change', () => {
-                    applyItineraryInquiryLinkRules('customer');
                     updateGenerateButtonState();
-                    updateItineraryEditButtonState();
                     updateItineraryDurationDisplay();
                 });
                 inquirySelect?.addEventListener('change', () => {
@@ -1598,9 +1851,7 @@
                     if (customerSelect && linkedCustomerId !== '') {
                         customerSelect.value = linkedCustomerId;
                     }
-                    applyItineraryInquiryLinkRules('inquiry');
                     updateGenerateButtonState();
-                    updateItineraryEditButtonState();
                     updateItineraryDurationDisplay();
                 });
 
@@ -1640,6 +1891,177 @@
 
                 addItemBtn?.addEventListener('click', addManualItem);
 
+                const populateServiceItemOptions = (forceShow = false) => {
+                    if (!serviceItemDropdown || !serviceItemTypeSelect) return;
+                    const type = String(serviceItemTypeSelect.value || '').trim();
+                    const config = serviceTypeConfig[type];
+                    const selectedDestinationId = String(destinationSelect?.value || '').trim();
+                    const keyword = String(serviceItemInput?.value || '').trim().toLowerCase();
+                    const options = config ? (serviceCatalogs?.[config.key] || []) : [];
+                    const filteredOptions = options.filter((item) => {
+                        const itemDestinationId = String(item?.destination_id || '').trim();
+                        const sameDestination = selectedDestinationId === '' || itemDestinationId === selectedDestinationId;
+                        if (!sameDestination) return false;
+                        if (keyword === '') return true;
+                        return String(item?.label || '').toLowerCase().includes(keyword);
+                    });
+                    currentServiceItemOptions = filteredOptions;
+                    serviceItemDropdown.innerHTML = '';
+
+                    if (filteredOptions.length === 0) {
+                        serviceItemDropdown.classList.add('hidden');
+                        return;
+                    }
+
+                    filteredOptions.forEach((item) => {
+                        const button = document.createElement('button');
+                        button.type = 'button';
+                        button.className = 'block w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-indigo-50 dark:text-gray-100 dark:hover:bg-indigo-900/30';
+                        button.textContent = String(item.label || '-');
+                        button.dataset.id = String(item.id || '');
+                        button.dataset.label = String(item.label || '-');
+                        button.dataset.descriptionLabel = String(item.description_label || item.label || '-');
+                        button.dataset.vendorName = String(item.vendor_name || '');
+                        button.dataset.vendorRegion = String(item.vendor_region || '');
+                        button.dataset.rate = String(item.rate ?? 0);
+                        button.dataset.contractRate = String(item.contract_rate ?? 0);
+                        button.dataset.adultRate = String(item.adult_rate ?? item.rate ?? 0);
+                        button.dataset.adultContractRate = String(item.adult_contract_rate ?? item.contract_rate ?? 0);
+                        button.dataset.adultMarkupType = String(item.adult_markup_type ?? 'fixed');
+                        button.dataset.adultMarkup = String(item.adult_markup ?? 0);
+                        button.dataset.childRate = String(item.child_rate ?? item.rate ?? 0);
+                        button.dataset.childContractRate = String(item.child_contract_rate ?? item.contract_rate ?? 0);
+                        button.dataset.childMarkupType = String(item.child_markup_type ?? 'fixed');
+                        button.dataset.childMarkup = String(item.child_markup ?? 0);
+                        button.addEventListener('mousedown', (event) => {
+                            event.preventDefault();
+                            if (serviceItemInput) {
+                                serviceItemInput.value = button.dataset.label || '';
+                            }
+                            serviceItemDropdown.classList.add('hidden');
+                        });
+                        serviceItemDropdown.appendChild(button);
+                    });
+
+                    const isInputFocused = document.activeElement === serviceItemInput;
+                    const shouldShow = forceShow || isInputFocused || keyword !== '';
+                    if (shouldShow) {
+                        serviceItemDropdown.classList.remove('hidden');
+                    } else {
+                        serviceItemDropdown.classList.add('hidden');
+                    }
+                };
+
+                const resolveSelectedServiceItem = () => {
+                    if (!serviceItemInput) return null;
+                    const typed = String(serviceItemInput.value || '').trim();
+                    if (typed === '') return null;
+                    const options = Array.isArray(currentServiceItemOptions) ? currentServiceItemOptions : [];
+                    const exact = options.find((opt) => String(opt?.label || '').trim().toLowerCase() === typed.toLowerCase());
+                    if (exact) return exact;
+                    const partial = options.filter((opt) => String(opt?.label || '').trim().toLowerCase().includes(typed.toLowerCase()));
+                    if (partial.length === 1) return partial[0];
+                    if (partial.length > 1) return 'ambiguous';
+                    return null;
+                };
+
+                const addServiceItem = () => {
+                    if (!serviceItemTypeSelect || !serviceItemInput) return;
+                    const type = String(serviceItemTypeSelect.value || '').trim();
+                    if (!type || !serviceTypeConfig[type]) {
+                        setStatus(i18n.selectServiceTypeFirst);
+                        return;
+                    }
+                    const selectedOption = resolveSelectedServiceItem();
+                    if (selectedOption === 'ambiguous') {
+                        setStatus(i18n.serviceItemAmbiguous);
+                        return;
+                    }
+                    if (!selectedOption) {
+                        setStatus(i18n.selectServiceItemFirst);
+                        return;
+                    }
+                    const selectedId = String(selectedOption?.dataset?.id || '').trim();
+                    const normalizedSelectedId = selectedId !== '' ? selectedId : String(selectedOption?.id || '');
+                    if (!normalizedSelectedId) {
+                        setStatus(i18n.serviceItemNotFound);
+                        return;
+                    }
+
+                    const qty = Math.max(1, parseInteger(serviceItemQtyInput?.value) || 1);
+                    const config = serviceTypeConfig[type];
+                    const label = String(selectedOption?.label || selectedOption?.value || '-').trim();
+                    const selectedPaxType = config?.supportsPaxType
+                        ? String(serviceItemPaxTypeSelect?.value || 'adult').trim().toLowerCase()
+                        : '';
+                    const paxSuffix = selectedPaxType === 'child'
+                        ? ` (${i18n.childLabel})`
+                        : (selectedPaxType === 'adult' ? ` (${i18n.adultLabel})` : '');
+                    const vendorName = String(selectedOption?.vendor_name ?? selectedOption?.dataset?.vendorName ?? '').trim();
+                    const vendorRegion = String(selectedOption?.vendor_region ?? selectedOption?.dataset?.vendorRegion ?? '').trim();
+                    const baseServiceName = String(selectedOption?.label || selectedOption?.value || '-')
+                        .split(' - ')[0]
+                        .trim() || '-';
+                    const descriptionBase = String(selectedOption?.description_label || `${config.labelPrefix}${baseServiceName}`).trim();
+                    const description = config?.supportsPaxType
+                        ? [
+                            `${config.labelPrefix}${baseServiceName}${paxSuffix}`,
+                            vendorName,
+                            vendorRegion,
+                        ].filter((part) => String(part || '').trim() !== '').join(' - ')
+                        : descriptionBase;
+                    const rateKey = selectedPaxType === 'child' ? 'child_rate' : 'adult_rate';
+                    const contractRateKey = selectedPaxType === 'child' ? 'child_contract_rate' : 'adult_contract_rate';
+                    const markupTypeKey = selectedPaxType === 'child' ? 'child_markup_type' : 'adult_markup_type';
+                    const markupKey = selectedPaxType === 'child' ? 'child_markup' : 'adult_markup';
+                    const rawRate = config?.supportsPaxType
+                        ? (selectedOption?.[rateKey] ?? selectedOption?.dataset?.[selectedPaxType === 'child' ? 'childRate' : 'adultRate'] ?? selectedOption?.rate ?? '0')
+                        : (selectedOption?.rate ?? selectedOption?.dataset?.rate ?? '0');
+                    const rawContractRate = config?.supportsPaxType
+                        ? (selectedOption?.[contractRateKey] ?? selectedOption?.dataset?.[selectedPaxType === 'child' ? 'childContractRate' : 'adultContractRate'] ?? selectedOption?.contract_rate ?? '0')
+                        : (selectedOption?.contract_rate ?? selectedOption?.dataset?.contractRate ?? '0');
+                    const rawMarkupType = config?.supportsPaxType
+                        ? (selectedOption?.[markupTypeKey] ?? selectedOption?.dataset?.[selectedPaxType === 'child' ? 'childMarkupType' : 'adultMarkupType'] ?? 'fixed')
+                        : 'fixed';
+                    const rawMarkup = config?.supportsPaxType
+                        ? (selectedOption?.[markupKey] ?? selectedOption?.dataset?.[selectedPaxType === 'child' ? 'childMarkup' : 'adultMarkup'] ?? '0')
+                        : '0';
+                    const rate = Math.max(0, Number.parseFloat(String(rawRate)) || 0);
+                    const contractRate = Math.max(0, Number.parseFloat(String(rawContractRate)) || 0);
+                    const markup = Math.max(0, Number.parseFloat(String(rawMarkup)) || 0);
+                    const markupType = String(rawMarkupType || 'fixed') === 'percent' ? 'percent' : 'fixed';
+                    const node = buildRow(getAllRows().length, {
+                        description,
+                        qty,
+                        rate,
+                        unit_price: rate,
+                        contract_rate: contractRate,
+                        markup_type: markupType,
+                        markup,
+                        discount_type: 'fixed',
+                        discount: 0,
+                        day_number: Number.parseInt(String(serviceItemDaySelect?.value || '1'), 10) || 1,
+                        serviceable_type: config.serviceableType,
+                        serviceable_id: Number.parseInt(normalizedSelectedId, 10) || null,
+                        serviceable_meta: config?.supportsPaxType
+                            ? {
+                                pax_type: selectedPaxType || 'adult',
+                                vendor_name: vendorName,
+                                vendor_region: vendorRegion,
+                            }
+                            : {},
+                        itinerary_item_type: config.itineraryItemType,
+                    });
+                    itemsContainer.appendChild(node);
+                    reindexItems();
+                    regroupItemsByDay();
+                    recalcTotals();
+                    toggleItemsVisibility();
+                    serviceItemInput.value = '';
+                    populateServiceItemOptions(false);
+                    setStatus(i18n.serviceItemAdded);
+                };
+
                 const convertFieldDisplayToIdr = (inputEl) => {
                     if (!inputEl) return;
                     const displayValue = parseInteger(inputEl.value);
@@ -1650,7 +2072,8 @@
                 formEl?.addEventListener('submit', () => {
                     reindexItems();
                     getAllRows().forEach((row) => {
-                        const isManualRow = (row?.dataset?.rowMode || '') === 'manual';
+                        const rowMode = (row?.dataset?.rowMode || '');
+                        const isRateBasedRow = rowMode === 'manual' || rowMode === 'quotation_item';
                         const markupType = row.querySelector('[data-field="markup_type"]')?.value || 'fixed';
                         const discountType = row.querySelector('[data-field="discount_type"]')?.value || 'fixed';
                         const qty = Math.max(1, parseInteger(row.querySelector('[data-field="qty"]')?.value) || 1);
@@ -1658,7 +2081,7 @@
                         convertFieldDisplayToIdr(row.querySelector('[data-field="contract_rate"]'));
                         const unitPriceInput = row.querySelector('[data-field="unit_price"]');
                         if (unitPriceInput) {
-                            if (isManualRow) {
+                            if (isRateBasedRow) {
                                 row.querySelector('[data-field="contract_rate"]').value = '';
                                 row.querySelector('[data-field="markup"]').value = '0';
                                 row.querySelector('[data-field="discount"]').value = '0';
@@ -1686,36 +2109,16 @@
                     convertFieldDisplayToIdr(finalAmountInput);
                 });
 
-                const bindRowEvents = (container, rowSelector) => {
-                    container?.addEventListener('change', (event) => {
-                        if (event.target.matches('[data-field="markup_type"]')) {
-                            const row = event.target.closest(rowSelector);
-                            const fromType = event.target.dataset.prevType || 'fixed';
-                            const toType = event.target.value || 'fixed';
-                            convertMarkupValue(row, fromType, toType);
-                            event.target.dataset.prevType = toType;
-                            recalcTotals();
-                            return;
-                        }
-                        if (event.target.matches('[data-field="discount_type"]')) {
-                            const row = event.target.closest(rowSelector);
-                            const fromType = event.target.dataset.prevType || 'fixed';
-                            const toType = event.target.value || 'fixed';
-                            convertDiscountValue(row, fromType, toType);
-                            event.target.dataset.prevType = toType;
-                            recalcTotals();
-                            return;
-                        }
-                    });
+                const bindRowEvents = (container) => {
                     container?.addEventListener('input', (event) => {
                         if (event.target.matches('[data-field="qty"], [data-field="rate"], [data-field="contract_rate"], [data-field="markup"], [data-field="discount"], [data-field="unit_price"]')) {
-                            recalcTotals();
+                            scheduleRecalcTotals();
                         }
                     });
                 };
 
-                bindRowEvents(itemsContainer, '.quotation-item-row');
-                bindRowEvents(manualItemsContainer, '.quotation-manual-row');
+                bindRowEvents(itemsContainer);
+                bindRowEvents(manualItemsContainer);
                 manualItemsContainer?.addEventListener('click', (event) => {
                     const removeBtn = event.target.closest('[data-remove-manual-item="1"]');
                     if (!removeBtn) return;
@@ -1725,27 +2128,46 @@
                     reindexItems();
                     recalcTotals();
                 });
-                discountValueInput?.addEventListener('input', recalcTotals);
-
-                getAllRows().forEach((row) => {
-                    row.querySelectorAll('[data-field="markup_type"]').forEach((el) => {
-                        el.dataset.prevType = el.value || 'fixed';
-                    });
-                    row.querySelectorAll('[data-field="discount_type"]').forEach((el) => {
-                        el.dataset.prevType = el.value || 'fixed';
-                    });
-                    syncMarkupTypeDisplay(row);
+                itemsContainer?.addEventListener('click', (event) => {
+                    const removeBtn = event.target.closest('[data-remove-service-item="1"]');
+                    if (!removeBtn) return;
+                    const row = removeBtn.closest('.quotation-item-row');
+                    if (!row) return;
+                    row.remove();
+                    reindexItems();
+                    regroupItemsByDay();
+                    recalcTotals();
+                    toggleItemsVisibility();
                 });
-                convertExistingRowsFromIdrToDisplay();
-                itemsContainer.querySelectorAll('.quotation-item-row').forEach((row) => {
-                    const descriptionInput = row.querySelector('[data-field="description"]');
-                    const descriptionText = row.querySelector('[data-role="description-text"]');
-                    if (descriptionText) {
-                        descriptionText.textContent = descriptionForDisplay(descriptionInput?.value);
+                discountValueInput?.addEventListener('input', scheduleRecalcTotals);
+                serviceItemTypeSelect?.addEventListener('change', () => {
+                    syncServiceItemPaxTypeVisibility();
+                    populateServiceItemOptions(false);
+                });
+                serviceItemInput?.addEventListener('focus', () => populateServiceItemOptions(true));
+                serviceItemInput?.addEventListener('input', () => populateServiceItemOptions(true));
+                serviceItemPaxTypeSelect?.addEventListener('change', () => {
+                    if (String(serviceItemTypeSelect?.value || '').trim() === 'fnb') {
+                        populateServiceItemOptions(true);
                     }
                 });
+                serviceItemInput?.addEventListener('blur', () => {
+                    setTimeout(() => {
+                        serviceItemDropdown?.classList.add('hidden');
+                    }, 150);
+                });
+                serviceItemAddBtn?.addEventListener('click', addServiceItem);
+                syncServiceItemPaxTypeVisibility();
+                destinationSelect?.addEventListener('change', () => populateServiceItemOptions(false));
+                populateServiceItemOptions(false);
+                syncServiceItemsMode();
+                durationDaysInput?.addEventListener('input', syncDurationNightsFromDays);
+                durationDaysInput?.addEventListener('change', syncDurationNightsFromDays);
+                syncDurationNightsFromDays();
+                syncServiceItemDayOptions();
+
+                convertExistingRowsFromIdrToDisplay();
                 regroupItemsByDay();
-                itemsContainer.querySelectorAll('.quotation-item-row').forEach((row) => applyPaxTypeBadge(row));
                 recalcTotals();
                 toggleItemsVisibility();
 

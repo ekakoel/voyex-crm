@@ -115,7 +115,7 @@
     
     @include('components.map-standard-section', [
         'title' => ui_phrase('Map & Location Standard'),
-        'mapPartial' => 'modules.hotels.partials._location-map',
+        'mapPartial' => 'modules.tourist-attractions.partials._location-map',
         'mapValue' => old('google_maps_url', $touristAttraction->google_maps_url ?? ''),
         'latitudeValue' => old('latitude', $touristAttraction->latitude ?? ''),
         'longitudeValue' => old('longitude', $touristAttraction->longitude ?? ''),

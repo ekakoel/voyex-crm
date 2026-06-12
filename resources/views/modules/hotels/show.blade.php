@@ -314,17 +314,18 @@
                 <div class="app-card p-5">
                     <p class="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{{ ui_phrase('Quick Actions') }}</p>
                     <a href="{{ route('hotels.edit', $hotel) }}" class="mb-3 btn-primary w-full justify-center">{{ ui_phrase('Edit Hotel') }}</a>
-                    <form action="{{ route('hotels.toggle-status', $hotel->id) }}" method="POST" class="w-full">
-                        @csrf
-                        @method('PATCH')
-                        <button
-                            type="submit"
-                            onclick="return confirm('{{ $isActive ? ui_phrase('confirm deactivate') : ui_phrase('confirm activate') }}')"
-                            class="{{ $isActive ? 'btn-muted' : 'btn-primary' }} w-full justify-center"
-                        >
-                            {{ $isActive ? ui_phrase('Deactivate') : ui_phrase('Activate') }}
-                        </button>
-                    </form>
+                    <x-ui.confirm-action
+                        :action="route('hotels.toggle-status', $hotel->id)"
+                        method="PATCH"
+                        :modal-name="'hotels-show-toggle-' . $hotel->id"
+                        :title="$isActive ? ui_phrase('Deactivate') . ' ' . ui_phrase('Hotel') : ui_phrase('Activate') . ' ' . ui_phrase('Hotel')"
+                        :message="$isActive ? ui_phrase('confirm deactivate') : ui_phrase('confirm activate')"
+                        :notice-message="__('confirm.notification_after_action')"
+                        :confirm-label="$isActive ? ui_phrase('Deactivate') : ui_phrase('Activate')"
+                        :trigger-label="$isActive ? ui_phrase('Deactivate') : ui_phrase('Activate')"
+                        :trigger-class="$isActive ? 'btn-muted w-full justify-center' : 'btn-primary w-full justify-center'"
+                        confirm-class="btn-primary-sm"
+                    />
                 </div>
 
                 <div class="app-card p-5 text-sm text-slate-600 dark:text-slate-300">

@@ -23,7 +23,20 @@ class ActivityController extends Controller
 
     public function index(Request $request)
     {
+        $validated = $request->validate([
+            'status' => ['nullable', Rule::in(['active', 'inactive'])],
+        ]);
+
         $query = Activity::query()->withTrashed()->with(['vendor:id,name,latitude,longitude,destination_id', 'activityType:id,name'])->latest('id');
+
+        $search = trim((string) $request->string('q'));
+        if (mb_strlen($search) >= 3) {
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                    ->orWhere('activity_type', 'like', "%{$search}%")
+                    ->orWhereHas('vendor', fn ($vendorQ) => $vendorQ->where('name', 'like', "%{$search}%"));
+            });
+        }
 
         if ($request->filled('vendor_id')) {
             $query->where('vendor_id', (int) $request->integer('vendor_id'));
@@ -34,6 +47,8 @@ class ActivityController extends Controller
         } elseif ($request->filled('activity_type')) {
             $query->where('activity_type', (string) $request->string('activity_type'));
         }
+        $query->when(($validated['status'] ?? null) === 'active', fn ($q) => $q->whereNull('deleted_at'));
+        $query->when(($validated['status'] ?? null) === 'inactive', fn ($q) => $q->onlyTrashed());
 
         $perPage = (int) $request->input('per_page', 10);
         $perPage = in_array($perPage, [10, 25, 50, 100], true) ? $perPage : 10;
@@ -93,7 +108,7 @@ class ActivityController extends Controller
         $activity = Activity::query()->create($validated);
         $this->syncCancellationPolicy($activity, $request->input('cancellation_rules', []), (string) ($activity->name ?? ''));
 
-        return redirect()->route('activities.index')->with('success', 'Activity created successfully.');
+        return redirect()->route('activities.index')->with('success', ui_phrase('Activity created successfully.'));
     }
 
     public function edit(Activity $activity)
@@ -145,7 +160,7 @@ class ActivityController extends Controller
         $activity->update($validated);
         $this->syncCancellationPolicy($activity, $request->input('cancellation_rules', []), (string) ($activity->name ?? ''));
 
-        return redirect()->route('activities.index')->with('success', 'Activity updated successfully.');
+        return redirect()->route('activities.index')->with('success', ui_phrase('Activity updated successfully.'));
     }
 
     public function destroy(Activity $activity)
@@ -153,7 +168,7 @@ class ActivityController extends Controller
         $this->deleteGalleryImages($activity->gallery_images ?? []);
         $activity->delete();
 
-        return redirect()->route('activities.index')->with('success', 'Activity deactivated successfully.');
+        return redirect()->route('activities.index')->with('success', ui_phrase('Activity deactivated successfully.'));
     }
 
     public function toggleStatus($activity)
@@ -165,7 +180,7 @@ class ActivityController extends Controller
 
             return redirect()
                 ->route('activities.index')
-                ->with('success', 'Activity activated successfully.');
+                ->with('success', ui_phrase('Activity activated successfully.'));
         }
 
         $activity->update(['is_active' => false]);
@@ -173,7 +188,7 @@ class ActivityController extends Controller
 
         return redirect()
             ->route('activities.index')
-            ->with('success', 'Activity deactivated successfully.');
+            ->with('success', ui_phrase('Activity deactivated successfully.'));
     }
 
     public function removeGalleryImage(Request $request, Activity $activity)

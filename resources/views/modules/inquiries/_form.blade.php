@@ -1,6 +1,6 @@
 @php
     $buttonLabel = $buttonLabel ?? ui_phrase('Save');
-    $sourceLabels = $sourceLabels ?? [];
+    $sourceOptions = $sourceOptions ?? [];
     $customerLabels = collect($customers ?? [])->mapWithKeys(function ($customer) {
         $label = '(' . ($customer->code ?? '-') . ') ' . $customer->name;
         return [(string) $customer->id => $label];
@@ -10,6 +10,8 @@
     $selectedCustomerLabel = $selectedCustomerId !== '' && isset($customerLabels[$selectedCustomerId])
         ? $customerLabels[$selectedCustomerId]
         : (string) old('customer_label', '');
+    $currentAssignedToId = (int) old('assigned_to', $inquiry->assigned_to ?? $inquiry->handled_by ?? 0);
+    $isAssignedToLocked = $currentAssignedToId > 0;
 @endphp
 
 <div class="module-form">
@@ -46,11 +48,28 @@
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Source') }}</label>
             <select name="source" class="mt-1 app-input">
                 <option value="">-</option>
-                @foreach (($sourceLabels ?? []) as $value => $label)
+                @foreach (($sourceOptions ?? []) as $value)
                     <option value="{{ $value }}" @selected(old('source', $inquiry->source ?? '') === $value)>{{ ui_phrase((string) $value) }}</option>
                 @endforeach
             </select>
             @error('source')
+                <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
+            @enderror
+        </div>
+
+        <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Assigned To') }}</label>
+            <select name="assigned_to" class="mt-1 app-input" @disabled($isAssignedToLocked)>
+                <option value="">{{ ui_phrase('Select assignee (optional)') }}</option>
+                @foreach (($handlerUsers ?? collect()) as $handlerUser)
+                    <option value="{{ $handlerUser->id }}" @selected((string) $currentAssignedToId === (string) $handlerUser->id)>{{ ui_user_name($handlerUser) }}</option>
+                @endforeach
+            </select>
+            @if($isAssignedToLocked)
+                <input type="hidden" name="assigned_to" value="{{ $currentAssignedToId }}">
+                <p class="mt-1 text-xs text-amber-600 dark:text-amber-400">{{ ui_phrase('Assigned To cannot be changed after inquiry is handled.') }}</p>
+            @endif
+            @error('assigned_to')
                 <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
             @enderror
         </div>

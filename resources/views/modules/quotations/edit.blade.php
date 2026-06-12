@@ -1,13 +1,17 @@
 @extends('layouts.master')
 
-@section('page_title', ui_phrase('edit page title'))
-@section('page_subtitle', ui_phrase('edit page subtitle'))
+@php
+    $isRevisionMode = (bool) ($isRevisionMode ?? false);
+@endphp
+
+@section('page_title', $isRevisionMode ? ui_phrase('Revise Quotation') : ui_phrase('edit page title'))
+@section('page_subtitle', $isRevisionMode ? ui_phrase('Update customer requested changes and prepare the quotation to send again.') : ui_phrase('edit page subtitle'))
 @section('page_actions')
     @if (($canValidateQuotation ?? false) === true)
-        <a href="{{ route('quotations.validate.show', $quotation) }}" class="btn-outline">{{ ui_phrase('Validate Quotation') }}</a>
+        <x-quotation-action-button :href="route('quotations.validate.show', $quotation)" variant="outline" icon="fa-clipboard-check" label="Validate Quotation" />
     @endif
-    <a href="{{ route('quotations.show', $quotation) }}" class="btn-secondary">{{ ui_phrase('View Detail') }}</a>
-    <a href="{{ route('quotations.index') }}" class="btn-ghost" data-page-back-action>{{ ui_phrase('Back') }}</a>
+    <x-quotation-action-button :href="route('quotations.show', $quotation)" variant="outline" icon="fa-eye" label="View Detail" />
+    <x-quotation-action-button :href="route('quotations.index')" variant="ghost" icon="fa-arrow-left" label="Back" data-page-back-action />
 @endsection
 
 @push('scripts')
@@ -20,7 +24,7 @@
                     'status' => (string) ($inquiry->status ?? '-'),
                     'priority' => (string) ($inquiry->priority ?? '-'),
                     'source' => (string) ($inquiry->source ?? '-'),
-                    'creator_name' => (string) ($inquiry->creator?->name ?? '-'),
+                    'creator_name' => ui_user_name($inquiry->creator),
                     'deadline' => optional($inquiry->deadline)->format('Y-m-d') ?? '-',
                     'notes_html' => \App\Support\SafeRichText::sanitize((string) ($inquiry->notes ?? '')),
                 ],
@@ -130,27 +134,67 @@
                     <form method="POST" action="{{ route('quotations.update', $quotation) }}">
                         @csrf
                         @method('PUT')
+                        @if ($isRevisionMode)
+                            <input type="hidden" name="revision_mode" value="1">
+                        @endif
                         @include('modules.quotations._form', [
                             'quotation' => $quotation,
-                            'buttonLabel' => ui_phrase('Update Quotation'),
+                            'buttonLabel' => $isRevisionMode ? ui_phrase('Save Revision') : ui_phrase('Update Quotation'),
                         ])
                     </form>
                 </div>
             </div>
             <div class="space-y-6 xl:col-span-3">
-                <div class="module-card p-4">
-                    <p class="text-xs font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-300">{{ ui_phrase('Important Notes') }}</p>
-                    <ol class="mt-2 list-decimal pl-5 text-sm text-gray-700 dark:text-gray-200 space-y-1">
-                        <li>{{ ui_phrase('Pilih Itinerary yang sesuai, lalu klik Generate jika ingin memuat ulang item dari itinerary.') }}</li>
-                        <li>{{ ui_phrase('Isi/cek Service Date, Pax Adult, Pax Child, dan Validity Date sebelum menyimpan perubahan.') }}</li>
-                        <li>{{ ui_phrase('Pada item itinerary, yang dapat disesuaikan hanya QTY. Publish Rate dan Unit Price ditampilkan sebagai referensi perhitungan.') }}</li>
-                        <li>{{ ui_phrase('Gunakan Additional Items untuk menambahkan layanan tambahan (contoh: tip guide, extra service, dan kebutuhan lain di luar itinerary).') }}</li>
-                        <li>{{ ui_phrase('Pada Additional Items, isi Description, QTY, dan Rate. Unit Price dihitung otomatis.') }}</li>
-                        <li>{{ ui_phrase('Jika perlu ubah isi itinerary, klik tombol Itinerary (ikon pensil), lalu lakukan Generate ulang agar item quotation sinkron.') }}</li>
-                        <li>{{ ui_phrase('Penyesuaian Contract Rate, Markup Type, dan Markup dilakukan pada halaman Validation.') }}</li>
-                    </ol>
-                </div>
-
+                @if (($customerRequestedChanges ?? collect())->isNotEmpty())
+                    <div class="module-card p-6">
+                        <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ ui_phrase('Customer Requested Changes') }}</h3>
+                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ ui_phrase('Select the customer responses handled by this revision.') }}</p>
+                        <form method="POST" action="{{ route('quotations.customer-responses.mark-selected-used-for-revision', $quotation) }}" class="mt-3 space-y-3 text-xs text-gray-700 dark:text-gray-200">
+                            @csrf
+                            <div class="max-h-72 space-y-2 overflow-y-auto pr-1">
+                                @foreach ($customerRequestedChanges as $response)
+                                    <label class="flex cursor-pointer items-start gap-3 rounded-md border border-amber-200 bg-amber-50/70 p-3 dark:border-amber-700 dark:bg-amber-900/20">
+                                        <input
+                                            type="checkbox"
+                                            name="customer_response_ids[]"
+                                            value="{{ $response->id }}"
+                                            class="mt-1 rounded border-gray-300 text-primary focus:ring-primary dark:border-gray-600 dark:bg-gray-900"
+                                        >
+                                        <span class="min-w-0 flex-1">
+                                            <span class="flex items-center justify-between gap-2">
+                                                <span class="font-semibold">{{ ui_phrase('Revision Requested') }}</span>
+                                                <span class="shrink-0 text-gray-500 dark:text-gray-400"><x-local-time :value="$response->response_at" /></span>
+                                            </span>
+                                            <span class="mt-1 block truncate text-[11px] text-gray-500 dark:text-gray-400">
+                                                {{ $response->response_channel ?? '-' }} - {{ $response->response_status ?? '-' }}
+                                            </span>
+                                            @if (!empty($response->response_note))
+                                                <span class="mt-2 block text-gray-700 dark:text-gray-200">{{ $response->response_note }}</span>
+                                            @endif
+                                            <span class="mt-2 block text-[11px] text-gray-500 dark:text-gray-400">{{ ui_phrase('By') }}: {{ ui_user_name($response->creator) }}</span>
+                                        </span>
+                                    </label>
+                                @endforeach
+                            </div>
+                            @error('customer_response_ids')
+                                <p class="text-xs text-rose-600">{{ $message }}</p>
+                            @enderror
+                            <div class="flex justify-end">
+                                <button type="submit" class="btn-primary-sm inline-flex items-center gap-2">
+                                    <i class="fa-solid fa-check-double w-4 text-center"></i>
+                                    <span>{{ ui_phrase('Mark Selected as Handled') }}</span>
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                @elseif ($isRevisionMode)
+                    <div class="module-card p-6">
+                        <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ ui_phrase('Customer Requested Changes') }}</h3>
+                        <div class="mt-3 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300">
+                            {{ ui_phrase('All customer revision responses are handled.') }}
+                        </div>
+                    </div>
+                @endif
                 <div id="quotation-create-inquiry-card" class="module-card p-6 hidden">
                     <div class="mb-3">
                         <p class="text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300">{{ ui_phrase('Inquiry Detail') }}</p>

@@ -1,10 +1,10 @@
 # Voyex CRM - Project Knowledge Base
 
-Last Updated: 2026-05-18
+Last Updated: 2026-05-21
 
 
-Version: 2.7  
-Date: 2026-05-18  
+Version: 2.8  
+Date: 2026-05-21  
 Status: Source of truth aktif
 
 ---
@@ -13,7 +13,7 @@ Status: Source of truth aktif
 
 Voyex CRM adalah sistem CRM travel agent end-to-end:
 
-`Customer -> Inquiry -> Itinerary -> Quotation -> Booking -> Invoice`
+`Customer -> Inquiry -> Itinerary -> Quotation -> Booking -> Voucher/Operation -> Invoice -> Payment -> Settlement -> Closed`
 
 Prinsip utama:
 - process integrity,

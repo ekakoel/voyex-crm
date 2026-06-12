@@ -255,39 +255,52 @@
 
             <div class="ml-auto flex items-center gap-2 min-w-0">
                 @php
-                    $approvalNotif = is_array($quotationApprovalNotification ?? null) ? $quotationApprovalNotification : ['visible' => false, 'count' => 0, 'role' => null];
-                    $notifCount = (int) ($approvalNotif['count'] ?? 0);
-                    $notifRole = (string) ($approvalNotif['role'] ?? '');
-                    $notifTitle = $notifRole !== ''
-                        ? (ui_phrase('Quotation approvals pending for') . ' ' . ucfirst($notifRole))
-                        : ui_phrase('Quotation approvals pending');
-                    $notifClass = match ($notifRole) {
-                        'director' => 'border-violet-300 bg-violet-50 text-violet-700 hover:bg-violet-100 dark:border-violet-700 dark:bg-violet-900/20 dark:text-violet-300 dark:hover:bg-violet-900/30',
-                        'manager' => 'border-sky-300 bg-sky-50 text-sky-700 hover:bg-sky-100 dark:border-sky-700 dark:bg-sky-900/20 dark:text-sky-300 dark:hover:bg-sky-900/30',
-                        default => 'border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-300 dark:hover:bg-amber-900/30',
-                    };
                     $editorManualNotif = is_array($editorManualItemNotification ?? null) ? $editorManualItemNotification : ['visible' => false, 'count' => 0];
                     $editorManualCount = (int) ($editorManualNotif['count'] ?? 0);
+                    $quotationFollowUpNotif = is_array($quotationFollowUpNotification ?? null) ? $quotationFollowUpNotification : ['visible' => false, 'count' => 0];
+                    $quotationFollowUpCount = (int) ($quotationFollowUpNotif['count'] ?? 0);
+                    $inquiryDeadlineNotif = is_array($inquiryDeadlineReminderNotification ?? null) ? $inquiryDeadlineReminderNotification : ['visible' => false, 'count' => 0];
+                    $inquiryDeadlineCount = (int) ($inquiryDeadlineNotif['count'] ?? 0);
                 @endphp
 
-                @if (($approvalNotif['visible'] ?? false))
-                    <a
-                        href="{{ route('quotations.index', ['status' => 'pending', 'needs_my_approval' => 1]) }}"
-                        class="relative inline-flex h-9 w-9 items-center justify-center rounded-lg border {{ $notifClass }} {{ $notifCount > 0 ? '' : 'hidden' }}"
-                        title="{{ $notifTitle }}"
-                        aria-label="{{ $notifTitle }}"
-                        data-quotation-approval-bell="1"
+                @if (($quotationFollowUpNotif['visible'] ?? false))
+                    <div
+                        class="relative"
+                        x-data="{ open: false, items: [] }"
+                        data-quotation-follow-up-wrapper="1"
                     >
-                        <i class="fa-solid fa-bell"></i>
-                        <span class="absolute -right-1.5 -top-1.5 inline-flex min-w-[18px] items-center justify-center rounded-full bg-rose-600 px-1.5 py-0.5 text-[10px] font-bold leading-none text-white" data-quotation-approval-count="1">
-                            {{ $notifCount > 99 ? '99+' : $notifCount }}
-                        </span>
-                    </a>
+                        <button
+                            type="button"
+                            class="relative inline-flex h-9 w-9 items-center justify-center rounded-lg border border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-100 dark:border-blue-700 dark:bg-blue-900/20 dark:text-blue-300 dark:hover:bg-blue-900/30 {{ $quotationFollowUpCount > 0 ? '' : 'hidden' }}"
+                            title="{{ ui_phrase('Quotation Follow-up Notifications') }}"
+                            aria-label="{{ ui_phrase('Quotation Follow-up Notifications') }}"
+                            data-quotation-follow-up-bell="1"
+                            x-on:click="open = ! open"
+                        >
+                            <i class="fa-solid fa-headset"></i>
+                            <span class="absolute -right-1.5 -top-1.5 inline-flex min-w-[18px] items-center justify-center rounded-full bg-rose-600 px-1.5 py-0.5 text-[10px] font-bold leading-none text-white" data-quotation-follow-up-count="1">
+                                {{ $quotationFollowUpCount > 99 ? '99+' : $quotationFollowUpCount }}
+                            </span>
+                        </button>
+                        <div
+                            x-show="open"
+                            x-cloak
+                            x-on:click.outside="open = false"
+                            class="absolute right-0 z-20 mt-2 w-80 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-900"
+                        >
+                            <div class="border-b border-gray-100 px-3 py-2 text-xs font-semibold text-gray-700 dark:border-gray-800 dark:text-gray-200">
+                                {{ ui_phrase('Quotation Follow-up Notifications') }}
+                            </div>
+                            <div class="max-h-80 overflow-y-auto" data-quotation-follow-up-list="1">
+                                <div class="px-3 py-4 text-xs text-gray-500 dark:text-gray-400">{{ ui_phrase('Loading') }}</div>
+                            </div>
+                        </div>
+                    </div>
                     <span
                         class="hidden"
-                        data-quotation-approval-notifier="1"
-                        data-endpoint="{{ route('quotations.approval-notifications.poll') }}"
-                        data-role="{{ $notifRole }}"
+                        data-quotation-follow-up-notifier="1"
+                        data-endpoint="{{ route('quotation-follow-up-notifications.poll') }}"
+                        data-read-endpoint-template="{{ url('quotation-follow-up-notifications/__ID__/read') }}"
                         data-user-id="{{ auth()->id() }}"
                     ></span>
                 @endif
@@ -313,6 +326,27 @@
                     ></span>
                 @endif
 
+                @if (($inquiryDeadlineNotif['visible'] ?? false))
+                    <a
+                        href="{{ route('inquiries.index') }}"
+                        class="relative inline-flex h-9 w-9 items-center justify-center rounded-lg border border-rose-300 bg-rose-50 text-rose-700 hover:bg-rose-100 dark:border-rose-700 dark:bg-rose-900/20 dark:text-rose-300 dark:hover:bg-rose-900/30 {{ $inquiryDeadlineCount > 0 ? '' : 'hidden' }}"
+                        title="{{ ui_phrase('Inquiry deadline reminders') }}"
+                        aria-label="{{ ui_phrase('Inquiry deadline reminders') }}"
+                        data-inquiry-deadline-bell="1"
+                    >
+                        <i class="fa-solid fa-hourglass-half"></i>
+                        <span class="absolute -right-1.5 -top-1.5 inline-flex min-w-[18px] items-center justify-center rounded-full bg-rose-600 px-1.5 py-0.5 text-[10px] font-bold leading-none text-white" data-inquiry-deadline-count="1">
+                            {{ $inquiryDeadlineCount > 99 ? '99+' : $inquiryDeadlineCount }}
+                        </span>
+                    </a>
+                    <span
+                        class="hidden"
+                        data-inquiry-deadline-notifier="1"
+                        data-endpoint="{{ route('inquiries.deadline-reminder-notifications.poll') }}"
+                        data-user-id="{{ auth()->id() }}"
+                    ></span>
+                @endif
+
                 @php
                     $supportedLocales = (array) config('app.supported_locales', []);
                     $activeLocale = (string) app()->getLocale();
@@ -325,7 +359,7 @@
                 @endphp
 
                 <!-- Language Switch -->
-                {{-- <div x-data="{ open: false }" class="relative shrink-0">
+                <div x-data="{ open: false }" class="relative shrink-0">
                     <button
                         type="button"
                         @click="open = !open"
@@ -360,7 +394,7 @@
                             </form>
                         @endforeach
                     </div>
-                </div> --}}
+                </div>
 
                 <!-- Currency Switch -->
                 <div class="hidden sm:flex items-center gap-2">
@@ -541,7 +575,7 @@
                     && ! str_contains($rawPageActions, 'data-page-back-action');
             @endphp
             @unless ($hidePageHeader)
-                <section class="mb-4 sm:mb-5">
+                <section class="mb-3">
                     <x-page-header :title="$pageTitle" :description="$pageSubtitle" :breadcrumbs="$breadcrumbs">
                         @if ($showDefaultBackAction)
                             <a href="{{ $backUrl }}" class="btn-ghost" data-page-back-action>{{ ui_phrase('Back') }}</a>
@@ -871,169 +905,18 @@
         observer.observe(document.body, { childList: true, subtree: true });
     });
 
-    function initLocationAutofill(root = document) {
-        const blocks = root.querySelectorAll('[data-location-autofill]');
-        blocks.forEach((block) => {
-            if (block.dataset.locationBound === '1') {
-                return;
-            }
-            block.dataset.locationBound = '1';
-
-            const endpoint = block.getAttribute('data-location-resolve-url') || @json(route('location.resolve-google-map'));
-            const urlInput = block.querySelector('[data-location-field="google_maps_url"]');
-            const destinationInput = block.querySelector('[data-location-field="destination_id"]');
-            const statusNode = block.querySelector('[data-location-status]');
-            const triggerButton = block.querySelector('[data-location-autofill-trigger]');
-
-            if (!urlInput || !endpoint) {
-                return;
-            }
-
-            const setStatus = (message, isError = false) => {
-                if (!statusNode) return;
-                statusNode.textContent = message;
-                statusNode.classList.remove('hidden', 'text-emerald-600', 'text-rose-600', 'dark:text-emerald-400', 'dark:text-rose-400');
-                statusNode.classList.add(isError ? 'text-rose-600' : 'text-emerald-600');
-                statusNode.classList.add(isError ? 'dark:text-rose-400' : 'dark:text-emerald-400');
-            };
-
-            const clearStatus = () => {
-                if (!statusNode) return;
-                statusNode.textContent = '';
-                statusNode.classList.add('hidden');
-            };
-
-            const applyField = (field, value) => {
-                const input = block.querySelector(`[data-location-field="${field}"]`);
-                if (!input) {
-                    return;
-                }
-
-                if (value === null || value === undefined) {
-                    return;
-                }
-
-                if (input.tagName === 'SELECT') {
-                    const normalized = String(value);
-                    if ([...input.options].some((option) => option.value === normalized)) {
-                        input.value = normalized;
-                        input.dispatchEvent(new Event('change', { bubbles: true }));
-                        return;
-                    }
-
-                    if (field === 'destination_id') {
-                        return;
-                    }
-                }
-
-                input.value = String(value);
-                input.dispatchEvent(new Event('input', { bubbles: true }));
-                input.dispatchEvent(new Event('change', { bubbles: true }));
-            };
-
-            const pickDestinationByProvince = (province) => {
-                if (!destinationInput || !province) {
-                    return;
-                }
-
-                const normalized = String(province).trim().toLowerCase();
-                for (const option of destinationInput.options) {
-                    const optionProvince = String(option.dataset.province || '').trim().toLowerCase();
-                    if (optionProvince !== '' && optionProvince === normalized) {
-                        destinationInput.value = option.value;
-                        destinationInput.dispatchEvent(new Event('change', { bubbles: true }));
-                        break;
-                    }
-                }
-            };
-
-            const resolveLocation = async () => {
-                const googleMapsUrl = (urlInput.value || '').trim();
-                if (!googleMapsUrl) {
-                    clearStatus();
-                    return;
-                }
-
-                setStatus('Resolving location from Google Maps link...');
-
-                try {
-                    const query = new URLSearchParams({ google_maps_url: googleMapsUrl });
-                    const response = await fetch(`${endpoint}?${query.toString()}`, {
-                        headers: { 'Accept': 'application/json' },
-                    });
-
-                    if (!response.ok) {
-                        throw new Error('resolve_failed');
-                    }
-
-                    const payload = await response.json();
-                    const data = payload?.data || {};
-
-                    applyField('latitude', data.latitude);
-                    applyField('longitude', data.longitude);
-                    applyField('country', data.country);
-                    applyField('city', data.city);
-                    applyField('province', data.province);
-                    applyField('address', data.address);
-                    applyField('location', data.location);
-                    applyField('timezone', data.timezone);
-
-                    if (data.destination_id) {
-                        applyField('destination_id', data.destination_id);
-                    } else if (data.province) {
-                        pickDestinationByProvince(data.province);
-                    }
-
-                    setStatus('Location fields have been auto-filled.');
-                } catch (_) {
-                    setStatus('Unable to resolve this link. Please fill location fields manually.', true);
-                }
-            };
-
-            let resolveTimer = null;
-            const scheduleResolve = () => {
-                if (resolveTimer) {
-                    clearTimeout(resolveTimer);
-                }
-                resolveTimer = setTimeout(resolveLocation, 400);
-            };
-
-            const scheduleResolveFromUserInput = (event) => {
-                if (event && event.isTrusted !== true) {
-                    return;
-                }
-                scheduleResolve();
-            };
-
-            const resolveLocationFromUserInput = (event) => {
-                if (event && event.isTrusted !== true) {
-                    return;
-                }
-                resolveLocation();
-            };
-
-            urlInput.addEventListener('input', scheduleResolveFromUserInput);
-            urlInput.addEventListener('change', resolveLocationFromUserInput);
-            urlInput.addEventListener('blur', resolveLocationFromUserInput);
-            if (triggerButton) {
-                triggerButton.addEventListener('click', resolveLocation);
-            }
-        });
-    }
-
     document.addEventListener('DOMContentLoaded', () => {
-        initLocationAutofill(document);
         enhanceAddButtons(document);
         enhanceRemoveButtons(document);
         localizeTimes(document);
-        initQuotationApprovalNotifier();
+        initQuotationFollowUpNotifier();
         initEditorManualItemNotifier();
+        initInquiryDeadlineNotifier();
 
         const observer = new MutationObserver((mutations) => {
             mutations.forEach((mutation) => {
                 mutation.addedNodes.forEach((node) => {
                     if (node.nodeType === Node.ELEMENT_NODE) {
-                        initLocationAutofill(node);
                         enhanceAddButtons(node);
                         enhanceRemoveButtons(node);
                         localizeTimes(node);
@@ -1151,105 +1034,41 @@
         });
     }
 
-    function initQuotationApprovalNotifier() {
-        const configNode = document.querySelector('[data-quotation-approval-notifier="1"]');
+    function initQuotationFollowUpNotifier() {
+        const configNode = document.querySelector('[data-quotation-follow-up-notifier="1"]');
         if (!configNode || configNode.dataset.bound === '1') {
             return;
         }
         configNode.dataset.bound = '1';
 
         const endpoint = configNode.getAttribute('data-endpoint');
-        const role = configNode.getAttribute('data-role') || 'unknown';
+        const readEndpointTemplate = configNode.getAttribute('data-read-endpoint-template') || '';
         const userId = configNode.getAttribute('data-user-id') || '0';
-        const bellNode = document.querySelector('[data-quotation-approval-bell="1"]');
-        const countNode = bellNode ? bellNode.querySelector('[data-quotation-approval-count="1"]') : null;
-        const listUrl = `{{ route('quotations.index', ['status' => 'pending', 'needs_my_approval' => 1]) }}`;
-        const storageKey = `quotation_approval_latest_${userId}_${role}`;
+        const bellNode = document.querySelector('[data-quotation-follow-up-bell="1"]');
+        const countNode = bellNode ? bellNode.querySelector('[data-quotation-follow-up-count="1"]') : null;
+        const listNode = document.querySelector('[data-quotation-follow-up-list="1"]');
+        const storageKey = `quotation_follow_up_latest_${userId}`;
 
-        if (!endpoint || !bellNode || !countNode) {
+        if (!endpoint || !bellNode || !countNode || !listNode) {
             return;
         }
 
         let bootstrapped = false;
-        const baseTitle = document.title;
-        const titlePrefixPattern = /^\(\d+\)\s+/;
-        const faviconLinks = Array.from(document.querySelectorAll('link[rel~="icon"], link[rel="shortcut icon"], link[rel="apple-touch-icon"]'));
-        const faviconBaseMap = new Map();
-        faviconLinks.forEach((link) => {
-            const href = link.getAttribute('href') || '';
-            faviconBaseMap.set(link, href);
-        });
 
-        const setTabTitleCount = (count) => {
-            const safeCount = Number.isFinite(Number(count)) ? Math.max(0, Number(count)) : 0;
-            const cleanBaseTitle = String(baseTitle || document.title || '').replace(titlePrefixPattern, '');
-            if (safeCount > 0) {
-                document.title = `(${safeCount}) ${cleanBaseTitle}`;
-                return;
-            }
-            document.title = cleanBaseTitle;
+        const severityClass = (severity) => {
+            if (severity === 'danger') return 'border-l-rose-500';
+            if (severity === 'warning') return 'border-l-amber-500';
+            return 'border-l-blue-500';
         };
-
-        const buildFaviconBadgeDataUrl = (sourceHref, count) => new Promise((resolve) => {
-            const safeCount = Number.isFinite(Number(count)) ? Math.max(0, Number(count)) : 0;
-            if (safeCount <= 0 || !sourceHref) {
-                resolve(sourceHref || '');
-                return;
-            }
-
-            const image = new Image();
-            image.crossOrigin = 'anonymous';
-            image.onload = () => {
-                try {
-                    const size = 64;
-                    const canvas = document.createElement('canvas');
-                    canvas.width = size;
-                    canvas.height = size;
-                    const ctx = canvas.getContext('2d');
-                    if (!ctx) {
-                        resolve(sourceHref);
-                        return;
-                    }
-
-                    ctx.drawImage(image, 0, 0, size, size);
-                    ctx.fillStyle = '#dc2626';
-                    ctx.beginPath();
-                    ctx.arc(49, 15, 14, 0, Math.PI * 2);
-                    ctx.fill();
-
-                    ctx.fillStyle = '#ffffff';
-                    ctx.font = 'bold 16px Arial';
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'middle';
-                    const label = safeCount > 99 ? '99+' : String(safeCount);
-                    ctx.fillText(label, 49, 15);
-
-                    resolve(canvas.toDataURL('image/png'));
-                } catch (_) {
-                    resolve(sourceHref);
-                }
-            };
-            image.onerror = () => resolve(sourceHref);
-            image.src = sourceHref;
-        });
-
-        const setFaviconCount = async (count) => {
-            const safeCount = Number.isFinite(Number(count)) ? Math.max(0, Number(count)) : 0;
-            for (const link of faviconLinks) {
-                const baseHref = faviconBaseMap.get(link) || '';
-                if (safeCount <= 0) {
-                    link.setAttribute('href', baseHref);
-                    continue;
-                }
-                const dataUrl = await buildFaviconBadgeDataUrl(baseHref, safeCount);
-                link.setAttribute('href', dataUrl || baseHref);
-            }
-        };
+        const escapeHtml = (value) => String(value || '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
 
         const setBellCount = (count) => {
             const safeCount = Number.isFinite(Number(count)) ? Math.max(0, Number(count)) : 0;
-            setTabTitleCount(safeCount);
-            setFaviconCount(safeCount);
             if (safeCount > 0) {
                 bellNode.classList.remove('hidden');
                 countNode.textContent = safeCount > 99 ? '99+' : String(safeCount);
@@ -1259,72 +1078,53 @@
             }
         };
 
-        const showPopupNotification = (quotationNumber = '') => {
-            const playNotificationTone = () => {
-                try {
-                    const AudioCtx = window.AudioContext || window.webkitAudioContext;
-                    if (!AudioCtx) {
-                        return;
-                    }
-                    const context = new AudioCtx();
-                    const oscillator = context.createOscillator();
-                    const gainNode = context.createGain();
+        const markRead = async (id) => {
+            if (!id || !readEndpointTemplate) return;
+            try {
+                await fetch(readEndpointTemplate.replace('__ID__', String(id)), {
+                    method: 'POST',
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                    },
+                    credentials: 'same-origin',
+                });
+            } catch (_) {
+                // Ignore read marker network error.
+            }
+        };
 
-                    oscillator.type = 'sine';
-                    oscillator.frequency.setValueAtTime(880, context.currentTime);
-                    gainNode.gain.setValueAtTime(0.0001, context.currentTime);
-                    gainNode.gain.exponentialRampToValueAtTime(0.12, context.currentTime + 0.02);
-                    gainNode.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + 0.35);
-
-                    oscillator.connect(gainNode);
-                    gainNode.connect(context.destination);
-                    oscillator.start();
-                    oscillator.stop(context.currentTime + 0.36);
-                } catch (_) {
-                    // Ignore audio runtime error.
-                }
-            };
-
-            if (!('Notification' in window)) {
-                playNotificationTone();
+        const renderItems = (items) => {
+            if (!Array.isArray(items) || items.length === 0) {
+                listNode.innerHTML = `<div class="px-3 py-4 text-xs text-gray-500 dark:text-gray-400">${@json(ui_phrase('No unread follow-up notifications'))}</div>`;
                 return;
             }
 
-            const title = @json(ui_phrase('New quotation needs approval'));
-            const bodyWithNumberTemplate = @json(ui_phrase('Quotation :number requires your approval.'));
-            const body = quotationNumber
-                ? bodyWithNumberTemplate.replace(':number', quotationNumber)
-                : @json(ui_phrase('A new quotation requires your approval.'));
+            listNode.innerHTML = items.map((item) => {
+                const id = item.id || '';
+                const title = escapeHtml(item.title || '');
+                const quotation = escapeHtml(item.quotation_number || '-');
+                const customer = escapeHtml(item.customer_name || '-');
+                const due = escapeHtml(item.due_at ? new Date(item.due_at).toLocaleString() : '-');
+                const url = item.action_url || '#';
+                return `
+                    <a href="${url}" data-quotation-follow-up-read-id="${id}" class="block border-l-4 ${severityClass(item.severity)} border-b border-gray-100 px-3 py-2 text-xs hover:bg-gray-50 dark:border-b-gray-800 dark:hover:bg-gray-800">
+                        <div class="flex items-center gap-2 font-semibold text-gray-800 dark:text-gray-100">
+                            <i class="fa-solid fa-headset"></i>
+                            <span>${title}</span>
+                        </div>
+                        <div class="mt-1 text-gray-600 dark:text-gray-300">${quotation} - ${customer}</div>
+                        <div class="mt-1 text-[11px] text-gray-500 dark:text-gray-400">${due}</div>
+                    </a>
+                `;
+            }).join('');
 
-            const trigger = () => {
-                try {
-                    const notification = new Notification(title, {
-                        body,
-                        icon: '/favicon.ico',
-                    });
-                    notification.onclick = () => {
-                        window.focus();
-                        window.location.href = listUrl;
-                    };
-                } catch (_) {
-                    // Ignore notification API runtime error.
-                }
-            };
-
-            if (Notification.permission === 'granted') {
-                playNotificationTone();
-                trigger();
-                return;
-            }
-
-            if (Notification.permission === 'default') {
-                Notification.requestPermission().then((permission) => {
-                    if (permission === 'granted') {
-                        playNotificationTone();
-                        trigger();
-                    }
-                }).catch(() => {});
-            }
+            listNode.querySelectorAll('[data-quotation-follow-up-read-id]').forEach((node) => {
+                node.addEventListener('click', () => {
+                    markRead(node.getAttribute('data-quotation-follow-up-read-id'));
+                });
+            });
         };
 
         const poll = async () => {
@@ -1346,29 +1146,22 @@
                 const payload = await response.json();
                 if (!payload || payload.enabled !== true) {
                     setBellCount(0);
+                    renderItems([]);
                     return;
                 }
 
-                const count = Number(payload.count || 0);
-                setBellCount(count);
+                setBellCount(Number(payload.count || 0));
+                renderItems(payload.items || []);
 
                 const latestId = payload.latest && payload.latest.id ? String(payload.latest.id) : '';
-                const latestNumber = payload.latest && payload.latest.quotation_number
-                    ? String(payload.latest.quotation_number)
-                    : '';
                 const previousLatestId = sessionStorage.getItem(storageKey) || '';
-
                 if (!bootstrapped) {
-                    if (latestId) {
-                        sessionStorage.setItem(storageKey, latestId);
-                    }
+                    if (latestId) sessionStorage.setItem(storageKey, latestId);
                     bootstrapped = true;
                     return;
                 }
-
                 if (latestId && latestId !== previousLatestId) {
                     sessionStorage.setItem(storageKey, latestId);
-                    showPopupNotification(latestNumber);
                 }
             } catch (_) {
                 // Ignore polling network error.
@@ -1376,10 +1169,10 @@
         };
 
         poll();
-        if (window.__quotationApprovalPollIntervalId) {
-            window.clearInterval(window.__quotationApprovalPollIntervalId);
+        if (window.__quotationFollowUpPollIntervalId) {
+            window.clearInterval(window.__quotationFollowUpPollIntervalId);
         }
-        window.__quotationApprovalPollIntervalId = window.setInterval(poll, 20000);
+        window.__quotationFollowUpPollIntervalId = window.setInterval(poll, 20000);
     }
 
     function initEditorManualItemNotifier() {
@@ -1544,6 +1337,162 @@
             window.clearInterval(window.__editorManualItemPollIntervalId);
         }
         window.__editorManualItemPollIntervalId = window.setInterval(poll, 20000);
+    }
+
+    function initInquiryDeadlineNotifier() {
+        const configNode = document.querySelector('[data-inquiry-deadline-notifier="1"]');
+        if (!configNode || configNode.dataset.bound === '1') {
+            return;
+        }
+        configNode.dataset.bound = '1';
+
+        const endpoint = configNode.getAttribute('data-endpoint');
+        const userId = configNode.getAttribute('data-user-id') || '0';
+        const bellNode = document.querySelector('[data-inquiry-deadline-bell="1"]');
+        const countNode = bellNode ? bellNode.querySelector('[data-inquiry-deadline-count="1"]') : null;
+        const storageKey = `inquiry_deadline_latest_${userId}`;
+
+        if (!endpoint || !bellNode || !countNode) {
+            return;
+        }
+
+        let bootstrapped = false;
+
+        const setBellCount = (count) => {
+            const safeCount = Number.isFinite(Number(count)) ? Math.max(0, Number(count)) : 0;
+            if (safeCount > 0) {
+                bellNode.classList.remove('hidden');
+                countNode.textContent = safeCount > 99 ? '99+' : String(safeCount);
+            } else {
+                bellNode.classList.add('hidden');
+                countNode.textContent = '0';
+            }
+        };
+
+        const showPopupNotification = (inquiryNumber = '', deadline = '', deadlineLabel = '', priority = '') => {
+            const playNotificationTone = () => {
+                try {
+                    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                    if (!AudioCtx) {
+                        return;
+                    }
+                    const context = new AudioCtx();
+                    const oscillator = context.createOscillator();
+                    const gainNode = context.createGain();
+
+                    oscillator.type = 'square';
+                    oscillator.frequency.setValueAtTime(660, context.currentTime);
+                    gainNode.gain.setValueAtTime(0.0001, context.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.08, context.currentTime + 0.03);
+                    gainNode.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + 0.28);
+
+                    oscillator.connect(gainNode);
+                    gainNode.connect(context.destination);
+                    oscillator.start();
+                    oscillator.stop(context.currentTime + 0.29);
+                } catch (_) {
+                    // Ignore audio runtime error.
+                }
+            };
+
+            if (!('Notification' in window)) {
+                playNotificationTone();
+                return;
+            }
+
+            const title = @json(ui_phrase('Inquiry deadline reminder'));
+            const bodyTemplate = @json(ui_phrase('Inquiry :number has no quotation and reaches :deadline_label deadline (:date). Priority: :priority.'));
+            const body = bodyTemplate
+                .replace(':number', inquiryNumber || '-')
+                .replace(':deadline_label', deadlineLabel || '-')
+                .replace(':date', deadline || '-')
+                .replace(':priority', priority || '-');
+
+            const trigger = () => {
+                try {
+                    const notification = new Notification(title, {
+                        body,
+                        icon: '/favicon.ico',
+                    });
+                    notification.onclick = () => {
+                        window.focus();
+                        window.location.href = @json(route('inquiries.index'));
+                    };
+                } catch (_) {
+                    // Ignore notification API runtime error.
+                }
+            };
+
+            if (Notification.permission === 'granted') {
+                playNotificationTone();
+                trigger();
+                return;
+            }
+
+            if (Notification.permission === 'default') {
+                Notification.requestPermission().then((permission) => {
+                    if (permission === 'granted') {
+                        playNotificationTone();
+                        trigger();
+                    }
+                }).catch(() => {});
+            }
+        };
+
+        const poll = async () => {
+            if (document.hidden) {
+                return;
+            }
+            try {
+                const response = await fetch(endpoint, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    credentials: 'same-origin',
+                });
+                if (!response.ok) {
+                    return;
+                }
+                const payload = await response.json();
+                if (!payload || payload.enabled !== true) {
+                    setBellCount(0);
+                    return;
+                }
+
+                const count = Number(payload.count || 0);
+                setBellCount(count);
+
+                const latestId = payload.latest && payload.latest.id ? String(payload.latest.id) : '';
+                const latestNumber = payload.latest && payload.latest.inquiry_number ? String(payload.latest.inquiry_number) : '';
+                const latestDeadline = payload.latest && payload.latest.deadline ? String(payload.latest.deadline) : '';
+                const latestDeadlineLabel = payload.latest && payload.latest.deadline_label ? String(payload.latest.deadline_label) : '';
+                const latestPriority = payload.latest && payload.latest.priority ? String(payload.latest.priority) : '';
+                const previousLatestId = sessionStorage.getItem(storageKey) || '';
+
+                if (!bootstrapped) {
+                    if (latestId) {
+                        sessionStorage.setItem(storageKey, latestId);
+                    }
+                    bootstrapped = true;
+                    return;
+                }
+
+                if (latestId && latestId !== previousLatestId) {
+                    sessionStorage.setItem(storageKey, latestId);
+                    showPopupNotification(latestNumber, latestDeadline, latestDeadlineLabel, latestPriority);
+                }
+            } catch (_) {
+                // Ignore polling network error.
+            }
+        };
+
+        poll();
+        if (window.__inquiryDeadlinePollIntervalId) {
+            window.clearInterval(window.__inquiryDeadlinePollIntervalId);
+        }
+        window.__inquiryDeadlinePollIntervalId = window.setInterval(poll, 20000);
     }
 </script>
 <script>

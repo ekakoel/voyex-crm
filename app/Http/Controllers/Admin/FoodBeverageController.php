@@ -22,7 +22,20 @@ class FoodBeverageController extends Controller
 
     public function index(Request $request)
     {
+        $validated = $request->validate([
+            'status' => ['nullable', Rule::in(['active', 'inactive'])],
+        ]);
+
         $query = FoodBeverage::query()->withTrashed()->with('vendor:id,name,latitude,longitude,destination_id')->latest('id');
+
+        $search = trim((string) $request->string('q'));
+        if (mb_strlen($search) >= 3) {
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                    ->orWhere('service_type', 'like', "%{$search}%")
+                    ->orWhereHas('vendor', fn ($vendorQ) => $vendorQ->where('name', 'like', "%{$search}%"));
+            });
+        }
 
         if ($request->filled('vendor_id')) {
             $query->where('vendor_id', (int) $request->integer('vendor_id'));
@@ -31,6 +44,8 @@ class FoodBeverageController extends Controller
         if ($request->filled('service_type')) {
             $query->where('service_type', (string) $request->string('service_type'));
         }
+        $query->when(($validated['status'] ?? null) === 'active', fn ($q) => $q->whereNull('deleted_at'));
+        $query->when(($validated['status'] ?? null) === 'inactive', fn ($q) => $q->onlyTrashed());
 
         $perPage = (int) $request->input('per_page', 10);
         $perPage = in_array($perPage, [10, 25, 50, 100], true) ? $perPage : 10;
@@ -56,20 +71,26 @@ class FoodBeverageController extends Controller
         $copyId = (int) $request->integer('copy');
         if ($copyId > 0) {
             $copiedFrom = FoodBeverage::query()
+                ->with('vendor:id,destination_id')
                 ->withTrashed()
                 ->find($copyId);
 
             if ($copiedFrom) {
                 $prefill = [
+                    'destination_filter_id' => (int) ($copiedFrom->vendor?->destination_id ?? 0),
                     'vendor_id' => $copiedFrom->vendor_id,
                     'name' => trim(((string) $copiedFrom->name) . ' (Copy)'),
                     'service_type' => $copiedFrom->service_type,
                     'duration_minutes' => $copiedFrom->duration_minutes,
                     'meal_period' => $copiedFrom->meal_period,
-                    'contract_rate' => $copiedFrom->contract_rate,
-                    'markup_type' => $copiedFrom->markup_type ?? 'fixed',
-                    'markup' => $copiedFrom->markup ?? max(0, (float) (($copiedFrom->publish_rate ?? 0) - ($copiedFrom->contract_rate ?? 0))),
-                    'publish_rate' => $copiedFrom->publish_rate,
+                    'adult_contract_rate' => $copiedFrom->adult_contract_rate ?? $copiedFrom->contract_rate,
+                    'adult_markup_type' => $copiedFrom->adult_markup_type ?? $copiedFrom->markup_type ?? 'fixed',
+                    'adult_markup' => $copiedFrom->adult_markup ?? $copiedFrom->markup ?? max(0, (float) (($copiedFrom->adult_publish_rate ?? $copiedFrom->publish_rate ?? 0) - ($copiedFrom->adult_contract_rate ?? $copiedFrom->contract_rate ?? 0))),
+                    'adult_publish_rate' => $copiedFrom->adult_publish_rate ?? $copiedFrom->publish_rate,
+                    'child_contract_rate' => $copiedFrom->child_contract_rate ?? 0,
+                    'child_markup_type' => $copiedFrom->child_markup_type ?? 'fixed',
+                    'child_markup' => $copiedFrom->child_markup ?? max(0, (float) (($copiedFrom->child_publish_rate ?? 0) - ($copiedFrom->child_contract_rate ?? 0))),
+                    'child_publish_rate' => $copiedFrom->child_publish_rate ?? 0,
                     'menu_highlights' => $copiedFrom->menu_highlights,
                     'notes' => $copiedFrom->notes,
                     'is_active' => (bool) $copiedFrom->is_active,
@@ -88,7 +109,7 @@ class FoodBeverageController extends Controller
         $foodBeverage = FoodBeverage::query()->create($validated);
         $this->syncCancellationPolicy($foodBeverage, $request->input('cancellation_rules', []), (string) ($foodBeverage->name ?? ''));
 
-        return redirect()->route('food-beverages.index')->with('success', 'F&B service created successfully.');
+        return redirect()->route('food-beverages.index')->with('success', ui_phrase('F&B service created successfully.'));
     }
 
     public function edit(FoodBeverage $foodBeverage)
@@ -128,7 +149,7 @@ class FoodBeverageController extends Controller
         $foodBeverage->update($validated);
         $this->syncCancellationPolicy($foodBeverage, $request->input('cancellation_rules', []), (string) ($foodBeverage->name ?? ''));
 
-        return redirect()->route('food-beverages.index')->with('success', 'F&B service updated successfully.');
+        return redirect()->route('food-beverages.index')->with('success', ui_phrase('F&B service updated successfully.'));
     }
 
     public function destroy(FoodBeverage $foodBeverage)
@@ -136,7 +157,7 @@ class FoodBeverageController extends Controller
         $this->deleteGalleryImages($foodBeverage->gallery_images ?? []);
         $foodBeverage->delete();
 
-        return redirect()->route('food-beverages.index')->with('success', 'F&B service deactivated successfully.');
+        return redirect()->route('food-beverages.index')->with('success', ui_phrase('F&B service deactivated successfully.'));
     }
 
     public function toggleStatus($foodBeverage)
@@ -148,7 +169,7 @@ class FoodBeverageController extends Controller
 
             return redirect()
                 ->route('food-beverages.index')
-                ->with('success', 'F&B service activated successfully.');
+                ->with('success', ui_phrase('F&B service activated successfully.'));
         }
 
         $foodBeverage->update(['is_active' => false]);
@@ -156,7 +177,7 @@ class FoodBeverageController extends Controller
 
         return redirect()
             ->route('food-beverages.index')
-            ->with('success', 'F&B service deactivated successfully.');
+            ->with('success', ui_phrase('F&B service deactivated successfully.'));
     }
 
     public function removeGalleryImage(Request $request, FoodBeverage $foodBeverage)
@@ -192,6 +213,18 @@ class FoodBeverageController extends Controller
         if (! $request->has('publish_rate') && $request->has('agent_price')) {
             $request->merge(['publish_rate' => $request->input('agent_price')]);
         }
+        if (! $request->has('adult_contract_rate') && $request->has('contract_rate')) {
+            $request->merge(['adult_contract_rate' => $request->input('contract_rate')]);
+        }
+        if (! $request->has('adult_markup_type') && $request->has('markup_type')) {
+            $request->merge(['adult_markup_type' => $request->input('markup_type')]);
+        }
+        if (! $request->has('adult_markup') && $request->has('markup')) {
+            $request->merge(['adult_markup' => $request->input('markup')]);
+        }
+        if (! $request->has('adult_publish_rate') && $request->has('publish_rate')) {
+            $request->merge(['adult_publish_rate' => $request->input('publish_rate')]);
+        }
         if (! $request->has('meal_periods') && $request->has('meal_period')) {
             $request->merge([
                 'meal_periods' => $this->normalizeMealPeriodSelections($request->input('meal_period')),
@@ -218,10 +251,14 @@ class FoodBeverageController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'service_type' => ['required', 'string', 'max:100', Rule::in($allowedTypes)],
             'duration_minutes' => ['required', 'integer', 'min:15', 'max:1440'],
-            'contract_rate' => ['nullable', 'numeric', 'min:0'],
-            'markup_type' => ['nullable', Rule::in(['fixed', 'percent'])],
-            'markup' => ['nullable', 'numeric', 'min:0'],
-            'publish_rate' => ['nullable', 'numeric', 'min:0'],
+            'adult_contract_rate' => ['nullable', 'numeric', 'min:0'],
+            'child_contract_rate' => ['nullable', 'numeric', 'min:0'],
+            'adult_markup_type' => ['nullable', Rule::in(['fixed', 'percent'])],
+            'adult_markup' => ['nullable', 'numeric', 'min:0'],
+            'child_markup_type' => ['nullable', Rule::in(['fixed', 'percent'])],
+            'child_markup' => ['nullable', 'numeric', 'min:0'],
+            'adult_publish_rate' => ['nullable', 'numeric', 'min:0'],
+            'child_publish_rate' => ['nullable', 'numeric', 'min:0'],
             'meal_periods' => ['nullable', 'array'],
             'meal_periods.*' => ['string', Rule::in(['breakfast', 'lunch', 'dinner'])],
             'menu_highlights' => ['nullable', 'string'],
@@ -235,31 +272,57 @@ class FoodBeverageController extends Controller
         ]);
 
         $validated['is_active'] = $request->boolean('is_active');
-        $validated['markup_type'] = (($validated['markup_type'] ?? 'fixed') === 'percent') ? 'percent' : 'fixed';
-        $validated['contract_rate'] = max(0, (float) ($validated['contract_rate'] ?? 0));
-        $validated['markup'] = max(0, (float) ($validated['markup'] ?? 0));
+        $validated['adult_markup_type'] = (($validated['adult_markup_type'] ?? 'fixed') === 'percent') ? 'percent' : 'fixed';
+        $validated['child_markup_type'] = (($validated['child_markup_type'] ?? 'fixed') === 'percent') ? 'percent' : 'fixed';
+        $validated['adult_contract_rate'] = max(0, (float) ($validated['adult_contract_rate'] ?? 0));
+        $validated['child_contract_rate'] = max(0, (float) ($validated['child_contract_rate'] ?? 0));
+        $validated['adult_markup'] = max(0, (float) ($validated['adult_markup'] ?? 0));
+        $validated['child_markup'] = max(0, (float) ($validated['child_markup'] ?? 0));
         $validated['meal_period'] = $this->formatMealPeriodForStorage($validated['meal_periods'] ?? []);
         unset($validated['meal_periods']);
 
         // Persist service master pricing in canonical IDR.
-        $validated['contract_rate'] = $this->displayCurrencyToIdr($validated['contract_rate']);
-        if ($validated['markup_type'] === 'fixed') {
-            $validated['markup'] = $this->displayCurrencyToIdr($validated['markup']);
+        $validated['adult_contract_rate'] = $this->displayCurrencyToIdr($validated['adult_contract_rate']);
+        $validated['child_contract_rate'] = $this->displayCurrencyToIdr($validated['child_contract_rate']);
+        if ($validated['adult_markup_type'] === 'fixed') {
+            $validated['adult_markup'] = $this->displayCurrencyToIdr($validated['adult_markup']);
+        }
+        if ($validated['child_markup_type'] === 'fixed') {
+            $validated['child_markup'] = $this->displayCurrencyToIdr($validated['child_markup']);
         }
 
-        if ($validated['markup_type'] === 'percent' && $validated['markup'] > 100) {
+        if ($validated['adult_markup_type'] === 'percent' && $validated['adult_markup'] > 100) {
             throw ValidationException::withMessages([
-                'markup' => 'Markup percent cannot be greater than 100.',
+                'adult_markup' => 'Adult markup percent cannot be greater than 100.',
+            ]);
+        }
+        if ($validated['child_markup_type'] === 'percent' && $validated['child_markup'] > 100) {
+            throw ValidationException::withMessages([
+                'child_markup' => 'Child markup percent cannot be greater than 100.',
             ]);
         }
 
-        $validated['publish_rate'] = round($this->calculatePublishRate(
-            $validated['contract_rate'],
-            $validated['markup_type'],
-            $validated['markup']
+        $validated['adult_publish_rate'] = round($this->calculatePublishRate(
+            $validated['adult_contract_rate'],
+            $validated['adult_markup_type'],
+            $validated['adult_markup']
         ), 0);
-        $validated['contract_rate'] = round($validated['contract_rate'], 0);
-        $validated['markup'] = round($validated['markup'], 0);
+        $validated['child_publish_rate'] = round($this->calculatePublishRate(
+            $validated['child_contract_rate'],
+            $validated['child_markup_type'],
+            $validated['child_markup']
+        ), 0);
+
+        $validated['adult_contract_rate'] = round($validated['adult_contract_rate'], 0);
+        $validated['child_contract_rate'] = round($validated['child_contract_rate'], 0);
+        $validated['adult_markup'] = round($validated['adult_markup'], 0);
+        $validated['child_markup'] = round($validated['child_markup'], 0);
+
+        // Backward compatibility: keep legacy single-rate columns aligned with adult pricing.
+        $validated['contract_rate'] = $validated['adult_contract_rate'];
+        $validated['markup_type'] = $validated['adult_markup_type'];
+        $validated['markup'] = $validated['adult_markup'];
+        $validated['publish_rate'] = $validated['adult_publish_rate'];
 
         return $validated;
     }

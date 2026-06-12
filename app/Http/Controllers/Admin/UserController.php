@@ -21,7 +21,7 @@ class UserController extends Controller
 
         $query->when(request('search'), function ($q) {
             $keyword = trim((string) request('search'));
-            if ($keyword === '') {
+            if ($keyword === '' || mb_strlen($keyword) < 3) {
                 return;
             }
             $q->where(function ($sub) use ($keyword) {
@@ -84,7 +84,7 @@ class UserController extends Controller
 
         return redirect()
             ->route('users.index')
-            ->with('success', 'Employee created successfully.');
+            ->with('success', ui_phrase('Employee created successfully.'));
     }
 
     public function edit(User $user): View
@@ -130,7 +130,7 @@ class UserController extends Controller
 
         return redirect()
             ->route('users.index')
-            ->with('success', 'Employee updated successfully.');
+            ->with('success', ui_phrase('Employee updated successfully.'));
     }
 
     public function destroy(User $user): RedirectResponse
@@ -144,15 +144,13 @@ class UserController extends Controller
         if ($isCurrentUser) {
             return redirect()
                 ->route('users.index')
-                ->with('error', 'You cannot delete your own account.');
+                ->with('error', ui_phrase('You cannot delete your own account.'));
         }
 
         $user->delete();
 
         return redirect()
             ->route('users.index')
-            ->with('success', 'Employee deleted successfully.');
+            ->with('success', ui_phrase('Employee deleted successfully.'));
     }
 }
-
-

@@ -28,7 +28,14 @@ class BookingItemVoucherController extends Controller
 
     public function generate(BookingItem $bookingItem)
     {
+        $this->voucherService->assertVendorConfirmed($bookingItem);
         $voucher = $this->voucherService->generateOrRefresh($bookingItem);
+        $bookingItem->booking?->logActivity('voucher.generated', $bookingItem->booking, [
+            'booking_item_id' => (int) $bookingItem->id,
+            'voucher_number' => (string) ($voucher->voucher_number ?? ''),
+            'status' => (string) ($voucher->status ?? ''),
+            'revision_number' => (int) ($voucher->revision_number ?? 1),
+        ]);
 
         return redirect()
             ->route('bookings.edit', $bookingItem->booking_id)
@@ -37,6 +44,8 @@ class BookingItemVoucherController extends Controller
 
     public function upsert(Request $request, BookingItem $bookingItem)
     {
+        $this->voucherService->assertVendorConfirmed($bookingItem);
+
         $validated = $request->validate([
             'tour_name' => ['nullable', 'string', 'max:255'],
             'service_date' => ['nullable', 'date'],
@@ -57,22 +66,43 @@ class BookingItemVoucherController extends Controller
 
         $voucher->fill($this->voucherService->draftPayloadFromItem($bookingItem));
         $voucher->fill($validated);
-        if (! in_array((string) $voucher->status, ['used', 'cancelled'], true)) {
+        if (! in_array((string) $voucher->status, [\App\Models\BookingItemVoucher::STATUS_USED, \App\Models\BookingItemVoucher::STATUS_CANCELLED], true)) {
             $voucher->status = $this->voucherService->resolveStatusFromBooking($bookingItem);
         }
         $voucher->updated_by = auth()->id();
-        if ($voucher->status === 'issued' && ! $voucher->issued_at) {
+        if (in_array((string) $voucher->status, [\App\Models\BookingItemVoucher::STATUS_GENERATED, \App\Models\BookingItemVoucher::STATUS_REISSUED], true) && ! $voucher->issued_at) {
             $voucher->issued_at = now();
         }
-        if ($voucher->status === 'used' && ! $voucher->used_at) {
+        if ($voucher->status === \App\Models\BookingItemVoucher::STATUS_USED && ! $voucher->used_at) {
             $voucher->used_at = now();
         }
         $voucher->source_hash = $this->voucherService->computeSourceHash($bookingItem);
         $voucher->save();
+        $bookingItem->booking?->logActivity('voucher.updated', $bookingItem->booking, [
+            'booking_item_id' => (int) $bookingItem->id,
+            'voucher_number' => (string) ($voucher->voucher_number ?? ''),
+            'status' => (string) ($voucher->status ?? ''),
+            'revision_number' => (int) ($voucher->revision_number ?? 1),
+        ]);
 
         return redirect()
             ->route('bookings.edit', $bookingItem->booking_id)
             ->with('success', ui_phrase('Voucher saved successfully.'));
+    }
+
+    public function reissue(BookingItem $bookingItem)
+    {
+        $voucher = $this->voucherService->reissue($bookingItem);
+        $bookingItem->booking?->logActivity('voucher.reissued', $bookingItem->booking, [
+            'booking_item_id' => (int) $bookingItem->id,
+            'voucher_number' => (string) ($voucher->voucher_number ?? ''),
+            'status' => (string) ($voucher->status ?? ''),
+            'revision_number' => (int) ($voucher->revision_number ?? 1),
+        ]);
+
+        return redirect()
+            ->route('bookings.edit', $bookingItem->booking_id)
+            ->with('success', ui_phrase('Voucher reissued successfully: :number', ['number' => $voucher->voucher_number]));
     }
 
     public function pdf(BookingItem $bookingItem)

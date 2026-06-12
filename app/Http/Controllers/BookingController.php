@@ -14,25 +14,35 @@ use App\Models\TransportUnit;
 use App\Models\HotelRoom;
 use App\Models\Hotel;
 use App\Http\Controllers\Concerns\NormalizesDisplayCurrencyToIdr;
+use App\Support\Concerns\ResolvesInquiryHandler;
 use App\Support\CompanySettingsCache;
 use App\Services\BookingSnapshotService;
 use App\Services\BookingVoucherService;
+use App\Services\BookingAdjustmentService;
+use App\Services\CancellationPolicyService;
 use App\Services\InvoiceService;
 use App\Http\Requests\StoreBookingRequest;
 use App\Http\Requests\UpdateBookingRequest;
+use App\Support\Workflow\QuotationStatusNormalizer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Validation\ValidationException;
+use RuntimeException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class BookingController extends Controller
 {
     use NormalizesDisplayCurrencyToIdr;
+    use ResolvesInquiryHandler;
 
     public function __construct(
         private readonly InvoiceService $invoiceService,
         private readonly BookingVoucherService $voucherService,
-        private readonly BookingSnapshotService $bookingSnapshotService
+        private readonly BookingAdjustmentService $bookingAdjustmentService,
+        private readonly BookingSnapshotService $bookingSnapshotService,
+        private readonly CancellationPolicyService $cancellationPolicyService
     )
     {
     }
@@ -51,7 +61,7 @@ class BookingController extends Controller
                 'quotation' => function ($quotationQuery) {
                     $quotationQuery
                         ->withCount('items')
-                        ->with('inquiry.customer');
+                        ->with('inquiry.customer', 'inquiry.handledBy:id,name');
                 },
             ]);
 
@@ -65,7 +75,7 @@ class BookingController extends Controller
         $sidebarInfo = $this->buildBookingSidebarInfo($sidebarQuery);
         $bookings = $query->latest()->paginate($perPage)->withQueryString();
         $quotations = Quotation::query()
-            ->with('inquiry.customer')
+            ->with('inquiry.customer', 'inquiry.handledBy:id,name')
             ->whereHas('booking')
             ->orderBy('created_at', 'desc')
             ->get();
@@ -78,11 +88,19 @@ class BookingController extends Controller
      */
     public function create()
     {
+        $preferredQuotationId = (int) request('quotation_id', 0);
         $quotations = $this->eligibleQuotationQuery()
             ->get();
+
+        if ($preferredQuotationId > 0 && ! $quotations->contains(fn ($quotation) => (int) $quotation->id === $preferredQuotationId)) {
+            return redirect()
+                ->route('bookings.index')
+                ->with('error', ui_phrase('Selected quotation is not eligible for booking.'));
+        }
+
         $this->loadQuotationServiceableRelations($quotations);
 
-        return view('modules.bookings.create', compact('quotations'));
+        return view('modules.bookings.create', compact('quotations', 'preferredQuotationId'));
     }
 
     /**
@@ -91,15 +109,22 @@ class BookingController extends Controller
     public function store(StoreBookingRequest $request)
     {
         $validated = $request->validated();
-        $items = $validated['items'] ?? [];
+        $quotation = Quotation::query()
+            ->with(['items.serviceable'])
+            ->findOrFail((int) ($validated['quotation_id'] ?? 0));
+
+        $this->assertBookingEligibility($quotation);
+        $this->assertNoActiveBookingInRevisionChain($quotation);
+
         unset($validated['items']);
         $this->applyBookingSnapshotPayload($validated);
         $validated['status'] = $this->resolveAutoStatus((string) ($validated['travel_date'] ?? ''));
         $validated['booking_number'] = $this->generateBookingNumber();
 
-        $booking = DB::transaction(function () use ($validated, $items): Booking {
+        $booking = DB::transaction(function () use ($validated, $quotation): Booking {
             $booking = Booking::query()->create($validated);
-            $this->syncBookingItems($booking, $items);
+            $this->syncBookingItemsFromQuotation($booking, $quotation);
+            $booking->quotation?->update(['status' => Quotation::STATUS_CONVERTED_TO_BOOKING]);
             $this->invoiceService->generateForBooking($booking);
 
             return $booking;
@@ -343,6 +368,59 @@ class BookingController extends Controller
             ->with('error', ui_phrase('Close booking is controlled by settlement gate. Review settlement first.'));
     }
 
+    public function generateProformaInvoice(Request $request, Booking $booking)
+    {
+        try {
+            $invoice = $this->invoiceService->generateProformaForBooking($booking);
+            if (! $invoice) {
+                return redirect()
+                    ->route('bookings.show', $booking)
+                    ->with('error', ui_phrase('Proforma invoice cannot be generated yet. Ensure voucher for booking items is available.'));
+            }
+        } catch (RuntimeException $e) {
+            return redirect()
+                ->route('bookings.show', $booking)
+                ->with('error', ui_phrase($e->getMessage()));
+        }
+
+        $booking->logActivity('invoice.proforma_generated', $booking, [
+            'invoice_id' => $invoice->id,
+            'invoice_number' => $invoice->invoice_number,
+        ]);
+
+        return redirect()
+            ->route('invoices.show', $invoice)
+            ->with('success', ui_phrase('Proforma invoice generated successfully.'));
+    }
+
+    public function generateFinalInvoice(Request $request, Booking $booking)
+    {
+        try {
+            $invoice = $this->invoiceService->generateFinalForBooking($booking);
+            if (! $invoice) {
+                return redirect()
+                    ->route('bookings.show', $booking)
+                    ->with('error', ui_phrase('Final invoice could not be generated.'));
+            }
+        } catch (RuntimeException $e) {
+            return redirect()
+                ->route('bookings.show', $booking)
+                ->with('error', ui_phrase($e->getMessage()));
+        }
+
+        if ((string) ($booking->status ?? '') === 'reconciliation') {
+            $booking->update(['status' => 'invoiced']);
+        }
+        $booking->logActivity('invoice.final_generated', $booking, [
+            'invoice_id' => $invoice->id,
+            'invoice_number' => $invoice->invoice_number,
+        ]);
+
+        return redirect()
+            ->route('invoices.show', $invoice)
+            ->with('success', ui_phrase('Final invoice generated successfully.'));
+    }
+
     public function markReadyToOperate(Request $request, Booking $booking)
     {
         if (! $request->user()?->can('bookings.operation.prepare')) {
@@ -352,7 +430,7 @@ class BookingController extends Controller
             return redirect()->route('bookings.show', $booking)
                 ->with('error', ui_phrase('Booking is final and cannot be edited.'));
         }
-        if (! in_array((string) ($booking->status ?? ''), ['confirmed', 'awaiting_dp', 'dp_received', 'awaiting_balance'], true)) {
+        if (! in_array((string) ($booking->status ?? ''), ['created', 'vendor_confirmation', 'confirmed', 'awaiting_dp', 'dp_received', 'awaiting_balance'], true)) {
             return redirect()->route('bookings.show', $booking)
                 ->with('error', ui_phrase('Booking status is not eligible to be marked as ready to operate.'));
         }
@@ -453,6 +531,7 @@ class BookingController extends Controller
             'vendor_confirmation_status' => BookingItem::VENDOR_CONFIRMATION_CONFIRMED,
             'vendor_confirmed_at' => now(),
             'vendor_confirmed_by' => auth()->id(),
+            'vendor_unavailable_reason' => null,
         ]);
         $booking->logActivity('operation.item_vendor_confirmed', $booking, [
             'booking_item_id' => $bookingItem->id,
@@ -461,6 +540,36 @@ class BookingController extends Controller
 
         return redirect()->route('bookings.show', $booking)
             ->with('success', ui_phrase('Vendor confirmation has been recorded.'));
+    }
+
+    public function markItemVendorNotAvailable(Request $request, Booking $booking, BookingItem $bookingItem)
+    {
+        if (! $request->user()?->can('bookings.operation.vendor_confirm')) {
+            abort(403);
+        }
+        if ((int) $bookingItem->booking_id !== (int) $booking->id) {
+            abort(404);
+        }
+
+        $validated = $request->validate([
+            'vendor_unavailable_reason' => ['required', 'string', 'max:2000'],
+        ]);
+
+        $reason = trim((string) ($validated['vendor_unavailable_reason'] ?? ''));
+        $bookingItem->update([
+            'vendor_confirmation_status' => BookingItem::VENDOR_CONFIRMATION_NOT_AVAILABLE,
+            'vendor_unavailable_reason' => $reason,
+            'vendor_confirmed_at' => null,
+            'vendor_confirmed_by' => null,
+        ]);
+        $booking->logActivity('operation.item_vendor_not_available', $booking, [
+            'booking_item_id' => $bookingItem->id,
+            'description' => $bookingItem->description,
+            'reason' => $reason,
+        ]);
+
+        return redirect()->route('bookings.show', $booking)
+            ->with('success', ui_phrase('Vendor marked as not available for this item.'));
     }
 
     public function updateItemDispatch(Request $request, Booking $booking, BookingItem $bookingItem)
@@ -656,6 +765,32 @@ class BookingController extends Controller
                 'serviceable_meta' => is_array($quotationItem->serviceable_meta ?? null) ? $quotationItem->serviceable_meta : null,
                 'cancellation_policy_snapshot' => $this->buildCancellationPolicySnapshot($quotationItem),
             ]);
+
+            if ((string) ($quotationItem->status ?? '') === QuotationItem::STATUS_ADDED_AFTER_APPROVAL) {
+                $adjustment = $this->bookingAdjustmentService->createAddItemFromQuotationItem($booking, $bookingItem, $quotationItem);
+                if ($adjustment) {
+                    $booking->logActivity('adjustment.auto_add_item_created', $booking, [
+                        'booking_item_id' => $bookingItem->id,
+                        'adjustment_id' => $adjustment->id,
+                        'adjustment_number' => $adjustment->adjustment_number,
+                    ]);
+                }
+            }
+        }
+
+        $replacedSourceItem = QuotationItem::query()
+            ->where('replaced_by_item_id', (int) $quotationItem->id)
+            ->first();
+        if ($replacedSourceItem) {
+            $adjustment = $this->bookingAdjustmentService->createReplaceItem($booking, $bookingItem, $replacedSourceItem);
+            if ($adjustment) {
+                $booking->logActivity('adjustment.auto_replace_item_created', $booking, [
+                    'booking_item_id' => $bookingItem->id,
+                    'adjustment_id' => $adjustment->id,
+                    'adjustment_number' => $adjustment->adjustment_number,
+                    'old_quotation_item_id' => $replacedSourceItem->id,
+                ]);
+            }
         }
 
         $bookingItem->bookingLogs()->create([
@@ -676,12 +811,14 @@ class BookingController extends Controller
             'cancelled_at' => null,
         ]);
         $bookingItem->loadMissing(['serviceable', 'booking.items', 'booking.quotation.inquiry.customer', 'booking.quotation.itinerary']);
-        $this->voucherService->generateOrRefresh($bookingItem);
+        if ($bookingItem->isVendorConfirmed()) {
+            $this->voucherService->generateOrRefresh($bookingItem);
+        }
         $this->syncProviderContactFromBookingInput($quotationItem, $validated);
 
         return redirect()
             ->route('bookings.edit', $booking)
-            ->with('success', ui_phrase('Service item booked successfully. Voucher generated automatically.'));
+            ->with('success', ui_phrase('Service item booked successfully. Voucher will be available after vendor confirmation.'));
     }
 
     public function updateServiceItem(Request $request, Booking $booking, QuotationItem $quotationItem)
@@ -751,7 +888,9 @@ class BookingController extends Controller
         }
 
         $bookingItem->loadMissing(['serviceable', 'booking.items', 'booking.quotation.inquiry.customer', 'booking.quotation.itinerary']);
-        $this->voucherService->generateOrRefresh($bookingItem);
+        if ($bookingItem->isVendorConfirmed()) {
+            $this->voucherService->generateOrRefresh($bookingItem);
+        }
         $this->syncProviderContactFromBookingInput($quotationItem, $validated);
 
         return redirect()
@@ -786,30 +925,66 @@ class BookingController extends Controller
         }
 
         $validated = $request->validate([
-            'cancellation_fee_type' => ['required', 'in:nominal,percent'],
-            'cancellation_fee' => ['required', 'numeric', 'min:0'],
+            'cancellation_fee_type' => ['nullable', 'in:nominal,percent'],
+            'cancellation_fee' => ['nullable', 'numeric', 'min:0'],
             'cancellation_policy_text' => ['nullable', 'string'],
         ]);
 
-        $feeType = (string) ($validated['cancellation_fee_type'] ?? 'nominal');
-        $feeInput = max(0, (float) ($validated['cancellation_fee'] ?? 0));
+        $cancelledAt = now();
+        $policyResult = $this->cancellationPolicyService->resolveCancellation($bookingItem, $cancelledAt);
+        $policyMatched = (bool) ($policyResult['matched'] ?? false);
+
+        $feeType = (string) ($validated['cancellation_fee_type'] ?? '');
+        $feeInput = (float) ($validated['cancellation_fee'] ?? 0);
+        $isManualFallback = ! $policyMatched;
+
+        if ($isManualFallback) {
+            if (! in_array($feeType, ['nominal', 'percent'], true)) {
+                return redirect()
+                    ->route('bookings.edit', $booking)
+                    ->withErrors(['cancellation_fee_type' => ui_phrase('Cancellation fee type is required when no active policy is found.')]);
+            }
+            $feeInput = max(0, $feeInput);
+        }
+
         $itemTotal = max(0, (float) ($bookingItem->total ?? 0));
-        $finalFee = $feeType === 'percent'
-            ? round($itemTotal * ($feeInput / 100), 2)
-            : round($this->displayCurrencyToIdr($feeInput), 2);
+        $finalFee = $policyMatched
+            ? max(0, (float) ($policyResult['fee'] ?? 0))
+            : ($feeType === 'percent'
+                ? round($itemTotal * ($feeInput / 100), 2)
+                : round($this->displayCurrencyToIdr($feeInput), 2));
 
         $bookingItem->update([
             'status' => BookingItem::STATUS_CANCELLED,
             'cancellation_fee' => $finalFee,
             'cancellation_fee_calculated' => $finalFee,
-            'cancellation_fee_overridden' => true,
-            'cancelled_at' => now(),
+            'cancellation_fee_overridden' => $isManualFallback,
+            'cancelled_at' => $cancelledAt,
+            'cancellation_policy_snapshot' => $this->buildCancellationSnapshotPayload($bookingItem, $policyResult, $isManualFallback, $feeType, $feeInput),
         ]);
         $this->persistServiceCancellationPolicyTextIfMissing(
             $quotationItem,
             trim((string) ($validated['cancellation_policy_text'] ?? ''))
         );
-        $this->persistCancellationPolicyDefaultIfMissing($quotationItem, $feeType, $feeInput);
+        if ($isManualFallback) {
+            $this->persistCancellationPolicyDefaultIfMissing($quotationItem, $feeType, $feeInput);
+        }
+
+        if ($finalFee > 0) {
+            $adjustment = $this->bookingAdjustmentService->createCancellationFeeFromItem(
+                $bookingItem,
+                $finalFee,
+                (string) data_get($policyResult, 'description', '')
+            );
+            if ($adjustment) {
+                $booking->logActivity('adjustment.auto_cancellation_fee_created', $booking, [
+                    'booking_item_id' => $bookingItem->id,
+                    'adjustment_id' => $adjustment->id,
+                    'adjustment_number' => $adjustment->adjustment_number,
+                    'fee_amount' => $finalFee,
+                ]);
+            }
+        }
 
         return redirect()
             ->route('bookings.edit', $booking)
@@ -984,6 +1159,35 @@ class BookingController extends Controller
         return round($feeValue, 2);
     }
 
+    private function buildCancellationSnapshotPayload(BookingItem $bookingItem, array $policyResult, bool $manualFallback, string $manualFeeType, float $manualFeeValue): array
+    {
+        $base = is_array($bookingItem->cancellation_policy_snapshot ?? null) ? $bookingItem->cancellation_policy_snapshot : [];
+
+        $policy = $policyResult['policy'] ?? null;
+        $base['applied'] = [
+            'source' => $manualFallback ? 'manual' : 'policy',
+            'calculated_fee' => (float) ($policyResult['fee'] ?? 0),
+            'hours_before' => (int) ($policyResult['hours_before'] ?? 0),
+            'reason' => (string) ($policyResult['reason'] ?? ''),
+            'applied_at' => now()->toIso8601String(),
+            'manual_fee_type' => $manualFallback ? $manualFeeType : null,
+            'manual_fee_value' => $manualFallback ? $manualFeeValue : null,
+            'policy' => $policy ? [
+                'id' => (int) $policy->id,
+                'name' => (string) ($policy->name ?? ''),
+                'season_type' => (string) ($policy->season_type ?? ''),
+                'start_date' => optional($policy->start_date)->format('Y-m-d'),
+                'end_date' => optional($policy->end_date)->format('Y-m-d'),
+                'cancel_before_hours' => $policy->cancel_before_hours !== null ? (int) $policy->cancel_before_hours : null,
+                'fee_type' => (string) ($policy->fee_type ?? ''),
+                'fee_value' => (float) ($policy->fee_value ?? 0),
+                'description' => (string) ($policy->description ?? ''),
+            ] : null,
+        ];
+
+        return $base;
+    }
+
     private function syncProviderContactFromBookingInput(QuotationItem $quotationItem, array $validated): void
     {
         $serviceable = $quotationItem->serviceable;
@@ -1046,7 +1250,16 @@ class BookingController extends Controller
             $ability = 'update';
         }
 
-        return $user->can($ability, $booking);
+        if (! $user->can($ability, $booking)) {
+            return false;
+        }
+
+        $inquiry = $booking->quotation?->inquiry;
+        if (! $inquiry) {
+            return true;
+        }
+
+        return $this->inquiryHandlerMatchesUser($inquiry, (int) $user->id);
     }
 
     private function denyBookingMutation(Booking $booking)
@@ -1102,23 +1315,39 @@ class BookingController extends Controller
 
     private function eligibleQuotationQuery(?int $ignoreBookingId = null)
     {
-        return Quotation::query()
+        $user = auth()->user();
+        $query = Quotation::query()
             ->with(['inquiry.customer', 'items'])
-            ->whereIn('status', ['accepted', Quotation::FINAL_STATUS])
-            ->where('validation_status', 'valid')
+            ->whereIn('status', [Quotation::STATUS_CUSTOMER_APPROVED, 'approved'])
+            ->whereIn('validation_status', ['valid', 'validated'])
             ->whereHas('items')
-            ->where(function ($q) use ($ignoreBookingId) {
-                if ($ignoreBookingId) {
-                    $q->whereDoesntHave('booking')
-                        ->orWhereHas('booking', fn ($bookingQ) => $bookingQ->whereKey($ignoreBookingId));
-
-                    return;
-                }
-
-                $q->whereDoesntHave('booking');
-            })
             ->orderByDesc('approved_at')
             ->orderByDesc('created_at');
+
+        if ($user) {
+            $query->whereHas('inquiry', function ($inquiryQuery) use ($user): void {
+                $this->applyInquiryHandlerScope($inquiryQuery, (int) $user->id, 'inquiries');
+            });
+        }
+
+        $this->applyNoActiveBookingInRevisionChain($query, $ignoreBookingId);
+
+        return $query;
+    }
+
+    private function applyNoActiveBookingInRevisionChain($query, ?int $ignoreBookingId = null): void
+    {
+        $query->whereNotExists(function ($subQuery) use ($ignoreBookingId): void {
+            $subQuery->selectRaw('1')
+                ->from('bookings as b')
+                ->join('quotations as q2', 'q2.id', '=', 'b.quotation_id')
+                ->whereRaw('COALESCE(q2.revision_of_id, q2.id) = COALESCE(quotations.revision_of_id, quotations.id)')
+                ->whereNotIn('b.status', ['cancelled', Booking::FINAL_STATUS]);
+
+            if ($ignoreBookingId) {
+                $subQuery->where('b.id', '!=', $ignoreBookingId);
+            }
+        });
     }
 
     private function loadQuotationServiceableRelations(\Illuminate\Support\Collection $quotations): void
@@ -1246,6 +1475,50 @@ class BookingController extends Controller
         }
     }
 
+    private function syncBookingItemsFromQuotation(Booking $booking, Quotation $quotation): void
+    {
+        $rows = $quotation->items
+            ->map(function (QuotationItem $quotationItem) use ($booking): array {
+                $qty = max(1, (int) ($quotationItem->qty ?? 1));
+                $sellPrice = max(0, (float) ($quotationItem->unit_price ?? 0));
+                $unitPrice = $sellPrice;
+                $vendorId = (int) ($quotationItem->serviceable?->vendor_id ?? 0);
+
+                return [
+                    'quotation_item_id' => (int) $quotationItem->id,
+                    'serviceable_type' => $quotationItem->serviceable_type,
+                    'serviceable_id' => $quotationItem->serviceable_id,
+                    'vendor_id' => $vendorId > 0 ? $vendorId : null,
+                    'description' => trim((string) ($quotationItem->description ?? '')),
+                    'service_date' => optional($quotationItem->service_date)->format('Y-m-d') ?? optional($booking->travel_date)->format('Y-m-d'),
+                    'qty' => $qty,
+                    'sell_price' => $sellPrice,
+                    'unit_price' => $unitPrice,
+                    'contract_rate' => max(0, (float) ($quotationItem->contract_rate ?? 0)),
+                    'markup_type' => (string) ($quotationItem->markup_type ?? 'fixed'),
+                    'markup' => max(0, (float) ($quotationItem->markup ?? 0)),
+                    'total' => $qty * $unitPrice,
+                    'status' => BookingItem::STATUS_ACTIVE,
+                    'vendor_confirmation_status' => BookingItem::VENDOR_CONFIRMATION_PENDING,
+                    'dispatch_status' => BookingItem::DISPATCH_PENDING,
+                    'cancellation_fee' => 0,
+                    'cancellation_fee_calculated' => 0,
+                    'cancellation_fee_overridden' => false,
+                    'cancelled_at' => null,
+                    'cancellation_policy_snapshot' => null,
+                    'day_number' => ! empty($quotationItem->day_number) ? (int) $quotationItem->day_number : null,
+                    'serviceable_meta' => is_array($quotationItem->serviceable_meta ?? null) ? $quotationItem->serviceable_meta : null,
+                ];
+            })
+            ->filter(fn (array $row) => $row['description'] !== '')
+            ->values();
+
+        $booking->items()->delete();
+        if ($rows->isNotEmpty()) {
+            $booking->items()->createMany($rows->all());
+        }
+    }
+
     private function resolveAutoStatus(string $travelDate, ?string $currentStatus = null): string
     {
         if (in_array((string) $currentStatus, [Booking::FINAL_STATUS, 'cancelled'], true)) {
@@ -1255,7 +1528,75 @@ class BookingController extends Controller
             return (string) $currentStatus;
         }
 
-        return 'confirmed';
+        return 'created';
+    }
+
+    private function assertBookingEligibility(Quotation $quotation): void
+    {
+        $this->assertInquiryHandlerOwnership($quotation);
+
+        if (! QuotationStatusNormalizer::isApproved((string) ($quotation->status ?? ''))) {
+            throw ValidationException::withMessages([
+                'quotation_id' => ui_phrase('Booking can only be created from an approved quotation.'),
+            ]);
+        }
+
+        if (! in_array((string) ($quotation->validation_status ?? 'pending'), ['valid', 'validated'], true)) {
+            throw ValidationException::withMessages([
+                'quotation_id' => ui_phrase('Selected quotation validation must be 100% before booking.'),
+            ]);
+        }
+
+        if (! $quotation->items()->exists()) {
+            throw ValidationException::withMessages([
+                'quotation_id' => ui_phrase('Selected quotation has no items to be booked.'),
+            ]);
+        }
+
+        if ($quotation->booking()->exists()) {
+            throw ValidationException::withMessages([
+                'quotation_id' => ui_phrase('Each quotation can only be linked to one booking.'),
+            ]);
+        }
+    }
+
+    private function assertInquiryHandlerOwnership(Quotation $quotation): void
+    {
+        $user = auth()->user();
+        if (! $user) {
+            throw ValidationException::withMessages([
+                'quotation_id' => ui_phrase('You do not have permission to handle this inquiry.'),
+            ]);
+        }
+
+        $inquiry = $quotation->inquiry;
+        if (! $inquiry) {
+            return;
+        }
+
+        if (! $this->inquiryHandlerMatchesUser($inquiry, (int) $user->id)) {
+            throw ValidationException::withMessages([
+                'quotation_id' => ui_phrase('Inquiry is handled by another user.'),
+            ]);
+        }
+    }
+
+    private function assertNoActiveBookingInRevisionChain(Quotation $quotation): void
+    {
+        $rootId = (int) ($quotation->revision_of_id ?: $quotation->id);
+
+        $hasActiveBooking = Booking::query()
+            ->whereNotIn('status', ['cancelled', Booking::FINAL_STATUS])
+            ->whereHas('quotation', function ($query) use ($rootId): void {
+                $query->whereRaw('COALESCE(revision_of_id, id) = ?', [$rootId]);
+            })
+            ->exists();
+
+        if ($hasActiveBooking) {
+            throw ValidationException::withMessages([
+                'quotation_id' => ui_phrase('Another active booking already exists for this quotation revision chain.'),
+            ]);
+        }
     }
 
     private function isOperationPaymentSatisfied(Booking $booking): bool
@@ -1464,21 +1805,27 @@ class BookingController extends Controller
     private function applyBookingIndexFilters(\Illuminate\Database\Eloquent\Builder $query): void
     {
         $query->when(request('q'), function ($q) {
-            $term = request('q');
-            $q->where('booking_number', 'like', "%{$term}%")
-                ->orWhereHas('quotation', function ($quo) use ($term) {
-                    $quo->where('quotation_number', 'like', "%{$term}%")
-                        ->orWhereHas('inquiry.customer', function ($c) use ($term) {
-                            $c->where('name', 'like', "%{$term}%");
+            $term = trim((string) request('q'));
+            if (mb_strlen($term) < 3) {
+                return;
+            }
+
+            $q->where(function ($nested) use ($term) {
+                $nested->where('booking_number', 'like', "%{$term}%")
+                    ->orWhereHas('quotation', function ($quo) use ($term) {
+                        $quo->where('quotation_number', 'like', "%{$term}%")
+                            ->orWhereHas('inquiry.customer', function ($c) use ($term) {
+                                $c->where('name', 'like', "%{$term}%");
+                            });
                         });
-                });
+            });
         });
 
         $query->when(request('status'), fn ($q) => $q->where('status', request('status')));
         $query->when(request('quotation_id'), fn ($q) => $q->where('quotation_id', request('quotation_id')));
         $query->when(request('quotation'), function ($q) {
             $term = trim((string) request('quotation'));
-            if ($term === '') {
+            if (mb_strlen($term) < 3) {
                 return;
             }
 
@@ -1491,7 +1838,7 @@ class BookingController extends Controller
         });
         $query->when(request('order_number'), function ($q) {
             $term = trim((string) request('order_number'));
-            if ($term === '') {
+            if (mb_strlen($term) < 3) {
                 return;
             }
 

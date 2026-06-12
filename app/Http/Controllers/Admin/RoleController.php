@@ -28,7 +28,7 @@ class RoleController extends Controller
             ->when(! $isSuperAdminActor, fn ($query) => $query->where('name', '!=', 'Super Admin'));
 
         $roles = (clone $rolesBaseQuery)
-            ->when($search !== '', function ($query) use ($search): void {
+            ->when(mb_strlen($search) >= 3, function ($query) use ($search): void {
                 $query->where(function ($searchQuery) use ($search): void {
                     $searchQuery->where('name', 'like', "%{$search}%")
                         ->orWhereHas('permissions', function ($permissionQuery) use ($search): void {
@@ -144,7 +144,7 @@ class RoleController extends Controller
 
         return redirect()
             ->route('roles.index')
-            ->with('success', 'Role created successfully.');
+            ->with('success', ui_phrase('Role created successfully.'));
     }
 
     public function edit(Role $role): View
@@ -222,7 +222,7 @@ class RoleController extends Controller
 
         return redirect()
             ->route('roles.index')
-            ->with('success', 'Role updated successfully.');
+            ->with('success', ui_phrase('Role updated successfully.'));
     }
 
     public function destroy(Role $role): RedirectResponse
@@ -236,7 +236,7 @@ class RoleController extends Controller
             $blockedLabel = $role->name === 'Super Admin' && ! $isSuperAdminActor ? 'This role' : $role->name;
             return redirect()
                 ->route('roles.index')
-                ->with('error', "The {$blockedLabel} role cannot be deleted.");
+                ->with('error', ui_phrase('The :role role cannot be deleted.', ['role' => $blockedLabel]));
         }
 
         $role->delete();
@@ -244,7 +244,7 @@ class RoleController extends Controller
 
         return redirect()
             ->route('roles.index')
-            ->with('success', 'Role deleted successfully.');
+            ->with('success', ui_phrase('Role deleted successfully.'));
     }
 
     private function getPermissionsGrouped(): array

@@ -25,6 +25,10 @@ class TouristAttractionController extends Controller
 
     public function index(Request $request)
     {
+        $validated = $request->validate([
+            'status' => ['nullable', Rule::in(['active', 'inactive'])],
+        ]);
+
         $perPage = (int) $request->input('per_page', 10);
         $perPage = in_array($perPage, [10, 25, 50, 100], true) ? $perPage : 10;
 
@@ -34,18 +38,22 @@ class TouristAttractionController extends Controller
 
         if ($request->filled('q')) {
             $term = trim((string) $request->input('q'));
-            $query->where(function ($builder) use ($term) {
-                $builder
-                    ->where('name', 'like', "%{$term}%")
-                    ->orWhere('location', 'like', "%{$term}%")
-                    ->orWhere('city', 'like', "%{$term}%")
-                    ->orWhere('province', 'like', "%{$term}%")
-                    ->orWhere('country', 'like', "%{$term}%");
-            });
+            if (mb_strlen($term) >= 3) {
+                $query->where(function ($builder) use ($term) {
+                    $builder
+                        ->where('name', 'like', "%{$term}%")
+                        ->orWhere('location', 'like', "%{$term}%")
+                        ->orWhere('city', 'like', "%{$term}%")
+                        ->orWhere('province', 'like', "%{$term}%")
+                        ->orWhere('country', 'like', "%{$term}%");
+                });
+            }
         }
         if ($request->filled('destination_id')) {
             $query->where('destination_id', (int) $request->input('destination_id'));
         }
+        $query->when(($validated['status'] ?? null) === 'active', fn ($q) => $q->whereNull('deleted_at'));
+        $query->when(($validated['status'] ?? null) === 'inactive', fn ($q) => $q->onlyTrashed());
 
         $touristAttractions = $query
             ->orderBy('name')

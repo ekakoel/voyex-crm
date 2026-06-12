@@ -24,7 +24,7 @@ class QuotationItinerarySyncService
         }
 
         $status = (string) ($quotation->status ?? '');
-        if (! in_array($status, ['draft', 'revised', 'pending_validation'], true)) {
+        if (! in_array($status, [Quotation::STATUS_DRAFT, Quotation::STATUS_NEED_VALIDATION, Quotation::STATUS_PENDING_VALIDATION, Quotation::STATUS_VALIDATED, Quotation::STATUS_READY_TO_SEND], true)) {
             return false;
         }
 
@@ -77,7 +77,7 @@ class QuotationItinerarySyncService
             $quotation->approvals()->delete();
             Quotation::withoutActivityLogging(function () use ($quotation, $totals): void {
                 $quotation->update([
-                    'status' => 'pending_validation',
+                    'status' => Quotation::STATUS_NEED_VALIDATION,
                     'sub_total' => (float) ($totals['sub_total'] ?? 0),
                     'final_amount' => (float) ($totals['final_amount'] ?? 0),
                     'approved_by' => null,

@@ -11,7 +11,7 @@
 @endphp
 
 <div class="app-card-stack">
-    <section class="app-card p-5 mb-3">
+    {{-- <section class="app-card p-5">
         <div>
             <h2 class="text-base font-semibold text-gray-800 dark:text-gray-100">{{ ui_phrase('Booking Insights') }}</h2>
             <p class="text-sm text-gray-500 dark:text-gray-400">{{ ui_phrase('Operational summary from current booking data.') }}</p>
@@ -31,7 +31,7 @@
                 <dd class="font-semibold text-gray-800 dark:text-gray-100">{{ $upcoming7Days }}</dd>
             </div>
         </dl>
-    </section>
+    </section> --}}
 
     <section class="app-card p-5">
         <div>

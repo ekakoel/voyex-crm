@@ -245,10 +245,17 @@
                         <td class="px-3 py-2 text-right">
                             <div class="flex items-center justify-end gap-2">
                                 @if ($isBooked && $item && ! $isCancelled && $item->voucher)
+                                    <span class="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-900/30 dark:text-slate-200">
+                                        {{ ui_phrase('Voucher') }}: {{ ui_phrase((string) ($item->voucher->status ?? \App\Models\BookingItemVoucher::STATUS_DRAFT)) }}
+                                        @if (!empty($item->voucher->revision_number))
+                                            (R{{ (int) $item->voucher->revision_number }})
+                                        @endif
+                                    </span>
                                     @if (($sourceUpdatedMap[$item->id] ?? false) === true)
-                                        <form action="{{ route('booking-items.voucher.generate', $item) }}" method="POST" class="inline">
+                                        <span class="text-xs text-amber-700 dark:text-amber-300">{{ ui_phrase('Source updated. Please reissue voucher.') }}</span>
+                                        <form action="{{ route('booking-items.voucher.reissue', $item) }}" method="POST" class="inline">
                                             @csrf
-                                            <button type="submit" class="btn-outline-sm" title="{{ ui_phrase('Regenerate Voucher') }}" aria-label="{{ ui_phrase('Regenerate Voucher') }}">
+                                            <button type="submit" class="btn-outline-sm" title="{{ ui_phrase('Reissue Voucher') }}" aria-label="{{ ui_phrase('Reissue Voucher') }}">
                                                 <i class="fa-solid fa-rotate"></i>
                                             </button>
                                         </form>
@@ -260,7 +267,7 @@
                                         x-on:click.prevent="openVoucherModal($el)"
                                         data-voucher-number="{{ $item->voucher->voucher_number }}"
                                         data-voucher-item="{{ $displayDescription }}"
-                                        data-booking-summary="{{ ui_phrase(':service was booked by :user on :datetime.', ['service' => $voucherToName, 'user' => ($latestBookingLog?->creator?->name ?? 'Unknown user'), 'datetime' => (optional($latestBookingLog?->created_at)->format('Y-m-d (H:i)') ?? '-')]) }}"
+                                        data-booking-summary="{{ ui_phrase(':service was booked by :user on :datetime.', ['service' => $voucherToName, 'user' => ui_user_name($latestBookingLog?->creator, 'Unknown user'), 'datetime' => (optional($latestBookingLog?->created_at)->format('Y-m-d (H:i)') ?? '-')]) }}"
                                         data-booking-at="{{ $bookingAtValue }}"
                                         data-booking-channel="{{ $bookingChannelValue }}"
                                         data-booking-contacted="{{ $bookingContactedValue }}"
@@ -287,11 +294,31 @@
                                 @elseif ($isBooked && $item)
                                     @if ($isCancelled)
                                         <span class="text-xs text-rose-600">{{ ui_phrase('Cancellation Fee') }}: {{ \App\Support\Currency::format((float) ($item->cancellation_fee ?? 0), 'IDR') }}</span>
+                                        @php
+                                            $appliedPolicy = is_array($item->cancellation_policy_snapshot['applied'] ?? null) ? $item->cancellation_policy_snapshot['applied'] : [];
+                                            $appliedSource = (string) ($appliedPolicy['source'] ?? '');
+                                            $appliedPolicyName = (string) data_get($appliedPolicy, 'policy.name', '');
+                                        @endphp
+                                        @if ($appliedSource !== '')
+                                            <span class="text-xs text-slate-600 dark:text-slate-300">
+                                                {{ ui_phrase('Policy Source') }}:
+                                                {{ $appliedSource === 'policy' ? ($appliedPolicyName !== '' ? $appliedPolicyName : ui_phrase('Active Policy')) : ui_phrase('Manual Fallback') }}
+                                            </span>
+                                        @endif
                                         <button type="button" class="btn-outline-sm" title="{{ ui_phrase('Edit Booking Service') }}" x-on:click.prevent="$dispatch('open-modal', 'edit-book-service-modal-edit-{{ $quotationItem->id }}')">
                                             <i class="fa-solid fa-pen"></i>
                                         </button>
                                     @else
-                                        <span class="text-xs text-gray-500">{{ ui_phrase('Voucher is being prepared.') }}</span>
+                                        @if (! $item->isVendorConfirmed())
+                                            <span class="text-xs text-amber-600">{{ ui_phrase('Voucher blocked until vendor confirmed.') }}</span>
+                                        @else
+                                            <form action="{{ route('booking-items.voucher.generate', $item) }}" method="POST" class="inline">
+                                                @csrf
+                                                <button type="submit" class="btn-outline-sm" title="{{ ui_phrase('Generate Voucher') }}" aria-label="{{ ui_phrase('Generate Voucher') }}">
+                                                    <i class="fa-solid fa-ticket"></i>
+                                                </button>
+                                            </form>
+                                        @endif
                                     @endif
                                 @else
                                     <button type="button" class="btn-secondary-sm" title="{{ ui_phrase('Book') }}" x-on:click.prevent="$dispatch('open-modal', 'book-service-modal-edit-{{ $quotationItem->id }}')">

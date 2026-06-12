@@ -83,7 +83,7 @@
                                     $properties = is_array($log->properties) ? $log->properties : [];
                                     $itemType = ui_entity((string) ($properties['item_type'] ?? 'unknown'));
                                     $itemName = (string) ($properties['item_name'] ?? '-');
-                                    $creatorName = (string) ($properties['creator_name'] ?? '-');
+                                    $creatorName = ui_user_name($log->user, (string) ($properties['creator_name'] ?? '-'));
                                     $editUrl = (string) ($properties['edit_url'] ?? '');
                                 @endphp
                                 <div class="rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-800/40">
@@ -151,6 +151,5 @@
         </div>
     </div>
 @endsection
-
 
 

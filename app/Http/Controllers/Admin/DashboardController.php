@@ -59,7 +59,7 @@ class DashboardController extends Controller
         |--------------------------------------------------------------------------
         */
         $deadlineQuotations = $canQuotations
-            ? Quotation::where('status', 'revised')
+            ? Quotation::whereIn('status', [Quotation::STATUS_DRAFT, Quotation::STATUS_PENDING_VALIDATION, Quotation::STATUS_VALIDATED])
                 ->whereDate('validity_date', '<=', Carbon::now()->addDays(7))
                 ->orderBy('validity_date')
                 ->get()

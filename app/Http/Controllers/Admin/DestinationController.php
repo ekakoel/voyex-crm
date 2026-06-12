@@ -16,20 +16,28 @@ class DestinationController extends Controller
 {
     public function index(Request $request)
     {
+        $validated = $request->validate([
+            'status' => ['nullable', Rule::in(['active', 'inactive'])],
+        ]);
+
         $query = Destination::query()
             ->withTrashed()
             ->withCount(['vendors', 'hotels', 'touristAttractions', 'airports'])
             ->latest('id');
 
         if ($request->filled('q')) {
-            $term = (string) $request->string('q');
-            $query->where(function ($q) use ($term) {
-                $q->where('code', 'like', "%{$term}%")
-                    ->orWhere('name', 'like', "%{$term}%")
-                    ->orWhere('city', 'like', "%{$term}%")
-                    ->orWhere('province', 'like', "%{$term}%");
-            });
+            $term = trim((string) $request->string('q'));
+            if (mb_strlen($term) >= 3) {
+                $query->where(function ($q) use ($term) {
+                    $q->where('code', 'like', "%{$term}%")
+                        ->orWhere('name', 'like', "%{$term}%")
+                        ->orWhere('city', 'like', "%{$term}%")
+                        ->orWhere('province', 'like', "%{$term}%");
+                });
+            }
         }
+        $query->when(($validated['status'] ?? null) === 'active', fn ($q) => $q->whereNull('deleted_at'));
+        $query->when(($validated['status'] ?? null) === 'inactive', fn ($q) => $q->onlyTrashed());
 
         $perPage = (int) $request->input('per_page', 10);
         $perPage = in_array($perPage, [10, 25, 50, 100], true) ? $perPage : 10;
@@ -48,7 +56,7 @@ class DestinationController extends Controller
         $validated = $this->validatePayload($request, null);
         Destination::query()->create($validated);
 
-        return redirect()->route('destinations.index')->with('success', 'Destination created successfully.');
+        return redirect()->route('destinations.index')->with('success', ui_phrase('Destination created successfully.'));
     }
 
     public function show(Destination $destination)
@@ -203,14 +211,14 @@ class DestinationController extends Controller
         $validated = $this->validatePayload($request, $destination);
         $destination->update($validated);
 
-        return redirect()->route('destinations.index')->with('success', 'Destination updated successfully.');
+        return redirect()->route('destinations.index')->with('success', ui_phrase('Destination updated successfully.'));
     }
 
     public function destroy(Destination $destination)
     {
         $destination->delete();
 
-        return redirect()->route('destinations.index')->with('success', 'Destination deactivated successfully.');
+        return redirect()->route('destinations.index')->with('success', ui_phrase('Destination deactivated successfully.'));
     }
 
     public function toggleStatus($destination)
@@ -222,7 +230,7 @@ class DestinationController extends Controller
 
             return redirect()
                 ->route('destinations.index')
-                ->with('success', 'Destination activated successfully.');
+                ->with('success', ui_phrase('Destination activated successfully.'));
         }
 
         $destination->update(['is_active' => false]);
@@ -230,7 +238,7 @@ class DestinationController extends Controller
 
         return redirect()
             ->route('destinations.index')
-            ->with('success', 'Destination deactivated successfully.');
+            ->with('success', ui_phrase('Destination deactivated successfully.'));
     }
 
     private function validatePayload(Request $request, ?Destination $destination): array

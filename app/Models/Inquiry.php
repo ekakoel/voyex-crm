@@ -44,6 +44,7 @@ class Inquiry extends Model
         'status',
         'priority',
         'assigned_to',
+        'handled_by',
         'deadline',
         'notes',
         'reminder_enabled',
@@ -54,18 +55,29 @@ class Inquiry extends Model
 
     public function quotation()
     {
-        // Backward-compatible alias: latest linked quotation.
-        return $this->hasOne(Quotation::class)->latestOfMany('id');
+        return $this->hasOne(Quotation::class)->withTrashed();
     }
 
     public function quotations()
     {
+        // Backward-compatible collection relation. The database and service layer
+        // enforce that this collection contains at most one quotation.
         return $this->hasMany(Quotation::class);
     }
 
     public function customer()
     {
         return $this->belongsTo(Customer::class);
+    }
+
+    public function handledBy()
+    {
+        return $this->belongsTo(User::class, 'handled_by');
+    }
+
+    public function assignedTo()
+    {
+        return $this->belongsTo(User::class, 'assigned_to');
     }
 
     public function followUps()
@@ -93,6 +105,19 @@ class Inquiry extends Model
     public function isFinal(): bool
     {
         return $this->status === self::FINAL_STATUS;
+    }
+
+    public function hasLinkedQuotation(): bool
+    {
+        if ($this->relationLoaded('quotation')) {
+            return (bool) $this->quotation;
+        }
+
+        if ($this->relationLoaded('quotations')) {
+            return $this->quotations->isNotEmpty();
+        }
+
+        return $this->quotation()->exists();
     }
 
     protected static function boot()
@@ -168,5 +193,3 @@ class Inquiry extends Model
         return $letters;
     }
 }
-
-

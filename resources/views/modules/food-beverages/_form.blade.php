@@ -5,36 +5,55 @@
     $destinations = $destinations ?? collect();
     $serviceTypes = $serviceTypes ?? [];
     $standardServiceTypes = $standardServiceTypes ?? [];
-    $selectedServiceType = (string) old('service_type', $foodBeverage->service_type ?? ($prefill['service_type'] ?? ''));
+    $selectedServiceType = (string) old('service_type', $foodBeverage?->service_type ?? ($prefill['service_type'] ?? ''));
     $isLegacyServiceType = $selectedServiceType !== '' && ! in_array($selectedServiceType, $standardServiceTypes, true);
-    $selectedDestinationId = (int) old('destination_filter_id', $foodBeverage->vendor->destination_id ?? 0);
-    $defaultMarkupType = old('markup_type', $foodBeverage->markup_type ?? ($prefill['markup_type'] ?? 'fixed'));
+    $selectedDestinationId = (int) old('destination_filter_id', $foodBeverage?->vendor?->destination_id ?? ($prefill['destination_filter_id'] ?? 0));
+    $defaultAdultMarkupType = old('adult_markup_type', $foodBeverage?->adult_markup_type ?? $foodBeverage?->markup_type ?? ($prefill['adult_markup_type'] ?? $prefill['markup_type'] ?? 'fixed'));
+    $defaultChildMarkupType = old('child_markup_type', $foodBeverage?->child_markup_type ?? ($prefill['child_markup_type'] ?? 'fixed'));
     $activeCurrencyCode = strtoupper((string) (\App\Support\Currency::current() ?: 'IDR'));
     $toDisplayMoney = static function ($amount) use ($activeCurrencyCode): float {
         return round(\App\Support\Currency::convert((float) ($amount ?? 0), 'IDR', $activeCurrencyCode), 0);
     };
-    $defaultMarkup = old('markup');
-    $existingGalleryImages = is_array($foodBeverage->gallery_images ?? null) ? $foodBeverage->gallery_images : [];
-    if ($defaultMarkup === null) {
-        $defaultMarkup = $foodBeverage->markup ?? ($prefill['markup'] ?? null);
+    $defaultAdultMarkup = old('adult_markup');
+    $defaultChildMarkup = old('child_markup');
+    $existingGalleryImages = is_array($foodBeverage?->gallery_images ?? null) ? $foodBeverage?->gallery_images : [];
+    if ($defaultAdultMarkup === null) {
+        $defaultAdultMarkup = $foodBeverage?->adult_markup ?? $foodBeverage?->markup ?? ($prefill['adult_markup'] ?? $prefill['markup'] ?? null);
     }
-    if ($defaultMarkup === null) {
-        $defaultMarkup = max(0, (float) (($foodBeverage->publish_rate ?? ($prefill['publish_rate'] ?? 0)) - ($foodBeverage->contract_rate ?? ($prefill['contract_rate'] ?? 0))));
+    if ($defaultAdultMarkup === null) {
+        $defaultAdultMarkup = max(0, (float) (($foodBeverage?->adult_publish_rate ?? $foodBeverage?->publish_rate ?? ($prefill['adult_publish_rate'] ?? $prefill['publish_rate'] ?? 0)) - ($foodBeverage?->adult_contract_rate ?? $foodBeverage?->contract_rate ?? ($prefill['adult_contract_rate'] ?? $prefill['contract_rate'] ?? 0))));
     }
-    if (old('markup') === null && $defaultMarkupType !== 'percent') {
-        $defaultMarkup = $toDisplayMoney($defaultMarkup);
+    if (old('adult_markup') === null && $defaultAdultMarkupType !== 'percent') {
+        $defaultAdultMarkup = $toDisplayMoney($defaultAdultMarkup);
     }
-    $contractRateValue = old('contract_rate');
-    if ($contractRateValue === null) {
-        $contractRateValue = $toDisplayMoney($foodBeverage->contract_rate ?? ($prefill['contract_rate'] ?? ($prefill['contract_price'] ?? 0)));
+    if ($defaultChildMarkup === null) {
+        $defaultChildMarkup = $foodBeverage?->child_markup ?? ($prefill['child_markup'] ?? null);
     }
-    $publishRateValue = old('publish_rate');
-    if ($publishRateValue === null) {
-        $publishRateValue = $toDisplayMoney($foodBeverage->publish_rate ?? ($prefill['publish_rate'] ?? ($prefill['agent_price'] ?? 0)));
+    if ($defaultChildMarkup === null) {
+        $defaultChildMarkup = max(0, (float) (($foodBeverage?->child_publish_rate ?? ($prefill['child_publish_rate'] ?? 0)) - ($foodBeverage?->child_contract_rate ?? ($prefill['child_contract_rate'] ?? 0))));
+    }
+    if (old('child_markup') === null && $defaultChildMarkupType !== 'percent') {
+        $defaultChildMarkup = $toDisplayMoney($defaultChildMarkup);
+    }
+    $adultContractRateValue = old('adult_contract_rate');
+    if ($adultContractRateValue === null) {
+        $adultContractRateValue = $toDisplayMoney($foodBeverage?->adult_contract_rate ?? $foodBeverage?->contract_rate ?? ($prefill['adult_contract_rate'] ?? ($prefill['contract_rate'] ?? ($prefill['contract_price'] ?? 0))));
+    }
+    $adultPublishRateValue = old('adult_publish_rate');
+    if ($adultPublishRateValue === null) {
+        $adultPublishRateValue = $toDisplayMoney($foodBeverage?->adult_publish_rate ?? $foodBeverage?->publish_rate ?? ($prefill['adult_publish_rate'] ?? ($prefill['publish_rate'] ?? ($prefill['agent_price'] ?? 0))));
+    }
+    $childContractRateValue = old('child_contract_rate');
+    if ($childContractRateValue === null) {
+        $childContractRateValue = $toDisplayMoney($foodBeverage?->child_contract_rate ?? ($prefill['child_contract_rate'] ?? 0));
+    }
+    $childPublishRateValue = old('child_publish_rate');
+    if ($childPublishRateValue === null) {
+        $childPublishRateValue = $toDisplayMoney($foodBeverage?->child_publish_rate ?? ($prefill['child_publish_rate'] ?? 0));
     }
     $mealPeriodSource = old('meal_periods');
     if ($mealPeriodSource === null) {
-        $mealPeriodSource = $foodBeverage->meal_period ?? ($prefill['meal_period'] ?? '');
+        $mealPeriodSource = $foodBeverage?->meal_period ?? ($prefill['meal_period'] ?? '');
     }
     if (is_array($mealPeriodSource)) {
         $selectedMealPeriods = array_values(array_filter(array_map(
@@ -130,7 +149,7 @@
                 @foreach ($vendors as $vendor)
                     <option value="{{ $vendor->id }}"
                         data-destination-id="{{ (int) ($vendor->destination_id ?? 0) }}"
-                        @selected((int) old('vendor_id', $foodBeverage->vendor_id ?? ($prefill['vendor_id'] ?? 0)) === (int) $vendor->id)>
+                        @selected((int) old('vendor_id', $foodBeverage?->vendor_id ?? ($prefill['vendor_id'] ?? 0)) === (int) $vendor->id)>
                         {{ $vendor->name }}{{ ($vendor->city || $vendor->province) ? ' ('.trim(($vendor->city ?? '-').' / '.($vendor->province ?? '-')).')' : '' }}
                     </option>
                 @endforeach
@@ -139,7 +158,7 @@
         </div>
         <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Service Name') }}</label>
-            <input name="name" value="{{ old('name', $foodBeverage->name ?? ($prefill['name'] ?? '')) }}" class="mt-1 dark:border-gray-600 app-input" required>
+            <input name="name" value="{{ old('name', $foodBeverage?->name ?? ($prefill['name'] ?? '')) }}" class="mt-1 dark:border-gray-600 app-input" required>
             @error('name') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
         </div>
     </div>
@@ -164,7 +183,7 @@
         </div>
         <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Duration (minutes)') }}</label>
-            <input name="duration_minutes" type="number" min="15" max="1440" value="{{ old('duration_minutes', $foodBeverage->duration_minutes ?? ($prefill['duration_minutes'] ?? 60)) }}" class="mt-1 dark:border-gray-600 app-input" required>
+            <input name="duration_minutes" type="number" min="15" max="1440" value="{{ old('duration_minutes', $foodBeverage?->duration_minutes ?? ($prefill['duration_minutes'] ?? 60)) }}" class="mt-1 dark:border-gray-600 app-input" required>
             @error('duration_minutes') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
         </div>
         <div class="md:col-span-2">
@@ -183,66 +202,113 @@
         </div>
     </div>
 
-    <div class="grid grid-cols-1 gap-4 md:grid-cols-4">
-        <div>
-            <x-money-input
-                label="Contract Rate (per pax)"
-                name="contract_rate"
-                :value="$contractRateValue"
-                id="food-beverage-contract-rate"
-                min="0"
-                step="1"
-            />
-            @error('contract_rate') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+    <div class="space-y-4">
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-4">
+            <div>
+                <x-money-input
+                    label="Adult Contract Rate (per pax)"
+                    name="adult_contract_rate"
+                    :value="$adultContractRateValue"
+                    id="food-beverage-adult-contract-rate"
+                    min="0"
+                    step="1"
+                />
+                @error('adult_contract_rate') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Adult Markup Type') }}</label>
+                <select name="adult_markup_type" id="food-beverage-adult-markup-type" class="mt-1 dark:border-gray-600 app-input">
+                    <option value="fixed" @selected($defaultAdultMarkupType === 'fixed')>{{ ui_phrase('Fixed') }}</option>
+                    <option value="percent" @selected($defaultAdultMarkupType === 'percent')>{{ ui_phrase('Percent') }}</option>
+                </select>
+                @error('adult_markup_type') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+            </div>
+            <div>
+                <x-money-input
+                    label="Adult Markup (per pax)"
+                    name="adult_markup"
+                    :value="$defaultAdultMarkup"
+                    id="food-beverage-adult-markup"
+                    min="0"
+                    step="1"
+                />
+                @error('adult_markup') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+            </div>
+            <div>
+                <x-money-input
+                    label="Adult Publish Rate (Auto / per pax)"
+                    name="adult_publish_rate"
+                    id="food-beverage-adult-publish-rate"
+                    :value="$adultPublishRateValue"
+                    min="0"
+                    step="1"
+                    readonly
+                />
+                @error('adult_publish_rate') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+            </div>
         </div>
-        <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Markup Type') }}</label>
-            <select name="markup_type" id="food-beverage-markup-type" class="mt-1 dark:border-gray-600 app-input">
-                <option value="fixed" @selected($defaultMarkupType === 'fixed')>{{ ui_phrase('Fixed') }}</option>
-                <option value="percent" @selected($defaultMarkupType === 'percent')>{{ ui_phrase('Percent') }}</option>
-            </select>
-            @error('markup_type') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
-        </div>
-        <div>
-            <x-money-input
-                label="Markup (per pax)"
-                name="markup"
-                :value="$defaultMarkup"
-                id="food-beverage-markup"
-                min="0"
-                step="1"
-            />
-            @error('markup') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
-        </div>
-        <div>
-            <x-money-input
-                label="Publish Rate (Auto / per pax)"
-                name="publish_rate"
-                id="food-beverage-publish-rate"
-                :value="$publishRateValue"
-                min="0"
-                step="1"
-                readonly
-            />
-            @error('publish_rate') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-4">
+            <div>
+                <x-money-input
+                    label="Child Contract Rate (per pax)"
+                    name="child_contract_rate"
+                    :value="$childContractRateValue"
+                    id="food-beverage-child-contract-rate"
+                    min="0"
+                    step="1"
+                />
+                @error('child_contract_rate') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Child Markup Type') }}</label>
+                <select name="child_markup_type" id="food-beverage-child-markup-type" class="mt-1 dark:border-gray-600 app-input">
+                    <option value="fixed" @selected($defaultChildMarkupType === 'fixed')>{{ ui_phrase('Fixed') }}</option>
+                    <option value="percent" @selected($defaultChildMarkupType === 'percent')>{{ ui_phrase('Percent') }}</option>
+                </select>
+                @error('child_markup_type') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+            </div>
+            <div>
+                <x-money-input
+                    label="Child Markup (per pax)"
+                    name="child_markup"
+                    :value="$defaultChildMarkup"
+                    id="food-beverage-child-markup"
+                    min="0"
+                    step="1"
+                />
+                @error('child_markup') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+            </div>
+            <div>
+                <x-money-input
+                    label="Child Publish Rate (Auto / per pax)"
+                    name="child_publish_rate"
+                    id="food-beverage-child-publish-rate"
+                    :value="$childPublishRateValue"
+                    min="0"
+                    step="1"
+                    readonly
+                />
+                @error('child_publish_rate') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+            </div>
         </div>
     </div>
 
     <div>
         <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Menu Highlights') }}</label>
-        <textarea name="menu_highlights" rows="3" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">{{ old('menu_highlights', $foodBeverage->menu_highlights ?? ($prefill['menu_highlights'] ?? '')) }}</textarea>
+        <textarea name="menu_highlights" rows="3" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">{{ old('menu_highlights', $foodBeverage?->menu_highlights ?? ($prefill['menu_highlights'] ?? '')) }}</textarea>
         @error('menu_highlights') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
     </div>
 
     <div>
         <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Cancellation Policy') }}</label>
-        <textarea name="cancellation_policy" rows="3" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">{{ old('cancellation_policy', $foodBeverage->cancellation_policy ?? ($prefill['cancellation_policy'] ?? '')) }}</textarea>
+        <textarea name="cancellation_policy" rows="3" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">{{ old('cancellation_policy', $foodBeverage?->cancellation_policy ?? ($prefill['cancellation_policy'] ?? '')) }}</textarea>
         @error('cancellation_policy') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
     </div>
 
     <div>
         <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Notes') }}</label>
-        <textarea name="notes" rows="3" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">{{ old('notes', $foodBeverage->notes ?? ($prefill['notes'] ?? '')) }}</textarea>
+        <textarea name="notes" rows="3" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">{{ old('notes', $foodBeverage?->notes ?? ($prefill['notes'] ?? '')) }}</textarea>
         @error('notes') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
     </div>
 
@@ -250,7 +316,7 @@
 
     <div class="flex items-center gap-2">
         <input type="checkbox" name="is_active" value="1" class="rounded border-gray-300 text-indigo-600"
-            @checked(old('is_active', $foodBeverage->is_active ?? ($prefill['is_active'] ?? true)))>
+            @checked(old('is_active', $foodBeverage?->is_active ?? ($prefill['is_active'] ?? true)))>
         <span class="text-sm text-gray-700 dark:text-gray-200">{{ ui_phrase('Active') }}</span>
     </div>
 
@@ -268,10 +334,20 @@
                 const vendorSelect = document.getElementById('food-beverage-vendor-select');
                 const input = document.getElementById('food-beverage-gallery-input');
                 const preview = document.getElementById('food-beverage-gallery-preview');
-                const contractRateInput = document.getElementById('food-beverage-contract-rate');
-                const markupTypeSelect = document.getElementById('food-beverage-markup-type');
-                const markupInput = document.getElementById('food-beverage-markup');
-                const publishRateInput = document.getElementById('food-beverage-publish-rate');
+                const pricingGroups = [
+                    {
+                        contractRateInput: document.getElementById('food-beverage-adult-contract-rate'),
+                        markupTypeSelect: document.getElementById('food-beverage-adult-markup-type'),
+                        markupInput: document.getElementById('food-beverage-adult-markup'),
+                        publishRateInput: document.getElementById('food-beverage-adult-publish-rate'),
+                    },
+                    {
+                        contractRateInput: document.getElementById('food-beverage-child-contract-rate'),
+                        markupTypeSelect: document.getElementById('food-beverage-child-markup-type'),
+                        markupInput: document.getElementById('food-beverage-child-markup'),
+                        publishRateInput: document.getElementById('food-beverage-child-publish-rate'),
+                    },
+                ];
                 if (!input || !preview) return;
 
                 const parseMoney = (value) => {
@@ -289,7 +365,7 @@
                     return Number.isFinite(numeric) ? numeric : 0;
                 };
 
-                const syncMarkupBadge = () => {
+                const syncMarkupBadge = (markupInput, markupTypeSelect) => {
                     if (!markupInput || !markupTypeSelect) return;
                     const badge = markupInput.parentElement?.querySelector('[data-money-badge="1"]');
                     if (!badge) return;
@@ -298,7 +374,8 @@
                         : (window.appCurrencySymbol || window.appCurrency || 'IDR');
                 };
 
-                const recalcPublishRate = () => {
+                const recalcPublishRate = (group) => {
+                    const { contractRateInput, markupTypeSelect, markupInput, publishRateInput } = group || {};
                     if (!publishRateInput || !contractRateInput || !markupInput || !markupTypeSelect) return;
 
                     const contractRate = parseMoney(contractRateInput.value);
@@ -315,7 +392,7 @@
                         : contractRate + markupValue;
 
                     publishRateInput.value = String(Math.max(0, Math.round(publishRate)));
-                    syncMarkupBadge();
+                    syncMarkupBadge(markupInput, markupTypeSelect);
                 };
 
                 const applyVendorFilter = () => {
@@ -412,9 +489,11 @@
 
                 input.addEventListener('change', renderNewUploads);
                 destinationFilter?.addEventListener('change', applyVendorFilter);
-                contractRateInput?.addEventListener('input', recalcPublishRate);
-                markupInput?.addEventListener('input', recalcPublishRate);
-                markupTypeSelect?.addEventListener('change', recalcPublishRate);
+                pricingGroups.forEach((group) => {
+                    group.contractRateInput?.addEventListener('input', () => recalcPublishRate(group));
+                    group.markupInput?.addEventListener('input', () => recalcPublishRate(group));
+                    group.markupTypeSelect?.addEventListener('change', () => recalcPublishRate(group));
+                });
 
                 preview.addEventListener('click', async (event) => {
                     const button = event.target.closest('.food-beverage-gallery-remove-btn');
@@ -459,7 +538,7 @@
 
                 ensureEmptyState();
                 applyVendorFilter();
-                recalcPublishRate();
+                pricingGroups.forEach((group) => recalcPublishRate(group));
             })();
         </script>
     @endpush

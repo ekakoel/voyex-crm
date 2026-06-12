@@ -10,13 +10,6 @@
     <div class="space-y-6 module-page module-page--company-settings">
         <div class="module-grid-8-4">
             <div class="module-grid-main">
-        
-
-        @if (session('success'))
-            <div class="rounded-lg mb-6 border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300">
-                {{ session('success') }}
-            </div>
-        @endif
 
         <div class="module-form-wrap">
             <form method="POST" action="{{ route('company-settings.update') }}" enctype="multipart/form-data" class="space-y-6" data-location-autofill data-location-resolve-url="{{ route('location.resolve-google-map') }}">
@@ -174,3 +167,4 @@
         </div>
     </div>
 @endsection
+

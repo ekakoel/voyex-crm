@@ -37,7 +37,7 @@
                                         <span class="font-semibold text-gray-800 dark:text-gray-100">{{ number_format((float) $history->new_rate_to_idr, 6, '.', ',') }}</span>
                                     </div>
                                     <div class="mt-1 text-[11px] text-gray-500 dark:text-gray-400">
-                                        {{ ui_phrase('Updated by') }}: {{ $history->changer?->name ?? '-' }}
+                                        {{ ui_phrase('Updated by') }}: {{ ui_user_name($history->changer) }}
                                     </div>
                                 </div>
                             @endforeach

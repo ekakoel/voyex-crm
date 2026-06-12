@@ -28,6 +28,7 @@ class QuotationValidationService
     public const STATUS_PENDING = 'pending';
     public const STATUS_PARTIAL = 'partial';
     public const STATUS_VALID = 'valid';
+    public const STATUS_VALIDATED = 'validated';
 
     public function isValidationActor($user): bool
     {
@@ -446,8 +447,29 @@ class QuotationValidationService
             }
 
             $this->applyItemUpdate($quotation, $item, $payload, $actorId, 'save_item', false);
+            $item->refresh();
 
-            return $this->refreshProgress($quotation, $actorId);
+            $affectedItems = [$item];
+            $relatedItems = $this->findMatchingQuotationItems($quotation, $item);
+            foreach ($relatedItems as $relatedItem) {
+                $this->applyItemUpdate($quotation, $relatedItem, [
+                    'qty' => (int) ($relatedItem->qty ?? 1),
+                    'contract_rate' => (float) ($item->contract_rate ?? 0),
+                    'markup_type' => (string) ($item->markup_type ?? 'fixed'),
+                    'markup' => (float) ($item->markup ?? 0),
+                    'validation_notes' => (string) ($item->validation_notes ?? ''),
+                    'is_validated' => (bool) ($item->is_validated ?? false),
+                ], $actorId, 'propagate_item_validation', false);
+                $affectedItems[] = $relatedItem->fresh();
+            }
+
+            return [
+                'progress' => $this->refreshProgress($quotation, $actorId),
+                'items' => collect($affectedItems)
+                    ->unique(fn (QuotationItem $affectedItem) => (int) $affectedItem->id)
+                    ->values()
+                    ->all(),
+            ];
         });
     }
 
@@ -592,7 +614,10 @@ class QuotationValidationService
             return true;
         }
 
-        return (string) ($quotation->validation_status ?? self::STATUS_PENDING) === self::STATUS_VALID;
+        return in_array((string) ($quotation->validation_status ?? self::STATUS_PENDING), [
+            self::STATUS_VALID,
+            self::STATUS_VALIDATED,
+        ], true);
     }
 
     private function applyItemUpdate(
@@ -680,10 +705,20 @@ class QuotationValidationService
             $patch['last_validated_contract_rate'] = $newContractRate;
             $patch['last_validated_markup_type'] = $newMarkupType;
             $patch['last_validated_markup'] = $newMarkup;
+            if (! in_array((string) ($item->status ?? QuotationItem::STATUS_ACTIVE), [
+                QuotationItem::STATUS_CANCELLED_FREE,
+                QuotationItem::STATUS_CANCELLED_WITH_CHARGE,
+                QuotationItem::STATUS_USED,
+            ], true)) {
+                $patch['status'] = QuotationItem::STATUS_VALIDATED;
+            }
         } else {
             $patch['is_validated'] = false;
             $patch['validated_at'] = null;
             $patch['validated_by'] = null;
+            if ((string) ($item->status ?? '') === QuotationItem::STATUS_VALIDATED) {
+                $patch['status'] = QuotationItem::STATUS_ACTIVE;
+            }
         }
 
         if ($patch !== []) {
@@ -691,8 +726,14 @@ class QuotationValidationService
             $item->save();
         }
 
+        $shouldSyncMasterRate = $hasRateChange
+            || (
+                $newIsValidated
+                && $this->isServiceableType((string) ($item->serviceable_type ?? ''), FoodBeverage::class)
+            );
+
         $sourceUpdate = null;
-        if ($hasRateChange) {
+        if ($shouldSyncMasterRate) {
             $sourceUpdate = $this->updateMasterRateFromItem($quotation, $item->fresh(), $actorId, $patch['validation_notes'] ?? null);
         }
 
@@ -964,12 +1005,26 @@ class QuotationValidationService
                 return null;
             }
 
-            $food->update([
-                'contract_rate' => $contractRate,
-                'markup_type' => $markupType,
-                'markup' => $markup,
-                'publish_rate' => $publishRate,
-            ]);
+            $paxType = strtolower((string) Arr::get($item->serviceable_meta ?? [], 'pax_type', 'adult'));
+            if ($paxType === 'child') {
+                $food->update([
+                    'child_contract_rate' => $contractRate,
+                    'child_markup_type' => $markupType,
+                    'child_markup' => $markup,
+                    'child_publish_rate' => $publishRate,
+                ]);
+            } else {
+                $food->update([
+                    'adult_contract_rate' => $contractRate,
+                    'adult_markup_type' => $markupType,
+                    'adult_markup' => $markup,
+                    'adult_publish_rate' => $publishRate,
+                    'contract_rate' => $contractRate,
+                    'markup_type' => $markupType,
+                    'markup' => $markup,
+                    'publish_rate' => $publishRate,
+                ]);
+            }
 
             $history = $this->upsertActiveServiceRateHistory(
                 quotation: $quotation,
@@ -991,6 +1046,7 @@ class QuotationValidationService
                 'type' => FoodBeverage::class,
                 'id' => $food->id,
                 'snapshot' => [
+                    'pax_type' => $paxType,
                     'publish_rate' => $publishRate,
                     'history_action' => $history->wasRecentlyCreated ? 'created' : 'updated',
                 ],
@@ -1253,6 +1309,10 @@ class QuotationValidationService
             $progress = $this->getProgress($quotation);
         }
 
+        app(\App\Services\Quotation\QuotationStatusService::class)->syncStatus($quotation);
+        $quotation->refresh();
+        $progress = $this->getProgress($quotation);
+
         $this->syncPrivilegedCreatorApprovalStatus($quotation);
 
         return $progress;
@@ -1269,8 +1329,8 @@ class QuotationValidationService
 
         if ($canAutoApprove) {
             $patch = [];
-            if ((string) ($quotation->status ?? '') !== 'accepted') {
-                $patch['status'] = 'accepted';
+            if (! $quotation->isStatus(Quotation::STATUS_CUSTOMER_APPROVED)) {
+                $patch['status'] = Quotation::STATUS_CUSTOMER_APPROVED;
             }
             if ((int) ($quotation->approved_by ?? 0) !== $creatorId) {
                 $patch['approved_by'] = $creatorId > 0 ? $creatorId : null;
@@ -1287,9 +1347,9 @@ class QuotationValidationService
             return;
         }
 
-        if ((string) ($quotation->status ?? '') === 'accepted') {
+        if ($quotation->isStatus(Quotation::STATUS_CUSTOMER_APPROVED)) {
             $quotation->update([
-                'status' => 'pending_validation',
+                'status' => Quotation::STATUS_PENDING_VALIDATION,
                 'approved_by' => null,
                 'approved_at' => null,
             ]);
@@ -1435,16 +1495,21 @@ class QuotationValidationService
         $discount = (float) ($item->discount ?? 0);
         $total = $this->computeItemTotal((int) ($item->qty ?? 1), $unitPrice, $discountType, $discount);
 
-        $item->fill([
+        $patch = [
             'contract_rate' => $masterContractRate,
             'markup_type' => $masterMarkupType,
             'markup' => $masterMarkup,
             'unit_price' => $unitPrice,
             'total' => $total,
-            'is_validated' => false,
-            'validated_at' => null,
-            'validated_by' => null,
-        ]);
+        ];
+
+        if (! (bool) ($item->is_validated ?? false)) {
+            $patch['is_validated'] = false;
+            $patch['validated_at'] = null;
+            $patch['validated_by'] = null;
+        }
+
+        $item->fill($patch);
         $item->save();
 
         return true;
@@ -1473,10 +1538,19 @@ class QuotationValidationService
         }
 
         if ($serviceable instanceof FoodBeverage) {
+            $paxType = strtolower((string) Arr::get($meta, 'pax_type', 'adult'));
+            if ($paxType === 'child') {
+                return [
+                    'contract_rate' => (float) ($serviceable->child_contract_rate ?? $serviceable->adult_contract_rate ?? $serviceable->contract_rate ?? 0),
+                    'markup_type' => (string) ($serviceable->child_markup_type ?? $serviceable->adult_markup_type ?? $serviceable->markup_type ?? 'fixed'),
+                    'markup' => (float) ($serviceable->child_markup ?? $serviceable->adult_markup ?? $serviceable->markup ?? 0),
+                ];
+            }
+
             return [
-                'contract_rate' => (float) ($serviceable->contract_rate ?? 0),
-                'markup_type' => (string) ($serviceable->markup_type ?? 'fixed'),
-                'markup' => (float) ($serviceable->markup ?? 0),
+                'contract_rate' => (float) ($serviceable->adult_contract_rate ?? $serviceable->contract_rate ?? 0),
+                'markup_type' => (string) ($serviceable->adult_markup_type ?? $serviceable->markup_type ?? 'fixed'),
+                'markup' => (float) ($serviceable->adult_markup ?? $serviceable->markup ?? 0),
             ];
         }
 
@@ -1543,6 +1617,41 @@ class QuotationValidationService
     private function ratesAreEqual(float $left, float $right): bool
     {
         return abs($left - $right) < 0.0001;
+    }
+
+    /**
+     * @return \Illuminate\Support\Collection<int, QuotationItem>
+     */
+    private function findMatchingQuotationItems(Quotation $quotation, QuotationItem $sourceItem)
+    {
+        $quotation->loadMissing('items');
+        $sourceServiceableType = trim((string) ($sourceItem->serviceable_type ?? ''));
+        $sourceServiceableId = (int) ($sourceItem->serviceable_id ?? 0);
+        $sourcePaxType = strtolower((string) Arr::get($sourceItem->serviceable_meta ?? [], 'pax_type', ''));
+
+        return $quotation->items
+            ->filter(function (QuotationItem $candidate) use ($sourceItem, $sourceServiceableType, $sourceServiceableId, $sourcePaxType): bool {
+                if ((int) $candidate->id === (int) $sourceItem->id) {
+                    return false;
+                }
+                if (! (bool) ($candidate->is_validation_required ?? false)) {
+                    return false;
+                }
+                if (trim((string) ($candidate->serviceable_type ?? '')) !== $sourceServiceableType) {
+                    return false;
+                }
+                if ((int) ($candidate->serviceable_id ?? 0) !== $sourceServiceableId) {
+                    return false;
+                }
+
+                $candidatePaxType = strtolower((string) Arr::get($candidate->serviceable_meta ?? [], 'pax_type', ''));
+                if ($sourcePaxType !== '' || $candidatePaxType !== '') {
+                    return $candidatePaxType === $sourcePaxType;
+                }
+
+                return true;
+            })
+            ->values();
     }
 
     private function normalizeNullableText(mixed $value): ?string

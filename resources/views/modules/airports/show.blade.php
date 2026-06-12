@@ -106,17 +106,22 @@
                 <div class="app-card p-5 space-y-3">
                     <p class="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{{ ui_phrase('Quick Actions') }}</p>
                     <a href="{{ route('airports.edit', $airport) }}" class="btn-primary w-full justify-center">{{ ui_phrase('Edit Airport') }}</a>
-                    <form action="{{ route('airports.toggle-status', $airport->id) }}" method="POST" class="w-full">
-                        @csrf
-                        @method('PATCH')
-                        <button
-                            type="submit"
-                            onclick="return confirm('{{ $isActive ? ui_phrase('confirm deactivate') : ui_phrase('confirm activate') }}')"
-                            class="{{ $isActive ? 'btn-muted-sm' : 'btn-primary-sm' }} w-full justify-center"
-                        >
-                            {{ $isActive ? ui_phrase('Deactivate') : ui_phrase('Activate') }}
-                        </button>
-                    </form>
+                    <x-ui.confirm-action
+                        :action="route('airports.toggle-status', $airport->id)"
+                        method="PATCH"
+                        :modal-name="'airports-show-toggle-' . $airport->id"
+                        :title="$isActive ? ui_phrase('Deactivate') . ' ' . ui_phrase('Airport') : ui_phrase('Activate') . ' ' . ui_phrase('Airport')"
+                        :message="$isActive ? ui_phrase('confirm deactivate') : ui_phrase('confirm activate')"
+                        :impact-title="__('confirm.what_will_happen')"
+                        :impact-items="[
+                            $isActive ? ui_phrase('Airport will be set as inactive and hidden from active options.') : ui_phrase('Airport will be set as active and available for selection.'),
+                        ]"
+                        :notice-message="__('confirm.notification_after_action')"
+                        :confirm-label="$isActive ? ui_phrase('Deactivate') : ui_phrase('Activate')"
+                        :trigger-label="$isActive ? ui_phrase('Deactivate') : ui_phrase('Activate')"
+                        :trigger-class="$isActive ? 'btn-muted-sm w-full justify-center' : 'btn-primary-sm w-full justify-center'"
+                        confirm-class="btn-primary-sm"
+                    />
                 </div>
 
                 <div class="app-card p-5 text-sm text-slate-600 dark:text-slate-300">
@@ -179,5 +184,4 @@
         }
     </style>
 @endpush
-
 

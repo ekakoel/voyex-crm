@@ -4,11 +4,15 @@ namespace App\Services;
 
 use App\Models\BookingItem;
 use App\Models\BookingItemVoucher;
+use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class BookingVoucherService
 {
     public function generateOrRefresh(BookingItem $bookingItem, bool $force = false): BookingItemVoucher
     {
+        $this->assertVendorConfirmed($bookingItem);
+
         $bookingItem->loadMissing([
             'booking.quotation.inquiry.customer',
             'booking.quotation.itinerary',
@@ -22,11 +26,18 @@ class BookingVoucherService
             $voucher = new BookingItemVoucher();
             $voucher->booking_item_id = $bookingItem->id;
             $voucher->voucher_number = $this->generateVoucherNumber();
+            $voucher->revision_number = 1;
             $voucher->created_by = auth()->id();
         }
 
-        if (in_array((string) $voucher->status, ['used', 'cancelled'], true) && ! $force) {
+        if (in_array((string) $voucher->status, [BookingItemVoucher::STATUS_USED, BookingItemVoucher::STATUS_CANCELLED], true) && ! $force) {
             return $voucher;
+        }
+
+        if ($voucher->exists && $this->isSourceUpdated($bookingItem) && ! $force) {
+            throw ValidationException::withMessages([
+                'booking_item_id' => ui_phrase('Voucher source has changed. Please reissue voucher to apply latest data.'),
+            ]);
         }
 
         $snapshot = $this->draftPayloadFromItem($bookingItem);
@@ -36,10 +47,10 @@ class BookingVoucherService
         if ($voucher->status !== $autoStatus) {
             $voucher->status = $autoStatus;
         }
-        if ($voucher->status === 'issued' && ! $voucher->issued_at) {
+        if (in_array((string) $voucher->status, [BookingItemVoucher::STATUS_GENERATED, BookingItemVoucher::STATUS_REISSUED], true) && ! $voucher->issued_at) {
             $voucher->issued_at = now();
         }
-        if ($voucher->status !== 'used') {
+        if ($voucher->status !== BookingItemVoucher::STATUS_USED) {
             $voucher->used_at = null;
         }
         $voucher->source_hash = $this->computeSourceHash($bookingItem);
@@ -98,18 +109,43 @@ class BookingVoucherService
         return $this->buildPayloadFromSources($bookingItem);
     }
 
+    public function assertVendorConfirmed(BookingItem $bookingItem): void
+    {
+        if (! $bookingItem->isVendorConfirmed()) {
+            throw ValidationException::withMessages([
+                'booking_item_id' => ui_phrase('Voucher can only be generated after vendor confirmation.'),
+            ]);
+        }
+    }
+
     public function resolveStatusFromBooking(BookingItem $bookingItem): string
     {
         $bookingStatus = (string) ($bookingItem->booking?->status ?? '');
 
         if (in_array($bookingStatus, ['cancelled'], true)) {
-            return 'cancelled';
+            return BookingItemVoucher::STATUS_CANCELLED;
         }
         if (in_array($bookingStatus, ['pending_confirmation', 'awaiting_dp', 'awaiting_balance'], true)) {
-            return 'draft';
+            return BookingItemVoucher::STATUS_DRAFT;
         }
 
-        return 'issued';
+        return BookingItemVoucher::STATUS_GENERATED;
+    }
+
+    public function reissue(BookingItem $bookingItem): BookingItemVoucher
+    {
+        $this->assertVendorConfirmed($bookingItem);
+        $bookingItem->loadMissing(['voucher']);
+
+        $voucher = $this->generateOrRefresh($bookingItem, true);
+        $voucher->revision_number = max(1, (int) ($voucher->revision_number ?? 1)) + 1;
+        $voucher->voucher_number = $this->buildReissuedVoucherNumber((string) ($voucher->voucher_number ?? ''), (int) $voucher->revision_number);
+        $voucher->status = BookingItemVoucher::STATUS_REISSUED;
+        $voucher->issued_at = now();
+        $voucher->updated_by = auth()->id();
+        $voucher->save();
+
+        return $voucher;
     }
 
     private function buildPayloadFromSources(BookingItem $bookingItem): array
@@ -167,5 +203,22 @@ class BookingVoucherService
         } while (BookingItemVoucher::query()->where('voucher_number', $number)->exists());
 
         return $number;
+    }
+
+    private function buildReissuedVoucherNumber(string $currentNumber, int $revisionNumber): string
+    {
+        $base = trim($currentNumber);
+        if ($base === '') {
+            return $this->generateVoucherNumber();
+        }
+
+        $base = preg_replace('/-R\d+$/', '', $base) ?: $base;
+        $candidate = $base . '-R' . $revisionNumber;
+        while (BookingItemVoucher::query()->where('voucher_number', $candidate)->exists()) {
+            $revisionNumber++;
+            $candidate = $base . '-R' . $revisionNumber;
+        }
+
+        return Str::upper($candidate);
     }
 }

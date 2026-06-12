@@ -12,7 +12,7 @@
 <div class="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900/60">
     <div class="flex flex-wrap items-start justify-between gap-4">
         <div>
-            <h1 class="text-lg font-semibold text-slate-900 dark:text-slate-100">{{ $title }}</h1>
+            <h1 class="uppercase text-lg font-semibold text-slate-900 dark:text-slate-100">{{ $title }}</h1>
             @if ($description)
                 <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">{{ $description }}</p>
             @endif

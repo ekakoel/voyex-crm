@@ -136,6 +136,13 @@ Aturan: jika `final`, data view-only (tanpa mutasi).
    - `lang/zh_Hans/ui_core.php`
 5. Pull request/perubahan tidak boleh dianggap selesai jika masih ada text user-facing yang belum bisa diterjemahkan.
 6. Untuk review perubahan UI, i18n compliance menjadi checklist wajib bersama responsive, permission, dan performa.
+7. Setiap update WAJIB melakukan audit menyeluruh terhadap semua text/paragraf/kalimat user-facing pada scope perubahan:
+   - Blade template,
+   - string di JavaScript inline/module,
+   - message controller/validation/flash,
+   - label tabel/form/modal/empty-state/helper text.
+8. Audit i18n wajib memastikan tidak ada hardcoded text baru yang lolos; semua kalimat harus terhubung ke translation key/`ui_phrase(...)`.
+9. Perubahan dianggap belum selesai jika audit i18n belum dilakukan dan belum dinyatakan lulus pada laporan update.
 
 ## 4i. Standar Notifikasi CRUD (Wajib)
 
@@ -167,6 +174,25 @@ Aturan: jika `final`, data view-only (tanpa mutasi).
 4. Jika karakter input text < 3 (dan tidak kosong), backend wajib menganggap pencarian tidak valid dan tidak menampilkan hasil match.
 5. Aturan ini berlaku lintas modul untuk semua halaman index/list yang memakai filter text.
 6. Saat user menginstruksikan "sesuaikan aturan filter", implementasi default harus mengikuti standar 4j + 4k tanpa perlu redefinisi ulang.
+
+## 4m. Standar Utama Filter Index (Wajib)
+
+1. Baseline utama filter index project adalah implementasi `Inquiries` (`resources/views/modules/inquiries/index.blade.php`).
+2. Semua halaman index/list modul WAJIB mengikuti pola visual baseline tersebut:
+   - satu filter card utama (compact),
+   - tidak boleh memiliki sidebar kanan/kiri khusus halaman index modul,
+   - seluruh konten index harus menggunakan layout full-width pada area utama,
+   - filter card wajib selalu tampil pada mobile, tablet, dan desktop,
+   - hasil data wajib memakai pola desktop table + mobile card list,
+   - tanpa card bersarang di area filter,
+   - action `Reset` sejajar tinggi dengan input form,
+   - style tombol `Reset` menggunakan `secondary` dan radius setara input (`app-input`).
+3. Untuk interaksi data, WAJIB menggunakan pola AJAX filter existing (`data-service-filter-*`) agar filtering dan pagination tidak melakukan full-page reload.
+4. Input filter bersifat fleksibel per modul:
+   - field filter boleh berbeda sesuai kebutuhan bisnis modul,
+   - namun layout, ritme visual, dan perilaku interaksi wajib konsisten mengikuti baseline.
+5. Dilarang menambahkan elemen dekoratif yang tidak esensial pada filter card (judul/deskripsi/tab tambahan) jika fungsi yang sama sudah tercover oleh input filter utama.
+6. Semua implementasi/penyesuaian filter index baru harus mengacu ke standar ini sebagai patokan default, kecuali ada keputusan UX khusus yang terdokumentasi.
 
 ## 4l. Standar Booking Module (Wajib)
 

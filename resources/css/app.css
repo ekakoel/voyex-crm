@@ -291,7 +291,7 @@
     }
 
     .btn-primary {
-        @apply border-transparent bg-teal-600 text-white hover:bg-teal-700 focus-visible:ring-teal-500;
+        @apply border-transparent bg-blue-800 text-white hover:bg-blue-600 focus-visible:ring-blue-500;
     }
 
     .btn-secondary {
@@ -376,6 +376,60 @@
 
     .btn-danger-sm {
         @apply border-rose-200 bg-rose-100 text-rose-700 hover:bg-rose-200 focus-visible:ring-rose-400;
+    }
+
+    /* Standard tab system: shared visual baseline for all module tabs */
+    .app-tabs {
+        @apply flex flex-wrap items-center gap-2;
+    }
+
+    .app-tab {
+        @apply inline-flex items-center justify-center gap-1 rounded-md border px-3 py-1.5 text-xs font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2;
+        min-height: 32px;
+        border-color: #cbd5e1;
+        background: #ffffff;
+        color: #334155;
+    }
+
+    .app-tab:hover {
+        background: #f8fafc;
+        border-color: #94a3b8;
+        color: #0f172a;
+    }
+
+    .app-tab.is-active,
+    .app-tab[aria-selected='true'] {
+        border-color: #0f766e;
+        background: #0f766e;
+        color: #ffffff;
+        box-shadow: 0 6px 14px rgba(15, 118, 110, 0.2);
+    }
+
+    .app-tab.is-active:hover,
+    .app-tab[aria-selected='true']:hover {
+        background: #0d9488;
+        border-color: #0d9488;
+        color: #ffffff;
+    }
+
+    .dark .app-tab {
+        border-color: #334155;
+        background: #0f172a;
+        color: #cbd5e1;
+    }
+
+    .dark .app-tab:hover {
+        border-color: #475569;
+        background: #1e293b;
+        color: #e2e8f0;
+    }
+
+    .dark .app-tab.is-active,
+    .dark .app-tab[aria-selected='true'] {
+        border-color: #14b8a6;
+        background: #0f766e;
+        color: #ffffff;
+        box-shadow: 0 8px 16px rgba(20, 184, 166, 0.22);
     }
 
     .dark .btn-primary { @apply bg-teal-500 hover:bg-teal-400; }
@@ -967,7 +1021,6 @@
         .border-amber-200.bg-amber-50
     ) {
         border-radius: var(--app-radius-sm);
-        padding: 0.75rem 0.875rem;
     }
 
     .dark .module-page .module-form-wrap {
@@ -998,6 +1051,12 @@
         display: grid;
         gap: var(--app-layout-gap) !important;
         align-content: start;
+    }
+
+    .module-grid-side :is(dd, p, span, a, li) {
+        max-width: 100%;
+        overflow-wrap: anywhere;
+        word-break: break-all;
     }
 
     /* Keep legacy Blade order (aside then main) but render as 9:3 (main left, side right). */
@@ -1111,20 +1170,6 @@
         gap: var(--app-action-gap);
     }
 
-    /* Compact index filters (main area): keep controls tight and actions on the right. */
-    .module-grid-main :is(
-        form[data-service-filter-form],
-        form[data-activities-index-form],
-        form[data-hotels-index-form],
-        form[data-roles-index-form],
-        form[data-tourist-attractions-index-form]
-    ) {
-        display: flex;
-        flex-wrap: wrap;
-        align-items: flex-end;
-        gap: var(--app-filter-gap);
-    }
-
     .module-grid-main :is(
         form[data-service-filter-form],
         form[data-activities-index-form],
@@ -1142,36 +1187,82 @@
         form[data-hotels-index-form],
         form[data-roles-index-form],
         form[data-tourist-attractions-index-form]
-    ) > :not(.filter-actions) {
-        flex: 1 1 var(--app-filter-control-w);
-        min-width: var(--app-filter-control-min-w);
-        max-width: 220px;
-    }
-
-    .module-grid-main :is(
-        form[data-service-filter-form],
-        form[data-activities-index-form],
-        form[data-hotels-index-form],
-        form[data-roles-index-form],
-        form[data-tourist-attractions-index-form]
-    ) :is(input.app-input, select.app-input, .app-input) {
-        flex: 1 1 var(--app-filter-control-w);
-        min-width: var(--app-filter-control-min-w);
-        max-width: 220px;
-    }
-
-    .module-grid-main :is(
-        form[data-service-filter-form],
-        form[data-activities-index-form],
-        form[data-hotels-index-form],
-        form[data-roles-index-form],
-        form[data-tourist-attractions-index-form]
     ) .filter-actions {
-        margin-left: auto;
-        width: auto !important;
-        justify-content: flex-end;
-        white-space: nowrap;
-        gap: var(--app-filter-gap);
+        width: 100%;
+    }
+
+    .module-grid-main :is(
+        form[data-service-filter-form],
+        form[data-activities-index-form],
+        form[data-hotels-index-form],
+        form[data-roles-index-form],
+        form[data-tourist-attractions-index-form]
+    ) .filter-actions :is(a, button) {
+        width: 100%;
+    }
+
+    /* Compact index filters (main area): keep controls tight and actions on the right from small screens up. */
+    @media (min-width: 640px) {
+        .module-grid-main :is(
+            form[data-service-filter-form],
+            form[data-activities-index-form],
+            form[data-hotels-index-form],
+            form[data-roles-index-form],
+            form[data-tourist-attractions-index-form]
+        ) {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: flex-end;
+            gap: var(--app-filter-gap);
+        }
+
+        .module-grid-main :is(
+            form[data-service-filter-form],
+            form[data-activities-index-form],
+            form[data-hotels-index-form],
+            form[data-roles-index-form],
+            form[data-tourist-attractions-index-form]
+        ) > :not(.filter-actions) {
+            flex: 1 1 var(--app-filter-control-w);
+            min-width: var(--app-filter-control-min-w);
+            max-width: 220px;
+        }
+
+        .module-grid-main :is(
+            form[data-service-filter-form],
+            form[data-activities-index-form],
+            form[data-hotels-index-form],
+            form[data-roles-index-form],
+            form[data-tourist-attractions-index-form]
+        ) :is(input.app-input, select.app-input, .app-input) {
+            flex: 1 1 var(--app-filter-control-w);
+            min-width: var(--app-filter-control-min-w);
+            max-width: 220px;
+        }
+
+        .module-grid-main :is(
+            form[data-service-filter-form],
+            form[data-activities-index-form],
+            form[data-hotels-index-form],
+            form[data-roles-index-form],
+            form[data-tourist-attractions-index-form]
+        ) .filter-actions {
+            margin-left: auto;
+            width: auto !important;
+            justify-content: flex-end;
+            white-space: nowrap;
+            gap: var(--app-filter-gap);
+        }
+
+        .module-grid-main :is(
+            form[data-service-filter-form],
+            form[data-activities-index-form],
+            form[data-hotels-index-form],
+            form[data-roles-index-form],
+            form[data-tourist-attractions-index-form]
+        ) .filter-actions :is(a, button) {
+            width: auto;
+        }
     }
 
     @media (min-width: 640px) {
@@ -1458,16 +1549,16 @@
 
     .quotation-item-label {
         min-height: var(--app-form-label-h);
-        line-height: 1.25rem;
+        line-height: 1;
     }
 
     .quotation-item-control {
-        margin-top: 0.25rem;
+        margin-top: 0;
     }
 
     .quotation-item-money-field .input-with-right-affix,
     .quotation-item-money-field .input-with-left-affix {
-        margin-top: 0.25rem;
+        margin-top: 0;
     }
 
     .quotation-item-money-field .input-with-right-affix .quotation-item-control,
@@ -1664,8 +1755,16 @@
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    color: #4b5563;
+    /* color: #4b5563; */
     padding: var(--app-table-cell-py) var(--app-table-cell-px);
+}
+.app-table .table-header {
+    height: 36px;
+    background-color: #1e40af;
+}
+.dark .app-table .table-header {
+    height: 36px;
+    background-color: #000000;
 }
 
 .dark .app-table th {
@@ -1825,9 +1924,9 @@
         position: absolute;
         top: 50%;
         transform: translate(0, -50%);
-        right: 0;
-        width: 36px;
-        height: 36px;
+        right: 18px;
+        width: 80px;
+        height: 80px;
         display: inline-flex;
         align-items: center;
         justify-content: center;
@@ -1837,7 +1936,7 @@
         border: 1px solid #e2e8f0;
     }
     .app-card .icon-kpi i{
-        font-size: 1rem;
+        font-size: 2rem;
         color: inherit;
     }
     .app-card .icon-kpi--slate{ background: #f1f5f9; color: #475569; border-color: #e2e8f0; }
@@ -2400,7 +2499,7 @@ body.app-standalone .app-content {
 
 @layer components {
     .vx-pagination-wrap {
-        @apply mt-4;
+        @apply mt-0;
     }
 
     .vx-pagination-mobile {

@@ -30,6 +30,13 @@ class LocationResolverController extends Controller
 
         $resolver->enrichFromGoogleMapsUrl($payload, true);
 
+        if ($payload['latitude'] === null || $payload['latitude'] === '' || $payload['longitude'] === null || $payload['longitude'] === '') {
+            return response()->json([
+                'message' => 'Unable to resolve this Google Maps link.',
+                'data' => $payload,
+            ], 422);
+        }
+
         $province = trim((string) ($payload['province'] ?? ''));
         if ($province !== '') {
             $destination = Destination::query()
@@ -45,4 +52,3 @@ class LocationResolverController extends Controller
         ]);
     }
 }
-

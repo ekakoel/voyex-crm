@@ -41,9 +41,18 @@ class PaymentController extends Controller
 
         $perPage = (int) $request->input('per_page', 10);
         $perPage = $perPage > 0 && $perPage <= 100 ? $perPage : 10;
+        $summaryQuery = clone $query;
+        $summaries = [
+            'total' => (clone $summaryQuery)->count(),
+            'pending' => (clone $summaryQuery)->where('status', 'pending')->count(),
+            'confirmed' => (clone $summaryQuery)->where('status', 'confirmed')->count(),
+            'rejected' => (clone $summaryQuery)->where('status', 'rejected')->count(),
+            'cancelled' => (clone $summaryQuery)->where('status', 'cancelled')->count(),
+        ];
+
         $payments = $query->latest()->paginate($perPage)->withQueryString();
 
-        return view('modules.payments.index', compact('payments'));
+        return view('modules.payments.index', compact('payments', 'summaries'));
     }
 
     public function create(Request $request)

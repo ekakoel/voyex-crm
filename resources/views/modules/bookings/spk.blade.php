@@ -75,7 +75,7 @@
                         <td>{{ $index + 1 }}</td>
                         <td>{{ $item->description }}</td>
                         <td>{{ $serviceDate }}</td>
-                        <td>{{ ui_phrase((string) ($item->vendor_confirmation_status ?? 'pending')) }}</td>
+                        <td>{{ ui_phrase((string) ($item->vendor_confirmation_status ?? \App\Models\BookingItem::VENDOR_CONFIRMATION_PENDING)) }}</td>
                         <td>{{ ui_phrase((string) ($item->dispatch_status ?? 'pending')) }}</td>
                         <td>{{ trim((string) ($item->assigned_driver_name ?? '-')) }} @if(!empty($item->assigned_driver_phone)) ({{ $item->assigned_driver_phone }}) @endif</td>
                         <td>{{ trim((string) ($item->assigned_guide_name ?? '-')) }} @if(!empty($item->assigned_guide_phone)) ({{ $item->assigned_guide_phone }}) @endif</td>
@@ -91,4 +91,3 @@
     </div>
 </body>
 </html>
-

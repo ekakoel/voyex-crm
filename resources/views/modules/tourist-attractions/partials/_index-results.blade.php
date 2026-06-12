@@ -3,12 +3,6 @@
         @php
             $canDeleteTouristAttraction = auth()->user()?->isSuperAdmin() ?? false;
         @endphp
-        @if (session('success'))
-            <div class="rounded-lg mb-6 border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300">{{ session('success') }}</div>
-        @endif
-        @if (session('error'))
-            <div class="rounded-lg mb-6 border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-700 dark:bg-rose-900/20 dark:text-rose-300">{{ session('error') }}</div>
-        @endif
         <div class="hidden md:block app-card overflow-hidden">
             <div class="overflow-x-auto">
                 <table class="app-table w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">
@@ -54,24 +48,45 @@
                                 </td>
                                 <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">{{ trim(($touristAttraction->city ?? '') . (($touristAttraction->city && $touristAttraction->province) ? ', ' : '') . ($touristAttraction->province ?? '')) ?: '-' }}<div class="text-xs text-gray-500 dark:text-gray-400">{{ $touristAttraction->country ?? '-' }}</div></td>
                                 <td class="px-4 py-3 text-center text-sm">
-                                    <x-status-badge :status="$isActive ? 'active' : 'inactive'" size="xs" />
+                                    <x-ui.status-badge :status="$isActive ? 'active' : 'inactive'" size="xs" />
                                 </td>
                                 <td class="px-4 py-3 text-right text-sm actions-compact">
-                                    <div class="flex items-center justify-end gap-2">
-                                        <a href="{{ route('tourist-attractions.edit', $touristAttraction) }}" class="btn-secondary-sm" title="{{ ui_phrase('Edit') }}" aria-label="{{ ui_phrase('Edit') }}"><i class="fa-solid fa-pen"></i><span class="sr-only">{{ ui_phrase('Edit') }}</span></a>
-                                        <form action="{{ route('tourist-attractions.toggle-status', $touristAttraction->id) }}" method="POST" class="inline" data-tourist-attractions-toggle-form>
-                                            @csrf
-                                            @method('PATCH')
-                                            <button type="submit" onclick="return confirm('{{ $isActive ? ui_phrase('attractions confirm deactivate') : ui_phrase('attractions confirm activate') }}')" class="{{ $isActive ? 'btn-muted-sm' : 'btn-primary-sm' }}" title="{{ $isActive ? ui_phrase('Deactivate') : ui_phrase('Activate') }}" aria-label="{{ $isActive ? ui_phrase('Deactivate') : ui_phrase('Activate') }}"><i class="fa-solid {{ $isActive ? 'fa-toggle-off' : 'fa-toggle-on' }}"></i><span class="sr-only">{{ $isActive ? ui_phrase('Deactivate') : ui_phrase('Activate') }}</span></button>
-                                        </form>
+                                    <x-ui.table-action-dropdown :label="ui_phrase('Actions')">
+                                        <a href="{{ route('tourist-attractions.edit', $touristAttraction) }}" class="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800">
+                                            <i class="fa-solid fa-pen w-4 text-gray-500 dark:text-gray-400"></i>
+                                            <span>{{ ui_phrase('Edit') }}</span>
+                                        </a>
+                                        <x-ui.confirm-action
+                                            :action="route('tourist-attractions.toggle-status', $touristAttraction->id)"
+                                            method="PATCH"
+                                            :modal-name="'tourist-attractions-index-toggle-desktop-' . $touristAttraction->id"
+                                            :title="$isActive ? ui_phrase('Deactivate') . ' ' . ui_phrase('Tourist Attraction') : ui_phrase('Activate') . ' ' . ui_phrase('Tourist Attraction')"
+                                            :message="$isActive ? ui_phrase('attractions confirm deactivate') : ui_phrase('attractions confirm activate')"
+                                            :notice-message="__('confirm.notification_after_action')"
+                                            :confirm-label="$isActive ? ui_phrase('Deactivate') : ui_phrase('Activate')"
+                                            :trigger-label="$isActive ? ui_phrase('Deactivate') : ui_phrase('Activate')"
+                                            :trigger-icon="$isActive ? 'fa-solid fa-toggle-off w-4' : 'fa-solid fa-toggle-on w-4'"
+                                            :trigger-class="$isActive ? 'flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-amber-700 hover:bg-amber-50 dark:text-amber-300 dark:hover:bg-amber-900/20' : 'flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-emerald-700 hover:bg-emerald-50 dark:text-emerald-300 dark:hover:bg-emerald-900/20'"
+                                            confirm-class="btn-primary-sm"
+                                        />
                                         @if ($canDeleteTouristAttraction)
-                                            <form action="{{ route('tourist-attractions.destroy', $touristAttraction) }}" method="POST" class="inline" data-tourist-attractions-delete-form>
-                                                @csrf
-                                                @method('DELETE')
-                                                <button type="submit" class="btn-danger-sm" title="{{ ui_phrase('Delete') }}" aria-label="{{ ui_phrase('Delete') }}"><i class="fa-solid fa-trash"></i><span class="sr-only">{{ ui_phrase('Delete') }}</span></button>
-                                            </form>
+                                            <div class="my-1 border-t border-gray-200 dark:border-gray-700"></div>
+                                            <x-ui.confirm-action
+                                                :action="route('tourist-attractions.destroy', $touristAttraction)"
+                                                method="DELETE"
+                                                :modal-name="'tourist-attractions-index-delete-desktop-' . $touristAttraction->id"
+                                                :title="ui_phrase('Delete') . ' ' . ui_phrase('Tourist Attraction')"
+                                                :message="ui_phrase('attractions ajax delete confirm')"
+                                                :notice-message="__('confirm.notification_after_action')"
+                                                notice-tone="danger"
+                                                :confirm-label="ui_phrase('Delete')"
+                                                :trigger-label="ui_phrase('Delete')"
+                                                trigger-icon="fa-solid fa-trash w-4"
+                                                trigger-class="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-rose-600 hover:bg-rose-50 dark:text-rose-300 dark:hover:bg-rose-900/20"
+                                                confirm-class="btn-danger-sm"
+                                            />
                                         @endif
-                                    </div>
+                                    </x-ui.table-action-dropdown>
                                 </td>
                             </tr>
                         @empty
@@ -105,20 +120,37 @@
                     <p class="text-xs text-gray-500 dark:text-gray-400">{{ ui_phrase('attractions publish') }}: {{ $touristAttraction->publish_rate_per_pax !== null ? \App\Support\Currency::format((float) $touristAttraction->publish_rate_per_pax, 'IDR') : '-' }} / pax</p>
                     <p class="text-xs text-gray-500 dark:text-gray-400">{{ trim(($touristAttraction->city ?? '') . (($touristAttraction->city && $touristAttraction->province) ? ', ' : '') . ($touristAttraction->province ?? '')) ?: '-' }}</p>
                     <p class="text-xs text-gray-500 dark:text-gray-400">{{ $touristAttraction->country ?? '-' }}</p>
-                    <p class="text-xs text-gray-500 dark:text-gray-400">{{ ui_phrase('Status') }}: <x-status-badge :status="$touristAttraction->trashed() ? 'inactive' : 'active'" size="xs" /></p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">{{ ui_phrase('Status') }}: <x-ui.status-badge :status="$touristAttraction->trashed() ? 'inactive' : 'active'" size="xs" /></p>
                     <div class="mt-3 flex flex-wrap gap-2">
                         <a href="{{ route('tourist-attractions.edit', $touristAttraction) }}" class="btn-secondary-sm" title="{{ ui_phrase('Edit') }}" aria-label="{{ ui_phrase('Edit') }}"><i class="fa-solid fa-pen"></i><span class="sr-only">{{ ui_phrase('Edit') }}</span></a>
-                        <form action="{{ route('tourist-attractions.toggle-status', $touristAttraction->id) }}" method="POST" class="inline" data-tourist-attractions-toggle-form>
-                            @csrf
-                            @method('PATCH')
-                            <button type="submit" onclick="return confirm('{{ $touristAttraction->trashed() ? ui_phrase('attractions confirm activate') : ui_phrase('attractions confirm deactivate') }}')" class="{{ $touristAttraction->trashed() ? 'btn-primary-sm' : 'btn-muted-sm' }}" title="{{ $touristAttraction->trashed() ? ui_phrase('Activate') : ui_phrase('Deactivate') }}" aria-label="{{ $touristAttraction->trashed() ? ui_phrase('Activate') : ui_phrase('Deactivate') }}"><i class="fa-solid {{ $touristAttraction->trashed() ? 'fa-toggle-on' : 'fa-toggle-off' }}"></i><span class="sr-only">{{ $touristAttraction->trashed() ? ui_phrase('Activate') : ui_phrase('Deactivate') }}</span></button>
-                        </form>
+                        <x-ui.confirm-action
+                            :action="route('tourist-attractions.toggle-status', $touristAttraction->id)"
+                            method="PATCH"
+                            :modal-name="'tourist-attractions-index-toggle-mobile-' . $touristAttraction->id"
+                            :title="$touristAttraction->trashed() ? ui_phrase('Activate') . ' ' . ui_phrase('Tourist Attraction') : ui_phrase('Deactivate') . ' ' . ui_phrase('Tourist Attraction')"
+                            :message="$touristAttraction->trashed() ? ui_phrase('attractions confirm activate') : ui_phrase('attractions confirm deactivate')"
+                            :notice-message="__('confirm.notification_after_action')"
+                            :confirm-label="$touristAttraction->trashed() ? ui_phrase('Activate') : ui_phrase('Deactivate')"
+                            :trigger-label="$touristAttraction->trashed() ? ui_phrase('Activate') : ui_phrase('Deactivate')"
+                            :trigger-icon="$touristAttraction->trashed() ? 'fa-solid fa-toggle-on' : 'fa-solid fa-toggle-off'"
+                            :trigger-class="$touristAttraction->trashed() ? 'btn-primary-sm' : 'btn-muted-sm'"
+                            confirm-class="btn-primary-sm"
+                        />
                         @if ($canDeleteTouristAttraction)
-                            <form action="{{ route('tourist-attractions.destroy', $touristAttraction) }}" method="POST" class="inline" data-tourist-attractions-delete-form>
-                                @csrf
-                                @method('DELETE')
-                                <button type="submit" class="btn-danger-sm" title="{{ ui_phrase('Delete') }}" aria-label="{{ ui_phrase('Delete') }}"><i class="fa-solid fa-trash"></i><span class="sr-only">{{ ui_phrase('Delete') }}</span></button>
-                            </form>
+                            <x-ui.confirm-action
+                                :action="route('tourist-attractions.destroy', $touristAttraction)"
+                                method="DELETE"
+                                :modal-name="'tourist-attractions-index-delete-mobile-' . $touristAttraction->id"
+                                :title="ui_phrase('Delete') . ' ' . ui_phrase('Tourist Attraction')"
+                                :message="ui_phrase('attractions ajax delete confirm')"
+                                :notice-message="__('confirm.notification_after_action')"
+                                notice-tone="danger"
+                                :confirm-label="ui_phrase('Delete')"
+                                :trigger-label="ui_phrase('Delete')"
+                                trigger-icon="fa-solid fa-trash"
+                                trigger-class="btn-danger-sm"
+                                confirm-class="btn-danger-sm"
+                            />
                         @endif
                     </div>
                 </div>
@@ -129,3 +161,4 @@
         <div>{{ $touristAttractions->links() }}</div>
     </div>
 </div>
+

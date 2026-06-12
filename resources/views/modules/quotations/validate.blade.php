@@ -1,13 +1,13 @@
 @extends('layouts.master')
 
-@section('page_title', ui_phrase('validate page title'))
-@section('page_subtitle', ui_phrase('validate page subtitle'))
+@section('page_title', ui_phrase('Quotation Validation'))
+@section('page_subtitle', ui_phrase('Review and approve quotations with accurate pricing, services, and validation records.'))
 @section('page_actions')
-    <a href="{{ route('quotations.show', $quotation) }}" class="btn-secondary">{{ ui_phrase('View Detail') }}</a>
+    <x-quotation-action-button :href="route('quotations.show', $quotation)" variant="outline" icon="fa-eye" label="{{ ui_phrase('View Detail') }}" />
     @can('update', $quotation)
-        <a href="{{ route('quotations.edit', $quotation) }}" class="btn-secondary">{{ ui_phrase('Edit Quotation') }}</a>
+        <x-quotation-action-button :href="route('quotations.edit', $quotation)" variant="primary" icon="fa-pen-nib" label="{{ ui_phrase('Revise Quotation') }}" />
     @endcan
-    <a href="{{ route('quotations.index') }}" class="btn-ghost" data-page-back-action>{{ ui_phrase('Back') }}</a>
+    <x-quotation-action-button :href="route('quotations.index')" variant="ghost" icon="fa-arrow-left" label="{{ ui_phrase('Back') }}" data-page-back-action />
 @endsection
 
 @push('scripts')
@@ -62,6 +62,7 @@
                 loadDetailFailed: @json(ui_phrase('load detail failed')),
                 contactUpdateFailed: @json(ui_phrase('Failed to update contact details.')),
                 contactUpdateSuccess: @json(ui_phrase('Contact details updated.')),
+                saveItemFailed: @json(ui_phrase('Failed to save item validation.')),
                 noHistory: @json(ui_phrase('No communication history yet.')),
             };
 
@@ -457,6 +458,7 @@
                 setTextForSelectors('[data-contract-rate-badge]', currencyBadgeText);
                 setTextForSelectors('[data-mobile-contract-rate-badge]', currencyBadgeText);
                 setTextForSelectors('[data-confirm-contract-rate-badge]', currencyBadgeText);
+                setTextForSelectors('[data-confirm-total-price-badge]', currencyBadgeText);
                 document.querySelectorAll('[data-canonical-input^="markup_type-"]').forEach((input) => {
                     const itemId = String(input.getAttribute('data-canonical-input') || '').replace('markup_type-', '');
                     if (itemId !== '') {
@@ -476,9 +478,15 @@
                     const displayRate = Math.max(0, parseIntegerFromDisplay(canonicalRateInput?.value || 0));
                     const displayMarkup = Math.max(0, parseIntegerFromDisplay(canonicalMarkupInput?.value || 0));
                     const markupType = String(canonicalMarkupTypeInput?.value || 'fixed').toLowerCase() === 'percent' ? 'percent' : 'fixed';
+                    const publicRateIdr = markupType === 'percent'
+                        ? toIdrInteger(displayRate + ((displayRate * displayMarkup) / 100))
+                        : toIdrInteger(displayRate + displayMarkup);
 
                     document.querySelectorAll(`[data-contract-rate-display="${itemId}"], [data-mobile-contract-rate-display="${itemId}"]`).forEach((el) => {
                         el.textContent = formatMoneyFromIdr(toIdrInteger(displayRate));
+                    });
+                    document.querySelectorAll(`[data-public-rate-display="${itemId}"], [data-mobile-public-rate-display="${itemId}"]`).forEach((el) => {
+                        el.textContent = formatMoneyFromIdr(publicRateIdr);
                     });
                     document.querySelectorAll(`[data-markup-type-display="${itemId}"], [data-mobile-markup-type-display="${itemId}"]`).forEach((el) => {
                         el.textContent = markupType === 'percent' ? '{{ ui_phrase('Percent') }}' : '{{ ui_phrase('Fixed') }}';
@@ -776,14 +784,22 @@
                     const result = await response.json();
                     if (!response.ok) {
                         const firstError = result?.errors ? Object.values(result.errors)[0]?.[0] : null;
-                        throw new Error(firstError || result?.message || 'Failed to save item validation.');
+                        throw new Error(firstError || result?.message || i18n.saveItemFailed);
                     }
 
                     updateProgressUi(result.progress || {});
-                    updateItemRowUi(itemId, result.item || {});
+                    const affectedItems = Array.isArray(result.items) && result.items.length > 0
+                        ? result.items
+                        : [result.item || {}];
+                    affectedItems.forEach((affectedItem) => {
+                        const affectedItemId = String(affectedItem?.id || '').trim();
+                        if (affectedItemId !== '') {
+                            updateItemRowUi(affectedItemId, affectedItem || {});
+                        }
+                    });
                     setItemFeedback(itemId, '');
                 } catch (error) {
-                    setItemFeedback(itemId, error.message || 'Failed to save item validation.', 'error');
+                    setItemFeedback(itemId, error.message || i18n.saveItemFailed, 'error');
                 } finally {
                     setItemButtonLoading(itemId, false);
                 }
@@ -1007,6 +1023,7 @@
                 const validatedCheckboxes = document.querySelectorAll(`[data-item-validated-checkbox="${itemId}"]`);
                 const qtyDisplays = document.querySelectorAll(`[data-item-qty-display="${itemId}"], [data-mobile-item-qty-display="${itemId}"]`);
                 const contractRateDisplays = document.querySelectorAll(`[data-contract-rate-display="${itemId}"], [data-mobile-contract-rate-display="${itemId}"]`);
+                const publicRateDisplays = document.querySelectorAll(`[data-public-rate-display="${itemId}"], [data-mobile-public-rate-display="${itemId}"]`);
                 const markupDisplays = document.querySelectorAll(`[data-markup-display="${itemId}"], [data-mobile-markup-display="${itemId}"]`);
                 const markupTypeDisplays = document.querySelectorAll(`[data-markup-type-display="${itemId}"], [data-mobile-markup-type-display="${itemId}"]`);
                 const canonicalMarkupTypeInput = getCanonicalInput(itemId, 'markup_type');
@@ -1025,7 +1042,10 @@
                 updatedCells.forEach((updatedCell) => {
                     const validatorName = item.validator_name || '-';
                     const updatedAt = formatDateTime(item.updated_at);
-                    updatedCell.innerHTML = `${validatorName}<br>${updatedAt}`;
+                    const statusBadgeHtml = item.is_validated
+                        ? `<span class="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300">{{ ui_phrase('Validated') }}</span>`
+                        : `<span class="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-300">{{ ui_phrase('Pending') }}</span>`;
+                    updatedCell.innerHTML = `${validatorName}<br>${updatedAt}<div class="mt-1">${statusBadgeHtml}</div>`;
                 });
 
                 validatedCheckboxes.forEach((validatedCheckbox) => {
@@ -1052,17 +1072,24 @@
                 contractRateDisplays.forEach((el) => {
                     el.textContent = formatMoneyFromIdr(item.contract_rate || 0);
                 });
+                const nextMarkupType = String(item.markup_type || canonicalMarkupTypeInput?.value || 'fixed').toLowerCase() === 'percent' ? 'percent' : 'fixed';
+                const nextContractRate = Math.max(0, Number(item.contract_rate || 0));
+                const nextMarkupValue = Math.max(0, Number(item.markup || 0));
+                const nextPublicRate = nextMarkupType === 'percent'
+                    ? Math.round(nextContractRate + ((nextContractRate * nextMarkupValue) / 100))
+                    : Math.round(nextContractRate + nextMarkupValue);
+                publicRateDisplays.forEach((el) => {
+                    el.textContent = formatMoneyFromIdr(nextPublicRate);
+                });
                 markupDisplays.forEach((el) => {
-                    const markupType = String(item.markup_type || canonicalMarkupTypeInput?.value || 'fixed').toLowerCase() === 'percent' ? 'percent' : 'fixed';
-                    if (markupType === 'percent') {
+                    if (nextMarkupType === 'percent') {
                         el.textContent = `${Number(item.markup || 0).toLocaleString(appDisplayLocale, { maximumFractionDigits: 2 })}%`;
                     } else {
                         el.textContent = formatMoneyFromIdr(item.markup || 0);
                     }
                 });
                 markupTypeDisplays.forEach((el) => {
-                    const markupType = String(item.markup_type || canonicalMarkupTypeInput?.value || 'fixed').toLowerCase() === 'percent' ? 'percent' : 'fixed';
-                    el.textContent = markupType === 'percent' ? '{{ ui_phrase('Percent') }}' : '{{ ui_phrase('Fixed') }}';
+                    el.textContent = nextMarkupType === 'percent' ? '{{ ui_phrase('Percent') }}' : '{{ ui_phrase('Fixed') }}';
                 });
                 document.querySelectorAll(`[data-save-item="${itemId}"]`).forEach((btnEl) => {
                     const hasValidatedHistory = Boolean(item.is_validated);
@@ -1087,6 +1114,15 @@
 
 @section('content')
     @php
+        $validationLocked = $quotation->isStatus(
+            \App\Models\Quotation::STATUS_SENT,
+            \App\Models\Quotation::STATUS_CUSTOMER_APPROVED,
+            \App\Models\Quotation::STATUS_BOOKING_CREATED,
+            \App\Models\Quotation::STATUS_IN_OPERATION,
+            \App\Models\Quotation::STATUS_COMPLETED
+        );
+        $validationLockedStatus = \App\Support\Workflow\QuotationWorkflow::label((string) ($quotation->status ?? 'draft'));
+        $validationLockedMessage = ui_phrase('Validation is locked because this quotation is currently :status. Continue from the relevant workflow action instead of editing validation data.', ['status' => $validationLockedStatus]);
         $resolveMealLabelsFromMeta = static function (array $meta): array {
             $extractTokens = static function ($value): array {
                 if (is_array($value)) {
@@ -1108,7 +1144,7 @@
             $tokens = array_values(array_unique($tokens));
 
             $labels = [];
-            foreach (['breakfast' => 'Breakfast', 'lunch' => 'Lunch', 'dinner' => 'Dinner'] as $key => $label) {
+            foreach (['breakfast' => ui_phrase('Breakfast'), 'lunch' => ui_phrase('Lunch'), 'dinner' => ui_phrase('Dinner')] as $key => $label) {
                 if (in_array($key, $tokens, true)) {
                     $labels[] = $label;
                 }
@@ -1166,18 +1202,32 @@
             $brand = trim((string) ($item->serviceable?->brand_model ?? ''));
             return $brand !== '' ? $brand : '-';
         };
+        $resolveValidationDescriptionLabel = static function ($item): string {
+            $serviceableType = class_basename((string) ($item->serviceable_type ?? ''));
+            $rawDescription = trim((string) ($item->description ?? ''));
+            $rawDescription = preg_replace('/^\s*Day\s+\d+\s*-\s*/i', '', $rawDescription) ?? $rawDescription;
+            $rawDescription = preg_replace('/^\s*Without\s+Day\s*-\s*/i', '', $rawDescription) ?? $rawDescription;
+
+            if (in_array($serviceableType, ['Activity', 'FoodBeverage'], true)) {
+                $prefix = $serviceableType === 'Activity' ? 'Activity' : 'F&B';
+                $description = preg_replace('/^\s*' . preg_quote($prefix, '/') . ':\s*/i', '', $rawDescription) ?? $rawDescription;
+                $description = preg_replace_callback('/\((adult|child)\)/i', static function ($matches): string {
+                    return '(' . strtoupper((string) ($matches[1] ?? '')) . ')';
+                }, $description) ?? $description;
+                $description = trim((string) preg_replace('/\s+/', ' ', $description));
+                return $description !== '' ? $description : '-';
+            }
+
+            return $rawDescription !== '' ? $rawDescription : '-';
+        };
     @endphp
     <div class="space-y-6 module-page module-page--quotations">
-        @if (session('success'))
-            <div class="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300">
-                {{ session('success') }}
-            </div>
-        @endif
-
-        @if (session('error'))
-            <div class="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-700 dark:bg-rose-900/20 dark:text-rose-300">
-                {{ session('error') }}
-            </div>
+        @if ($validationLocked)
+            <x-ui.lock-alert
+                :title="ui_phrase('Validation Locked')"
+                :message="$validationLockedMessage"
+                type="warning"
+            />
         @endif
 
         @if ($errors->any())
@@ -1190,15 +1240,15 @@
             </div>
         @endif
 
-        <div class="app-card p-6 space-y-4">
+        <x-ui.section-card :title="ui_phrase('Validation Summary')">
             <div class="flex flex-wrap items-start justify-between gap-4">
                 <div>
                     <p class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ ui_phrase('Number') }}</p>
                     <h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100">{{ $quotation->quotation_number }}</h2>
                 </div>
                 <div class="text-right text-sm text-gray-600 dark:text-gray-300">
-                    <div>{{ ui_phrase('Status') }}: <span class="font-semibold">{{ $quotation->status }}</span></div>
-                    <div>{{ ui_phrase('Validation Status') }}: <span class="font-semibold" data-progress-status>{{ $quotation->validation_status ?? 'pending' }}</span></div>
+                    <div>{{ ui_phrase('Status') }}: <x-ui.status-badge :status="$quotation->status" size="xs" /></div>
+                    <div>{{ ui_phrase('Validation Status') }}: <x-ui.status-badge :status="$quotation->validation_status ?? 'pending'" size="xs" data-progress-status /></div>
                 </div>
             </div>
 
@@ -1240,9 +1290,9 @@
                     </div>
                 </div>
             </div>
-        </div>
+        </x-ui.section-card>
 
-        <form method="POST" action="{{ route('quotations.validate.save-progress', $quotation) }}" class="app-card p-6 space-y-4" data-validation-progress-form>
+        <form method="POST" action="{{ route('quotations.validate.save-progress', $quotation) }}" class="space-y-4" data-validation-progress-form>
             @csrf
             @method('PATCH')
 
@@ -1256,8 +1306,7 @@
                 $quotationServiceDateBase = $serviceDate ? \Illuminate\Support\Carbon::parse($serviceDate)->startOfDay() : null;
             @endphp
 
-            <div class="pt-1 pb-2">
-                <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ ui_phrase('Quotation Detail') }}</h3>
+            <x-ui.section-card :title="ui_phrase('Quotation Detail')">
                 <div class="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
                     <div>
                         <p class="text-xs text-gray-500 dark:text-gray-400">{{ ui_phrase('Order Number') }}</p>
@@ -1268,7 +1317,7 @@
                         <p class="mt-1 text-sm font-semibold text-gray-900 dark:text-gray-100">{{ $serviceDate ? $serviceDate->format('Y-m-d') : '-' }}</p>
                     </div>
                     <div>
-                        <p class="text-xs text-gray-500 dark:text-gray-400">{{ ui_phrase('Jumlah Pax') }}</p>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">{{ ui_phrase('Pax') }}</p>
                         <p class="mt-1 text-sm font-semibold text-gray-900 dark:text-gray-100">{{ $paxLabel }}</p>
                     </div>
                     <div>
@@ -1276,8 +1325,8 @@
                         <p class="mt-1 text-sm font-semibold text-gray-900 dark:text-gray-100">{{ $quotation->validity_date?->format('Y-m-d') ?? '-' }}</p>
                     </div>
                 </div>
-            </div>
-            <div class="my-1 border-t border-gray-200 dark:border-gray-700"></div>
+            </x-ui.section-card>
+            
 
             @php
                 $resolveDayNumber = function ($item): int {
@@ -1353,25 +1402,10 @@
                                             }
                                         }
 
-                                        if ($serviceableType === 'FoodBeverage') {
+                                        if (in_array($serviceableType, ['Activity', 'FoodBeverage'], true)) {
+                                            $descriptionLabel = $resolveValidationDescriptionLabel($item);
                                             $serviceableMeta = is_array($item->serviceable_meta ?? null) ? $item->serviceable_meta : [];
                                             $mealLabels = $resolveMealLabelsFromMeta($serviceableMeta);
-                                            if ($mealLabels === []) {
-                                                $startTime = trim((string) ($serviceableMeta['start_time'] ?? ''));
-                                                if (preg_match('/^(\d{1,2}):(\d{2})$/', $startTime, $matches)) {
-                                                    $hour = (int) $matches[1];
-                                                    if ($hour <= 10) {
-                                                        $mealLabels = [ui_phrase('Breakfast')];
-                                                    } elseif ($hour <= 15) {
-                                                        $mealLabels = [ui_phrase('Lunch')];
-                                                    } else {
-                                                        $mealLabels = [ui_phrase('Dinner')];
-                                                    }
-                                                }
-                                            }
-                                            if ($mealLabels !== []) {
-                                                $descriptionLabel .= ' (' . implode(', ', $mealLabels) . ')';
-                                            }
                                         }
                                     @endphp
                                     @php
@@ -1451,6 +1485,10 @@
                                             <div class="text-right text-gray-800 dark:text-gray-100" data-mobile-markup-display="{{ $item->id }}">
                                                 -
                                             </div>
+                                            <div>{{ ui_phrase('Public Rate') }}</div>
+                                            <div class="text-right text-gray-800 dark:text-gray-100" data-mobile-public-rate-display="{{ $item->id }}">
+                                                -
+                                            </div>
                                         </div>
 
                                         <div class="flex items-center justify-between gap-2 text-xs">
@@ -1460,13 +1498,13 @@
                                                     <br><x-local-time :value="$item->updated_at" />
                                                 @endif
                                             </div>
-                                            <div data-item-status="{{ $item->id }}">
-                                                @if ((bool) ($item->is_validated ?? false))
-                                                    <span class="text-xs font-semibold text-emerald-700 dark:text-emerald-300">{{ ui_phrase('Validated') }}</span>
-                                                @else
-                                                    <span class="text-xs font-semibold text-amber-700 dark:text-amber-300">{{ ui_phrase('Pending') }}</span>
-                                                @endif
-                                            </div>
+                                        <div data-item-status="{{ $item->id }}">
+                                            @if ((bool) ($item->is_validated ?? false))
+                                                <x-ui.status-badge status="validated" :label="ui_phrase('Validated')" size="xs" />
+                                            @else
+                                                <x-ui.status-badge status="pending" :label="ui_phrase('Pending')" size="xs" />
+                                            @endif
+                                        </div>
                                         </div>
                                         <p data-item-feedback="{{ $item->id }}" class="hidden text-[11px]"></p>
                                     </div>
@@ -1475,26 +1513,25 @@
                         </div>
                     @endforeach
                 @else
-                    <div class="rounded-xl border border-dashed border-gray-300 px-4 py-6 text-center text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400">
-                        {{ ui_phrase('no validation required items') }}
-                    </div>
+                    <x-ui.empty-state :title="ui_phrase('No validation required items')" :description="ui_phrase('There are no items that require validation for this quotation.')" />
                 @endif
             </div>
 
-            <div class="responsive-data-desktop overflow-x-auto">
-                <table class="app-table w-full divide-y divide-gray-200 text-sm dark:divide-gray-700">
-                    <thead>
+            <div class="responsive-data-desktop">
+                <div class="app-card overflow-x-auto">
+                <table class="app-table w-full divide-y divide-gray-200 dark:divide-gray-700">
+                    <thead class="table-header">
                         <tr>
-                            <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('Mark Validated') }}</th>
-                            <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('Vendor/Provider/Item') }}</th>
-                            <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('Description') }}</th>
-                            <th class="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('Qty') }}</th>
-                            <th class="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('Contract Rate') }}</th>
-                            <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('Markup Type') }}</th>
-                            <th class="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('Markup') }}</th>
-                            <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('Validated By') }}</th>
-                            <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('Validation Status') }}</th>
-                            <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('Actions') }}</th>
+                            <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-white dark:text-gray-300">{{ ui_phrase('Mark Validated') }}</th>
+                            <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-white dark:text-gray-300">{{ ui_phrase('Vendor/Provider/Item') }}</th>
+                            <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-white dark:text-gray-300">{{ ui_phrase('Description') }}</th>
+                            <th class="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wider text-white dark:text-gray-300">{{ ui_phrase('Contract Rate/pax') }}</th>
+                            <th class="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wider text-white dark:text-gray-300">{{ ui_phrase('Markup/pax') }}</th>
+                            <th class="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wider text-white dark:text-gray-300">{{ ui_phrase('Qty') }}</th>
+                            <th class="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wider text-white dark:text-gray-300">{{ ui_phrase('Public Rate/pax') }}</th>
+                            <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-white dark:text-gray-300">{{ ui_phrase('Validated By') }}</th>
+                            {{-- <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-white dark:text-gray-300">{{ ui_phrase('Validation Status') }}</th> --}}
+                            <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-white dark:text-gray-300">{{ ui_phrase('Actions') }}</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
@@ -1506,7 +1543,7 @@
                                 $dayText = $groupDayNumber > 0 ? (ui_phrase('Day') . ' ' . $groupDayNumber) : ui_phrase('Without Day');
                             @endphp
                             <tr class="bg-gray-50/90 dark:bg-gray-800/70">
-                                <td colspan="10" class="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-700 dark:text-gray-200">
+                                <td colspan="11" class="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-700 dark:text-gray-200">
                                     {{ $dayText }}
                                 </td>
                             </tr>
@@ -1550,25 +1587,10 @@
                                     }
                                 }
 
-                                if ($serviceableType === 'FoodBeverage') {
+                                if (in_array($serviceableType, ['Activity', 'FoodBeverage'], true)) {
+                                    $descriptionLabel = $resolveValidationDescriptionLabel($item);
                                     $serviceableMeta = is_array($item->serviceable_meta ?? null) ? $item->serviceable_meta : [];
                                     $mealLabels = $resolveMealLabelsFromMeta($serviceableMeta);
-                                    if ($mealLabels === []) {
-                                        $startTime = trim((string) ($serviceableMeta['start_time'] ?? ''));
-                                        if (preg_match('/^(\d{1,2}):(\d{2})$/', $startTime, $matches)) {
-                                            $hour = (int) $matches[1];
-                                            if ($hour <= 10) {
-                                                $mealLabels = ['Breakfast'];
-                                            } elseif ($hour <= 15) {
-                                                $mealLabels = ['Lunch'];
-                                            } else {
-                                                $mealLabels = ['Dinner'];
-                                            }
-                                        }
-                                    }
-                                    if ($mealLabels !== []) {
-                                        $descriptionLabel .= ' (' . implode(', ', $mealLabels) . ')';
-                                    }
                                 }
                             @endphp
                             @php
@@ -1615,33 +1637,35 @@
                                         <div class="text-xs text-gray-500 dark:text-gray-400">{{ $descriptionLabel }}</div>
                                     </div>
                                 </td>
-                                <td class="px-3 py-2 align-top text-right text-gray-700 dark:text-gray-200" data-item-qty-display="{{ $item->id }}">{{ (int) ($item->qty ?? 0) }}</td>
+                                
                                 <td class="px-3 py-2 align-top">
                                     <input type="hidden" name="items[{{ $item->id }}][qty]" value="{{ old('items.' . $item->id . '.qty', (int) ($item->qty ?? 1)) }}" data-canonical-input="qty-{{ $item->id }}">
-                                    <input type="hidden" name="items[{{ $item->id }}][contract_rate]" value="{{ old('items.' . $item->id . '.contract_rate', number_format((float) ($item->contract_rate ?? 0), 0, ',', '.')) }}" data-canonical-input="contract_rate-{{ $item->id }}">
+                                    <input type="hidden" name="items[{{ $item->id }}][contract_rate]" value="{{ old('items.' . $item->id . '.contract_rate', (int) round((float) ($item->contract_rate ?? 0))) }}" data-canonical-input="contract_rate-{{ $item->id }}">
                                     <span class="text-xs text-gray-700 dark:text-gray-200" data-contract-rate-display="{{ $item->id }}">-</span>
                                 </td>
                                 <td class="px-3 py-2 align-top">
                                     <input type="hidden" name="items[{{ $item->id }}][markup_type]" value="{{ old('items.' . $item->id . '.markup_type', $item->markup_type) }}" data-canonical-input="markup_type-{{ $item->id }}">
-                                    <span class="text-xs text-gray-700 dark:text-gray-200" data-markup-type-display="{{ $item->id }}">{{ (old('items.' . $item->id . '.markup_type', $item->markup_type) === 'percent') ? ui_phrase('Percent') : ui_phrase('Fixed') }}</span>
-                                </td>
-                                <td class="px-3 py-2 align-top">
-                                    <input type="hidden" name="items[{{ $item->id }}][markup]" value="{{ old('items.' . $item->id . '.markup', number_format((float) ($item->markup ?? 0), 0, ',', '.')) }}" data-canonical-input="markup-{{ $item->id }}">
+                                    <span class="text-xs text-gray-700 dark:text-gray-200" data-markup-type-display="{{ $item->id }}">{{ (old('items.' . $item->id . '.markup_type', $item->markup_type) === 'percent') ? ui_phrase('Percent') : ui_phrase('Fixed') }}</span> 
+                                    <input type="hidden" name="items[{{ $item->id }}][markup]" value="{{ old('items.' . $item->id . '.markup', (int) round((float) ($item->markup ?? 0))) }}" data-canonical-input="markup-{{ $item->id }}">
                                     <span class="text-xs text-gray-700 dark:text-gray-200" data-markup-display="{{ $item->id }}">-</span>
+                                </td>
+                                <td class="px-3 py-2 align-top text-right text-gray-700 dark:text-gray-200" data-item-qty-display="{{ $item->id }}">{{ (int) ($item->qty ?? 0) }}</td>
+                                <td class="px-3 py-2 align-top">
+                                    <span class="text-xs text-gray-700 dark:text-gray-200" data-public-rate-display="{{ $item->id }}">-</span>
                                 </td>
                                 <td class="px-3 py-2 align-top text-xs text-gray-600 dark:text-gray-300" data-item-updated="{{ $item->id }}">
                                     {{ $item->validator?->name ?? '-' }}
                                     @if ($item->updated_at)
                                         <br><x-local-time :value="$item->updated_at" />
                                     @endif
-                                </td>
-                                <td class="px-3 py-2 align-top" data-item-status="{{ $item->id }}">
                                     @if ((bool) ($item->is_validated ?? false))
-                                        <span class="text-xs font-semibold text-emerald-700 dark:text-emerald-300">{{ ui_phrase('Validated') }}</span>
+                                        <x-ui.status-badge status="validated" :label="ui_phrase('Validated')" size="xs" />
                                     @else
-                                        <span class="text-xs font-semibold text-amber-700 dark:text-amber-300">{{ ui_phrase('Pending') }}</span>
+                                        <x-ui.status-badge status="pending" :label="ui_phrase('Pending')" size="xs" />
                                     @endif
                                 </td>
+                                {{-- <td class="px-3 py-2 align-top" data-item-status="{{ $item->id }}">
+                                </td> --}}
                                 <td class="px-3 py-2 align-top">
                                     <button
                                         type="button"
@@ -1673,17 +1697,21 @@
                             @endforeach
                         @endforeach
                         @else
-                            <tr>
-                                <td colspan="10" class="px-3 py-4 text-center text-sm text-gray-500 dark:text-gray-400">{{ ui_phrase('no validation required items') }}</td>
-                            </tr>
+                            <x-slot:emptyState>
+                                <tr>
+                                    <td colspan="11" class="px-3 py-4">
+                                        <x-ui.empty-state :title="ui_phrase('No validation required items')" :description="ui_phrase('There are no items that require validation for this quotation.')" />
+                                    </td>
+                                </tr>
+                            </x-slot:emptyState>
                         @endif
-
                     </tbody>
                 </table>
+                </div>
             </div>
             </div>
 
-            <div class="module-action-row pt-2">
+            <x-ui.action-panel :title="ui_phrase('Bulk Actions')" :description="ui_phrase('Save ongoing updates or finalize quotation validation when all required items are validated.')">
                 <button type="submit" class="btn-secondary" data-save-progress-btn>
                     <span data-save-progress-spinner class="mr-1 hidden inline-block h-3 w-3 animate-spin rounded-full border border-current border-t-transparent align-[-1px]"></span>
                     <span data-save-progress-label>{{ ui_phrase('Save Progress') }}</span>
@@ -1695,7 +1723,7 @@
                 >
                     <span>{{ ui_phrase('Validate Quotation') }}</span>
                 </button>
-            </div>
+            </x-ui.action-panel>
         </form>
         <form id="quotation-finalize-form" method="POST" action="{{ route('quotations.validate.finalize', $quotation) }}" class="hidden">
             @csrf
@@ -1824,7 +1852,7 @@
                             </div>
                             <div data-confirm-field="contact-website" class="sm:col-span-2">
                                 <dt class="text-gray-500 dark:text-gray-400">{{ ui_phrase('Website') }}</dt>
-                                <dd class="mt-0.5 font-semibold text-gray-800 dark:text-gray-100" data-confirm-contact-website></dd>
+                                <dd class="mt-0.5 break-all font-semibold text-gray-800 dark:text-gray-100" data-confirm-contact-website></dd>
                             </div>
                         </dl>
                     </div>
@@ -1876,7 +1904,7 @@
                         <dt class="text-gray-500 dark:text-gray-400">{{ ui_phrase('Contract Rate /pax') }}</dt>
                         <div class="mt-1 input-with-left-affix">
                             <input type="text" pattern="[0-9.]*" inputmode="numeric" class="app-input pl-14 text-right text-xs" data-confirm-contract-rate-input>
-                            <span class="input-left-affix rounded-md border border-gray-200 bg-gray-50 px-1.5 py-0.5 text-[10px] font-semibold text-gray-600 shadow-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200" data-confirm-contract-rate-badge>{{ strtoupper((string) ($currentCurrency ?? 'IDR')) }}</span>
+                            <span class="input-left-affix rounded-md border border-gray-200 bg-gray-50 px-1.5 py-0.5 text-[10px] font-semibold text-gray-600 shadow-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200" data-confirm-contract-rate-badge>{{ \App\Support\Currency::meta(\App\Support\Currency::current())['symbol'] ?? (\App\Support\Currency::current() === 'USD' ? '$' : 'Rp') }}</span>
                         </div>
                     </div>
                     <div>
@@ -1890,14 +1918,14 @@
                         <dt class="text-gray-500 dark:text-gray-400">{{ ui_phrase('Markup /pax') }}</dt>
                         <div class="mt-1 input-with-left-affix">
                             <input type="text" pattern="[0-9.]*" inputmode="numeric" class="app-input pl-14 text-right text-xs" data-confirm-markup-input>
-                            <span class="input-left-affix rounded-md border border-gray-200 bg-gray-50 px-1.5 py-0.5 text-[10px] font-semibold text-gray-600 shadow-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200" data-confirm-markup-badge>{{ strtoupper((string) ($currentCurrency ?? 'IDR')) }}</span>
+                            <span class="input-left-affix rounded-md border border-gray-200 bg-gray-50 px-1.5 py-0.5 text-[10px] font-semibold text-gray-600 shadow-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200" data-confirm-markup-badge>{{ \App\Support\Currency::meta(\App\Support\Currency::current())['symbol'] ?? (\App\Support\Currency::current() === 'USD' ? '$' : 'Rp') }}</span>
                         </div>
                     </div>
                     <div class="sm:col-span-2">
                         <dt class="text-gray-500 dark:text-gray-400">{{ ui_phrase('Total Price') }}</dt>
                         <div class="mt-1 input-with-left-affix">
                             <input type="text" class="app-input pl-14 text-right text-xs bg-gray-50 dark:bg-gray-800" data-confirm-total-price-input readonly>
-                            <span class="input-left-affix rounded-md border border-gray-200 bg-gray-50 px-1.5 py-0.5 text-[10px] font-semibold text-gray-600 shadow-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200">{{ strtoupper((string) ($currentCurrency ?? 'IDR')) }}</span>
+                            <span class="input-left-affix rounded-md border border-gray-200 bg-gray-50 px-1.5 py-0.5 text-[10px] font-semibold text-gray-600 shadow-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200" data-confirm-total-price-badge>{{ \App\Support\Currency::meta(\App\Support\Currency::current())['symbol'] ?? (\App\Support\Currency::current() === 'USD' ? '$' : 'Rp') }}</span>
                         </div>
                     </div>
                     <div class="sm:col-span-2">

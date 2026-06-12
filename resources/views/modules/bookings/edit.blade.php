@@ -58,7 +58,7 @@
 
         <div class="module-grid-8-4">
             <div class="module-grid-main">
-                <div class="module-form-wrap">
+                <x-ui.section-card :title="ui_phrase('Edit Booking')" :description="ui_phrase('Update booking operational details.')">
                     <form method="POST" action="{{ route('bookings.update', $booking) }}">
                         @csrf
                         @method('PUT')
@@ -70,7 +70,7 @@
                             'quotationReadonly' => (bool) ($hasOperationalLock ?? false),
                         ])
                     </form>
-                </div>
+                </x-ui.section-card>
 
                 @include('modules.bookings.partials._services-workspace', [
                     'booking' => $booking,
@@ -155,7 +155,6 @@
         </div>
     </x-modal>
 @endsection
-
 
 
 

@@ -1,24 +1,25 @@
 @php
     $buttonLabel = $buttonLabel ?? ui_phrase('Save');
     $quotations = collect($quotations ?? [])->filter()->values();
-    $editing = isset($booking) && $booking;
+    $bookingModel = $booking ?? null;
+    $editing = (bool) $bookingModel;
     $itemsReadonly = (bool) ($itemsReadonly ?? false);
     $quotationReadonly = (bool) ($quotationReadonly ?? false);
     $hideItemsSection = (bool) ($hideItemsSection ?? false);
     $readonlyGeneratedFlow = (bool) ($readonlyGeneratedFlow ?? false);
     $selectedQuotationId = old('quotation_id');
     if ($selectedQuotationId === null || $selectedQuotationId === '') {
-        $selectedQuotationId = $booking->quotation_id ?? null;
+        $selectedQuotationId = $bookingModel?->quotation_id ?? ($preferredQuotationId ?? request()->integer('quotation_id') ?: null);
     }
     $selectedQuotation = collect($quotations ?? [])->firstWhere('id', (int) $selectedQuotationId);
-    if (! $selectedQuotation && isset($booking) && $booking?->quotation) {
-        $selectedQuotation = $booking->quotation;
-        $selectedQuotationId = $booking->quotation_id;
+    if (! $selectedQuotation && $bookingModel?->quotation) {
+        $selectedQuotation = $bookingModel->quotation;
+        $selectedQuotationId = $bookingModel->quotation_id;
     }
     $existingItems = old('items');
     if (! is_array($existingItems)) {
-        $existingItems = $editing && $booking->relationLoaded('items')
-            ? $booking->items->map(fn ($item) => [
+        $existingItems = $editing && $bookingModel->relationLoaded('items')
+            ? $bookingModel->items->map(fn ($item) => [
                 'quotation_item_id' => $item->quotation_item_id,
                 'description' => $item->description,
                 'qty' => (int) $item->qty,
@@ -160,7 +161,7 @@
             <input
                 id="booking-pax-adult"
                 type="text"
-                value="{{ old('pax_adult', (string) (optional($booking)->pax_adult ?? $selectedQuotation?->pax_adult ?? '0')) }}"
+                value="{{ old('pax_adult', (string) ($bookingModel?->pax_adult ?? $selectedQuotation?->pax_adult ?? '0')) }}"
                 class="mt-1 app-input bg-gray-50 dark:bg-gray-900/30"
                 readonly
             >
@@ -168,7 +169,7 @@
                 id="booking-pax-adult-hidden"
                 name="pax_adult"
                 type="hidden"
-                value="{{ old('pax_adult', (string) (optional($booking)->pax_adult ?? $selectedQuotation?->pax_adult ?? '0')) }}"
+                value="{{ old('pax_adult', (string) ($bookingModel?->pax_adult ?? $selectedQuotation?->pax_adult ?? '0')) }}"
             >
             @error('pax_adult')
                 <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
@@ -179,7 +180,7 @@
             <input
                 id="booking-pax-child"
                 type="text"
-                value="{{ old('pax_child', (string) (optional($booking)->pax_child ?? $selectedQuotation?->pax_child ?? '0')) }}"
+                value="{{ old('pax_child', (string) ($bookingModel?->pax_child ?? $selectedQuotation?->pax_child ?? '0')) }}"
                 class="mt-1 app-input bg-gray-50 dark:bg-gray-900/30"
                 readonly
             >
@@ -187,7 +188,7 @@
                 id="booking-pax-child-hidden"
                 name="pax_child"
                 type="hidden"
-                value="{{ old('pax_child', (string) (optional($booking)->pax_child ?? $selectedQuotation?->pax_child ?? '0')) }}"
+                value="{{ old('pax_child', (string) ($bookingModel?->pax_child ?? $selectedQuotation?->pax_child ?? '0')) }}"
             >
             @error('pax_child')
                 <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
@@ -199,7 +200,7 @@
                 <input
                     id="booking-travel-date-display"
                     type="text"
-                    value="{{ old('travel_date', isset($booking->travel_date) ? $booking->travel_date->format('Y-m-d') : '') }}"
+                    value="{{ old('travel_date', $bookingModel?->travel_date?->format('Y-m-d') ?? '') }}"
                     class="mt-1 app-input bg-gray-50 dark:bg-gray-900/30"
                     readonly
                 >
@@ -207,7 +208,7 @@
                     id="booking-travel-date"
                     name="travel_date"
                     type="hidden"
-                    value="{{ old('travel_date', isset($booking->travel_date) ? $booking->travel_date->format('Y-m-d') : '') }}"
+                    value="{{ old('travel_date', $bookingModel?->travel_date?->format('Y-m-d') ?? '') }}"
                     required
                 >
             @else
@@ -215,7 +216,7 @@
                     id="booking-travel-date"
                     name="travel_date"
                     type="date"
-                    value="{{ old('travel_date', isset($booking->travel_date) ? $booking->travel_date->format('Y-m-d') : '') }}"
+                    value="{{ old('travel_date', $bookingModel?->travel_date?->format('Y-m-d') ?? '') }}"
                     class="mt-1 app-input"
                     required
                 >
@@ -329,6 +330,8 @@
                 const paxChildHiddenInput = document.getElementById('booking-pax-child-hidden');
                 const travelDateDisplayInput = document.getElementById('booking-travel-date-display');
                 const readonlyGeneratedFlow = @json($readonlyGeneratedFlow);
+                const selectedQuotationIdOnLoad = @json((string) ($selectedQuotationId ?? ''));
+                const hasExistingItems = @json(!empty($existingItems));
                 if (!tbody || !select) return;
 
                 const recalcTotals = () => {
@@ -459,12 +462,19 @@
                 if (generateBtn) {
                     generateBtn.addEventListener('click', generateFromQuotation);
                 }
-                select.addEventListener('change', applyTravelDateFromQuotation);
-                select.addEventListener('change', applyOrderNumberFromQuotation);
-                select.addEventListener('change', applyBookingMetaFromQuotation);
+                select.addEventListener('change', () => {
+                    applyTravelDateFromQuotation();
+                    applyOrderNumberFromQuotation();
+                    applyBookingMetaFromQuotation();
+                    generateFromQuotation();
+                });
                 bindRowEvents();
+                applyTravelDateFromQuotation();
                 applyOrderNumberFromQuotation();
                 applyBookingMetaFromQuotation();
+                if (selectedQuotationIdOnLoad !== '' && (!hasExistingItems || readonlyGeneratedFlow)) {
+                    generateFromQuotation();
+                }
                 recalcTotals();
 
                 if (!@json($itemsReadonly)) {

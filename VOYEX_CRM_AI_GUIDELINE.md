@@ -39,6 +39,7 @@ AI harus bertindak sebagai:
   - saat input mencapai 3+ karakter, filter harus langsung terpicu otomatis (live trigger),
   - `Enter`, `Tab`, `blur`, dan submit eksplisit tetap didukung sebagai fallback trigger,
   - input text < 3 karakter (non-empty) harus dianggap no-match.
+- Untuk setiap update, WAJIB lakukan audit i18n menyeluruh pada semua text/paragraf/kalimat user-facing di scope perubahan (Blade, JS, controller messages, modal/empty state/helper text) dan pastikan seluruhnya menggunakan translation helper/key.
 
 ## 4. Database Safety Rule
 

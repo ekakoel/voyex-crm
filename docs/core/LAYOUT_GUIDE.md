@@ -32,6 +32,47 @@ Jika header tidak diperlukan:
 @section('page_header_hidden', '1')
 ```
 
+### 1a. Header Action Button Standard (Required)
+
+Semua tombol action pada `@section('page_actions')` wajib mengikuti aturan ini:
+
+1. Gunakan class tombol standar global (`btn-primary`, `btn-secondary`, `btn-ghost`, `btn-outline`) dan hindari style inline/custom visual per halaman.
+2. Wajib menampilkan icon yang relevan di setiap tombol action header.
+3. Struktur tombol disarankan konsisten:
+
+```blade
+<a href="..." class="btn-primary">
+    <i class="fa-solid fa-plus" aria-hidden="true"></i>
+    <span>{{ ui_phrase('Add') }}</span>
+</a>
+```
+
+4. Icon hanya dekoratif:
+   - `aria-hidden="true"` pada elemen icon.
+   - label teks action tetap wajib ada (jangan icon-only).
+5. Visibility action wajib mengikuti permission + status workflow (jangan tampilkan action yang pasti gagal).
+6. Urutan prioritas visual:
+   - primary action paling penting (`btn-primary`),
+   - action pendukung (`btn-secondary`),
+   - navigasi balik (`btn-ghost`).
+
+### 1b. Confirmation Interaction Standard (Required)
+
+Untuk seluruh halaman module:
+
+1. Aksi yang memerlukan konfirmasi tidak boleh memakai browser-native `confirm()`.
+2. Wajib menggunakan modal konfirmasi dengan style konsisten lintas modul.
+3. Gunakan komponen standar `x-ui.confirm-action` agar:
+   - perilaku konfirmasi seragam,
+   - copywriting konfirmasi konsisten,
+   - aksesibilitas dan visual dark/light mode terjaga.
+4. Setiap modal konfirmasi wajib menampilkan informasi relevan:
+   - ringkasan dampak (`impactItems`),
+   - notifikasi proses/hasil (`noticeMessage`).
+5. Semua teks konfirmasi wajib multi-language:
+   - simpan di `lang/{locale}/confirm.php`,
+   - panggil dengan `__('confirm.*')`.
+
 ## 2. Grid Baseline
 
 Gunakan baseline berikut untuk halaman non-dashboard:

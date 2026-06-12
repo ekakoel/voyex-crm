@@ -3,10 +3,13 @@
 namespace App\Http\Requests;
 
 use App\Models\Quotation;
+use App\Support\Concerns\ResolvesInquiryHandler;
 use Illuminate\Foundation\Http\FormRequest;
 
 class UpdateBookingRequest extends FormRequest
 {
+    use ResolvesInquiryHandler;
+
     /**
      * Determine if the user is authorized to make this request.
      */
@@ -54,18 +57,18 @@ class UpdateBookingRequest extends FormRequest
             $currentBookingId = (int) ($this->route('booking')?->id ?? 0);
             $quotation = Quotation::query()
                 ->withCount('items')
-                ->with('booking:id,quotation_id')
+                ->with('booking:id,quotation_id', 'inquiry:id,handled_by,assigned_to,created_by')
                 ->find($quotationId);
 
             if (! $quotation) {
                 return;
             }
 
-            if (! in_array((string) $quotation->status, ['accepted', Quotation::FINAL_STATUS], true)) {
-                $validator->errors()->add('quotation_id', ui_phrase('Only accepted or converted quotation can be converted to booking.'));
+            if (! $this->inquiryHandlerMatchesUser($quotation->inquiry, (int) ($this->user()?->id ?? 0))) {
+                $validator->errors()->add('quotation_id', ui_phrase('Inquiry is handled by another user.'));
             }
 
-            if ((string) ($quotation->validation_status ?? 'pending') !== 'valid') {
+            if (! in_array((string) ($quotation->validation_status ?? 'pending'), ['valid', 'validated'], true)) {
                 $validator->errors()->add('quotation_id', ui_phrase('Selected quotation validation must be 100% before booking.'));
             }
 
@@ -82,6 +85,26 @@ class UpdateBookingRequest extends FormRequest
             $linkedBookingId = (int) ($quotation->booking?->id ?? 0);
             if ($linkedBookingId > 0 && $linkedBookingId !== $currentBookingId) {
                 $validator->errors()->add('quotation_id', ui_phrase('Selected quotation is already linked to another booking.'));
+            }
+
+            $revisionRootId = (int) ($quotation->revision_of_id ?: $quotation->id);
+            $hasActiveChainBooking = \App\Models\Booking::query()
+                ->whereNotIn('status', ['cancelled', \App\Models\Booking::FINAL_STATUS])
+                ->where('id', '!=', $currentBookingId)
+                ->whereHas('quotation', function ($query) use ($revisionRootId): void {
+                    $query->whereRaw('COALESCE(revision_of_id, id) = ?', [$revisionRootId]);
+                })
+                ->exists();
+            if ($hasActiveChainBooking) {
+                $validator->errors()->add('quotation_id', ui_phrase('Another active booking already exists for this quotation revision chain.'));
+            }
+
+            $normalizedStatus = Quotation::normalizeStatus((string) $quotation->status);
+            $allowedStatuses = $linkedBookingId === $currentBookingId
+                ? [Quotation::STATUS_APPROVED, Quotation::STATUS_CONVERTED_TO_BOOKING]
+                : [Quotation::STATUS_APPROVED];
+            if (! in_array($normalizedStatus, $allowedStatuses, true)) {
+                $validator->errors()->add('quotation_id', ui_phrase('Booking can only use an approved quotation that is not linked to another booking.'));
             }
 
             $itemIds = collect($this->input('items', []))

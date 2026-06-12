@@ -60,7 +60,7 @@
                                 $properties = is_array($log->properties) ? $log->properties : [];
                                 $itemType = strtoupper((string) ($properties['item_type'] ?? 'UNKNOWN'));
                                 $itemName = (string) ($properties['item_name'] ?? '-');
-                                $creatorName = (string) ($properties['creator_name'] ?? '-');
+                                $creatorName = ui_user_name($log->user, (string) ($properties['creator_name'] ?? '-'));
                                 $editUrl = (string) ($properties['edit_url'] ?? '');
                             @endphp
 
@@ -154,4 +154,3 @@
         </div>
     </div>
 @endsection
-

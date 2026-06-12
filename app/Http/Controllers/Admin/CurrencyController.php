@@ -14,15 +14,22 @@ class CurrencyController extends Controller
 {
     public function index(Request $request): View
     {
+        $validated = $request->validate([
+            'status' => ['nullable', Rule::in(['active', 'inactive'])],
+        ]);
+
         $query = Currency::query();
 
-        if ($search = trim((string) $request->get('q'))) {
+        $search = trim((string) $request->get('q'));
+        if (mb_strlen($search) >= 3) {
             $query->where(function ($builder) use ($search) {
                 $builder
                     ->where('code', 'like', "%{$search}%")
                     ->orWhere('name', 'like', "%{$search}%");
             });
         }
+        $query->when(($validated['status'] ?? null) === 'active', fn ($q) => $q->where('is_active', true));
+        $query->when(($validated['status'] ?? null) === 'inactive', fn ($q) => $q->where('is_active', false));
 
         $perPage = (int) $request->input('per_page', 10);
         $perPage = in_array($perPage, [10, 25, 50, 100], true) ? $perPage : 10;
@@ -47,7 +54,7 @@ class CurrencyController extends Controller
         $validated = $this->validatePayload($request);
 
         if (($validated['rate_to_idr'] ?? 0) <= 0) {
-            return back()->withErrors(['rate_to_idr' => 'Rate must be greater than 0.'])->withInput();
+            return back()->withErrors(['rate_to_idr' => ui_phrase('Rate must be greater than 0.')])->withInput();
         }
 
         $currency = Currency::create($validated);
@@ -58,7 +65,7 @@ class CurrencyController extends Controller
 
         CurrencySupport::flushCache();
 
-        return redirect()->route('currencies.index')->with('success', 'Currency created.');
+        return redirect()->route('currencies.index')->with('success', ui_phrase('Currency created.'));
     }
 
     public function edit(Currency $currency): View
@@ -78,7 +85,7 @@ class CurrencyController extends Controller
         $validated = $this->validatePayload($request, $currency->id);
 
         if (($validated['rate_to_idr'] ?? 0) <= 0) {
-            return back()->withErrors(['rate_to_idr' => 'Rate must be greater than 0.'])->withInput();
+            return back()->withErrors(['rate_to_idr' => ui_phrase('Rate must be greater than 0.')])->withInput();
         }
 
         $newRate = (float) ($validated['rate_to_idr'] ?? 0);
@@ -104,7 +111,7 @@ class CurrencyController extends Controller
 
         CurrencySupport::flushCache();
 
-        return redirect()->route('currencies.index')->with('success', 'Currency updated.');
+        return redirect()->route('currencies.index')->with('success', ui_phrase('Currency updated.'));
     }
 
     public function bulkUpdate(Request $request): RedirectResponse
@@ -158,23 +165,23 @@ class CurrencyController extends Controller
 
         CurrencySupport::flushCache();
 
-        return back()->with('success', 'Bulk rate update saved.');
+        return back()->with('success', ui_phrase('Bulk rate update saved.'));
     }
 
     public function destroy(Currency $currency): RedirectResponse
     {
         if ($currency->is_default) {
-            return back()->withErrors(['currency' => 'Default currency cannot be deleted.']);
+            return back()->withErrors(['currency' => ui_phrase('Default currency cannot be deleted.')]);
         }
         $activeCount = Currency::query()->where('is_active', true)->count();
         if ($currency->is_active && $activeCount <= 1) {
-            return back()->withErrors(['currency' => 'At least one active currency is required.']);
+            return back()->withErrors(['currency' => ui_phrase('At least one active currency is required.')]);
         }
 
         $currency->delete();
         CurrencySupport::flushCache();
 
-        return back()->with('success', 'Currency deleted.');
+        return back()->with('success', ui_phrase('Currency deleted.'));
     }
 
     private function validatePayload(Request $request, ?int $currencyId = null): array
@@ -206,7 +213,7 @@ class CurrencyController extends Controller
     {
         $user = auth()->user();
         if (! $user || ! $user->can('module.currencies.update')) {
-            abort(403, 'You do not have permission to update currency rates.');
+            abort(403, ui_phrase('You do not have permission to update currency rates.'));
         }
     }
 }

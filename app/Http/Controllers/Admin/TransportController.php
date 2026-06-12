@@ -11,6 +11,7 @@ use App\Models\Vendor;
 use App\Support\ImageThumbnailGenerator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class TransportController extends Controller
@@ -20,19 +21,25 @@ class TransportController extends Controller
 
     public function index(Request $request)
     {
+        $validated = $request->validate([
+            'status' => ['nullable', Rule::in(['active', 'inactive'])],
+        ]);
+
         $query = Transport::query()
             ->withTrashed()
             ->with(['vendor:id,name'])
             ->latest('id');
 
         if ($request->filled('q')) {
-            $term = (string) $request->string('q');
-            $query->where(function ($q) use ($term) {
-                $q->where('code', 'like', "%{$term}%")
-                    ->orWhere('name', 'like', "%{$term}%")
-                    ->orWhere('brand_model', 'like', "%{$term}%")
-                    ->orWhereHas('vendor', fn ($vendor) => $vendor->where('name', 'like', "%{$term}%"));
-            });
+            $term = trim((string) $request->string('q'));
+            if (mb_strlen($term) >= 3) {
+                $query->where(function ($q) use ($term) {
+                    $q->where('code', 'like', "%{$term}%")
+                        ->orWhere('name', 'like', "%{$term}%")
+                        ->orWhere('brand_model', 'like', "%{$term}%")
+                        ->orWhereHas('vendor', fn ($vendor) => $vendor->where('name', 'like', "%{$term}%"));
+                });
+            }
         }
 
         if ($request->filled('vendor_id')) {
@@ -42,6 +49,8 @@ class TransportController extends Controller
         if ($request->filled('transport_type')) {
             $query->where('transport_type', (string) $request->string('transport_type'));
         }
+        $query->when(($validated['status'] ?? null) === 'active', fn ($q) => $q->whereNull('deleted_at'));
+        $query->when(($validated['status'] ?? null) === 'inactive', fn ($q) => $q->onlyTrashed());
 
         $perPage = (int) $request->input('per_page', 10);
         $perPage = in_array($perPage, [10, 25, 50, 100], true) ? $perPage : 10;
@@ -82,7 +91,7 @@ class TransportController extends Controller
         $transport = Transport::query()->create($validated);
         $this->syncCancellationPolicy($transport, $request->input('cancellation_rules', []), (string) ($transport->name ?? ''));
 
-        return redirect()->route('transports.index')->with('success', 'Transport created successfully.');
+        return redirect()->route('transports.index')->with('success', ui_phrase('Transport created successfully.'));
     }
 
     public function edit(Transport $transport)
@@ -118,7 +127,7 @@ class TransportController extends Controller
         $transport->update($validated);
         $this->syncCancellationPolicy($transport, $request->input('cancellation_rules', []), (string) ($transport->name ?? ''));
 
-        return redirect()->route('transports.index')->with('success', 'Transport updated successfully.');
+        return redirect()->route('transports.index')->with('success', ui_phrase('Transport updated successfully.'));
     }
 
     public function destroy(Transport $transport)
@@ -126,7 +135,7 @@ class TransportController extends Controller
         $this->deleteImages($transport->images ?? []);
         $transport->delete();
 
-        return redirect()->route('transports.index')->with('success', 'Transport deactivated successfully.');
+        return redirect()->route('transports.index')->with('success', ui_phrase('Transport deactivated successfully.'));
     }
 
     public function toggleStatus($transport)
@@ -136,13 +145,13 @@ class TransportController extends Controller
             $transport->restore();
             $transport->update(['is_active' => true]);
 
-            return redirect()->route('transports.index')->with('success', 'Transport activated successfully.');
+            return redirect()->route('transports.index')->with('success', ui_phrase('Transport activated successfully.'));
         }
 
         $transport->update(['is_active' => false]);
         $transport->delete();
 
-        return redirect()->route('transports.index')->with('success', 'Transport deactivated successfully.');
+        return redirect()->route('transports.index')->with('success', ui_phrase('Transport deactivated successfully.'));
     }
 
     public function removeGalleryImage(Request $request, Transport $transport)

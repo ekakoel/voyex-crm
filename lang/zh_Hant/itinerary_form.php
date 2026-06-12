@@ -32,6 +32,7 @@ return [
         'end_point' => '終點',
         'unnamed_item' => '未命名項目',
         'independent_itinerary' => '獨立行程',
+        'connector_time_to' => 'Estimated time to :target: :minutes min',
     ],
     'status' => [
         'complete' => '已完成',

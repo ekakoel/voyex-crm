@@ -12,10 +12,14 @@ class CustomerController extends Controller
     public function index()
     {
         $query = Customer::query()->withTrashed()->with('creator');
-        $countries = $this->countryOptions();
 
         $query->when(request('q'), function ($q) {
-            $term = request('q');
+            $term = trim((string) request('q'));
+            if ($term !== '' && mb_strlen($term) < 3) {
+                $q->whereRaw('1 = 0');
+                return;
+            }
+
             $q->where('name', 'like', "%{$term}%")
                 ->orWhere('email', 'like', "%{$term}%")
                 ->orWhere('phone', 'like', "%{$term}%")
@@ -26,12 +30,14 @@ class CustomerController extends Controller
 
         $query->when(request('customer_type'), fn ($q) => $q->where('customer_type', request('customer_type')));
         $query->when(request('created_by'), fn ($q) => $q->where('created_by', request('created_by')));
-        $query->when(request('country'), fn ($q) => $q->where('country', 'like', '%' . request('country') . '%'));
 
         $perPage = (int) request('per_page', 10);
         $perPage = $perPage > 0 && $perPage <= 100 ? $perPage : 10;
 
-        $customers = $query->latest()->paginate($perPage)->withQueryString();
+        $summaryQuery = clone $query;
+        $query->latest();
+
+        $customers = $query->paginate($perPage)->withQueryString();
         $actor = auth()->user();
         $creators = \App\Models\User::query()
             ->when(! $actor?->isSuperAdmin(), fn ($query) => $query->withoutSuperAdmin())
@@ -55,6 +61,38 @@ class CustomerController extends Controller
             ->limit(5)
             ->get();
         $topCountry = $topCountries->first();
+
+        $totalFiltered = (clone $summaryQuery)->count();
+        $activeFiltered = (clone $summaryQuery)->whereNull('deleted_at')->count();
+        $inactiveFiltered = (clone $summaryQuery)->whereNotNull('deleted_at')->count();
+        $typeDistributionFiltered = (clone $summaryQuery)
+            ->selectRaw('COALESCE(NULLIF(customer_type, \'\'), \'unknown\') AS customer_type, COUNT(*) as total')
+            ->groupBy('customer_type')
+            ->pluck('total', 'customer_type');
+        $topCountryFiltered = (clone $summaryQuery)
+            ->selectRaw('country, COUNT(*) as total')
+            ->whereNotNull('country')
+            ->where('country', '!=', '')
+            ->groupBy('country')
+            ->orderByDesc('total')
+            ->value('country');
+
+        $sidebarInfo = [
+            'title' => ui_phrase('Customer/Agent Info'),
+            'subtitle' => ui_phrase('Summary of current customer/agent list.'),
+            'rows' => [
+                ['label' => ui_phrase('Total Customers'), 'value' => $totalFiltered, 'valueClass' => 'text-gray-800 dark:text-gray-100'],
+                ['label' => ui_phrase('Active'), 'value' => $activeFiltered, 'valueClass' => 'text-emerald-700 dark:text-emerald-300'],
+                ['label' => ui_phrase('Inactive'), 'value' => $inactiveFiltered, 'valueClass' => 'text-rose-700 dark:text-rose-300'],
+                [
+                    'label' => ui_phrase('Type Distribution'),
+                    'value' => collect($typeDistributionFiltered)
+                        ->map(fn ($count, $type) => ui_phrase('type ' . $type) . ': ' . $count)
+                        ->implode(', '),
+                ],
+                ['label' => ui_phrase('Top Country'), 'value' => $topCountryFiltered ?: '-'],
+            ],
+        ];
 
         $statsCards = [
             [
@@ -104,10 +142,10 @@ class CustomerController extends Controller
         return view('modules.customers.index', compact(
             'customers',
             'creators',
-            'countries',
             'statsCards',
             'countryCount',
-            'topCountries'
+            'topCountries',
+            'sidebarInfo'
         ));
     }
 

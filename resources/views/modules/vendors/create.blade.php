@@ -1,27 +1,28 @@
 @extends('layouts.master')
-@section('page_title', ui_phrase('create page title'))
-@section('page_subtitle', ui_phrase('create page subtitle'))
-@section('page_actions')
-    <a href="{{ route('vendors.index') }}" class="btn-ghost" data-page-back-action>{{ ui_phrase('Back') }}</a>
-@endsection
+
+@section('page_title', ui_phrase('Create Vendor'))
+@section('page_subtitle', ui_phrase('Add new vendor/provider master data for operation and reservation usage.'))
+
 @section('content')
     <div class="space-y-6 module-page module-page--vendors">
+        <x-ui.page-header :title="ui_phrase('Create Vendor')" :subtitle="ui_phrase('Complete vendor profile, location, and contact information.')">
+            <x-slot:actions>
+                <a href="{{ route('vendors.index') }}" class="btn-ghost">{{ ui_phrase('Back') }}</a>
+            </x-slot:actions>
+        </x-ui.page-header>
+
         <div class="module-grid-8-4">
             <div class="module-grid-main">
-                <div class="module-form-wrap">
-                    <form method="POST" action="{{ route('vendors.store') }}">
-                        @csrf
-                        @include('modules.vendors._form', ['buttonLabel' => ui_phrase('Save Vendor')])
-                    </form>
-                </div>
+                <form method="POST" action="{{ route('vendors.store') }}" class="space-y-4">
+                    @csrf
+                    @include('modules.vendors._form', ['buttonLabel' => ui_phrase('Save Vendor')])
+                </form>
             </div>
             <aside class="module-grid-side">
-                <div class="module-card p-5 text-sm text-slate-600 dark:text-slate-300">
-                    <p class="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{{ ui_phrase('Info') }}</p>
-                    <p class="mt-2">{{ ui_phrase('info text') }}</p>
-                </div>
+                <x-ui.info-card :title="ui_phrase('Vendor Guidance')">
+                    <p class="text-sm text-slate-600 dark:text-slate-300">{{ ui_phrase('Use complete and accurate contact and location data so reservation can confirm services quickly.') }}</p>
+                </x-ui.info-card>
             </aside>
         </div>
     </div>
 @endsection
-

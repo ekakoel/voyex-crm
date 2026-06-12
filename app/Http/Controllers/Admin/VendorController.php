@@ -8,23 +8,31 @@ use App\Models\Vendor;
 use App\Support\LocationResolver;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Validation\Rule;
 
 class VendorController extends Controller
 {
     public function index(Request $request)
     {
+        $validated = $request->validate([
+            'status' => ['nullable', Rule::in(['active', 'inactive'])],
+            'service_type' => ['nullable', Rule::in(['activities', 'food_beverages', 'transports', 'island_transfers'])],
+        ]);
+
         $perPage = (int) $request->integer('per_page', 10);
         if (! in_array($perPage, [10, 25, 50, 100], true)) {
             $perPage = 10;
         }
 
         $search = trim((string) $request->query('q', ''));
+        $status = (string) ($validated['status'] ?? '');
+        $serviceType = (string) ($validated['service_type'] ?? '');
 
-        $vendors = Vendor::query()
+        $baseQuery = Vendor::query()
             ->withTrashed()
             ->with('destination:id,name')
-            ->withCount(['activities', 'foodBeverages', 'transports'])
-            ->when($search !== '', function ($query) use ($search) {
+            ->withCount(['activities', 'foodBeverages', 'transports', 'islandTransfers'])
+            ->when(mb_strlen($search) >= 3, function ($query) use ($search) {
                 $query->where(function ($inner) use ($search) {
                     $inner->where('name', 'like', "%{$search}%")
                         ->orWhere('location', 'like', "%{$search}%")
@@ -35,11 +43,53 @@ class VendorController extends Controller
                         ->orWhere('contact_phone', 'like', "%{$search}%");
                 });
             })
+            ->when($status !== '', function ($query) use ($status) {
+                if ($status === 'active') {
+                    $query->where('is_active', true)->whereNull('deleted_at');
+                }
+                if ($status === 'inactive') {
+                    $query->where(function ($inactive) {
+                        $inactive->where('is_active', false)->orWhereNotNull('deleted_at');
+                    });
+                }
+            })
+            ->when($serviceType !== '', function ($query) use ($serviceType) {
+                if ($serviceType === 'activities') {
+                    $query->whereHas('activities');
+                }
+                if ($serviceType === 'food_beverages') {
+                    $query->whereHas('foodBeverages');
+                }
+                if ($serviceType === 'transports') {
+                    $query->whereHas('transports');
+                }
+                if ($serviceType === 'island_transfers') {
+                    $query->whereHas('islandTransfers');
+                }
+            });
+
+        $summaryQuery = clone $baseQuery;
+        $summaries = [
+            'total' => (clone $summaryQuery)->count(),
+            'active' => (clone $summaryQuery)->where('is_active', true)->whereNull('deleted_at')->count(),
+            'inactive' => (clone $summaryQuery)->where(function ($inactive) {
+                $inactive->where('is_active', false)->orWhereNotNull('deleted_at');
+            })->count(),
+            'with_services' => (clone $summaryQuery)
+                ->where(function ($q) {
+                    $q->whereHas('activities')
+                        ->orWhereHas('foodBeverages')
+                        ->orWhereHas('transports')
+                        ->orWhereHas('islandTransfers');
+                })->count(),
+        ];
+
+        $vendors = $baseQuery
             ->orderBy('name')
             ->paginate($perPage)
             ->withQueryString();
 
-        return view('modules.vendors.index', compact('vendors'));
+        return view('modules.vendors.index', compact('vendors', 'summaries'));
     }
 
     public function create()
@@ -91,7 +141,7 @@ class VendorController extends Controller
 
         Vendor::query()->create($this->filterPersistableColumns($validated));
 
-        return redirect()->route('vendors.index')->with('success', 'Vendor created successfully.');
+        return redirect()->route('vendors.index')->with('success', ui_phrase('Vendor created successfully.'));
     }
 
     public function edit(Vendor $vendor)
@@ -143,7 +193,7 @@ class VendorController extends Controller
 
         $vendor->update($this->filterPersistableColumns($validated));
 
-        return redirect()->route('vendors.index')->with('success', 'Vendor updated successfully.');
+        return redirect()->route('vendors.index')->with('success', ui_phrase('Vendor updated successfully.'));
     }
 
     public function destroy(Vendor $vendor)
@@ -152,11 +202,11 @@ class VendorController extends Controller
         if (($vendor->activities_count ?? 0) > 0 || ($vendor->food_beverages_count ?? 0) > 0 || ($vendor->transports_count ?? 0) > 0) {
             return redirect()
                 ->route('vendors.index')
-                ->with('error', 'Vendor cannot be deleted because it is used by Activities, Food & Beverage, or Transports. Deactivate it instead.');
+                ->with('error', ui_phrase('Vendor cannot be deleted because it is used by Activities, Food & Beverage, or Transports. Deactivate it instead.'));
         }
 
         $vendor->delete();
-        return redirect()->route('vendors.index')->with('success', 'Vendor deleted successfully.');
+        return redirect()->route('vendors.index')->with('success', ui_phrase('Vendor deleted successfully.'));
     }
 
     public function toggleStatus($vendor)
@@ -167,7 +217,7 @@ class VendorController extends Controller
             $vendor->update(['is_active' => true]);
             return redirect()
                 ->route('vendors.index')
-                ->with('success', 'Vendor activated successfully.');
+                ->with('success', ui_phrase('Vendor activated successfully.'));
         }
 
         $vendor->update(['is_active' => false]);
@@ -175,7 +225,7 @@ class VendorController extends Controller
 
         return redirect()
             ->route('vendors.index')
-            ->with('success', 'Vendor deactivated successfully.');
+            ->with('success', ui_phrase('Vendor deactivated successfully.'));
     }
 
     private function applyDestinationContext(array &$validated): void
@@ -218,5 +268,3 @@ class VendorController extends Controller
         return $filtered;
     }
 }
-
-

@@ -13,6 +13,8 @@ class ItineraryDayPoint extends Model
         'itinerary_id',
         'day_number',
         'day_start_time',
+        'break_start_time',
+        'break_end_time',
         'day_start_travel_minutes',
         'day_include',
         'day_exclude',

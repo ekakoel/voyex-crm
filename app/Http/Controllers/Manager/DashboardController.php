@@ -10,6 +10,7 @@ use App\Models\Itinerary;
 use App\Models\Quotation;
 use App\Models\User;
 use App\Services\ModuleService;
+use App\Support\Workflow\QuotationStatusNormalizer;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
@@ -97,7 +98,7 @@ class DashboardController extends Controller
             : 0;
 
         $teamPendingQuotations = $canQuotations
-            ? (clone $teamQuotationQuery)->where('status', 'pending_validation')
+            ? (clone $teamQuotationQuery)->whereIn('status', [Quotation::STATUS_NEED_VALIDATION, Quotation::STATUS_PENDING_VALIDATION])
             : Quotation::query()->whereRaw('1 = 0');
 
         $nonCreatorApprovalCountSql = Schema::hasColumn('quotations', 'created_by')
@@ -228,10 +229,10 @@ class DashboardController extends Controller
             : collect();
 
         $quotationStatusCounts = $canQuotations
-            ? (clone $teamQuotationQuery)
+            ? $this->normalizeQuotationStatusCounts((clone $teamQuotationQuery)
                 ->select('status', DB::raw('COUNT(*) as total'))
                 ->groupBy('status')
-                ->pluck('total', 'status')
+                ->pluck('total', 'status'))
             : collect();
 
         $upcomingFollowUps = $canInquiries
@@ -270,5 +271,16 @@ class DashboardController extends Controller
             'needsDirectorApprovalCount',
             'quotationStatusCounts'
         ));
+    }
+
+    private function normalizeQuotationStatusCounts($counts)
+    {
+        $normalized = collect();
+        foreach ($counts as $status => $total) {
+            $logicalStatus = QuotationStatusNormalizer::normalize((string) $status);
+            $normalized[$logicalStatus] = (int) ($normalized[$logicalStatus] ?? 0) + (int) $total;
+        }
+
+        return $normalized;
     }
 }

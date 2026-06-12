@@ -17,6 +17,10 @@ class AirportController extends Controller
 {
     public function index(Request $request)
     {
+        $validated = $request->validate([
+            'status' => ['nullable', Rule::in(['active', 'inactive'])],
+        ]);
+
         $query = Airport::query()
             ->withTrashed()
             ->with('destination:id,name')
@@ -35,14 +39,19 @@ class AirportController extends Controller
             ->latest('id');
 
         if ($request->filled('q')) {
-            $term = (string) $request->string('q');
-            $query->where(function ($q) use ($term) {
-                $q->where('code', 'like', "%{$term}%")
-                    ->orWhere('name', 'like', "%{$term}%")
-                    ->orWhere('city', 'like', "%{$term}%")
-                    ->orWhere('province', 'like', "%{$term}%");
-            });
+            $term = trim((string) $request->string('q'));
+            if (mb_strlen($term) >= 3) {
+                $query->where(function ($q) use ($term) {
+                    $q->where('code', 'like', "%{$term}%")
+                        ->orWhere('name', 'like', "%{$term}%")
+                        ->orWhere('city', 'like', "%{$term}%")
+                        ->orWhere('province', 'like', "%{$term}%");
+                });
+            }
         }
+
+        $query->when(($validated['status'] ?? null) === 'active', fn ($q) => $q->whereNull('deleted_at'));
+        $query->when(($validated['status'] ?? null) === 'inactive', fn ($q) => $q->onlyTrashed());
 
         $perPage = (int) $request->input('per_page', 10);
         $perPage = in_array($perPage, [10, 25, 50, 100], true) ? $perPage : 10;
@@ -92,7 +101,7 @@ class AirportController extends Controller
         unset($validated['cover_file'], $validated['existing_cover']);
         Airport::query()->create($validated);
 
-        return redirect()->route('airports.index')->with('success', 'Airport created successfully.');
+        return redirect()->route('airports.index')->with('success', ui_phrase('Airport created successfully.'));
     }
 
     public function show(Airport $airport)
@@ -136,14 +145,14 @@ class AirportController extends Controller
             $this->deleteAirportCovers([$coverResult['delete']]);
         }
 
-        return redirect()->route('airports.index')->with('success', 'Airport updated successfully.');
+        return redirect()->route('airports.index')->with('success', ui_phrase('Airport updated successfully.'));
     }
 
     public function destroy(Airport $airport)
     {
         $airport->delete();
 
-        return redirect()->route('airports.index')->with('success', 'Airport deactivated successfully.');
+        return redirect()->route('airports.index')->with('success', ui_phrase('Airport deactivated successfully.'));
     }
 
     public function toggleStatus($airport)
@@ -155,7 +164,7 @@ class AirportController extends Controller
 
             return redirect()
                 ->route('airports.index')
-                ->with('success', 'Airport activated successfully.');
+                ->with('success', ui_phrase('Airport activated successfully.'));
         }
 
         $airport->update(['is_active' => false]);
@@ -163,7 +172,7 @@ class AirportController extends Controller
 
         return redirect()
             ->route('airports.index')
-            ->with('success', 'Airport deactivated successfully.');
+            ->with('success', ui_phrase('Airport deactivated successfully.'));
     }
 
     private function validatePayload(Request $request, ?Airport $airport): array

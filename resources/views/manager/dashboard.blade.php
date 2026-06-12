@@ -37,8 +37,8 @@
                     <div class="sa-card p-5" data-progressive-item>
                         <div class="flex items-center justify-between">
                             <h2 class="text-sm font-semibold text-slate-900 dark:text-slate-100">{{ ui_phrase('Approval Pipeline') }}</h2>
-                            <a href="{{ route('quotations.index', ['status' => 'pending', 'needs_my_approval' => 1]) }}" class="text-xs font-medium text-indigo-600 hover:text-indigo-700 dark:text-indigo-300">
-                                {{ ui_phrase('Open My Approval List') }}
+                            <a href="{{ route('quotations.index', ['status' => 'pending']) }}" class="text-xs font-medium text-indigo-600 hover:text-indigo-700 dark:text-indigo-300">
+                                {{ ui_phrase('Open Quotation List') }}
                             </a>
                         </div>
                         <div class="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3 text-xs">
@@ -194,7 +194,7 @@
                                 <x-status-badge :status="$inquiry->status" />
                             </div>
                             <div class="mt-1 flex items-center justify-between text-xs">
-                                <span class="text-slate-500 dark:text-slate-400">{{ ui_phrase('Created By') }} {{ $inquiry->creator->name ?? ui_phrase('N/A') }}</span>
+                                <span class="text-slate-500 dark:text-slate-400">{{ ui_phrase('Created By') }} {{ ui_user_name($inquiry->creator, ui_phrase('N/A')) }}</span>
                                 <span class="text-slate-500 dark:text-slate-400">{{ \App\Support\DateTimeDisplay::date($inquiry->created_at) }}</span>
                             </div>
                         </a>
@@ -219,4 +219,3 @@
     })();
 </script>
 @endpush
-

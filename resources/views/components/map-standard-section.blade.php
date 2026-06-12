@@ -2,7 +2,7 @@
     $title = $title ?? 'Map & Location Standard';
     $mapPartial = $mapPartial ?? null;
     $mapTitle = $mapTitle ?? 'Location on Map (open map)';
-    $mapHeightClass = $mapHeightClass ?? 'h-[320px]';
+    $mapHeightClass = $mapHeightClass ?? 'h-[520px]';
     $interactive = $interactive ?? true;
 
     $mapFieldName = $mapFieldName ?? 'google_maps_url';
@@ -32,6 +32,7 @@
     $destinationName = $destinationName ?? 'destination_id';
     $destinationValue = $destinationValue ?? '';
     $destinations = $destinations ?? collect();
+    $showDestinationField = $showDestinationField ?? true;
 
     $showLocationStatus = $showLocationStatus ?? true;
 @endphp
@@ -48,8 +49,9 @@
     @endif
 
     <x-google-maps-autofill-row
-        label="Map URL (Google Maps)"
+        :label="ui_phrase('Map URL (Google Maps)')"
         :name="$mapFieldName"
+        :field="$mapFieldName"
         :error-key="$mapFieldErrorKey"
         :value="$mapValue"
     />
@@ -93,24 +95,26 @@
         </div>
     </div>
 
-    <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Destination') }}</label>
-            <select name="{{ $destinationName }}" data-location-field="destination_id" class="mt-1 app-input">
-                <option value="">{{ ui_phrase('Select destination') }}</option>
-                @foreach ($destinations as $destination)
-                    <option
-                        value="{{ $destination->id }}"
-                        data-city="{{ $destination->city ?? '' }}"
-                        data-province="{{ $destination->province ?? '' }}"
-                        @selected((string) $destinationValue === (string) $destination->id)>
-                        {{ $destination->province ?: $destination->name }}
-                    </option>
-                @endforeach
-            </select>
-            @error($destinationName) <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+    @if ($showDestinationField)
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Destination') }}</label>
+                <select name="{{ $destinationName }}" data-location-field="destination_id" class="mt-1 app-input">
+                    <option value="">{{ ui_phrase('Select destination') }}</option>
+                    @foreach ($destinations as $destination)
+                        <option
+                            value="{{ $destination->id }}"
+                            data-city="{{ $destination->city ?? '' }}"
+                            data-province="{{ $destination->province ?? '' }}"
+                            @selected((string) $destinationValue === (string) $destination->id)>
+                            {{ $destination->province ?: $destination->name }}
+                        </option>
+                    @endforeach
+                </select>
+                @error($destinationName) <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+            </div>
         </div>
-    </div>
+    @endif
 
     @if ($showLocationStatus)
         <p data-location-status class="mt-1 hidden text-xs"></p>

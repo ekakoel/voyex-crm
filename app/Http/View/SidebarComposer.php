@@ -2,10 +2,12 @@
 
 namespace App\Http\View;
 
-use App\Models\Quotation;
+use App\Models\Inquiry;
+use App\Models\QuotationFollowUpNotification;
 use App\Models\ActivityLog;
 use App\Services\ModuleService;
 use App\Support\CompanySettingsCache;
+use App\Support\InquiryDeadlineReminder;
 use App\Support\SchemaInspector;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Cache;
@@ -39,8 +41,9 @@ class SidebarComposer
 
         $view->with('currentCurrency', $currentCurrency);
         $view->with('currencyOptions', $currencyOptions);
-        $view->with('quotationApprovalNotification', $this->buildQuotationApprovalNotification($user, $enabledModules));
+        $view->with('quotationFollowUpNotification', $this->buildQuotationFollowUpNotification($user, $enabledModules));
         $view->with('editorManualItemNotification', $this->buildEditorManualItemNotification($user, $enabledModules));
+        $view->with('inquiryDeadlineReminderNotification', $this->buildInquiryDeadlineReminderNotification($user, $enabledModules));
     }
 
     /**
@@ -432,17 +435,62 @@ class SidebarComposer
     /**
      * @param mixed $user
      * @param array<string, bool> $enabledModules
-     * @return array{visible: bool, role: string|null, count: int}
+     * @return array{visible: bool, count: int}
      */
-    private function buildQuotationApprovalNotification($user, array $enabledModules): array
+    private function buildInquiryDeadlineReminderNotification($user, array $enabledModules): array
     {
         $empty = [
             'visible' => false,
-            'role' => null,
             'count' => 0,
         ];
 
-        if (! $user || ! SchemaInspector::hasTable('quotations') || ! SchemaInspector::hasTable('quotation_approvals')) {
+        if (! $user || ! SchemaInspector::hasTable('inquiries')) {
+            return $empty;
+        }
+
+        if (! ($enabledModules['inquiries'] ?? false)) {
+            return $empty;
+        }
+
+        if (! $user->can('module.inquiries.access')) {
+            return $empty;
+        }
+
+        $hasHandledBy = SchemaInspector::hasColumn('inquiries', 'handled_by');
+        $hasAssignedTo = SchemaInspector::hasColumn('inquiries', 'assigned_to');
+        if (! $hasHandledBy && ! $hasAssignedTo) {
+            return $empty;
+        }
+
+        $today = now()->toDateString();
+
+        $count = Cache::remember(
+            "sidebar:inquiry_deadline_reminder_notification:{$user->id}:{$today}",
+            now()->addSeconds(20),
+            function () use ($user): int {
+                return (int) InquiryDeadlineReminder::queryForUser($user)->count();
+            }
+        );
+
+        return [
+            'visible' => true,
+            'count' => max(0, (int) $count),
+        ];
+    }
+
+    /**
+     * @param mixed $user
+     * @param array<string, bool> $enabledModules
+     * @return array{visible: bool, count: int}
+     */
+    private function buildQuotationFollowUpNotification($user, array $enabledModules): array
+    {
+        $empty = [
+            'visible' => false,
+            'count' => 0,
+        ];
+
+        if (! $user || ! SchemaInspector::hasTable('quotation_follow_up_notifications')) {
             return $empty;
         }
 
@@ -454,60 +502,17 @@ class SidebarComposer
             return $empty;
         }
 
-        if (! $user->can('quotations.approve')) {
-            return $empty;
-        }
-
-        $role = null;
-        if ($user->can('dashboard.director.view')) {
-            $role = 'director';
-        } elseif ($user->can('dashboard.manager.view')) {
-            $role = 'manager';
-        } elseif ($user->can('dashboard.reservation.view')) {
-            $role = 'reservation';
-        }
-
-        if (! $role) {
-            return $empty;
-        }
-
-        $hasCreatedBy = SchemaInspector::hasColumn('quotations', 'created_by');
-
         $count = Cache::remember(
-            "sidebar:quotation_approval_notification:{$user->id}:{$role}",
+            "sidebar:quotation_follow_up_notification:{$user->id}",
             now()->addSeconds(20),
-            function () use ($user, $hasCreatedBy): int {
-                $baseQuery = Quotation::query()->where('status', 'pending');
-                if ($hasCreatedBy) {
-                    $baseQuery->where(function (Builder $query) use ($user): void {
-                        $query->whereNull('created_by')
-                            ->orWhere('created_by', '!=', (int) $user->id);
-                    });
-                }
-
-                return (int) (clone $baseQuery)
-                    ->whereDoesntHave('approvals', function (Builder $query) use ($user): void {
-                        $query->where('user_id', (int) $user->id);
-                    })
-                    ->when(
-                        $hasCreatedBy,
-                        fn (Builder $query) => $query->whereRaw(
-                            '(SELECT COUNT(*) FROM quotation_approvals qa'
-                            .' WHERE qa.quotation_id = quotations.id'
-                            .' AND (quotations.created_by IS NULL OR qa.user_id <> quotations.created_by)) < 2'
-                        ),
-                        fn (Builder $query) => $query->whereRaw(
-                            '(SELECT COUNT(*) FROM quotation_approvals qa'
-                            .' WHERE qa.quotation_id = quotations.id) < 2'
-                        )
-                    )
-                    ->count();
-            }
+            fn (): int => (int) QuotationFollowUpNotification::query()
+                ->where('user_id', (int) $user->id)
+                ->where('is_read', false)
+                ->count()
         );
 
         return [
             'visible' => true,
-            'role' => $role,
             'count' => max(0, (int) $count),
         ];
     }
@@ -583,4 +588,3 @@ class SidebarComposer
     }
 
 }
-

@@ -10,6 +10,10 @@ class Invoice extends Model
     use HasAudit;
 
     public const TYPE_OPTIONS = [
+        'proforma',
+        'final',
+        'adjustment',
+        'credit_note',
         'down_payment',
         'balance_payment',
         'full_payment',
@@ -23,6 +27,7 @@ class Invoice extends Model
         'issued',
         'partially_paid',
         'paid',
+        // keep legacy status for backward compatibility with existing payment flow
         'overpaid',
         'revised',
         'void',
@@ -143,6 +148,5 @@ class Invoice extends Model
         return in_array($status, ['issued', 'partially_paid'], true);
     }
 }
-
 
 

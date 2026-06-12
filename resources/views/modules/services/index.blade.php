@@ -9,16 +9,6 @@
     @endphp
 
     <div class="sa-wrap rounded-3xl border border-slate-200/80 bg-slate-100/70 p-3 dark:border-slate-700 dark:bg-slate-900/60">
-        @if (session('success'))
-            <div class="rounded-lg mb-4 border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300">
-                {{ session('success') }}
-            </div>
-        @endif
-        @if (session('error'))
-            <div class="rounded-lg mb-4 border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-700 dark:bg-rose-900/20 dark:text-rose-300">
-                {{ session('error') }}
-            </div>
-        @endif
 
         <div class="grid grid-cols-1 gap-3 xl:grid-cols-12">
             <section class="xl:col-span-9 space-y-3">
@@ -86,4 +76,5 @@
         </div>
     </div>
 @endsection
+
 

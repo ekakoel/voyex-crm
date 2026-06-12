@@ -232,15 +232,21 @@ class AdjustmentService
     {
         return [
             'booking_item_id' => ! empty($payload['booking_item_id']) ? (int) $payload['booking_item_id'] : null,
+            'quotation_id' => ! empty($payload['quotation_id']) ? (int) $payload['quotation_id'] : null,
             'invoice_id' => ! empty($payload['invoice_id']) ? (int) $payload['invoice_id'] : null,
             'payment_id' => ! empty($payload['payment_id']) ? (int) $payload['payment_id'] : null,
             'adjustment_type' => (string) ($payload['adjustment_type'] ?? 'manual_adjustment'),
+            'type' => (string) ($payload['type'] ?? $payload['adjustment_type'] ?? 'manual_adjustment'),
             'title' => trim((string) ($payload['title'] ?? '')),
             'description' => trim((string) ($payload['description'] ?? '')) ?: null,
             'reason' => trim((string) ($payload['reason'] ?? '')) ?: null,
             'amount' => (float) ($payload['amount'] ?? 0),
+            'amount_type' => (string) ($payload['amount_type'] ?? 'fixed'),
+            'percentage' => isset($payload['percentage']) ? (float) $payload['percentage'] : null,
+            'calculated_amount' => isset($payload['calculated_amount']) ? (float) $payload['calculated_amount'] : (float) ($payload['amount'] ?? 0),
             'currency_code' => $payload['currency_code'] ?? null,
             'impact_type' => (string) ($payload['impact_type'] ?? 'non_financial'),
+            'created_by' => ! empty($payload['created_by']) ? (int) $payload['created_by'] : null,
             'metadata' => is_array($payload['metadata'] ?? null) ? $payload['metadata'] : null,
         ];
     }
@@ -249,6 +255,10 @@ class AdjustmentService
     {
         if (! empty($data['booking_item_id']) && ! $booking->items()->whereKey((int) $data['booking_item_id'])->exists()) {
             throw new \RuntimeException('Selected booking item does not belong to this booking.');
+        }
+
+        if (! empty($data['quotation_id']) && (int) $data['quotation_id'] !== (int) $booking->quotation_id) {
+            throw new \RuntimeException('Selected quotation does not belong to this booking.');
         }
 
         if (! empty($data['invoice_id']) && ! $booking->invoices()->whereKey((int) $data['invoice_id'])->exists()) {

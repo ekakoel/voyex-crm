@@ -7,12 +7,13 @@ use App\Http\Controllers\Concerns\HandlesActivityTimelineAjax;
 use App\Models\Activity;
 use App\Models\FoodBeverage;
 use App\Models\HotelRoom;
+use App\Models\HotelPrice;
 use App\Models\Inquiry;
 use App\Models\IslandTransfer;
 use App\Models\Itinerary;
 use App\Models\Quotation;
-use App\Models\QuotationApproval;
-use App\Models\QuotationComment;
+use App\Models\QuotationCustomerResponse;
+use App\Models\QuotationFollowUp;
 use App\Models\QuotationItem;
 use App\Models\Customer;
 use App\Models\Destination;
@@ -22,7 +23,15 @@ use App\Models\User;
 use App\Services\ActivityAuditLogger;
 use App\Services\ItineraryQuotationService;
 use App\Services\InvoiceService;
+use App\Services\ModuleService;
 use App\Services\QuotationValidationService;
+use App\Services\Quotation\QuotationFollowUpAutomationService;
+use App\Services\Quotation\ItineraryQuotationRevisionOrchestrator;
+use App\Services\Quotation\QuotationStatusService;
+use App\Services\Quotation\QuotationWorkflowService;
+use App\Support\QuotationActionResolver;
+use App\Support\Workflow\QuotationWorkflow;
+use App\Support\Workflow\QuotationStatusNormalizer;
 use App\Support\ImageThumbnailGenerator;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
@@ -35,7 +44,6 @@ use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Database\UniqueConstraintViolationException;
 
 class QuotationController extends Controller
 {
@@ -45,7 +53,12 @@ class QuotationController extends Controller
         private readonly InvoiceService $invoiceService,
         private readonly ItineraryQuotationService $itineraryQuotationService,
         private readonly ActivityAuditLogger $activityAuditLogger,
-        private readonly QuotationValidationService $quotationValidationService
+        private readonly QuotationValidationService $quotationValidationService,
+        private readonly QuotationWorkflowService $quotationWorkflowService,
+        private readonly ItineraryQuotationRevisionOrchestrator $itineraryQuotationRevisionOrchestrator,
+        private readonly QuotationFollowUpAutomationService $quotationFollowUpAutomationService,
+        private readonly QuotationActionResolver $quotationActionResolver,
+        private readonly QuotationStatusService $quotationStatusService
     )
     {
     }
@@ -56,28 +69,25 @@ class QuotationController extends Controller
     public function index()
     {
         $this->autoFinalizeExpiredApprovedQuotations();
-        $showNeedsMyApproval = request()->boolean('needs_my_approval');
 
         $query = Quotation::query()->with([
+            'itinerary:id,title,destination,inquiry_id',
             'inquiry.customer',
+            'inquiry.handledBy:id,name',
             'creator',
             'approvals:id,quotation_id,user_id,approval_role',
             'items:id,quotation_id,qty,unit_price,contract_rate,markup_type,markup,discount,discount_type,itinerary_item_type',
         ]);
         $this->applyQuotationKeywordFilter($query, (string) request('q'));
-        if ($showNeedsMyApproval) {
-            $this->applyNeedsMyApprovalFilter($query, auth()->user());
-            $statusFilterOptions = ['pending_validation'];
-            $statsCards = $this->buildQuotationStatsCards(null, ['pending_validation'], false);
-        } else {
-            $statusFilterOptions = Quotation::STATUS_OPTIONS;
-            $statsCards = $this->buildQuotationStatsCards(null, null, false);
-        }
+        $this->applyQuotationStatusFilter($query, (string) request('status'));
+        $statusFilterOptions = Quotation::STATUS_OPTIONS;
+        $statsCards = $this->buildQuotationStatsCards(null, null, false);
         $perPage = (int) request('per_page', 10);
         $perPage = $perPage > 0 && $perPage <= 100 ? $perPage : 10;
 
         $today = now()->toDateString();
-        $nonFinalQuery = (clone $query)->where('status', '!=', Quotation::FINAL_STATUS);
+        $finalStatusAliases = $this->quotationStatusAliasesForQuery(Quotation::FINAL_STATUS);
+        $nonFinalQuery = (clone $query)->whereNotIn('status', $finalStatusAliases);
         $upcomingQuotations = (clone $nonFinalQuery)
             ->where(function (Builder $builder) use ($today): void {
                 $builder->whereDate('service_date', '>=', $today)
@@ -92,16 +102,14 @@ class QuotationController extends Controller
             ->paginate($perPage, ['*'], 'expired_page')
             ->withQueryString();
         $finalQuotations = (clone $query)
-            ->where('status', Quotation::FINAL_STATUS)
+            ->whereIn('status', $finalStatusAliases)
             ->latest()
             ->paginate($perPage, ['*'], 'final_page')
             ->withQueryString();
         $authUser = auth()->user();
-        $approvalRole = $this->resolveApprovalRoleForUser($authUser);
-        $transformQuotation = function (Quotation $quotation) use ($authUser, $approvalRole, $showNeedsMyApproval): Quotation {
-            $quotation->setAttribute('needs_my_approval_badge', $showNeedsMyApproval
-                ? $this->needsMyApprovalForQuotation($quotation, $authUser, $approvalRole)
-                : false);
+        $transformQuotation = function (Quotation $quotation) use ($authUser): Quotation {
+            $quotation->setAttribute('status', Quotation::normalizeStatus((string) ($quotation->status ?? '')));
+            $quotation->setAttribute('needs_my_approval_badge', false);
             $kpiSummary = $this->computeQuotationKpiSummary($quotation);
             $quotation->setAttribute('display_final_amount', (float) ($kpiSummary['final_amount'] ?? 0));
             return $quotation;
@@ -126,7 +134,7 @@ class QuotationController extends Controller
             'listRouteName' => 'quotations.index',
             'exportScope' => 'all',
             'statusFilterOptions' => $statusFilterOptions,
-            'showNeedsMyApproval' => $showNeedsMyApproval,
+            'showNeedsMyApproval' => false,
         ]);
     }
 
@@ -135,6 +143,7 @@ class QuotationController extends Controller
         $this->autoFinalizeExpiredApprovedQuotations();
 
         $query = Quotation::query()->withTrashed()->with([
+            'itinerary:id,title,destination,inquiry_id',
             'inquiry.customer',
             'creator',
             'approvals:id,quotation_id,user_id,approval_role',
@@ -146,12 +155,14 @@ class QuotationController extends Controller
             $query->whereRaw('1 = 0');
         }
         $this->applyQuotationKeywordFilter($query, (string) request('q'));
+        $this->applyQuotationStatusFilter($query, (string) request('status'));
 
         $perPage = (int) request('per_page', 10);
         $perPage = $perPage > 0 && $perPage <= 100 ? $perPage : 10;
 
         $today = now()->toDateString();
-        $nonFinalQuery = (clone $query)->where('status', '!=', Quotation::FINAL_STATUS);
+        $finalStatusAliases = $this->quotationStatusAliasesForQuery(Quotation::FINAL_STATUS);
+        $nonFinalQuery = (clone $query)->whereNotIn('status', $finalStatusAliases);
         $upcomingQuotations = (clone $nonFinalQuery)
             ->where(function (Builder $builder) use ($today): void {
                 $builder->whereDate('service_date', '>=', $today)
@@ -166,11 +177,12 @@ class QuotationController extends Controller
             ->paginate($perPage, ['*'], 'expired_page')
             ->withQueryString();
         $finalQuotations = (clone $query)
-            ->where('status', Quotation::FINAL_STATUS)
+            ->whereIn('status', $finalStatusAliases)
             ->latest()
             ->paginate($perPage, ['*'], 'final_page')
             ->withQueryString();
         $transformQuotation = function (Quotation $quotation): Quotation {
+            $quotation->setAttribute('status', Quotation::normalizeStatus((string) ($quotation->status ?? '')));
             $quotation->setAttribute('needs_my_approval_badge', false);
             $kpiSummary = $this->computeQuotationKpiSummary($quotation);
             $quotation->setAttribute('display_final_amount', (float) ($kpiSummary['final_amount'] ?? 0));
@@ -201,55 +213,13 @@ class QuotationController extends Controller
         ]);
     }
 
-    public function approvalNotifications(Request $request)
-    {
-        $user = $request->user();
-        if (! $user) {
-            return response()->json([
-                'enabled' => false,
-                'count' => 0,
-                'role' => null,
-                'latest' => null,
-            ], 401);
-        }
-
-        $approvalRole = $this->resolveApprovalRoleForUser($user);
-        if (! $approvalRole) {
-            return response()->json([
-                'enabled' => false,
-                'count' => 0,
-                'role' => null,
-                'latest' => null,
-            ]);
-        }
-
-        $query = Quotation::query();
-        $this->applyNeedsMyApprovalFilter($query, $user);
-
-        $count = (clone $query)->count();
-        $latest = (clone $query)
-            ->latest('created_at')
-            ->latest('id')
-            ->first(['id', 'quotation_number', 'created_at']);
-
-        return response()->json([
-            'enabled' => true,
-            'count' => (int) $count,
-            'role' => $approvalRole,
-            'latest' => $latest ? [
-                'id' => (int) $latest->id,
-                'quotation_number' => (string) ($latest->quotation_number ?? ''),
-                'created_at' => optional($latest->created_at)->toIso8601String(),
-            ] : null,
-        ]);
-    }
-
     /**
      * Show the form for creating a new resource.
      */
     public function create()
     {
         $prefillItineraryId = request()->integer('itinerary_id') ?: null;
+        $prefillInquiryId = request()->integer('inquiry_id') ?: null;
         $itineraries = $this->availableItinerariesQuery()
             ->orderBy('title')
             ->orderBy('id')
@@ -258,45 +228,25 @@ class QuotationController extends Controller
             ->where('is_active', true)
             ->orderBy('name')
             ->get(['id', 'name']);
-        $itineraryInquiryMap = $itineraries->mapWithKeys(function ($itinerary): array {
-            $inquiry = $itinerary->inquiryReferences->first();
-            if (! $inquiry) {
-                return [];
-            }
-
-            return [
-                (string) $itinerary->id => [
-                    'inquiry_number' => (string) ($inquiry?->inquiry_number ?? '-'),
-                    'customer_name' => (string) ($inquiry?->customer?->name ?? '-'),
-                    'status' => (string) ($inquiry?->status ?? '-'),
-                    'priority' => (string) ($inquiry?->priority ?? '-'),
-                    'source' => (string) ($inquiry?->source ?? '-'),
-                    'creator_name' => (string) ($inquiry?->creator?->name ?? '-'),
-                    'deadline' => optional($inquiry?->deadline)->format('Y-m-d') ?? '-',
-                    'notes' => trim((string) ($inquiry?->notes ?? '')) !== '' ? (string) ($inquiry?->notes ?? '') : '-',
-                    'notes_html' => \App\Support\SafeRichText::sanitize((string) ($inquiry?->notes ?? '')),
-                ],
-            ];
-        })->all();
-        $itineraries->each(function (Itinerary $itinerary): void {
-            $inquiry = $itinerary->inquiryReferences->first();
-            $itinerary->setAttribute('reference_inquiry_id', $inquiry?->id ? (int) $inquiry->id : null);
-            $itinerary->setAttribute('reference_customer_id', $inquiry?->customer_id ? (int) $inquiry->customer_id : null);
-            $itinerary->setAttribute('reference_inquiry_number', (string) ($inquiry?->inquiry_number ?? ''));
-        });
-        $inquiries = $this->availableInquiriesQuery()
+        $this->attachItineraryInquiryReferences($itineraries);
+        $itineraryInquiryMap = $this->buildItineraryInquiryMap($itineraries);
+        $inquiries = $this->availableInquiriesQuery($prefillInquiryId)
             ->orderByDesc('id')
             ->get(['id', 'inquiry_number', 'customer_id', 'status', 'priority', 'source', 'deadline', 'notes']);
         $customers = Customer::query()
             ->orderBy('name')
             ->orderBy('company_name')
             ->get(['id', 'name', 'company_name', 'email', 'phone']);
+        $serviceCatalogs = $this->buildServiceItemCatalogs();
 
         if ($prefillItineraryId && ! $itineraries->firstWhere('id', $prefillItineraryId)) {
             $prefillItineraryId = null;
         }
+        if ($prefillInquiryId && ! $inquiries->firstWhere('id', $prefillInquiryId)) {
+            $prefillInquiryId = null;
+        }
 
-        return view('modules.quotations.create', compact('itineraries', 'inquiries', 'customers', 'destinations', 'prefillItineraryId', 'itineraryInquiryMap'));
+        return view('modules.quotations.create', compact('itineraries', 'inquiries', 'customers', 'destinations', 'prefillItineraryId', 'prefillInquiryId', 'itineraryInquiryMap', 'serviceCatalogs'));
     }
 
     /**
@@ -312,22 +262,25 @@ class QuotationController extends Controller
 
         $validated = $request->validate([
             'itinerary_id' => [
-                'required',
+                'nullable',
                 'integer',
                 Rule::exists('itineraries', 'id')->where(function ($query): void {
                     $query->where('is_active', true);
                 }),
             ],
             'customer_id' => ['required', 'integer', 'exists:customers,id'],
-            'inquiry_id' => ['nullable', 'integer', 'exists:inquiries,id'],
+            'inquiry_id' => ['required', 'integer', 'exists:inquiries,id'],
             'order_number' => ['required', 'string', 'max:100', 'regex:/^[A-Za-z0-9]+$/'],
             'service_date' => ['required', 'date'],
+            'duration_days' => ['required', 'integer', 'min:1'],
+            'duration_nights' => ['nullable', 'integer', 'min:0'],
             'pax_adult' => ['required', 'integer', 'min:0'],
             'pax_child' => ['nullable', 'integer', 'min:0'],
             'validity_date' => ['required', 'date'],
             'discount_type' => ['nullable', Rule::in(['percent', 'fixed'])],
             'discount_value' => ['nullable', 'numeric', 'min:0'],
             'items' => ['required', 'array', 'min:1'],
+            'items.*.id' => ['nullable', 'integer', 'min:1'],
             'items.*.description' => ['required', 'string', 'max:255'],
             'items.*.qty' => ['required', 'integer', 'min:1'],
             'items.*.contract_rate' => ['nullable', 'numeric', 'min:0'],
@@ -337,9 +290,11 @@ class QuotationController extends Controller
             'items.*.unit_price' => ['required', 'numeric', 'min:0'],
             'items.*.discount_type' => ['nullable', Rule::in(['percent', 'fixed'])],
             'items.*.discount' => ['nullable', 'numeric', 'min:0'],
+            'items.*.source_item_id' => ['nullable', 'integer', 'min:1'],
             'items.*.serviceable_type' => ['nullable', Rule::in($this->serviceableTypes())],
             'items.*.serviceable_id' => ['nullable', 'integer', 'min:1'],
             'items.*.day_number' => ['nullable', 'integer', 'min:1'],
+            'items.*.sort_order' => ['nullable', 'integer', 'min:0'],
             'items.*.serviceable_meta' => ['nullable'],
             'items.*.itinerary_item_type' => ['nullable', Rule::in($this->itineraryItemTypes())],
         ]);
@@ -367,10 +322,13 @@ class QuotationController extends Controller
         }
 
         $selectedItineraryId = (int) ($validated['itinerary_id'] ?? 0);
+        $selectedItineraryId = $selectedItineraryId > 0 ? $selectedItineraryId : null;
         $selectedCustomerId = (int) ($validated['customer_id'] ?? 0);
         $normalizedOrderNumber = $this->normalizeOrderNumber($validated['order_number'] ?? null);
         $selectedInquiryId = (int) ($validated['inquiry_id'] ?? 0);
-        $inquiryId = $this->resolveInquiryIdForQuotation($selectedItineraryId, $selectedCustomerId, $selectedInquiryId);
+        $this->assertInquiryEligibleForQuotationGeneration($selectedInquiryId);
+        $inquiryId = $this->resolveInquiryIdForQuotation($selectedCustomerId, $selectedInquiryId);
+        $this->assertAndClaimInquiryHandler($inquiryId);
         if (! $this->canApplyGlobalDiscount()) {
             $validated['discount_type'] = null;
             $validated['discount_value'] = 0;
@@ -383,6 +341,7 @@ class QuotationController extends Controller
 
         DB::beginTransaction();
         try {
+            $validated['items'] = $this->syncMissingServicePublishRatesFromQuotationItems($validated['items']);
             $totals = $this->computeTotals(
                 $validated['items'],
                 $validated['discount_type'] ?? null,
@@ -399,7 +358,7 @@ class QuotationController extends Controller
                     'service_date' => $validated['service_date'],
                     'pax_adult' => (int) ($validated['pax_adult'] ?? 0),
                     'pax_child' => (int) ($validated['pax_child'] ?? 0),
-                    'status' => 'pending_validation',
+                    'status' => Quotation::STATUS_NEED_VALIDATION,
                     'validity_date' => $validated['validity_date'],
                     'sub_total' => $totals['sub_total'],
                     'discount_type' => $validated['discount_type'] ?? null,
@@ -412,6 +371,7 @@ class QuotationController extends Controller
             foreach ($totals['items'] as $item) {
                 $quotation->items()->create($item);
             }
+            $this->syncInquiryItineraryReferenceFromQuotation($quotation);
             $this->quotationValidationService->syncValidationRequirementsAndMasterRates($quotation);
             if ($this->quotationUsesApprovalBypass($quotation)) {
                 $quotation->approvals()->delete();
@@ -426,11 +386,6 @@ class QuotationController extends Controller
         } catch (\Throwable $e) {
             DB::rollBack();
             report($e);
-            if ($e instanceof UniqueConstraintViolationException && str_contains((string) $e->getMessage(), 'quotations_itinerary_id_unique')) {
-                return back()
-                    ->withInput()
-                    ->with('error', 'Database rule still limits 1 quotation per itinerary. Please run latest migration and try again.');
-            }
             return back()
                 ->withInput()
                 ->with('error', 'Failed to save quotation. Please check the data.');
@@ -448,26 +403,41 @@ class QuotationController extends Controller
     {
         $quotation = Quotation::query()->findOrFail($id);
         $this->autoFinalizeApprovedQuotationIfExpired($quotation);
+        $quotation->setAttribute('status', Quotation::normalizeStatus((string) ($quotation->status ?? '')));
         $quotation->load([
             'inquiry.customer',
+            'inquiry.handledBy:id,name',
+            'inquiry.assignedTo:id,name',
             'itinerary.creator',
             'itinerary.inquiry.customer',
+            'itinerary.dayPoints:id,itinerary_id,day_number,break_start_time,break_end_time',
             'items',
             'activities.user',
-            'comments.user',
-            'booking',
+            'booking.items',
+            'booking.invoices.payments',
             'approvedBy',
             'approvalNoteBy',
+            'validatedBy',
             'creator',
             'updater',
-            'approvals.user',
+            'revisionOf',
+            'revisions',
+            'followUps.creator',
+            'followUps.handler',
+            'customerResponses.creator',
         ]);
+        $this->applyQuotationServiceDescriptions($quotation);
         $this->quotationValidationService->syncValidationRequirements($quotation);
-        $approvalProgress = $this->buildApprovalProgress($quotation);
+        $quotation->load([
+            'followUps.creator',
+            'followUps.handler',
+            'customerResponses.creator',
+        ]);
         $validationProgress = $this->quotationValidationService->getProgress($quotation);
         $kpiSummary = $this->computeQuotationKpiSummary($quotation);
+        $groupedItemsByDay = $this->buildGroupedQuotationItemsByDay($quotation);
         $canValidateQuotation = $this->quotationValidationService->isValidationActor($request->user())
-            && ! in_array((string) ($quotation->status ?? ''), [Quotation::FINAL_STATUS], true)
+            && ! $quotation->isStatus(Quotation::STATUS_SENT, Quotation::STATUS_CUSTOMER_APPROVED, Quotation::FINAL_STATUS, Quotation::STATUS_IN_OPERATION, Quotation::STATUS_COMPLETED)
             && (bool) ($validationProgress['requires_validation'] ?? false);
 
         $activities = $quotation->activities()
@@ -480,7 +450,17 @@ class QuotationController extends Controller
             return $this->activityTimelineFragmentResponse($activities);
         }
 
-        return view('modules.quotations.show', compact('quotation', 'approvalProgress', 'validationProgress', 'canValidateQuotation', 'activities', 'kpiSummary'));
+        $revisionHistory = $this->buildRevisionHistory($quotation);
+        $followUpHistory = $this->buildFollowUpHistory($quotation);
+        $bookingsModuleEnabled = ModuleService::isEnabledStatic('bookings');
+        $workflowOverview = $this->buildQuotationWorkflowOverview(
+            $quotation,
+            $validationProgress,
+            $bookingsModuleEnabled
+        );
+        $availableActions = $this->quotationActionResolver->availableActions($quotation, $request->user());
+
+        return view('modules.quotations.show', compact('quotation', 'validationProgress', 'canValidateQuotation', 'activities', 'kpiSummary', 'groupedItemsByDay', 'revisionHistory', 'followUpHistory', 'workflowOverview', 'availableActions', 'bookingsModuleEnabled'));
     }
 
 
@@ -491,6 +471,8 @@ class QuotationController extends Controller
     {
         $quotation = Quotation::query()->findOrFail($id);
         $this->autoFinalizeApprovedQuotationIfExpired($quotation);
+        $quotation->setAttribute('status', Quotation::normalizeStatus((string) ($quotation->status ?? '')));
+        $isRevisionMode = $this->isQuotationRevisionModeRequest($request, $quotation);
         if ($quotation->isFinal()) {
             return redirect()
                 ->route('quotations.show', $quotation)
@@ -506,12 +488,14 @@ class QuotationController extends Controller
             'itinerary.inquiry.customer',
             'itinerary.inquiry.creator',
             'itinerary.creator',
-            'comments.user',
             'approvedBy',
             'approvalNoteBy',
             'approvals.user',
+            'pendingRevisionCustomerResponses.creator',
         ]);
+        $this->applyQuotationServiceDescriptions($quotation);
         $this->quotationValidationService->syncValidationRequirements($quotation);
+        $quotation->load('pendingRevisionCustomerResponses.creator');
 
         $itineraries = $this->availableItinerariesQuery((int) ($quotation->itinerary_id ?? 0))
             ->orderBy('title')
@@ -521,43 +505,20 @@ class QuotationController extends Controller
             ->where('is_active', true)
             ->orderBy('name')
             ->get(['id', 'name']);
-        $inquiries = $this->availableInquiriesQuery((int) ($quotation->inquiry_id ?? 0))
+        $inquiries = $this->availableInquiriesQuery((int) ($quotation->inquiry_id ?? 0), (int) $quotation->id)
             ->orderByDesc('id')
             ->get(['id', 'inquiry_number', 'customer_id', 'status', 'priority', 'source', 'deadline', 'notes']);
         $customers = Customer::query()
             ->orderBy('name')
             ->orderBy('company_name')
             ->get(['id', 'name', 'company_name', 'email', 'phone']);
-        $itineraryInquiryMap = $itineraries->mapWithKeys(function ($itinerary): array {
-            $inquiry = $itinerary->inquiryReferences->first();
-            if (! $inquiry) {
-                return [];
-            }
-
-            return [
-                (string) $itinerary->id => [
-                    'inquiry_number' => (string) ($inquiry?->inquiry_number ?? '-'),
-                    'customer_name' => (string) ($inquiry?->customer?->name ?? '-'),
-                    'status' => (string) ($inquiry?->status ?? '-'),
-                    'priority' => (string) ($inquiry?->priority ?? '-'),
-                    'source' => (string) ($inquiry?->source ?? '-'),
-                    'creator_name' => (string) ($inquiry?->creator?->name ?? '-'),
-                    'deadline' => optional($inquiry?->deadline)->format('Y-m-d') ?? '-',
-                    'notes' => trim((string) ($inquiry?->notes ?? '')) !== '' ? (string) ($inquiry?->notes ?? '') : '-',
-                    'notes_html' => \App\Support\SafeRichText::sanitize((string) ($inquiry?->notes ?? '')),
-                ],
-            ];
-        })->all();
-        $itineraries->each(function (Itinerary $itinerary): void {
-            $inquiry = $itinerary->inquiryReferences->first();
-            $itinerary->setAttribute('reference_inquiry_id', $inquiry?->id ? (int) $inquiry->id : null);
-            $itinerary->setAttribute('reference_customer_id', $inquiry?->customer_id ? (int) $inquiry->customer_id : null);
-            $itinerary->setAttribute('reference_inquiry_number', (string) ($inquiry?->inquiry_number ?? ''));
-        });
+        $serviceCatalogs = $this->buildServiceItemCatalogs();
+        $this->attachItineraryInquiryReferences($itineraries);
+        $itineraryInquiryMap = $this->buildItineraryInquiryMap($itineraries);
         $approvalProgress = $this->buildApprovalProgress($quotation);
         $validationProgress = $this->quotationValidationService->getProgress($quotation);
         $canValidateQuotation = $this->quotationValidationService->isValidationActor($request->user())
-            && ! in_array((string) ($quotation->status ?? ''), ['sent', 'accepted', Quotation::FINAL_STATUS], true)
+            && ! $quotation->isStatus(Quotation::STATUS_SENT, Quotation::STATUS_CUSTOMER_APPROVED, Quotation::FINAL_STATUS, Quotation::STATUS_IN_OPERATION, Quotation::STATUS_COMPLETED)
             && (bool) ($validationProgress['requires_validation'] ?? false);
         $activities = $quotation->activities()
             ->with('user:id,name')
@@ -569,7 +530,87 @@ class QuotationController extends Controller
             return $this->activityTimelineFragmentResponse($activities);
         }
 
-        return view('modules.quotations.edit', compact('quotation', 'itineraries', 'inquiries', 'customers', 'destinations', 'approvalProgress', 'validationProgress', 'canValidateQuotation', 'activities', 'itineraryInquiryMap'));
+        $customerRequestedChanges = $quotation->pendingRevisionCustomerResponses;
+
+        return view('modules.quotations.edit', compact('quotation', 'itineraries', 'inquiries', 'customers', 'destinations', 'approvalProgress', 'validationProgress', 'canValidateQuotation', 'activities', 'itineraryInquiryMap', 'serviceCatalogs', 'customerRequestedChanges', 'isRevisionMode'));
+    }
+
+    public function startItineraryRevision(Request $request, Quotation $quotation)
+    {
+        $this->autoFinalizeApprovedQuotationIfExpired($quotation);
+        if ($quotation->isFinal()) {
+            return redirect()
+                ->route('quotations.show', $quotation)
+                ->with('error', 'Final quotation cannot be revised.');
+        }
+        if (! $this->canManageQuotation($quotation, 'update')) {
+            return $this->denyQuotationMutation($quotation);
+        }
+
+        try {
+            $itineraryRevision = $this->itineraryQuotationRevisionOrchestrator->startRevisionFromQuotation(
+                $quotation->fresh(),
+                [
+                    'status' => 'revised',
+                    'revision_reason' => 'quotation_revision',
+                ],
+                (int) ($request->user()?->id ?? 0)
+            );
+        } catch (\Throwable $exception) {
+            report($exception);
+
+            return redirect()
+                ->route('quotations.show', $quotation)
+                ->with('error', 'Failed to start itinerary revision. Please try again.');
+        }
+
+        return redirect()->route('itineraries.edit', [
+            'itinerary' => $itineraryRevision->id,
+            'quotation_id' => (int) $quotation->id,
+            'return_to_quotation_revise' => 1,
+            'revision_mode' => 1,
+        ])->with('info', ui_phrase('Revise itinerary first, then save to continue quotation revision.'));
+    }
+
+    private function attachItineraryInquiryReferences($itineraries): void
+    {
+        $itineraries->each(function (Itinerary $itinerary): void {
+            $inquiry = $itinerary->inquiryReferences->first();
+            if (! $inquiry && (int) ($itinerary->inquiry_id ?? 0) > 0) {
+                $inquiry = Inquiry::query()
+                    ->with(['customer:id,name,company_name', 'creator:id,name'])
+                    ->find((int) $itinerary->inquiry_id);
+            }
+
+            $itinerary->setAttribute('reference_inquiry_id', $inquiry?->id ? (int) $inquiry->id : null);
+            $itinerary->setAttribute('reference_customer_id', $inquiry?->customer_id ? (int) $inquiry->customer_id : null);
+            $itinerary->setAttribute('reference_inquiry_number', (string) ($inquiry?->inquiry_number ?? ''));
+            $itinerary->setAttribute('reference_inquiry', $inquiry);
+        });
+    }
+
+    private function buildItineraryInquiryMap($itineraries): array
+    {
+        return $itineraries->mapWithKeys(function ($itinerary): array {
+            $inquiry = $itinerary->getAttribute('reference_inquiry') ?: $itinerary->inquiryReferences->first();
+            if (! $inquiry) {
+                return [];
+            }
+
+            return [
+                (string) $itinerary->id => [
+                    'inquiry_number' => (string) ($inquiry?->inquiry_number ?? '-'),
+                    'customer_name' => (string) ($inquiry?->customer?->name ?? '-'),
+                    'status' => (string) ($inquiry?->status ?? '-'),
+                    'priority' => (string) ($inquiry?->priority ?? '-'),
+                    'source' => (string) ($inquiry?->source ?? '-'),
+                    'creator_name' => ui_user_name($inquiry?->creator),
+                    'deadline' => optional($inquiry?->deadline)->format('Y-m-d') ?? '-',
+                    'notes' => trim((string) ($inquiry?->notes ?? '')) !== '' ? (string) ($inquiry?->notes ?? '') : '-',
+                    'notes_html' => \App\Support\SafeRichText::sanitize((string) ($inquiry?->notes ?? '')),
+                ],
+            ];
+        })->all();
     }
 
     /**
@@ -587,8 +628,9 @@ class QuotationController extends Controller
         if (! $this->canManageQuotation($quotation, 'update')) {
             return $this->denyQuotationMutation($quotation);
         }
-        $mustCreateRevision = in_array((string) ($quotation->status ?? ''), ['sent', 'accepted'], true);
-        $wasApprovedBeforeUpdate = ((string) ($quotation->status ?? '') === 'accepted');
+        $mustCreateRevision = $quotation->isLockedForDirectEdit();
+        $wasApprovedBeforeUpdate = $quotation->isStatus(Quotation::STATUS_CUSTOMER_APPROVED);
+        $isRevisionUpdate = $this->isQuotationRevisionModeRequest($request, $quotation);
 
         $items = collect($request->input('items', []))
             ->filter(fn ($row) => trim((string) ($row['description'] ?? '')) !== '')
@@ -598,22 +640,25 @@ class QuotationController extends Controller
 
         $validated = $request->validate([
             'itinerary_id' => [
-                'required',
+                'nullable',
                 'integer',
                 Rule::exists('itineraries', 'id')->where(function ($query): void {
                     $query->where('is_active', true);
                 }),
             ],
             'customer_id' => ['required', 'integer', 'exists:customers,id'],
-            'inquiry_id' => ['nullable', 'integer', 'exists:inquiries,id'],
+            'inquiry_id' => ['required', 'integer', 'exists:inquiries,id'],
             'order_number' => ['required', 'string', 'max:100', 'regex:/^[A-Za-z0-9]+$/'],
             'service_date' => ['required', 'date'],
+            'duration_days' => ['required', 'integer', 'min:1'],
+            'duration_nights' => ['nullable', 'integer', 'min:0'],
             'pax_adult' => ['required', 'integer', 'min:0'],
             'pax_child' => ['nullable', 'integer', 'min:0'],
             'validity_date' => ['required', 'date'],
             'discount_type' => ['nullable', Rule::in(['percent', 'fixed'])],
             'discount_value' => ['nullable', 'numeric', 'min:0'],
             'items' => ['required', 'array', 'min:1'],
+            'items.*.id' => ['nullable', 'integer', 'min:1'],
             'items.*.description' => ['required', 'string', 'max:255'],
             'items.*.qty' => ['required', 'integer', 'min:1'],
             'items.*.contract_rate' => ['nullable', 'numeric', 'min:0'],
@@ -623,9 +668,11 @@ class QuotationController extends Controller
             'items.*.unit_price' => ['required', 'numeric', 'min:0'],
             'items.*.discount_type' => ['nullable', Rule::in(['percent', 'fixed'])],
             'items.*.discount' => ['nullable', 'numeric', 'min:0'],
+            'items.*.source_item_id' => ['nullable', 'integer', 'min:1'],
             'items.*.serviceable_type' => ['nullable', Rule::in($this->serviceableTypes())],
             'items.*.serviceable_id' => ['nullable', 'integer', 'min:1'],
             'items.*.day_number' => ['nullable', 'integer', 'min:1'],
+            'items.*.sort_order' => ['nullable', 'integer', 'min:0'],
             'items.*.serviceable_meta' => ['nullable'],
             'items.*.itinerary_item_type' => ['nullable', Rule::in($this->itineraryItemTypes())],
         ]);
@@ -651,12 +698,19 @@ class QuotationController extends Controller
                 'pax_adult' => 'Pax adult and child cannot both be zero.',
             ]);
         }
-
         $selectedItineraryId = (int) ($validated['itinerary_id'] ?? 0);
+        $selectedItineraryId = $selectedItineraryId > 0 ? $selectedItineraryId : null;
         $selectedCustomerId = (int) ($validated['customer_id'] ?? 0);
         $normalizedOrderNumber = $this->normalizeOrderNumber($validated['order_number'] ?? null);
-        $selectedInquiryId = (int) ($validated['inquiry_id'] ?? 0);
-        $inquiryId = $this->resolveInquiryIdForQuotation($selectedItineraryId, $selectedCustomerId, $selectedInquiryId);
+        $existingInquiryId = (int) ($quotation->inquiry_id ?? 0);
+        $selectedInquiryId = (int) ($validated['inquiry_id'] ?? $existingInquiryId);
+        if ($existingInquiryId <= 0 || $selectedInquiryId !== $existingInquiryId) {
+            throw ValidationException::withMessages([
+                'inquiry_id' => ui_phrase('Inquiry cannot be changed after quotation is created.'),
+            ]);
+        }
+        $inquiryId = $existingInquiryId;
+        $validated['inquiry_id'] = $inquiryId;
         if (! $this->canApplyGlobalDiscount()) {
             $validated['discount_type'] = $quotation->discount_type;
             $validated['discount_value'] = (float) ($quotation->discount_value ?? 0);
@@ -673,25 +727,30 @@ class QuotationController extends Controller
 
         DB::beginTransaction();
         try {
+            $validatedItemStateById = $this->buildValidatedQuotationItemStateMap($quotation);
+            $validated['items'] = $this->syncMissingServicePublishRatesFromQuotationItems($validated['items']);
             $totals = $this->computeTotals(
                 $validated['items'],
                 $validated['discount_type'] ?? null,
                 (float) ($validated['discount_value'] ?? 0),
                 (string) ($validated['service_date'] ?? '')
             );
+            $computedItems = $this->applyValidatedItemStateCarryOver(
+                $totals['items'] ?? [],
+                $validated['items'] ?? [],
+                $validatedItemStateById
+            );
             $previousItineraryId = (int) ($quotation->itinerary_id ?? 0);
 
             if ($mustCreateRevision) {
-                $quotation = $this->createQuotationRevision(
-                    $quotation,
-                    $inquiryId,
-                    $selectedItineraryId,
-                    $validated,
-                    $totals,
-                    $normalizedOrderNumber
-                );
-                $this->syncLinkedLifecycleStatusesForQuotation($quotation, $previousItineraryId);
-            } else {
+                DB::rollBack();
+
+                return redirect()
+                    ->route('quotations.show', $quotation)
+                    ->with('error', 'Use Start Revision before editing sent, approved, or locked quotation.');
+            }
+
+            {
                 $quotation->loadMissing('items');
                 $beforeAudit = $this->buildQuotationAuditSnapshot($quotation);
 
@@ -711,10 +770,12 @@ class QuotationController extends Controller
                     ]);
                 });
                 $quotation->items()->delete();
-                foreach ($totals['items'] as $item) {
+                foreach ($computedItems as $item) {
                     $quotation->items()->create($item);
                 }
+                $this->syncInquiryItineraryReferenceFromQuotation($quotation);
                 $this->quotationValidationService->syncValidationRequirementsAndMasterRates($quotation);
+                $this->syncQuotationStatusWithValidationProgress($quotation, $isRevisionUpdate, (int) ($request->user()?->id ?? 0));
                 $skipApprovalWorkflow = $this->quotationUsesApprovalBypass($quotation);
                 if ($skipApprovalWorkflow) {
                     $quotation->approvals()->delete();
@@ -723,7 +784,7 @@ class QuotationController extends Controller
                     $quotation->approvals()->delete();
                     Quotation::withoutActivityLogging(function () use ($quotation): void {
                         $quotation->update([
-                            'status' => 'pending_validation',
+                            'status' => Quotation::STATUS_NEED_VALIDATION,
                             'approved_by' => null,
                             'approved_at' => null,
                             'approval_note' => null,
@@ -740,132 +801,57 @@ class QuotationController extends Controller
         } catch (\Throwable $e) {
             DB::rollBack();
             report($e);
-            if ($e instanceof UniqueConstraintViolationException && str_contains((string) $e->getMessage(), 'quotations_itinerary_id_unique')) {
-                return back()
-                    ->withInput()
-                    ->with('error', 'Database rule still limits 1 quotation per itinerary. Please run latest migration and try again.');
-            }
             return back()
                 ->withInput()
                 ->with('error', 'Failed to save quotation. Please check the data.');
         }
 
-        if ($mustCreateRevision) {
-            return redirect()
-                ->route('quotations.show', $quotation)
-                ->with('success', 'Locked quotation preserved. New quotation revision created.');
-        }
-
         return redirect()
             ->route('quotations.show', $quotation)
-            ->with('success', $wasApprovedBeforeUpdate ? 'Quotation updated. Status changed to pending for re-approval.' : 'Quotation updated successfully.');
+            ->with('success', $isRevisionUpdate ? 'Quotation revision saved. Review validation status before sending again.' : ($wasApprovedBeforeUpdate ? 'Quotation updated. Status changed to pending for re-approval.' : 'Quotation updated successfully.'));
     }
 
-    public function storeComment(Request $request, Quotation $quotation)
+    private function isQuotationRevisionModeRequest(Request $request, Quotation $quotation): bool
     {
-        $this->autoFinalizeApprovedQuotationIfExpired($quotation);
-        if ($quotation->isFinal()) {
-            return redirect()->back()->with('error', 'Converted quotation cannot be modified.');
-        }
-        $user = $request->user();
-        if (! $user) {
-            return redirect()->back()->with('error', 'Please login first.');
-        }
+        $status = Quotation::normalizeStatus((string) ($quotation->status ?? ''));
 
-        $validated = $request->validate([
-            'comment_body' => ['required', 'string', 'max:2000'],
-            'parent_id' => ['nullable', 'integer', 'exists:quotation_comments,id'],
-        ]);
-        $cleanBody = trim(strip_tags((string) $validated['comment_body']));
-        if ($cleanBody === '') {
-            return redirect()->back()->with('error', 'Comment cannot be empty.');
-        }
-
-        $parentId = isset($validated['parent_id']) ? (int) $validated['parent_id'] : null;
-        if ($parentId) {
-            $parentComment = QuotationComment::query()
-                ->whereKey($parentId)
-                ->where('quotation_id', $quotation->id)
-                ->first();
-
-            if (! $parentComment) {
-                return redirect()->back()->with('error', 'Parent comment is invalid.');
-            }
-            if ($parentComment->parent_id !== null) {
-                return redirect()->back()->with('error', 'Reply can only target a top-level comment.');
-            }
-            if ((int) ($quotation->created_by ?? 0) !== (int) $user->id) {
-                return redirect()->back()->with('error', 'Only quotation creator can reply to comments.');
-            }
-        }
-
-        QuotationComment::query()->create([
-            'quotation_id' => $quotation->id,
-            'user_id' => $user->id,
-            'parent_id' => $parentId,
-            'body' => $cleanBody,
-        ]);
-
-        return redirect()->back()->with('success', 'Comment added.');
+        return $request->routeIs('quotations.revise')
+            || $request->boolean('revision_mode')
+            || in_array($status, [Quotation::STATUS_REVISION_REQUESTED, Quotation::STATUS_UNDER_REVISION, Quotation::STATUS_NEED_REVALIDATION, Quotation::STATUS_PENDING_REVALIDATION, 'booking_issue'], true)
+            || (string) ($quotation->approval_status ?? '') === 'revision_requested';
     }
 
-    public function updateComment(Request $request, Quotation $quotation, QuotationComment $comment)
+    private function finalizeQuotationRevisionSave(Quotation $quotation, ?int $actorId = null): void
     {
-        $this->autoFinalizeApprovedQuotationIfExpired($quotation);
-        if ($quotation->isFinal()) {
-            return redirect()->back()->with('error', 'Final quotation cannot be modified.');
-        }
-        $user = $request->user();
-        if (! $user) {
-            return redirect()->back()->with('error', 'Please login first.');
-        }
-
-        if ((int) $comment->quotation_id !== (int) $quotation->id) {
-            return redirect()->back()->with('error', 'Invalid comment.');
-        }
-
-        if ((int) $comment->user_id !== (int) $user->id) {
-            return redirect()->back()->with('error', 'You can only edit your own comment.');
-        }
-
-        $validated = $request->validate([
-            'comment_body' => ['required', 'string', 'max:2000'],
-        ]);
-
-        $cleanBody = trim(strip_tags((string) $validated['comment_body']));
-        if ($cleanBody === '') {
-            return redirect()->back()->with('error', 'Comment cannot be empty.');
-        }
-
-        $comment->update([
-            'body' => $cleanBody,
-        ]);
-
-        return redirect()->back()->with('success', 'Comment updated.');
+        $this->syncQuotationStatusWithValidationProgress($quotation, true, $actorId);
     }
 
-    public function destroyComment(Request $request, Quotation $quotation, QuotationComment $comment)
+    private function syncQuotationStatusWithValidationProgress(Quotation $quotation, bool $isRevisionUpdate, ?int $actorId = null): void
     {
-        $this->autoFinalizeApprovedQuotationIfExpired($quotation);
-        if ($quotation->isFinal()) {
-            return redirect()->back()->with('error', 'Final quotation cannot be modified.');
-        }
-        $user = $request->user();
-        if (! $user) {
-            return redirect()->back()->with('error', 'Please login first.');
-        }
-
-        if ((int) $comment->quotation_id !== (int) $quotation->id) {
-            return redirect()->back()->with('error', 'Invalid comment.');
-        }
-
-        if ((int) $comment->user_id !== (int) $user->id) {
-            return redirect()->back()->with('error', 'You can only delete your own comment.');
+        $quotation->refresh();
+        $currentStatus = Quotation::normalizeStatus((string) ($quotation->status ?? ''));
+        if (in_array($currentStatus, [
+            Quotation::STATUS_SENT,
+            Quotation::STATUS_CUSTOMER_APPROVED,
+            Quotation::STATUS_BOOKING_CREATED,
+            Quotation::STATUS_IN_OPERATION,
+            Quotation::STATUS_COMPLETED,
+            Quotation::STATUS_CANCELLED,
+            Quotation::STATUS_LOST,
+        ], true)) {
+            return;
         }
 
-        $comment->delete();
-
-        return redirect()->back()->with('success', 'Comment deleted.');
+        $this->quotationStatusService->syncStatus($quotation);
+        $quotation->refresh();
+        $progress = $this->quotationStatusService->validationProgress($quotation);
+        $this->quotationWorkflowService->syncDimensions($quotation, $actorId ?: null, [
+            'action' => $isRevisionUpdate ? 'save_quotation_revision' : 'sync_validation_progress_status',
+            'validation_status' => (string) ($quotation->validation_status ?? ''),
+            'total_required' => (int) ($progress['required'] ?? 0),
+            'total_validated' => (int) ($progress['validated'] ?? 0),
+            'validation_progress' => (int) ($progress['percent'] ?? 0),
+        ]);
     }
 
     /**
@@ -880,7 +866,7 @@ class QuotationController extends Controller
                 ->route('quotations.show', $quotation)
                 ->with('error', 'Final quotation cannot be deleted.');
         }
-        if (($quotation->status ?? '') === 'accepted') {
+        if ($quotation->isStatus(Quotation::STATUS_CUSTOMER_APPROVED)) {
             return redirect()
                 ->route('quotations.show', $quotation)
                 ->with('error', 'Approved quotation cannot be deleted.');
@@ -905,7 +891,7 @@ class QuotationController extends Controller
                 ->route('quotations.show', $quotation)
                 ->with('error', 'Final quotation cannot be changed.');
         }
-        if (($quotation->status ?? '') === 'accepted') {
+        if ($quotation->isStatus(Quotation::STATUS_CUSTOMER_APPROVED)) {
             return redirect()
                 ->route('quotations.show', $quotation)
                 ->with('error', 'Approved quotation cannot be deactivated.');
@@ -916,6 +902,7 @@ class QuotationController extends Controller
 
         if ($quotation->trashed()) {
             $quotation->restore();
+            $this->quotationWorkflowService->syncDimensions($quotation, (int) auth()->id(), ['action' => 'quotation_restored']);
             $this->syncLinkedLifecycleStatusesForQuotation($quotation);
 
             return redirect()
@@ -924,6 +911,7 @@ class QuotationController extends Controller
         }
 
         $quotation->delete();
+        $this->quotationWorkflowService->syncDimensions($quotation, (int) auth()->id(), ['action' => 'quotation_deactivated']);
         $this->syncLinkedLifecycleStatusesForQuotation($quotation);
 
         return redirect()
@@ -940,33 +928,29 @@ class QuotationController extends Controller
 
         try {
         $this->autoFinalizeApprovedQuotationIfExpired($quotation);
-        if (! in_array((string) ($quotation->status ?? ''), ['accepted', Quotation::FINAL_STATUS], true)) {
+        $canPreviewQuotationPdf = in_array((string) ($quotation->validation_status ?? ''), ['valid', 'validated'], true)
+            || $quotation->isStatus(
+                Quotation::STATUS_VALIDATED,
+                'ready_to_send',
+                Quotation::STATUS_SENT,
+                Quotation::STATUS_CUSTOMER_APPROVED,
+                Quotation::FINAL_STATUS
+            );
+        if (! $canPreviewQuotationPdf) {
             return redirect()
                 ->route('quotations.show', $quotation)
-                ->with('error', 'PDF hanya tersedia untuk quotation dengan status accepted atau converted.');
+                ->with('error', 'PDF hanya tersedia setelah quotation valid atau sudah dikirim.');
         }
 
-        $quotation->load(['inquiry.customer', 'items', 'itinerary']);
+        $quotation->load(['inquiry.customer', 'itinerary', 'items']);
+        $this->applyQuotationServiceDescriptions($quotation);
         $kpiSummary = $this->computeQuotationKpiSummary($quotation);
-        if ($quotation->itinerary) {
-            $itineraryPdfPayload = $this->buildItineraryPdfPayload($quotation->itinerary);
-            $pdf = PDF::loadView('pdf.quotation_with_itinerary', array_merge(
-                [
-                    'quotation' => $quotation,
-                    'kpiSummary' => $kpiSummary,
-                    'pdfFontFamilyCss' => $pdfFontConfig['family_css'],
-                    'pdfFontFaceCss' => $pdfFontConfig['font_face_css'],
-                    'pdfLocale' => $pdfLocale,
-                ],
-                $itineraryPdfPayload
-            ))->setPaper('a4', 'portrait');
-
-            return $pdf->stream('quotation-' . Str::slug((string) ($quotation->quotation_number ?: 'document')) . '.pdf');
-        }
+        $groupedItemsByDay = $this->buildGroupedQuotationItemsByDay($quotation);
 
         $pdf = PDF::loadView('pdf.quotation', [
             'quotation' => $quotation,
             'kpiSummary' => $kpiSummary,
+            'groupedItemsByDay' => $groupedItemsByDay,
             'pdfFontFamilyCss' => $pdfFontConfig['family_css'],
             'pdfFontFaceCss' => $pdfFontConfig['font_face_css'],
             'pdfLocale' => $pdfLocale,
@@ -984,7 +968,7 @@ class QuotationController extends Controller
         $query = Quotation::query()->withTrashed()->with(['inquiry.customer']);
         $scope = strtolower(trim((string) request('scope')));
         if ($scope === 'published') {
-            $query->whereIn('status', ['accepted', Quotation::FINAL_STATUS]);
+            $query->whereIn('status', [Quotation::STATUS_APPROVED, Quotation::STATUS_CUSTOMER_APPROVED, Quotation::FINAL_STATUS, Quotation::LEGACY_FINAL_STATUS, 'accepted', 'converted']);
         } elseif ($scope === 'my') {
             if (Schema::hasColumn('quotations', 'created_by')) {
                 $query->where('created_by', (int) auth()->id());
@@ -997,15 +981,15 @@ class QuotationController extends Controller
 
         $status = strtolower(trim((string) request('status')));
         if ($scope === 'published') {
-            if (in_array($status, ['accepted', Quotation::FINAL_STATUS], true)) {
-                $query->where('status', $status);
+            if (in_array($status, [Quotation::STATUS_APPROVED, Quotation::STATUS_CUSTOMER_APPROVED, Quotation::FINAL_STATUS, Quotation::LEGACY_FINAL_STATUS, 'accepted', 'converted'], true)) {
+                $query->whereIn('status', $this->quotationStatusAliasesForQuery($status));
             }
         } elseif ($scope === 'my') {
             if ($status !== '' && in_array($status, Quotation::STATUS_OPTIONS, true)) {
-                $query->where('status', $status);
+                $query->whereIn('status', $this->quotationStatusAliasesForQuery($status));
             }
         } else {
-            $query->when(request('status'), fn ($q) => $q->where('status', request('status')));
+            $query->when($status !== '', fn ($q) => $q->whereIn('status', $this->quotationStatusAliasesForQuery($status)));
         }
         $quotations = $query->latest()->get();
 
@@ -1051,7 +1035,7 @@ class QuotationController extends Controller
             'itineraryActivities.activity.vendor:id,name,location,city,province,latitude,longitude',
             'itineraryIslandTransfers.islandTransfer:id,vendor_id,name,transfer_type,departure_point_name,arrival_point_name,duration_minutes,notes,gallery_images',
             'itineraryIslandTransfers.islandTransfer.vendor:id,name,location,city,province,latitude,longitude',
-            'itineraryFoodBeverages.foodBeverage:id,vendor_id,name,service_type,duration_minutes,publish_rate,meal_period,notes,menu_highlights,gallery_images',
+            'itineraryFoodBeverages.foodBeverage:id,vendor_id,name,service_type,duration_minutes,adult_publish_rate,child_publish_rate,publish_rate,meal_period,notes,menu_highlights,gallery_images',
             'itineraryFoodBeverages.foodBeverage.vendor:id,name,location,city,province,latitude,longitude',
             'itineraryTransportUnits.transportUnit:id,name,brand_model,seat_capacity,luggage_capacity,air_conditioned,with_driver,images',
             'itineraryTransportUnits.transportUnit.transport:id,name,transport_type',
@@ -1230,7 +1214,7 @@ class QuotationController extends Controller
                         'location' => (string) ($item->foodBeverage->vendor->location ?? '-'),
                         'description' => (string) ($item->foodBeverage->notes ?? $item->foodBeverage->menu_highlights ?? '-'),
                         'thumbnail_data_uri' => $this->resolveGalleryImageDataUri($item->foodBeverage->gallery_images ?? []),
-                        'publish_rate' => (float) ($item->foodBeverage->publish_rate ?? 0),
+                        'publish_rate' => (float) ($item->foodBeverage->adult_publish_rate ?? $item->foodBeverage->publish_rate ?? 0),
                         'currency' => 'IDR',
                         'pax' => (int) ($item->pax ?? 0),
                         'start_time' => $item->start_time ? substr((string) $item->start_time, 0, 5) : '--:--',
@@ -1292,6 +1276,12 @@ class QuotationController extends Controller
                 : ($startBaseMinutes !== null
                     ? ($fromMinutes($startBaseMinutes + max(0, (int) ($startTravelMinutes ?? 0))) ?? '--:--')
                     : '--:--');
+            $breakStartTime = $dayPoint && ! empty($dayPoint->break_start_time)
+                ? substr((string) $dayPoint->break_start_time, 0, 5)
+                : null;
+            $breakEndTime = $dayPoint && ! empty($dayPoint->break_end_time)
+                ? substr((string) $dayPoint->break_end_time, 0, 5)
+                : null;
             $dayTransportItems = $transportUnitsByDay->get($day, collect());
             $dayTransports = $dayTransportItems
                 ->map(function ($transportItem) {
@@ -1356,6 +1346,8 @@ class QuotationController extends Controller
                 'day' => $day,
                 'start_time' => $startTime,
                 'end_time' => $endTime,
+                'break_start_time' => $breakStartTime,
+                'break_end_time' => $breakEndTime,
                 'start_travel_minutes' => $startTravelMinutes,
                 'start_point_type_label' => $startPoint['label'] ?? ($startPoint['type'] ?? 'Unknown'),
                 'end_point_type_label' => $endPoint['label'] ?? ($endPoint['type'] ?? 'Unknown'),
@@ -1659,37 +1651,50 @@ SVG;
 
     public function approve(Request $request, Quotation $quotation)
     {
+        return $this->markAsCustomerApproved($request, $quotation);
+    }
+
+    public function markAsSent(Request $request, Quotation $quotation)
+    {
         $this->autoFinalizeApprovedQuotationIfExpired($quotation);
-        if ($quotation->isFinal()) {
-            return redirect()->back()->with('error', 'Final quotation cannot be modified.');
-        }
-        $this->quotationValidationService->syncValidationRequirements($quotation);
-        if (! $this->quotationValidationService->canBeApproved($quotation)) {
-            return redirect()
-                ->route('quotations.show', $quotation)
-                ->with('error', 'Quotation cannot be accepted because validation is not completed.');
-        }
-        $user = $request->user();
-        if (! $user) {
-            return redirect()->back()->with('error', 'Please login first.');
-        }
-        if ($quotation->isCreator($user)) {
-            return redirect()
-                ->route('quotations.show', $quotation)
-                ->with('error', ui_phrase('Quotation creator cannot approve this quotation.'));
+        if (! $this->canManageQuotation($quotation, 'update')) {
+            return $this->denyQuotationMutation($quotation);
         }
 
-        $approvalRole = $this->resolveApprovalRoleForUser($user);
-        if (! $approvalRole) {
-            return redirect()->back()->with('error', 'You do not have permission to approve this quotation.');
-        }
-        $alreadyApprovedByUser = $quotation->approvals()
-            ->where('user_id', $user->id)
-            ->exists();
-        if ($alreadyApprovedByUser) {
+        $this->quotationStatusService->syncStatus($quotation);
+        $quotation->refresh();
+        if (! QuotationStatusNormalizer::isReadyToSend((string) ($quotation->status ?? ''))) {
             return redirect()
                 ->route('quotations.show', $quotation)
-                ->with('error', ui_phrase('You have already accepted this quotation.'));
+                ->with('error', 'Quotation cannot be marked as ready to send because validation is not 100% complete.');
+        }
+
+        if (! $this->quotationWorkflowService->canTransition($quotation, Quotation::STATUS_SENT)) {
+            return redirect()->route('quotations.show', $quotation)->with('error', 'Quotation cannot be marked as sent from current status.');
+        }
+
+        $this->quotationWorkflowService->transition(
+            $quotation,
+            Quotation::STATUS_SENT,
+            (int) ($request->user()?->id ?? 0) ?: null,
+            'mark_sent'
+        );
+        $this->quotationFollowUpAutomationService->ensureInitialFollowUpNotification($quotation);
+        $this->syncLinkedLifecycleStatusesForQuotation($quotation);
+
+        return redirect()->route('quotations.show', $quotation)->with('success', 'Quotation marked as sent.');
+    }
+
+    public function markAsCustomerApproved(Request $request, Quotation $quotation)
+    {
+        $this->autoFinalizeApprovedQuotationIfExpired($quotation);
+        $user = $request->user();
+        if (! $user || ! $user->can('quotations.approve')) {
+            return redirect()->route('quotations.show', $quotation)->with('error', 'You do not have permission to mark customer approved.');
+        }
+
+        if (! $this->quotationWorkflowService->canUsePostSentAction($quotation, Quotation::STATUS_APPROVED)) {
+            return redirect()->route('quotations.show', $quotation)->with('error', 'Quotation can be customer approved only from sent status.');
         }
 
         $validated = $request->validate([
@@ -1697,43 +1702,119 @@ SVG;
         ]);
         $note = trim((string) ($validated['approval_note'] ?? ''));
 
-        QuotationApproval::query()->updateOrCreate(
-            [
-                'quotation_id' => $quotation->id,
-                'user_id' => $user->id,
-            ],
-            [
-                'approval_role' => $approvalRole,
-                'note' => $note === '' ? null : $note,
-                'approved_at' => now(),
-            ]
-        );
-
-        if ($note !== '' && $this->canWriteApprovalNote($user)) {
+        DB::transaction(function () use ($quotation, $user, $note): void {
             $quotation->update([
-                'approval_note' => $note,
-                'approval_note_by' => $user->id,
-                'approval_note_at' => now(),
+                'approved_by' => $user->id,
+                'approved_at' => now(),
+                'approval_note' => $note === '' ? null : $note,
+                'approval_note_by' => $note === '' ? null : $user->id,
+                'approval_note_at' => $note === '' ? null : now(),
             ]);
+            $this->quotationWorkflowService->transition(
+                $quotation,
+                Quotation::STATUS_APPROVED,
+                (int) $user->id,
+                'customer_approved',
+                ['approval_note_present' => $note !== '']
+            );
+        });
+        $this->syncLinkedLifecycleStatusesForQuotation($quotation);
+
+        return redirect()->route('quotations.show', $quotation)->with('success', 'Quotation marked as customer approved.');
+    }
+
+    public function requestRevision(Request $request, Quotation $quotation)
+    {
+        $this->autoFinalizeApprovedQuotationIfExpired($quotation);
+        $user = $request->user();
+        if (! $user || ! $this->canManageQuotation($quotation, 'update')) {
+            return $this->denyQuotationMutation($quotation);
+        }
+        $logicalStatus = QuotationStatusNormalizer::normalize((string) ($quotation->status ?? ''));
+        if (in_array($logicalStatus, [Quotation::STATUS_APPROVED, Quotation::STATUS_CONVERTED_TO_BOOKING, Quotation::STATUS_BOOKING_CREATED, Quotation::STATUS_IN_OPERATION, Quotation::STATUS_COMPLETED, Quotation::STATUS_LOST, Quotation::STATUS_REJECTED, Quotation::STATUS_CANCELLED], true)) {
+            return redirect()->route('quotations.show', $quotation)->with('error', 'Approved or closed quotation cannot be revised without official reopen.');
+        }
+        if ($logicalStatus === Quotation::STATUS_UNDER_REVISION) {
+            return redirect()->route('quotations.edit', $quotation)->with('info', 'This quotation is already under revision.');
+        }
+        if (! in_array($logicalStatus, [Quotation::STATUS_READY_TO_SEND, Quotation::STATUS_REVISION_REQUESTED, Quotation::STATUS_NEED_REVALIDATION, Quotation::STATUS_PENDING_REVALIDATION], true)) {
+            return redirect()->route('quotations.show', $quotation)->with('error', 'Revision can only be started before approval while quotation is ready or waiting revision.');
         }
 
-        $progress = $this->syncQuotationApprovalStatus($quotation);
+        $quotation = DB::transaction(function () use ($quotation, $user): Quotation {
+            $quotation->refresh();
+            $nextRevisionNumber = max(1, (int) ($quotation->revision_number ?? 1)) + 1;
 
-        if ($progress['is_ready']) {
-            if ($quotation->booking) {
-                $this->invoiceService->generateForBooking($quotation->booking);
+            $this->quotationWorkflowService->transition(
+                $quotation,
+                Quotation::STATUS_UNDER_REVISION,
+                (int) $user->id,
+                'start_revision',
+                [
+                    'revision_reason_present' => false,
+                    'revision_number' => $nextRevisionNumber,
+                ]
+            );
+
+            $patch = [
+                'revision_number' => $nextRevisionNumber,
+                'is_current_revision' => true,
+                'revision_reason' => null,
+                'updated_by' => (int) $user->id,
+                'updated_at' => now(),
+            ];
+            $safePatch = [];
+            foreach ($patch as $column => $value) {
+                if (Schema::hasColumn('quotations', $column)) {
+                    $safePatch[$column] = $value;
+                }
+            }
+            if ($safePatch !== []) {
+                DB::table('quotations')->where('id', (int) $quotation->id)->update($safePatch);
             }
 
-            return redirect()
-                ->route('quotations.show', $quotation)
-                ->with('success', 'Quotation accepted. All required approvals are complete.');
+            $quotation->refresh();
+            $this->writeInPlaceRevisionLog($quotation, $nextRevisionNumber, null, (int) $user->id);
+
+            return $quotation;
+        });
+
+        return redirect()
+            ->route('quotations.edit', ['quotation' => $quotation->id, 'revision_mode' => 1])
+            ->with('success', 'Quotation revision started.');
+    }
+
+    public function cancel(Request $request, Quotation $quotation)
+    {
+        $this->autoFinalizeApprovedQuotationIfExpired($quotation);
+        $user = $request->user();
+        if (! $user || ! $this->canManageQuotation($quotation, 'update')) {
+            return $this->denyQuotationMutation($quotation);
+        }
+        if (! $this->quotationWorkflowService->canUsePostSentAction($quotation, Quotation::STATUS_CANCELLED)) {
+            return redirect()->route('quotations.show', $quotation)->with('error', 'Quotation can only be cancelled from sent status.');
         }
 
-        $missing = implode(', ', $progress['missing_labels']);
+        $validated = $request->validate([
+            'cancellation_reason' => ['nullable', 'string', 'max:2000'],
+        ]);
+        $reason = trim((string) ($validated['cancellation_reason'] ?? ''));
+
+        DB::transaction(function () use ($quotation, $user, $reason): void {
+            $this->quotationWorkflowService->transition(
+                $quotation,
+                Quotation::STATUS_CANCELLED,
+                (int) $user->id,
+                'cancel',
+                ['cancellation_reason_present' => $reason !== '']
+            );
+            $this->syncInquiryStatusFromQuotation($quotation, Quotation::STATUS_CANCELLED);
+        });
+        $this->syncLinkedLifecycleStatusesForQuotation($quotation);
 
         return redirect()
             ->route('quotations.show', $quotation)
-            ->with('success', "Approval recorded. Waiting for: {$missing}.");
+            ->with('success', 'Quotation marked as cancelled.');
     }
 
     public function reject(Request $request, Quotation $quotation)
@@ -1742,6 +1823,9 @@ SVG;
         $user = $request->user();
         if (! $user || ! $user->can('quotations.reject')) {
             return redirect()->back()->with('error', 'You do not have permission to reject quotation.');
+        }
+        if (! $this->quotationWorkflowService->canUsePostSentAction($quotation, Quotation::STATUS_LOST)) {
+            return redirect()->route('quotations.show', $quotation)->with('error', 'Quotation can only be marked lost from sent status.');
         }
 
         $validated = $request->validate([
@@ -1754,20 +1838,29 @@ SVG;
                 ->withErrors(['approval_note' => 'Reject note is required.']);
         }
 
-        $quotation->approvals()->delete();
-        $quotation->update([
-            'status' => 'rejected',
-            'approved_by' => null,
-            'approved_at' => null,
-            'approval_note' => $note,
-            'approval_note_by' => $user->id,
-            'approval_note_at' => now(),
-        ]);
+        DB::transaction(function () use ($quotation, $user, $note): void {
+            $quotation->approvals()->delete();
+            $quotation->update([
+                'approved_by' => null,
+                'approved_at' => null,
+                'approval_note' => $note,
+                'approval_note_by' => $user->id,
+                'approval_note_at' => now(),
+            ]);
+            $this->quotationWorkflowService->transition(
+                $quotation,
+                Quotation::STATUS_LOST,
+                (int) $user->id,
+                'reject',
+                ['approval_note_present' => true]
+            );
+            $this->syncInquiryStatusFromQuotation($quotation, Quotation::STATUS_LOST);
+        });
         $this->syncLinkedLifecycleStatusesForQuotation($quotation);
 
         return redirect()
             ->route('quotations.show', $quotation)
-            ->with('success', 'Quotation rejected.');
+            ->with('success', 'Quotation marked as lost.');
     }
 
     public function setPending(Request $request, Quotation $quotation)
@@ -1778,14 +1871,14 @@ SVG;
             return redirect()->back()->with('error', 'You do not have permission to set quotation to pending.');
         }
 
-        if (! in_array((string) ($quotation->status ?? ''), ['accepted', Quotation::FINAL_STATUS], true)) {
-            return redirect()->back()->with('error', 'Only accepted or converted quotation can be set to pending.');
+        if (! $quotation->isStatus(Quotation::STATUS_SENT, Quotation::STATUS_CUSTOMER_APPROVED, Quotation::FINAL_STATUS)) {
+            return redirect()->back()->with('error', 'Only sent, approved, or final quotation can be set to pending.');
         }
 
         $payload = [
             'approved_by' => null,
             'approved_at' => null,
-            'status' => 'pending_validation',
+            'status' => Quotation::STATUS_NEED_VALIDATION,
         ];
         if ($request->has('approval_note')) {
             $validated = $request->validate([
@@ -1797,8 +1890,27 @@ SVG;
             $payload['approval_note_at'] = $note === '' ? null : now();
         }
 
-        $quotation->approvals()->delete();
-        $quotation->update($payload);
+        $targetPendingStatus = $quotation->isStatus(Quotation::STATUS_SENT) ? 'pending' : Quotation::STATUS_NEED_VALIDATION;
+        $canSetPendingFromCurrentStatus = $quotation->isStatus(Quotation::STATUS_SENT)
+            ? $this->quotationWorkflowService->canUsePostSentAction($quotation, $targetPendingStatus)
+            : $this->quotationWorkflowService->canTransition($quotation, $targetPendingStatus);
+        if (! $canSetPendingFromCurrentStatus) {
+            return redirect()->route('quotations.show', $quotation)->with('error', 'Quotation cannot be set to pending from current status.');
+        }
+
+        DB::transaction(function () use ($quotation, $payload, $user, $targetPendingStatus): void {
+            $quotation->approvals()->delete();
+            unset($payload['status']);
+            if ($payload !== []) {
+                $quotation->update($payload);
+            }
+            $this->quotationWorkflowService->transition(
+                $quotation,
+                $targetPendingStatus,
+                (int) $user->id,
+                'set_pending'
+            );
+        });
         $this->syncLinkedLifecycleStatusesForQuotation($quotation);
 
         return redirect()
@@ -1813,30 +1925,37 @@ SVG;
         if ($quotation->isFinal()) {
             return redirect()
                 ->route('quotations.show', $quotation)
-                ->with('success', 'Quotation is already converted.');
+                ->with('success', 'Quotation is already in final downstream status.');
         }
 
         $user = $request->user();
         if (! $user || ! $quotation->isCreator($user)) {
             return redirect()
                 ->route('quotations.show', $quotation)
-                ->with('error', 'Only quotation creator can set status to converted.');
+                ->with('error', 'Only quotation creator can move this quotation to final downstream status.');
         }
 
-        if ((string) ($quotation->status ?? '') !== 'accepted') {
+        if (! $quotation->isStatus(Quotation::STATUS_CUSTOMER_APPROVED)) {
             return redirect()
                 ->route('quotations.show', $quotation)
-                ->with('error', 'Only accepted quotation can be set to converted.');
+                ->with('error', 'Only customer approved quotation can be moved to final downstream status.');
         }
 
-        $quotation->update([
-            'status' => Quotation::FINAL_STATUS,
-        ]);
+        if (! $this->quotationWorkflowService->canTransition($quotation, Quotation::FINAL_STATUS)) {
+            return redirect()->route('quotations.show', $quotation)->with('error', 'Quotation cannot be moved to final downstream status from current status.');
+        }
+
+        $this->quotationWorkflowService->transition(
+            $quotation,
+            Quotation::FINAL_STATUS,
+            (int) $user->id,
+            'set_final'
+        );
         $this->syncLinkedLifecycleStatusesForQuotation($quotation);
 
         return redirect()
             ->route('quotations.show', $quotation)
-            ->with('success', 'Quotation status changed to converted.');
+            ->with('success', 'Quotation status changed to final downstream status.');
     }
 
     public function updateGlobalDiscount(Request $request, Quotation $quotation)
@@ -1878,7 +1997,7 @@ SVG;
             $discountAmount = $discountValue;
         }
 
-        $wasApproved = ((string) ($quotation->status ?? '') === 'accepted');
+        $wasApproved = $quotation->isStatus(Quotation::STATUS_CUSTOMER_APPROVED);
         $quotation->update([
             'discount_type' => $discountType,
             'discount_value' => $discountValue,
@@ -1889,7 +2008,7 @@ SVG;
             $quotation->approvals()->delete();
             Quotation::withoutActivityLogging(function () use ($quotation): void {
                 $quotation->update([
-                    'status' => 'pending_validation',
+                    'status' => Quotation::STATUS_NEED_VALIDATION,
                     'approved_by' => null,
                     'approved_at' => null,
                     'approval_note' => null,
@@ -1902,6 +2021,16 @@ SVG;
         return redirect()
             ->route('quotations.edit', $quotation)
             ->with('success', $wasApproved ? 'Global discount updated. Status changed to pending for re-approval.' : 'Global discount updated.');
+    }
+
+    public function cancelItemFree(Request $request, Quotation $quotation, QuotationItem $item)
+    {
+        return $this->cancelQuotationItem($request, $quotation, $item, QuotationItem::STATUS_CANCELLED_FREE);
+    }
+
+    public function cancelItemWithCharge(Request $request, Quotation $quotation, QuotationItem $item)
+    {
+        return $this->cancelQuotationItem($request, $quotation, $item, QuotationItem::STATUS_CANCELLED_WITH_CHARGE);
     }
 
     /**
@@ -1935,6 +2064,613 @@ SVG;
         ];
     }
 
+    private function buildServiceItemCatalogs(): array
+    {
+        $activities = Activity::query()
+            ->with(['vendor:id,name,destination_id,city,province,location', 'vendor.destination:id,name,city,province'])
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get([
+                'id',
+                'name',
+                'vendor_id',
+                'adult_publish_rate',
+                'child_publish_rate',
+                'adult_contract_rate',
+                'child_contract_rate',
+                'adult_markup_type',
+                'adult_markup',
+                'child_markup_type',
+                'child_markup',
+            ])
+            ->map(function (Activity $activity): array {
+                $vendorName = trim((string) ($activity->vendor?->name ?? ''));
+                $city = $this->resolveCityLabel(
+                    trim((string) ($activity->vendor?->city ?? '')),
+                    trim((string) ($activity->vendor?->province ?? '')),
+                    trim((string) ($activity->vendor?->destination?->city ?? '')),
+                    trim((string) ($activity->vendor?->destination?->province ?? ''))
+                );
+
+                return [
+                    'id' => (int) $activity->id,
+                    'label' => $this->composeServiceItemLabel((string) ($activity->name ?? ''), $vendorName, $city),
+                    'description_label' => $this->formatServiceDescription('Activity', (string) ($activity->name ?? ''), $vendorName),
+                    'vendor_name' => $vendorName,
+                    'vendor_region' => $city,
+                    'rate' => (float) ($activity->adult_publish_rate ?? 0),
+                    'contract_rate' => (float) ($activity->adult_contract_rate ?? 0),
+                    'adult_rate' => (float) ($activity->adult_publish_rate ?? 0),
+                    'adult_contract_rate' => (float) ($activity->adult_contract_rate ?? 0),
+                    'adult_markup_type' => (string) ($activity->adult_markup_type ?? 'fixed'),
+                    'adult_markup' => (float) ($activity->adult_markup ?? 0),
+                    'child_rate' => (float) ($activity->child_publish_rate ?? $activity->adult_publish_rate ?? 0),
+                    'child_contract_rate' => (float) ($activity->child_contract_rate ?? $activity->adult_contract_rate ?? 0),
+                    'child_markup_type' => (string) ($activity->child_markup_type ?? $activity->adult_markup_type ?? 'fixed'),
+                    'child_markup' => (float) ($activity->child_markup ?? $activity->adult_markup ?? 0),
+                    'destination_id' => (int) ($activity->vendor?->destination_id ?? 0),
+                ];
+            })
+            ->values();
+
+        $islandTransfers = IslandTransfer::query()
+            ->with(['vendor:id,name,destination_id,city,province,location', 'vendor.destination:id,name,city,province'])
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'name', 'vendor_id', 'publish_rate', 'contract_rate'])
+            ->map(function (IslandTransfer $transfer): array {
+                $vendorName = trim((string) ($transfer->vendor?->name ?? ''));
+                $city = $this->resolveCityLabel(
+                    trim((string) ($transfer->vendor?->city ?? '')),
+                    trim((string) ($transfer->vendor?->destination?->city ?? ''))
+                );
+
+                return [
+                    'id' => (int) $transfer->id,
+                    'label' => $this->composeServiceItemLabel((string) ($transfer->name ?? ''), $vendorName, $city),
+                    'description_label' => $this->formatServiceDescription('Island Transfer', (string) ($transfer->name ?? '')),
+                    'rate' => (float) ($transfer->publish_rate ?? 0),
+                    'contract_rate' => (float) ($transfer->contract_rate ?? 0),
+                    'destination_id' => (int) ($transfer->vendor?->destination_id ?? 0),
+                ];
+            })
+            ->values();
+
+        $foodBeverages = FoodBeverage::query()
+            ->with(['vendor:id,name,destination_id,city,province,location', 'vendor.destination:id,name,city,province'])
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'name', 'vendor_id', 'adult_publish_rate', 'adult_contract_rate', 'publish_rate', 'contract_rate'])
+            ->map(function (FoodBeverage $fnb): array {
+                $vendorName = trim((string) ($fnb->vendor?->name ?? ''));
+                $city = $this->resolveCityLabel(
+                    trim((string) ($fnb->vendor?->city ?? '')),
+                    trim((string) ($fnb->vendor?->destination?->city ?? ''))
+                );
+
+                return [
+                    'id' => (int) $fnb->id,
+                    'label' => $this->composeServiceItemLabel((string) ($fnb->name ?? ''), $vendorName, $city),
+                    'description_label' => $this->formatServiceDescription('F&B', (string) ($fnb->name ?? '')),
+                    'vendor_name' => $vendorName,
+                    'vendor_region' => $city,
+                    'rate' => (float) ($fnb->adult_publish_rate ?? $fnb->publish_rate ?? 0),
+                    'contract_rate' => (float) ($fnb->adult_contract_rate ?? $fnb->contract_rate ?? 0),
+                    'adult_rate' => (float) ($fnb->adult_publish_rate ?? $fnb->publish_rate ?? 0),
+                    'adult_contract_rate' => (float) ($fnb->adult_contract_rate ?? $fnb->contract_rate ?? 0),
+                    'adult_markup_type' => (string) ($fnb->adult_markup_type ?? $fnb->markup_type ?? 'fixed'),
+                    'adult_markup' => (float) ($fnb->adult_markup ?? $fnb->markup ?? 0),
+                    'child_rate' => (float) ($fnb->child_publish_rate ?? $fnb->adult_publish_rate ?? $fnb->publish_rate ?? 0),
+                    'child_contract_rate' => (float) ($fnb->child_contract_rate ?? $fnb->adult_contract_rate ?? $fnb->contract_rate ?? 0),
+                    'child_markup_type' => (string) ($fnb->child_markup_type ?? $fnb->adult_markup_type ?? $fnb->markup_type ?? 'fixed'),
+                    'child_markup' => (float) ($fnb->child_markup ?? $fnb->adult_markup ?? $fnb->markup ?? 0),
+                    'destination_id' => (int) ($fnb->vendor?->destination_id ?? 0),
+                ];
+            })
+            ->values();
+
+        $transportUnits = TransportUnit::query()
+            ->with(['vendor:id,name,destination_id,city,province,location', 'vendor.destination:id,name,city,province'])
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'name', 'vendor_id', 'publish_rate', 'contract_rate'])
+            ->map(function (TransportUnit $unit): array {
+                $vendorName = trim((string) ($unit->vendor?->name ?? ''));
+                $city = $this->resolveCityLabel(
+                    trim((string) ($unit->vendor?->city ?? '')),
+                    trim((string) ($unit->vendor?->destination?->city ?? ''))
+                );
+
+                return [
+                    'id' => (int) $unit->id,
+                    'label' => $this->composeServiceItemLabel((string) ($unit->name ?? ''), $vendorName, $city),
+                    'description_label' => $this->formatServiceDescription('Transport', (string) ($unit->name ?? '')),
+                    'rate' => (float) ($unit->publish_rate ?? 0),
+                    'contract_rate' => (float) ($unit->contract_rate ?? 0),
+                    'destination_id' => (int) ($unit->vendor?->destination_id ?? 0),
+                ];
+            })
+            ->values();
+
+        $touristAttractions = TouristAttraction::query()
+            ->with('destination:id,name,city,province')
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'name', 'city', 'destination_id', 'publish_rate_per_pax', 'contract_rate_per_pax'])
+            ->map(function (TouristAttraction $attraction): array {
+                $city = $this->resolveCityLabel(
+                    trim((string) ($attraction->city ?? '')),
+                    trim((string) ($attraction->destination?->city ?? '')),
+                );
+
+                return [
+                    'id' => (int) $attraction->id,
+                    'label' => $this->composeServiceItemLabel((string) ($attraction->name ?? ''), null, $city),
+                    'description_label' => $this->formatServiceDescription('Attraction', (string) ($attraction->name ?? '')),
+                    'rate' => (float) ($attraction->publish_rate_per_pax ?? 0),
+                    'contract_rate' => (float) ($attraction->contract_rate_per_pax ?? 0),
+                    'destination_id' => (int) ($attraction->destination_id ?? 0),
+                ];
+            })
+            ->values();
+
+        $latestRoomPrices = HotelPrice::query()
+            ->select(['rooms_id', 'publish_rate', 'contract_rate'])
+            ->orderByDesc('end_date')
+            ->orderByDesc('start_date')
+            ->orderByDesc('id')
+            ->get()
+            ->groupBy('rooms_id')
+            ->map(fn ($rows) => $rows->first());
+
+        $hotelRooms = HotelRoom::query()
+            ->with('hotel:id,name,destination_id')
+            ->whereHas('hotel', function ($query): void {
+                $query->where('status', 'active');
+            })
+            ->where('status', 'active')
+            ->orderBy('id')
+            ->get(['id', 'hotels_id', 'rooms', 'view'])
+            ->map(function (HotelRoom $room) use ($latestRoomPrices): array {
+                $price = $latestRoomPrices->get((int) $room->id);
+                $hotelName = (string) ($room->hotel?->name ?? '-');
+                $roomName = trim((string) ($room->rooms ?? ''));
+                $viewName = trim((string) ($room->view ?? ''));
+                $itemName = $hotelName;
+                if ($roomName !== '') {
+                    $itemName .= ' - ' . $roomName;
+                }
+                if ($viewName !== '') {
+                    $itemName .= ' (' . $viewName . ')';
+                }
+                $descriptionName = $hotelName;
+                if ($roomName !== '') {
+                    $descriptionName .= ' - ' . $roomName;
+                }
+                $city = $this->resolveCityLabel(trim((string) ($room->hotel?->city ?? '')));
+
+                return [
+                    'id' => (int) $room->id,
+                    'label' => $this->composeServiceItemLabel($itemName, null, $city),
+                    'description_label' => $this->formatServiceDescription('Hotel', $descriptionName),
+                    'rate' => (float) ($price->publish_rate ?? 0),
+                    'contract_rate' => (float) ($price->contract_rate ?? 0),
+                    'destination_id' => (int) ($room->hotel?->destination_id ?? 0),
+                ];
+            })
+            ->values();
+
+        $activities = $this->sortServiceCatalogByLabel($activities->all());
+        $islandTransfers = $this->sortServiceCatalogByLabel($islandTransfers->all());
+        $foodBeverages = $this->sortServiceCatalogByLabel($foodBeverages->all());
+        $transportUnits = $this->sortServiceCatalogByLabel($transportUnits->all());
+        $touristAttractions = $this->sortServiceCatalogByLabel($touristAttractions->all());
+        $hotelRooms = $this->sortServiceCatalogByLabel($hotelRooms->all());
+
+        return [
+            'activities' => $activities,
+            'island_transfers' => $islandTransfers,
+            'food_beverages' => $foodBeverages,
+            'transport_units' => $transportUnits,
+            'tourist_attractions' => $touristAttractions,
+            'hotel_rooms' => $hotelRooms,
+        ];
+    }
+
+    /**
+     * @param array<int, array<string, mixed>> $items
+     * @return array<int, array<string, mixed>>
+     */
+    private function sortServiceCatalogByLabel(array $items): array
+    {
+        usort($items, function (array $a, array $b): int {
+            return strcasecmp((string) ($a['label'] ?? ''), (string) ($b['label'] ?? ''));
+        });
+
+        return array_values($items);
+    }
+
+    private function composeServiceItemLabel(string $itemName, ?string $vendorName = null, ?string $city = null): string
+    {
+        $cleanItemName = trim($itemName) !== '' ? trim($itemName) : '-';
+        $cleanVendorName = trim((string) $vendorName);
+        $cleanCity = trim((string) $city);
+        $parts = [$cleanItemName];
+
+        if ($cleanVendorName !== '') {
+            $parts[] = $cleanVendorName;
+        }
+        if ($cleanCity !== '') {
+            $parts[] = $cleanCity;
+        }
+
+        return implode(' - ', $parts);
+    }
+
+    private function formatServiceDescription(string $serviceType, string $serviceName, ?string $vendorName = null): string
+    {
+        $cleanType = trim($serviceType) !== '' ? trim($serviceType) : 'Service';
+        $cleanName = trim($serviceName) !== '' ? trim($serviceName) : '-';
+        $cleanVendorName = trim((string) $vendorName);
+        if ($cleanVendorName !== '' && in_array($cleanType, ['Activity', 'F&B'], true)) {
+            $cleanName = $this->appendVendorToServiceName($cleanName, $cleanVendorName);
+        }
+
+        return $cleanType . ': ' . $cleanName;
+    }
+
+    private function formatFoodBeverageDescription(string $serviceName, string $paxType = '', ?string $vendorName = null, ?string $vendorRegion = null): string
+    {
+        return $this->formatPaxAwareServiceDescription('F&B', $serviceName, $paxType, $vendorName, $vendorRegion);
+    }
+
+    private function formatActivityDescription(string $serviceName, string $paxType = '', ?string $vendorName = null, ?string $vendorRegion = null): string
+    {
+        return $this->formatPaxAwareServiceDescription('Activity', $serviceName, $paxType, $vendorName, $vendorRegion);
+    }
+
+    private function formatPaxAwareServiceDescription(string $serviceType, string $serviceName, string $paxType = '', ?string $vendorName = null, ?string $vendorRegion = null): string
+    {
+        $cleanName = $this->sanitizePaxAwareServiceText($serviceName);
+        if ($cleanName === '') {
+            $cleanName = '-';
+        }
+        $cleanVendorName = $this->sanitizePaxAwareServiceText((string) $vendorName);
+        $cleanVendorRegion = $this->sanitizePaxAwareServiceText((string) $vendorRegion);
+        $normalizedPaxType = strtolower(trim($paxType));
+
+        if (in_array($normalizedPaxType, ['adult', 'child'], true)) {
+            $cleanName .= ' (' . strtoupper($normalizedPaxType) . ')';
+        }
+
+        $parts = [$cleanName];
+        if ($cleanVendorName !== '') {
+            $parts[] = $cleanVendorName;
+        }
+        if ($cleanVendorRegion !== '') {
+            $parts[] = $cleanVendorRegion;
+        }
+
+        return trim($serviceType) . ': ' . implode(' - ', $parts);
+    }
+
+    /**
+     * @return array{service_name:string,vendor_name:string,vendor_region:string,pax_type:string}
+     */
+    private function normalizeFoodBeverageDescriptionParts(array $item): array
+    {
+        return $this->normalizePaxAwareServiceDescriptionParts($item, FoodBeverage::class);
+    }
+
+    /**
+     * @return array{service_name:string,vendor_name:string,vendor_region:string,pax_type:string}
+     */
+    private function normalizeActivityDescriptionParts(array $item): array
+    {
+        return $this->normalizePaxAwareServiceDescriptionParts($item, Activity::class);
+    }
+
+    /**
+     * @return array{service_name:string,vendor_name:string,vendor_region:string,pax_type:string}
+     */
+    private function normalizePaxAwareServiceDescriptionParts(array $item, string $serviceableType): array
+    {
+        $meta = $this->normalizeServiceableMeta($item['serviceable_meta'] ?? null) ?? [];
+        $rawDescription = trim((string) ($item['description'] ?? ''));
+        $descriptionBody = preg_replace('/^[^:]+:\s*/', '', $rawDescription) ?: $rawDescription;
+        $segments = array_values(array_filter(array_map(
+            fn ($segment) => $this->sanitizePaxAwareServiceText((string) $segment),
+            preg_split('/\s+-\s+/', $descriptionBody) ?: []
+        ), fn ($segment) => $segment !== ''));
+
+        $masterData = $this->resolvePaxAwareMasterDescriptionData($item, $serviceableType);
+        $serviceName = $this->sanitizePaxAwareServiceText((string) ($masterData['service_name'] ?? ''));
+        $vendorName = $this->sanitizePaxAwareServiceText((string) ($masterData['vendor_name'] ?? ''));
+        $vendorRegion = $this->sanitizePaxAwareServiceText((string) ($masterData['vendor_region'] ?? ''));
+        $paxType = strtolower(trim((string) ($meta['pax_type'] ?? '')));
+
+        if ($paxType === '' && preg_match('/\((adult|child)\)/i', $descriptionBody, $matches) === 1) {
+            $paxType = strtolower((string) ($matches[1] ?? ''));
+        }
+
+        if ($serviceName === '') {
+            $serviceName = $segments[0] ?? '';
+        }
+        if ($vendorName === '') {
+            foreach (array_slice($segments, 1) as $segment) {
+                if ($segment !== '' && strcasecmp($segment, $serviceName) !== 0) {
+                    $vendorName = $segment;
+                    break;
+                }
+            }
+        }
+
+        if ($vendorRegion === '') {
+            foreach (array_slice($segments, 1) as $segment) {
+                if ($segment !== ''
+                    && strcasecmp($segment, $serviceName) !== 0
+                    && strcasecmp($segment, $vendorName) !== 0) {
+                    $vendorRegion = $segment;
+                    break;
+                }
+            }
+        }
+
+        return [
+            'service_name' => $serviceName,
+            'vendor_name' => $vendorName,
+            'vendor_region' => $vendorRegion,
+            'pax_type' => $paxType,
+        ];
+    }
+
+    /**
+     * @return array{service_name:string,vendor_name:string,vendor_region:string}
+     */
+    private function resolveFoodBeverageMasterDescriptionData(array $item): array
+    {
+        return $this->resolvePaxAwareMasterDescriptionData($item, FoodBeverage::class);
+    }
+
+    /**
+     * @return array{service_name:string,vendor_name:string,vendor_region:string}
+     */
+    private function resolveActivityMasterDescriptionData(array $item): array
+    {
+        return $this->resolvePaxAwareMasterDescriptionData($item, Activity::class);
+    }
+
+    /**
+     * @return array{service_name:string,vendor_name:string,vendor_region:string}
+     */
+    private function resolvePaxAwareMasterDescriptionData(array $item, string $expectedType): array
+    {
+        $serviceableType = (string) ($item['serviceable_type'] ?? '');
+        $serviceableId = (int) ($item['serviceable_id'] ?? 0);
+        if ($serviceableType !== $expectedType || $serviceableId <= 0) {
+            return [
+                'service_name' => '',
+                'vendor_name' => '',
+                'vendor_region' => '',
+            ];
+        }
+
+        $model = $expectedType::query()
+            ->with(['vendor:id,name,city,province,destination_id', 'vendor.destination:id,city,province'])
+            ->find($serviceableId);
+
+        if (! $model) {
+            return [
+                'service_name' => '',
+                'vendor_name' => '',
+                'vendor_region' => '',
+            ];
+        }
+
+        return [
+            'service_name' => trim((string) ($model->name ?? '')),
+            'vendor_name' => trim((string) ($model->vendor?->name ?? '')),
+            'vendor_region' => $this->resolveCityLabel(
+                trim((string) ($model->vendor?->city ?? '')),
+                trim((string) ($model->vendor?->province ?? '')),
+                trim((string) ($model->vendor?->destination?->city ?? '')),
+                trim((string) ($model->vendor?->destination?->province ?? '')),
+            ),
+        ];
+    }
+
+    private function sanitizeFoodBeverageText(string $value): string
+    {
+        return $this->sanitizePaxAwareServiceText($value);
+    }
+
+    private function sanitizePaxAwareServiceText(string $value): string
+    {
+        $clean = trim($value);
+        if ($clean === '') {
+            return '';
+        }
+
+        $segments = array_values(array_filter(array_map('trim', preg_split('/\s+-\s+/', $clean) ?: []), fn ($segment) => $segment !== ''));
+        $normalizedSegments = [];
+
+        foreach ($segments as $segment) {
+            $normalized = trim((string) preg_replace('/\s*\((adult|child)\)\s*$/i', '', $segment));
+            if ($normalized === '') {
+                continue;
+            }
+            $alreadyExists = collect($normalizedSegments)->contains(fn ($existing) => strcasecmp((string) $existing, $normalized) === 0);
+            if (! $alreadyExists) {
+                $normalizedSegments[] = $normalized;
+            }
+        }
+
+        return trim(implode(' - ', $normalizedSegments));
+    }
+
+    private function appendVendorToServiceName(string $serviceName, string $vendorName): string
+    {
+        $cleanName = trim($serviceName) !== '' ? trim($serviceName) : '-';
+        $cleanVendorName = trim($vendorName);
+        if ($cleanVendorName === '') {
+            return $cleanName;
+        }
+        if (preg_match('/\s-\s' . preg_quote($cleanVendorName, '/') . '$/i', $cleanName) === 1) {
+            return $cleanName;
+        }
+
+        return $cleanName . ' - ' . $cleanVendorName;
+    }
+
+    private function quotationServiceTypeLabel(?string $itineraryItemType, ?string $serviceableType = null): string
+    {
+        return match ((string) $itineraryItemType) {
+            'transport_day' => 'Transport',
+            'attraction' => 'Attraction',
+            'activity' => 'Activity',
+            'transfer' => 'Island Transfer',
+            'fnb' => 'F&B',
+            'hotel_day_end' => 'Hotel',
+            default => match ((string) $serviceableType) {
+                TransportUnit::class => 'Transport',
+                TouristAttraction::class => 'Attraction',
+                Activity::class => 'Activity',
+                IslandTransfer::class => 'Island Transfer',
+                FoodBeverage::class => 'F&B',
+                HotelRoom::class => 'Hotel',
+                default => 'Service',
+            },
+        };
+    }
+
+    private function normalizeQuotationServiceDescription(array $item): array
+    {
+        $serviceType = $this->quotationServiceTypeLabel(
+            $item['itinerary_item_type'] ?? null,
+            $item['serviceable_type'] ?? null,
+        );
+        $rawDescription = trim((string) ($item['description'] ?? ''));
+        $serviceName = preg_replace('/^[^:]+:\s*/', '', $rawDescription) ?: $rawDescription;
+        if ($serviceType === 'Hotel') {
+            $serviceName = trim((string) preg_replace('/\s*\([^)]*\)/', '', $serviceName));
+        }
+        if ($serviceType === 'Activity') {
+            $parts = $this->normalizeActivityDescriptionParts($item);
+            $item['description'] = $this->formatActivityDescription(
+                $parts['service_name'],
+                $parts['pax_type'],
+                $parts['vendor_name'],
+                $parts['vendor_region'],
+            );
+
+            return $item;
+        }
+        if ($serviceType === 'F&B') {
+            $parts = $this->normalizeFoodBeverageDescriptionParts($item);
+            $item['description'] = $this->formatFoodBeverageDescription(
+                $parts['service_name'],
+                $parts['pax_type'],
+                $parts['vendor_name'],
+                $parts['vendor_region'],
+            );
+
+            return $item;
+        }
+        $item['description'] = $this->formatServiceDescription(
+            $serviceType,
+            $serviceName,
+            $this->resolveQuotationServiceVendorName($item)
+        );
+
+        return $item;
+    }
+
+    private function applyQuotationServiceDescriptions(Quotation $quotation): void
+    {
+        if (! $quotation->relationLoaded('items')) {
+            return;
+        }
+
+        $quotation->items->each(function (QuotationItem $item): void {
+            $payload = [
+                'description' => (string) ($item->description ?? ''),
+                'serviceable_type' => $item->serviceable_type,
+                'serviceable_id' => $item->serviceable_id,
+                'serviceable_meta' => $item->serviceable_meta,
+                'itinerary_item_type' => $item->itinerary_item_type,
+            ];
+            $normalized = $this->normalizeQuotationServiceDescription($payload);
+            $item->setAttribute('description', $normalized['description'] ?? $item->description);
+        });
+    }
+
+    private function resolveQuotationServiceVendorName(array $item): string
+    {
+        $serviceableType = (string) ($item['serviceable_type'] ?? '');
+        if (! in_array($serviceableType, [Activity::class, FoodBeverage::class], true)) {
+            return '';
+        }
+
+        $meta = $this->normalizeServiceableMeta($item['serviceable_meta'] ?? null) ?? [];
+        $vendorName = trim((string) ($meta['vendor_name'] ?? ''));
+        if ($vendorName !== '') {
+            return $vendorName;
+        }
+
+        $serviceableId = (int) ($item['serviceable_id'] ?? 0);
+        if ($serviceableId <= 0) {
+            return '';
+        }
+
+        $model = $serviceableType::query()
+            ->with('vendor:id,name,city,province,destination_id')
+            ->find($serviceableId);
+
+        return trim((string) ($model?->vendor?->name ?? ''));
+    }
+
+    private function resolveQuotationServiceVendorRegion(array $item): string
+    {
+        $serviceableType = (string) ($item['serviceable_type'] ?? '');
+        if (! in_array($serviceableType, [Activity::class, FoodBeverage::class], true)) {
+            return '';
+        }
+
+        $meta = $this->normalizeServiceableMeta($item['serviceable_meta'] ?? null) ?? [];
+        $vendorRegion = trim((string) ($meta['vendor_region'] ?? ''));
+        if ($vendorRegion !== '') {
+            return $vendorRegion;
+        }
+
+        $serviceableId = (int) ($item['serviceable_id'] ?? 0);
+        if ($serviceableId <= 0) {
+            return '';
+        }
+
+        $model = $serviceableType::query()
+            ->with(['vendor:id,name,city,province,destination_id', 'vendor.destination:id,city,province'])
+            ->find($serviceableId);
+
+        return $this->resolveCityLabel(
+            trim((string) ($model?->vendor?->city ?? '')),
+            trim((string) ($model?->vendor?->province ?? '')),
+            trim((string) ($model?->vendor?->destination?->city ?? '')),
+            trim((string) ($model?->vendor?->destination?->province ?? '')),
+        );
+    }
+
+    private function resolveCityLabel(?string ...$parts): string
+    {
+        foreach ($parts as $part) {
+            $clean = trim((string) $part);
+            if ($clean !== '') {
+                return $clean;
+            }
+        }
+
+        return '';
+    }
+
     /**
      * @param mixed $value
      * @return array<string, mixed>|null
@@ -1954,6 +2690,285 @@ SVG;
         return null;
     }
 
+    /**
+     * @param  array<int, array<string, mixed>>  $items
+     * @return array<int, array<string, mixed>>
+     */
+    private function syncMissingServicePublishRatesFromQuotationItems(array $items): array
+    {
+        return array_map(function (array $item): array {
+            $rate = max(0, (float) ($item['rate'] ?? $item['unit_price'] ?? 0));
+            $serviceableType = (string) ($item['serviceable_type'] ?? '');
+            $serviceableId = (int) ($item['serviceable_id'] ?? 0);
+            if ($rate <= 0 || $serviceableType === '' || $serviceableId <= 0) {
+                return $item;
+            }
+
+            $ratePayload = $this->buildDefaultRatePayload($rate);
+            $synced = match ($serviceableType) {
+                Activity::class => $this->syncMissingActivityPublishRate($serviceableId, $item, $ratePayload),
+                TouristAttraction::class => $this->syncMissingSimplePublishRate(
+                    TouristAttraction::class,
+                    $serviceableId,
+                    'publish_rate_per_pax',
+                    'contract_rate_per_pax',
+                    $ratePayload
+                ),
+                IslandTransfer::class => $this->syncMissingSimplePublishRate(
+                    IslandTransfer::class,
+                    $serviceableId,
+                    'publish_rate',
+                    'contract_rate',
+                    $ratePayload
+                ),
+                FoodBeverage::class => $this->syncMissingFoodBeveragePublishRate(
+                    $serviceableId,
+                    $item,
+                    $ratePayload
+                ),
+                TransportUnit::class => $this->syncMissingSimplePublishRate(
+                    TransportUnit::class,
+                    $serviceableId,
+                    'publish_rate',
+                    'contract_rate',
+                    $ratePayload
+                ),
+                HotelRoom::class => $this->syncMissingHotelRoomPublishRate($serviceableId, $item, $ratePayload),
+                default => null,
+            };
+
+            if (! is_array($synced)) {
+                return $item;
+            }
+
+            $item['contract_rate'] = $synced['contract_rate'];
+            $item['markup_type'] = $synced['markup_type'];
+            $item['markup'] = $synced['markup'];
+            $item['unit_price'] = $synced['publish_rate'];
+            $item['rate'] = $synced['publish_rate'];
+            if (isset($synced['serviceable_meta']) && is_array($synced['serviceable_meta'])) {
+                $item['serviceable_meta'] = $synced['serviceable_meta'];
+            }
+
+            return $item;
+        }, $items);
+    }
+
+    /**
+     * @return array{publish_rate: float, contract_rate: float, markup_type: string, markup: float}
+     */
+    private function buildDefaultRatePayload(float $publishRate): array
+    {
+        $markup = 10.0;
+        $contractRate = $publishRate / (1 + ($markup / 100));
+
+        return [
+            'publish_rate' => round($publishRate, 2),
+            'contract_rate' => round($contractRate, 2),
+            'markup_type' => 'percent',
+            'markup' => $markup,
+        ];
+    }
+
+    /**
+     * @return array{publish_rate: float, contract_rate: float, markup_type: string, markup: float}
+     */
+    private function buildRatePayloadFromMaster(float $publishRate, float $contractRate, ?string $markupType, float $markup): array
+    {
+        return [
+            'publish_rate' => max(0, round($publishRate, 2)),
+            'contract_rate' => max(0, round($contractRate, 2)),
+            'markup_type' => $markupType === 'percent' ? 'percent' : 'fixed',
+            'markup' => max(0, round($markup, 2)),
+        ];
+    }
+
+    /**
+     * @param  class-string<\Illuminate\Database\Eloquent\Model>  $modelClass
+     * @return array{publish_rate: float, contract_rate: float, markup_type: string, markup: float}|null
+     */
+    private function syncMissingSimplePublishRate(
+        string $modelClass,
+        int $serviceableId,
+        string $publishColumn,
+        string $contractColumn,
+        array $ratePayload
+    ): ?array {
+        $model = $modelClass::query()->find($serviceableId);
+        if (! $model) {
+            return null;
+        }
+        if ((float) ($model->{$publishColumn} ?? 0) > 0) {
+            return $this->buildRatePayloadFromMaster(
+                (float) ($model->{$publishColumn} ?? 0),
+                (float) ($model->{$contractColumn} ?? 0),
+                (string) ($model->markup_type ?? 'fixed'),
+                (float) ($model->markup ?? 0)
+            );
+        }
+
+        $model->forceFill([
+            $publishColumn => $ratePayload['publish_rate'],
+            $contractColumn => $ratePayload['contract_rate'],
+            'markup_type' => $ratePayload['markup_type'],
+            'markup' => $ratePayload['markup'],
+        ])->save();
+
+        return $ratePayload;
+    }
+
+    /**
+     * @return array{publish_rate: float, contract_rate: float, markup_type: string, markup: float}|null
+     */
+    private function syncMissingActivityPublishRate(int $activityId, array $item, array $ratePayload): ?array
+    {
+        $activity = Activity::query()->find($activityId);
+        if (! $activity) {
+            return null;
+        }
+
+        $meta = $this->normalizeServiceableMeta($item['serviceable_meta'] ?? null) ?? [];
+        $paxType = (string) ($meta['pax_type'] ?? 'adult');
+        $isChild = $paxType === 'child';
+        $publishColumn = $isChild ? 'child_publish_rate' : 'adult_publish_rate';
+        $contractColumn = $isChild ? 'child_contract_rate' : 'adult_contract_rate';
+        $markupTypeColumn = $isChild ? 'child_markup_type' : 'adult_markup_type';
+        $markupColumn = $isChild ? 'child_markup' : 'adult_markup';
+
+        if ((float) ($activity->{$publishColumn} ?? 0) > 0) {
+            return $this->buildRatePayloadFromMaster(
+                (float) ($activity->{$publishColumn} ?? 0),
+                (float) ($activity->{$contractColumn} ?? 0),
+                (string) ($activity->{$markupTypeColumn} ?? 'fixed'),
+                (float) ($activity->{$markupColumn} ?? 0)
+            );
+        }
+
+        $activity->forceFill([
+            $publishColumn => $ratePayload['publish_rate'],
+            $contractColumn => $ratePayload['contract_rate'],
+            $markupTypeColumn => $ratePayload['markup_type'],
+            $markupColumn => $ratePayload['markup'],
+        ])->save();
+
+        return $ratePayload;
+    }
+
+    /**
+     * @return array{publish_rate: float, contract_rate: float, markup_type: string, markup: float}|null
+     */
+    private function syncMissingFoodBeveragePublishRate(int $foodBeverageId, array $item, array $ratePayload): ?array
+    {
+        $foodBeverage = FoodBeverage::query()->find($foodBeverageId);
+        if (! $foodBeverage) {
+            return null;
+        }
+
+        $meta = $this->normalizeServiceableMeta($item['serviceable_meta'] ?? null) ?? [];
+        $paxType = (string) ($meta['pax_type'] ?? 'adult');
+        $isChild = $paxType === 'child';
+        $publishColumn = $isChild ? 'child_publish_rate' : 'adult_publish_rate';
+        $contractColumn = $isChild ? 'child_contract_rate' : 'adult_contract_rate';
+        $markupTypeColumn = $isChild ? 'child_markup_type' : 'adult_markup_type';
+        $markupColumn = $isChild ? 'child_markup' : 'adult_markup';
+
+        if ((float) ($foodBeverage->{$publishColumn} ?? 0) > 0) {
+            return $this->buildRatePayloadFromMaster(
+                (float) ($foodBeverage->{$publishColumn} ?? ($foodBeverage->publish_rate ?? 0)),
+                (float) ($foodBeverage->{$contractColumn} ?? ($foodBeverage->contract_rate ?? 0)),
+                (string) ($foodBeverage->{$markupTypeColumn} ?? ($foodBeverage->adult_markup_type ?? ($foodBeverage->markup_type ?? 'fixed'))),
+                (float) ($foodBeverage->{$markupColumn} ?? ($foodBeverage->adult_markup ?? ($foodBeverage->markup ?? 0)))
+            );
+        }
+
+        $payload = [
+            $publishColumn => $ratePayload['publish_rate'],
+            $contractColumn => $ratePayload['contract_rate'],
+            $markupTypeColumn => $ratePayload['markup_type'],
+            $markupColumn => $ratePayload['markup'],
+        ];
+        if (! $isChild) {
+            $payload['publish_rate'] = $ratePayload['publish_rate'];
+            $payload['contract_rate'] = $ratePayload['contract_rate'];
+            $payload['markup_type'] = $ratePayload['markup_type'];
+            $payload['markup'] = $ratePayload['markup'];
+        }
+
+        $foodBeverage->forceFill($payload)->save();
+
+        return $ratePayload;
+    }
+
+    /**
+     * @return array{publish_rate: float, contract_rate: float, markup_type: string, markup: float, serviceable_meta: array<string, mixed>}|null
+     */
+    private function syncMissingHotelRoomPublishRate(int $roomId, array $item, array $ratePayload): ?array
+    {
+        $room = HotelRoom::query()->find($roomId);
+        if (! $room) {
+            return null;
+        }
+
+        $meta = $this->normalizeServiceableMeta($item['serviceable_meta'] ?? null) ?? [];
+        $hotelPrice = null;
+        $hotelPriceId = (int) ($meta['hotel_price_id'] ?? 0);
+        if ($hotelPriceId > 0) {
+            $hotelPrice = HotelPrice::query()
+                ->whereKey($hotelPriceId)
+                ->where('rooms_id', $roomId)
+                ->first();
+        }
+        if (! $hotelPrice) {
+            $hotelPrice = HotelPrice::query()
+                ->where('rooms_id', $roomId)
+                ->orderByDesc('end_date')
+                ->orderByDesc('start_date')
+                ->orderByDesc('id')
+                ->first();
+        }
+        if ($hotelPrice && (float) ($hotelPrice->publish_rate ?? 0) > 0) {
+            $meta['hotel_price_id'] = (int) $hotelPrice->id;
+
+            return array_merge(
+                $this->buildRatePayloadFromMaster(
+                    (float) ($hotelPrice->publish_rate ?? 0),
+                    (float) ($hotelPrice->contract_rate ?? 0),
+                    (string) ($hotelPrice->markup_type ?? 'fixed'),
+                    (float) ($hotelPrice->markup ?? 0)
+                ),
+                ['serviceable_meta' => $meta]
+            );
+        }
+        if ((int) ($room->hotels_id ?? 0) <= 0) {
+            return null;
+        }
+
+        $today = now()->toDateString();
+        $endOfYear = now()->endOfYear()->toDateString();
+        $payload = [
+            'hotels_id' => (int) ($room->hotels_id ?? 0),
+            'rooms_id' => $roomId,
+            'start_date' => $today,
+            'end_date' => $endOfYear,
+            'contract_rate' => $ratePayload['contract_rate'],
+            'markup_type' => $ratePayload['markup_type'],
+            'markup' => $ratePayload['markup'],
+            'publish_rate' => $ratePayload['publish_rate'],
+        ];
+
+        if ($hotelPrice) {
+            $hotelPrice->forceFill($payload)->save();
+        } else {
+            $hotelPrice = HotelPrice::query()->create($payload);
+        }
+
+        $meta['hotel_price_id'] = (int) $hotelPrice->id;
+
+        return array_merge($ratePayload, [
+            'serviceable_meta' => $meta,
+        ]);
+    }
+
     private function computeTotals(array $items, ?string $discountType, float $discountValue, ?string $quotationServiceDate = null): array
     {
         $subTotal = 0;
@@ -1968,6 +2983,7 @@ SVG;
         }
 
         foreach ($items as $item) {
+            $item = $this->normalizeQuotationServiceDescription($item);
             $qty = (int) $item['qty'];
             $contractRate = (float) ($item['contract_rate'] ?? 0);
             $markupType = ($item['markup_type'] ?? 'fixed') === 'percent' ? 'percent' : 'fixed';
@@ -1976,6 +2992,9 @@ SVG;
             $providedRate = max(0, (float) ($item['rate'] ?? 0));
             $itemType = (string) ($item['itinerary_item_type'] ?? '');
             $isManualItem = $itemType === 'manual';
+            $hasRateInput = array_key_exists('rate', $item)
+                && $item['rate'] !== null
+                && $item['rate'] !== '';
             $hasContractRateInput = array_key_exists('contract_rate', $item)
                 && $item['contract_rate'] !== null
                 && $item['contract_rate'] !== '';
@@ -1983,13 +3002,12 @@ SVG;
             $unitPriceFromMarkup = $markupType === 'percent'
                 ? ($contractRate + ($contractRate * ($markup / 100)))
                 : ($contractRate + $markup);
-            if ($isManualItem) {
-                // Manual items persist rate-per-unit in unit_price.
+            if ($hasRateInput) {
                 $unitPrice = $providedRate;
-                if ($unitPrice <= 0 && $providedUnitPrice > 0) {
-                    // Backward compatible fallback when legacy payload posts total rate in unit_price.
-                    $unitPrice = $qty > 0 ? ($providedUnitPrice / $qty) : $providedUnitPrice;
-                }
+            } elseif ($isManualItem) {
+                $unitPrice = $providedUnitPrice > 0
+                    ? ($qty > 0 ? ($providedUnitPrice / $qty) : $providedUnitPrice)
+                    : 0;
             } else {
                 $unitPrice = $hasContractRateInput
                     ? max(0, $unitPriceFromMarkup)
@@ -2016,6 +3034,7 @@ SVG;
                 'discount_type' => $itemDiscountType,
                 'discount' => $discount,
                 'total' => $total,
+                'status' => QuotationItem::STATUS_ACTIVE,
             ];
 
             $serviceableType = $item['serviceable_type'] ?? null;
@@ -2027,6 +3046,10 @@ SVG;
             $dayNumber = (int) ($item['day_number'] ?? 0);
             if ($dayNumber > 0) {
                 $normalized['day_number'] = $dayNumber;
+            }
+            $sortOrder = (int) ($item['sort_order'] ?? 0);
+            if ($sortOrder > 0) {
+                $normalized['sort_order'] = $sortOrder;
             }
             if ($serviceDateBase) {
                 $serviceDate = $serviceDateBase->copy();
@@ -2062,6 +3085,91 @@ SVG;
             'final_amount' => $finalAmount,
             'needs_approval' => ($discountAmount > 0),
         ];
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function buildValidatedQuotationItemStateMap(Quotation $quotation): array
+    {
+        $quotation->loadMissing('items');
+
+        return $quotation->items
+            ->filter(fn (QuotationItem $item): bool => (bool) ($item->is_validated ?? false))
+            ->mapWithKeys(function (QuotationItem $item): array {
+                return [
+                    (int) $item->id => [
+                        'serviceable_type' => (string) ($item->serviceable_type ?? ''),
+                        'serviceable_id' => (int) ($item->serviceable_id ?? 0),
+                        'is_validation_required' => (bool) ($item->is_validation_required ?? false),
+                        'is_validated' => true,
+                        'validated_at' => $item->validated_at,
+                        'validated_by' => $item->validated_by,
+                        'validation_notes' => $item->validation_notes,
+                        'last_validated_contract_rate' => $item->last_validated_contract_rate,
+                        'last_validated_markup_type' => $item->last_validated_markup_type,
+                        'last_validated_markup' => $item->last_validated_markup,
+                        'status' => $item->status,
+                    ],
+                ];
+            })
+            ->all();
+    }
+
+    /**
+     * @param array<int, array<string, mixed>> $normalizedItems
+     * @param array<int, array<string, mixed>> $submittedItems
+     * @param array<int, array<string, mixed>> $validatedItemStateById
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function applyValidatedItemStateCarryOver(array $normalizedItems, array $submittedItems, array $validatedItemStateById): array
+    {
+        foreach ($normalizedItems as $index => $item) {
+            $sourceItemId = (int) ($submittedItems[$index]['id'] ?? 0);
+            if ($sourceItemId <= 0) {
+                $sourceItemId = (int) ($submittedItems[$index]['source_item_id'] ?? 0);
+            }
+            if ($sourceItemId <= 0 || ! isset($validatedItemStateById[$sourceItemId])) {
+                continue;
+            }
+
+            $sourceState = $validatedItemStateById[$sourceItemId];
+            if (! $this->isSameValidatedServiceItem($item, $sourceState)) {
+                continue;
+            }
+
+            $normalizedItems[$index] = array_merge($item, [
+                'is_validation_required' => (bool) ($sourceState['is_validation_required'] ?? false),
+                'is_validated' => true,
+                'validated_at' => $sourceState['validated_at'] ?? null,
+                'validated_by' => $sourceState['validated_by'] ?? null,
+                'validation_notes' => $sourceState['validation_notes'] ?? null,
+                'last_validated_contract_rate' => $sourceState['last_validated_contract_rate'] ?? null,
+                'last_validated_markup_type' => $sourceState['last_validated_markup_type'] ?? null,
+                'last_validated_markup' => $sourceState['last_validated_markup'] ?? null,
+                'status' => $sourceState['status'] ?: QuotationItem::STATUS_VALIDATED,
+            ]);
+        }
+
+        return $normalizedItems;
+    }
+
+    /**
+     * @param array<string, mixed> $item
+     * @param array<string, mixed> $sourceState
+     */
+    private function isSameValidatedServiceItem(array $item, array $sourceState): bool
+    {
+        $sourceType = (string) ($sourceState['serviceable_type'] ?? '');
+        $sourceId = (int) ($sourceState['serviceable_id'] ?? 0);
+
+        if ($sourceType === '' || $sourceId <= 0) {
+            return true;
+        }
+
+        return (string) ($item['serviceable_type'] ?? '') === $sourceType
+            && (int) ($item['serviceable_id'] ?? 0) === $sourceId;
     }
 
     private function computeQuotationKpiSummary(Quotation $quotation): array
@@ -2172,7 +3280,7 @@ SVG;
         return $inquiryId > 0 ? $inquiryId : null;
     }
 
-    private function resolveInquiryIdForQuotation(?int $itineraryId, int $customerId, ?int $selectedInquiryId = null): ?int
+    private function resolveInquiryIdForQuotation(int $customerId, ?int $selectedInquiryId = null): ?int
     {
         if ($customerId <= 0) {
             throw ValidationException::withMessages([
@@ -2181,78 +3289,13 @@ SVG;
         }
 
         $manualInquiryId = (int) ($selectedInquiryId ?? 0);
-        if ($manualInquiryId > 0) {
-            return $manualInquiryId;
-        }
-
-        $itineraryInquiryId = (int) ($this->resolveInquiryIdFromItinerary($itineraryId) ?? 0);
-        if ($itineraryInquiryId > 0) {
-            return $itineraryInquiryId;
-        }
-
-        return $this->resolveOrCreateInquiryIdFromCustomer($customerId);
-    }
-
-    private function resolveOrCreateInquiryIdFromCustomer(int $customerId): int
-    {
-        if ($customerId <= 0) {
+        if ($manualInquiryId <= 0) {
             throw ValidationException::withMessages([
-                'customer_id' => 'Customer/Agent is required.',
+                'inquiry_id' => ui_phrase('Please select inquiry handled by you before generating quotation.'),
             ]);
         }
 
-        $customer = Customer::query()->find($customerId);
-        if (! $customer) {
-            throw ValidationException::withMessages([
-                'customer_id' => 'Selected Customer/Agent was not found.',
-            ]);
-        }
-
-        $existingInquiryId = Inquiry::query()
-            ->where('customer_id', $customerId)
-            ->where('status', '!=', Inquiry::FINAL_STATUS)
-            ->latest('updated_at')
-            ->value('id');
-
-        if ($existingInquiryId) {
-            return (int) $existingInquiryId;
-        }
-
-        $inquiry = Inquiry::withoutActivityLogging(function () use ($customerId) {
-            return Inquiry::query()->create([
-                'customer_id' => $customerId,
-                'source' => 'other',
-                'status' => 'registered',
-                'priority' => 'normal',
-                'deadline' => null,
-                'notes' => 'Auto-generated from quotation form.',
-                'reminder_enabled' => true,
-            ]);
-        });
-
-        return (int) $inquiry->id;
-    }
-
-    private function assertInquiryCanLinkToItinerary(int $inquiryId, ?int $itineraryId = null): void
-    {
-        if ($inquiryId <= 0) {
-            return;
-        }
-
-        $linkedItineraryId = Itinerary::query()
-            ->whereHas('inquiryReferences', function (Builder $query) use ($inquiryId): void {
-                $query->where('inquiries.id', $inquiryId);
-            })
-            ->when($itineraryId && $itineraryId > 0, function (Builder $query) use ($itineraryId): void {
-                $query->where('id', '!=', $itineraryId);
-            })
-            ->value('id');
-
-        if ($linkedItineraryId) {
-            throw ValidationException::withMessages([
-                'inquiry_id' => 'Selected inquiry is already linked to another itinerary.',
-            ]);
-        }
+        return $manualInquiryId;
     }
 
     private function normalizeOrderNumber(?string $value): ?string
@@ -2265,100 +3308,331 @@ SVG;
         return strtoupper($trimmed);
     }
 
-    private function createQuotationRevision(
-        Quotation $sourceQuotation,
-        ?int $inquiryId,
-        int $selectedItineraryId,
-        array $validated,
-        array $totals,
-        ?string $normalizedOrderNumber
-    ): Quotation {
-        $revisionRootId = (int) ($sourceQuotation->revision_of_id ?? 0);
-        if ($revisionRootId <= 0) {
-            $revisionRootId = (int) $sourceQuotation->id;
-        }
-        $nextRevisionNumber = $this->nextRevisionNumber($revisionRootId);
-        $revisionQuotationNumber = $this->buildRevisionQuotationNumber((string) ($sourceQuotation->quotation_number ?? ''), $nextRevisionNumber);
-
-        $payload = [
-            'quotation_number' => $revisionQuotationNumber,
-            'order_number' => $normalizedOrderNumber,
-            'inquiry_id' => $inquiryId,
-            'itinerary_id' => $selectedItineraryId,
-            'service_date' => $validated['service_date'],
-            'pax_adult' => (int) ($validated['pax_adult'] ?? 0),
-            'pax_child' => (int) ($validated['pax_child'] ?? 0),
-            'status' => 'revised',
-            'validation_status' => QuotationValidationService::STATUS_PENDING,
-            'validity_date' => $validated['validity_date'],
-            'sub_total' => (float) ($totals['sub_total'] ?? 0),
-            'discount_type' => $validated['discount_type'] ?? null,
-            'discount_value' => (float) ($validated['discount_value'] ?? 0),
-            'final_amount' => (float) ($totals['final_amount'] ?? 0),
-            'approved_by' => null,
-            'approved_at' => null,
-            'approval_note' => null,
-            'approval_note_by' => null,
-            'approval_note_at' => null,
-            'validated_at' => null,
-            'validated_by' => null,
-        ];
-        if (Schema::hasColumn('quotations', 'created_by')) {
-            $payload['created_by'] = (int) (auth()->id() ?? 0) ?: null;
-        }
-        if (Schema::hasColumn('quotations', 'updated_by')) {
-            $payload['updated_by'] = (int) (auth()->id() ?? 0) ?: null;
-        }
-        if (Schema::hasColumn('quotations', 'revision_of_id')) {
-            $payload['revision_of_id'] = $revisionRootId;
-        }
-        if (Schema::hasColumn('quotations', 'revision_number')) {
-            $payload['revision_number'] = $nextRevisionNumber;
-        }
-
-        $revision = Quotation::withoutActivityLogging(fn () => Quotation::query()->create($payload));
-        foreach (($totals['items'] ?? []) as $item) {
-            $revision->items()->create($item);
-        }
-        $this->quotationValidationService->syncValidationRequirementsAndMasterRates($revision);
-        $this->activityAuditLogger->logCreated($revision, $this->buildQuotationAuditSnapshot($revision), 'Quotation Revision');
-
-        return $revision;
-    }
-
-    private function nextRevisionNumber(int $revisionRootId): int
+    private function buildRevisionHistory(Quotation $quotation)
     {
-        if (! Schema::hasColumn('quotations', 'revision_number')) {
-            return 1;
+        if (Schema::hasTable('quotation_revisions')) {
+            $revisionLogs = DB::table('quotation_revisions')
+                ->where('quotation_id', (int) $quotation->id)
+                ->orderBy('version')
+                ->orderBy('id')
+                ->get();
+
+            if ($revisionLogs->isNotEmpty()) {
+                $original = clone $quotation;
+                $original->setAttribute('revision_number', 1);
+                $original->setAttribute('revision_reason', null);
+                $original->setAttribute('created_at', $quotation->created_at);
+                $original->setAttribute('updated_at', $quotation->created_at);
+
+                return collect([$original])
+                    ->merge($revisionLogs->map(fn (object $log): Quotation => $this->quotationRevisionHistoryModelFromLog($quotation, $log)))
+                    ->map(fn (Quotation $revision): Quotation => $this->decorateRevisionHistoryRow($revision));
+            }
         }
 
-        $maxRevision = (int) Quotation::query()
+        if (! Schema::hasColumn('quotations', 'revision_number')) {
+            return collect([$this->decorateRevisionHistoryRow($quotation)]);
+        }
+
+        $revisionRootId = (int) ($quotation->revision_of_id ?? 0);
+        if ($revisionRootId <= 0) {
+            $revisionRootId = (int) $quotation->id;
+        }
+
+        return Quotation::query()
             ->where(function (Builder $query) use ($revisionRootId): void {
                 $query->where('id', $revisionRootId);
                 if (Schema::hasColumn('quotations', 'revision_of_id')) {
                     $query->orWhere('revision_of_id', $revisionRootId);
                 }
             })
-            ->max('revision_number');
-
-        return max(1, $maxRevision + 1);
+            ->with(['creator:id,name', 'updater:id,name'])
+            ->orderBy('revision_number')
+            ->orderBy('id')
+            ->get()
+            ->map(fn (Quotation $revision): Quotation => $this->decorateRevisionHistoryRow($revision));
     }
 
-    private function buildRevisionQuotationNumber(string $baseQuotationNumber, int $revisionNumber): string
+    private function buildFollowUpHistory(Quotation $quotation)
     {
-        $baseQuotationNumber = trim($baseQuotationNumber);
-        if ($baseQuotationNumber === '') {
-            $baseQuotationNumber = $this->generateQuotationNumber();
+        $quotation->loadMissing(['followUps.creator', 'followUps.handler']);
+
+        return $quotation->followUps
+            ->map(function (QuotationFollowUp $followUp): QuotationFollowUp {
+                $effectiveAt = $followUp->follow_up_at ?? $followUp->created_at;
+                $channel = trim((string) ($followUp->channel ?? ''));
+                $channelKey = strtolower($channel);
+                $followUpType = trim((string) ($followUp->follow_up_type ?? ''));
+                if ($followUpType === '') {
+                    $followUpType = $channelKey === 'system' ? 'quotation_sent' : 'customer_follow_up';
+                }
+
+                $title = match ($followUpType) {
+                    'quotation_sent' => ui_phrase('Quotation Sent'),
+                    'customer_follow_up' => ui_phrase('Customer Follow-up'),
+                    default => \Illuminate\Support\Str::headline(str_replace('_', ' ', $followUpType)),
+                };
+                $channelLabel = $channelKey === 'system'
+                    ? ui_phrase('System')
+                    : ($channel !== '' ? $channel : ui_phrase('Manual'));
+                $note = trim((string) ($followUp->follow_up_note ?? ''));
+                if ($note === '' && $followUpType === 'quotation_sent') {
+                    $note = ui_phrase('Quotation sent to customer. Waiting for response.');
+                }
+                if ($note === '' && $followUpType === 'customer_follow_up') {
+                    $note = ui_phrase('Follow-up recorded.');
+                }
+
+                $followUp->setAttribute('history_effective_at', $effectiveAt);
+                $followUp->setAttribute('history_title', $title);
+                $followUp->setAttribute('history_channel_label', $channelLabel);
+                $followUp->setAttribute('history_type_key', $followUpType);
+                $followUp->setAttribute('history_kind_label', $channelKey === 'system' ? ui_phrase('System') : ui_phrase('Manual'));
+                $followUp->setAttribute('history_note', $note);
+                $followUp->setAttribute('history_actor_name', ui_user_name($followUp->creator));
+                $followUp->setAttribute('history_handler_name', ui_user_name($followUp->handler));
+                $followUp->setAttribute(
+                    'history_sort_key',
+                    (((int) optional($effectiveAt)->getTimestamp()) * 1000000) + (int) ($followUp->id ?? 0)
+                );
+
+                return $followUp;
+            })
+            ->sortBy(fn (QuotationFollowUp $followUp) => (int) ($followUp->getAttribute('history_sort_key') ?? 0), SORT_REGULAR, true)
+            ->values();
+    }
+
+    private function buildGroupedQuotationItemsByDay(Quotation $quotation)
+    {
+        $quotation->loadMissing('items');
+
+        return $quotation->items
+            ->sort(function ($left, $right) {
+                $leftDay = (int) ($left->day_number ?? 0);
+                $rightDay = (int) ($right->day_number ?? 0);
+
+                $leftDayRank = $leftDay > 0 ? 0 : 1;
+                $rightDayRank = $rightDay > 0 ? 0 : 1;
+                if ($leftDayRank !== $rightDayRank) {
+                    return $leftDayRank <=> $rightDayRank;
+                }
+
+                if ($leftDayRank === 0 && $leftDay !== $rightDay) {
+                    return $leftDay <=> $rightDay;
+                }
+
+                $leftSortOrder = (int) ($left->sort_order ?? 0);
+                $rightSortOrder = (int) ($right->sort_order ?? 0);
+                if ($leftSortOrder > 0 && $rightSortOrder > 0 && $leftSortOrder !== $rightSortOrder) {
+                    return $leftSortOrder <=> $rightSortOrder;
+                }
+
+                $leftMeta = is_array($left->serviceable_meta ?? null) ? $left->serviceable_meta : [];
+                $rightMeta = is_array($right->serviceable_meta ?? null) ? $right->serviceable_meta : [];
+
+                $normalizeTimeToMinutes = static function ($value): int {
+                    $time = trim((string) $value);
+                    if (! preg_match('/^\d{2}:\d{2}$/', $time)) {
+                        return PHP_INT_MAX;
+                    }
+
+                    return ((int) substr($time, 0, 2) * 60) + (int) substr($time, 3, 2);
+                };
+
+                $leftVisitOrder = isset($leftMeta['visit_order']) && is_numeric($leftMeta['visit_order'])
+                    ? (int) $leftMeta['visit_order']
+                    : PHP_INT_MAX;
+                $rightVisitOrder = isset($rightMeta['visit_order']) && is_numeric($rightMeta['visit_order'])
+                    ? (int) $rightMeta['visit_order']
+                    : PHP_INT_MAX;
+                if ($leftVisitOrder !== $rightVisitOrder) {
+                    return $leftVisitOrder <=> $rightVisitOrder;
+                }
+
+                $leftStartMinutes = $normalizeTimeToMinutes($leftMeta['start_time'] ?? null);
+                $rightStartMinutes = $normalizeTimeToMinutes($rightMeta['start_time'] ?? null);
+                if ($leftStartMinutes !== $rightStartMinutes) {
+                    return $leftStartMinutes <=> $rightStartMinutes;
+                }
+
+                return (int) ($left->id ?? 0) <=> (int) ($right->id ?? 0);
+            })
+            ->groupBy(function ($item) {
+                $dayNumber = (int) ($item->day_number ?? 0);
+
+                return $dayNumber > 0 ? $dayNumber : 'without_day';
+            })
+            ->sortKeysUsing(function ($left, $right) {
+                if ($left === 'without_day') {
+                    return 1;
+                }
+                if ($right === 'without_day') {
+                    return -1;
+                }
+
+                return (int) $left <=> (int) $right;
+            });
+    }
+
+    private function quotationRevisionHistoryModelFromLog(Quotation $quotation, object $log): Quotation
+    {
+        $revision = clone $quotation;
+        $revision->setAttribute('revision_number', (int) ($log->version ?? 1));
+        $revision->setAttribute('revision_reason', (string) ($log->revision_reason ?? ''));
+        $revision->setAttribute('created_at', $log->revision_requested_at ?? $log->created_at ?? $quotation->updated_at);
+        $revision->setAttribute('updated_at', $log->updated_at ?? $log->revision_requested_at ?? $quotation->updated_at);
+
+        return $revision;
+    }
+
+    private function decorateRevisionHistoryRow(Quotation $revision): Quotation
+    {
+        $revision->loadMissing('items');
+        $revisionNumber = max(0, (int) ($revision->revision_number ?? 0));
+        $progress = $this->quotationStatusService->validationProgress($revision);
+        $status = QuotationStatusNormalizer::normalize((string) ($revision->status ?? 'draft'));
+        $linkedResponse = $this->linkedRevisionCustomerResponse($revision);
+        $latestLog = $this->latestRevisionWorkflowLog($revision);
+
+        $revision->setAttribute('revision_label', $revisionNumber <= 1 ? ui_phrase('Original') : ui_phrase('Revision') . ' ' . $revisionNumber);
+        $revision->setAttribute('revision_status_label', $this->revisionStatusLabel($status, (string) ($revision->validation_status ?? '')));
+        $revision->setAttribute('revision_trigger_label', $this->revisionTriggerLabel($revision, $linkedResponse, $latestLog));
+        $revision->setAttribute('revision_started_by_name', ui_user_name($revision->creator));
+        $revision->setAttribute('revision_started_at', $revision->created_at);
+        $revision->setAttribute('revision_finished_by_name', $latestLog?->changed_by ? $this->userNameById((int) $latestLog->changed_by) : ui_user_name($revision->updater));
+        $revision->setAttribute('revision_finished_at', $latestLog?->changed_at ?? $revision->updated_at);
+        $revision->setAttribute('revision_customer_response', $linkedResponse);
+        $revision->setAttribute('revision_progress_text', sprintf(
+            '%d%%, %d of %d items validated',
+            (int) ($progress['percent'] ?? 0),
+            (int) ($progress['validated'] ?? 0),
+            (int) ($progress['required'] ?? 0)
+        ));
+        $revision->setAttribute('revision_changed_summary', $this->revisionChangedSummary($revision, $progress));
+
+        return $revision;
+    }
+
+    private function linkedRevisionCustomerResponse(Quotation $revision): ?QuotationCustomerResponse
+    {
+        if (! Schema::hasTable('quotation_customer_responses')) {
+            return null;
         }
 
-        $rootNumber = preg_replace('/-R\d+$/', '', $baseQuotationNumber) ?: $baseQuotationNumber;
-        $candidate = $rootNumber . '-R' . $revisionNumber;
-        while (Quotation::query()->where('quotation_number', $candidate)->exists()) {
-            $revisionNumber++;
-            $candidate = $rootNumber . '-R' . $revisionNumber;
+        if (Schema::hasColumn('quotation_customer_responses', 'quotation_revision_id')) {
+            $linked = QuotationCustomerResponse::query()
+                ->where('quotation_revision_id', (int) $revision->id)
+                ->latest('response_at')
+                ->latest('id')
+                ->first();
+            if ($linked) {
+                return $linked;
+            }
         }
 
-        return $candidate;
+        return QuotationCustomerResponse::query()
+            ->where('quotation_id', (int) ($revision->revision_of_id ?: $revision->id))
+            ->where('requires_revision', true)
+            ->where('response_at', '<=', $revision->created_at ?? now())
+            ->latest('response_at')
+            ->latest('id')
+            ->first();
+    }
+
+    private function latestRevisionWorkflowLog(Quotation $revision): ?object
+    {
+        if (! Schema::hasTable('quotation_status_logs')) {
+            return null;
+        }
+
+        return DB::table('quotation_status_logs')
+            ->where('quotation_id', (int) $revision->id)
+            ->whereIn('action', ['start_revision', 'save_quotation_revision', 'validation_finalize', 'customer_response_revision_requested'])
+            ->orderByDesc('changed_at')
+            ->orderByDesc('id')
+            ->first();
+    }
+
+    private function revisionStatusLabel(string $status, string $validationStatus): string
+    {
+        return match ($status) {
+            'under_revision' => ui_phrase('Under Revision'),
+            'need_revalidation' => ui_phrase('Waiting Revalidation'),
+            'ready_to_send' => ui_phrase('Ready To Send'),
+            'sent' => ui_phrase('Sent to Customer'),
+            'approved' => ui_phrase('Approved'),
+            default => $validationStatus === QuotationValidationService::STATUS_VALID
+                ? ui_phrase('Ready To Send')
+                : ui_phrase('Original Quotation'),
+        };
+    }
+
+    private function revisionTriggerLabel(Quotation $revision, ?QuotationCustomerResponse $response, ?object $latestLog): string
+    {
+        if ($response && (bool) ($response->requires_revision ?? false)) {
+            return ui_phrase('Customer response request revision');
+        }
+        if (! empty($revision->revision_reason)) {
+            return (string) $revision->revision_reason;
+        }
+        if ($latestLog && ! empty($latestLog->action)) {
+            return ui_phrase(Str::headline((string) $latestLog->action));
+        }
+
+        return ((int) ($revision->revision_number ?? 1)) <= 1
+            ? ui_phrase('Original quotation')
+            : ui_phrase('Manual edit');
+    }
+
+    private function revisionChangedSummary(Quotation $revision, array $progress): string
+    {
+        $items = $revision->relationLoaded('items') ? $revision->items : collect();
+        $required = (int) ($progress['required'] ?? 0);
+        $validated = (int) ($progress['validated'] ?? 0);
+        $pending = max(0, $required - $validated);
+        $totalItems = $items->count();
+
+        return sprintf(
+            '%d items, %d need revalidation, %d validated',
+            $totalItems,
+            $pending,
+            $validated
+        );
+    }
+
+    private function userNameById(int $userId): string
+    {
+        if ($userId <= 0 || ! Schema::hasTable('users')) {
+            return '-';
+        }
+
+        return (string) (User::query()->whereKey($userId)->value('name') ?: '-');
+    }
+
+    private function writeInPlaceRevisionLog(Quotation $quotation, int $revisionNumber, ?string $revisionReason, int $actorId): void
+    {
+        if (! Schema::hasTable('quotation_revisions')) {
+            return;
+        }
+
+        DB::table('quotation_revisions')->insert([
+            'quotation_id' => (int) $quotation->id,
+            'parent_quotation_id' => (int) ($quotation->revision_of_id ?: $quotation->id),
+            'created_from_revision_id' => (int) $quotation->id,
+            'quotation_number' => (string) ($quotation->quotation_number ?? ''),
+            'version' => $revisionNumber,
+            'revision_reason' => $revisionReason,
+            'revision_requested_by' => $actorId > 0 ? $actorId : null,
+            'revision_requested_at' => now(),
+            'created_by' => $actorId > 0 ? $actorId : null,
+            'metadata' => json_encode([
+                'mode' => 'in_place',
+                'status' => (string) ($quotation->status ?? ''),
+                'validation_status' => (string) ($quotation->validation_status ?? ''),
+            ]),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
     }
 
     private function availableItinerariesQuery(?int $includeItineraryId = null): Builder
@@ -2381,8 +3655,9 @@ SVG;
             ->where('is_active', true);
     }
 
-    private function availableInquiriesQuery(?int $includeInquiryId = null): Builder
+    private function availableInquiriesQuery(?int $includeInquiryId = null, ?int $currentQuotationId = null): Builder
     {
+        $user = auth()->user();
         $query = Inquiry::query()->with([
             'customer',
             'creator',
@@ -2390,7 +3665,7 @@ SVG;
                 $query->select(['itineraries.id'])
                     ->orderByDesc('itineraries.id');
             },
-        ]);
+        ])->withCount('quotation');
         $hasIncludedInquiry = $includeInquiryId && $includeInquiryId > 0;
         $today = now()->toDateString();
 
@@ -2418,7 +3693,127 @@ SVG;
             }
         }
 
+        if ($user && (Schema::hasColumn('inquiries', 'handled_by') || Schema::hasColumn('inquiries', 'assigned_to'))) {
+            $query->where(function (Builder $handlerQuery) use ($user): void {
+                if (Schema::hasColumn('inquiries', 'handled_by')) {
+                    $handlerQuery->whereNull('handled_by')
+                        ->orWhere('handled_by', (int) $user->id);
+                }
+
+                if (Schema::hasColumn('inquiries', 'assigned_to')) {
+                    Schema::hasColumn('inquiries', 'handled_by')
+                        ? $handlerQuery->orWhere('assigned_to', (int) $user->id)
+                        : $handlerQuery->whereNull('assigned_to')->orWhere('assigned_to', (int) $user->id);
+                }
+            });
+        }
+
+        $currentQuotationId = $currentQuotationId && $currentQuotationId > 0 ? $currentQuotationId : null;
+        $query->whereDoesntHave('quotation', function (Builder $quotationQuery) use ($currentQuotationId): void {
+            if ($currentQuotationId) {
+                $quotationQuery->whereKeyNot($currentQuotationId);
+            }
+        });
+
         return $query;
+    }
+
+    private function assertInquiryEligibleForQuotationGeneration(int $inquiryId, ?int $currentQuotationId = null): void
+    {
+        $user = auth()->user();
+        if (! $user) {
+            throw ValidationException::withMessages([
+                'inquiry_id' => ui_phrase('You do not have permission to handle this inquiry.'),
+            ]);
+        }
+
+        $inquiry = Inquiry::query()->find($inquiryId);
+        if (! $inquiry) {
+            throw ValidationException::withMessages([
+                'inquiry_id' => ui_phrase('Selected inquiry was not found.'),
+            ]);
+        }
+
+        if (Schema::hasColumn('inquiries', 'status') && (string) ($inquiry->status ?? '') === Inquiry::FINAL_STATUS) {
+            throw ValidationException::withMessages([
+                'inquiry_id' => ui_phrase('Selected inquiry is final and cannot be used for quotation generation.'),
+            ]);
+        }
+
+        $currentQuotationId = $currentQuotationId && $currentQuotationId > 0 ? $currentQuotationId : null;
+        $hasOtherQuotation = $inquiry->quotation()
+            ->when($currentQuotationId, function (Builder $query) use ($currentQuotationId): void {
+                $query->whereKeyNot($currentQuotationId);
+            })
+            ->exists();
+        if ($hasOtherQuotation) {
+            throw ValidationException::withMessages([
+                'inquiry_id' => ui_phrase('Selected inquiry already has a quotation and cannot be used for another quotation.'),
+            ]);
+        }
+
+        $handledBy = Schema::hasColumn('inquiries', 'handled_by')
+            ? (int) ($inquiry->handled_by ?? 0)
+            : 0;
+        $assignedTo = Schema::hasColumn('inquiries', 'assigned_to')
+            ? (int) ($inquiry->assigned_to ?? 0)
+            : 0;
+
+        $isUnHandled = $handledBy <= 0 && $assignedTo <= 0;
+        $isOwnedByUser = $handledBy === (int) $user->id
+            || ($handledBy <= 0 && $assignedTo === (int) $user->id);
+
+        if (! $isUnHandled && ! $isOwnedByUser) {
+            throw ValidationException::withMessages([
+                'inquiry_id' => ui_phrase('Selected inquiry must be handled by you or still unhandled.'),
+            ]);
+        }
+    }
+
+    private function assertAndClaimInquiryHandler(?int $inquiryId): void
+    {
+        $user = auth()->user();
+        if (
+            ! $user
+            || ! $inquiryId
+            || $inquiryId <= 0
+            || (! Schema::hasColumn('inquiries', 'handled_by') && ! Schema::hasColumn('inquiries', 'assigned_to'))
+        ) {
+            return;
+        }
+
+        if (! $user->hasAnyRole(['Reservation', 'Manager', 'Director'])) {
+            throw ValidationException::withMessages([
+                'inquiry_id' => ui_phrase('Only reservation, manager, or director can handle inquiry.'),
+            ]);
+        }
+
+        $inquiry = Inquiry::query()->find($inquiryId);
+        if (! $inquiry) {
+            throw ValidationException::withMessages([
+                'inquiry_id' => ui_phrase('Selected inquiry was not found.'),
+            ]);
+        }
+
+        $currentHandler = (int) ($inquiry->handled_by ?? $inquiry->assigned_to ?? 0);
+        if ($currentHandler > 0 && $currentHandler !== (int) $user->id) {
+            throw ValidationException::withMessages([
+                'inquiry_id' => ui_phrase('Inquiry is already handled by another user.'),
+            ]);
+        }
+
+        if ($currentHandler <= 0) {
+            $updatePayload = [];
+            if (Schema::hasColumn('inquiries', 'handled_by')) {
+                $updatePayload['handled_by'] = (int) $user->id;
+            }
+            if (Schema::hasColumn('inquiries', 'assigned_to')) {
+                $updatePayload['assigned_to'] = (int) $user->id;
+            }
+            if ($updatePayload !== []) {
+                $inquiry->update($updatePayload);
+            }
+        }
     }
 
     private function canManageQuotation(Quotation $quotation, string $ability = 'update'): bool
@@ -2431,7 +3826,34 @@ SVG;
             $ability = 'update';
         }
 
-        return $user->can($ability, $quotation);
+        if (! $user->can($ability, $quotation)) {
+            return false;
+        }
+
+        if (Schema::hasColumn('quotations', 'created_by')
+            && (int) ($quotation->created_by ?? 0) === (int) $user->id) {
+            return true;
+        }
+
+        $inquiry = $quotation->inquiry;
+        $handlerId = 0;
+        if (Schema::hasColumn('quotations', 'handled_by')) {
+            $handlerId = (int) ($quotation->handled_by ?? 0);
+        }
+        if ($handlerId <= 0 && $inquiry && Schema::hasColumn('inquiries', 'handled_by')) {
+            $handlerId = (int) ($inquiry->handled_by ?? 0);
+        }
+        if ($handlerId <= 0 && $inquiry && Schema::hasColumn('inquiries', 'assigned_to')) {
+            $handlerId = (int) ($inquiry->assigned_to ?? 0);
+        }
+        if ($handlerId <= 0 && Schema::hasColumn('quotations', 'created_by')) {
+            $handlerId = (int) ($quotation->created_by ?? 0);
+        }
+        if ($handlerId <= 0 && $inquiry && Schema::hasColumn('inquiries', 'created_by')) {
+            $handlerId = (int) ($inquiry->created_by ?? 0);
+        }
+
+        return $handlerId > 0 && $handlerId === (int) $user->id;
     }
 
     private function denyQuotationMutation(Quotation $quotation)
@@ -2441,9 +3863,82 @@ SVG;
             ->with('error', 'You do not have permission to modify this quotation.');
     }
 
+    private function cancelQuotationItem(Request $request, Quotation $quotation, QuotationItem $item, string $targetStatus)
+    {
+        if ((int) ($item->quotation_id ?? 0) !== (int) ($quotation->id ?? 0)) {
+            abort(404);
+        }
+        if (! $this->canManageQuotation($quotation, 'update')) {
+            return $this->denyQuotationMutation($quotation);
+        }
+
+        $currentStatus = (string) ($item->status ?? QuotationItem::STATUS_ACTIVE);
+        if (in_array($currentStatus, [QuotationItem::STATUS_USED, QuotationItem::STATUS_CANCELLED_FREE, QuotationItem::STATUS_CANCELLED_WITH_CHARGE], true)) {
+            return redirect()->route('quotations.show', $quotation)->with('error', ui_phrase('Quotation item status is locked.'));
+        }
+
+        $validated = [];
+        if ($targetStatus === QuotationItem::STATUS_CANCELLED_WITH_CHARGE) {
+            $validated = $request->validate([
+                'cancellation_fee_type' => ['required', Rule::in(['fixed', 'percent'])],
+                'cancellation_fee_value' => ['required', 'numeric', 'min:0'],
+                'cancellation_reason' => ['nullable', 'string', 'max:2000'],
+            ]);
+        } else {
+            $validated = $request->validate([
+                'cancellation_reason' => ['nullable', 'string', 'max:2000'],
+            ]);
+        }
+
+        $feeType = $targetStatus === QuotationItem::STATUS_CANCELLED_WITH_CHARGE
+            ? (string) ($validated['cancellation_fee_type'] ?? 'fixed')
+            : null;
+        $feeValue = $targetStatus === QuotationItem::STATUS_CANCELLED_WITH_CHARGE
+            ? (float) ($validated['cancellation_fee_value'] ?? 0)
+            : null;
+
+        $baseAmount = max(0, (float) (($item->qty ?? 0) * ($item->unit_price ?? 0)));
+        $feeAmount = null;
+        if ($targetStatus === QuotationItem::STATUS_CANCELLED_WITH_CHARGE) {
+            $feeAmount = $feeType === 'percent'
+                ? max(0, $baseAmount * ($feeValue / 100))
+                : max(0, $feeValue);
+        }
+
+        $item->update([
+            'status' => $targetStatus,
+            'cancellation_fee_type' => $feeType,
+            'cancellation_fee_value' => $feeValue,
+            'cancellation_fee_amount' => $feeAmount,
+            'cancellation_reason' => trim((string) ($validated['cancellation_reason'] ?? '')) ?: null,
+        ]);
+
+        $quotation->logActivity('quotation_item_status_changed', $item, [
+            'quotation_id' => (int) $quotation->id,
+            'quotation_item_id' => (int) $item->id,
+            'from_status' => $currentStatus,
+            'to_status' => $targetStatus,
+            'cancellation_fee_type' => $feeType,
+            'cancellation_fee_value' => $feeValue,
+            'cancellation_fee_amount' => $feeAmount,
+        ]);
+        $this->quotationWorkflowService->syncDimensions($quotation, (int) ($request->user()?->id ?? 0) ?: null, [
+            'action' => 'quotation_item_cancelled',
+            'quotation_item_id' => (int) $item->id,
+            'item_status' => $targetStatus,
+        ]);
+
+        return redirect()
+            ->route('quotations.show', $quotation)
+            ->with('success', ui_phrase('Quotation item status updated.'));
+    }
+
     public function itineraryItems(Itinerary $itinerary)
     {
-        $items = $this->itineraryQuotationService->buildItems($itinerary);
+        $items = collect($this->itineraryQuotationService->buildItems($itinerary))
+            ->map(fn (array $item): array => $this->normalizeQuotationServiceDescription($item))
+            ->values()
+            ->all();
         $missingPriceCount = collect($items)->filter(function (array $item): bool {
             return (float) ($item['unit_price'] ?? 0) <= 0;
         })->count();
@@ -2458,76 +3953,13 @@ SVG;
 
     private function autoFinalizeExpiredApprovedQuotations(): void
     {
-        $expiredApprovedQuotationIds = Quotation::query()
-            ->whereNull('deleted_at')
-            ->where('status', 'accepted')
-            ->whereDate('validity_date', '<', now()->toDateString())
-            ->pluck('id');
-
-        if ($expiredApprovedQuotationIds->isEmpty()) {
-            return;
-        }
-
-        Quotation::withoutActivityLogging(function () use ($expiredApprovedQuotationIds): void {
-            Quotation::query()
-                ->whereIn('id', $expiredApprovedQuotationIds)
-                ->update([
-                    'status' => Quotation::FINAL_STATUS,
-                ]);
-        });
-
-        Quotation::query()
-            ->whereIn('id', $expiredApprovedQuotationIds)
-            ->get()
-            ->each(function (Quotation $quotation): void {
-                $this->syncLinkedLifecycleStatusesForQuotation($quotation);
-            });
+        // Status data cleanup must be explicit through quotations:normalize-status.
     }
 
     private function autoFinalizeApprovedQuotationIfExpired(Quotation $quotation): bool
     {
-        if ((string) ($quotation->status ?? '') !== 'accepted') {
-            return false;
-        }
-
-        $validityDate = $quotation->validity_date;
-        if (! $validityDate || ! $validityDate->isBefore(now()->startOfDay())) {
-            return false;
-        }
-
-        Quotation::withoutActivityLogging(function () use ($quotation): void {
-            $quotation->update([
-                'status' => Quotation::FINAL_STATUS,
-            ]);
-        });
-
-        $quotation->refresh();
-        $this->syncLinkedLifecycleStatusesForQuotation($quotation);
-
-        return true;
-    }
-
-    private function resolveApprovalRoleForUser($user): ?string
-    {
-        if (! $user) {
-            return null;
-        }
-
-        if (! $user->can('quotations.approve')) {
-            return null;
-        }
-
-        if ($user->can('dashboard.director.view')) {
-            return 'director';
-        }
-        if ($user->can('dashboard.manager.view')) {
-            return 'manager';
-        }
-        if ($user->can('dashboard.reservation.view')) {
-            return 'reservation';
-        }
-
-        return null;
+        // Status data cleanup must be explicit through quotations:normalize-status.
+        return false;
     }
 
     private function canSetQuotationPending($user): bool
@@ -2614,97 +4046,96 @@ SVG;
             return 'quotation_in_progress';
         }
 
+        $linkedQuotationScope = function (Builder $query) use ($inquiryId): void {
+            $query->where('inquiry_id', $inquiryId)
+                ->orWhereHas('itinerary', function (Builder $itineraryQuery) use ($inquiryId): void {
+                    $itineraryQuery->whereHas('inquiryReferences', function (Builder $inquiryQuery) use ($inquiryId): void {
+                        $inquiryQuery->where('inquiries.id', $inquiryId);
+                    });
+                });
+        };
+
         $hasFinalQuotation = Quotation::query()
             ->whereNull('deleted_at')
             ->where('status', Quotation::FINAL_STATUS)
-            ->where(function (Builder $query) use ($inquiryId): void {
-                $query->where('inquiry_id', $inquiryId)
-                    ->orWhereHas('itinerary', function (Builder $itineraryQuery) use ($inquiryId): void {
-                        $itineraryQuery->whereHas('inquiryReferences', function (Builder $inquiryQuery) use ($inquiryId): void {
-                            $inquiryQuery->where('inquiries.id', $inquiryId);
-                        });
-                    });
-            })
+            ->where($linkedQuotationScope)
+            ->exists();
+        if ($hasFinalQuotation) {
+            return Inquiry::FINAL_STATUS;
+        }
+
+        $hasActiveQuotation = Quotation::query()
+            ->whereNull('deleted_at')
+            ->whereNotIn('status', [Quotation::STATUS_CANCELLED, Quotation::STATUS_LOST])
+            ->where($linkedQuotationScope)
+            ->exists();
+        if ($hasActiveQuotation) {
+            return 'quotation_in_progress';
+        }
+
+        $hasCancelledQuotation = Quotation::query()
+            ->whereNull('deleted_at')
+            ->where('status', Quotation::STATUS_CANCELLED)
+            ->where($linkedQuotationScope)
+            ->exists();
+        if ($hasCancelledQuotation) {
+            return 'cancelled';
+        }
+
+        $hasLostQuotation = Quotation::query()
+            ->whereNull('deleted_at')
+            ->where('status', Quotation::STATUS_LOST)
+            ->where($linkedQuotationScope)
             ->exists();
 
-        return $hasFinalQuotation ? Inquiry::FINAL_STATUS : 'quotation_in_progress';
+        return $hasLostQuotation ? 'lost' : 'quotation_in_progress';
     }
 
-    private function applyNeedsMyApprovalFilter(Builder $query, $user): void
+    private function syncInquiryStatusFromQuotation(Quotation $quotation, string $quotationStatus): void
     {
-        if (! $user) {
-            $query->whereRaw('1 = 0');
+        if (! Schema::hasTable('inquiries') || ! Schema::hasColumn('inquiries', 'status')) {
             return;
         }
 
-        $approvalRole = $this->resolveApprovalRoleForUser($user);
-        if (! $approvalRole) {
-            $query->whereRaw('1 = 0');
+        $inquiryId = (int) ($quotation->inquiry_id ?? 0);
+        if ($inquiryId <= 0) {
             return;
         }
 
-        $query->where('status', 'pending_validation')
-            ->whereNull('deleted_at');
-
-        if (Schema::hasColumn('quotations', 'created_by')) {
-            $query->where(function (Builder $inner) use ($user): void {
-                $inner->whereNull('created_by')
-                    ->orWhere('created_by', '!=', (int) $user->id);
-            });
-        }
-
-        $query->whereDoesntHave('approvals', function (Builder $inner) use ($user): void {
-            $inner->where('user_id', (int) $user->id);
-        });
-        if (Schema::hasColumn('quotations', 'created_by')) {
-            $query->whereRaw(
-                '(SELECT COUNT(*) FROM quotation_approvals qa'
-                .' WHERE qa.quotation_id = quotations.id'
-                .' AND (quotations.created_by IS NULL OR qa.user_id <> quotations.created_by)) < 2'
-            );
+        $targetInquiryStatus = match (Quotation::normalizeStatus($quotationStatus)) {
+            Quotation::STATUS_CANCELLED => 'cancelled',
+            Quotation::STATUS_LOST => 'lost',
+            default => null,
+        };
+        if ($targetInquiryStatus === null || ! in_array($targetInquiryStatus, Inquiry::STATUS_OPTIONS, true)) {
             return;
         }
 
-        $query->whereRaw(
-            '(SELECT COUNT(*) FROM quotation_approvals qa'
-            .' WHERE qa.quotation_id = quotations.id) < 2'
+        Inquiry::query()
+            ->where('id', $inquiryId)
+            ->whereNotIn('status', [Inquiry::FINAL_STATUS])
+            ->update(['status' => $targetInquiryStatus]);
+    }
+
+    private function syncInquiryItineraryReferenceFromQuotation(Quotation $quotation): void
+    {
+        $inquiryId = (int) ($quotation->inquiry_id ?? 0);
+        $itineraryId = (int) ($quotation->itinerary_id ?? 0);
+        if ($inquiryId <= 0 || $itineraryId <= 0) {
+            return;
+        }
+
+        DB::table('inquiry_itinerary_references')->updateOrInsert(
+            [
+                'inquiry_id' => $inquiryId,
+                'itinerary_id' => $itineraryId,
+            ],
+            [
+                'created_by' => (int) (auth()->id() ?? 0) ?: null,
+                'updated_at' => now(),
+                'created_at' => now(),
+            ]
         );
-    }
-
-    private function needsMyApprovalForQuotation(Quotation $quotation, $user, ?string $approvalRole): bool
-    {
-        if (! $user || ! $approvalRole) {
-            return false;
-        }
-        if ((string) ($quotation->status ?? '') !== 'pending_validation') {
-            return false;
-        }
-        if (method_exists($quotation, 'trashed') && $quotation->trashed()) {
-            return false;
-        }
-        if (Schema::hasColumn('quotations', 'created_by') && (int) ($quotation->created_by ?? 0) === (int) $user->id) {
-            return false;
-        }
-
-        $approvals = $quotation->relationLoaded('approvals')
-            ? $quotation->approvals
-            : $quotation->approvals()->get();
-
-        $alreadyApprovedByUser = $approvals->contains(fn ($approval) => (int) ($approval->user_id ?? 0) === (int) $user->id);
-        if ($alreadyApprovedByUser) {
-            return false;
-        }
-        $nonCreatorApprovalCount = $approvals
-            ->filter(function ($approval) use ($quotation): bool {
-                if (! Schema::hasColumn('quotations', 'created_by')) {
-                    return true;
-                }
-
-                return (int) ($approval->user_id ?? 0) !== (int) ($quotation->created_by ?? 0);
-            })
-            ->count();
-
-        return $nonCreatorApprovalCount < 2;
     }
 
     /**
@@ -2720,13 +4151,18 @@ SVG;
             $query->where('created_by', $creatorId);
         }
         if (is_array($statusScope) && ! empty($statusScope)) {
-            $query->whereIn('status', $statusScope);
+            $query->whereIn('status', collect($statusScope)->flatMap(fn (string $status): array => $this->quotationStatusAliasesForQuery($status))->unique()->values()->all());
         }
 
-        $counts = $query
+        $rawCounts = $query
             ->select('status', DB::raw('COUNT(*) as total'))
             ->groupBy('status')
             ->pluck('total', 'status');
+        $counts = collect();
+        foreach ($rawCounts as $status => $total) {
+            $logicalStatus = QuotationStatusNormalizer::normalize((string) $status);
+            $counts[$logicalStatus] = (int) ($counts[$logicalStatus] ?? 0) + (int) $total;
+        }
 
         $cards = [[
             'key' => 'total',
@@ -2736,7 +4172,7 @@ SVG;
             'tone' => 'bg-slate-50 text-slate-700 border-slate-100',
         ]];
 
-        $preferredOrder = ['pending_validation', 'accepted', 'rejected', 'converted', 'draft', 'revised'];
+        $preferredOrder = ['need_validation', 'ready_to_send', 'sent', 'under_revision', 'need_revalidation', 'approved', 'converted_to_booking', 'draft', 'lost', 'cancelled'];
         $statusOrder = collect($preferredOrder)
             ->filter(fn (string $status) => (int) ($counts[$status] ?? 0) > 0)
             ->merge(
@@ -2765,6 +4201,10 @@ SVG;
         if ($term === '') {
             return;
         }
+        if (mb_strlen($term) < 3) {
+            $query->whereRaw('1 = 0');
+            return;
+        }
 
         $query->where(function (Builder $builder) use ($term): void {
             $builder->where('quotation_number', 'like', "%{$term}%")
@@ -2778,15 +4218,531 @@ SVG;
         });
     }
 
+    /**
+     * @return array<int, string>
+     */
+    private function quotationStatusAliasesForQuery(string $status): array
+    {
+        $logicalStatus = QuotationStatusNormalizer::normalize($status);
+
+        return match ($logicalStatus) {
+            Quotation::STATUS_NEED_VALIDATION => [Quotation::STATUS_NEED_VALIDATION, Quotation::STATUS_PENDING_VALIDATION],
+            Quotation::STATUS_NEED_REVALIDATION => [Quotation::STATUS_NEED_REVALIDATION, Quotation::STATUS_PENDING_REVALIDATION],
+            Quotation::STATUS_READY_TO_SEND => [Quotation::STATUS_READY_TO_SEND, Quotation::STATUS_VALIDATED, 'valid'],
+            Quotation::STATUS_APPROVED => [Quotation::STATUS_APPROVED, Quotation::STATUS_CUSTOMER_APPROVED, 'accepted'],
+            Quotation::STATUS_CONVERTED_TO_BOOKING => [Quotation::STATUS_CONVERTED_TO_BOOKING, Quotation::STATUS_BOOKING_CREATED, 'converted'],
+            Quotation::STATUS_REJECTED => [Quotation::STATUS_REJECTED],
+            default => [$logicalStatus],
+        };
+    }
+
+    private function applyQuotationStatusFilter(Builder $query, string $status): void
+    {
+        $status = strtolower(trim($status));
+        if ($status === '') {
+            return;
+        }
+
+        if (! in_array($status, array_merge(Quotation::STATUS_OPTIONS, Quotation::LEGACY_STATUS_OPTIONS, ['accepted', 'converted', 'valid']), true)) {
+            return;
+        }
+
+        $query->whereIn('status', $this->quotationStatusAliasesForQuery($status));
+    }
+
+    /**
+     * @param  array<string, mixed>  $validationProgress
+     * @return array<string, mixed>
+     */
+    private function buildQuotationWorkflowOverview(
+        Quotation $quotation,
+        array $validationProgress,
+        bool $bookingsModuleEnabled
+    ): array {
+        $quotationStatus = Quotation::normalizeStatus((string) ($quotation->status ?? ''));
+        $logicalQuotationStatus = QuotationStatusNormalizer::normalize($quotationStatus);
+        $validationStatus = (string) ($quotation->validation_status ?? ($validationProgress['status'] ?? 'pending'));
+        $booking = $quotation->booking;
+        $latestInvoice = $booking?->invoices
+            ? $booking->invoices->sortByDesc('id')->first()
+            : $booking?->invoice;
+        $invoiceStatus = $latestInvoice ? (string) ($latestInvoice->status ?? 'issued') : 'not_created';
+        $bookingStatus = $booking ? (string) ($booking->status ?? 'created') : 'not_created';
+        $operationStatus = $this->deriveQuotationOperationStatus($bookingStatus);
+        $paymentStatus = $this->deriveQuotationPaymentStatus($latestInvoice);
+        $approvalStatus = $this->deriveQuotationApprovalStatus($quotation);
+        $displayLogicalQuotationStatus = $this->displayQuotationStatusForWorkflow(
+            $logicalQuotationStatus,
+            $bookingsModuleEnabled
+        );
+        $currentStage = $this->deriveQuotationCurrentStage(
+            $quotationStatus,
+            $validationStatus,
+            $approvalStatus,
+            $bookingStatus,
+            $invoiceStatus,
+            $paymentStatus,
+            $operationStatus,
+            $bookingsModuleEnabled
+        );
+
+        $responsibleUser = $quotation->inquiry?->handledBy
+            ?? $quotation->inquiry?->assignedTo
+            ?? $quotation->creator
+            ?? $quotation->validatedBy
+            ?? $quotation->approvedBy;
+
+        $risks = $this->buildQuotationRiskIndicators(
+            $quotation,
+            $validationProgress,
+            $invoiceStatus,
+            $paymentStatus,
+            $bookingStatus,
+            $bookingsModuleEnabled
+        );
+        $nextAction = $this->deriveQuotationNextAction(
+            $quotation,
+            $quotationStatus,
+            $validationStatus,
+            $approvalStatus,
+            $bookingStatus,
+            $invoiceStatus,
+            $paymentStatus,
+            $operationStatus,
+            $bookingsModuleEnabled
+        );
+
+        $statusCards = [
+            [
+                'label' => ui_phrase('Current Status'),
+                'value' => $displayLogicalQuotationStatus,
+                'tone' => $this->workflowToneForStatus($displayLogicalQuotationStatus),
+            ],
+            [
+                'label' => ui_phrase('Validation Status'),
+                'value' => $validationStatus,
+                'tone' => $this->workflowToneForStatus($validationStatus),
+            ],
+            [
+                'label' => ui_phrase('Approval Status'),
+                'value' => $approvalStatus,
+                'tone' => $this->workflowToneForStatus($approvalStatus),
+            ],
+        ];
+
+        if ($bookingsModuleEnabled) {
+            $statusCards[] = [
+                'label' => ui_phrase('Booking Status'),
+                'value' => $bookingStatus,
+                'tone' => $this->workflowToneForStatus($bookingStatus),
+            ];
+        }
+
+        $statusCards[] = [
+            'label' => ui_phrase('Invoice Status'),
+            'value' => $invoiceStatus,
+            'tone' => $this->workflowToneForStatus($invoiceStatus),
+        ];
+        $statusCards[] = [
+            'label' => ui_phrase('Payment Status'),
+            'value' => $paymentStatus,
+            'tone' => $this->workflowToneForStatus($paymentStatus),
+        ];
+
+        if ($bookingsModuleEnabled) {
+            $statusCards[] = [
+                'label' => ui_phrase('Operation Status'),
+                'value' => $operationStatus,
+                'tone' => $this->workflowToneForStatus($operationStatus),
+            ];
+        }
+
+        return [
+            'current_stage' => $currentStage,
+            'next_action' => $nextAction,
+            'notice' => $this->buildQuotationWorkflowNotice(
+                $quotation,
+                $quotationStatus,
+                $logicalQuotationStatus,
+                $validationStatus,
+                $approvalStatus,
+                $bookingStatus,
+                $invoiceStatus,
+                $paymentStatus,
+                $operationStatus,
+                $nextAction,
+                $bookingsModuleEnabled
+            ),
+            'responsible_user' => $responsibleUser,
+            'responsible_label' => $responsibleUser?->name ?? '-',
+            'status_cards' => $statusCards,
+            'meta' => [
+                [
+                    'label' => ui_phrase('Current Stage'),
+                    'value' => $currentStage,
+                ],
+                [
+                    'label' => ui_phrase('Next Action'),
+                    'value' => $nextAction,
+                ],
+                [
+                    'label' => ui_phrase('Pending Validation Items'),
+                    'value' => max(0, (int) ($validationProgress['total_required'] ?? 0) - (int) ($validationProgress['total_validated'] ?? 0)),
+                ],
+                [
+                    'label' => ui_phrase('PIC / Handled By'),
+                    'value' => $responsibleUser?->name ?? '-',
+                ],
+                [
+                    'label' => ui_phrase('Revision Number'),
+                    'value' => 'v' . (int) ($quotation->revision_number ?? 1),
+                ],
+                [
+                    'label' => ui_phrase('Validity Date'),
+                    'value' => optional($quotation->validity_date)->format('Y-m-d') ?? '-',
+                ],
+            ],
+            'risks' => $risks,
+        ];
+    }
+
+    private function deriveQuotationApprovalStatus(Quotation $quotation): string
+    {
+        $approvalStatusColumn = trim((string) ($quotation->approval_status ?? ''));
+        if ($approvalStatusColumn !== '') {
+            return $approvalStatusColumn;
+        }
+
+        if ($quotation->isStatus(Quotation::STATUS_CANCELLED)) {
+            return 'cancelled';
+        }
+        if ($quotation->isStatus(Quotation::STATUS_LOST)) {
+            return 'lost';
+        }
+        if ($quotation->isStatus(Quotation::STATUS_CUSTOMER_APPROVED, Quotation::FINAL_STATUS, Quotation::STATUS_IN_OPERATION, Quotation::STATUS_COMPLETED)
+            || $quotation->approved_at) {
+            return 'approved';
+        }
+        if ($quotation->isStatus(Quotation::STATUS_SENT)) {
+            return 'waiting_customer';
+        }
+
+        return 'not_ready';
+    }
+
+    private function deriveQuotationPaymentStatus($invoice): string
+    {
+        if (! $invoice) {
+            return 'not_invoiced';
+        }
+
+        $invoiceStatus = (string) ($invoice->status ?? '');
+        if (in_array($invoiceStatus, ['paid', 'overpaid'], true)) {
+            return $invoiceStatus;
+        }
+
+        $payments = $invoice->relationLoaded('payments') ? $invoice->payments : collect();
+        if ($payments->contains(fn ($payment): bool => in_array((string) ($payment->status ?? ''), ['pending', 'waiting_confirmation'], true))) {
+            return 'waiting_confirmation';
+        }
+        if ((float) ($invoice->paid_amount ?? 0) > 0 || $payments->contains(fn ($payment): bool => (string) ($payment->status ?? '') === 'confirmed')) {
+            return 'partially_paid';
+        }
+
+        return 'unpaid';
+    }
+
+    private function deriveQuotationOperationStatus(string $bookingStatus): string
+    {
+        return match ($bookingStatus) {
+            'ready_to_operate' => 'ready_to_operate',
+            'in_operation' => 'in_operation',
+            'service_completed' => 'service_completed',
+            'reconciliation' => 'reconciliation',
+            'completed_settled', 'closed' => 'completed',
+            'cancelled' => 'cancelled',
+            default => 'not_started',
+        };
+    }
+
+    private function deriveQuotationCurrentStage(
+        string $quotationStatus,
+        string $validationStatus,
+        string $approvalStatus,
+        string $bookingStatus,
+        string $invoiceStatus,
+        string $paymentStatus,
+        string $operationStatus,
+        bool $bookingsModuleEnabled
+    ): string {
+        if (in_array($quotationStatus, [Quotation::STATUS_CANCELLED, Quotation::STATUS_LOST], true)) {
+            return QuotationWorkflow::label($quotationStatus);
+        }
+        if ($bookingsModuleEnabled && in_array($operationStatus, ['in_operation', 'service_completed', 'reconciliation', 'completed'], true)) {
+            return QuotationWorkflow::label($operationStatus);
+        }
+        if (! in_array($paymentStatus, ['not_invoiced', 'unpaid'], true)) {
+            return ui_phrase('Payment');
+        }
+        if (! in_array($invoiceStatus, ['not_created', 'draft'], true)) {
+            return ui_phrase('Invoice');
+        }
+        if ($bookingsModuleEnabled && ! in_array($bookingStatus, ['not_created', 'created'], true)) {
+            return ui_phrase('Booking');
+        }
+        if ($approvalStatus === 'approved') {
+            return ui_phrase('Approved');
+        }
+        if ($quotationStatus === Quotation::STATUS_SENT || $approvalStatus === 'waiting_customer') {
+            return ui_phrase('Sent');
+        }
+        if ($validationStatus === QuotationValidationService::STATUS_VALID || $quotationStatus === Quotation::STATUS_VALIDATED) {
+            return ui_phrase('Ready to Send');
+        }
+        if ($quotationStatus === Quotation::STATUS_PENDING_VALIDATION || in_array($validationStatus, ['partial', 'pending'], true)) {
+            return ui_phrase('Validation');
+        }
+
+        return ui_phrase('Quotation Draft');
+    }
+
+    private function deriveQuotationNextAction(
+        Quotation $quotation,
+        string $quotationStatus,
+        string $validationStatus,
+        string $approvalStatus,
+        string $bookingStatus,
+        string $invoiceStatus,
+        string $paymentStatus,
+        string $operationStatus,
+        bool $bookingsModuleEnabled
+    ): string {
+        if ($quotation->isStatus(Quotation::STATUS_CANCELLED, Quotation::STATUS_LOST, Quotation::STATUS_COMPLETED)) {
+            return ui_phrase('View summary and audit history.');
+        }
+        if ($bookingsModuleEnabled && $operationStatus === 'reconciliation') {
+            return ui_phrase('Finalize reconciliation and generate final invoice.');
+        }
+        if ($bookingsModuleEnabled && $operationStatus === 'service_completed') {
+            return ui_phrase('Review actual usage before final invoice.');
+        }
+        if ($bookingsModuleEnabled && $operationStatus === 'in_operation') {
+            return ui_phrase('Monitor operation and record adjustments if needed.');
+        }
+        if (in_array($paymentStatus, ['unpaid', 'partially_paid', 'waiting_confirmation'], true)) {
+            return ui_phrase('Follow up payment status.');
+        }
+        if (in_array($invoiceStatus, ['draft', 'issued', 'partially_paid'], true)) {
+            return ui_phrase('Continue invoice and payment process.');
+        }
+        if ($bookingsModuleEnabled && ! in_array($bookingStatus, ['not_created', 'cancelled'], true)) {
+            return ui_phrase('Continue booking operation process.');
+        }
+        if ($approvalStatus === 'approved') {
+            if (! $bookingsModuleEnabled) {
+                return ui_phrase('Review approved quotation only.');
+            }
+
+            return ui_phrase('Create or review booking from approved quotation.');
+        }
+        if ($quotationStatus === Quotation::STATUS_SENT) {
+            return ui_phrase('Wait for customer approval, revision request, lost, or cancellation decision.');
+        }
+        if ($validationStatus === QuotationValidationService::STATUS_VALID || $quotationStatus === Quotation::STATUS_VALIDATED) {
+            return ui_phrase('Mark quotation as sent when ready.');
+        }
+        if ($quotationStatus === Quotation::STATUS_PENDING_VALIDATION || in_array($validationStatus, ['pending', 'partial'], true)) {
+            return ui_phrase('Complete quotation item validation.');
+        }
+
+        return ui_phrase('Submit quotation for validation.');
+    }
+
+    /**
+     * @return array{title: string, message: string, type: string}|null
+     */
+    private function buildQuotationWorkflowNotice(
+        Quotation $quotation,
+        string $quotationStatus,
+        string $logicalQuotationStatus,
+        string $validationStatus,
+        string $approvalStatus,
+        string $bookingStatus,
+        string $invoiceStatus,
+        string $paymentStatus,
+        string $operationStatus,
+        string $nextAction,
+        bool $bookingsModuleEnabled
+    ): ?array {
+        $pendingRevisionResponses = $quotation->relationLoaded('customerResponses')
+            ? $quotation->customerResponses
+                ->where('requires_revision', true)
+                ->where('is_used_for_revision', false)
+                ->count()
+            : 0;
+        $statusLabel = QuotationWorkflow::label($logicalQuotationStatus);
+
+        if (in_array($logicalQuotationStatus, ['cancelled', 'lost', 'rejected'], true)) {
+            return [
+                'title' => ui_phrase('Quotation Closed'),
+                'message' => ui_phrase('This quotation is closed as :status. Mutation actions are disabled; use history for audit context.', ['status' => $statusLabel]),
+                'type' => 'danger',
+            ];
+        }
+
+        if ($logicalQuotationStatus === 'completed') {
+            if (! $bookingsModuleEnabled) {
+                return [
+                    'title' => ui_phrase('Quotation Completed'),
+                    'message' => ui_phrase('This quotation has completed the workflow. Keep the record unchanged and use linked invoice or activity history for review.'),
+                    'type' => 'info',
+                ];
+            }
+
+            return [
+                'title' => ui_phrase('Quotation Completed'),
+                'message' => ui_phrase('This quotation has completed the workflow. Keep the record unchanged and use linked booking, invoice, or operation history for review.'),
+                'type' => 'info',
+            ];
+        }
+
+        if ($pendingRevisionResponses > 0) {
+            return [
+                'title' => ui_phrase('Customer Revision Pending'),
+                'message' => ui_phrase(':count customer revision response(s) still need to be handled. Start or continue revision, then mark handled responses in the revision sidebar before sending again.', ['count' => $pendingRevisionResponses]),
+                'type' => 'warning',
+            ];
+        }
+
+        if ($logicalQuotationStatus === 'sent') {
+            return [
+                'title' => ui_phrase('Quotation Sent'),
+                'message' => ui_phrase('This quotation has been sent to the customer. Direct editing is locked; record follow-up or customer response to continue the workflow.'),
+                'type' => 'info',
+            ];
+        }
+
+        if (in_array($logicalQuotationStatus, ['approved', 'customer_approved'], true) || $approvalStatus === 'approved') {
+            if (! $bookingsModuleEnabled) {
+                return [
+                    'title' => ui_phrase('Approved Quotation'),
+                    'message' => ui_phrase('This quotation is approved. Quotation edits are locked and downstream operational actions are hidden while the related module is unavailable.'),
+                    'type' => 'info',
+                ];
+            }
+
+            return [
+                'title' => ui_phrase('Customer Approved'),
+                'message' => ui_phrase('The customer has approved this quotation. Quotation edits are locked; continue with booking preparation.'),
+                'type' => 'info',
+            ];
+        }
+
+        if (in_array($logicalQuotationStatus, ['converted_to_booking', 'booking_created', 'booking_in_progress', 'booking_issue'], true)
+            || ! in_array($bookingStatus, ['not_created', 'created'], true)) {
+            if (! $bookingsModuleEnabled) {
+                return [
+                    'title' => ui_phrase('Downstream Process Hidden'),
+                    'message' => ui_phrase('This quotation already has downstream process history. Related operational links are hidden while the related module is unavailable.'),
+                    'type' => $bookingStatus === 'issue' ? 'warning' : 'info',
+                ];
+            }
+
+            return [
+                'title' => ui_phrase('Booking In Progress'),
+                'message' => ui_phrase('This quotation is already linked to booking status :status. Manage service changes from the booking or approved revision flow.', ['status' => QuotationWorkflow::label($bookingStatus)]),
+                'type' => $bookingStatus === 'issue' ? 'warning' : 'info',
+            ];
+        }
+
+        if ($bookingsModuleEnabled && (
+            in_array($logicalQuotationStatus, ['in_operation', 'operation_adjustment', 'finalized'], true)
+            || in_array($operationStatus, ['in_operation', 'service_completed', 'reconciliation'], true)
+        )) {
+            return [
+                'title' => ui_phrase('Operation Active'),
+                'message' => ui_phrase('This quotation has moved into operation. Quotation edits are locked; use operation adjustment or final invoice actions as needed.'),
+                'type' => 'info',
+            ];
+        }
+
+        if ((string) $validationStatus !== QuotationValidationService::STATUS_VALID && ! in_array($logicalQuotationStatus, ['draft', 'ready_to_send'], true)) {
+            return [
+                'title' => ui_phrase('Validation Needed'),
+                'message' => ui_phrase('Quotation validation is not complete. Current next action: :action', ['action' => $nextAction]),
+                'type' => 'warning',
+            ];
+        }
+
+        return null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $validationProgress
+     * @return array<int, array{label: string, tone: string}>
+     */
+    private function buildQuotationRiskIndicators(
+        Quotation $quotation,
+        array $validationProgress,
+        string $invoiceStatus,
+        string $paymentStatus,
+        string $bookingStatus,
+        bool $bookingsModuleEnabled
+    ): array {
+        $risks = [];
+        if ($quotation->validity_date && $quotation->validity_date->isPast() && ! $quotation->isStatus(Quotation::STATUS_COMPLETED, Quotation::STATUS_CANCELLED, Quotation::STATUS_LOST)) {
+            $risks[] = ['label' => ui_phrase('Validity date has expired.'), 'tone' => 'danger'];
+        }
+        if ((bool) ($validationProgress['requires_validation'] ?? false) && ! (bool) ($validationProgress['is_complete'] ?? false)) {
+            $risks[] = ['label' => ui_phrase('Quotation validation is not complete.'), 'tone' => 'warning'];
+        }
+        if ($bookingsModuleEnabled && $bookingStatus === 'cancelled') {
+            $risks[] = ['label' => ui_phrase('Linked booking is cancelled.'), 'tone' => 'danger'];
+        }
+        if (in_array($invoiceStatus, ['void', 'cancelled'], true)) {
+            $risks[] = ['label' => ui_phrase('Linked invoice is not active.'), 'tone' => 'danger'];
+        }
+        if (in_array($paymentStatus, ['unpaid', 'partially_paid'], true)) {
+            $risks[] = ['label' => ui_phrase('Payment is not fully settled.'), 'tone' => 'warning'];
+        }
+
+        return $risks;
+    }
+
+    private function displayQuotationStatusForWorkflow(string $logicalQuotationStatus, bool $bookingsModuleEnabled): string
+    {
+        if ($bookingsModuleEnabled) {
+            return $logicalQuotationStatus;
+        }
+
+        if (in_array($logicalQuotationStatus, ['converted_to_booking', 'booking_created', 'booking_in_progress', 'booking_issue'], true)) {
+            return 'approved';
+        }
+
+        return $logicalQuotationStatus;
+    }
+
+    private function workflowToneForStatus(string $status): string
+    {
+        return match ($status) {
+            'approved', 'customer_approved', 'booking_created', 'converted_to_booking', 'paid', 'overpaid', 'completed', 'valid', 'validated' => 'success',
+            'pending', 'pending_validation', 'need_validation', 'pending_revalidation', 'need_revalidation', 'partial', 'ready_for_approval', 'waiting_customer', 'waiting_confirmation', 'unpaid', 'partially_paid', 'draft', 'issued' => 'warning',
+            'cancelled', 'lost', 'void', 'booking_issue' => 'danger',
+            'not_created', 'not_started', 'not_invoiced', 'not_ready' => 'muted',
+            default => 'info',
+        };
+    }
+
     private function toneForQuotationStatus(string $status): string
     {
         return match (strtolower($status)) {
             'pending_validation' => 'bg-sky-50 text-sky-700 border-sky-100',
-            'accepted' => 'bg-emerald-50 text-emerald-700 border-emerald-100',
-            'rejected' => 'bg-rose-50 text-rose-700 border-rose-100',
-            'converted' => 'bg-violet-50 text-violet-700 border-violet-100',
+            'validated' => 'bg-cyan-50 text-cyan-700 border-cyan-100',
+            'sent' => 'bg-indigo-50 text-indigo-700 border-indigo-100',
+            'customer_approved' => 'bg-emerald-50 text-emerald-700 border-emerald-100',
+            'booking_created' => 'bg-violet-50 text-violet-700 border-violet-100',
+            'lost', 'cancelled' => 'bg-rose-50 text-rose-700 border-rose-100',
             'draft' => 'bg-slate-50 text-slate-700 border-slate-100',
-            'revised' => 'bg-amber-50 text-amber-700 border-amber-100',
             default => 'bg-slate-50 text-slate-700 border-slate-100',
         };
     }
@@ -2932,14 +4888,13 @@ SVG;
 
         if ($progress['is_ready']) {
             $quotation->update([
-                'status' => 'accepted',
+                'status' => Quotation::STATUS_APPROVED,
                 'approved_by' => $progress['latest_non_creator_approver_id'],
                 'approved_at' => now(),
             ]);
-            $this->autoFinalizeApprovedQuotationIfExpired($quotation);
         } else {
             $quotation->update([
-                'status' => 'pending_validation',
+                'status' => Quotation::STATUS_NEED_VALIDATION,
                 'approved_by' => null,
                 'approved_at' => null,
             ]);
@@ -2983,7 +4938,7 @@ SVG;
         Quotation::withoutActivityLogging(function () use ($quotation, $canAutoApprove, $approvedBy): void {
             if ($canAutoApprove) {
                 $quotation->update([
-                    'status' => 'accepted',
+                    'status' => Quotation::STATUS_APPROVED,
                     'approved_by' => $approvedBy > 0 ? $approvedBy : null,
                     'approved_at' => now(),
                     'approval_note' => null,
@@ -2994,7 +4949,7 @@ SVG;
             }
 
             $quotation->update([
-                'status' => 'pending_validation',
+                'status' => Quotation::STATUS_NEED_VALIDATION,
                 'approved_by' => null,
                 'approved_at' => null,
             ]);
@@ -3018,6 +4973,7 @@ SVG;
                     'discount_type' => (string) ($item->discount_type ?? 'fixed'),
                     'discount' => (float) ($item->discount ?? 0),
                     'day_number' => (int) ($item->day_number ?? 0),
+                    'sort_order' => (int) ($item->sort_order ?? 0),
                     'itinerary_item_type' => (string) ($item->itinerary_item_type ?? ''),
                     'serviceable_type' => (string) ($item->serviceable_type ?? ''),
                     'serviceable_id' => (int) ($item->serviceable_id ?? 0),

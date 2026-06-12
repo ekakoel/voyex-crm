@@ -105,6 +105,17 @@
             @can('booking_settlements.view')
                 <a href="{{ route('bookings.settlement.show', $booking) }}" class="btn-secondary">{{ ui_phrase('Settlement Review') }}</a>
             @endcan
+            <form method="POST" action="{{ route('bookings.invoices.proforma', $booking) }}" class="inline">
+                @csrf
+                <button type="submit" class="btn-secondary">{{ ui_phrase('Generate Proforma') }}</button>
+            </form>
+            @if ((string) ($booking->status ?? '') === 'reconciliation')
+                <form method="POST" action="{{ route('bookings.invoices.final', $booking) }}" class="inline">
+                    @csrf
+                    <button type="submit" class="btn-primary">{{ ui_phrase('Generate Final Invoice') }}</button>
+                </form>
+            @endif
+            <a href="{{ route('bookings.reconciliation.show', $booking) }}" class="btn-secondary">{{ ui_phrase('Reconciliation') }}</a>
             @can('booking_settlements.close_booking')
                 @if ((string) ($booking->settlement?->status ?? '') === 'settled' && ! $booking->isFinal())
                     <form method="POST" action="{{ route('bookings.settlement.close', $booking) }}" class="inline">
@@ -122,6 +133,29 @@
             @endcan
             <a href="{{ route('bookings.index') }}"  class="btn-ghost" data-page-back-action>{{ ui_phrase('Back') }}</a>
         @endsection
+
+        @php
+            $bookingStepperSteps = [
+                ['key' => 'created', 'label' => ui_phrase('Created')],
+                ['key' => 'vendor_confirmation', 'label' => ui_phrase('Vendor Confirmation')],
+                ['key' => 'ready_to_operate', 'label' => ui_phrase('Ready to Operate')],
+                ['key' => 'in_operation', 'label' => ui_phrase('In Operation')],
+                ['key' => 'service_completed', 'label' => ui_phrase('Service Completed')],
+                ['key' => 'reconciliation', 'label' => ui_phrase('Reconciliation')],
+                ['key' => 'invoiced', 'label' => ui_phrase('Invoiced')],
+                ['key' => 'closed', 'label' => ui_phrase('Closed')],
+            ];
+            $bookingStatusCurrent = (string) ($booking->status ?? 'created');
+            $bookingIsLocked = in_array($bookingStatusCurrent, ['reconciliation', 'closed', 'cancelled'], true);
+        @endphp
+        <x-ui.workflow-stepper
+            :steps="$bookingStepperSteps"
+            :current="$bookingStatusCurrent"
+            :title="ui_phrase('Workflow Progress')"
+        />
+        @if ($bookingIsLocked)
+            <x-ui.lock-alert :title="ui_phrase('Locked Booking')" :message="ui_phrase('This booking is locked for operational edits in current stage.')" type="warning" />
+        @endif
 
         <div class="module-grid-8-4">
             <div class="module-grid-main">
@@ -145,7 +179,7 @@
                         </div>
                         <div>
                             <p class="text-xs uppercase text-gray-500">{{ ui_phrase('Travel Date') }}</p>
-                            <p class="text-sm text-gray-800 dark:text-gray-100">{{ $booking->travel_date?->format('Y-m-d') ?? '-' }}</p>
+                            <p class="text-sm text-gray-800 dark:text-gray-100"><x-ui.date-display :date="$booking->travel_date" format="Y-m-d" /></p>
                         </div>
                         <div>
                             <p class="text-xs uppercase text-gray-500">{{ ui_phrase('Pax (Adult/Child)') }}</p>
@@ -173,7 +207,7 @@
                     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <div>
                             <p class="text-xs uppercase text-gray-500">{{ ui_phrase('Booking Status') }}</p>
-                            <p class="mt-1"><x-status-badge :status="(string) ($booking->status ?? 'pending_confirmation')" size="xs" /></p>
+                            <p class="mt-1"><x-ui.status-badge :status="(string) ($booking->status ?? 'pending_confirmation')" size="xs" /></p>
                         </div>
                         <div>
                             <p class="text-xs uppercase text-gray-500">{{ ui_phrase('Payment Eligibility') }}</p>
@@ -200,6 +234,101 @@
                             <button type="submit" class="btn-ghost">{{ ui_phrase('Report Operation Issue') }}</button>
                         </form>
                     @endcan
+                </div>
+
+                <x-ui.action-panel :title="ui_phrase('Quick Actions')" :description="ui_phrase('Available actions depend on workflow status and permissions.')">
+                        <a href="{{ route('bookings.reconciliation.show', $booking) }}" class="btn-secondary">{{ ui_phrase('Open Reconciliation') }}</a>
+                        <form method="POST" action="{{ route('bookings.invoices.proforma', $booking) }}" class="inline">
+                            @csrf
+                            <button type="submit" class="btn-secondary">{{ ui_phrase('Generate Proforma') }}</button>
+                        </form>
+                        @if ((string) ($booking->status ?? '') === 'reconciliation')
+                            <form method="POST" action="{{ route('bookings.invoices.final', $booking) }}" class="inline">
+                                @csrf
+                                <button type="submit" class="btn-primary">{{ ui_phrase('Generate Final Invoice') }}</button>
+                            </form>
+                        @endif
+                </x-ui.action-panel>
+
+                <div class="module-card p-6 space-y-3">
+                    <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ ui_phrase('Voucher Status Summary') }}</h3>
+                    @php
+                        $voucherSummary = [
+                            'total_items' => $booking->items->count(),
+                            'with_voucher' => $booking->items->filter(fn ($i) => $i->voucher !== null)->count(),
+                            'generated' => $booking->items->filter(fn ($i) => (string) ($i->voucher->status ?? '') === \App\Models\BookingItemVoucher::STATUS_GENERATED)->count(),
+                            'reissued' => $booking->items->filter(fn ($i) => (string) ($i->voucher->status ?? '') === \App\Models\BookingItemVoucher::STATUS_REISSUED)->count(),
+                            'used' => $booking->items->filter(fn ($i) => (string) ($i->voucher->status ?? '') === \App\Models\BookingItemVoucher::STATUS_USED)->count(),
+                        ];
+                    @endphp
+                    <div class="grid grid-cols-2 gap-3 sm:grid-cols-5">
+                        <div><p class="text-xs uppercase text-gray-500">{{ ui_phrase('Items') }}</p><p>{{ (int) $voucherSummary['total_items'] }}</p></div>
+                        <div><p class="text-xs uppercase text-gray-500">{{ ui_phrase('With Voucher') }}</p><p>{{ (int) $voucherSummary['with_voucher'] }}</p></div>
+                        <div><p class="text-xs uppercase text-gray-500">{{ ui_phrase('Generated') }}</p><p>{{ (int) $voucherSummary['generated'] }}</p></div>
+                        <div><p class="text-xs uppercase text-gray-500">{{ ui_phrase('Reissued') }}</p><p>{{ (int) $voucherSummary['reissued'] }}</p></div>
+                        <div><p class="text-xs uppercase text-gray-500">{{ ui_phrase('Used') }}</p><p>{{ (int) $voucherSummary['used'] }}</p></div>
+                    </div>
+                </div>
+
+                <div class="module-card p-6 space-y-3">
+                    <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ ui_phrase('Invoice Summary') }}</h3>
+                    @php
+                        $invoiceSummary = [
+                            'total' => $booking->invoices->count(),
+                            'proforma' => $booking->invoices->where('invoice_type', 'proforma')->count(),
+                            'final' => $booking->invoices->where('invoice_type', 'final')->count(),
+                            'issued' => $booking->invoices->where('status', 'issued')->count(),
+                            'paid' => $booking->invoices->whereIn('status', ['paid', 'overpaid'])->count(),
+                        ];
+                    @endphp
+                    <div class="grid grid-cols-2 gap-3 sm:grid-cols-5">
+                        <div><p class="text-xs uppercase text-gray-500">{{ ui_phrase('Total') }}</p><p>{{ (int) $invoiceSummary['total'] }}</p></div>
+                        <div><p class="text-xs uppercase text-gray-500">{{ ui_phrase('Proforma') }}</p><p>{{ (int) $invoiceSummary['proforma'] }}</p></div>
+                        <div><p class="text-xs uppercase text-gray-500">{{ ui_phrase('Final') }}</p><p>{{ (int) $invoiceSummary['final'] }}</p></div>
+                        <div><p class="text-xs uppercase text-gray-500">{{ ui_phrase('Issued') }}</p><p>{{ (int) $invoiceSummary['issued'] }}</p></div>
+                        <div><p class="text-xs uppercase text-gray-500">{{ ui_phrase('Paid') }}</p><p>{{ (int) $invoiceSummary['paid'] }}</p></div>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="app-table w-full text-sm">
+                            <thead>
+                                <tr>
+                                    <th class="px-3 py-2 text-left">{{ ui_phrase('Invoice') }}</th>
+                                    <th class="px-3 py-2 text-left">{{ ui_phrase('Type') }}</th>
+                                    <th class="px-3 py-2 text-left">{{ ui_phrase('Status') }}</th>
+                                    <th class="px-3 py-2 text-right">{{ ui_phrase('Total') }}</th>
+                                    <th class="px-3 py-2 text-right">{{ ui_phrase('Paid') }}</th>
+                                    <th class="px-3 py-2 text-right">{{ ui_phrase('Balance') }}</th>
+                                    <th class="px-3 py-2 text-right">{{ ui_phrase('Actions') }}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @forelse ($booking->invoices as $bookingInvoice)
+                                    <tr>
+                                        <td class="px-3 py-2">{{ $bookingInvoice->invoice_number }}</td>
+                                        <td class="px-3 py-2"><x-ui.status-badge :status="(string) ($bookingInvoice->invoice_type ?? 'proforma')" size="xs" /></td>
+                                        <td class="px-3 py-2"><x-ui.status-badge :status="(string) ($bookingInvoice->status ?? 'draft')" size="xs" /></td>
+                                        <td class="px-3 py-2 text-right"><x-ui.money :amount="(float) ($bookingInvoice->total_amount ?? 0)" :currency="$currentCurrency ?? 'IDR'" /></td>
+                                        <td class="px-3 py-2 text-right"><x-ui.money :amount="(float) ($bookingInvoice->paid_amount ?? 0)" :currency="$currentCurrency ?? 'IDR'" /></td>
+                                        <td class="px-3 py-2 text-right"><x-ui.money :amount="(float) ($bookingInvoice->balance_amount ?? 0)" :currency="$currentCurrency ?? 'IDR'" /></td>
+                                        <td class="px-3 py-2 text-right">
+                                            <a href="{{ route('invoices.show', $bookingInvoice) }}" class="btn-outline-sm">{{ ui_phrase('View Invoice') }}</a>
+                                            @can('payments.create')
+                                                @if ($bookingInvoice->canReceivePayment())
+                                                    <a href="{{ route('payments.create', ['invoice_id' => $bookingInvoice->id]) }}" class="btn-outline-sm">{{ ui_phrase('Record Payment') }}</a>
+                                                @endif
+                                            @endcan
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="7" class="px-3 py-4 text-center text-sm text-gray-500">
+                                            {{ ui_phrase('No :entity available.', ['entity' => ui_phrase('Invoices')]) }}
+                                        </td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
                 @endcan
 
@@ -228,6 +357,37 @@
                         <div><p class="text-xs uppercase text-gray-500">{{ ui_phrase('Approved') }}</p><p>{{ (int) $adjustmentSummary['approved'] }}</p></div>
                         <div><p class="text-xs uppercase text-gray-500">{{ ui_phrase('Applied') }}</p><p>{{ (int) $adjustmentSummary['applied'] }}</p></div>
                     </div>
+                    @php
+                        $recentAdjustments = $booking->adjustments->sortByDesc('created_at')->take(5);
+                    @endphp
+                    @if ($recentAdjustments->isNotEmpty())
+                        <div class="overflow-x-auto">
+                            <table class="app-table w-full text-sm">
+                                <thead>
+                                    <tr>
+                                        <th class="px-3 py-2 text-left">{{ ui_phrase('Number') }}</th>
+                                        <th class="px-3 py-2 text-left">{{ ui_phrase('Type') }}</th>
+                                        <th class="px-3 py-2 text-left">{{ ui_phrase('Status') }}</th>
+                                        <th class="px-3 py-2 text-right">{{ ui_phrase('Amount') }}</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach ($recentAdjustments as $adjustment)
+                                        <tr>
+                                            <td class="px-3 py-2">
+                                                <a href="{{ route('booking-adjustments.show', $adjustment) }}" class="text-primary-600">
+                                                    {{ $adjustment->adjustment_number }}
+                                                </a>
+                                            </td>
+                                            <td class="px-3 py-2">{{ ui_phrase((string) ($adjustment->type ?: $adjustment->adjustment_type)) }}</td>
+                                            <td class="px-3 py-2"><x-ui.status-badge :status="(string) $adjustment->status" size="xs" /></td>
+                                            <td class="px-3 py-2 text-right"><x-ui.money :amount="(float) ($adjustment->calculated_amount ?? $adjustment->amount ?? 0)" :currency="$currentCurrency ?? 'IDR'" /></td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    @endif
                 </div>
                 @endcan
 
@@ -244,15 +404,15 @@
                     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <div>
                             <p class="text-xs uppercase text-gray-500">{{ ui_phrase('Settlement Status') }}</p>
-                            <p class="mt-1"><x-status-badge :status="$settlementStatus" size="xs" /></p>
+                            <p class="mt-1"><x-ui.status-badge :status="$settlementStatus" size="xs" /></p>
                         </div>
                         <div>
                             <p class="text-xs uppercase text-gray-500">{{ ui_phrase('Outstanding Amount') }}</p>
-                            <p class="text-sm text-gray-800 dark:text-gray-100">{{ number_format((float) ($booking->settlement?->outstanding_amount ?? 0), 2, '.', ',') }}</p>
+                            <p class="text-sm text-gray-800 dark:text-gray-100"><x-ui.money :amount="(float) ($booking->settlement?->outstanding_amount ?? 0)" :currency="$currentCurrency ?? 'IDR'" /></p>
                         </div>
                         <div>
                             <p class="text-xs uppercase text-gray-500">{{ ui_phrase('Overpaid Amount') }}</p>
-                            <p class="text-sm text-gray-800 dark:text-gray-100">{{ number_format((float) ($booking->settlement?->overpaid_amount ?? 0), 2, '.', ',') }}</p>
+                            <p class="text-sm text-gray-800 dark:text-gray-100"><x-ui.money :amount="(float) ($booking->settlement?->overpaid_amount ?? 0)" :currency="$currentCurrency ?? 'IDR'" /></p>
                         </div>
                         <div>
                             <p class="text-xs uppercase text-gray-500">{{ ui_phrase('Blockers') }}</p>
@@ -285,7 +445,7 @@
                             <tbody>
                                 @forelse($booking->items as $dispatchIndex => $dispatchItem)
                                     @php
-                                        $dispatchVendorStatus = (string) ($dispatchItem->vendor_confirmation_status ?? 'pending');
+                                        $dispatchVendorStatus = (string) ($dispatchItem->vendor_confirmation_status ?? \App\Models\BookingItem::VENDOR_CONFIRMATION_PENDING);
                                         $dispatchStatus = (string) ($dispatchItem->dispatch_status ?? 'pending');
                                         $dispatchAssigned = trim(implode(' | ', array_filter([
                                             trim((string) ($dispatchItem->assigned_driver_name ?? '')),
@@ -295,16 +455,28 @@
                                     <tr>
                                         <td class="px-3 py-2">{{ $dispatchIndex + 1 }}</td>
                                         <td class="px-3 py-2">{{ $dispatchItem->description }}</td>
-                                        <td class="px-3 py-2">{{ ui_phrase($dispatchVendorStatus) }}</td>
+                                        <td class="px-3 py-2">
+                                            <x-ui.status-badge :status="$dispatchVendorStatus" size="xs" />
+                                            @if ($dispatchVendorStatus === \App\Models\BookingItem::VENDOR_CONFIRMATION_NOT_AVAILABLE && !empty($dispatchItem->vendor_unavailable_reason))
+                                                <p class="mt-1 text-xs text-rose-600">{{ $dispatchItem->vendor_unavailable_reason }}</p>
+                                            @endif
+                                        </td>
                                         <td class="px-3 py-2">{{ ui_phrase($dispatchStatus) }}</td>
                                         <td class="px-3 py-2">{{ $dispatchAssigned !== '' ? $dispatchAssigned : '-' }}</td>
                                         <td class="px-3 py-2 text-right">
                                             <div class="flex flex-wrap justify-end gap-2">
                                                 @can('bookings.operation.vendor_confirm')
-                                                    @if ($dispatchVendorStatus !== 'confirmed')
+                                                    @if ($dispatchVendorStatus !== \App\Models\BookingItem::VENDOR_CONFIRMATION_CONFIRMED)
                                                         <form method="POST" action="{{ route('bookings.items.vendor-confirm', ['booking' => $booking, 'bookingItem' => $dispatchItem]) }}">
                                                             @csrf
                                                             <button type="submit" class="btn-outline-sm">{{ ui_phrase('Confirm Vendor') }}</button>
+                                                        </form>
+                                                    @endif
+                                                    @if ($dispatchVendorStatus !== \App\Models\BookingItem::VENDOR_CONFIRMATION_NOT_AVAILABLE)
+                                                        <form method="POST" action="{{ route('bookings.items.vendor-not-available', ['booking' => $booking, 'bookingItem' => $dispatchItem]) }}" class="flex items-center gap-2">
+                                                            @csrf
+                                                            <input type="text" name="vendor_unavailable_reason" class="app-input" placeholder="{{ ui_phrase('Vendor not available reason') }}" required>
+                                                            <button type="submit" class="btn-danger">{{ ui_phrase('Not Available') }}</button>
                                                         </form>
                                                     @endif
                                                 @endcan
@@ -365,6 +537,7 @@
                                     <th class="px-3 py-2 text-left">{{ ui_phrase('Service Date') }}</th>
                                     <th class="px-3 py-2 text-left">{{ ui_phrase('Description') }}</th>
                                     <th class="px-3 py-2 text-left">{{ ui_phrase('Status') }}</th>
+                                    <th class="px-3 py-2 text-left">{{ ui_phrase('Vendor Confirmation') }}</th>
                                     <th class="px-3 py-2 text-left">{{ ui_phrase('Qty') }}</th>
                                     <th class="px-3 py-2 text-right actions-compact">{{ ui_phrase('Actions') }}</th>
                                 </tr>
@@ -376,6 +549,7 @@
                                         $latestBookingLog = $item?->latestBookingLog;
                                         $displayBookingLog = $latestBookingLog;
                                         $isBooked = $latestBookingLog !== null;
+                                        $vendorStatus = (string) ($item?->vendor_confirmation_status ?? \App\Models\BookingItem::VENDOR_CONFIRMATION_PENDING);
                                         $qty = $isBooked ? (int) ($item->qty ?? 0) : (int) ($quotationItem->qty ?? 0);
                                         $serviceDate = '-';
                                         $travelDate = $booking->travel_date;
@@ -642,10 +816,18 @@
                                                 <span class="inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">{{ ui_phrase('Unbooked') }}</span>
                                             @endif
                                         </td>
+                                        <td class="px-3 py-2"><x-ui.status-badge :status="$vendorStatus" size="xs" /></td>
                                         <td class="px-3 py-2">{{ $qty }}</td>
                                         <td class="px-3 py-2 text-right">
                                             <div class="flex items-center justify-end gap-2">
                                                 @if ($isBooked && $item && $item->voucher)
+                                                    <x-ui.status-badge :status="(string) ($item->voucher->status ?? \App\Models\BookingItemVoucher::STATUS_DRAFT)" size="xs" />
+                                                    @if (!empty($item->voucher->revision_number))
+                                                        <span class="text-xs text-gray-500 dark:text-gray-400">{{ ui_phrase('Revision') }} R{{ (int) $item->voucher->revision_number }}</span>
+                                                    @endif
+                                                    @if (($sourceUpdatedMap[$item->id] ?? false) === true)
+                                                        <span class="text-xs text-amber-600 dark:text-amber-300">{{ ui_phrase('Source updated, voucher needs reissue.') }}</span>
+                                                    @endif
                                                     <button
                                                         type="button"
                                                         class="btn-secondary-sm"
@@ -680,7 +862,11 @@
                                                         <i class="fa-solid fa-file-pdf"></i><span class="sr-only">{{ ui_phrase('Preview Voucher PDF') }}</span>
                                                     </a>
                                                 @elseif ($isBooked && $item)
-                                                    <span class="text-xs text-gray-500 dark:text-gray-400">{{ ui_phrase('Voucher is being prepared.') }}</span>
+                                                    @if ($item->isVendorConfirmed())
+                                                        <span class="text-xs text-gray-500 dark:text-gray-400">{{ ui_phrase('Voucher is being prepared.') }}</span>
+                                                    @else
+                                                        <span class="text-xs text-amber-600 dark:text-amber-300">{{ ui_phrase('Voucher is blocked until vendor is confirmed.') }}</span>
+                                                    @endif
                                                 @else
                                                     <span class="text-xs text-gray-500 dark:text-gray-400">{{ ui_phrase('Manage booking service from Edit Booking page.') }}</span>
                                                 @endif
@@ -690,7 +876,7 @@
 
                                 @empty
                                     <tr class="odd:bg-gray-50 even:bg-white hover:bg-amber-50 dark:odd:bg-gray-800/40 dark:even:bg-gray-900/40 dark:hover:bg-amber-900/20 transition-colors">
-                                        <td colspan="6" class="px-3 py-3 text-sm text-gray-500">{{ ui_phrase('No :entity available.', ['entity' => ui_phrase('Items')]) }}</td>
+                                        <td colspan="7" class="px-3 py-3 text-sm text-gray-500">{{ ui_phrase('No :entity available.', ['entity' => ui_phrase('Items')]) }}</td>
                                     </tr>
                                 @endforelse
                             </tbody>
@@ -829,9 +1015,4 @@
         </div>
     </x-modal>
 @endsection
-
-
-
-
-
 

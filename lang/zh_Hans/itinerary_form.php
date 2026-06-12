@@ -32,6 +32,7 @@ return [
         'end_point' => '终点',
         'unnamed_item' => '未命名项目',
         'independent_itinerary' => '独立行程',
+        'connector_time_to' => 'Estimated time to :target: :minutes min',
     ],
     'status' => [
         'complete' => '已完成',
@@ -64,6 +65,10 @@ return [
         'back' => '返回',
         'next' => '下一步',
         'cancel' => '取消',
+    ],
+    'validation' => [
+        'connector_incomplete' => '行程衔接时间未完整填写，请补全所有连接时间。',
+        'connector_estimate_hint' => '请填写到下一个地点的预计行程时间。',
     ],
     'sidebar' => [
         'inquiry_detail' => [

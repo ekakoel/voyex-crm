@@ -3,21 +3,18 @@
         @php
             $manualSeedMarker = 'draft created from itinerary day planner quick add';
         @endphp
-        @if (session('success'))
-            <div class="rounded-lg mb-6 border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300">{{ session('success') }}</div>
-        @endif
         <div class="hidden md:block app-card overflow-hidden">
             <div class="overflow-x-auto">
                 <table class="app-table w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">
-                    <thead>
+                    <thead class="table-header">
                         <tr>
-                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">#</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('Activity') }}</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('Type') }}</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('Duration') }}</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('rate per pax') }}</th>
-                            <th class="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">{{ ui_phrase('Status') }}</th>
-                            <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300 actions-compact">{{ ui_phrase('Actions') }}</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white dark:text-gray-300">#</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white dark:text-gray-300">{{ ui_phrase('Activity') }}</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white dark:text-gray-300">{{ ui_phrase('Type') }}</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white dark:text-gray-300">{{ ui_phrase('Duration') }}</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white dark:text-gray-300">{{ ui_phrase('rate per pax') }}</th>
+                            <th class="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-white dark:text-gray-300">{{ ui_phrase('Status') }}</th>
+                            <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-white dark:text-gray-300 actions-compact">{{ ui_phrase('Actions') }}</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
@@ -66,23 +63,43 @@
                                     @endif
                                 </td>
                                 <td class="px-4 py-3 text-center text-sm">
-                                    <x-status-badge :status="$isActive ? 'active' : 'inactive'" size="xs" />
+                                    <x-ui.status-badge :status="$isActive ? 'active' : 'inactive'" size="xs" />
                                 </td>
                                 <td class="px-4 py-3 text-right text-sm actions-compact">
-                                    <div class="flex items-center justify-end gap-2">
-                                        <a href="{{ route('activities.show', $activity->id) }}" class="btn-outline-sm" title="{{ ui_phrase('Detail') }}" aria-label="{{ ui_phrase('Detail') }}"><i class="fa-solid fa-eye"></i><span class="sr-only">{{ ui_phrase('Detail') }}</span></a>
-                                        <a href="{{ route('activities.edit', $activity) }}" class="btn-secondary-sm" title="{{ ui_phrase('Edit') }}" aria-label="{{ ui_phrase('Edit') }}"><i class="fa-solid fa-pen"></i><span class="sr-only">{{ ui_phrase('Edit') }}</span></a>
-                                        <form action="{{ route('activities.toggle-status', $activity->id) }}" method="POST" class="inline">
-                                            @csrf
-                                            @method('PATCH')
-                                            <button type="submit" onclick="return confirm('{{ $isActive ? ui_phrase('confirm deactivate') : ui_phrase('confirm activate') }}')" class="{{ $isActive ? 'btn-muted-sm' : 'btn-primary-sm' }}" title="{{ $isActive ? ui_phrase('Deactivate') : ui_phrase('Activate') }}" aria-label="{{ $isActive ? ui_phrase('Deactivate') : ui_phrase('Activate') }}"><i class="fa-solid {{ $isActive ? 'fa-toggle-off' : 'fa-toggle-on' }}"></i><span class="sr-only">{{ $isActive ? ui_phrase('Deactivate') : ui_phrase('Activate') }}</span></button>
-                                        </form>
-                                    </div>
+                                    <x-ui.table-action-dropdown :label="ui_phrase('Actions')">
+                                        <a href="{{ route('activities.show', $activity->id) }}" class="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800">
+                                            <i class="fa-solid fa-eye w-4 text-gray-500 dark:text-gray-400"></i>
+                                            <span>{{ ui_phrase('Detail') }}</span>
+                                        </a>
+                                        <a href="{{ route('activities.edit', $activity) }}" class="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800">
+                                            <i class="fa-solid fa-pen w-4 text-gray-500 dark:text-gray-400"></i>
+                                            <span>{{ ui_phrase('Edit') }}</span>
+                                        </a>
+                                        <div class="my-1 border-t border-gray-200 dark:border-gray-700"></div>
+                                        <x-ui.confirm-action
+                                            :action="route('activities.toggle-status', $activity->id)"
+                                            method="PATCH"
+                                            :modal-name="'activities-index-toggle-desktop-' . $activity->id"
+                                            :title="$isActive ? ui_phrase('Deactivate') . ' ' . ui_phrase('Activity') : ui_phrase('Activate') . ' ' . ui_phrase('Activity')"
+                                            :message="$isActive ? ui_phrase('confirm deactivate') : ui_phrase('confirm activate')"
+                                            :notice-message="__('confirm.notification_after_action')"
+                                            :confirm-label="$isActive ? ui_phrase('Deactivate') : ui_phrase('Activate')"
+                                            :trigger-label="$isActive ? ui_phrase('Deactivate') : ui_phrase('Activate')"
+                                            :trigger-icon="$isActive ? 'fa-solid fa-toggle-off w-4' : 'fa-solid fa-toggle-on w-4'"
+                                            :trigger-class="$isActive ? 'flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-amber-700 hover:bg-amber-50 dark:text-amber-300 dark:hover:bg-amber-900/20' : 'flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-emerald-700 hover:bg-emerald-50 dark:text-emerald-300 dark:hover:bg-emerald-900/20'"
+                                            confirm-class="btn-primary-sm"
+                                        />
+                                    </x-ui.table-action-dropdown>
                                 </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="8" class="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">{{ ui_phrase('No :entity available.', ['entity' => ui_phrase('Activities')]) }}</td>
+                                <td colspan="8" class="px-4 py-6">
+                                    <x-ui.empty-state
+                                        :title="ui_phrase('No activities found.')"
+                                        :description="ui_phrase('Create a new activity or adjust your filters.')"
+                                    />
+                                </td>
                             </tr>
                         @endforelse
                     </tbody>
@@ -92,6 +109,7 @@
         <div class="md:hidden space-y-3">
             @forelse ($activities as $activity)
                 @php
+                    $isActive = ! $activity->trashed();
                     $galleryImages = is_array($activity->gallery_images ?? null) ? $activity->gallery_images : [];
                     $hasGalleryImages = count($galleryImages) > 0;
                     $hasDestination = (int) ($activity->vendor?->destination_id ?? 0) > 0;
@@ -99,9 +117,35 @@
                         || trim((string) ($activity->activity_type ?? '')) !== '';
                     $needsDataAttention = ! $hasGalleryImages || ! $hasDestination || ! $hasActivityType;
                 @endphp
-                <div class="app-card p-4 {{ $needsDataAttention ? 'bg-amber-50/70 dark:bg-amber-900/15' : '' }}">
-                    <div class="flex items-start justify-between gap-3">
-                        <div>
+                <div class="app-card relative p-4 pt-5 {{ $needsDataAttention ? 'bg-amber-50/70 dark:bg-amber-900/15' : '' }}">
+                    <div class="absolute right-3 top-3 z-10">
+                        <x-ui.table-action-dropdown :label="ui_phrase('Actions')">
+                            <a href="{{ route('activities.show', $activity->id) }}" class="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800">
+                                <i class="fa-solid fa-eye w-4 text-gray-500 dark:text-gray-400"></i>
+                                <span>{{ ui_phrase('Detail') }}</span>
+                            </a>
+                            <a href="{{ route('activities.edit', $activity) }}" class="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800">
+                                <i class="fa-solid fa-pen w-4 text-gray-500 dark:text-gray-400"></i>
+                                <span>{{ ui_phrase('Edit') }}</span>
+                            </a>
+                            <div class="my-1 border-t border-gray-200 dark:border-gray-700"></div>
+                            <x-ui.confirm-action
+                                :action="route('activities.toggle-status', $activity->id)"
+                                method="PATCH"
+                                :modal-name="'activities-index-toggle-mobile-' . $activity->id"
+                                :title="$isActive ? ui_phrase('Deactivate') . ' ' . ui_phrase('Activity') : ui_phrase('Activate') . ' ' . ui_phrase('Activity')"
+                                :message="$isActive ? ui_phrase('confirm deactivate') : ui_phrase('confirm activate')"
+                                :notice-message="__('confirm.notification_after_action')"
+                                :confirm-label="$isActive ? ui_phrase('Deactivate') : ui_phrase('Activate')"
+                                :trigger-label="$isActive ? ui_phrase('Deactivate') : ui_phrase('Activate')"
+                                :trigger-icon="$isActive ? 'fa-solid fa-toggle-off w-4' : 'fa-solid fa-toggle-on w-4'"
+                                :trigger-class="$isActive ? 'flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-amber-700 hover:bg-amber-50 dark:text-amber-300 dark:hover:bg-amber-900/20' : 'flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-emerald-700 hover:bg-emerald-50 dark:text-emerald-300 dark:hover:bg-emerald-900/20'"
+                                confirm-class="btn-primary-sm"
+                            />
+                        </x-ui.table-action-dropdown>
+                    </div>
+                    <div class="flex items-start justify-between gap-3 pr-12">
+                        <div class="min-w-0">
                             <p class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ $activity->name }}</p>
                             <p class="text-xs text-gray-500 dark:text-gray-400">{{ $activity->vendor->name ?? '-' }}</p>
                         </div>
@@ -138,22 +182,17 @@
                             @endif
                         </div>
                         <div>{{ ui_phrase('Status') }}</div>
-                        <div><x-status-badge :status="$activity->trashed() ? 'inactive' : 'active'" size="xs" /></div>
-                    </div>
-                    <div class="mt-3 flex flex-wrap gap-2">
-                        <a href="{{ route('activities.show', $activity->id) }}" class="btn-outline-sm" title="{{ ui_phrase('Detail') }}" aria-label="{{ ui_phrase('Detail') }}"><i class="fa-solid fa-eye"></i><span class="sr-only">{{ ui_phrase('Detail') }}</span></a>
-                        <a href="{{ route('activities.edit', $activity) }}" class="btn-secondary-sm" title="{{ ui_phrase('Edit') }}" aria-label="{{ ui_phrase('Edit') }}"><i class="fa-solid fa-pen"></i><span class="sr-only">{{ ui_phrase('Edit') }}</span></a>
-                        <form action="{{ route('activities.toggle-status', $activity->id) }}" method="POST" class="inline">
-                            @csrf
-                            @method('PATCH')
-                            <button type="submit" onclick="return confirm('{{ $activity->trashed() ? ui_phrase('confirm activate') : ui_phrase('confirm deactivate') }}')" class="{{ $activity->trashed() ? 'btn-primary-sm' : 'btn-muted-sm' }}" title="{{ $activity->trashed() ? ui_phrase('Activate') : ui_phrase('Deactivate') }}" aria-label="{{ $activity->trashed() ? ui_phrase('Activate') : ui_phrase('Deactivate') }}"><i class="fa-solid {{ $activity->trashed() ? 'fa-toggle-on' : 'fa-toggle-off' }}"></i><span class="sr-only">{{ $activity->trashed() ? ui_phrase('Activate') : ui_phrase('Deactivate') }}</span></button>
-                        </form>
+                        <div><x-ui.status-badge :status="$isActive ? 'active' : 'inactive'" size="xs" /></div>
                     </div>
                 </div>
             @empty
-                <div class="app-card p-6 text-center text-sm text-gray-500 dark:text-gray-400">{{ ui_phrase('No :entity available.', ['entity' => ui_phrase('Activities')]) }}</div>
+                <x-module-empty-state
+                    :title="ui_phrase('No activities found.')"
+                    :message="ui_phrase('Create a new activity or adjust your filters.')"
+                />
             @endforelse
         </div>
         <div>{{ $activities->links() }}</div>
     </div>
 </div>
+

@@ -11,11 +11,17 @@ class BookingAdjustment extends Model
     use HasAudit, LogsActivity;
 
     public const TYPE_OPTIONS = [
+        'add_item',
+        'cancel_item',
+        'replace_item',
+        'price_change',
+        'cancellation_fee',
+        'discount',
+        'refund',
+        'extra_charge',
         'additional_service',
         'service_upgrade',
         'service_downgrade',
-        'cancellation_fee',
-        'refund',
         'discount_adjustment',
         'pax_change',
         'date_change',
@@ -29,6 +35,7 @@ class BookingAdjustment extends Model
         'approved',
         'rejected',
         'applied',
+        'void',
         'cancelled',
     ];
 
@@ -37,22 +44,30 @@ class BookingAdjustment extends Model
         'credit',
         'refund',
         'non_financial',
+        'fixed',
+        'percentage',
     ];
 
     protected $fillable = [
         'booking_id',
         'booking_item_id',
+        'quotation_id',
         'invoice_id',
         'payment_id',
+        'type',
         'adjustment_number',
         'adjustment_type',
+        'amount_type',
         'status',
         'title',
         'description',
         'reason',
         'amount',
+        'percentage',
+        'calculated_amount',
         'currency_code',
         'impact_type',
+        'created_by',
         'requested_by',
         'requested_at',
         'approved_by',
@@ -68,6 +83,8 @@ class BookingAdjustment extends Model
 
     protected $casts = [
         'amount' => 'decimal:2',
+        'percentage' => 'decimal:2',
+        'calculated_amount' => 'decimal:2',
         'requested_at' => 'datetime',
         'approved_at' => 'datetime',
         'rejected_at' => 'datetime',
@@ -83,6 +100,11 @@ class BookingAdjustment extends Model
     public function bookingItem()
     {
         return $this->belongsTo(BookingItem::class);
+    }
+
+    public function quotation()
+    {
+        return $this->belongsTo(Quotation::class);
     }
 
     public function invoice()
@@ -103,6 +125,11 @@ class BookingAdjustment extends Model
     public function requester()
     {
         return $this->belongsTo(User::class, 'requested_by');
+    }
+
+    public function creator()
+    {
+        return $this->belongsTo(User::class, 'created_by');
     }
 
     public function approver()

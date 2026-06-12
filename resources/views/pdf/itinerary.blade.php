@@ -21,8 +21,12 @@
         table.items { width: 100%; border-collapse: collapse; margin-top: 8px; }
         table.items th, table.items td { border: 1px solid #e5e7eb; padding: 6px; vertical-align: top; }
         table.items th { background: #f9fafb; font-size: 10px; text-transform: uppercase; letter-spacing: .06em; color: #374151; }
+        table.items { table-layout: fixed; }
         tr.highlight-item td { background: #fffbeb; border-color: #fcd34d; }
         tr.highlight-item td:first-child { border-left: 3px solid #f59e0b; }
+        tr.connector-row td { background: #f8fafc; color: #475569; font-size: 10px; }
+        tr.break-row td { background: #f3f4f6; color: #1f2937; font-size: 10px; }
+        .connector-label, .break-label { font-weight: 700; text-transform: uppercase; letter-spacing: .04em; font-size: 9px; }
         .thumb-box { width: 100%; aspect-ratio: 4 / 3; border: 1px solid #e5e7eb; border-radius: 4px; overflow: hidden; background: #ffffff; }
         .thumb-box img { width: 100%; height: 180px; object-fit: cover; display: block; }
         .muted { color: #6b7280; }
@@ -100,6 +104,10 @@
                 <div class="day-title">Day {{ $day['day'] }}</div>
                 <div class="day-time">Start Tour: {{ $day['start_time'] }} | End Tour: {{ $day['end_time'] }}</div>
             </div>
+            <div class="day-time" style="margin-top: 2px;">
+                Break Time:
+                {{ !empty($day['break_start_time']) && !empty($day['break_end_time']) ? $day['break_start_time'].' - '.$day['break_end_time'] : '-' }}
+            </div>
 
             <table class="items">
                 <thead>
@@ -112,76 +120,115 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @forelse ($day['items'] as $index => $item)
-                        <tr class="{{ !empty($item['is_main_experience']) ? 'highlight-item' : '' }}">
-                            <td class="center">{{ $index + 1 }}</td>
-                            <td>
-                                <strong>
+                    @php
+                        $pdfRows = $day['pdf_rows'] ?? collect();
+                        if (!($pdfRows instanceof \Illuminate\Support\Collection)) {
+                            $pdfRows = collect($pdfRows);
+                        }
+                        $itemCounter = 0;
+                    @endphp
+                    @forelse ($pdfRows as $row)
+                        @if (($row['row_type'] ?? 'item') === 'connector')
+                            <tr class="connector-row">
+                                <td></td>
+                                <td colspan="4" style="text-align: left;">
+                                    {{ (int) ($row['minutes'] ?? 0) }} min - {{ ui_phrase('Estimated travel time to') }} {{ $row['to_name'] ?? '-' }}
+                                </td>
+                            </tr>
+                        @elseif (($row['row_type'] ?? 'item') === 'break')
+                            @php
+                                $breakStart = (string) ($row['break_start_time'] ?? '--:--');
+                                $breakEnd = (string) ($row['break_end_time'] ?? '--:--');
+                                $breakDurationLabel = '-';
+                                if (preg_match('/^\d{2}:\d{2}$/', $breakStart) && preg_match('/^\d{2}:\d{2}$/', $breakEnd)) {
+                                    $breakStartMinutes = ((int) substr($breakStart, 0, 2) * 60) + (int) substr($breakStart, 3, 2);
+                                    $breakEndMinutes = ((int) substr($breakEnd, 0, 2) * 60) + (int) substr($breakEnd, 3, 2);
+                                    if ($breakEndMinutes >= $breakStartMinutes) {
+                                        $breakDurationLabel = (string) ($breakEndMinutes - $breakStartMinutes) . ' min';
+                                    }
+                                }
+                            @endphp
+                            <tr class="break-row">
+                                <td></td>
+                                <td colspan="4" style="text-align: left;">
+                                    {{ $breakDurationLabel }} - {{ ui_phrase('Break Time') }} {{ $breakStart }} - {{ $breakEnd }}
+                                </td>
+                            </tr>
+                        @else
+                            @php
+                                $item = $row['item'] ?? [];
+                                $itemCounter++;
+                            @endphp
+                            <tr class="{{ !empty($item['is_main_experience']) ? 'highlight-item' : '' }}">
+                                <td class="center">{{ $itemCounter }}</td>
+                                <td>
+                                    <strong>
+                                        @if (($item['point_role'] ?? '') === 'start')
+                                            {{ $item['point_type_label'] ?? 'Unknown' }}
+                                        @elseif (($item['point_role'] ?? '') === 'end')
+                                            {{ $item['point_type_label'] ?? 'Unknown' }}
+                                        @else
+                                            {{ $item['type'] }}
+                                        @endif
+                                    </strong><br>
                                     @if (($item['point_role'] ?? '') === 'start')
-                                        {{ $item['point_type_label'] ?? 'Unknown' }}
+                                        {{ $item['start_time'] ?: '--:--' }}
                                     @elseif (($item['point_role'] ?? '') === 'end')
-                                        {{ $item['point_type_label'] ?? 'Unknown' }}
+                                        {{ $item['end_time'] ?: '--:--' }}
                                     @else
-                                        {{ $item['type'] }}
+                                        {{ $item['start_time'] }} - {{ $item['end_time'] }}
                                     @endif
-                                </strong><br>
-                                @if (($item['point_role'] ?? '') === 'start')
-                                    {{ $item['start_time'] ?: '--:--' }}
-                                @elseif (($item['point_role'] ?? '') === 'end')
-                                    {{ $item['end_time'] ?: '--:--' }}
-                                @else
-                                    {{ $item['start_time'] }} - {{ $item['end_time'] }}
-                                @endif
-                            </td>
-                            <td>
-                                @if (strtolower((string) ($item['type'] ?? '')) === 'f&b')
-                                    <div><strong>{{ $item['vendor_name'] ?? '-' }}</strong></div>
-                                    <div><strong>{{ $item['name'] }}</strong></div>
-                                    @if (!empty($item['is_main_experience']))
-                                        <div>Main Experience</div>
-                                    @endif
-                                    @php
-                                        $menuHighlights = \App\Support\SafeRichText::sanitize((string) ($item['menu_highlights'] ?? ''));
-                                    @endphp
-                                    <div class="richtext"><strong>Menu Highlights:</strong></div>
-                                    <div class="richtext">{!! $menuHighlights !== '' ? $menuHighlights : '-' !!}</div>
-                                @else
-                                    <div>
-                                        @if (filled($item['vendor_name'] ?? ''))
-                                            <strong>{{ $item['vendor_name'] }}</strong><br>
-                                        @endif
-                                        <strong>{{ $item['name'] }}</strong><br>
+                                </td>
+                                <td>
+                                    @if (strtolower((string) ($item['type'] ?? '')) === 'f&b')
+                                        <div><strong>{{ $item['vendor_name'] ?? '-' }}</strong></div>
+                                        <div><strong>{{ $item['name'] }}</strong></div>
                                         @if (!empty($item['is_main_experience']))
-                                            <span>{{ ui_phrase('Main Experience') }}</span>
+                                            <div>Main Experience</div>
                                         @endif
-                                    </div>
-                                @endif
-                                @if (strtolower((string) ($item['type'] ?? '')) === 'activity')
-                                    @php
-                                        $activityIncludeText = \App\Support\SafeRichText::plainText($item['includes'] ?? null);
-                                        $activityExcludeText = \App\Support\SafeRichText::plainText($item['excludes'] ?? null);
-                                        $activityIncludeHtml = \App\Support\SafeRichText::sanitize((string) ($item['includes'] ?? ''));
-                                        $activityExcludeHtml = \App\Support\SafeRichText::sanitize((string) ($item['excludes'] ?? ''));
-                                    @endphp
-                                    @if (filled($activityIncludeText))
-                                        <div class="richtext"><strong>Includes:</strong></div>
-                                        <div class="richtext">{!! $activityIncludeHtml !!}</div>
+                                        @php
+                                            $menuHighlights = \App\Support\SafeRichText::sanitize((string) ($item['menu_highlights'] ?? ''));
+                                        @endphp
+                                        <div class="richtext"><strong>Menu Highlights:</strong></div>
+                                        <div class="richtext">{!! $menuHighlights !== '' ? $menuHighlights : '-' !!}</div>
+                                    @else
+                                        <div>
+                                            @if (filled($item['vendor_name'] ?? ''))
+                                                <strong>{{ $item['vendor_name'] }}</strong><br>
+                                            @endif
+                                            <strong>{{ $item['name'] }}</strong><br>
+                                            @if (!empty($item['is_main_experience']))
+                                                <span>{{ ui_phrase('Main Experience') }}</span>
+                                            @endif
+                                        </div>
                                     @endif
-                                    @if (filled($activityExcludeText))
-                                        <div class="richtext"><strong>Excludes:</strong></div>
-                                        <div class="richtext">{!! $activityExcludeHtml !!}</div>
+                                    @if (strtolower((string) ($item['type'] ?? '')) === 'activity')
+                                        @php
+                                            $activityIncludeText = \App\Support\SafeRichText::plainText($item['includes'] ?? null);
+                                            $activityExcludeText = \App\Support\SafeRichText::plainText($item['excludes'] ?? null);
+                                            $activityIncludeHtml = \App\Support\SafeRichText::sanitize((string) ($item['includes'] ?? ''));
+                                            $activityExcludeHtml = \App\Support\SafeRichText::sanitize((string) ($item['excludes'] ?? ''));
+                                        @endphp
+                                        @if (filled($activityIncludeText))
+                                            <div class="richtext"><strong>Includes:</strong></div>
+                                            <div class="richtext">{!! $activityIncludeHtml !!}</div>
+                                        @endif
+                                        @if (filled($activityExcludeText))
+                                            <div class="richtext"><strong>Excludes:</strong></div>
+                                            <div class="richtext">{!! $activityExcludeHtml !!}</div>
+                                        @endif
                                     @endif
-                                @endif
-                            </td>
-                            <td>{{ $item['location'] }}</td>
-                            <td>
-                                @if (!empty($item['thumbnail_data_uri']))
-                                    <div class="thumb-box">
-                                        <img src="{{ $item['thumbnail_data_uri'] }}" alt="Thumbnail">
-                                    </div>
-                                @endif
-                            </td>
-                        </tr>
+                                </td>
+                                <td>{{ $item['location'] }}</td>
+                                <td>
+                                    @if (!empty($item['thumbnail_data_uri']))
+                                        <div class="thumb-box">
+                                            <img src="{{ $item['thumbnail_data_uri'] }}" alt="Thumbnail">
+                                        </div>
+                                    @endif
+                                </td>
+                            </tr>
+                        @endif
                     @empty
                         <tr>
                             <td colspan="5" class="muted">No schedule item for this day.</td>

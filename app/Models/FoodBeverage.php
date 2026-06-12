@@ -16,6 +16,14 @@ class FoodBeverage extends Model
         'name',
         'service_type',
         'duration_minutes',
+        'adult_contract_rate',
+        'child_contract_rate',
+        'adult_markup_type',
+        'adult_markup',
+        'child_markup_type',
+        'child_markup',
+        'adult_publish_rate',
+        'child_publish_rate',
         'contract_rate',
         'markup_type',
         'markup',
@@ -30,6 +38,14 @@ class FoodBeverage extends Model
 
     protected $casts = [
         'duration_minutes' => 'integer',
+        'adult_contract_rate' => 'decimal:0',
+        'child_contract_rate' => 'decimal:0',
+        'adult_markup_type' => 'string',
+        'adult_markup' => 'decimal:0',
+        'child_markup_type' => 'string',
+        'child_markup' => 'decimal:0',
+        'adult_publish_rate' => 'decimal:0',
+        'child_publish_rate' => 'decimal:0',
         'contract_rate' => 'decimal:0',
         'markup_type' => 'string',
         'markup' => 'decimal:0',
@@ -43,7 +59,6 @@ class FoodBeverage extends Model
         return $this->belongsTo(Vendor::class);
     }
 }
-
 
 
 

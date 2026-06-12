@@ -12,6 +12,9 @@ class Booking extends Model
     use HasAudit, LogsActivity;
 
     public const STATUS_OPTIONS = [
+        'created',
+        'vendor_confirmation',
+        'voucher_preparation',
         'pending_confirmation',
         'confirmed',
         'awaiting_dp',
@@ -20,6 +23,8 @@ class Booking extends Model
         'ready_to_operate',
         'in_operation',
         'service_completed',
+        'reconciliation',
+        'invoiced',
         'completed_unsettled',
         'completed_settled',
         'closed',
@@ -83,4 +88,3 @@ class Booking extends Model
         return $this->status === self::FINAL_STATUS;
     }
 }
-

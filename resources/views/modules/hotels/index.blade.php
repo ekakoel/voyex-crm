@@ -1,24 +1,16 @@
 @extends('layouts.master')
-@section('page_title', ui_phrase('page title'))
-@section('page_subtitle', ui_phrase('page subtitle'))
+@section('page_title', ui_phrase('Hotels'))
+@section('page_subtitle', ui_phrase('Manage hotel inventory, destinations, and active listing status.'))
 @section('page_actions')
     <a href="{{ route('hotels.create') }}" class="btn-primary">{{ ui_phrase('Add Hotel') }}</a>
 @endsection
 @section('content')
     <div class="space-y-6 module-page module-page--hotels" data-hotels-index data-page-spinner="off">
-        <div class="module-grid-9-3">
-            <aside class="module-grid-side">
-                @include('components.module-index-sidebar-info')
-            </aside>
-            <div class="module-grid-main">
+        <div class="module-grid-main">
                 <div class="app-card p-5">
-                    <div>
-                        <h2 class="text-base font-semibold text-gray-800 dark:text-gray-100">{{ ui_phrase('Filters') }}</h2>
-                        <p class="text-sm text-gray-500 dark:text-gray-400">{{ ui_phrase('Refine your list quickly.') }}</p>
-                    </div>
-                    <form method="GET" class="grid grid-cols-1 gap-3 sm:grid-cols-2" data-hotels-index-form data-disable-submit-lock="1" data-page-spinner="off">
+                    <form method="GET" class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3" data-hotels-index-form data-filter-min-text="3" data-disable-submit-lock="1" data-page-spinner="off">
                         <input name="q" value="{{ request('q') }}" placeholder="{{ ui_phrase('search') }}"
-                            class="app-input sm:col-span-2" data-hotels-filter-input>
+                            class="app-input sm:col-span-2 lg:col-span-2" data-hotels-filter-input data-filter-min-text="3">
                         <select name="destination_id" class="app-input sm:col-span-2" data-hotels-filter-input>
                             <option value="">{{ ui_phrase('All destinations') }}</option>
                             @foreach (($destinations ?? collect()) as $destination)
@@ -38,21 +30,17 @@
                                 </option>
                             @endforeach
                         </select>
-                        <div class="flex items-center gap-2 sm:col-span-2 filter-actions">
-                            <a href="{{ route('hotels.index') }}" class="btn-ghost" data-hotels-filter-reset>{{ ui_phrase('Reset') }}</a>
+                        <div class="flex items-center gap-2 sm:col-span-2 lg:col-span-3 filter-actions h-[42px]">
+                            <a href="{{ route('hotels.index') }}" class="btn-secondary h-[42px] rounded-[var(--app-radius-sm)] px-4" data-hotels-filter-reset>{{ ui_phrase('Reset') }}</a>
                         </div>
                     </form>
                 </div>
                 <div data-hotels-index-results-wrap>
                     @include('modules.hotels.partials._index-results', ['hotels' => $hotels, 'statsCards' => $statsCards])
                 </div>
-            </div>
         </div>
     </div>
 @endsection
-
-
-
 
 
 

@@ -1,0 +1,549 @@
+# VOYEX Refactor Changelog
+
+## 2026-05-21
+- Scope: documentation only.
+- Created/updated files:
+  - docs/blueprint/VOYEX_OPERATIONAL_REFACTOR_BLUEPRINT.md
+  - docs/blueprint/VOYEX_OPERATIONAL_REFACTOR_CHECKLIST.md
+  - docs/blueprint/VOYEX_STATUS_MATRIX.md
+  - docs/blueprint/VOYEX_MODULE_FLOW.md
+  - docs/technical/VOYEX_REFACTOR_CHANGELOG.md
+- No application logic changes.
+- No database changes.
+- No controller/model/route changes.
+
+## 2026-05-21 (Step 2 - Workflow Status Engine)
+- Scope: workflow foundation + unit test baseline.
+- Created/updated files:
+  - app/Support/Workflow/InquiryWorkflow.php
+  - app/Support/Workflow/QuotationWorkflow.php
+  - app/Support/Workflow/QuotationItemWorkflow.php
+  - app/Support/Workflow/BookingWorkflow.php
+  - app/Support/Workflow/BookingItemWorkflow.php
+  - app/Support/Workflow/VoucherWorkflow.php
+  - app/Support/Workflow/InvoiceWorkflow.php
+  - tests/Unit/Workflow/QuotationWorkflowTest.php
+  - tests/Unit/Workflow/BookingWorkflowTest.php
+  - tests/Unit/Workflow/InvoiceWorkflowTest.php
+  - docs/blueprint/VOYEX_OPERATIONAL_REFACTOR_CHECKLIST.md
+  - docs/technical/VOYEX_REFACTOR_CHANGELOG.md
+- Test run:
+  - `php artisan test tests/Unit/Workflow/QuotationWorkflowTest.php tests/Unit/Workflow/BookingWorkflowTest.php tests/Unit/Workflow/InvoiceWorkflowTest.php`
+  - Result: 15 tests passed, 38 assertions.
+- No database changes.
+- No controller/model/route changes.
+- No large flow refactor yet; this step only centralizes status rules in dedicated workflow classes.
+
+## 2026-05-21 (Step 3 - Quotation Status Refactor)
+- Scope: quotation lifecycle refactor (`draft -> pending_validation -> validated -> sent -> customer_approved -> booking_created`) with backward-compatible legacy status mapping.
+- Updated files:
+  - app/Models/Quotation.php
+  - app/Support/Workflow/QuotationWorkflow.php
+  - app/Http/Controllers/Sales/QuotationController.php
+  - app/Http/Controllers/Sales/QuotationValidationController.php
+  - app/Http/Controllers/BookingController.php
+  - app/Http/Requests/StoreBookingRequest.php
+  - app/Policies/QuotationPolicy.php
+  - app/Services/QuotationValidationService.php
+  - resources/views/modules/quotations/index.blade.php
+  - resources/views/modules/quotations/show.blade.php
+  - routes/web.php
+  - tests/Unit/Workflow/QuotationLifecycleStep3Test.php
+  - docs/blueprint/VOYEX_OPERATIONAL_REFACTOR_CHECKLIST.md
+  - docs/blueprint/VOYEX_STATUS_MATRIX.md
+  - docs/technical/VOYEX_REFACTOR_CHANGELOG.md
+- New quotation actions:
+  - `quotations.mark-sent`
+  - `quotations.mark-customer-approved`
+- Booking conversion guard updated:
+  - Booking can only be created from quotation status `customer_approved` (legacy `accepted` still recognized for compatibility).
+- Test run:
+  - `php artisan test tests/Unit/Workflow/QuotationWorkflowTest.php tests/Unit/Workflow/QuotationLifecycleStep3Test.php tests/Unit/Workflow/BookingWorkflowTest.php tests/Unit/Workflow/InvoiceWorkflowTest.php`
+  - Result: 20 tests passed, 44 assertions.
+- No database migration changes in this step.
+
+## 2026-05-21 (Step 4 - Quotation Item Status)
+- Scope: quotation item lifecycle structure + minimal UI/action.
+- Created migration:
+  - `database/migrations/2026_05_21_140000_add_operational_status_fields_to_quotation_items_table.php`
+- New quotation item fields:
+  - `status` (default `active`)
+  - `cancellation_fee_type` (nullable)
+  - `cancellation_fee_value` (nullable)
+  - `cancellation_fee_amount` (nullable)
+  - `cancellation_reason` (nullable)
+  - `actual_used_at` (nullable)
+  - `replaced_by_item_id` (nullable FK to `quotation_items.id`)
+- Updated files:
+  - app/Models/QuotationItem.php
+  - app/Http/Controllers/Sales/QuotationController.php
+  - app/Services/QuotationValidationService.php
+  - resources/views/modules/quotations/show.blade.php
+  - routes/web.php
+  - docs/blueprint/VOYEX_OPERATIONAL_REFACTOR_CHECKLIST.md
+  - docs/technical/VOYEX_REFACTOR_CHANGELOG.md
+- New minimal item actions:
+  - `quotations.items.cancel-free`
+  - `quotations.items.cancel-with-charge`
+- Validation sync update:
+  - item becomes `validated` when item validation succeeds (unless already locked/cancelled).
+- Activity log:
+  - `quotation_item_status_changed` logged on item cancel status updates.
+- Verification:
+  - PHP lint passed on changed PHP files.
+  - Workflow regression tests passed:
+    - `php artisan test tests/Unit/Workflow/QuotationWorkflowTest.php tests/Unit/Workflow/QuotationLifecycleStep3Test.php`
+
+## 2026-05-21 (Step 5 - Quotation Revision)
+- Scope: quotation revision service + locked quotation edit guard + revision history UI.
+- Created migration:
+  - `database/migrations/2026_05_21_190000_add_current_revision_fields_to_quotations_table.php`
+- New quotation revision fields:
+  - `is_current_revision` (boolean, default `true`)
+  - `revision_reason` (nullable text)
+- Created service:
+  - `app/Services/QuotationRevisionService.php`
+  - Core method: `createRevisionFromQuotation(Quotation $quotation, array $payload = [])`
+- Revision behavior:
+  - Locked quotation status update now creates a new revision quotation instead of mutating original.
+  - Original revision chain is marked non-current, new revision marked current.
+  - Quotation items are copied as snapshot and then refreshed from latest submitted payload.
+  - Revision status is set to `pending_validation` and validation state reset to `pending`.
+- Updated files:
+  - app/Http/Controllers/Sales/QuotationController.php
+  - app/Models/Quotation.php
+  - app/Services/QuotationItinerarySyncService.php
+  - app/Support/Workflow/QuotationWorkflow.php
+  - resources/views/modules/quotations/_form.blade.php
+  - resources/views/modules/quotations/show.blade.php
+  - app/Http/Controllers/Admin/DashboardController.php
+  - app/Http/Controllers/Admin/ItineraryController.php
+  - tests/Unit/Workflow/QuotationWorkflowTest.php
+  - tests/Unit/Workflow/QuotationRevisionLockStep5Test.php
+  - docs/blueprint/VOYEX_OPERATIONAL_REFACTOR_CHECKLIST.md
+  - docs/technical/VOYEX_REFACTOR_CHANGELOG.md
+- Verification:
+  - `php -l app/Services/QuotationRevisionService.php`
+  - `php -l app/Http/Controllers/Sales/QuotationController.php`
+  - `php -l app/Models/Quotation.php`
+  - `php artisan test tests/Unit/Workflow/QuotationWorkflowTest.php tests/Unit/Workflow/QuotationLifecycleStep3Test.php tests/Unit/Workflow/QuotationRevisionLockStep5Test.php`
+  - Result: 12 tests passed, 27 assertions.
+
+## 2026-05-21 (Step 6 - Booking Creation Guard)
+- Scope: booking creation guard from quotation approval + booking item snapshot initialization.
+- Created migration:
+  - `database/migrations/2026_05_21_210000_add_snapshot_fields_to_booking_items_table.php`
+- New booking item snapshot fields:
+  - `vendor_id`
+  - `service_date`
+  - `sell_price`
+  - `contract_rate`
+  - `markup_type`
+  - `markup`
+- Booking guard updates:
+  - Eligible quotation for booking now strictly `customer_approved`.
+  - Booking creation now generates booking items directly from quotation items snapshot.
+  - Quotation status is set to `booking_created` after booking is created.
+  - Duplicate active booking is blocked across the same revision chain (`COALESCE(revision_of_id, id)`).
+- Updated files:
+  - app/Http/Controllers/BookingController.php
+  - app/Http/Requests/StoreBookingRequest.php
+  - app/Models/Booking.php
+  - app/Models/BookingItem.php
+  - resources/views/modules/bookings/_form.blade.php
+  - resources/views/modules/quotations/show.blade.php
+  - docs/blueprint/VOYEX_OPERATIONAL_REFACTOR_CHECKLIST.md
+  - docs/technical/VOYEX_REFACTOR_CHANGELOG.md
+- Verification:
+  - `php -l app/Http/Controllers/BookingController.php`
+  - `php -l app/Http/Requests/StoreBookingRequest.php`
+  - `php -l app/Models/BookingItem.php`
+  - `php -l app/Models/Booking.php`
+  - `php -l database/migrations/2026_05_21_210000_add_snapshot_fields_to_booking_items_table.php`
+  - `php artisan test tests/Unit/Workflow/BookingWorkflowTest.php`
+  - Result: 5 tests passed, 13 assertions.
+
+## 2026-05-21 (Step 7 - Vendor Confirmation per Booking Item)
+- Scope: vendor confirmation lifecycle per booking item + voucher generation guard.
+- Created migration:
+  - `database/migrations/2026_05_21_220000_add_vendor_unavailable_reason_to_booking_items_table.php`
+- Vendor confirmation updates:
+  - Booking item lifecycle values standardized:
+    - `pending_vendor`
+    - `confirmed_by_vendor`
+    - `not_available`
+    - `replaced`
+    - `cancelled`
+  - Added action `markItemVendorNotAvailable` with required reason note.
+  - Added route:
+    - `bookings.items.vendor-not-available`
+  - Existing action `confirmItemVendor` now clears unavailable reason and writes confirmer metadata.
+- Voucher guard:
+  - Voucher generate/upsert now requires vendor confirmed.
+  - Guard enforced in `BookingVoucherService::assertVendorConfirmed()` and called from voucher controller.
+  - Booking service create/update no longer auto-generates voucher unless vendor already confirmed.
+- UI updates:
+  - Booking detail dispatch checklist now shows vendor status badge per item.
+  - Added form action to mark item vendor not available with reason.
+  - Added vendor confirmation badge column in booking services table.
+  - Voucher row now shows warning when blocked by pending vendor confirmation.
+- Updated files:
+  - app/Http/Controllers/BookingController.php
+  - app/Http/Controllers/BookingItemVoucherController.php
+  - app/Models/BookingItem.php
+  - app/Services/BookingVoucherService.php
+  - routes/web.php
+  - resources/views/modules/bookings/show.blade.php
+  - resources/views/modules/bookings/spk.blade.php
+  - docs/blueprint/VOYEX_OPERATIONAL_REFACTOR_CHECKLIST.md
+  - docs/technical/VOYEX_REFACTOR_CHANGELOG.md
+- Verification:
+  - `php -l app/Http/Controllers/BookingController.php`
+  - `php -l app/Models/BookingItem.php`
+  - `php -l app/Services/BookingVoucherService.php`
+  - `php -l app/Http/Controllers/BookingItemVoucherController.php`
+  - `php -l database/migrations/2026_05_21_220000_add_vendor_unavailable_reason_to_booking_items_table.php`
+  - `php artisan test tests/Unit/Workflow/BookingWorkflowTest.php`
+  - Result: 5 tests passed, 13 assertions.
+
+## 2026-05-21 (Step 8 - Voucher Lifecycle per Booking Item)
+- Scope: voucher lifecycle hardening per booking item with explicit reissue flow.
+- Created migration:
+  - `database/migrations/2026_05_21_230000_update_booking_item_voucher_lifecycle_fields.php`
+- Voucher lifecycle updates:
+  - Added `revision_number` on voucher.
+  - Voucher statuses standardized in model constants:
+    - `draft`
+    - `generated`
+    - `sent_to_vendor`
+    - `confirmed_by_vendor`
+    - `reissued`
+    - `cancelled`
+    - `used`
+  - Existing `issued` data mapped to `generated`.
+- Guards and behavior:
+  - Voucher generate/upsert remains blocked unless booking item vendor is confirmed.
+  - If voucher source has changed, generate now blocks and requires explicit reissue.
+  - Added explicit reissue action that increments `revision_number`, regenerates voucher number suffix `-R#`, and sets status `reissued`.
+- UI updates:
+  - Booking services workspace now shows voucher status badge and revision number.
+  - Source-updated warning now visible and paired with reissue action.
+  - Booking show page shows voucher status badge and source-updated warning.
+  - Voucher blocked message shown when vendor not yet confirmed.
+- Activity logs:
+  - Added booking activity log events for voucher lifecycle:
+    - `voucher.generated`
+    - `voucher.updated`
+    - `voucher.reissued`
+- Updated files:
+  - app/Models/BookingItemVoucher.php
+  - app/Services/BookingVoucherService.php
+  - app/Http/Controllers/BookingItemVoucherController.php
+  - routes/web.php
+  - resources/views/modules/bookings/partials/_services-workspace.blade.php
+  - resources/views/modules/bookings/show.blade.php
+  - docs/blueprint/VOYEX_OPERATIONAL_REFACTOR_CHECKLIST.md
+  - docs/technical/VOYEX_REFACTOR_CHANGELOG.md
+
+## 2026-05-21 (Step 9 - Cancellation Policy per Vendor/Provider)
+- Scope: cancellation policy data expansion + automatic cancellation fee calculation.
+- Created migration:
+  - `database/migrations/2026_05_21_233000_expand_service_cancellation_policies_fields.php`
+- Service cancellation policy enhancements:
+  - Added policy-level fields:
+    - `vendor_id`
+    - `season_type`
+    - `start_date`
+    - `end_date`
+    - `cancel_before_hours`
+    - `fee_type`
+    - `fee_value`
+    - `description`
+  - Existing `is_active`, `serviceable_type`, `serviceable_id` remain in use.
+  - Fee types standardized in model constants:
+    - `free`
+    - `fixed`
+    - `percentage`
+- New service:
+  - `app/Services/CancellationPolicyService.php`
+  - Core method:
+    - `calculateCancellationFee(BookingItem $item, Carbon $cancelledAt): float`
+  - Additional resolver:
+    - `resolveCancellation(...)` returns matched policy metadata for audit/UI.
+- Booking cancel flow updates:
+  - `BookingController::cancelServiceItem` now:
+    - attempts automatic fee calculation using active policy
+    - uses manual fallback input only when no matching policy applies
+    - stores applied policy/manual source metadata into `cancellation_policy_snapshot.applied`
+    - persists default policy only for manual fallback path
+- Minimal UI update:
+  - Booking services workspace now shows cancellation policy source used (`Active Policy` vs `Manual Fallback`) on cancelled item rows.
+- Updated files:
+  - app/Models/ServiceCancellationPolicy.php
+  - app/Services/CancellationPolicyService.php
+  - app/Http/Controllers/BookingController.php
+  - resources/views/modules/bookings/partials/_services-workspace.blade.php
+  - docs/blueprint/VOYEX_OPERATIONAL_REFACTOR_CHECKLIST.md
+  - docs/technical/VOYEX_REFACTOR_CHANGELOG.md
+- Verification:
+  - `php -l app/Services/CancellationPolicyService.php`
+  - `php -l app/Http/Controllers/BookingController.php`
+  - `php -l app/Models/ServiceCancellationPolicy.php`
+  - `php -l database/migrations/2026_05_21_233000_expand_service_cancellation_policies_fields.php`
+  - `php artisan test tests/Unit/Workflow/BookingWorkflowTest.php`
+  - Result: 5 tests passed, 13 assertions.
+
+## 2026-05-21 (Step 10 - Booking Adjustment Engine)
+- Scope: booking adjustment structure enhancement + automatic adjustment generation from operational events.
+- Created migration:
+  - `database/migrations/2026_05_21_042243_expand_booking_adjustments_for_operational_engine.php`
+- New/additional booking adjustment fields:
+  - `quotation_id` (nullable FK)
+  - `type` (normalized adjustment type alias)
+  - `amount_type`
+  - `percentage`
+  - `calculated_amount`
+  - `created_by` (nullable FK)
+- New service:
+  - `app/Services/BookingAdjustmentService.php`
+  - Auto adjustment methods:
+    - `createCancellationFeeFromItem(...)`
+    - `createAddItemFromQuotationItem(...)`
+    - `createReplaceItem(...)`
+- Auto adjustment integration:
+  - Cancellation with fee (`BookingController::cancelServiceItem`) now auto-creates `cancellation_fee` adjustment draft.
+  - Added item after approval (`QuotationItem::STATUS_ADDED_AFTER_APPROVAL`) now auto-creates `add_item` adjustment draft.
+  - Replacement item flow (when old quotation item points to new via `replaced_by_item_id`) now auto-creates `replace_item` adjustment draft.
+  - All auto-generated adjustments write booking activity logs.
+- Backward compatibility updates:
+  - `BookingAdjustment` model and `AdjustmentService` now support both legacy and new type semantics (`adjustment_type` and `type`).
+  - Existing lifecycle (`draft -> pending_approval -> approved -> applied`) remains unchanged.
+- UI update:
+  - Booking detail adjustment summary now shows recent adjustment rows (number, type, status, amount).
+- Updated files:
+  - app/Models/BookingAdjustment.php
+  - app/Services/AdjustmentService.php
+  - app/Services/BookingAdjustmentService.php
+  - app/Http/Controllers/BookingController.php
+  - resources/views/modules/bookings/show.blade.php
+  - docs/blueprint/VOYEX_OPERATIONAL_REFACTOR_CHECKLIST.md
+  - docs/technical/VOYEX_REFACTOR_CHANGELOG.md
+- Verification:
+  - `php -l app/Services/BookingAdjustmentService.php`
+  - `php -l app/Services/AdjustmentService.php`
+  - `php -l app/Http/Controllers/BookingController.php`
+  - `php -l app/Models/BookingAdjustment.php`
+  - `php -l database/migrations/2026_05_21_042243_expand_booking_adjustments_for_operational_engine.php`
+  - `php artisan test tests/Unit/Workflow/BookingWorkflowTest.php`
+  - Result: 5 tests passed, 13 assertions.
+
+## 2026-05-21 (Step 11 - Actual Service Reconciliation Page)
+- Scope: reconciliation page and item-level actual usage controls before final invoice generation.
+- New controller:
+  - `app/Http/Controllers/BookingReconciliationController.php`
+- New routes:
+  - `GET /bookings/{booking}/reconciliation` (`bookings.reconciliation.show`)
+  - `PATCH /bookings/{booking}/reconciliation/items/{bookingItem}` (`bookings.reconciliation.items.update`)
+  - `POST /bookings/{booking}/reconciliation/finalize` (`bookings.reconciliation.finalize`)
+- New view:
+  - `resources/views/modules/bookings/reconciliation.blade.php`
+- Reconciliation capabilities:
+  - Show all booking items in a single reconciliation workspace.
+  - Show per-item voucher status, vendor confirmation status, used/not-used status, cancellation fee, and adjustment totals.
+  - Item actions:
+    - `mark_used`
+    - `mark_not_used`
+    - `cancel_free`
+    - `cancel_with_charge`
+  - Finalize reconciliation:
+    - booking status moved to `reconciliation` when eligible, or preserved safely per existing flow constraints.
+    - item updates locked after finalized state.
+- Auto-adjustment integration:
+  - cancel with charge action auto-creates cancellation fee adjustment draft through `BookingAdjustmentService`.
+- Activity logs added:
+  - `reconciliation.item_marked_used`
+  - `reconciliation.item_marked_not_used`
+  - `reconciliation.item_cancelled_free`
+  - `reconciliation.item_cancelled_with_charge`
+  - `reconciliation.finalized`
+- Additional updates:
+  - `app/Models/BookingItem.php`: added status constants `used`, `not_used`.
+  - `app/Models/Booking.php`: added lifecycle status options `voucher_preparation`, `reconciliation`, `invoiced`.
+  - `resources/views/modules/bookings/show.blade.php`: added entry button to reconciliation page.
+  - `routes/web.php`: registered reconciliation routes.
+  - `docs/blueprint/VOYEX_OPERATIONAL_REFACTOR_CHECKLIST.md`: Step 11 checklist updated.
+- Verification:
+  - `php -l app/Http/Controllers/BookingReconciliationController.php`
+  - `php -l app/Models/Booking.php`
+  - `php -l app/Models/BookingItem.php`
+  - `php -l resources/views/modules/bookings/reconciliation.blade.php`
+  - `php artisan route:list | Select-String -Pattern "bookings/.*/reconciliation|bookings.reconciliation"`
+  - `php artisan test tests/Unit/Workflow/BookingWorkflowTest.php`
+  - Result: 5 tests passed, 13 assertions.
+
+## 2026-05-21 (Step 12 - Invoice Refactor: Proforma and Final)
+- Scope: split invoice generation into proforma and final based on operational reality and reconciliation outputs.
+- Existing schema check:
+  - `invoice_type` field already exists in invoices table (`2026_05_20_210000_harden_invoice_lifecycle_fields.php`), so no new migration required for this step.
+  - `invoice_items` dedicated table is not present; this step keeps header-level invoice amount computation and stores reconciliation breakdown summary in invoice notes.
+- Service refactor:
+  - `app/Services/InvoiceService.php`
+  - New methods:
+    - `generateProformaForBooking(Booking $booking)`
+    - `generateFinalForBooking(Booking $booking)`
+    - `computeFinalAmountFromReconciliation(Booking $booking)`
+  - Compatibility:
+    - `generateForBooking()` now acts as backward-compatible wrapper to proforma generation.
+- Invoice rules implemented:
+  - Proforma generation requires voucher-ready items.
+  - Final generation requires booking status `reconciliation`.
+  - Final generation blocked when a paid final invoice already exists; follow-up must use adjustment/credit-note pattern.
+  - Invoice paid protection for direct edit remains enforced via existing `isEditable()` flow.
+- Final invoice formula source:
+  - Used booking items total (`status = used`)
+  - Plus approved/applied adjustments: `add_item`, `cancellation_fee`, `extra_charge`/`price_change`
+  - Minus approved/applied adjustments: `discount`, `refund`
+- Route and controller updates:
+  - Added booking-level invoice actions in `routes/web.php`:
+    - `POST /bookings/{booking}/invoices/proforma` (`bookings.invoices.proforma`)
+    - `POST /bookings/{booking}/invoices/final` (`bookings.invoices.final`)
+  - Added methods in `app/Http/Controllers/BookingController.php`:
+    - `generateProformaInvoice()`
+    - `generateFinalInvoice()`
+  - Generating final invoice moves booking status from `reconciliation` to `invoiced`.
+- UI updates:
+  - `resources/views/modules/bookings/show.blade.php`:
+    - Added actions `Generate Proforma` and `Generate Final Invoice`.
+  - `resources/views/modules/invoices/index.blade.php` and `resources/views/modules/invoices/show.blade.php`:
+    - Added clearer visual differentiation for invoice types (`proforma`, `final`, `credit_note`, others).
+- Model updates:
+  - `app/Models/Invoice.php`:
+    - Added type options: `proforma`, `final`, `adjustment`, `credit_note` (while keeping legacy types).
+- Updated files:
+  - app/Services/InvoiceService.php
+  - app/Http/Controllers/BookingController.php
+  - app/Models/Invoice.php
+  - routes/web.php
+  - resources/views/modules/bookings/show.blade.php
+  - resources/views/modules/invoices/index.blade.php
+  - resources/views/modules/invoices/show.blade.php
+  - docs/blueprint/VOYEX_OPERATIONAL_REFACTOR_CHECKLIST.md
+  - docs/technical/VOYEX_REFACTOR_CHANGELOG.md
+- Verification:
+  - `php -l app/Services/InvoiceService.php`
+  - `php -l app/Http/Controllers/BookingController.php`
+  - `php -l app/Models/Invoice.php`
+  - `php -l resources/views/modules/invoices/index.blade.php`
+  - `php -l resources/views/modules/invoices/show.blade.php`
+  - `php -l resources/views/modules/bookings/show.blade.php`
+  - `php artisan route:list | Select-String -Pattern "bookings.invoices.proforma|bookings.invoices.final"`
+  - `php artisan test tests/Feature/Finance/PaymentServiceTest.php` (skipped on sqlite as expected by test guard)
+
+## 2026-05-21 (Step 13 - UI/UX Workflow Polish)
+- Scope: workflow visibility polish and action-oriented detail pages without major business-logic changes.
+- Reusable components:
+  - `resources/views/components/workflow-stepper.blade.php` used across modules as unified workflow progress component.
+  - `resources/views/components/status-badge.blade.php` retained as reusable status visual.
+- Workflow stepper added/polished on:
+  - `resources/views/modules/inquiries/show.blade.php` (already present and kept)
+  - `resources/views/modules/quotations/show.blade.php` (added canonical stepper block)
+  - `resources/views/modules/bookings/show.blade.php` (added canonical stepper block)
+  - `resources/views/modules/invoices/show.blade.php` (added canonical stepper block)
+- Quotation detail improvements:
+  - Added locked-stage warning banner for sent/customer-approved/booking-created/in-operation/completed/final states.
+  - Existing quick action panel and revision history panel retained and aligned with stepper-first flow.
+- Booking detail improvements:
+  - Added locked warning banner for reconciliation/closed/cancelled stages.
+  - Added quick action panel (reconciliation + proforma/final invoice generation shortcuts).
+  - Added voucher status summary panel.
+  - Added invoice summary panel.
+  - Existing adjustment summary panel retained.
+- Invoice detail improvements:
+  - Added lifecycle stepper and locked warning banner.
+  - Clarified post-paid behavior messaging (adjustment/credit note path).
+- Index/filter polish:
+  - `resources/views/modules/quotations/index.blade.php`:
+    - added status filter selector using `statusFilterOptions`
+    - fixed desktop empty-state rendering text
+  - `resources/views/modules/bookings/index.blade.php`:
+    - added status filter selector using `Booking::STATUS_OPTIONS`
+- Updated files:
+  - resources/views/modules/quotations/show.blade.php
+  - resources/views/modules/bookings/show.blade.php
+  - resources/views/modules/invoices/show.blade.php
+  - resources/views/modules/quotations/index.blade.php
+  - resources/views/modules/bookings/index.blade.php
+  - docs/blueprint/VOYEX_OPERATIONAL_REFACTOR_CHECKLIST.md
+  - docs/technical/VOYEX_REFACTOR_CHANGELOG.md
+- Verification:
+  - `php -l resources/views/modules/quotations/show.blade.php`
+  - `php -l resources/views/modules/bookings/show.blade.php`
+  - `php -l resources/views/modules/invoices/show.blade.php`
+  - `php -l resources/views/modules/quotations/index.blade.php`
+  - `php -l resources/views/modules/bookings/index.blade.php`
+  - `php -l resources/views/components/workflow-stepper.blade.php`
+  - `php -l resources/views/components/status-badge.blade.php`
+
+## 2026-05-21 (Step 14 - Testing & QA Final)
+- Scope: final QA guardrail verification for operational-commercial workflow and negative-path protection.
+- New automated tests added:
+  - `tests/Unit/Workflow/OperationalCommercialGuardrailsTest.php`
+  - `tests/Unit/Services/BookingVoucherServiceGuardTest.php`
+  - `tests/Unit/Services/InvoiceServiceReconciliationTest.php`
+- Existing test suites re-run:
+  - `tests/Unit/Workflow/QuotationWorkflowTest.php`
+  - `tests/Unit/Workflow/QuotationLifecycleStep3Test.php`
+  - `tests/Unit/Workflow/QuotationRevisionLockStep5Test.php`
+  - `tests/Unit/Workflow/BookingWorkflowTest.php`
+  - `tests/Unit/Workflow/InvoiceWorkflowTest.php`
+  - `tests/Feature/Settlement/SettlementServiceTest.php` (environment skip on sqlite)
+  - `tests/Feature/Finance/PaymentServiceTest.php` (environment skip on sqlite)
+- Automated QA coverage highlights:
+  - Draft quotation cannot directly become customer approved.
+  - Booking transition eligibility aligns with customer-approved lifecycle path.
+  - Voucher generation guard requires vendor confirmation.
+  - Paid invoice is non-editable by direct edit flow.
+  - Locked quotation statuses require revision path.
+  - Final invoice reconciliation computation includes used items and approved/applied adjustments only.
+- Manual QA checklist status:
+  - Full end-to-end browser scenario (steps 1-19) is prepared and documented, but not fully executed in this headless CLI environment.
+  - Recommended to execute on staging with seeded real-role users (Sales, Reservation, Finance, Manager).
+- Test execution results:
+  - Workflow suite: `26 passed (58 assertions)`.
+  - Service suite additions: `2 passed (7 assertions)`.
+  - Settlement integration suite: `5 skipped` (non-sqlite DB required).
+  - Payment integration suite: `9 skipped` (non-sqlite DB required).
+- Updated files:
+  - tests/Unit/Workflow/OperationalCommercialGuardrailsTest.php
+  - tests/Unit/Services/BookingVoucherServiceGuardTest.php
+  - tests/Unit/Services/InvoiceServiceReconciliationTest.php
+  - docs/blueprint/VOYEX_OPERATIONAL_REFACTOR_CHECKLIST.md
+  - docs/technical/VOYEX_REFACTOR_CHANGELOG.md
+
+### QA Summary
+- Stable flow guards (automated): quotation lifecycle lock, booking eligibility path, voucher vendor-confirm gate, invoice paid lock, reconciliation amount composition.
+- Remaining QA risk:
+  - Full integration tests for settlement/payment remain unexecuted on sqlite (migration compatibility constraint).
+  - Browser-level interaction regressions (UX/action wiring across roles) still require manual UAT pass.
+
+## 2026-05-21 (Step 15 - UI Standardization Phase 1)
+- Scope: UI standardization foundation for core operational index pages without changing business logic.
+- New reusable Blade components:
+  - `resources/views/components/module-status-tabs.blade.php`
+  - `resources/views/components/module-empty-state.blade.php`
+  - `resources/views/components/module-quick-actions.blade.php`
+- Standardization applied to core modules:
+  - `resources/views/modules/customers/index.blade.php`
+  - `resources/views/modules/inquiries/index.blade.php`
+  - `resources/views/modules/quotations/index.blade.php`
+  - `resources/views/modules/bookings/index.blade.php`
+  - `resources/views/modules/invoices/index.blade.php`
+- Improvements delivered:
+  - Consistent tabs for status/segment navigation on index pages.
+  - Consistent empty-state card across desktop table and mobile card layouts.
+  - Shared component structure ready for rollout to remaining modules (itineraries, vendors, service masters, user/role pages).
+- Documentation updates:
+  - `docs/blueprint/VOYEX_OPERATIONAL_REFACTOR_CHECKLIST.md`
+  - `docs/technical/VOYEX_REFACTOR_CHANGELOG.md`
+- No database changes.
+- No controller/model/service logic changes.

@@ -10,11 +10,6 @@
     <div class="space-y-6 module-page module-page--customers">
         <div class="grid grid-cols-1 gap-6 xl:grid-cols-12">
             <div class="space-y-6 xl:col-span-8">
-                @if (session('error'))
-                    <div class="rounded-lg mb-6 border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-700 dark:bg-rose-900/20 dark:text-rose-300">
-                        {{ session('error') }}
-                    </div>
-                @endif
 
                 <div class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800 space-y-4">
                     <form method="POST" action="{{ route('customers.import.preview') }}" enctype="multipart/form-data">
@@ -67,4 +62,5 @@
         </div>
     </div>
 @endsection
+
 

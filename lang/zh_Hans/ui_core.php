@@ -180,11 +180,14 @@ return array (
   'Service item booked successfully.' => '?????????',
   'Service item is already booked.' => '?????????',
   'Selected service item does not belong to this booking quotation.' => '?????????????????',
-  'Order Number' => '????',
+  'Order Number' => '订单编号',
   'Detail Quotation' => '????',
   'Quotation Number' => '????',
+  'Quotation Validation' => '报价单审核',
   'Pax (Adult/Child)' => '??(??/??)',
+  'Review and approve quotations with accurate pricing, services, and validation records.' => '审核并批准报价单，确保价格、服务内容及审核记录的准确性。',
   'Review complete booking and quotation information.' => '?????????????',
+  'Revise Quotation' => '修订报价单',
   'Booking Performance (This Month)' => '预订绩效（本月至今）',
   'Bookings' => '预订单',
   'bookings' => 'bookings',
@@ -743,7 +746,7 @@ return array (
   'No upcoming trips.' => '暂无即将出行。',
   'No users updated recently.' => '最近没有更新的用户。',
   'No validation-required items in this quotation.' => 'No validation-required items in this quotation.',
-  'Number' => 'Number',
+  'Number' => '编号',
   'OFF' => '关闭',
   'ON' => '开启',
   'Open' => '打开',
@@ -963,6 +966,7 @@ return array (
   'Set New Password' => 'Set New Password',
   'Set Pending' => 'Set Pending',
   'Set the main authentication page colors to match your brand.' => 'Set the main authentication page colors to match your brand.',
+  'Show' => '详细资料',
   'Show icons + labels' => '显示图标与标签',
   'Show icons only' => '仅显示图标',
   'Showing: Quotations requiring your approval.' => 'Showing: Quotations requiring your approval.',
@@ -1119,12 +1123,12 @@ return array (
   'Use the `All/None` buttons per module for quick control.' => 'Use the `All/None` buttons per module for quick control.',
   'Use your registered account credentials.' => 'Use your registered account credentials.',
   'Use `Auto Fill` when updating the Google Maps link.' => 'Use `Auto Fill` when updating the Google Maps link.',
-  'Validate' => 'Validate',
-  'Validated' => 'Validated',
-  'Validated By' => 'Validated By',
+  'Validate' => '审核',
+  'Validated' => '已审核',
+  'Validated By' => '审核人',
   'Validated Today' => '今日已校验',
-  'Validate Quotation' => 'Validate Quotation',
-  'Validate Selected Items' => 'Validate Selected Items',
+  'Validate Quotation' => '审核报价单',
+  'Validate Selected Items' => '审核所选项目',
   'Validate supplier contract rates and markup before approval.' => 'Validate supplier contract rates and markup before approval.',
   'Validation' => 'Validation',
   'Validation Items' => 'Validation Items',
@@ -1146,8 +1150,8 @@ return array (
   'View' => 'View',
   'View all' => '查看全部',
   'View All Bookings' => '查看全部预订',
-  'View Detail' => 'View Detail',
-  'View Details' => 'View Details',
+  'View Detail' => '查看详情',
+  'View Details' => '查看详情',
   'View done reason' => 'View done reason',
   'Edit Itinerary' => 'Edit Itinerary',
   'View Itinerary Detail' => 'View Itinerary Detail',
@@ -1311,6 +1315,7 @@ return array (
   'Contact Form & Communication' => 'Contact Form & Communication',
   'Communication Note' => 'Communication Note',
   'Write communication summary for this validation item...' => 'Write communication summary for this validation item...',
+  'Workflow Visibility' => '工作流程可见性',
   'item detail modal title' => 'Item Detail',
   'load detail failed' => 'Failed to load item detail.',
   'Update' => 'Update'
@@ -1420,4 +1425,8 @@ return array (
   ,'Google Places API key is not configured. Please set GOOGLE MAPS PLACES API KEY first.' => '??? Google Places API Key,??? .env ?? GOOGLE_MAPS_PLACES_API_KEY?'
   ,'Only approved quotation can be converted to booking.' => '???????????????'
   ,'Selected quotation validation must be 100% before booking.' => '?????????????? 100% ??????'
+  ,'Inquiry deadline reminders' => 'Inquiry deadline reminders'
+  ,'Inquiry deadline reminder' => 'Inquiry deadline reminder'
+  ,'Inquiry :number has no quotation and reaches :deadline_label deadline (:date). Priority: :priority.' => 'Inquiry :number has no quotation and reaches :deadline_label deadline (:date). Priority: :priority.'
 );
+

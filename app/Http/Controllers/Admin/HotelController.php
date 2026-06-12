@@ -39,7 +39,14 @@ class HotelController extends Controller
             ->orderBy('name');
 
         if ($request->filled('q')) {
-            $term = (string) $request->string('q');
+            $term = trim((string) $request->string('q'));
+            if (mb_strlen($term) < 3) {
+                $term = '';
+            }
+        } else {
+            $term = '';
+        }
+        if ($term !== '') {
             $query->where(function ($q) use ($term) {
                 $q->where('name', 'like', "%{$term}%")
                     ->orWhere('code', 'like', "%{$term}%")
