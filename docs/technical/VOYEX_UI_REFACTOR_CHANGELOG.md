@@ -1,5 +1,85 @@
 # VOYEX UI Refactor Changelog
 
+## 2026-06-12 (Itinerary Edit Form Removes Quotation Context Notice)
+- Scope: keep itinerary edit UI neutral even when the itinerary participates in quotation revision flows.
+- Updated files:
+  - resources/views/modules/itineraries/edit.blade.php
+  - docs/standards/quotation-standard.md
+  - docs/technical/VOYEX_UI_REFACTOR_CHANGELOG.md
+  - VOYEX_CRM_SYSTEM_ROADMAP.md
+- Applied updates:
+  - removed the visible `Quotation Revision Context` notice block from itinerary edit.
+  - itinerary edit form no longer surfaces copy that implies the itinerary belongs to only one quotation.
+  - hidden revision-routing inputs remain intact so compatible backend flows can still complete without showing quotation notice UI.
+- Mandatory audit result:
+  - multi-language: pass, removed existing UI text only.
+  - workflow safety: pass, backend revision parameters remain available.
+  - data safety: pass, presentation-only cleanup.
+
+## 2026-06-12 (Itinerary Review Tab Highlighted Badge)
+- Scope: mirror main-experience highlight visibility inside the itinerary create/edit review tab.
+- Updated files:
+  - resources/views/modules/itineraries/_form.blade.php
+  - docs/standards/quotation-standard.md
+  - docs/technical/VOYEX_UI_REFACTOR_CHANGELOG.md
+  - VOYEX_CRM_SYSTEM_ROADMAP.md
+- Applied updates:
+  - review-tab row rendering now exposes a dedicated `Highlighted` badge for the schedule row whose main-experience checkbox is active.
+  - highlighted review badge uses an amber compact style aligned with other itinerary highlight cues.
+  - F&B review rows now support showing meal-slot badge and highlighted badge together without conflicting layout.
+- Mandatory audit result:
+  - multi-language: pass, visible label uses `ui_phrase()`.
+  - layout consistency: pass, review tab now matches itinerary index highlight behavior.
+  - data safety: pass, client-side presentation update only.
+
+## 2026-06-12 (Itinerary Item List Highlight Accuracy And Row Markers)
+- Scope: improve itinerary index item-list popup clarity and prevent incorrect highlighted badges.
+- Updated files:
+  - resources/views/modules/itineraries/index.blade.php
+  - docs/standards/quotation-standard.md
+  - docs/technical/VOYEX_UI_REFACTOR_CHANGELOG.md
+  - VOYEX_CRM_SYSTEM_ROADMAP.md
+- Applied updates:
+  - popup item rows now use a stable per-row key so highlight resolution no longer depends on duplicated label text.
+  - `Highlighted` badge now renders only when a real itinerary main-experience row is matched; no fallback badge is shown on unrelated items.
+  - service rows in desktop and mobile popups now use a triangle-right icon on the left to visually separate each item without relying on list bullets.
+  - shared row normalization also removes an unsafe fallback path that could cast popup row arrays as strings.
+- Mandatory audit result:
+  - multi-language: pass, all visible labels still use `ui_phrase()`.
+  - layout consistency: pass, desktop and mobile popup item lists now share the same marker and badge rules.
+  - data safety: pass, presentation/refactor only with no schema change.
+
+## 2026-06-12 (Itinerary Item List F&B Meal Badges)
+- Scope: show meal-slot badges for F&B rows inside the itinerary index item-list popup.
+- Updated files:
+  - app/Http/Controllers/Admin/ItineraryController.php
+  - resources/views/modules/itineraries/index.blade.php
+  - docs/standards/quotation-standard.md
+  - docs/technical/VOYEX_UI_REFACTOR_CHANGELOG.md
+- Applied updates:
+  - itinerary index eager load now includes F&B `meal_type` plus master `meal_period` so popup labels have reliable source data.
+  - item-list popup now keeps per-item metadata instead of reducing rows to plain strings too early.
+  - F&B rows now render compact `Breakfast` / `Lunch` / `Dinner` badges in both desktop and mobile popups.
+  - duplicate item cleanup now preserves different meal-slot variants of the same F&B name.
+- Mandatory audit result:
+  - multi-language: pass, visible labels still use `ui_phrase()`.
+  - layout consistency: pass, badge shape follows the compact highlighted-label pattern.
+  - data safety: pass, presentation and eager-load adjustment only.
+
+## 2026-06-12 (Itinerary Index Duration Hides Break Time)
+- Scope: simplify the itinerary index `Duration` column by removing break-time summary noise.
+- Updated files:
+  - resources/views/modules/itineraries/index.blade.php
+  - docs/standards/quotation-standard.md
+  - docs/technical/VOYEX_UI_REFACTOR_CHANGELOG.md
+- Applied updates:
+  - removed `Break Time` summary from the itinerary index duration cell in desktop table rows.
+  - removed the same `Break Time` summary from the mobile itinerary cards so both layouts stay aligned.
+- Mandatory audit result:
+  - multi-language: pass, removed existing UI text only.
+  - layout consistency: pass, desktop and mobile duration blocks now match.
+  - data safety: pass, presentation-only cleanup.
+
 ## 2026-06-12 (Booking Module Disable Hides Booking Surfaces)
 - Scope: keep booking features invisible and inaccessible across quotation/reservation UI when Super Admin disables the Booking module.
 - Updated files:

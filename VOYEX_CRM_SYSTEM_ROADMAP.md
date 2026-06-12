@@ -75,6 +75,9 @@ Drag & Drop Builder | TODO | Not implemented
 Auto Price Calculation | TODO | Not implemented
 Itinerary Template | TODO | Not implemented
 Versioning | TODO | Not implemented
+Itinerary Index Item List Popup | DONE | F&B meal badges, exact highlighted-item badge matching, and triangle row markers aligned across desktop/mobile
+Itinerary Review Highlight Preview | DONE | Create/edit wizard review tab now shows the active main-experience row with a Highlighted badge
+Itinerary Form Quotation-Neutral UI | DONE | Create/edit itinerary pages no longer show quotation revision notice copy that implies single-quotation ownership
 
 ----------------------------------------------------------------------------------------------------
 
@@ -201,6 +204,12 @@ Kebijakan ini wajib untuk setiap update code (penambahan, perubahan, pengurangan
 ----------------------------------------------------------------------------------------------------
 
 # CHANGELOG (LATEST)
+
+- 2026-06-12
+  - Popup `Item List` pada halaman index itinerary sekarang menampilkan badge `Breakfast` / `Lunch` / `Dinner` untuk setiap item F&B sesuai data meal yang tersimpan, dan style badge dibuat compact mengikuti pola label `Highlighted`.
+
+- 2026-06-12
+  - Kolom `Duration` pada halaman index itinerary sekarang tidak lagi menampilkan ringkasan `Break Time`, baik di table desktop maupun card mobile, supaya informasi durasi lebih ringkas.
 
 - 2026-06-12
   - Saat module `Booking` di-disable oleh Super Admin, action dan tampilan booking pada detail quotation sekarang ikut disembunyikan, termasuk `Create Booking`, `View Booking`, status booking/operation, dan field ringkasan booking.

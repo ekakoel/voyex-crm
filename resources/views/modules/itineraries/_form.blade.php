@@ -2243,6 +2243,7 @@
                     rowTypeActivity: @json(__('itinerary_form.row_types.activity')),
                     rowTypeTransfer: @json(__('itinerary_form.row_types.transfer')),
                     rowTypeFnb: @json(__('itinerary_form.row_types.fnb')),
+                    highlighted: @json(ui_phrase('Highlighted')),
                     breakTime: @json(ui_phrase('Break Time')),
                     connectorTimePattern: @json(__('itinerary_form.review.connector_time_to')),
                     selectedItemsPattern: @json(__('itinerary_form.patterns.selected_items')),
@@ -2462,8 +2463,13 @@
                     return i18n.rowTypeAttraction;
                 };
                 const reviewAttractionBadgeClass = 'inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[10px] font-semibold leading-4 text-blue-700 dark:border-blue-700/60 dark:bg-blue-900/20 dark:text-blue-300';
+                const reviewHighlightedBadgeClass = 'inline-flex items-center rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold leading-4 text-amber-700 dark:border-amber-700/60 dark:bg-amber-900/20 dark:text-amber-200';
                 const reviewRowTypeBadgeClass = (type) => {
                     return reviewAttractionBadgeClass;
+                };
+                const isReviewHighlightedRow = (row) => {
+                    if (!row || rowType(row) === 'transfer' || !selected(row)) return false;
+                    return row.querySelector('.item-main-experience')?.checked === true;
                 };
                 const reviewPointLabel = (section, kind) => {
                     if (!section) return i18n.notSet;
@@ -2674,6 +2680,9 @@
                                         const mealSlotBadge = (type === 'fnb' && mealSlot)
                                             ? `<span class="${reviewAttractionBadgeClass}">${escapeHtml(toMealSlotLabel(mealSlot))}</span>`
                                             : '';
+                                        const highlightedBadge = isReviewHighlightedRow(row)
+                                            ? `<span class="${reviewHighlightedBadgeClass}">${escapeHtml(i18n.highlighted)}</span>`
+                                            : '';
                                         rowsHtml.push(`
                                             <li class="list-none rounded-md border border-gray-200 bg-white px-2.5 py-2 dark:border-gray-700 dark:bg-gray-900/50">
                                                 <div class="flex items-start justify-between gap-2">
@@ -2681,6 +2690,7 @@
                                                         <div class="flex flex-wrap items-center gap-1.5">
                                                             <p class="text-xs font-semibold text-gray-800 dark:text-gray-100">${escapeHtml(itemName)}</p>
                                                             ${mealSlotBadge}
+                                                            ${highlightedBadge}
                                                         </div>
                                                     </div>
                                                     <span class="${typeClass}">${typeLabel}</span>

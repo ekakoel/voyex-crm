@@ -2,6 +2,13 @@
 
 Last Updated: 2026-06-12
 
+## Cross-Module UI Note
+- Itinerary index `Duration` column should show only the main duration summary and must not append `Break Time` text in either desktop or mobile card layouts.
+- Itinerary index `Item List` popup should show `Breakfast` / `Lunch` / `Dinner` badges for each F&B row based on stored `meal_type` or fallback `meal_period`, and the badge visual should follow the compact style used by the `Highlighted` label.
+- Itinerary index `Item List` popup should render a left-side triangle marker for each service row, preserve per-row item identity in desktop/mobile layouts, and show the `Highlighted` badge only for the exact itinerary item matched to the configured main experience day point.
+- Itinerary create/edit wizard `Review` tab should show the `Highlighted` badge on the exact schedule row whose `main experience` checkbox is active for that day, including F&B rows that also show meal-slot badges.
+- Itinerary create/edit pages must not show quotation-specific revision context notices, because one itinerary can be linked or reused across multiple quotations and the form should stay quotation-neutral.
+
 ## Data Relationship
 - One `Inquiry` can have exactly one `Quotation` (`1:1`).
 - Every `Quotation` must link to exactly one `Inquiry` (`quotations.inquiry_id` NOT NULL).

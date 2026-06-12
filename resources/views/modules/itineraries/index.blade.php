@@ -16,6 +16,126 @@
                 $currentUser->hasAnyRole(['Reservation', 'Manager', 'Director']) &&
                 (int) ($itinerary->created_by ?? 0) === (int) $currentUser->id;
         };
+        $resolveMealLabel = static function (?string $mealType, ?string $mealPeriod = null): ?string {
+            $value = trim((string) ($mealType ?: $mealPeriod ?: ''));
+            if ($value === '') {
+                return null;
+            }
+
+            return match (strtolower($value)) {
+                'breakfast' => 'Breakfast',
+                'lunch' => 'Lunch',
+                'dinner' => 'Dinner',
+                default => \Illuminate\Support\Str::headline($value),
+            };
+        };
+        $buildPopupItemKey = static function (array $row): string {
+            return implode('|', [
+                max(1, (int) ($row['day'] ?? 1)),
+                trim((string) ($row['start_time'] ?? '')),
+                (int) ($row['sort_order'] ?? 0),
+                strtolower(trim((string) ($row['item_name'] ?? ($row['label'] ?? '')))),
+                strtolower(trim((string) ($row['vendor_name'] ?? ''))),
+                strtolower(trim((string) ($row['meal_label'] ?? ''))),
+            ]);
+        };
+        $normalizePopupItemRow = static function (array $row) use ($buildPopupItemKey): array {
+            $row['label'] = trim((string) ($row['label'] ?? ''));
+            $row['item_name'] = trim((string) ($row['item_name'] ?? ''));
+            $row['vendor_name'] = trim((string) ($row['vendor_name'] ?? ''));
+            $row['meal_label'] = trim((string) ($row['meal_label'] ?? ''));
+            $row['item_key'] = $buildPopupItemKey($row);
+
+            return $row;
+        };
+        $resolveHighlightedPopupItemKey = static function ($dayItems, $highlightedDayPoint) use (
+            $resolveMealLabel,
+        ): string {
+            if (!$highlightedDayPoint || !$dayItems instanceof \Illuminate\Support\Collection || $dayItems->isEmpty()) {
+                return '';
+            }
+
+            $highlightedDay = max(1, (int) ($highlightedDayPoint->day_number ?? 1));
+            $mainType = strtolower(trim((string) ($highlightedDayPoint->main_experience_type ?? '')));
+            $mainAttraction = $highlightedDayPoint->mainTouristAttraction;
+            $mainActivity = $highlightedDayPoint->mainActivity;
+            $mainFoodBeverage = $highlightedDayPoint->mainFoodBeverage;
+
+            $highlightedItemName = '';
+            $highlightedItemVendorName = '';
+            $highlightedMealLabel = '';
+
+            if (in_array($mainType, ['attraction', 'tourist_attraction'], true)) {
+                $highlightedItemName = trim((string) ($mainAttraction?->name ?? ''));
+            } elseif (in_array($mainType, ['activity'], true)) {
+                $highlightedItemName = trim((string) ($mainActivity?->name ?? ''));
+                $highlightedItemVendorName = trim((string) ($mainActivity?->vendor?->name ?? ''));
+            } elseif (in_array($mainType, ['fnb', 'food_beverage'], true)) {
+                $highlightedItemName = trim((string) ($mainFoodBeverage?->name ?? ''));
+                $highlightedItemVendorName = trim((string) ($mainFoodBeverage?->vendor?->name ?? ''));
+                $highlightedMealLabel = trim(
+                    (string) $resolveMealLabel(null, $mainFoodBeverage?->meal_period ?? null),
+                );
+            }
+
+            if ($highlightedItemName === '') {
+                if ($mainAttraction) {
+                    $highlightedItemName = trim((string) ($mainAttraction->name ?? ''));
+                } elseif ($mainActivity) {
+                    $highlightedItemName = trim((string) ($mainActivity->name ?? ''));
+                    $highlightedItemVendorName = trim((string) ($mainActivity->vendor?->name ?? ''));
+                } elseif ($mainFoodBeverage) {
+                    $highlightedItemName = trim((string) ($mainFoodBeverage->name ?? ''));
+                    $highlightedItemVendorName = trim((string) ($mainFoodBeverage->vendor?->name ?? ''));
+                    $highlightedMealLabel = trim(
+                        (string) $resolveMealLabel(null, $mainFoodBeverage->meal_period ?? null),
+                    );
+                }
+            }
+
+            if ($highlightedItemName === '') {
+                return '';
+            }
+
+            $findHighlightedRow = static function (string $expectedMealLabel = '') use (
+                $dayItems,
+                $highlightedDay,
+                $highlightedItemName,
+                $highlightedItemVendorName,
+            ) {
+                return $dayItems->first(function ($row) use (
+                    $highlightedDay,
+                    $highlightedItemName,
+                    $highlightedItemVendorName,
+                    $expectedMealLabel,
+                ) {
+                    if ((int) ($row['day'] ?? 0) !== $highlightedDay) {
+                        return false;
+                    }
+                    if (trim((string) ($row['item_name'] ?? '')) !== $highlightedItemName) {
+                        return false;
+                    }
+                    if (trim((string) ($row['vendor_name'] ?? '')) !== $highlightedItemVendorName) {
+                        return false;
+                    }
+                    if (
+                        $expectedMealLabel !== '' &&
+                        trim((string) ($row['meal_label'] ?? '')) !== $expectedMealLabel
+                    ) {
+                        return false;
+                    }
+
+                    return true;
+                });
+            };
+
+            $highlightedRow = $findHighlightedRow($highlightedMealLabel);
+            if (!is_array($highlightedRow) && $highlightedMealLabel !== '') {
+                $highlightedRow = $findHighlightedRow();
+            }
+
+            return is_array($highlightedRow) ? trim((string) ($highlightedRow['item_key'] ?? '')) : '';
+        };
     @endphp
     <div class="space-y-5 module-page module-page--itineraries" data-service-filter-page data-page-spinner="off">
         <div class="module-grid-main min-w-0">
@@ -166,6 +286,10 @@
                                                         'vendor_name' => trim(
                                                             (string) ($item->foodBeverage?->vendor?->name ?? ''),
                                                         ),
+                                                        'meal_label' => $resolveMealLabel(
+                                                            $item->meal_type ?? null,
+                                                            $item->foodBeverage?->meal_period ?? null,
+                                                        ),
                                                     ],
                                                 ),
                                             )
@@ -196,21 +320,27 @@
                                                 return ((int) ($left['sort_order'] ?? 0)) <=>
                                                     ((int) ($right['sort_order'] ?? 0));
                                             })
+                                            ->map($normalizePopupItemRow)
                                             ->values();
 
                                         $itemsByDay = $dayItems
                                             ->groupBy('day')
-                                            ->map(
-                                                fn($items) => $items
-                                                    ->pluck('label')
-                                                    ->map(fn($name) => trim((string) $name))
-                                                    ->unique()
-                                                    ->values(),
-                                            )
+                                            ->map(fn($items) => $items
+                                                ->map(fn($row) => [
+                                                    'label' => trim((string) ($row['label'] ?? '')),
+                                                    'meal_label' => trim((string) ($row['meal_label'] ?? '')),
+                                                    'item_key' => trim((string) ($row['item_key'] ?? '')),
+                                                ])
+                                                ->filter(fn($row) => $row['label'] !== '')
+                                                ->unique(fn($row) => (string) ($row['item_key'] ?? ''))
+                                                ->values())
                                             ->sortKeys();
 
                                         $isMultiDayPopover = (int) ($itinerary->duration_days ?? 1) > 1;
-                                        $flatItemNames = $itemsByDay->flatten(1)->unique()->values();
+                                        $flatItemNames = $itemsByDay
+                                            ->flatten(1)
+                                            ->unique(fn($row) => (string) ($row['item_key'] ?? ''))
+                                            ->values();
                                         $highlightedDayPoint = $itinerary->dayPoints
                                             ->filter(function ($point) {
                                                 return filled($point->main_experience_type) ||
@@ -220,70 +350,10 @@
                                             })
                                             ->sortBy(fn($point) => (int) ($point->day_number ?? 0))
                                             ->first();
-                                        $highlightedItemName = '';
-                                        $highlightedItemVendorName = '';
-                                        if ($highlightedDayPoint) {
-                                            $mainType = strtolower(
-                                                trim((string) ($highlightedDayPoint->main_experience_type ?? '')),
-                                            );
-                                            $mainAttraction = $highlightedDayPoint->mainTouristAttraction;
-                                            $mainActivity = $highlightedDayPoint->mainActivity;
-                                            $mainFoodBeverage = $highlightedDayPoint->mainFoodBeverage;
-
-                                            if (in_array($mainType, ['attraction', 'tourist_attraction'], true)) {
-                                                $highlightedItemName = trim(
-                                                    (string) ($mainAttraction?->name ?? ''),
-                                                );
-                                            } elseif (in_array($mainType, ['activity'], true)) {
-                                                $highlightedItemName = trim((string) ($mainActivity?->name ?? ''));
-                                                $highlightedItemVendorName = trim(
-                                                    (string) ($mainActivity?->vendor?->name ?? ''),
-                                                );
-                                            } elseif (in_array($mainType, ['fnb', 'food_beverage'], true)) {
-                                                $highlightedItemName = trim(
-                                                    (string) ($mainFoodBeverage?->name ?? ''),
-                                                );
-                                                $highlightedItemVendorName = trim(
-                                                    (string) ($mainFoodBeverage?->vendor?->name ?? ''),
-                                                );
-                                            }
-
-                                            if ($highlightedItemName === '') {
-                                                if ($mainAttraction) {
-                                                    $highlightedItemName = trim(
-                                                        (string) ($mainAttraction->name ?? ''),
-                                                    );
-                                                } elseif ($mainActivity) {
-                                                    $highlightedItemName = trim(
-                                                        (string) ($mainActivity->name ?? ''),
-                                                    );
-                                                    $highlightedItemVendorName = trim(
-                                                        (string) ($mainActivity->vendor?->name ?? ''),
-                                                    );
-                                                } elseif ($mainFoodBeverage) {
-                                                    $highlightedItemName = trim(
-                                                        (string) ($mainFoodBeverage->name ?? ''),
-                                                    );
-                                                    $highlightedItemVendorName = trim(
-                                                        (string) ($mainFoodBeverage->vendor?->name ?? ''),
-                                                    );
-                                                }
-                                            }
-                                        }
-                                        if ($highlightedItemName === '') {
-                                            $fallbackHighlightedItem = $dayItems->first();
-                                            $highlightedItemName = trim(
-                                                (string) ($fallbackHighlightedItem['item_name'] ??
-                                                    ($flatItemNames->first() ?? '')),
-                                            );
-                                            $highlightedItemVendorName = trim(
-                                                (string) ($fallbackHighlightedItem['vendor_name'] ?? ''),
-                                            );
-                                        }
-                                        $highlightedItemLabel = $highlightedItemName;
-                                        if ($highlightedItemVendorName !== '') {
-                                            $highlightedItemLabel .= ' | ' . $highlightedItemVendorName;
-                                        }
+                                        $highlightedItemKey = $resolveHighlightedPopupItemKey(
+                                            $dayItems,
+                                            $highlightedDayPoint,
+                                        );
                                         $resolveHotelRegion = static function ($hotel): string {
                                             if (!$hotel) {
                                                 return '-';
@@ -393,16 +463,6 @@
                                             $startPointLabel .
                                             ' - End: ' .
                                             $endPointLabel;
-                                        $breakDayCount = (int) $sortedDayPoints
-                                            ->filter(
-                                                fn($point) => filled($point->break_start_time) &&
-                                                    filled($point->break_end_time),
-                                            )
-                                            ->count();
-                                        $breakSummaryLabel =
-                                            $breakDayCount > 0
-                                                ? ui_phrase('Break Time') . ': ' . $breakDayCount . ' day(s)'
-                                                : ui_phrase('Break Time') . ': -';
                                         $capacityByDay = $itinerary->itineraryTransportUnits
                                             ->groupBy(fn($row) => max(1, (int) ($row->day_number ?? 1)))
                                             ->map(
@@ -468,8 +528,6 @@
                                             <div class="text-xs text-gray-500 dark:text-gray-400">
                                                 {{ $itinerary->destination?->name ?? ($itinerary->destination ?? '-') }}
                                             </div>
-                                            <div class="text-xs text-gray-500 dark:text-gray-400">
-                                                {{ $breakSummaryLabel }}</div>
                                         </td>
                                         <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">
                                             @php
@@ -575,12 +633,22 @@
                                                                             class="mb-1 font-semibold text-gray-500 dark:text-gray-400">
                                                                             {{ ui_phrase('Day') }} {{ $day }}
                                                                         </p>
-                                                                        <ul
-                                                                            class="list-disc space-y-1 pl-5 marker:text-gray-500 dark:marker:text-gray-400">
-                                                                            @foreach ($dayItemNames as $itemName)
+                                                                        <ul class="space-y-1">
+                                                                            @foreach ($dayItemNames as $itemRow)
+                                                                                @php
+                                                                                    $itemName = (string) ($itemRow['label'] ?? '-');
+                                                                                    $mealLabel = trim((string) ($itemRow['meal_label'] ?? ''));
+                                                                                    $itemKey = trim((string) ($itemRow['item_key'] ?? ''));
+                                                                                @endphp
                                                                                 <li class="flex items-center gap-2">
+                                                                                    <i class="fa-solid fa-caret-right w-3 text-[10px] text-gray-500 dark:text-gray-400"
+                                                                                        aria-hidden="true"></i>
                                                                                     <span>{{ $itemName }}</span>
-                                                                                    @if ((string) $itemName === (string) $highlightedItemLabel)
+                                                                                    @if ($mealLabel !== '')
+                                                                                        <span
+                                                                                            class="inline-flex items-center rounded border border-sky-300 bg-sky-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-700 dark:border-sky-700 dark:bg-sky-900/40 dark:text-sky-200">{{ ui_phrase($mealLabel) }}</span>
+                                                                                    @endif
+                                                                                    @if ($itemKey !== '' && $itemKey === $highlightedItemKey)
                                                                                         <span
                                                                                             class="inline-flex items-center rounded border border-amber-300 bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700 dark:border-amber-700 dark:bg-amber-900/40 dark:text-amber-200">{{ ui_phrase('Highlighted') }}</span>
                                                                                     @endif
@@ -590,12 +658,22 @@
                                                                     </div>
                                                                 @endforeach
                                                             @else
-                                                                <ul
-                                                                    class="list-disc space-y-1 pl-5 marker:text-gray-500 dark:marker:text-gray-400">
-                                                                    @foreach ($flatItemNames as $itemName)
+                                                                <ul class="space-y-1">
+                                                                    @foreach ($flatItemNames as $itemRow)
+                                                                        @php
+                                                                            $itemName = (string) ($itemRow['label'] ?? '-');
+                                                                            $mealLabel = trim((string) ($itemRow['meal_label'] ?? ''));
+                                                                            $itemKey = trim((string) ($itemRow['item_key'] ?? ''));
+                                                                        @endphp
                                                                         <li class="flex items-center gap-2">
+                                                                            <i class="fa-solid fa-caret-right w-3 text-[10px] text-gray-500 dark:text-gray-400"
+                                                                                aria-hidden="true"></i>
                                                                             <span>{{ $itemName }}</span>
-                                                                            @if ((string) $itemName === (string) $highlightedItemLabel)
+                                                                            @if ($mealLabel !== '')
+                                                                                <span
+                                                                                    class="inline-flex items-center rounded border border-sky-300 bg-sky-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-700 dark:border-sky-700 dark:bg-sky-900/40 dark:text-sky-200">{{ ui_phrase($mealLabel) }}</span>
+                                                                            @endif
+                                                                            @if ($itemKey !== '' && $itemKey === $highlightedItemKey)
                                                                                 <span
                                                                                     class="inline-flex items-center rounded border border-amber-300 bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700 dark:border-amber-700 dark:bg-amber-900/40 dark:text-amber-200">{{ ui_phrase('Highlighted') }}</span>
                                                                             @endif
@@ -758,6 +836,10 @@
                                             'vendor_name' => trim(
                                                 (string) ($item->foodBeverage?->vendor?->name ?? ''),
                                             ),
+                                            'meal_label' => $resolveMealLabel(
+                                                $item->meal_type ?? null,
+                                                $item->foodBeverage?->meal_period ?? null,
+                                            ),
                                         ],
                                     ),
                                 )
@@ -783,21 +865,27 @@
                                     return ((int) ($left['sort_order'] ?? 0)) <=>
                                         ((int) ($right['sort_order'] ?? 0));
                                 })
+                                ->map($normalizePopupItemRow)
                                 ->values();
 
                             $itemsByDay = $dayItems
                                 ->groupBy('day')
-                                ->map(
-                                    fn($items) => $items
-                                        ->pluck('label')
-                                        ->map(fn($name) => trim((string) $name))
-                                        ->unique()
-                                        ->values(),
-                                )
+                                ->map(fn($items) => $items
+                                    ->map(fn($row) => [
+                                        'label' => trim((string) ($row['label'] ?? '')),
+                                        'meal_label' => trim((string) ($row['meal_label'] ?? '')),
+                                        'item_key' => trim((string) ($row['item_key'] ?? '')),
+                                    ])
+                                    ->filter(fn($row) => $row['label'] !== '')
+                                    ->unique(fn($row) => (string) ($row['item_key'] ?? ''))
+                                    ->values())
                                 ->sortKeys();
 
                             $isMultiDayPopover = (int) ($itinerary->duration_days ?? 1) > 1;
-                            $flatItemNames = $itemsByDay->flatten(1)->unique()->values();
+                            $flatItemNames = $itemsByDay
+                                ->flatten(1)
+                                ->unique(fn($row) => (string) ($row['item_key'] ?? ''))
+                                ->values();
                             $highlightedDayPoint = $itinerary->dayPoints
                                 ->filter(function ($point) {
                                     return filled($point->main_experience_type) ||
@@ -807,60 +895,10 @@
                                 })
                                 ->sortBy(fn($point) => (int) ($point->day_number ?? 0))
                                 ->first();
-                            $highlightedItemName = '';
-                            $highlightedItemVendorName = '';
-                            if ($highlightedDayPoint) {
-                                $mainType = strtolower(
-                                    trim((string) ($highlightedDayPoint->main_experience_type ?? '')),
-                                );
-                                $mainAttraction = $highlightedDayPoint->mainTouristAttraction;
-                                $mainActivity = $highlightedDayPoint->mainActivity;
-                                $mainFoodBeverage = $highlightedDayPoint->mainFoodBeverage;
-
-                                if (in_array($mainType, ['attraction', 'tourist_attraction'], true)) {
-                                    $highlightedItemName = trim((string) ($mainAttraction?->name ?? ''));
-                                } elseif (in_array($mainType, ['activity'], true)) {
-                                    $highlightedItemName = trim((string) ($mainActivity?->name ?? ''));
-                                    $highlightedItemVendorName = trim(
-                                        (string) ($mainActivity?->vendor?->name ?? ''),
-                                    );
-                                } elseif (in_array($mainType, ['fnb', 'food_beverage'], true)) {
-                                    $highlightedItemName = trim((string) ($mainFoodBeverage?->name ?? ''));
-                                    $highlightedItemVendorName = trim(
-                                        (string) ($mainFoodBeverage?->vendor?->name ?? ''),
-                                    );
-                                }
-
-                                if ($highlightedItemName === '') {
-                                    if ($mainAttraction) {
-                                        $highlightedItemName = trim((string) ($mainAttraction->name ?? ''));
-                                    } elseif ($mainActivity) {
-                                        $highlightedItemName = trim((string) ($mainActivity->name ?? ''));
-                                        $highlightedItemVendorName = trim(
-                                            (string) ($mainActivity->vendor?->name ?? ''),
-                                        );
-                                    } elseif ($mainFoodBeverage) {
-                                        $highlightedItemName = trim((string) ($mainFoodBeverage->name ?? ''));
-                                        $highlightedItemVendorName = trim(
-                                            (string) ($mainFoodBeverage->vendor?->name ?? ''),
-                                        );
-                                    }
-                                }
-                            }
-                            if ($highlightedItemName === '') {
-                                $fallbackHighlightedItem = $dayItems->first();
-                                $highlightedItemName = trim(
-                                    (string) ($fallbackHighlightedItem['item_name'] ??
-                                        ($flatItemNames->first() ?? '')),
-                                );
-                                $highlightedItemVendorName = trim(
-                                    (string) ($fallbackHighlightedItem['vendor_name'] ?? ''),
-                                );
-                            }
-                            $highlightedItemLabel = $highlightedItemName;
-                            if ($highlightedItemVendorName !== '') {
-                                $highlightedItemLabel .= ' | ' . $highlightedItemVendorName;
-                            }
+                            $highlightedItemKey = $resolveHighlightedPopupItemKey(
+                                $dayItems,
+                                $highlightedDayPoint,
+                            );
                             $resolveHotelRegion = static function ($hotel): string {
                                 if (!$hotel) {
                                     return '-';
@@ -961,16 +999,6 @@
                                 $startPointLabel .
                                 ' - End: ' .
                                 $endPointLabel;
-                            $breakDayCount = (int) $sortedDayPoints
-                                ->filter(
-                                    fn($point) => filled($point->break_start_time) &&
-                                        filled($point->break_end_time),
-                                )
-                                ->count();
-                            $breakSummaryLabel =
-                                $breakDayCount > 0
-                                    ? ui_phrase('Break Time') . ': ' . $breakDayCount . ' day(s)'
-                                    : ui_phrase('Break Time') . ': -';
                             $capacityByDay = $itinerary->itineraryTransportUnits
                                 ->groupBy(fn($row) => max(1, (int) ($row->day_number ?? 1)))
                                 ->map(
@@ -1019,7 +1047,6 @@
                             </p>
                             <p class="text-xs text-gray-500 dark:text-gray-400">
                                 {{ ui_phrase('day count', ['count' => $itinerary->duration_days]) }}</p>
-                            <p class="text-xs text-gray-500 dark:text-gray-400">{{ $breakSummaryLabel }}</p>
                             <p class="text-xs text-gray-500 dark:text-gray-400">{{ ui_phrase('Quotation') }}:
                                 {{ (int) ($itinerary->quotations_count ?? ($itinerary->quotations?->count() ?? 0)) }}
                             </p>
@@ -1065,12 +1092,22 @@
                                                             <p
                                                                 class="mb-1 font-semibold text-gray-500 dark:text-gray-400">
                                                                 {{ ui_phrase('Day') }} {{ $day }}</p>
-                                                            <ul
-                                                                class="list-disc space-y-1 pl-5 marker:text-gray-500 dark:marker:text-gray-400">
-                                                                @foreach ($dayItemNames as $itemName)
+                                                            <ul class="space-y-1">
+                                                                @foreach ($dayItemNames as $itemRow)
+                                                                    @php
+                                                                        $itemName = (string) ($itemRow['label'] ?? '-');
+                                                                        $mealLabel = trim((string) ($itemRow['meal_label'] ?? ''));
+                                                                        $itemKey = trim((string) ($itemRow['item_key'] ?? ''));
+                                                                    @endphp
                                                                     <li class="flex items-center gap-2">
+                                                                        <i class="fa-solid fa-caret-right w-3 text-[10px] text-gray-500 dark:text-gray-400"
+                                                                            aria-hidden="true"></i>
                                                                         <span>{{ $itemName }}</span>
-                                                                        @if ((string) $itemName === (string) $highlightedItemLabel)
+                                                                        @if ($mealLabel !== '')
+                                                                            <span
+                                                                                class="inline-flex items-center rounded border border-sky-300 bg-sky-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-700 dark:border-sky-700 dark:bg-sky-900/40 dark:text-sky-200">{{ ui_phrase($mealLabel) }}</span>
+                                                                        @endif
+                                                                        @if ($itemKey !== '' && $itemKey === $highlightedItemKey)
                                                                             <span
                                                                                 class="inline-flex items-center rounded border border-amber-300 bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700 dark:border-amber-700 dark:bg-amber-900/40 dark:text-amber-200">{{ ui_phrase('Highlighted') }}</span>
                                                                         @endif
@@ -1080,12 +1117,22 @@
                                                         </div>
                                                     @endforeach
                                                 @else
-                                                    <ul
-                                                        class="list-disc space-y-1 pl-5 marker:text-gray-500 dark:marker:text-gray-400">
-                                                        @foreach ($flatItemNames as $itemName)
+                                                    <ul class="space-y-1">
+                                                        @foreach ($flatItemNames as $itemRow)
+                                                            @php
+                                                                $itemName = (string) ($itemRow['label'] ?? '-');
+                                                                $mealLabel = trim((string) ($itemRow['meal_label'] ?? ''));
+                                                                $itemKey = trim((string) ($itemRow['item_key'] ?? ''));
+                                                            @endphp
                                                             <li class="flex items-center gap-2">
+                                                                <i class="fa-solid fa-caret-right w-3 text-[10px] text-gray-500 dark:text-gray-400"
+                                                                    aria-hidden="true"></i>
                                                                 <span>{{ $itemName }}</span>
-                                                                @if ((string) $itemName === (string) $highlightedItemLabel)
+                                                                @if ($mealLabel !== '')
+                                                                    <span
+                                                                        class="inline-flex items-center rounded border border-sky-300 bg-sky-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-700 dark:border-sky-700 dark:bg-sky-900/40 dark:text-sky-200">{{ ui_phrase($mealLabel) }}</span>
+                                                                @endif
+                                                                @if ($itemKey !== '' && $itemKey === $highlightedItemKey)
                                                                     <span
                                                                         class="inline-flex items-center rounded border border-amber-300 bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700 dark:border-amber-700 dark:bg-amber-900/40 dark:text-amber-200">{{ ui_phrase('Highlighted') }}</span>
                                                                 @endif
