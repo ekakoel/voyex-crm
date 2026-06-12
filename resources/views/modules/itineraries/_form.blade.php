@@ -33,6 +33,16 @@
         }
         return $ordered;
     };
+    $resolveRegionLabel = static function (...$candidates): string {
+        foreach ($candidates as $candidate) {
+            $value = trim((string) $candidate);
+            if ($value !== '') {
+                return $value;
+            }
+        }
+
+        return '';
+    };
     $selectedInquiryId = old('inquiry_id', $itinerary->inquiry_id ?? $prefillInquiryId);
     $durationDays = max(1, min(7, (int) old('duration_days', $itinerary->duration_days ?? 1)));
     $durationNights = max(
@@ -129,10 +139,17 @@
         })
         ->values();
     $islandTransfersSorted = collect($islandTransfers ?? [])
-        ->sortBy(function ($item) {
+        ->sortBy(function ($item) use ($resolveRegionLabel) {
+            $region = strtolower(
+                $resolveRegionLabel(
+                    $item->vendor?->city ?? '',
+                    $item->vendor?->province ?? '',
+                    $item->vendor?->location ?? '',
+                ),
+            );
             $vendor = strtolower(trim((string) ($item->vendor?->name ?? '')));
             $name = strtolower(trim((string) ($item->name ?? '')));
-            return $vendor . '|' . $name;
+            return $region . '|' . $vendor . '|' . $name;
         })
         ->values();
     $foodBeveragesSorted = collect($foodBeverages ?? [])
@@ -144,12 +161,35 @@
         })
         ->values();
     $itemRegions = $touristAttractionsSorted
-        ->pluck('city')
-        ->merge($activitiesSorted->pluck('vendor.city'))
-        ->merge($islandTransfersSorted->pluck('vendor.city'))
-        ->merge($foodBeveragesSorted->pluck('vendor.city'))
-        ->map(fn ($city) => trim((string) $city))
-        ->filter(fn ($city) => $city !== '')
+        ->map(fn ($item) => $resolveRegionLabel($item->city ?? '', $item->province ?? '', $item->location ?? ''))
+        ->merge(
+            $activitiesSorted->map(
+                fn ($item) => $resolveRegionLabel(
+                    $item->vendor?->city ?? '',
+                    $item->vendor?->province ?? '',
+                    $item->vendor?->location ?? '',
+                ),
+            ),
+        )
+        ->merge(
+            $islandTransfersSorted->map(
+                fn ($item) => $resolveRegionLabel(
+                    $item->vendor?->city ?? '',
+                    $item->vendor?->province ?? '',
+                    $item->vendor?->location ?? '',
+                ),
+            ),
+        )
+        ->merge(
+            $foodBeveragesSorted->map(
+                fn ($item) => $resolveRegionLabel(
+                    $item->vendor?->city ?? '',
+                    $item->vendor?->province ?? '',
+                    $item->vendor?->location ?? '',
+                ),
+            ),
+        )
+        ->filter(fn ($region) => trim((string) $region) !== '')
         ->unique()
         ->sort(fn ($a, $b) => strcasecmp($a, $b))
         ->values();
@@ -1015,6 +1055,7 @@
                                                     data-duration="{{ $t->duration_minutes ?? 60 }}"
                                                     data-city="{{ $t->vendor?->city ?? '' }}"
                                                     data-province="{{ $t->vendor?->province ?? '' }}"
+                                                    data-location="{{ $t->vendor?->location ?? '' }}"
                                                     data-latitude="{{ $t->arrival_latitude ?? '' }}"
                                                     data-longitude="{{ $t->arrival_longitude ?? '' }}"
                                                     data-departure-latitude="{{ $t->departure_latitude ?? '' }}"
@@ -1194,6 +1235,7 @@
                                                     data-duration="{{ $t->duration_minutes ?? 60 }}"
                                                     data-city="{{ $t->vendor?->city ?? '' }}"
                                                     data-province="{{ $t->vendor?->province ?? '' }}"
+                                                    data-location="{{ $t->vendor?->location ?? '' }}"
                                                     data-latitude="{{ $t->arrival_latitude ?? '' }}"
                                                     data-longitude="{{ $t->arrival_longitude ?? '' }}"
                                                     data-departure-latitude="{{ $t->departure_latitude ?? '' }}"
@@ -4446,11 +4488,16 @@
                     if (!row) return;
                     row.dataset.regionManual = isManual ? '1' : '0';
                 };
-                const getSelectedItemCity = (row) => {
+                const getSelectedItemRegionValue = (row) => {
                     const select = activeSelect(row);
                     if (!select) return '';
                     const option = select.selectedOptions?.[0];
-                    return String(option?.dataset?.city || '').trim();
+                    return String(
+                        option?.dataset?.city
+                        || option?.dataset?.province
+                        || option?.dataset?.location
+                        || ''
+                    ).trim();
                 };
                 const getSelectedItemArea = (row) => {
                     const select = activeSelect(row);
@@ -4464,15 +4511,15 @@
                     if (!row) return;
                     const regionSelect = row.querySelector('.item-region');
                     if (!regionSelect) return;
-                    const city = getSelectedItemCity(row);
-                    if (!city) return;
-                    const hasOption = [...regionSelect.options].some((opt) => String(opt.value) === city);
+                    const regionValue = getSelectedItemRegionValue(row);
+                    if (!regionValue) return;
+                    const hasOption = [...regionSelect.options].some((opt) => String(opt.value) === regionValue);
                     if (!hasOption) return;
                     const isManual = row.dataset.regionManual === '1';
                     const currentRegion = String(regionSelect.value || '').trim();
                     if (!force && isManual && currentRegion !== '') return;
-                    if (currentRegion !== city) {
-                        regionSelect.value = city;
+                    if (currentRegion !== regionValue) {
+                        regionSelect.value = regionValue;
                     }
                 };
                 let itineraryDataLayer = null;
@@ -7492,17 +7539,21 @@
                     const row = select.closest('.schedule-row');
                     const regionKeyword = normalize(row?.querySelector('.item-region')?.value || '');
                     const selectedValue = select.value;
+                    const ignoreDestinationFilter = select.classList.contains('item-transfer');
                     Array.from(select.options).forEach((option, idx) => {
                         if (idx === 0) {
                             option.hidden = false;
+                            option.disabled = false;
                             return;
                         }
                         const selected = option.value === selectedValue;
-                        option.hidden = !(
-                            matchesDestination(option, keyword) &&
+                        const visible = (
+                            (ignoreDestinationFilter || matchesDestination(option, keyword)) &&
                             matchesRegion(option, regionKeyword) &&
                             matchesMealAvailability(select, option, row)
-                        ) && !selected;
+                        );
+                        option.hidden = !visible && !selected;
+                        option.disabled = !visible && !selected;
                     });
                 };
                 const applyFilterToAreaSelect = (select) => {

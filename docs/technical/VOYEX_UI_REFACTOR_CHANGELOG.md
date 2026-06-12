@@ -1,5 +1,22 @@
 # VOYEX UI Refactor Changelog
 
+## 2026-06-12 (Itinerary Day Planner Inter-Island Transfer Region Filter)
+- Scope: make inter-island transfer selection respect row region filtering while keeping all active transfers available for `All Regions`.
+- Updated files:
+  - resources/views/modules/itineraries/_form.blade.php
+  - docs/standards/quotation-standard.md
+  - docs/technical/VOYEX_UI_REFACTOR_CHANGELOG.md
+  - VOYEX_CRM_SYSTEM_ROADMAP.md
+- Applied updates:
+  - island-transfer options now expose complete region metadata (`city`, `province`, `location`) for reliable row-level filtering.
+  - transfer option ordering and region option generation now use region fallbacks instead of relying on city only.
+  - `Inter Island Transfer` select now ignores the global destination keyword filter so `All Regions` truly shows every active transfer item.
+  - selected-row region auto-sync now falls back from city to province/location when master data is incomplete.
+- Mandatory audit result:
+  - multi-language: pass, existing UI labels reused.
+  - performance: pass, filtering remains client-side on preloaded active options with no extra request cycle.
+  - data safety: pass, presentation/filtering refactor only.
+
 ## 2026-06-12 (Itinerary Edit Form Removes Quotation Context Notice)
 - Scope: keep itinerary edit UI neutral even when the itinerary participates in quotation revision flows.
 - Updated files:

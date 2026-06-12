@@ -78,6 +78,7 @@ Versioning | TODO | Not implemented
 Itinerary Index Item List Popup | DONE | F&B meal badges, exact highlighted-item badge matching, and triangle row markers aligned across desktop/mobile
 Itinerary Review Highlight Preview | DONE | Create/edit wizard review tab now shows the active main-experience row with a Highlighted badge
 Itinerary Form Quotation-Neutral UI | DONE | Create/edit itinerary pages no longer show quotation revision notice copy that implies single-quotation ownership
+Itinerary Transfer Region Filter | DONE | Day Planner inter-island transfer select now shows all active items for All Regions and filters reliably by row region fallback
 
 ----------------------------------------------------------------------------------------------------
 

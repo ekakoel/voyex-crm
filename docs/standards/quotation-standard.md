@@ -8,6 +8,7 @@ Last Updated: 2026-06-12
 - Itinerary index `Item List` popup should render a left-side triangle marker for each service row, preserve per-row item identity in desktop/mobile layouts, and show the `Highlighted` badge only for the exact itinerary item matched to the configured main experience day point.
 - Itinerary create/edit wizard `Review` tab should show the `Highlighted` badge on the exact schedule row whose `main experience` checkbox is active for that day, including F&B rows that also show meal-slot badges.
 - Itinerary create/edit pages must not show quotation-specific revision context notices, because one itinerary can be linked or reused across multiple quotations and the form should stay quotation-neutral.
+- In itinerary create/edit `Day Planner`, `Inter Island Transfer` select must load all active island-transfer master items client-side, ignore the destination keyword when `All Regions` is selected, and filter only by the row region choice (`city -> province -> location` fallback) when a specific region is chosen.
 
 ## Data Relationship
 - One `Inquiry` can have exactly one `Quotation` (`1:1`).
