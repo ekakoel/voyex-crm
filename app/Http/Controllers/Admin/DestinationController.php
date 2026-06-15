@@ -42,8 +42,15 @@ class DestinationController extends Controller
         $perPage = (int) $request->input('per_page', 10);
         $perPage = in_array($perPage, [10, 25, 50, 100], true) ? $perPage : 10;
         $destinations = $query->paginate($perPage)->withQueryString();
+        $perPageOptions = [10, 25, 50, 100];
+        $canManageActivationActions = auth()->user()?->canManageActivationActions() === true;
+        $destinationRows = $this->buildDestinationIndexRows($destinations, $canManageActivationActions);
 
-        return view('modules.destinations.index', compact('destinations'));
+        return view('modules.destinations.index', compact(
+            'destinations',
+            'destinationRows',
+            'perPageOptions'
+        ));
     }
 
     public function create()
@@ -223,6 +230,7 @@ class DestinationController extends Controller
 
     public function toggleStatus($destination)
     {
+        abort_unless(auth()->user()?->canManageActivationActions(), 403);
         $destination = Destination::withTrashed()->findOrFail($destination);
         if ($destination->trashed()) {
             $destination->restore();
@@ -285,5 +293,42 @@ class DestinationController extends Controller
         $normalized = \Illuminate\Support\Str::slug($base);
 
         return $normalized !== '' ? $normalized : \Illuminate\Support\Str::slug($name . '-' . uniqid());
+    }
+
+    private function buildDestinationIndexRows($destinations, bool $canManageActivationActions): array
+    {
+        return $destinations->getCollection()->values()->map(function (Destination $destination, int $index) use ($destinations, $canManageActivationActions): array {
+            $isActive = ! $destination->trashed();
+            $city = trim((string) ($destination->city ?? ''));
+            $province = trim((string) ($destination->province ?? ''));
+            $locationLabel = trim($city . ($city !== '' && $province !== '' ? ', ' : '') . $province);
+
+            return [
+                'destination' => $destination,
+                'row_number' => (int) ($destinations->firstItem() ?? 1) + $index,
+                'is_active' => $isActive,
+                'display_name' => $destination->province ?: $destination->name,
+                'location_label' => $locationLabel !== '' ? $locationLabel : '-',
+                'linked_summary' => implode(' | ', [
+                    ui_phrase('Vendors') . ': ' . (int) ($destination->vendors_count ?? 0),
+                    ui_phrase('Hotels') . ': ' . (int) ($destination->hotels_count ?? 0),
+                    ui_phrase('Attractions') . ': ' . (int) ($destination->tourist_attractions_count ?? 0),
+                    ui_phrase('Airports') . ': ' . (int) ($destination->airports_count ?? 0),
+                ]),
+                'show_url' => route('destinations.show', $destination),
+                'edit_url' => route('destinations.edit', $destination),
+                'toggle_url' => route('destinations.toggle-status', $destination->id),
+                'toggle_title' => $isActive
+                    ? ui_phrase('Deactivate') . ' ' . ui_phrase('Destination')
+                    : ui_phrase('Activate') . ' ' . ui_phrase('Destination'),
+                'toggle_message' => $isActive ? ui_phrase('confirm deactivate') : ui_phrase('confirm activate'),
+                'toggle_label' => $isActive ? ui_phrase('Deactivate') : ui_phrase('Activate'),
+                'toggle_icon' => $isActive ? 'fa-solid fa-toggle-off w-4' : 'fa-solid fa-toggle-on w-4',
+                'toggle_class' => $isActive
+                    ? 'flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-amber-700 hover:bg-amber-50 dark:text-amber-300 dark:hover:bg-amber-900/20'
+                    : 'flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-emerald-700 hover:bg-emerald-50 dark:text-emerald-300 dark:hover:bg-emerald-900/20',
+                'can_manage_activation' => $canManageActivationActions,
+            ];
+        })->all();
     }
 }

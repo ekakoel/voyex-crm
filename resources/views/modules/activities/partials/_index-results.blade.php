@@ -2,6 +2,7 @@
     <div class="space-y-4">
         @php
             $manualSeedMarker = 'draft created from itinerary day planner quick add';
+            $canManageActivationActions = auth()->user()?->canManageActivationActions() === true;
         @endphp
         <div class="hidden md:block app-card overflow-hidden">
             <div class="overflow-x-auto">
@@ -75,6 +76,7 @@
                                             <i class="fa-solid fa-pen w-4 text-gray-500 dark:text-gray-400"></i>
                                             <span>{{ ui_phrase('Edit') }}</span>
                                         </a>
+                                        @if ($canManageActivationActions)
                                         <div class="my-1 border-t border-gray-200 dark:border-gray-700"></div>
                                         <x-ui.confirm-action
                                             :action="route('activities.toggle-status', $activity->id)"
@@ -89,6 +91,7 @@
                                             :trigger-class="$isActive ? 'flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-amber-700 hover:bg-amber-50 dark:text-amber-300 dark:hover:bg-amber-900/20' : 'flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-emerald-700 hover:bg-emerald-50 dark:text-emerald-300 dark:hover:bg-emerald-900/20'"
                                             confirm-class="btn-primary-sm"
                                         />
+                                        @endif
                                     </x-ui.table-action-dropdown>
                                 </td>
                             </tr>
@@ -128,6 +131,7 @@
                                 <i class="fa-solid fa-pen w-4 text-gray-500 dark:text-gray-400"></i>
                                 <span>{{ ui_phrase('Edit') }}</span>
                             </a>
+                            @if ($canManageActivationActions)
                             <div class="my-1 border-t border-gray-200 dark:border-gray-700"></div>
                             <x-ui.confirm-action
                                 :action="route('activities.toggle-status', $activity->id)"
@@ -142,6 +146,7 @@
                                 :trigger-class="$isActive ? 'flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-amber-700 hover:bg-amber-50 dark:text-amber-300 dark:hover:bg-amber-900/20' : 'flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-emerald-700 hover:bg-emerald-50 dark:text-emerald-300 dark:hover:bg-emerald-900/20'"
                                 confirm-class="btn-primary-sm"
                             />
+                            @endif
                         </x-ui.table-action-dropdown>
                     </div>
                     <div class="flex items-start justify-between gap-3 pr-12">

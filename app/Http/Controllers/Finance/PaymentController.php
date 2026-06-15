@@ -51,8 +51,19 @@ class PaymentController extends Controller
         ];
 
         $payments = $query->latest()->paginate($perPage)->withQueryString();
+        $paymentStatusActive = (string) $request->input('status', 'all');
+        $paymentStatusTabs = $this->buildPaymentStatusTabs($request);
+        $paymentRows = $this->buildPaymentIndexRows($payments);
+        $perPageOptions = [10, 25, 50, 100];
 
-        return view('modules.payments.index', compact('payments', 'summaries'));
+        return view('modules.payments.index', compact(
+            'payments',
+            'summaries',
+            'paymentStatusActive',
+            'paymentStatusTabs',
+            'paymentRows',
+            'perPageOptions'
+        ));
     }
 
     public function create(Request $request)
@@ -145,5 +156,43 @@ class PaymentController extends Controller
         return redirect()
             ->route('payments.show', $payment)
             ->with('success', ui_phrase('Payment cancelled successfully.'));
+    }
+
+    private function buildPaymentStatusTabs(Request $request): array
+    {
+        return collect(Payment::STATUS_OPTIONS)
+            ->map(fn ($status) => [
+                'key' => (string) $status,
+                'label' => ui_phrase((string) $status),
+                'url' => route('payments.index', array_merge($request->except(['page']), ['status' => $status])),
+            ])
+            ->prepend([
+                'key' => 'all',
+                'label' => ui_phrase('All'),
+                'url' => route('payments.index', $request->except(['page', 'status'])),
+            ])
+            ->values()
+            ->all();
+    }
+
+    private function buildPaymentIndexRows($payments): array
+    {
+        return $payments->getCollection()->map(function (Payment $payment): array {
+            return [
+                'payment' => $payment,
+                'payment_number' => (string) ($payment->payment_number ?? '-'),
+                'invoice_number' => trim((string) ($payment->invoice?->invoice_number ?? '')) !== ''
+                    ? (string) $payment->invoice->invoice_number
+                    : '-',
+                'customer_name' => trim((string) ($payment->invoice?->booking?->quotation?->inquiry?->customer?->name ?? '')) !== ''
+                    ? (string) $payment->invoice->booking->quotation->inquiry->customer->name
+                    : '-',
+                'amount' => (float) ($payment->amount ?? 0),
+                'currency_code' => (string) ($payment->currency_code ?? 'IDR'),
+                'payment_type' => (string) ($payment->payment_type ?? 'full_payment'),
+                'status' => (string) ($payment->status ?? 'pending'),
+                'show_url' => route('payments.show', $payment),
+            ];
+        })->all();
     }
 }

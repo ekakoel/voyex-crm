@@ -1,7 +1,7 @@
 # VOYEX CRM -- SYSTEM ROADMAP
 
 Version: 1.5  
-Last Updated: 2026-06-12
+Last Updated: 2026-06-15
 
 Legend:  
 - DONE = Implemented  
@@ -37,6 +37,7 @@ Inquiry Creation | DONE | Includes inquiry number auto-format
 Inquiry Assignment | DONE | Assign to Manager/Marketing
 Inquiry Status Tracking | DONE | Unified statuses + Final lock
 Inquiry Deactivate/Activate | DONE | Soft delete on inquiries, toggle status in index
+Inquiry Form Refactor | DONE | Create/edit now share centralized validation + assignment sync and lighter selector payloads
 Follow-up Reminder | PARTIAL | Top navigation deadline reminder follows inquiry priority window before quotation exists
 Inquiry History Log | PARTIAL | Communications & follow-ups exist
 
@@ -79,6 +80,8 @@ Itinerary Index Item List Popup | DONE | F&B meal badges, exact highlighted-item
 Itinerary Review Highlight Preview | DONE | Create/edit wizard review tab now shows the active main-experience row with a Highlighted badge
 Itinerary Form Quotation-Neutral UI | DONE | Create/edit itinerary pages no longer show quotation revision notice copy that implies single-quotation ownership
 Itinerary Transfer Region Filter | DONE | Day Planner inter-island transfer select now shows all active items for All Regions and filters reliably by row region fallback
+Index Activation Role Guard | DONE | Activate/deactivate index actions and toggle endpoints are now restricted to Super Admin and Administrator
+Vendor Index Blade Stabilization | DONE | Vendor list desktop/mobile now share one precomputed row presentation layer for safer rendering and lighter template logic
 
 ----------------------------------------------------------------------------------------------------
 
@@ -87,13 +90,14 @@ Itinerary Transfer Region Filter | DONE | Day Planner inter-island transfer sele
 Feature | Status | Notes
 --- | --- | ---
 Create Quotation | DONE | Full CRUD
+Itinerary Reuse Safe Reference Sync | DONE | Reused itinerary no longer breaks quotation save; primary itinerary inquiry reference is preserved when another quotation uses the same itinerary
 Inquiry ↔ Quotation Relationship | DONE | One-to-one enforced by form availability, server validation, and unique `quotations.inquiry_id`
 Auto Number Generator | DONE | Quotation number
 Price Calculation | DONE | Final amount calc
 Discount Workflow | DONE | Discount + approval guard
 Approval Workflow | DONE | Approve/Reject/Pending
 Quotation Template | REMOVED | Legacy template table removed from current architecture
-PDF Generator | DONE | PDF export
+PDF Generator | DONE | PDF export with customer-safe F&B menu highlights in service descriptions
 CSV Export | DONE | CSV export
 Versioning | TODO | Not implemented
 Margin Calculation | TODO | Not implemented
@@ -2040,3 +2044,51 @@ Completed in this cycle:
 - Documentation sync:
   - updated `docs/technical/ITINERARY_CREATE_EDIT_FLOW.md`.
   - added fix note `docs/technical/TECHNICAL_FIX_NOTES.md` section 44.
+
+Date: 2026-06-15
+
+Completed in this cycle:
+
+- Controller-first index rendering refactor:
+  - moved index-page presentation shaping from Blade into controllers for key heavy modules:
+    - `InquiryController` / `inquiries.index`
+    - `BookingController` / `bookings.index`
+    - `PaymentController` / `payments.index`
+    - `FoodBeverageController` / `food-beverages.index`
+    - `QuotationController` / `quotations.index`
+    - `IslandTransferController` / `island-transfers.index`
+    - `ItineraryController` / `itineraries.index`
+    - `ServiceController` / `services.index`
+    - `CustomerController` / `customers.index`
+    - `AirportController` / `airports.index`
+    - `DestinationController` / `destinations.index`
+    - `TransportController` / `transports.index`
+  - controller now prepares final tab metadata, metric cards, row payloads, datalist suggestions, meal badges, and action-visibility flags before view rendering.
+  - reduced duplicated desktop/mobile per-row branching inside Blade templates.
+  - retained paginators in controller response for Laravel pagination links while moving row transformation work out of the templates.
+- Remaining likely follow-up candidates for next cleanup batch:
+  - any remaining index pages that still compute activation/toggle presentation inline in Blade
+  - secondary cleanup for other older admin master-data index pages that still do compact row-state formatting directly in views
+  - continue extracting repeated nested desktop/mobile fragments into partials on the heaviest index pages to reduce Blade syntax fragility
+- Vendor index stabilization follow-through:
+  - preserved earlier vendor row-presentation refactor in `VendorController` / `vendors.index` as the baseline pattern for other index pages.
+- QA note:
+  - `php -l` passed for updated controllers:
+    - `app/Http/Controllers/Sales/InquiryController.php`
+    - `app/Http/Controllers/BookingController.php`
+    - `app/Http/Controllers/Finance/PaymentController.php`
+    - `app/Http/Controllers/Admin/FoodBeverageController.php`
+    - `app/Http/Controllers/Admin/ServiceController.php`
+    - `app/Http/Controllers/Sales/CustomerController.php`
+    - `app/Http/Controllers/Admin/AirportController.php`
+    - `app/Http/Controllers/Admin/DestinationController.php`
+    - `app/Http/Controllers/Admin/TransportController.php`
+  - `php artisan view:cache` passed after the refactor.
+  - itinerary index Blade stabilization follow-through:
+    - extracted repeated popover and action dropdown fragments into dedicated partials,
+    - cleared and rebuilt compiled views to remove stale compiled Blade state after the reported syntax error.
+  - itinerary detail schedule refinement:
+    - island transfer items in `Schedule by Day` now use the simplified final display format:
+      - `ISLAND TRANSFER`
+      - service name
+      - `city/region | start time - end time`

@@ -30,6 +30,7 @@ use App\Services\Quotation\ItineraryQuotationRevisionOrchestrator;
 use App\Services\Quotation\QuotationStatusService;
 use App\Services\Quotation\QuotationWorkflowService;
 use App\Support\QuotationActionResolver;
+use App\Support\SafeRichText;
 use App\Support\Workflow\QuotationWorkflow;
 use App\Support\Workflow\QuotationStatusNormalizer;
 use App\Support\ImageThumbnailGenerator;
@@ -80,43 +81,7 @@ class QuotationController extends Controller
         ]);
         $this->applyQuotationKeywordFilter($query, (string) request('q'));
         $this->applyQuotationStatusFilter($query, (string) request('status'));
-        $statusFilterOptions = Quotation::STATUS_OPTIONS;
         $statsCards = $this->buildQuotationStatsCards(null, null, false);
-        $perPage = (int) request('per_page', 10);
-        $perPage = $perPage > 0 && $perPage <= 100 ? $perPage : 10;
-
-        $today = now()->toDateString();
-        $finalStatusAliases = $this->quotationStatusAliasesForQuery(Quotation::FINAL_STATUS);
-        $nonFinalQuery = (clone $query)->whereNotIn('status', $finalStatusAliases);
-        $upcomingQuotations = (clone $nonFinalQuery)
-            ->where(function (Builder $builder) use ($today): void {
-                $builder->whereDate('service_date', '>=', $today)
-                    ->orWhereNull('service_date');
-            })
-            ->latest()
-            ->paginate($perPage, ['*'], 'upcoming_page')
-            ->withQueryString();
-        $expiredQuotations = (clone $nonFinalQuery)
-            ->whereDate('service_date', '<', $today)
-            ->latest()
-            ->paginate($perPage, ['*'], 'expired_page')
-            ->withQueryString();
-        $finalQuotations = (clone $query)
-            ->whereIn('status', $finalStatusAliases)
-            ->latest()
-            ->paginate($perPage, ['*'], 'final_page')
-            ->withQueryString();
-        $authUser = auth()->user();
-        $transformQuotation = function (Quotation $quotation) use ($authUser): Quotation {
-            $quotation->setAttribute('status', Quotation::normalizeStatus((string) ($quotation->status ?? '')));
-            $quotation->setAttribute('needs_my_approval_badge', false);
-            $kpiSummary = $this->computeQuotationKpiSummary($quotation);
-            $quotation->setAttribute('display_final_amount', (float) ($kpiSummary['final_amount'] ?? 0));
-            return $quotation;
-        };
-        $upcomingQuotations->getCollection()->transform($transformQuotation);
-        $expiredQuotations->getCollection()->transform($transformQuotation);
-        $finalQuotations->getCollection()->transform($transformQuotation);
         $quotationLogs = ActivityLog::query()
             ->with('user:id,name')
             ->where('subject_type', (new Quotation())->getMorphClass())
@@ -124,18 +89,19 @@ class QuotationController extends Controller
             ->limit(10)
             ->get();
 
-        return view('modules.quotations.index', [
-            'upcomingQuotations' => $upcomingQuotations,
-            'expiredQuotations' => $expiredQuotations,
-            'finalQuotations' => $finalQuotations,
+        return view('modules.quotations.index', array_merge(
+            $this->buildQuotationIndexViewData(
+                $query,
+                $statsCards,
+                false,
+                'quotations.index',
+                'all',
+                Quotation::STATUS_OPTIONS
+            ),
+            [
             'quotationLogs' => $quotationLogs,
-            'statsCards' => $statsCards,
-            'isMyQuotationPage' => false,
-            'listRouteName' => 'quotations.index',
-            'exportScope' => 'all',
-            'statusFilterOptions' => $statusFilterOptions,
-            'showNeedsMyApproval' => false,
-        ]);
+            ]
+        ));
     }
 
     public function myQuotations()
@@ -156,41 +122,6 @@ class QuotationController extends Controller
         }
         $this->applyQuotationKeywordFilter($query, (string) request('q'));
         $this->applyQuotationStatusFilter($query, (string) request('status'));
-
-        $perPage = (int) request('per_page', 10);
-        $perPage = $perPage > 0 && $perPage <= 100 ? $perPage : 10;
-
-        $today = now()->toDateString();
-        $finalStatusAliases = $this->quotationStatusAliasesForQuery(Quotation::FINAL_STATUS);
-        $nonFinalQuery = (clone $query)->whereNotIn('status', $finalStatusAliases);
-        $upcomingQuotations = (clone $nonFinalQuery)
-            ->where(function (Builder $builder) use ($today): void {
-                $builder->whereDate('service_date', '>=', $today)
-                    ->orWhereNull('service_date');
-            })
-            ->latest()
-            ->paginate($perPage, ['*'], 'upcoming_page')
-            ->withQueryString();
-        $expiredQuotations = (clone $nonFinalQuery)
-            ->whereDate('service_date', '<', $today)
-            ->latest()
-            ->paginate($perPage, ['*'], 'expired_page')
-            ->withQueryString();
-        $finalQuotations = (clone $query)
-            ->whereIn('status', $finalStatusAliases)
-            ->latest()
-            ->paginate($perPage, ['*'], 'final_page')
-            ->withQueryString();
-        $transformQuotation = function (Quotation $quotation): Quotation {
-            $quotation->setAttribute('status', Quotation::normalizeStatus((string) ($quotation->status ?? '')));
-            $quotation->setAttribute('needs_my_approval_badge', false);
-            $kpiSummary = $this->computeQuotationKpiSummary($quotation);
-            $quotation->setAttribute('display_final_amount', (float) ($kpiSummary['final_amount'] ?? 0));
-            return $quotation;
-        };
-        $upcomingQuotations->getCollection()->transform($transformQuotation);
-        $expiredQuotations->getCollection()->transform($transformQuotation);
-        $finalQuotations->getCollection()->transform($transformQuotation);
         $quotationLogs = ActivityLog::query()
             ->with('user:id,name')
             ->where('subject_type', (new Quotation())->getMorphClass())
@@ -199,18 +130,19 @@ class QuotationController extends Controller
             ->get();
         $statsCards = $this->buildQuotationStatsCards((int) auth()->id(), null, true);
 
-        return view('modules.quotations.index', [
-            'upcomingQuotations' => $upcomingQuotations,
-            'expiredQuotations' => $expiredQuotations,
-            'finalQuotations' => $finalQuotations,
+        return view('modules.quotations.index', array_merge(
+            $this->buildQuotationIndexViewData(
+                $query,
+                $statsCards,
+                true,
+                'quotations.my',
+                'my',
+                Quotation::STATUS_OPTIONS
+            ),
+            [
             'quotationLogs' => $quotationLogs,
-            'statsCards' => $statsCards,
-            'isMyQuotationPage' => true,
-            'listRouteName' => 'quotations.my',
-            'exportScope' => 'my',
-            'statusFilterOptions' => Quotation::STATUS_OPTIONS,
-            'showNeedsMyApproval' => false,
-        ]);
+            ]
+        ));
     }
 
     /**
@@ -884,6 +816,7 @@ class QuotationController extends Controller
 
     public function toggleStatus($quotation)
     {
+        abort_unless(auth()->user()?->canManageActivationActions(), 403);
         $quotation = Quotation::withTrashed()->findOrFail($quotation);
         $this->autoFinalizeApprovedQuotationIfExpired($quotation);
         if ($quotation->isFinal()) {
@@ -944,6 +877,7 @@ class QuotationController extends Controller
 
         $quotation->load(['inquiry.customer', 'itinerary', 'items']);
         $this->applyQuotationServiceDescriptions($quotation);
+        $this->applyQuotationPdfItemPresentation($quotation);
         $kpiSummary = $this->computeQuotationKpiSummary($quotation);
         $groupedItemsByDay = $this->buildGroupedQuotationItemsByDay($quotation);
 
@@ -2604,6 +2538,80 @@ SVG;
         });
     }
 
+    private function applyQuotationPdfItemPresentation(Quotation $quotation): void
+    {
+        if (! $quotation->relationLoaded('items')) {
+            return;
+        }
+
+        $foodBeverageIds = $quotation->items
+            ->filter(fn (QuotationItem $item): bool => (string) ($item->serviceable_type ?? '') === FoodBeverage::class)
+            ->pluck('serviceable_id')
+            ->filter(fn ($id): bool => (int) $id > 0)
+            ->map(fn ($id): int => (int) $id)
+            ->unique()
+            ->values();
+
+        $menuHighlightsLookup = $foodBeverageIds->isEmpty()
+            ? collect()
+            : FoodBeverage::query()
+                ->whereIn('id', $foodBeverageIds->all())
+                ->pluck('menu_highlights', 'id');
+
+        $quotation->items->each(function (QuotationItem $item) use ($menuHighlightsLookup): void {
+            if ((string) ($item->serviceable_type ?? '') !== FoodBeverage::class) {
+                $item->setAttribute('pdf_menu_highlights', '');
+
+                return;
+            }
+
+            $meta = $this->normalizeServiceableMeta($item->serviceable_meta ?? null) ?? [];
+            $rawMenuHighlights = (string) (
+                $meta['menu_highlights']
+                ?? $meta['menu_highlight']
+                ?? $menuHighlightsLookup->get((int) ($item->serviceable_id ?? 0), '')
+            );
+
+            $item->setAttribute(
+                'pdf_menu_highlights',
+                $this->normalizeQuotationPdfMenuHighlights($rawMenuHighlights)
+            );
+        });
+    }
+
+    private function normalizeQuotationPdfMenuHighlights(?string $value): string
+    {
+        $safe = SafeRichText::sanitize($value);
+        if ($safe === '') {
+            return '';
+        }
+
+        $withBreaks = preg_replace('/<br\s*\/?>/i', "\n", $safe) ?? $safe;
+        $withBreaks = preg_replace('/<\/(p|div|li|ul|ol|blockquote|h2|h3)>/i', "\n", $withBreaks) ?? $withBreaks;
+        $plain = trim(html_entity_decode(strip_tags($withBreaks), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+        if ($plain === '') {
+            return '';
+        }
+
+        $plain = str_replace(["\r\n", "\r", '•', '·'], "\n", $plain);
+        $segments = array_values(array_filter(array_map(
+            static fn (string $segment): string => trim(preg_replace('/\s+/', ' ', $segment) ?? $segment),
+            preg_split('/[\n;]+/', $plain) ?: []
+        ), static fn (string $segment): bool => $segment !== ''));
+
+        $uniqueSegments = [];
+        foreach ($segments as $segment) {
+            $alreadyExists = collect($uniqueSegments)->contains(
+                static fn (string $existing): bool => strcasecmp($existing, $segment) === 0
+            );
+            if (! $alreadyExists) {
+                $uniqueSegments[] = $segment;
+            }
+        }
+
+        return implode(' | ', $uniqueSegments);
+    }
+
     private function resolveQuotationServiceVendorName(array $item): string
     {
         $serviceableType = (string) ($item['serviceable_type'] ?? '');
@@ -4125,17 +4133,246 @@ SVG;
             return;
         }
 
-        DB::table('inquiry_itinerary_references')->updateOrInsert(
+        // An itinerary can be reused by many quotations, so the pivot acts as
+        // the itinerary's primary inquiry reference only. Quotation saves must
+        // not overwrite an existing primary reference owned by another inquiry.
+        $existingReference = DB::table('inquiry_itinerary_references')
+            ->where('itinerary_id', $itineraryId)
+            ->first(['id', 'inquiry_id']);
+        $timestamp = now();
+        $actorId = (int) (auth()->id() ?? 0) ?: null;
+
+        if ($existingReference) {
+            if ((int) ($existingReference->inquiry_id ?? 0) !== $inquiryId) {
+                return;
+            }
+
+            DB::table('inquiry_itinerary_references')
+                ->where('id', (int) $existingReference->id)
+                ->update([
+                    'created_by' => $actorId,
+                    'updated_at' => $timestamp,
+                ]);
+
+            return;
+        }
+
+        DB::table('inquiry_itinerary_references')->insertOrIgnore([
+            'inquiry_id' => $inquiryId,
+            'itinerary_id' => $itineraryId,
+            'created_by' => $actorId,
+            'created_at' => $timestamp,
+            'updated_at' => $timestamp,
+        ]);
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function buildQuotationIndexViewData(
+        Builder $query,
+        array $statsCards,
+        bool $isMyQuotationPage,
+        string $listRouteName,
+        string $exportScope,
+        array $statusFilterOptions
+    ): array {
+        $bookingsModuleEnabled = ModuleService::isEnabledStatic('bookings');
+        $perPage = (int) request('per_page', 10);
+        $perPage = $perPage > 0 && $perPage <= 100 ? $perPage : 10;
+
+        $today = now()->toDateString();
+        $finalStatusAliases = $this->quotationStatusAliasesForQuery(Quotation::FINAL_STATUS);
+        $nonFinalQuery = (clone $query)->whereNotIn('status', $finalStatusAliases);
+        $upcomingQuotations = (clone $nonFinalQuery)
+            ->where(function (Builder $builder) use ($today): void {
+                $builder->whereDate('service_date', '>=', $today)
+                    ->orWhereNull('service_date');
+            })
+            ->latest()
+            ->paginate($perPage, ['*'], 'upcoming_page')
+            ->withQueryString();
+        $expiredQuotations = (clone $nonFinalQuery)
+            ->whereDate('service_date', '<', $today)
+            ->latest()
+            ->paginate($perPage, ['*'], 'expired_page')
+            ->withQueryString();
+        $finalQuotations = (clone $query)
+            ->whereIn('status', $finalStatusAliases)
+            ->latest()
+            ->paginate($perPage, ['*'], 'final_page')
+            ->withQueryString();
+
+        $upcomingQuotations->getCollection()->transform(
+            fn (Quotation $quotation) => $this->transformQuotationForIndex($quotation)
+        );
+        $expiredQuotations->getCollection()->transform(
+            fn (Quotation $quotation) => $this->transformQuotationForIndex($quotation)
+        );
+        $finalQuotations->getCollection()->transform(
+            fn (Quotation $quotation) => $this->transformQuotationForIndex($quotation)
+        );
+
+        $quotationSections = [
             [
-                'inquiry_id' => $inquiryId,
-                'itinerary_id' => $itineraryId,
+                'key' => 'upcoming',
+                'title' => ui_phrase('Upcoming Quotations'),
+                'paginator' => $upcomingQuotations,
             ],
             [
-                'created_by' => (int) (auth()->id() ?? 0) ?: null,
-                'updated_at' => now(),
-                'created_at' => now(),
-            ]
-        );
+                'key' => 'passed',
+                'title' => ui_phrase('Passed Quotation'),
+                'paginator' => $expiredQuotations,
+            ],
+            [
+                'key' => 'final',
+                'title' => $bookingsModuleEnabled ? ui_phrase('Converted Quotations') : ui_phrase('Final Quotations'),
+                'paginator' => $finalQuotations,
+            ],
+        ];
+
+        $availableTabKeys = collect($quotationSections)->pluck('key')->all();
+        $activeQuotationTab = (string) request('tab', 'upcoming');
+        if (! in_array($activeQuotationTab, $availableTabKeys, true)) {
+            $activeQuotationTab = 'upcoming';
+        }
+
+        $activeQuotationSection = collect($quotationSections)->firstWhere('key', $activeQuotationTab);
+        $activeQuotationSection = is_array($activeQuotationSection) ? $activeQuotationSection : $quotationSections[0];
+
+        $quotationTabs = collect($quotationSections)
+            ->map(function (array $section) use ($listRouteName, $activeQuotationTab): array {
+                return [
+                    'key' => (string) ($section['key'] ?? ''),
+                    'label' => (string) ($section['title'] ?? ''),
+                    'url' => route(
+                        $listRouteName,
+                        array_merge(request()->except(['upcoming_page', 'expired_page', 'final_page']), [
+                            'tab' => $section['key'],
+                        ])
+                    ),
+                    'is_active' => (string) ($section['key'] ?? '') === $activeQuotationTab,
+                ];
+            })
+            ->all();
+
+        return [
+            'isMyQuotationPage' => $isMyQuotationPage,
+            'listRouteName' => $listRouteName,
+            'exportScope' => $exportScope,
+            'bookingsModuleEnabled' => $bookingsModuleEnabled,
+            'statusFilterOptions' => $this->filterQuotationIndexStatusOptions($statusFilterOptions, $bookingsModuleEnabled),
+            'quotationMetrics' => $this->buildQuotationIndexMetrics($statsCards),
+            'quotationTabs' => $quotationTabs,
+            'activeQuotationTab' => $activeQuotationTab,
+            'activeQuotationSection' => $activeQuotationSection,
+            'activeQuotationRows' => $this->buildQuotationIndexRows(
+                $activeQuotationSection['paginator'],
+                $bookingsModuleEnabled
+            ),
+            'perPageOptions' => [10, 25, 50, 100],
+            'canManageActivationActions' => auth()->user()?->canManageActivationActions() === true,
+        ];
+    }
+
+    private function transformQuotationForIndex(Quotation $quotation): Quotation
+    {
+        $quotation->setAttribute('status', Quotation::normalizeStatus((string) ($quotation->status ?? '')));
+        $quotation->setAttribute('needs_my_approval_badge', false);
+        $kpiSummary = $this->computeQuotationKpiSummary($quotation);
+        $quotation->setAttribute('display_final_amount', (float) ($kpiSummary['final_amount'] ?? 0));
+
+        return $quotation;
+    }
+
+    private function buildQuotationIndexRows($paginator, bool $bookingsModuleEnabled): array
+    {
+        $user = auth()->user();
+        $firstItem = (int) ($paginator->firstItem() ?? 1);
+
+        return $paginator->getCollection()->values()->map(function (Quotation $quotation, int $index) use ($user, $firstItem, $bookingsModuleEnabled): array {
+            $status = Quotation::normalizeStatus((string) ($quotation->status ?? ''));
+            $nonEditableStatuses = [
+                Quotation::STATUS_SENT,
+                Quotation::STATUS_CUSTOMER_APPROVED,
+                Quotation::FINAL_STATUS,
+                Quotation::STATUS_IN_OPERATION,
+                Quotation::STATUS_COMPLETED,
+            ];
+            $pdfStatuses = [
+                Quotation::STATUS_CUSTOMER_APPROVED,
+                Quotation::FINAL_STATUS,
+            ];
+
+            return [
+                'quotation' => $quotation,
+                'row_number' => $firstItem + $index,
+                'order_number' => trim((string) ($quotation->order_number ?? '')) !== ''
+                    ? (string) $quotation->order_number
+                    : '-',
+                'itinerary_label' => trim((string) ($quotation->itinerary?->title ?? '')) !== ''
+                    ? (string) $quotation->itinerary->title
+                    : '-',
+                'itinerary_id' => (int) ($quotation->itinerary_id ?? 0),
+                'creator' => $quotation->creator,
+                'handled_by_name' => trim((string) ($quotation->inquiry?->handledBy?->name ?? '')) !== ''
+                    ? (string) $quotation->inquiry->handledBy->name
+                    : '-',
+                'display_final_amount' => (float) ($quotation->display_final_amount ?? 0),
+                'status_badge' => $quotation->trashed()
+                    ? 'inactive'
+                    : $this->resolveQuotationIndexDisplayStatus($status, $bookingsModuleEnabled),
+                'show_url' => route('quotations.show', $quotation),
+                'edit_url' => route('quotations.edit', $quotation),
+                'pdf_url' => route('quotations.pdf', $quotation),
+                'toggle_url' => route('quotations.toggle-status', $quotation->id),
+                'can_edit' => (bool) ($user?->can('update', $quotation) ?? false)
+                    && ! in_array($status, $nonEditableStatuses, true),
+                'can_open_pdf' => in_array($status, $pdfStatuses, true),
+                'can_delete' => (bool) ($user?->can('delete', $quotation) ?? false)
+                    && ! in_array($status, $pdfStatuses, true)
+                    && ($user?->canManageActivationActions() === true),
+            ];
+        })->all();
+    }
+
+    private function buildQuotationIndexMetrics(array $statsCards): array
+    {
+        $statsByKey = collect($statsCards)->keyBy('key');
+
+        return [
+            'total' => (int) ($statsByKey->get('total')['value'] ?? 0),
+            'need_validation' => (int) ($statsByKey->get('need_validation')['value'] ?? 0),
+            'sent' => (int) ($statsByKey->get('sent')['value'] ?? 0),
+            'approved' => (int) ($statsByKey->get('approved')['value'] ?? 0),
+        ];
+    }
+
+    private function filterQuotationIndexStatusOptions(array $statusFilterOptions, bool $bookingsModuleEnabled): array
+    {
+        return collect($statusFilterOptions)
+            ->reject(fn ($status) => ! $bookingsModuleEnabled && in_array((string) $status, [
+                'converted_to_booking',
+                'booking_created',
+                'booking_in_progress',
+                'booking_issue',
+            ], true))
+            ->values()
+            ->all();
+    }
+
+    private function resolveQuotationIndexDisplayStatus(string $status, bool $bookingsModuleEnabled): string
+    {
+        if (! $bookingsModuleEnabled && in_array($status, [
+            'converted_to_booking',
+            'booking_created',
+            'booking_in_progress',
+            'booking_issue',
+        ], true)) {
+            return 'approved';
+        }
+
+        return $status;
     }
 
     /**

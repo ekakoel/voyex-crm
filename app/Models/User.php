@@ -52,5 +52,9 @@ class User extends Authenticatable
     {
         return $query->whereDoesntHave('roles', fn (Builder $roles) => $roles->where('name', 'Super Admin'));
     }
-}
 
+    public function canManageActivationActions(): bool
+    {
+        return $this->hasAnyRole(['Super Admin', 'Administrator']);
+    }
+}

@@ -240,6 +240,7 @@ class TouristAttractionController extends Controller
 
     public function toggleStatus($touristAttraction)
     {
+        abort_unless(auth()->user()?->canManageActivationActions(), 403);
         $touristAttraction = TouristAttraction::withTrashed()->findOrFail($touristAttraction);
         if ($touristAttraction->trashed()) {
             $touristAttraction->restore();

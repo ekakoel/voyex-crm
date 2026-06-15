@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Destination;
 use App\Models\FoodBeverage;
 use App\Models\Vendor;
+use App\Support\Currency;
 use App\Support\ImageThumbnailGenerator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -52,8 +53,18 @@ class FoodBeverageController extends Controller
         $foodBeverages = $query->paginate($perPage)->withQueryString();
         $vendors = Vendor::query()->where('is_active', true)->orderBy('name')->get(['id', 'name', 'city', 'province']);
         $types = $this->buildTypeFilterOptions();
+        $foodBeverageRows = $this->buildFoodBeverageIndexRows($foodBeverages);
+        $perPageOptions = [10, 25, 50, 100];
+        $canManageActivationActions = auth()->user()?->canManageActivationActions() === true;
 
-        return view('modules.food-beverages.index', compact('foodBeverages', 'vendors', 'types'));
+        return view('modules.food-beverages.index', compact(
+            'foodBeverages',
+            'vendors',
+            'types',
+            'foodBeverageRows',
+            'perPageOptions',
+            'canManageActivationActions'
+        ));
     }
 
     public function create(Request $request)
@@ -162,6 +173,7 @@ class FoodBeverageController extends Controller
 
     public function toggleStatus($foodBeverage)
     {
+        abort_unless(auth()->user()?->canManageActivationActions(), 403);
         $foodBeverage = FoodBeverage::withTrashed()->findOrFail($foodBeverage);
         if ($foodBeverage->trashed()) {
             $foodBeverage->restore();
@@ -325,6 +337,81 @@ class FoodBeverageController extends Controller
         $validated['publish_rate'] = $validated['adult_publish_rate'];
 
         return $validated;
+    }
+
+    private function buildFoodBeverageIndexRows($foodBeverages): array
+    {
+        return $foodBeverages->getCollection()->values()->map(function (FoodBeverage $foodBeverage, int $index) use ($foodBeverages): array {
+            $galleryImages = is_array($foodBeverage->gallery_images ?? null) ? $foodBeverage->gallery_images : [];
+            $hasGalleryImages = count($galleryImages) > 0;
+            $hasDestination = (int) ($foodBeverage->vendor?->destination_id ?? 0) > 0;
+            $hasServiceName = trim((string) ($foodBeverage->name ?? '')) !== '';
+            $hasServiceType = trim((string) ($foodBeverage->service_type ?? '')) !== '';
+            $hasActivityType = trim((string) ($foodBeverage->activity_type ?? $foodBeverage->service_type ?? '')) !== '';
+            $isActive = ! $foodBeverage->trashed();
+
+            return [
+                'food_beverage' => $foodBeverage,
+                'row_number' => (int) ($foodBeverages->firstItem() ?? 1) + $index,
+                'is_active' => $isActive,
+                'vendor_name' => trim((string) ($foodBeverage->vendor?->name ?? '')) !== ''
+                    ? (string) $foodBeverage->vendor->name
+                    : '-',
+                'service_type_label' => ucwords(str_replace('_', ' ', (string) ($foodBeverage->service_type ?? ''))),
+                'duration_label' => (int) ($foodBeverage->duration_minutes ?? 0) . ' min',
+                'meal_sessions' => $this->resolveMealSessionBadges($foodBeverage->meal_period),
+                'needs_data_attention' => ! $hasGalleryImages || ! $hasDestination || ! $hasServiceName || ! $hasServiceType || ! $hasActivityType,
+                'adult_contract_rate' => (float) ($foodBeverage->adult_contract_rate ?? $foodBeverage->contract_rate ?? 0),
+                'adult_markup_display' => $this->formatMarkupDisplay(
+                    (string) ($foodBeverage->adult_markup_type ?? $foodBeverage->markup_type ?? 'fixed'),
+                    (float) ($foodBeverage->adult_markup ?? $foodBeverage->markup ?? 0)
+                ),
+                'adult_publish_rate' => (float) ($foodBeverage->adult_publish_rate ?? $foodBeverage->publish_rate ?? 0),
+                'child_contract_rate' => (float) ($foodBeverage->child_contract_rate ?? 0),
+                'child_markup_display' => $this->formatMarkupDisplay(
+                    (string) ($foodBeverage->child_markup_type ?? 'fixed'),
+                    (float) ($foodBeverage->child_markup ?? 0)
+                ),
+                'child_publish_rate' => (float) ($foodBeverage->child_publish_rate ?? 0),
+                'edit_url' => route('food-beverages.edit', $foodBeverage),
+                'copy_url' => route('food-beverages.create', ['copy' => $foodBeverage->id]),
+                'toggle_url' => route('food-beverages.toggle-status', $foodBeverage->id),
+                'toggle_title' => $isActive ? ui_phrase('Deactivate') . ' F&B' : ui_phrase('Activate') . ' F&B',
+                'toggle_message_desktop' => $isActive ? ui_phrase('confirm deactivate') : ui_phrase('confirm activate'),
+                'toggle_message_mobile' => $isActive ? ui_phrase('Deactivate this F&B service?') : ui_phrase('Activate this F&B service?'),
+                'toggle_label' => $isActive ? ui_phrase('Deactivate') : ui_phrase('Activate'),
+                'toggle_icon' => $isActive ? 'fa-solid fa-toggle-off w-4' : 'fa-solid fa-toggle-on w-4',
+                'toggle_class' => $isActive
+                    ? 'flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-amber-700 hover:bg-amber-50 dark:text-amber-300 dark:hover:bg-amber-900/20'
+                    : 'flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-emerald-700 hover:bg-emerald-50 dark:text-emerald-300 dark:hover:bg-emerald-900/20',
+            ];
+        })->all();
+    }
+
+    private function resolveMealSessionBadges(?string $mealPeriod): array
+    {
+        $tokens = array_values(array_filter(array_map(
+            static fn ($item) => strtolower(trim((string) $item)),
+            preg_split('/[\s,;\/|]+/', (string) $mealPeriod) ?: []
+        )));
+
+        $sessions = [];
+        foreach (['breakfast' => 'Breakfast', 'lunch' => 'Lunch', 'dinner' => 'Dinner'] as $key => $label) {
+            if (in_array($key, $tokens, true)) {
+                $sessions[] = ['key' => $key, 'label' => $label];
+            }
+        }
+
+        return $sessions;
+    }
+
+    private function formatMarkupDisplay(string $markupType, float $markup): string
+    {
+        if ($markupType === 'percent') {
+            return rtrim(rtrim(number_format($markup, 2, '.', ''), '0'), '.') . '%';
+        }
+
+        return Currency::format($markup, 'IDR');
     }
 
     /**

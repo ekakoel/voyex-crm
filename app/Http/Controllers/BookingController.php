@@ -74,13 +74,24 @@ class BookingController extends Controller
         $this->applyBookingIndexFilters($sidebarQuery);
         $sidebarInfo = $this->buildBookingSidebarInfo($sidebarQuery);
         $bookings = $query->latest()->paginate($perPage)->withQueryString();
+        $bookingMetrics = $this->buildBookingIndexMetrics($bookings);
+        $bookingRows = $this->buildBookingIndexRows($bookings);
         $quotations = Quotation::query()
             ->with('inquiry.customer', 'inquiry.handledBy:id,name')
             ->whereHas('booking')
             ->orderBy('created_at', 'desc')
             ->get();
+        $quotationSuggestions = $this->buildBookingQuotationSuggestions($quotations);
+        $perPageOptions = [10, 25, 50, 100];
 
-        return view('modules.bookings.index', compact('bookings', 'quotations', 'sidebarInfo'));
+        return view('modules.bookings.index', compact(
+            'bookings',
+            'sidebarInfo',
+            'bookingMetrics',
+            'bookingRows',
+            'quotationSuggestions',
+            'perPageOptions'
+        ));
     }
 
     /**
@@ -1846,5 +1857,72 @@ class BookingController extends Controller
         });
         $query->when(request('travel_from'), fn ($q) => $q->whereDate('travel_date', '>=', request('travel_from')));
         $query->when(request('travel_to'), fn ($q) => $q->whereDate('travel_date', '<=', request('travel_to')));
+    }
+
+    private function buildBookingIndexMetrics($bookings): array
+    {
+        $bookingsCollection = $bookings instanceof \Illuminate\Pagination\LengthAwarePaginator
+            ? $bookings->getCollection()
+            : collect($bookings ?? []);
+
+        $statusCount = $bookingsCollection
+            ->groupBy(fn ($booking) => (string) ($booking->status ?? ''))
+            ->map
+            ->count();
+
+        return [
+            'total' => (int) $bookingsCollection->count(),
+            'vendor_confirmation' => (int) ($statusCount['vendor_confirmation'] ?? 0),
+            'voucher_preparation' => (int) ($statusCount['voucher_preparation'] ?? 0),
+            'in_operation' => (int) ($statusCount['in_operation'] ?? 0),
+            'reconciliation' => (int) ($statusCount['reconciliation'] ?? 0),
+            'invoiced_closed' => (int) ($statusCount['invoiced'] ?? 0) + (int) ($statusCount['closed'] ?? 0),
+        ];
+    }
+
+    private function buildBookingIndexRows($bookings): array
+    {
+        $user = auth()->user();
+        $firstItem = (int) ($bookings->firstItem() ?? 1);
+
+        return $bookings->getCollection()->values()->map(function (Booking $booking, int $index) use ($user, $firstItem): array {
+            $canEdit = (bool) ($user?->can('update', $booking) ?? false) && ! $booking->isFinal();
+            $canDelete = (bool) ($user?->can('delete', $booking) ?? false) && ! $booking->isFinal();
+            $canCancel = $canEdit && (string) ($booking->status ?? '') !== 'cancelled';
+
+            return [
+                'booking' => $booking,
+                'row_number' => $firstItem + $index,
+                'booking_number' => (string) ($booking->booking_number ?? '-'),
+                'order_number' => (string) ($booking->quotation?->order_number ?? '-'),
+                'quotation_number' => (string) ($booking->quotation?->quotation_number ?? '-'),
+                'service_total' => (int) ($booking->quotation?->items_count ?? 0),
+                'voucher_total' => (int) ($booking->items_with_voucher_count ?? 0),
+                'handled_by_name' => trim((string) ($booking->quotation?->inquiry?->handledBy?->name ?? '')) !== ''
+                    ? (string) $booking->quotation->inquiry->handledBy->name
+                    : '-',
+                'status' => (string) ($booking->status ?? ''),
+                'show_url' => route('bookings.show', $booking),
+                'edit_url' => route('bookings.edit', $booking),
+                'cancel_url' => route('bookings.cancel', $booking),
+                'delete_url' => route('bookings.destroy', $booking),
+                'can_edit' => $canEdit,
+                'can_delete' => $canDelete,
+                'can_cancel' => $canCancel,
+            ];
+        })->all();
+    }
+
+    private function buildBookingQuotationSuggestions($quotations): array
+    {
+        return $quotations->map(function (Quotation $quotation): array {
+            return [
+                'order_number' => trim((string) ($quotation->order_number ?? '')),
+                'quotation_number' => trim((string) ($quotation->quotation_number ?? '')),
+                'customer_name' => trim((string) ($quotation->inquiry?->customer?->name ?? '')) !== ''
+                    ? (string) $quotation->inquiry->customer->name
+                    : '-',
+            ];
+        })->all();
     }
 }

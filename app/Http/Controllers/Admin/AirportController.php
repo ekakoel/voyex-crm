@@ -56,6 +56,9 @@ class AirportController extends Controller
         $perPage = (int) $request->input('per_page', 10);
         $perPage = in_array($perPage, [10, 25, 50, 100], true) ? $perPage : 10;
         $airports = $query->paginate($perPage)->withQueryString();
+        $perPageOptions = [10, 25, 50, 100];
+        $canManageActivationActions = auth()->user()?->canManageActivationActions() === true;
+        $airportRows = $this->buildAirportIndexRows($airports, $canManageActivationActions);
         $statsCards = [
             [
                 'key' => 'total',
@@ -80,7 +83,12 @@ class AirportController extends Controller
             ],
         ];
 
-        return view('modules.airports.index', compact('airports', 'statsCards'));
+        return view('modules.airports.index', compact(
+            'airports',
+            'airportRows',
+            'statsCards',
+            'perPageOptions'
+        ));
     }
 
     public function create()
@@ -157,6 +165,7 @@ class AirportController extends Controller
 
     public function toggleStatus($airport)
     {
+        abort_unless(auth()->user()?->canManageActivationActions(), 403);
         $airport = Airport::withTrashed()->findOrFail($airport);
         if ($airport->trashed()) {
             $airport->restore();
@@ -310,5 +319,42 @@ class AirportController extends Controller
         if (empty($validated['timezone']) && ! empty($destination->timezone)) {
             $validated['timezone'] = (string) $destination->timezone;
         }
+    }
+
+    private function buildAirportIndexRows($airports, bool $canManageActivationActions): array
+    {
+        return $airports->getCollection()->values()->map(function (Airport $airport, int $index) use ($airports, $canManageActivationActions): array {
+            $isActive = ! $airport->trashed();
+            $city = trim((string) ($airport->city ?? ''));
+            $province = trim((string) ($airport->province ?? ''));
+            $locationLabel = trim($city . ($city !== '' && $province !== '' ? ', ' : '') . $province);
+
+            return [
+                'airport' => $airport,
+                'row_number' => (int) ($airports->firstItem() ?? 1) + $index,
+                'is_active' => $isActive,
+                'country' => $airport->country ?: '-',
+                'destination_name' => $airport->destination?->name ?: '-',
+                'location_label' => $locationLabel !== '' ? $locationLabel : '-',
+                'show_url' => route('airports.show', $airport),
+                'edit_url' => route('airports.edit', $airport),
+                'toggle_url' => route('airports.toggle-status', $airport->id),
+                'toggle_title' => $isActive
+                    ? ui_phrase('Deactivate') . ' ' . ui_phrase('Airport')
+                    : ui_phrase('Activate') . ' ' . ui_phrase('Airport'),
+                'toggle_message' => $isActive ? ui_phrase('confirm deactivate') : ui_phrase('confirm activate'),
+                'toggle_impact_items' => [
+                    $isActive
+                        ? ui_phrase('Airport will be set as inactive and hidden from active options.')
+                        : ui_phrase('Airport will be set as active and available for selection.'),
+                ],
+                'toggle_label' => $isActive ? ui_phrase('Deactivate') : ui_phrase('Activate'),
+                'toggle_icon' => $isActive ? 'fa-solid fa-toggle-off w-4' : 'fa-solid fa-toggle-on w-4',
+                'toggle_class' => $isActive
+                    ? 'flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-amber-700 hover:bg-amber-50 dark:text-amber-300 dark:hover:bg-amber-900/20'
+                    : 'flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-emerald-700 hover:bg-emerald-50 dark:text-emerald-300 dark:hover:bg-emerald-900/20',
+                'can_manage_activation' => $canManageActivationActions,
+            ];
+        })->all();
     }
 }

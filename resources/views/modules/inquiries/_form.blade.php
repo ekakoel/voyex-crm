@@ -9,7 +9,7 @@
     $selectedCustomerId = (string) old('customer_id', $inquiry->customer_id ?? '');
     $selectedCustomerLabel = $selectedCustomerId !== '' && isset($customerLabels[$selectedCustomerId])
         ? $customerLabels[$selectedCustomerId]
-        : (string) old('customer_label', '');
+        : '';
     $currentAssignedToId = (int) old('assigned_to', $inquiry->assigned_to ?? $inquiry->handled_by ?? 0);
     $isAssignedToLocked = $currentAssignedToId > 0;
 @endphp

@@ -89,7 +89,9 @@ class VendorController extends Controller
             ->paginate($perPage)
             ->withQueryString();
 
-        return view('modules.vendors.index', compact('vendors', 'summaries'));
+        $vendorRows = $this->buildVendorIndexRows($vendors);
+
+        return view('modules.vendors.index', compact('vendors', 'summaries', 'vendorRows'));
     }
 
     public function create()
@@ -211,6 +213,7 @@ class VendorController extends Controller
 
     public function toggleStatus($vendor)
     {
+        abort_unless(auth()->user()?->canManageActivationActions(), 403);
         $vendor = Vendor::withTrashed()->findOrFail($vendor);
         if ($vendor->trashed()) {
             $vendor->restore();
@@ -266,5 +269,68 @@ class VendorController extends Controller
         }
 
         return $filtered;
+    }
+
+    private function buildVendorIndexRows($vendors): array
+    {
+        return $vendors->getCollection()
+            ->map(function (Vendor $vendor): array {
+                $serviceBadges = [
+                    [
+                        'label' => ui_phrase('Act'),
+                        'value' => (int) ($vendor->activities_count ?? 0),
+                        'class' => 'border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-700 dark:bg-sky-900/20 dark:text-sky-300',
+                    ],
+                    [
+                        'label' => ui_phrase('F&B'),
+                        'value' => (int) ($vendor->food_beverages_count ?? 0),
+                        'class' => 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300',
+                    ],
+                    [
+                        'label' => ui_phrase('Trf'),
+                        'value' => (int) ($vendor->transports_count ?? 0),
+                        'class' => 'border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-700 dark:bg-indigo-900/20 dark:text-indigo-300',
+                    ],
+                    [
+                        'label' => ui_phrase('Isl'),
+                        'value' => (int) ($vendor->island_transfers_count ?? 0),
+                        'class' => 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-300',
+                    ],
+                ];
+
+                $filteredServiceBadges = array_values(array_filter(
+                    $serviceBadges,
+                    static fn (array $badge): bool => (int) ($badge['value'] ?? 0) > 0
+                ));
+                $serviceCount = array_sum(array_column($filteredServiceBadges, 'value'));
+                $isActive = (bool) ($vendor->is_active ?? false);
+
+                return [
+                    'vendor' => $vendor,
+                    'name' => (string) ($vendor->name ?? '-'),
+                    'destination_name' => (string) ($vendor->destination?->name ?? '-'),
+                    'vendor_type' => $serviceCount > 0 ? ui_phrase('Service Provider') : ui_phrase('General'),
+                    'contact_name' => (string) ($vendor->contact_name ?? '-'),
+                    'contact_phone' => (string) ($vendor->contact_phone ?? '-'),
+                    'contact_email' => (string) ($vendor->contact_email ?? '-'),
+                    'service_badges' => $filteredServiceBadges,
+                    'status_key' => $isActive ? 'active' : 'inactive',
+                    'toggle_title' => $isActive
+                        ? ui_phrase('Deactivate') . ' ' . ui_phrase('Vendor')
+                        : ui_phrase('Activate') . ' ' . ui_phrase('Vendor'),
+                    'toggle_message' => $isActive
+                        ? ui_phrase('confirm deactivate')
+                        : ui_phrase('confirm activate'),
+                    'toggle_impact' => $isActive
+                        ? ui_phrase('Vendor will be set as inactive and hidden from active options.')
+                        : ui_phrase('Vendor will be set as active and available for selection.'),
+                    'toggle_label' => $isActive ? ui_phrase('Deactivate') : ui_phrase('Activate'),
+                    'toggle_icon' => $isActive ? 'fa-solid fa-toggle-off w-4' : 'fa-solid fa-toggle-on w-4',
+                    'toggle_class' => $isActive
+                        ? 'flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-amber-700 hover:bg-amber-50 dark:text-amber-300 dark:hover:bg-amber-900/20'
+                        : 'flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-emerald-700 hover:bg-emerald-50 dark:text-emerald-300 dark:hover:bg-emerald-900/20',
+                ];
+            })
+            ->all();
     }
 }

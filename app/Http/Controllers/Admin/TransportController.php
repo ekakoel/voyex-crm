@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Destination;
 use App\Models\Transport;
 use App\Models\Vendor;
+use App\Support\Currency;
 use App\Support\ImageThumbnailGenerator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -57,8 +58,17 @@ class TransportController extends Controller
         $transports = $query->paginate($perPage)->withQueryString();
         $types = Transport::query()->select('transport_type')->whereNotNull('transport_type')->distinct()->orderBy('transport_type')->pluck('transport_type');
         $vendors = Vendor::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']);
+        $perPageOptions = [10, 25, 50, 100];
+        $canManageActivationActions = auth()->user()?->canManageActivationActions() === true;
+        $transportRows = $this->buildTransportIndexRows($transports, $canManageActivationActions);
 
-        return view('modules.transports.index', compact('transports', 'types', 'vendors'));
+        return view('modules.transports.index', compact(
+            'transports',
+            'transportRows',
+            'types',
+            'vendors',
+            'perPageOptions'
+        ));
     }
 
     public function create()
@@ -140,6 +150,7 @@ class TransportController extends Controller
 
     public function toggleStatus($transport)
     {
+        abort_unless(auth()->user()?->canManageActivationActions(), 403);
         $transport = Transport::withTrashed()->findOrFail($transport);
         if ($transport->trashed()) {
             $transport->restore();
@@ -298,5 +309,50 @@ class TransportController extends Controller
                 Storage::disk('public')->delete(ImageThumbnailGenerator::thumbnailPathFor($path));
             }
         }
+    }
+
+    private function buildTransportIndexRows($transports, bool $canManageActivationActions): array
+    {
+        return $transports->getCollection()->values()->map(function (Transport $transport, int $index) use ($transports, $canManageActivationActions): array {
+            $isActive = ! $transport->trashed();
+
+            return [
+                'transport' => $transport,
+                'row_number' => (int) ($transports->firstItem() ?? 1) + $index,
+                'is_active' => $isActive,
+                'vendor_name' => $transport->vendor?->name ?: '-',
+                'transport_type_label' => ucfirst(str_replace('_', ' ', (string) $transport->transport_type)),
+                'unit_spec_label' => $transport->brand_model ?: '-',
+                'seat_capacity_label' => (int) ($transport->seat_capacity ?? 0) . ' seats',
+                'has_rates' => $transport->contract_rate !== null,
+                'markup_display' => $this->formatTransportMarkupDisplay(
+                    (string) ($transport->markup_type ?? 'fixed'),
+                    (float) ($transport->markup ?? 0)
+                ),
+                'show_url' => route('transports.show', $transport),
+                'edit_url' => route('transports.edit', $transport),
+                'toggle_url' => route('transports.toggle-status', $transport->id),
+                'toggle_title' => $isActive
+                    ? ui_phrase('Deactivate') . ' ' . ui_phrase('Transport')
+                    : ui_phrase('Activate') . ' ' . ui_phrase('Transport'),
+                'toggle_message_desktop' => $isActive ? ui_phrase('confirm deactivate') : ui_phrase('confirm activate'),
+                'toggle_message_mobile' => $isActive ? ui_phrase('confirm deactivate mobile') : ui_phrase('confirm activate mobile'),
+                'toggle_label' => $isActive ? ui_phrase('Deactivate') : ui_phrase('Activate'),
+                'toggle_icon' => $isActive ? 'fa-solid fa-toggle-off w-4' : 'fa-solid fa-toggle-on w-4',
+                'toggle_class' => $isActive
+                    ? 'flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-amber-700 hover:bg-amber-50 dark:text-amber-300 dark:hover:bg-amber-900/20'
+                    : 'flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-emerald-700 hover:bg-emerald-50 dark:text-emerald-300 dark:hover:bg-emerald-900/20',
+                'can_manage_activation' => $canManageActivationActions,
+            ];
+        })->all();
+    }
+
+    private function formatTransportMarkupDisplay(string $markupType, float $markup): string
+    {
+        if ($markupType === 'percent') {
+            return rtrim(rtrim(number_format($markup, 2, '.', ''), '0'), '.') . '%';
+        }
+
+        return Currency::format($markup, 'IDR');
     }
 }

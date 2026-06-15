@@ -12,6 +12,7 @@ use App\Services\ActivityAuditLogger;
 use App\Support\InquiryDeadlineReminder;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Validation\Rule;
 
 class InquiryController extends Controller
@@ -134,7 +135,114 @@ class InquiryController extends Controller
             'archived' => $this->countInquiryTab(clone $baseFilteredQuery, 'archived'),
         ];
 
-        return view('modules.inquiries.index', compact('inquiries', 'selectedTab', 'tabCounts'));
+        $inquiryTabs = $this->buildInquiryTabs(
+            $tabCounts,
+            $selectedTab,
+            request()->except('tab', 'page')
+        );
+        $inquiryRows = $this->buildInquiryIndexRows($inquiries);
+        $perPageOptions = [10, 25, 50, 100];
+
+        return view('modules.inquiries.index', compact(
+            'inquiries',
+            'selectedTab',
+            'tabCounts',
+            'inquiryTabs',
+            'inquiryRows',
+            'perPageOptions'
+        ));
+    }
+
+    private function buildInquiryTabs(array $tabCounts, string $selectedTab, array $queryBase): array
+    {
+        return [
+            [
+                'key' => 'new',
+                'label' => ui_phrase('New'),
+                'count' => (int) ($tabCounts['new'] ?? 0),
+                'is_active' => $selectedTab === 'new',
+                'url' => route('inquiries.index', array_merge($queryBase, ['tab' => 'new'])),
+            ],
+            [
+                'key' => 'in_progress',
+                'label' => ui_phrase('In Progress'),
+                'count' => (int) ($tabCounts['in_progress'] ?? 0),
+                'is_active' => $selectedTab === 'in_progress',
+                'url' => route('inquiries.index', array_merge($queryBase, ['tab' => 'in_progress'])),
+            ],
+            [
+                'key' => 'archived',
+                'label' => ui_phrase('Archived'),
+                'count' => (int) ($tabCounts['archived'] ?? 0),
+                'is_active' => $selectedTab === 'archived',
+                'url' => route('inquiries.index', array_merge($queryBase, ['tab' => 'archived'])),
+            ],
+        ];
+    }
+
+    private function buildInquiryIndexRows($inquiries): array
+    {
+        $currentUserId = (int) (auth()->id() ?? 0);
+        $user = auth()->user();
+        $canAccessQuotationModule = $user?->can('module.quotations.access') ?? false;
+        $canCreateQuotation = $user?->can('module.quotations.create') ?? false;
+        $firstItem = (int) ($inquiries->firstItem() ?? 1);
+
+        return $inquiries->getCollection()->values()->map(function (Inquiry $inquiry, int $index) use (
+            $currentUserId,
+            $user,
+            $canAccessQuotationModule,
+            $canCreateQuotation,
+            $firstItem
+        ): array {
+            $handlerIdForActions = (int) ($inquiry->handled_by ?? ($inquiry->assigned_to ?? 0));
+            $linkedQuotation = $inquiry->quotation;
+            $hasLinkedQuotation = $linkedQuotation !== null;
+            $canProcessInquiry = ! $inquiry->isFinal()
+                && ($handlerIdForActions <= 0 || $handlerIdForActions === $currentUserId);
+
+            $quotationNumber = trim((string) ($linkedQuotation?->quotation_number ?? ''));
+            $orderNumber = trim((string) ($linkedQuotation?->order_number ?? ''));
+            $quotationSummary = $hasLinkedQuotation
+                ? ($quotationNumber !== '' ? $quotationNumber : '-') . ' | ' . ($orderNumber !== '' ? $orderNumber : '-')
+                : '-';
+
+            $canOpenLinkedQuotation = $hasLinkedQuotation
+                && ! $linkedQuotation->trashed()
+                && Route::has('quotations.show')
+                && $canAccessQuotationModule;
+
+            return [
+                'inquiry' => $inquiry,
+                'row_number' => $firstItem + $index,
+                'customer_name' => trim((string) ($inquiry->customer?->name ?? '')) !== ''
+                    ? (string) $inquiry->customer->name
+                    : '-',
+                'status' => (string) ($inquiry->status ?? 'new_request'),
+                'priority' => (string) ($inquiry->priority ?? ''),
+                'creator_name' => trim((string) ($inquiry->creator?->name ?? '')) !== ''
+                    ? (string) $inquiry->creator->name
+                    : '-',
+                'assigned_to_name' => trim((string) ($inquiry->handledBy?->name ?? $inquiry->assignedTo?->name ?? '')) !== ''
+                    ? (string) ($inquiry->handledBy?->name ?? $inquiry->assignedTo?->name)
+                    : '-',
+                'deadline_display' => $inquiry->deadline ? $inquiry->deadline->format('Y-m-d') : '-',
+                'has_linked_quotation' => $hasLinkedQuotation,
+                'quotation_summary' => $quotationSummary,
+                'quotation_status' => (string) ($linkedQuotation?->status ?? 'draft'),
+                'can_open_linked_quotation' => $canOpenLinkedQuotation,
+                'quotation_show_url' => $canOpenLinkedQuotation ? route('quotations.show', $linkedQuotation) : null,
+                'show_url' => route('inquiries.show', $inquiry),
+                'edit_url' => route('inquiries.edit', $inquiry),
+                'can_edit' => (bool) ($user?->can('update', $inquiry) ?? false)
+                    && ! $hasLinkedQuotation
+                    && ! $inquiry->isFinal(),
+                'can_process' => $canProcessInquiry,
+                'can_generate_quotation' => ! $hasLinkedQuotation && $canProcessInquiry && $canCreateQuotation,
+                'create_itinerary_url' => route('itineraries.create', ['inquiry_id' => $inquiry->id]),
+                'create_quotation_url' => route('quotations.create', ['inquiry_id' => $inquiry->id]),
+            ];
+        })->all();
     }
 
     private function countInquiryTab(Builder $query, string $tab): int
@@ -177,12 +285,7 @@ class InquiryController extends Controller
      */
     public function create()
     {
-        $customers = Customer::query()->orderBy('name')->get();
-        $handlerUsers = $this->handlerUsersQuery()->get(['id', 'name']);
-
-        $sourceOptions = self::SOURCE_OPTIONS;
-
-        return view('modules.inquiries.create', compact('customers', 'sourceOptions', 'handlerUsers'));
+        return view('modules.inquiries.create', $this->buildInquiryFormViewData());
     }
 
     /**
@@ -190,18 +293,9 @@ class InquiryController extends Controller
      */
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            'customer_id' => ['required', 'exists:customers,id'],
-            'source' => ['nullable', Rule::in(self::SOURCE_OPTIONS)],
-            'priority' => ['required', Rule::in(['low', 'normal', 'high'])],
-            'deadline' => ['nullable', 'date'],
-            'assigned_to' => ['nullable', 'integer', Rule::exists('users', 'id')],
-            'notes' => ['nullable', 'string'],
-        ]);
-        $this->assertAssignedToRole($validated['assigned_to'] ?? null);
-        $validated['reminder_enabled'] = true;
+        $validated = $this->validateInquiryPayload($request);
+        $validated = $this->normalizeInquiryAssignmentPayload($validated);
         $validated['status'] = 'new_request';
-        $validated['handled_by'] = $validated['assigned_to'] ?? null;
 
         $inquiry = Inquiry::withoutActivityLogging(function () use ($validated) {
             return Inquiry::query()->create($validated);
@@ -316,21 +410,20 @@ class InquiryController extends Controller
                 ->route('inquiries.show', $inquiry)
                 ->with('error', ui_phrase('Inquiry is locked by quotation and cannot be edited.'));
         }
-        $customers = Customer::query()->orderBy('name')->get();
-        $handlerUsers = $this->handlerUsersQuery()->get(['id', 'name']);
         $activities = $inquiry->activities()
             ->with('user:id,name')
             ->latest()
             ->paginate(5, ['*'], 'activity_page')
             ->withQueryString();
 
-        $sourceOptions = self::SOURCE_OPTIONS;
-
         if ($this->wantsActivityTimelineFragment($request)) {
             return $this->activityTimelineFragmentResponse($activities);
         }
 
-        return view('modules.inquiries.edit', compact('inquiry', 'customers', 'sourceOptions', 'activities', 'handlerUsers'));
+        return view('modules.inquiries.edit', array_merge(
+            $this->buildInquiryFormViewData(),
+            compact('inquiry', 'activities')
+        ));
     }
 
     /**
@@ -352,22 +445,9 @@ class InquiryController extends Controller
                 ->route('inquiries.show', $inquiry)
                 ->with('error', ui_phrase('Inquiry is locked by quotation and cannot be updated.'));
         }
-        $validated = $request->validate([
-            'customer_id' => ['required', 'exists:customers,id'],
-            'source' => ['nullable', Rule::in(self::SOURCE_OPTIONS)],
-            'priority' => ['required', Rule::in(['low', 'normal', 'high'])],
-            'deadline' => ['nullable', 'date'],
-            'assigned_to' => ['nullable', 'integer', Rule::exists('users', 'id')],
-            'notes' => ['nullable', 'string'],
-        ]);
+        $validated = $this->validateInquiryPayload($request);
         $existingHandlerId = (int) ($inquiry->handled_by ?? $inquiry->assigned_to ?? 0);
-        if ($existingHandlerId > 0) {
-            $validated['assigned_to'] = $existingHandlerId;
-        }
-
-        $this->assertAssignedToRole($validated['assigned_to'] ?? null);
-        $validated['reminder_enabled'] = true;
-        $validated['handled_by'] = $validated['assigned_to'] ?? null;
+        $validated = $this->normalizeInquiryAssignmentPayload($validated, $existingHandlerId);
 
         $beforeAudit = $this->buildInquiryAuditSnapshot($inquiry);
         Inquiry::withoutActivityLogging(function () use ($inquiry, $validated): void {
@@ -400,6 +480,7 @@ class InquiryController extends Controller
 
     public function toggleStatus($inquiry)
     {
+        abort_unless(auth()->user()?->canManageActivationActions(), 403);
         $inquiry = Inquiry::withTrashed()->findOrFail($inquiry);
         if ($inquiry->isFinal()) {
             return redirect()
@@ -463,6 +544,43 @@ class InquiryController extends Controller
             'reminder_enabled' => (bool) ($inquiry->reminder_enabled ?? false),
             'notes' => trim((string) ($inquiry->notes ?? '')),
         ];
+    }
+
+    private function buildInquiryFormViewData(): array
+    {
+        return [
+            'customers' => Customer::query()
+                ->select(['id', 'name', 'code'])
+                ->orderBy('name')
+                ->get(),
+            'handlerUsers' => $this->handlerUsersQuery()->get(['id', 'name']),
+            'sourceOptions' => self::SOURCE_OPTIONS,
+        ];
+    }
+
+    private function validateInquiryPayload(Request $request): array
+    {
+        return $request->validate([
+            'customer_id' => ['required', 'exists:customers,id'],
+            'source' => ['nullable', Rule::in(self::SOURCE_OPTIONS)],
+            'priority' => ['required', Rule::in(['low', 'normal', 'high'])],
+            'deadline' => ['nullable', 'date'],
+            'assigned_to' => ['nullable', 'integer', Rule::exists('users', 'id')],
+            'notes' => ['nullable', 'string'],
+        ]);
+    }
+
+    private function normalizeInquiryAssignmentPayload(array $validated, ?int $lockedHandlerId = null): array
+    {
+        if ($lockedHandlerId && $lockedHandlerId > 0) {
+            $validated['assigned_to'] = $lockedHandlerId;
+        }
+
+        $this->assertAssignedToRole($validated['assigned_to'] ?? null);
+        $validated['reminder_enabled'] = true;
+        $validated['handled_by'] = $validated['assigned_to'] ?? null;
+
+        return $validated;
     }
 
     private function pendingInquiryDeadlineReminderQuery($user): Builder

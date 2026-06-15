@@ -22,7 +22,10 @@
         .group-row td { background: #eef2ff; color: #4338ca; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; }
         .desc-type { font-weight: 700; color: #0f766e; }
         .desc-sep { color: #9ca3af; }
-        .desc-detail { color: #111827; }
+        .desc-detail { color: #111827; line-height: 1.45; }
+        .desc-extra { margin-top: 4px; font-size: 10px; line-height: 1.45; color: #475569; }
+        .desc-extra-label { font-weight: 700; color: #334155; }
+        .desc-extra-value { color: #475569; }
     </style>
 </head>
 <body>
@@ -164,6 +167,7 @@
                             $typePart = trim((string) $typePart);
                             $detailPart = trim((string) $detailPart);
                         }
+                        $pdfMenuHighlights = trim((string) ($item->pdf_menu_highlights ?? ''));
                     @endphp
                     <tr>
                         <td>
@@ -175,6 +179,12 @@
                                 <span class="desc-detail">{{ $detailPart }}</span>
                             @else
                                 <span class="desc-detail">{{ $cleanDescription }}</span>
+                            @endif
+                            @if ($pdfMenuHighlights !== '')
+                                <div class="desc-extra">
+                                    <span class="desc-extra-label">{{ ui_phrase('Menu') }}:</span>
+                                    <span class="desc-extra-value">{{ $pdfMenuHighlights }}</span>
+                                </div>
                             @endif
                         </td>
                         <td class="right"><x-money :amount="$item->unit_price ?? 0" currency="IDR" /></td>

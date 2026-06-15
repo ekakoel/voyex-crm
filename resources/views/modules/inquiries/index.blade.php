@@ -9,36 +9,14 @@
 @section('content')
     <div class="space-y-6 module-page module-page--inquiries" data-service-filter-page data-page-spinner="off">
         <div class="module-grid-main" data-service-filter-results>
-            @php
-                $tabCounts = $tabCounts ?? ['new' => 0, 'in_progress' => 0, 'archived' => 0];
-                $selectedTab = $selectedTab ?? 'new';
-                $tabQueryBase = request()->except('tab', 'page');
-                $inquiryTabs = [
-                    ['key' => 'new', 'label' => ui_phrase('New'), 'count' => (int) ($tabCounts['new'] ?? 0)],
-                    [
-                        'key' => 'in_progress',
-                        'label' => ui_phrase('In Progress'),
-                        'count' => (int) ($tabCounts['in_progress'] ?? 0),
-                    ],
-                    [
-                        'key' => 'archived',
-                        'label' => ui_phrase('Archived'),
-                        'count' => (int) ($tabCounts['archived'] ?? 0),
-                    ],
-                ];
-            @endphp
             <div class="app-card p-3">
                 <div class="flex flex-wrap items-center gap-2">
                     @foreach ($inquiryTabs as $tab)
-                        @php
-                            $isActiveTab = $selectedTab === $tab['key'];
-                            $tabUrl = route('inquiries.index', array_merge($tabQueryBase, ['tab' => $tab['key']]));
-                        @endphp
-                        <a href="{{ $tabUrl }}"
-                            class="{{ $isActiveTab ? 'bg-blue-800 text-white border-blue-900' : 'bg-white text-gray-700 border-gray-300 dark:bg-gray-900 dark:text-gray-400 dark:border-gray-600' }} inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold transition hover:border-blue-800 dark:hover:text-white">
+                        <a href="{{ $tab['url'] }}"
+                            class="{{ $tab['is_active'] ? 'bg-blue-800 text-white border-blue-900' : 'bg-white text-gray-700 border-gray-300 dark:bg-gray-900 dark:text-gray-400 dark:border-gray-600' }} inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold transition hover:border-blue-800 dark:hover:text-white">
                             <span>{{ $tab['label'] }}</span>
                             <span
-                                class="{{ $isActiveTab ? 'bg-blue-800/40 text-white' : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300' }} rounded-full px-2 py-0.5 text-[11px] font-semibold">{{ $tab['count'] }}</span>
+                                class="{{ $tab['is_active'] ? 'bg-blue-800/40 text-white' : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300' }} rounded-full px-2 py-0.5 text-[11px] font-semibold">{{ $tab['count'] }}</span>
                         </a>
                     @endforeach
                 </div>
@@ -78,65 +56,44 @@
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
-                            @forelse ($inquiries as $index=>$inquiry)
-                                @php
-                                    $currentUserId = (int) (auth()->id() ?? 0);
-                                    $handlerIdForActions = (int) ($inquiry->handled_by ?? ($inquiry->assigned_to ?? 0));
-                                    $linkedQuotation = $inquiry->quotation;
-                                    $hasLinkedQuotation = (bool) $linkedQuotation;
-                                    $canProcessInquiry =
-                                        !$inquiry->isFinal() &&
-                                        ($handlerIdForActions <= 0 || $handlerIdForActions === $currentUserId);
-                                @endphp
+                            @forelse ($inquiryRows as $row)
+                                @php($inquiry = $row['inquiry'])
                                 <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/30">
                                     <td class="px-4 py-3 text-sm text-gray-800 dark:text-gray-100">
-                                        {{ $inquiries->firstItem() + $index }}
+                                        {{ $row['row_number'] }}
                                     </td>
                                     <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">
-                                        {{ $inquiry->customer->name ?? '-' }}<br>
-                                        <x-ui.status-badge :status="(string) ($inquiry->status ?? 'new_request')" size="xs" />
+                                        {{ $row['customer_name'] }}<br>
+                                        <x-ui.status-badge :status="$row['status']" size="xs" />
                                     </td>
 
                                     <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">
                                         <div class="font-medium text-gray-800 dark:text-gray-100">
                                             {{ $inquiry->inquiry_number }}</div>
                                         <div class="text-xs text-gray-500 dark:text-gray-400">
-                                            {{ ui_phrase((string) $inquiry->priority) }}</div>
+                                            {{ ui_phrase($row['priority']) }}</div>
                                     </td>
                                     <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">
-                                        {{ ui_user_name($inquiry->creator) }}
+                                        {{ $row['creator_name'] }}
                                     </td>
                                     <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">
-                                        {{ ui_user_name($inquiry->handledBy ?? $inquiry->assignedTo) }}
+                                        {{ $row['assigned_to_name'] }}
                                     </td>
                                     <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">
-                                        {{ $inquiry->deadline ? $inquiry->deadline->format('Y-m-d') : '-' }}</td>
+                                        {{ $row['deadline_display'] }}</td>
                                     <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">
-                                        @if ($linkedQuotation)
-                                            @php
-                                                $quotationNumber = trim(
-                                                    (string) ($linkedQuotation->quotation_number ?? ''),
-                                                );
-                                                $orderNumber = trim((string) ($linkedQuotation->order_number ?? ''));
-                                                $quotationSummary =
-                                                    ($quotationNumber !== '' ? $quotationNumber : '-') .
-                                                    ' | ' .
-                                                    ($orderNumber !== '' ? $orderNumber : '-');
-                                            @endphp
+                                        @if ($row['has_linked_quotation'])
                                             <div class="inline-flex flex-wrap items-center gap-2">
-                                                @if (
-                                                    !$linkedQuotation->trashed() &&
-                                                        Route::has('quotations.show') &&
-                                                        (auth()->user()?->can('module.quotations.access') ?? false))
-                                                    <a href="{{ route('quotations.show', $linkedQuotation) }}"
+                                                @if ($row['can_open_linked_quotation'])
+                                                    <a href="{{ $row['quotation_show_url'] }}"
                                                         class="font-medium text-indigo-600 hover:text-indigo-700 hover:underline dark:text-indigo-400">
-                                                        {{ $quotationSummary }}
+                                                        {{ $row['quotation_summary'] }}
                                                     </a>
                                                 @else
                                                     <span
-                                                        class="font-medium text-gray-700 dark:text-gray-200">{{ $quotationSummary }}</span>
+                                                        class="font-medium text-gray-700 dark:text-gray-200">{{ $row['quotation_summary'] }}</span>
                                                 @endif
-                                                <x-ui.status-badge :status="(string) ($linkedQuotation->status ?? 'draft')" size="xs" />
+                                                <x-ui.status-badge :status="$row['quotation_status']" size="xs" />
                                             </div>
                                         @else
                                             -
@@ -144,29 +101,27 @@
                                     </td>
                                     <td class="px-4 py-3 text-right text-sm actions-compact">
                                         <x-ui.table-action-dropdown :label="ui_phrase('Actions')">
-                                            <a href="{{ route('inquiries.show', $inquiry) }}"
+                                            <a href="{{ $row['show_url'] }}"
                                                 class="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800">
                                                 <i class="fa-solid fa-eye w-4 text-gray-500 dark:text-gray-400"></i>
                                                 <span>{{ ui_phrase('Detail') }}</span>
                                             </a>
-                                            @can('update', $inquiry)
-                                                @if (!$hasLinkedQuotation && !$inquiry->isFinal())
-                                                    <a href="{{ route('inquiries.edit', $inquiry) }}"
-                                                        class="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800">
-                                                        <i class="fa-solid fa-pen w-4 text-gray-500 dark:text-gray-400"></i>
-                                                        <span>{{ ui_phrase('Edit') }}</span>
-                                                    </a>
-                                                @endif
-                                            @endcan
-                                            @if ($canProcessInquiry)
-                                                <a href="{{ route('itineraries.create', ['inquiry_id' => $inquiry->id]) }}"
+                                            @if ($row['can_edit'])
+                                                <a href="{{ $row['edit_url'] }}"
+                                                    class="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800">
+                                                    <i class="fa-solid fa-pen w-4 text-gray-500 dark:text-gray-400"></i>
+                                                    <span>{{ ui_phrase('Edit') }}</span>
+                                                </a>
+                                            @endif
+                                            @if ($row['can_process'])
+                                                <a href="{{ $row['create_itinerary_url'] }}"
                                                     class="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800">
                                                     <i class="fa-solid fa-route w-4 text-gray-500 dark:text-gray-400"></i>
                                                     <span>{{ ui_phrase('Create Itinerary') }}</span>
                                                 </a>
                                             @endif
-                                            @if (!$hasLinkedQuotation && $canProcessInquiry && (auth()->user()?->can('module.quotations.create') ?? false))
-                                                <a href="{{ route('quotations.create', ['inquiry_id' => $inquiry->id]) }}"
+                                            @if ($row['can_generate_quotation'])
+                                                <a href="{{ $row['create_quotation_url'] }}"
                                                     class="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800">
                                                     <i
                                                         class="fa-solid fa-file-invoice-dollar w-4 text-gray-500 dark:text-gray-400"></i>
@@ -190,42 +145,32 @@
                 </div>
             </div>
             <div class="md:hidden space-y-3">
-                @forelse ($inquiries as $inquiry)
-                    @php
-                        $currentUserId = (int) (auth()->id() ?? 0);
-                        $handlerIdForActions = (int) ($inquiry->handled_by ?? ($inquiry->assigned_to ?? 0));
-                        $linkedQuotation = $inquiry->quotation;
-                        $hasLinkedQuotation = (bool) $linkedQuotation;
-                        $canProcessInquiry =
-                            !$inquiry->isFinal() &&
-                            ($handlerIdForActions <= 0 || $handlerIdForActions === $currentUserId);
-                    @endphp
+                @forelse ($inquiryRows as $row)
+                    @php($inquiry = $row['inquiry'])
                     <div class="app-card relative p-4 pt-5">
                         <div class="absolute right-3 top-3 z-10">
                             <x-ui.table-action-dropdown :label="ui_phrase('Actions')">
-                                <a href="{{ route('inquiries.show', $inquiry) }}"
+                                <a href="{{ $row['show_url'] }}"
                                     class="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800">
                                     <i class="fa-solid fa-eye w-4 text-gray-500 dark:text-gray-400"></i>
                                     <span>{{ ui_phrase('Detail') }}</span>
                                 </a>
-                                @can('update', $inquiry)
-                                    @if (!$hasLinkedQuotation && !$inquiry->isFinal())
-                                        <a href="{{ route('inquiries.edit', $inquiry) }}"
-                                            class="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800">
-                                            <i class="fa-solid fa-pen w-4 text-gray-500 dark:text-gray-400"></i>
-                                            <span>{{ ui_phrase('Edit') }}</span>
-                                        </a>
-                                    @endif
-                                @endcan
-                                @if ($canProcessInquiry)
-                                    <a href="{{ route('itineraries.create', ['inquiry_id' => $inquiry->id]) }}"
+                                @if ($row['can_edit'])
+                                    <a href="{{ $row['edit_url'] }}"
+                                        class="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800">
+                                        <i class="fa-solid fa-pen w-4 text-gray-500 dark:text-gray-400"></i>
+                                        <span>{{ ui_phrase('Edit') }}</span>
+                                    </a>
+                                @endif
+                                @if ($row['can_process'])
+                                    <a href="{{ $row['create_itinerary_url'] }}"
                                         class="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800">
                                         <i class="fa-solid fa-route w-4 text-gray-500 dark:text-gray-400"></i>
                                         <span>{{ ui_phrase('Create Itinerary') }}</span>
                                     </a>
                                 @endif
-                                @if (!$hasLinkedQuotation && $canProcessInquiry && (auth()->user()?->can('module.quotations.create') ?? false))
-                                    <a href="{{ route('quotations.create', ['inquiry_id' => $inquiry->id]) }}"
+                                @if ($row['can_generate_quotation'])
+                                    <a href="{{ $row['create_quotation_url'] }}"
                                         class="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800">
                                         <i class="fa-solid fa-file-invoice-dollar w-4 text-gray-500 dark:text-gray-400"></i>
                                         <span>{{ ui_phrase('Generate Quotation') }}</span>
@@ -238,44 +183,33 @@
                                 <p class="text-sm font-semibold text-gray-800 dark:text-gray-100">
                                     {{ $inquiry->inquiry_number }}</p>
                                 <p class="text-xs text-gray-500 dark:text-gray-400">
-                                    {{ $inquiry->customer->name ?? '-' }}</p>
+                                    {{ $row['customer_name'] }}</p>
                             </div>
                         </div>
                         <div class="mt-3 grid grid-cols-2 gap-2 text-xs text-gray-600 dark:text-gray-300">
                             <div>{{ ui_phrase('Priority') }}</div>
-                            <div>{{ ui_phrase((string) $inquiry->priority) }}</div>
+                            <div>{{ ui_phrase($row['priority']) }}</div>
                             <div>{{ ui_phrase('Status') }}</div>
-                            <div><x-ui.status-badge :status="(string) ($inquiry->status ?? 'new_request')" size="xs" /></div>
+                            <div><x-ui.status-badge :status="$row['status']" size="xs" /></div>
                             <div>{{ ui_phrase('Created By') }}</div>
-                            <div>{{ ui_user_name($inquiry->creator) }}</div>
+                            <div>{{ $row['creator_name'] }}</div>
                             <div>{{ ui_phrase('Assigned To') }}</div>
-                            <div>{{ ui_user_name($inquiry->handledBy ?? $inquiry->assignedTo) }}</div>
+                            <div>{{ $row['assigned_to_name'] }}</div>
                             <div>{{ ui_phrase('Deadline') }}</div>
-                            <div>{{ $inquiry->deadline ? $inquiry->deadline->format('Y-m-d') : '-' }}</div>
+                            <div>{{ $row['deadline_display'] }}</div>
                         </div>
                         <div class="mt-3">
-                            @if ($linkedQuotation)
-                                @php
-                                    $quotationNumber = trim((string) ($linkedQuotation->quotation_number ?? ''));
-                                    $orderNumber = trim((string) ($linkedQuotation->order_number ?? ''));
-                                    $quotationSummary =
-                                        ($quotationNumber !== '' ? $quotationNumber : '-') .
-                                        ' | ' .
-                                        ($orderNumber !== '' ? $orderNumber : '-');
-                                @endphp
+                            @if ($row['has_linked_quotation'])
                                 <div
                                     class="inline-flex flex-wrap items-center gap-2 text-xs text-gray-600 dark:text-gray-300">
-                                    @if (
-                                        !$linkedQuotation->trashed() &&
-                                            Route::has('quotations.show') &&
-                                            (auth()->user()?->can('module.quotations.access') ?? false))
-                                        <a href="{{ route('quotations.show', $linkedQuotation) }}"
+                                    @if ($row['can_open_linked_quotation'])
+                                        <a href="{{ $row['quotation_show_url'] }}"
                                             class="font-medium text-indigo-600 hover:text-indigo-700 hover:underline dark:text-indigo-400">
-                                            {{ $quotationSummary }}
+                                            {{ $row['quotation_summary'] }}
                                         </a>
                                     @else
                                         <span
-                                            class="font-medium text-gray-700 dark:text-gray-200">{{ $quotationSummary }}</span>
+                                            class="font-medium text-gray-700 dark:text-gray-200">{{ $row['quotation_summary'] }}</span>
                                     @endif
                                 </div>
                             @else

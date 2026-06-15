@@ -7,21 +7,6 @@
 @endsection
 
 @section('content')
-    @php
-        $paymentStatusActive = (string) request('status', 'all');
-        $paymentStatusTabs = collect(\App\Models\Payment::STATUS_OPTIONS)
-            ->map(fn ($status) => [
-                'key' => (string) $status,
-                'label' => ui_phrase((string) $status),
-                'url' => route('payments.index', array_merge(request()->except(['page']), ['status' => $status])),
-            ])
-            ->prepend([
-                'key' => 'all',
-                'label' => ui_phrase('All'),
-                'url' => route('payments.index', request()->except(['page', 'status'])),
-            ])->values()->all();
-    @endphp
-
     <div class="space-y-5 module-page module-page--payments">
 
         <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
@@ -49,7 +34,7 @@
                 <input type="date" name="payment_from" value="{{ request('payment_from') }}" class="app-input">
                 <input type="date" name="payment_to" value="{{ request('payment_to') }}" class="app-input">
                 <select name="per_page" class="app-input">
-                    @foreach ([10, 25, 50, 100] as $size)
+                    @foreach ($perPageOptions as $size)
                         <option value="{{ $size }}" @selected((string) request('per_page', 10) === (string) $size)>{{ ui_phrase(':size/page', ['size' => $size]) }}</option>
                     @endforeach
                 </select>
@@ -81,18 +66,19 @@
                     <th class="px-4 py-3 text-right text-xs font-semibold uppercase">{{ ui_phrase('Actions') }}</th>
                 </tr>
             </x-slot:head>
-            @forelse($payments as $payment)
+            @forelse($paymentRows as $row)
+                @php($payment = $row['payment'])
                 <tr>
-                    <td class="px-4 py-3">{{ $payment->payment_number }}</td>
-                    <td class="px-4 py-3">{{ $payment->invoice?->invoice_number ?? '-' }}</td>
-                    <td class="px-4 py-3">{{ $payment->invoice?->booking?->quotation?->inquiry?->customer?->name ?? '-' }}</td>
+                    <td class="px-4 py-3">{{ $row['payment_number'] }}</td>
+                    <td class="px-4 py-3">{{ $row['invoice_number'] }}</td>
+                    <td class="px-4 py-3">{{ $row['customer_name'] }}</td>
                     <td class="px-4 py-3"><x-ui.date-display :date="$payment->payment_date" format="Y-m-d" /></td>
-                    <td class="px-4 py-3"><x-ui.money :amount="(float) ($payment->amount ?? 0)" :currency="(string) ($payment->currency_code ?? 'IDR')" /></td>
-                    <td class="px-4 py-3">{{ ui_phrase((string) ($payment->payment_type ?? 'full_payment')) }}</td>
-                    <td class="px-4 py-3"><x-ui.status-badge :status="(string) ($payment->status ?? 'pending')" size="xs" /></td>
+                    <td class="px-4 py-3"><x-ui.money :amount="$row['amount']" :currency="$row['currency_code']" /></td>
+                    <td class="px-4 py-3">{{ ui_phrase($row['payment_type']) }}</td>
+                    <td class="px-4 py-3"><x-ui.status-badge :status="$row['status']" size="xs" /></td>
                     <td class="px-4 py-3 text-right">
                         <x-ui.table-action-dropdown :label="ui_phrase('Actions')">
-                            <a href="{{ route('payments.show', $payment) }}" class="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800">
+                            <a href="{{ $row['show_url'] }}" class="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800">
                                 <i class="fa-solid fa-eye w-4 text-gray-500 dark:text-gray-400"></i>
                                 <span>{{ ui_phrase('Detail') }}</span>
                             </a>

@@ -173,6 +173,7 @@ class ActivityController extends Controller
 
     public function toggleStatus($activity)
     {
+        abort_unless(auth()->user()?->canManageActivationActions(), 403);
         $activity = Activity::withTrashed()->findOrFail($activity);
         if ($activity->trashed()) {
             $activity->restore();

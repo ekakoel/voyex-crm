@@ -393,6 +393,7 @@
                                     'type' => 'transfer',
                                     'experience_id' => (int) ($transferItem->island_transfer_id ?? 0),
                                     'name' => $transfer->name ?? '-',
+                                    'vendor_name' => $transferVendor?->name ?? '-',
                                     'map_focus_key' => 'day-' . $day . '-transfer-' . (int) ($transferItem->island_transfer_id ?? 0) . '-order-' . (int) ($transferItem->visit_order ?? 999999),
                                     'region_city' => $composeRegionCity($transferVendor?->city ?? null, $transferVendor?->province ?? null),
                                     'destination_label' => (string) ($transferVendor?->destination?->name ?? ''),
@@ -816,14 +817,17 @@
                                             $itemStartTime = $item['start_time'] ? substr((string) $item['start_time'], 0, 5) : '--:--';
                                             $itemEndTime = $item['end_time'] ? substr((string) $item['end_time'], 0, 5) : '--:--';
                                             $itemRegionCity = trim((string) ($item['region_city'] ?? ''));
+                                            $itemVendorName = trim((string) ($item['vendor_name'] ?? ''));
                                             $itemDestination = trim((string) ($item['destination_label'] ?? ''));
                                             $itemLocationFallback = trim((string) ($item['location'] ?? ''));
-                                            $itemMetaLocation = $itemRegionCity !== '' && $itemRegionCity !== '-'
+                                            $itemMetaPrimary = $itemRegionCity !== '' && $itemRegionCity !== '-'
                                                 ? $itemRegionCity
                                                 : ($itemLocationFallback !== '' ? $itemLocationFallback : '-');
-                                            if ($itemDestination !== '') {
-                                                $itemMetaLocation .= ', ' . $itemDestination;
+                                            $itemMetaSegments = [$itemMetaPrimary];
+                                            if ($itemType !== 'transfer' && $itemDestination !== '') {
+                                                $itemMetaSegments[] = $itemDestination;
                                             }
+                                            $itemMetaLocation = implode(' | ', array_filter($itemMetaSegments, static fn ($value) => trim((string) $value) !== ''));
                                         @endphp
                                         <div
                                             class="js-itinerary-map-focus interactive-selectable ml-2 flex-1 cursor-pointer rounded-lg border px-2 py-2 hover:bg-gray-50/70 dark:hover:bg-gray-800/30 {{ $isMainExperience ? 'border-amber-400 bg-amber-50/70 dark:border-amber-500 dark:bg-amber-900/10' : 'border-gray-200 dark:border-gray-700' }}"

@@ -332,6 +332,7 @@ class HotelController extends Controller
 
     public function toggleStatus($hotel)
     {
+        abort_unless(auth()->user()?->canManageActivationActions(), 403);
         $hotel = Hotel::withTrashed()->findOrFail($hotel);
         if ($hotel->trashed()) {
             $hotel->restore();

@@ -5,23 +5,6 @@
     <a href="{{ route('food-beverages.create') }}" class="btn-primary">{{ ui_phrase('Add F&B') }}</a>
 @endsection
 @section('content')
-    @php
-        $resolveMealSessionBadges = static function (?string $mealPeriod): array {
-            $tokens = array_values(array_filter(array_map(
-                static fn ($item) => strtolower(trim((string) $item)),
-                preg_split('/[\s,;\/|]+/', (string) $mealPeriod) ?: []
-            )));
-
-            $sessions = [];
-            foreach (['breakfast' => 'Breakfast', 'lunch' => 'Lunch', 'dinner' => 'Dinner'] as $key => $label) {
-                if (in_array($key, $tokens, true)) {
-                    $sessions[] = ['key' => $key, 'label' => $label];
-                }
-            }
-
-            return $sessions;
-        };
-    @endphp
     <div class="space-y-6 module-page module-page--food-beverages" data-service-filter-page data-page-spinner="off">
         <div class="module-grid-main" data-service-filter-results>
                 <div class="app-card p-5">
@@ -45,7 +28,7 @@
                             <option value="inactive" @selected((string) request('status') === 'inactive')>{{ ui_phrase('Inactive') }}</option>
                         </select>
                         <select name="per_page" class="app-input" data-service-filter-input>
-                            @foreach ([10,25,50,100] as $size)
+                            @foreach ($perPageOptions as $size)
                                 <option value="{{ $size }}" @selected((string) request('per_page', 10) === (string) $size)>{{ ui_phrase(':size/page', ['size' => $size]) }}</option>
                             @endforeach
                         </select>
@@ -71,31 +54,19 @@
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
-                    @forelse ($foodBeverages as $index => $foodBeverage)
-                        @php
-                            $isActive = ! $foodBeverage->trashed();
-                            $galleryImages = is_array($foodBeverage->gallery_images ?? null) ? $foodBeverage->gallery_images : [];
-                            $hasGalleryImages = count($galleryImages) > 0;
-                            $hasDestination = (int) ($foodBeverage->vendor?->destination_id ?? 0) > 0;
-                            $hasServiceName = trim((string) ($foodBeverage->name ?? '')) !== '';
-                            $hasServiceType = trim((string) ($foodBeverage->service_type ?? '')) !== '';
-                            $hasActivityType = trim((string) ($foodBeverage->activity_type ?? $foodBeverage->service_type ?? '')) !== '';
-                            $needsDataAttention = ! $hasGalleryImages || ! $hasDestination || ! $hasServiceName || ! $hasServiceType || ! $hasActivityType;
-                        @endphp
-                        <tr class="{{ $needsDataAttention ? 'bg-amber-50/70 dark:bg-amber-900/15' : '' }} hover:bg-gray-50 dark:hover:bg-gray-700/30">
-                            <td class="px-4 py-3 text-sm font-medium text-gray-800 dark:text-gray-100">{{ ++$index }}</td>
+                    @forelse ($foodBeverageRows as $row)
+                        @php($foodBeverage = $row['food_beverage'])
+                        <tr class="{{ $row['needs_data_attention'] ? 'bg-amber-50/70 dark:bg-amber-900/15' : '' }} hover:bg-gray-50 dark:hover:bg-gray-700/30">
+                            <td class="px-4 py-3 text-sm font-medium text-gray-800 dark:text-gray-100">{{ $row['row_number'] }}</td>
                             <td class="px-4 py-3 text-sm text-gray-800 dark:text-gray-100">
                                 <div>{{ $foodBeverage->name }}</div>
-                                <div class="text-xs text-gray-500 dark:text-gray-400">{{ $foodBeverage->vendor->name ?? '-' }}</div>
+                                <div class="text-xs text-gray-500 dark:text-gray-400">{{ $row['vendor_name'] }}</div>
                             </td>
-                            <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">{{ ucwords(str_replace('_', ' ', (string) $foodBeverage->service_type)) }}</td>
-                            <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">{{ $foodBeverage->duration_minutes }} min</td>
+                            <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">{{ $row['service_type_label'] }}</td>
+                            <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">{{ $row['duration_label'] }}</td>
                             <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">
-                                @php
-                                    $mealSessions = $resolveMealSessionBadges($foodBeverage->meal_period);
-                                @endphp
                                 <div class="flex flex-wrap gap-1">
-                                    @forelse ($mealSessions as $session)
+                                    @forelse ($row['meal_sessions'] as $session)
                                         <span class="inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium
                                             {{ $session['key'] === 'breakfast' ? 'border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-300' : '' }}
                                             {{ $session['key'] === 'lunch' ? 'border-sky-300 bg-sky-50 text-sky-700 dark:border-sky-700 dark:bg-sky-900/20 dark:text-sky-300' : '' }}
@@ -109,59 +80,57 @@
                             </td>
                             <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">
                                 <div>
-                                    Contract: <x-money :amount="(float) ($foodBeverage->adult_contract_rate ?? $foodBeverage->contract_rate ?? 0)" currency="IDR" />
+                                    Contract: <x-money :amount="$row['adult_contract_rate']" currency="IDR" />
                                 </div>
                                 <div class="text-xs text-gray-500 dark:text-gray-400">
                                     Markup:
-                                    {{ ($foodBeverage->adult_markup_type ?? $foodBeverage->markup_type ?? 'fixed') === 'percent'
-                                        ? rtrim(rtrim(number_format((float) ($foodBeverage->adult_markup ?? $foodBeverage->markup ?? 0), 2, '.', ''), '0'), '.') . '%'
-                                        : \App\Support\Currency::format((float) ($foodBeverage->adult_markup ?? $foodBeverage->markup ?? 0), 'IDR') }}
+                                    {{ $row['adult_markup_display'] }}
                                 </div>
                                 <div class="text-xs text-gray-500 dark:text-gray-400">
-                                    Publish: <x-money :amount="(float) ($foodBeverage->adult_publish_rate ?? $foodBeverage->publish_rate ?? 0)" currency="IDR" />
+                                    Publish: <x-money :amount="$row['adult_publish_rate']" currency="IDR" />
                                 </div>
                             </td>
                             <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">
                                 <div>
-                                    Contract: <x-money :amount="(float) ($foodBeverage->child_contract_rate ?? 0)" currency="IDR" />
+                                    Contract: <x-money :amount="$row['child_contract_rate']" currency="IDR" />
                                 </div>
                                 <div class="text-xs text-gray-500 dark:text-gray-400">
                                     Markup:
-                                    {{ ($foodBeverage->child_markup_type ?? 'fixed') === 'percent'
-                                        ? rtrim(rtrim(number_format((float) ($foodBeverage->child_markup ?? 0), 2, '.', ''), '0'), '.') . '%'
-                                        : \App\Support\Currency::format((float) ($foodBeverage->child_markup ?? 0), 'IDR') }}
+                                    {{ $row['child_markup_display'] }}
                                 </div>
                                 <div class="text-xs text-gray-500 dark:text-gray-400">
-                                    Publish: <x-money :amount="(float) ($foodBeverage->child_publish_rate ?? 0)" currency="IDR" />
+                                    Publish: <x-money :amount="$row['child_publish_rate']" currency="IDR" />
                                 </div>
                             </td>
                             <td class="px-4 py-3 text-center text-sm">
-                                <x-ui.status-badge :status="$isActive ? 'active' : 'inactive'" size="xs" />
+                                <x-ui.status-badge :status="$row['is_active'] ? 'active' : 'inactive'" size="xs" />
                             </td>
                             <td class="px-4 py-3 text-right text-sm actions-compact">
                                 <x-ui.table-action-dropdown :label="ui_phrase('Actions')">
-                                    <a href="{{ route('food-beverages.edit', $foodBeverage) }}" class="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800">
+                                    <a href="{{ $row['edit_url'] }}" class="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800">
                                         <i class="fa-solid fa-pen w-4 text-gray-500 dark:text-gray-400"></i>
                                         <span>{{ ui_phrase('Edit') }}</span>
                                     </a>
-                                    <a href="{{ route('food-beverages.create', ['copy' => $foodBeverage->id]) }}" class="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800">
+                                    <a href="{{ $row['copy_url'] }}" class="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800">
                                         <i class="fa-regular fa-copy w-4 text-gray-500 dark:text-gray-400"></i>
                                         <span>{{ ui_phrase('Copy') }}</span>
                                     </a>
+                                    @if ($canManageActivationActions)
                                     <div class="my-1 border-t border-gray-200 dark:border-gray-700"></div>
                                     <x-ui.confirm-action
-                                        :action="route('food-beverages.toggle-status', $foodBeverage->id)"
+                                        :action="$row['toggle_url']"
                                         method="PATCH"
                                         :modal-name="'food-beverages-index-toggle-desktop-' . $foodBeverage->id"
-                                        :title="$isActive ? ui_phrase('Deactivate') . ' F&B' : ui_phrase('Activate') . ' F&B'"
-                                        :message="$isActive ? ui_phrase('confirm deactivate') : ui_phrase('confirm activate')"
+                                        :title="$row['toggle_title']"
+                                        :message="$row['toggle_message_desktop']"
                                         :notice-message="__('confirm.notification_after_action')"
-                                        :confirm-label="$isActive ? ui_phrase('Deactivate') : ui_phrase('Activate')"
-                                        :trigger-label="$isActive ? ui_phrase('Deactivate') : ui_phrase('Activate')"
-                                        :trigger-icon="$isActive ? 'fa-solid fa-toggle-off w-4' : 'fa-solid fa-toggle-on w-4'"
-                                        :trigger-class="$isActive ? 'flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-amber-700 hover:bg-amber-50 dark:text-amber-300 dark:hover:bg-amber-900/20' : 'flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-emerald-700 hover:bg-emerald-50 dark:text-emerald-300 dark:hover:bg-emerald-900/20'"
+                                        :confirm-label="$row['toggle_label']"
+                                        :trigger-label="$row['toggle_label']"
+                                        :trigger-icon="$row['toggle_icon']"
+                                        :trigger-class="$row['toggle_class']"
                                         confirm-class="btn-primary-sm"
                                     />
+                                    @endif
                                 </x-ui.table-action-dropdown>
                             </td>
                         </tr>
@@ -177,61 +146,52 @@
             </div>
         </div>
         <div class="md:hidden space-y-3">
-            @forelse ($foodBeverages as $foodBeverage)
-                @php
-                    $isActive = ! $foodBeverage->trashed();
-                    $galleryImages = is_array($foodBeverage->gallery_images ?? null) ? $foodBeverage->gallery_images : [];
-                    $hasGalleryImages = count($galleryImages) > 0;
-                    $hasDestination = (int) ($foodBeverage->vendor?->destination_id ?? 0) > 0;
-                    $hasServiceName = trim((string) ($foodBeverage->name ?? '')) !== '';
-                    $hasServiceType = trim((string) ($foodBeverage->service_type ?? '')) !== '';
-                    $hasActivityType = trim((string) ($foodBeverage->activity_type ?? $foodBeverage->service_type ?? '')) !== '';
-                    $needsDataAttention = ! $hasGalleryImages || ! $hasDestination || ! $hasServiceName || ! $hasServiceType || ! $hasActivityType;
-                    $mealSessions = $resolveMealSessionBadges($foodBeverage->meal_period);
-                    $serviceTypeLabel = ucwords(str_replace('_', ' ', (string) $foodBeverage->service_type));
-                @endphp
-                <div class="app-card relative p-4 pt-5 {{ $needsDataAttention ? 'bg-amber-50/70 dark:bg-amber-900/15' : '' }}">
+            @forelse ($foodBeverageRows as $row)
+                @php($foodBeverage = $row['food_beverage'])
+                <div class="app-card relative p-4 pt-5 {{ $row['needs_data_attention'] ? 'bg-amber-50/70 dark:bg-amber-900/15' : '' }}">
                     <div class="absolute right-3 top-3 z-10">
                         <x-ui.table-action-dropdown :label="ui_phrase('Actions')">
-                            <a href="{{ route('food-beverages.edit', $foodBeverage) }}" class="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800">
+                            <a href="{{ $row['edit_url'] }}" class="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800">
                                 <i class="fa-solid fa-pen w-4 text-gray-500 dark:text-gray-400"></i>
                                 <span>{{ ui_phrase('Edit') }}</span>
                             </a>
-                            <a href="{{ route('food-beverages.create', ['copy' => $foodBeverage->id]) }}" class="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800">
+                            <a href="{{ $row['copy_url'] }}" class="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800">
                                 <i class="fa-regular fa-copy w-4 text-gray-500 dark:text-gray-400"></i>
                                 <span>{{ ui_phrase('Copy') }}</span>
                             </a>
+                            @if ($canManageActivationActions)
                             <div class="my-1 border-t border-gray-200 dark:border-gray-700"></div>
                             <x-ui.confirm-action
-                                :action="route('food-beverages.toggle-status', $foodBeverage->id)"
+                                :action="$row['toggle_url']"
                                 method="PATCH"
                                 :modal-name="'food-beverages-index-toggle-mobile-' . $foodBeverage->id"
-                                :title="$isActive ? ui_phrase('Deactivate') . ' F&B' : ui_phrase('Activate') . ' F&B'"
-                                :message="$isActive ? ui_phrase('Deactivate this F&B service?') : ui_phrase('Activate this F&B service?')"
+                                :title="$row['toggle_title']"
+                                :message="$row['toggle_message_mobile']"
                                 :notice-message="__('confirm.notification_after_action')"
-                                :confirm-label="$isActive ? ui_phrase('Deactivate') : ui_phrase('Activate')"
-                                :trigger-label="$isActive ? ui_phrase('Deactivate') : ui_phrase('Activate')"
-                                :trigger-icon="$isActive ? 'fa-solid fa-toggle-off w-4' : 'fa-solid fa-toggle-on w-4'"
-                                :trigger-class="$isActive ? 'flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-amber-700 hover:bg-amber-50 dark:text-amber-300 dark:hover:bg-amber-900/20' : 'flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-emerald-700 hover:bg-emerald-50 dark:text-emerald-300 dark:hover:bg-emerald-900/20'"
+                                :confirm-label="$row['toggle_label']"
+                                :trigger-label="$row['toggle_label']"
+                                :trigger-icon="$row['toggle_icon']"
+                                :trigger-class="$row['toggle_class']"
                                 confirm-class="btn-primary-sm"
                             />
+                            @endif
                         </x-ui.table-action-dropdown>
                     </div>
-                    <div class="flex items-start justify-between gap-3 pr-12">
-                        <div class="min-w-0 flex-1">
-                            <p class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ $foodBeverage->name }}</p>
-                            <p class="text-xs text-gray-500 dark:text-gray-400">{{ $foodBeverage->vendor->name ?? '-' }}</p>
-                        </div>
+                        <div class="flex items-start justify-between gap-3 pr-12">
+                            <div class="min-w-0 flex-1">
+                                <p class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ $foodBeverage->name }}</p>
+                                <p class="text-xs text-gray-500 dark:text-gray-400">{{ $row['vendor_name'] }}</p>
+                            </div>
                         <span class="inline-flex shrink-0 items-center rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-700 dark:bg-gray-900/40 dark:text-gray-300">
-                            {{ $serviceTypeLabel !== '' ? $serviceTypeLabel : '-' }}
+                            {{ $row['service_type_label'] !== '' ? $row['service_type_label'] : '-' }}
                         </span>
                     </div>
                     <div class="mt-3 grid grid-cols-2 gap-2 text-xs text-gray-600 dark:text-gray-300">
                         <div>{{ ui_phrase('Duration') }}</div>
-                        <div>{{ $foodBeverage->duration_minutes }} min</div>
+                        <div>{{ $row['duration_label'] }}</div>
                         <div>{{ ui_phrase('Meal Period') }}</div>
                         <div class="flex flex-wrap gap-1">
-                            @forelse ($mealSessions as $session)
+                            @forelse ($row['meal_sessions'] as $session)
                                 <span class="inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium
                                     {{ $session['key'] === 'breakfast' ? 'border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-300' : '' }}
                                     {{ $session['key'] === 'lunch' ? 'border-sky-300 bg-sky-50 text-sky-700 dark:border-sky-700 dark:bg-sky-900/20 dark:text-sky-300' : '' }}
@@ -244,28 +204,24 @@
                         </div>
                         <div>{{ ui_phrase('Adult Rate') }}</div>
                         <div>
-                            <div>{{ ui_phrase('Contract') }}: <x-money :amount="(float) ($foodBeverage->adult_contract_rate ?? $foodBeverage->contract_rate ?? 0)" currency="IDR" /></div>
+                            <div>{{ ui_phrase('Contract') }}: <x-money :amount="$row['adult_contract_rate']" currency="IDR" /></div>
                             <div class="text-gray-500 dark:text-gray-400">
                                 {{ ui_phrase('Markup') }}:
-                                {{ ($foodBeverage->adult_markup_type ?? $foodBeverage->markup_type ?? 'fixed') === 'percent'
-                                    ? rtrim(rtrim(number_format((float) ($foodBeverage->adult_markup ?? $foodBeverage->markup ?? 0), 2, '.', ''), '0'), '.') . '%'
-                                    : \App\Support\Currency::format((float) ($foodBeverage->adult_markup ?? $foodBeverage->markup ?? 0), 'IDR') }}
+                                {{ $row['adult_markup_display'] }}
                             </div>
-                            <div class="text-gray-500 dark:text-gray-400">{{ ui_phrase('Publish') }}: <x-money :amount="(float) ($foodBeverage->adult_publish_rate ?? $foodBeverage->publish_rate ?? 0)" currency="IDR" /></div>
+                            <div class="text-gray-500 dark:text-gray-400">{{ ui_phrase('Publish') }}: <x-money :amount="$row['adult_publish_rate']" currency="IDR" /></div>
                         </div>
                         <div>{{ ui_phrase('Child Rate') }}</div>
                         <div>
-                            <div>{{ ui_phrase('Contract') }}: <x-money :amount="(float) ($foodBeverage->child_contract_rate ?? 0)" currency="IDR" /></div>
+                            <div>{{ ui_phrase('Contract') }}: <x-money :amount="$row['child_contract_rate']" currency="IDR" /></div>
                             <div class="text-gray-500 dark:text-gray-400">
                                 {{ ui_phrase('Markup') }}:
-                                {{ ($foodBeverage->child_markup_type ?? 'fixed') === 'percent'
-                                    ? rtrim(rtrim(number_format((float) ($foodBeverage->child_markup ?? 0), 2, '.', ''), '0'), '.') . '%'
-                                    : \App\Support\Currency::format((float) ($foodBeverage->child_markup ?? 0), 'IDR') }}
+                                {{ $row['child_markup_display'] }}
                             </div>
-                            <div class="text-gray-500 dark:text-gray-400">{{ ui_phrase('Publish') }}: <x-money :amount="(float) ($foodBeverage->child_publish_rate ?? 0)" currency="IDR" /></div>
+                            <div class="text-gray-500 dark:text-gray-400">{{ ui_phrase('Publish') }}: <x-money :amount="$row['child_publish_rate']" currency="IDR" /></div>
                         </div>
                         <div>{{ ui_phrase('Status') }}</div>
-                        <div><x-ui.status-badge :status="$isActive ? 'active' : 'inactive'" size="xs" /></div>
+                        <div><x-ui.status-badge :status="$row['is_active'] ? 'active' : 'inactive'" size="xs" /></div>
                     </div>
                 </div>
             @empty

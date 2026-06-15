@@ -27,11 +27,13 @@ use App\Support\ImageThumbnailGenerator;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -200,8 +202,16 @@ class ItineraryController extends Controller
             ->latest('id')
             ->limit(10)
             ->get();
+        $itineraryRows = $this->buildItineraryIndexRows($itineraries);
+        $perPageOptions = [10, 25, 50, 100];
 
-        return view('modules.itineraries.index', compact('itineraries', 'destinations', 'itineraryLogs'));
+        return view('modules.itineraries.index', compact(
+            'itineraries',
+            'destinations',
+            'itineraryLogs',
+            'itineraryRows',
+            'perPageOptions'
+        ));
     }
 
     private function buildItineraryIndexTitleText(Itinerary $itinerary): string
@@ -281,6 +291,368 @@ class ItineraryController extends Controller
         return trim((string) ($itinerary->title ?? ''))
             . ' | Start: ' . $startPointLabel
             . ' - End: ' . $endPointLabel;
+    }
+
+    private function buildItineraryIndexRows($itineraries): array
+    {
+        $currentUser = auth()->user();
+        $firstItem = (int) ($itineraries->firstItem() ?? 1);
+
+        return $itineraries->getCollection()->values()->map(function (Itinerary $itinerary, int $index) use ($currentUser, $firstItem): array {
+            $popoverData = $this->buildItineraryIndexPopoverData($itinerary);
+            $quotationCount = (int) ($itinerary->quotations_count ?? ($itinerary->quotations?->count() ?? 0));
+
+            return [
+                'itinerary' => $itinerary,
+                'row_number' => $firstItem + $index,
+                'title_with_highlight' => $this->buildItineraryIndexTitleText($itinerary),
+                'creator_display_name' => $itinerary->creator?->displayNameFor($currentUser, ui_phrase('system')) ?: '-',
+                'duration_label' => (int) ($itinerary->duration_days ?? 0) . 'D'
+                    . ((int) ($itinerary->duration_nights ?? 0) > 0 ? '/' . (int) $itinerary->duration_nights . 'N' : ''),
+                'destination_label' => $itinerary->destination?->name ?? ($itinerary->destination ?? '-'),
+                'quotation_count' => $quotationCount,
+                'quotation_links' => $this->buildItineraryQuotationLinks($itinerary),
+                'total_capacity' => (int) ($popoverData['total_capacity'] ?? 0),
+                'transport_items' => $popoverData['transport_items'] ?? collect(),
+                'show_transport_day_prefix' => (bool) ($popoverData['show_transport_day_prefix'] ?? false),
+                'items_by_day' => $popoverData['items_by_day'] ?? collect(),
+                'flat_item_names' => $popoverData['flat_item_names'] ?? collect(),
+                'is_multi_day_popover' => (bool) ($popoverData['is_multi_day_popover'] ?? false),
+                'highlighted_item_key' => (string) ($popoverData['highlighted_item_key'] ?? ''),
+                'can_generate_quotation' => $this->canGenerateQuotationFromItinerary($itinerary, $currentUser),
+                'generate_quotation_url' => route('quotations.create', ['itinerary_id' => $itinerary->id]),
+                'show_url' => route('itineraries.show', $itinerary),
+                'edit_url' => route('itineraries.edit', $itinerary),
+                'duplicate_url' => route('itineraries.duplicate', $itinerary),
+                'destroy_url' => route('itineraries.destroy', $itinerary),
+                'can_duplicate' => ! $itinerary->trashed(),
+                'can_edit' => (bool) ($currentUser?->can('update', $itinerary) ?? false),
+                'can_delete' => $currentUser?->hasAnyRole(['Super Admin', 'Super User', 'Administrator']) === true,
+            ];
+        })->all();
+    }
+
+    private function buildItineraryQuotationLinks(Itinerary $itinerary): Collection
+    {
+        return ($itinerary->quotations ?? collect())
+            ->map(function ($quotation): array {
+                $orderNumber = trim((string) ($quotation->order_number ?? ''));
+                $fallbackNumber = trim((string) ($quotation->quotation_number ?? ''));
+                $displayNumber = $orderNumber !== ''
+                    ? $orderNumber
+                    : ($fallbackNumber !== '' ? $fallbackNumber : '#' . (int) $quotation->id);
+
+                return [
+                    'display_number' => $displayNumber,
+                    'show_url' => route('quotations.show', $quotation),
+                ];
+            })
+            ->values();
+    }
+
+    private function buildItineraryIndexPopoverData(Itinerary $itinerary): array
+    {
+        $dayItems = $this->buildItineraryDayItems($itinerary);
+        $itemsByDay = $dayItems
+            ->groupBy('day')
+            ->map(fn (Collection $items) => $items
+                ->map(fn ($row) => [
+                    'label' => trim((string) ($row['label'] ?? '')),
+                    'meal_label' => trim((string) ($row['meal_label'] ?? '')),
+                    'item_key' => trim((string) ($row['item_key'] ?? '')),
+                ])
+                ->filter(fn ($row) => $row['label'] !== '')
+                ->unique(fn ($row) => (string) ($row['item_key'] ?? ''))
+                ->values())
+            ->sortKeys();
+
+        $highlightedDayPoint = $itinerary->dayPoints
+            ->filter(function ($point) {
+                return filled($point->main_experience_type)
+                    || (int) ($point->main_tourist_attraction_id ?? 0) > 0
+                    || (int) ($point->main_activity_id ?? 0) > 0
+                    || (int) ($point->main_food_beverage_id ?? 0) > 0;
+            })
+            ->sortBy(fn ($point) => (int) ($point->day_number ?? 0))
+            ->first();
+
+        $capacityByDay = $itinerary->itineraryTransportUnits
+            ->groupBy(fn ($row) => max(1, (int) ($row->day_number ?? 1)))
+            ->map(
+                fn ($rows) => (int) $rows->sum(
+                    fn ($row) => max(0, (int) ($row->transportUnit?->seat_capacity ?? 0))
+                )
+            );
+
+        return [
+            'items_by_day' => $itemsByDay,
+            'flat_item_names' => $itemsByDay->flatten(1)
+                ->unique(fn ($row) => (string) ($row['item_key'] ?? ''))
+                ->values(),
+            'is_multi_day_popover' => (int) ($itinerary->duration_days ?? 1) > 1,
+            'highlighted_item_key' => $this->resolveHighlightedPopupItemKey($dayItems, $highlightedDayPoint),
+            'transport_items' => $this->buildItineraryTransportItems($itinerary),
+            'show_transport_day_prefix' => (int) ($itinerary->duration_days ?? 1) > 1,
+            'total_capacity' => (int) ($capacityByDay->max() ?? 0),
+        ];
+    }
+
+    private function buildItineraryDayItems(Itinerary $itinerary): Collection
+    {
+        return collect()
+            ->merge(
+                $itinerary->touristAttractions->map(
+                    fn ($item) => [
+                        'day' => max(1, (int) ($item->pivot->day_number ?? 1)),
+                        'start_time' => trim((string) ($item->pivot->start_time ?? '')),
+                        'sort_order' => (int) ($item->pivot->visit_order ?? 0),
+                        'label' => trim((string) ($item->name ?? '')),
+                        'item_name' => trim((string) ($item->name ?? '')),
+                        'vendor_name' => '',
+                    ]
+                )
+            )
+            ->merge(
+                $itinerary->itineraryActivities->map(
+                    fn ($item) => [
+                        'day' => max(1, (int) ($item->day_number ?? 1)),
+                        'start_time' => trim((string) ($item->start_time ?? '')),
+                        'sort_order' => (int) ($item->visit_order ?? 0),
+                        'label' => (string) $this->formatItineraryItemWithVendor(
+                            $item->activity?->name,
+                            $item->activity?->vendor?->name
+                        ),
+                        'item_name' => trim((string) ($item->activity?->name ?? '')),
+                        'vendor_name' => trim((string) ($item->activity?->vendor?->name ?? '')),
+                    ]
+                )
+            )
+            ->merge(
+                $itinerary->itineraryIslandTransfers->map(
+                    fn ($item) => [
+                        'day' => max(1, (int) ($item->day_number ?? 1)),
+                        'start_time' => trim((string) ($item->start_time ?? '')),
+                        'sort_order' => (int) ($item->visit_order ?? 0),
+                        'label' => (string) $this->formatItineraryItemWithVendor(
+                            $item->islandTransfer?->name,
+                            $item->islandTransfer?->vendor?->name
+                        ),
+                        'item_name' => trim((string) ($item->islandTransfer?->name ?? '')),
+                        'vendor_name' => trim((string) ($item->islandTransfer?->vendor?->name ?? '')),
+                    ]
+                )
+            )
+            ->merge(
+                $itinerary->itineraryFoodBeverages->map(
+                    fn ($item) => [
+                        'day' => max(1, (int) ($item->day_number ?? 1)),
+                        'start_time' => trim((string) ($item->start_time ?? '')),
+                        'sort_order' => (int) ($item->visit_order ?? 0),
+                        'label' => (string) $this->formatItineraryItemWithVendor(
+                            $item->foodBeverage?->name,
+                            $item->foodBeverage?->vendor?->name
+                        ),
+                        'item_name' => trim((string) ($item->foodBeverage?->name ?? '')),
+                        'vendor_name' => trim((string) ($item->foodBeverage?->vendor?->name ?? '')),
+                        'meal_label' => $this->resolveItineraryMealLabel(
+                            $item->meal_type ?? null,
+                            $item->foodBeverage?->meal_period ?? null
+                        ),
+                    ]
+                )
+            )
+            ->filter(fn ($row) => filled($row['label'] ?? null))
+            ->sort(function ($left, $right) {
+                $dayComparison = ((int) ($left['day'] ?? 0)) <=> ((int) ($right['day'] ?? 0));
+                if ($dayComparison !== 0) {
+                    return $dayComparison;
+                }
+
+                $leftTime = (string) ($left['start_time'] ?? '');
+                $rightTime = (string) ($right['start_time'] ?? '');
+                if ($leftTime !== '' && $rightTime !== '' && $leftTime !== $rightTime) {
+                    return strcmp($leftTime, $rightTime);
+                }
+                if ($leftTime !== '' && $rightTime === '') {
+                    return -1;
+                }
+                if ($leftTime === '' && $rightTime !== '') {
+                    return 1;
+                }
+
+                return ((int) ($left['sort_order'] ?? 0)) <=> ((int) ($right['sort_order'] ?? 0));
+            })
+            ->map(fn ($row) => $this->normalizeItineraryPopupItemRow($row))
+            ->values();
+    }
+
+    private function buildItineraryTransportItems(Itinerary $itinerary): Collection
+    {
+        return $itinerary->itineraryTransportUnits
+            ->map(function ($row) {
+                $dayNumber = max(1, (int) ($row->day_number ?? 1));
+                $unitName = trim((string) ($row->transportUnit?->name ?? ''));
+                $brandName = trim((string) ($row->transportUnit?->brand_model ?? ''));
+                if ($unitName === '' && $brandName === '') {
+                    return null;
+                }
+
+                $transportName = trim($brandName . ' ' . $unitName);
+                if ($transportName === '') {
+                    $transportName = '-';
+                }
+
+                return [
+                    'day' => $dayNumber,
+                    'transport_name' => $transportName,
+                ];
+            })
+            ->filter(fn ($row) => is_array($row) && filled($row['transport_name'] ?? null))
+            ->unique(fn ($row) => strtolower((string) ($row['transport_name'] ?? '')) . '|' . (int) ($row['day'] ?? 0))
+            ->sortBy(fn ($row) => [(int) ($row['day'] ?? 0), strtolower((string) ($row['transport_name'] ?? ''))])
+            ->values();
+    }
+
+    private function formatItineraryItemWithVendor(?string $itemName, ?string $vendorName): ?string
+    {
+        $name = trim((string) $itemName);
+        if ($name === '') {
+            return null;
+        }
+
+        $vendor = trim((string) $vendorName);
+
+        return $vendor !== '' ? $name . ' | ' . $vendor : $name;
+    }
+
+    private function resolveItineraryMealLabel(?string $mealType, ?string $mealPeriod = null): ?string
+    {
+        $value = trim((string) ($mealType ?: $mealPeriod ?: ''));
+        if ($value === '') {
+            return null;
+        }
+
+        return match (strtolower($value)) {
+            'breakfast' => 'Breakfast',
+            'lunch' => 'Lunch',
+            'dinner' => 'Dinner',
+            default => Str::headline($value),
+        };
+    }
+
+    private function buildItineraryPopupItemKey(array $row): string
+    {
+        return implode('|', [
+            max(1, (int) ($row['day'] ?? 1)),
+            trim((string) ($row['start_time'] ?? '')),
+            (int) ($row['sort_order'] ?? 0),
+            strtolower(trim((string) ($row['item_name'] ?? ($row['label'] ?? '')))),
+            strtolower(trim((string) ($row['vendor_name'] ?? ''))),
+            strtolower(trim((string) ($row['meal_label'] ?? ''))),
+        ]);
+    }
+
+    private function normalizeItineraryPopupItemRow(array $row): array
+    {
+        $row['label'] = trim((string) ($row['label'] ?? ''));
+        $row['item_name'] = trim((string) ($row['item_name'] ?? ''));
+        $row['vendor_name'] = trim((string) ($row['vendor_name'] ?? ''));
+        $row['meal_label'] = trim((string) ($row['meal_label'] ?? ''));
+        $row['item_key'] = $this->buildItineraryPopupItemKey($row);
+
+        return $row;
+    }
+
+    private function resolveHighlightedPopupItemKey(Collection $dayItems, $highlightedDayPoint): string
+    {
+        if (! $highlightedDayPoint || $dayItems->isEmpty()) {
+            return '';
+        }
+
+        $highlightedDay = max(1, (int) ($highlightedDayPoint->day_number ?? 1));
+        $mainType = strtolower(trim((string) ($highlightedDayPoint->main_experience_type ?? '')));
+        $mainAttraction = $highlightedDayPoint->mainTouristAttraction;
+        $mainActivity = $highlightedDayPoint->mainActivity;
+        $mainFoodBeverage = $highlightedDayPoint->mainFoodBeverage;
+
+        $highlightedItemName = '';
+        $highlightedItemVendorName = '';
+        $highlightedMealLabel = '';
+
+        if (in_array($mainType, ['attraction', 'tourist_attraction'], true)) {
+            $highlightedItemName = trim((string) ($mainAttraction?->name ?? ''));
+        } elseif (in_array($mainType, ['activity'], true)) {
+            $highlightedItemName = trim((string) ($mainActivity?->name ?? ''));
+            $highlightedItemVendorName = trim((string) ($mainActivity?->vendor?->name ?? ''));
+        } elseif (in_array($mainType, ['fnb', 'food_beverage'], true)) {
+            $highlightedItemName = trim((string) ($mainFoodBeverage?->name ?? ''));
+            $highlightedItemVendorName = trim((string) ($mainFoodBeverage?->vendor?->name ?? ''));
+            $highlightedMealLabel = trim((string) $this->resolveItineraryMealLabel(null, $mainFoodBeverage?->meal_period ?? null));
+        }
+
+        if ($highlightedItemName === '') {
+            if ($mainAttraction) {
+                $highlightedItemName = trim((string) ($mainAttraction->name ?? ''));
+            } elseif ($mainActivity) {
+                $highlightedItemName = trim((string) ($mainActivity->name ?? ''));
+                $highlightedItemVendorName = trim((string) ($mainActivity->vendor?->name ?? ''));
+            } elseif ($mainFoodBeverage) {
+                $highlightedItemName = trim((string) ($mainFoodBeverage->name ?? ''));
+                $highlightedItemVendorName = trim((string) ($mainFoodBeverage->vendor?->name ?? ''));
+                $highlightedMealLabel = trim((string) $this->resolveItineraryMealLabel(null, $mainFoodBeverage->meal_period ?? null));
+            }
+        }
+
+        if ($highlightedItemName === '') {
+            return '';
+        }
+
+        $findHighlightedRow = static function (Collection $items, int $expectedDay, string $expectedItemName, string $expectedVendorName, string $expectedMealLabel = '') {
+            return $items->first(function ($row) use ($expectedDay, $expectedItemName, $expectedVendorName, $expectedMealLabel) {
+                if ((int) ($row['day'] ?? 0) !== $expectedDay) {
+                    return false;
+                }
+                if (trim((string) ($row['item_name'] ?? '')) !== $expectedItemName) {
+                    return false;
+                }
+                if (trim((string) ($row['vendor_name'] ?? '')) !== $expectedVendorName) {
+                    return false;
+                }
+                if ($expectedMealLabel !== '' && trim((string) ($row['meal_label'] ?? '')) !== $expectedMealLabel) {
+                    return false;
+                }
+
+                return true;
+            });
+        };
+
+        $highlightedRow = $findHighlightedRow(
+            $dayItems,
+            $highlightedDay,
+            $highlightedItemName,
+            $highlightedItemVendorName,
+            $highlightedMealLabel
+        );
+
+        if (! is_array($highlightedRow) && $highlightedMealLabel !== '') {
+            $highlightedRow = $findHighlightedRow(
+                $dayItems,
+                $highlightedDay,
+                $highlightedItemName,
+                $highlightedItemVendorName
+            );
+        }
+
+        return is_array($highlightedRow) ? trim((string) ($highlightedRow['item_key'] ?? '')) : '';
+    }
+
+    private function canGenerateQuotationFromItinerary(Itinerary $itinerary, $currentUser): bool
+    {
+        return Route::has('quotations.create')
+            && $currentUser
+            && $currentUser->can('module.quotations.access')
+            && $currentUser->hasAnyRole(['Reservation', 'Manager', 'Director'])
+            && (int) ($itinerary->created_by ?? 0) === (int) $currentUser->id;
     }
 
     public function create(Request $request)
@@ -2384,6 +2756,7 @@ SVG;
 
     public function toggleStatus($itinerary)
     {
+        abort_unless(auth()->user()?->canManageActivationActions(), 403);
         $itinerary = Itinerary::withTrashed()->findOrFail($itinerary);
         if (! $this->canManageItinerary($itinerary, 'delete')) {
             return $this->denyItineraryMutation($itinerary);

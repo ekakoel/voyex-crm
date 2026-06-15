@@ -19,7 +19,7 @@
                         <option value="inactive" @selected((string) request('status') === 'inactive')>{{ ui_phrase('inactive') }}</option>
                     </select>
                     <select name="per_page" class="app-input" data-service-filter-input>
-                        @foreach ([10, 25, 50, 100] as $size)
+                        @foreach ($perPageOptions as $size)
                             <option value="{{ $size }}" @selected((int) request('per_page', 10) === $size)>
                                 {{ ui_phrase(':size/page', ['size' => $size]) }}</option>
                         @endforeach
@@ -56,49 +56,42 @@
                         </tr>
                     </thead>
                     <tbody>
-                    @forelse ($destinations as $index=>$destination)
-                        @php($isActive = !$destination->trashed())
+                    @forelse ($destinationRows as $row)
+                        @php($destination = $row['destination'])
                         <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/30">
                             <td class="px-4 py-3 text-sm font-medium text-gray-800 dark:text-gray-100">
-                                {{ ($destinations->firstItem() ?? 1) + $index }}</td>
+                                {{ $row['row_number'] }}</td>
                             <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">
-                                <div>{{ $destination->province ?: $destination->name }}</div>
+                                <div>{{ $row['display_name'] }}</div>
                                 <div class="text-xs text-gray-500 dark:text-gray-400">{{ $destination->code }}</div>
                             </td>
                             <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">
-                                {{ trim(($destination->city ?? '') . ($destination->city && $destination->province ? ', ' : '') . ($destination->province ?? '')) ?: '-' }}
+                                {{ $row['location_label'] }}
                             </td>
                             <td class="px-4 py-3 text-xs text-gray-700 dark:text-gray-200">
-                                {{ ui_phrase('Vendors') }}: {{ (int) ($destination->vendors_count ?? 0) }} |
-                                {{ ui_phrase('Hotels') }}: {{ (int) ($destination->hotels_count ?? 0) }} |
-                                {{ ui_phrase('Attractions') }}: {{ (int) ($destination->tourist_attractions_count ?? 0) }} |
-                                {{ ui_phrase('Airports') }}: {{ (int) ($destination->airports_count ?? 0) }}
+                                {{ $row['linked_summary'] }}
                             </td>
                             <td class="px-4 py-3 text-center text-sm">
-                                <x-ui.status-badge :status="$isActive ? 'active' : 'inactive'" size="xs" />
+                                <x-ui.status-badge :status="$row['is_active'] ? 'active' : 'inactive'" size="xs" />
                             </td>
                             <td class="px-4 py-3 text-right text-sm actions-compact">
                                 <x-ui.table-action-dropdown :label="ui_phrase('Actions')">
-                                    <a href="{{ route('destinations.show', $destination) }}"
+                                    <a href="{{ $row['show_url'] }}"
                                         class="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800">
                                         <i class="fa-solid fa-eye w-4 text-gray-500 dark:text-gray-400"></i>
                                         <span>{{ ui_phrase('View') }}</span>
                                     </a>
-                                    <a href="{{ route('destinations.edit', $destination) }}"
+                                    <a href="{{ $row['edit_url'] }}"
                                         class="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800">
                                         <i class="fa-solid fa-pen w-4 text-gray-500 dark:text-gray-400"></i>
                                         <span>{{ ui_phrase('Edit') }}</span>
                                     </a>
+                                    @if ($row['can_manage_activation'])
                                     <div class="my-1 border-t border-gray-200 dark:border-gray-700"></div>
-                                    <x-ui.confirm-action :action="route('destinations.toggle-status', $destination->id)" method="PATCH" :modal-name="'destinations-index-toggle-desktop-' . $destination->id" :title="$isActive
-                                        ? ui_phrase('Deactivate') . ' ' . ui_phrase('Destination')
-                                        : ui_phrase('Activate') . ' ' . ui_phrase('Destination')"
-                                        :message="$isActive
-                                            ? ui_phrase('confirm deactivate')
-                                            : ui_phrase('confirm activate')" :notice-message="__('confirm.notification_after_action')" :confirm-label="$isActive ? ui_phrase('Deactivate') : ui_phrase('Activate')" :trigger-label="$isActive ? ui_phrase('Deactivate') : ui_phrase('Activate')"
-                                        :trigger-icon="$isActive ? 'fa-solid fa-toggle-off w-4' : 'fa-solid fa-toggle-on w-4'" :trigger-class="$isActive
-                                            ? 'flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-amber-700 hover:bg-amber-50 dark:text-amber-300 dark:hover:bg-amber-900/20'
-                                            : 'flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-emerald-700 hover:bg-emerald-50 dark:text-emerald-300 dark:hover:bg-emerald-900/20'" confirm-class="btn-primary-sm" />
+                                    <x-ui.confirm-action :action="$row['toggle_url']" method="PATCH" :modal-name="'destinations-index-toggle-desktop-' . $destination->id" :title="$row['toggle_title']"
+                                        :message="$row['toggle_message']" :notice-message="__('confirm.notification_after_action')" :confirm-label="$row['toggle_label']" :trigger-label="$row['toggle_label']"
+                                        :trigger-icon="$row['toggle_icon']" :trigger-class="$row['toggle_class']" confirm-class="btn-primary-sm" />
+                                    @endif
                                 </x-ui.table-action-dropdown>
                             </td>
                         </tr>
@@ -111,59 +104,51 @@
                     @endforelse
                     </tbody>
                 </table>
-                <div class="md:hidden space-y-3">
-                    @forelse ($destinations as $destination)
-                        @php($isActive = !$destination->trashed())
-                        <div class="app-card relative p-4 pt-5">
-                            <div class="absolute right-3 top-3 z-10">
-                                <x-ui.table-action-dropdown :label="ui_phrase('Actions')">
-                                    <a href="{{ route('destinations.show', $destination) }}"
-                                        class="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800">
-                                        <i class="fa-solid fa-eye w-4 text-gray-500 dark:text-gray-400"></i>
-                                        <span>{{ ui_phrase('View') }}</span>
-                                    </a>
-                                    <a href="{{ route('destinations.edit', $destination) }}"
-                                        class="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800">
-                                        <i class="fa-solid fa-pen w-4 text-gray-500 dark:text-gray-400"></i>
-                                        <span>{{ ui_phrase('Edit') }}</span>
-                                    </a>
-                                    <div class="my-1 border-t border-gray-200 dark:border-gray-700"></div>
-                                    <x-ui.confirm-action :action="route('destinations.toggle-status', $destination->id)" method="PATCH" :modal-name="'destinations-index-toggle-mobile-' . $destination->id" :title="$isActive
-                                        ? ui_phrase('Deactivate') . ' ' . ui_phrase('Destination')
-                                        : ui_phrase('Activate') . ' ' . ui_phrase('Destination')"
-                                        :message="$isActive ? ui_phrase('confirm deactivate') : ui_phrase('confirm activate')" :notice-message="__('confirm.notification_after_action')" :confirm-label="$isActive ? ui_phrase('Deactivate') : ui_phrase('Activate')" :trigger-label="$isActive ? ui_phrase('Deactivate') : ui_phrase('Activate')"
-                                        :trigger-icon="$isActive ? 'fa-solid fa-toggle-off w-4' : 'fa-solid fa-toggle-on w-4'" :trigger-class="$isActive ? 'flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-amber-700 hover:bg-amber-50 dark:text-amber-300 dark:hover:bg-amber-900/20' : 'flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-emerald-700 hover:bg-emerald-50 dark:text-emerald-300 dark:hover:bg-emerald-900/20'" confirm-class="btn-primary-sm" />
-                                </x-ui.table-action-dropdown>
-                            </div>
-                            <div class="flex items-start gap-3 pr-12">
-                                <div>
-                                    <p class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ $destination->code }}
-                                    </p>
-                                    <p class="text-xs text-gray-500 dark:text-gray-400">
-                                        {{ $destination->province ?: $destination->name }}</p>
-                                </div>
-                            </div>
-                            <div class="mt-3 grid grid-cols-2 gap-2 text-xs text-gray-600 dark:text-gray-300">
-                                <div>{{ ui_phrase('Location') }}</div>
-                                <div>
-                                    {{ trim(($destination->city ?? '') . ($destination->city && $destination->province ? ', ' : '') . ($destination->province ?? '')) ?: '-' }}
-                                </div>
-                                <div>{{ ui_phrase('Linked') }}</div>
-                                <div>
-                                    {{ ui_phrase('Vendors') }}: {{ (int) ($destination->vendors_count ?? 0) }} |
-                                    {{ ui_phrase('Hotels') }}: {{ (int) ($destination->hotels_count ?? 0) }} |
-                                    {{ ui_phrase('Attractions') }}: {{ (int) ($destination->tourist_attractions_count ?? 0) }}
-                                    |
-                                    {{ ui_phrase('Airports') }}: {{ (int) ($destination->airports_count ?? 0) }}
-                                </div>
-                                <div>{{ ui_phrase('Status') }}</div>
-                                <div><x-ui.status-badge :status="$isActive ? 'active' : 'inactive'" size="xs" /></div>
+            </div>
+            <div class="md:hidden space-y-3">
+                @forelse ($destinationRows as $row)
+                    @php($destination = $row['destination'])
+                    <div class="app-card relative p-4 pt-5">
+                        <div class="absolute right-3 top-3 z-10">
+                            <x-ui.table-action-dropdown :label="ui_phrase('Actions')">
+                                <a href="{{ $row['show_url'] }}"
+                                    class="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800">
+                                    <i class="fa-solid fa-eye w-4 text-gray-500 dark:text-gray-400"></i>
+                                    <span>{{ ui_phrase('View') }}</span>
+                                </a>
+                                <a href="{{ $row['edit_url'] }}"
+                                    class="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800">
+                                    <i class="fa-solid fa-pen w-4 text-gray-500 dark:text-gray-400"></i>
+                                    <span>{{ ui_phrase('Edit') }}</span>
+                                </a>
+                                @if ($row['can_manage_activation'])
+                                <div class="my-1 border-t border-gray-200 dark:border-gray-700"></div>
+                                <x-ui.confirm-action :action="$row['toggle_url']" method="PATCH" :modal-name="'destinations-index-toggle-mobile-' . $destination->id" :title="$row['toggle_title']"
+                                    :message="$row['toggle_message']" :notice-message="__('confirm.notification_after_action')" :confirm-label="$row['toggle_label']" :trigger-label="$row['toggle_label']"
+                                    :trigger-icon="$row['toggle_icon']" :trigger-class="$row['toggle_class']" confirm-class="btn-primary-sm" />
+                                @endif
+                            </x-ui.table-action-dropdown>
+                        </div>
+                        <div class="flex items-start gap-3 pr-12">
+                            <div>
+                                <p class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ $destination->code }}
+                                </p>
+                                <p class="text-xs text-gray-500 dark:text-gray-400">
+                                    {{ $row['display_name'] }}</p>
                             </div>
                         </div>
-                    @empty
-                        <x-module-empty-state :title="ui_phrase('No :entity available.', ['entity' => ui_phrase('Destinations')])" :message="ui_phrase('Try changing filter criteria or add a new destination.')" />
-                    @endforelse
-                </div>
+                        <div class="mt-3 grid grid-cols-2 gap-2 text-xs text-gray-600 dark:text-gray-300">
+                            <div>{{ ui_phrase('Location') }}</div>
+                            <div>{{ $row['location_label'] }}</div>
+                            <div>{{ ui_phrase('Linked') }}</div>
+                            <div>{{ $row['linked_summary'] }}</div>
+                            <div>{{ ui_phrase('Status') }}</div>
+                            <div><x-ui.status-badge :status="$row['is_active'] ? 'active' : 'inactive'" size="xs" /></div>
+                        </div>
+                    </div>
+                @empty
+                    <x-module-empty-state :title="ui_phrase('No :entity available.', ['entity' => ui_phrase('Destinations')])" :message="ui_phrase('Try changing filter criteria or add a new destination.')" />
+                @endforelse
             </div>
             <div>{{ $destinations->links() }}</div>
         </div>

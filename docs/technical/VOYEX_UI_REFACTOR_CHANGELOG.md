@@ -1,5 +1,67 @@
 # VOYEX UI Refactor Changelog
 
+## 2026-06-15 (Inquiry Form Refactor + Safe Itinerary Reference Sync)
+- Scope: stabilize inquiry create/edit flow, reduce duplicated controller logic, and stop quotation save failures when an itinerary is reused by another inquiry.
+- Updated files:
+  - app/Http/Controllers/Sales/InquiryController.php
+  - app/Http/Controllers/Sales/QuotationController.php
+  - resources/views/modules/inquiries/_form.blade.php
+  - docs/standards/quotation-standard.md
+  - docs/technical/VOYEX_UI_REFACTOR_CHANGELOG.md
+  - VOYEX_CRM_SYSTEM_ROADMAP.md
+- Applied updates:
+  - centralized inquiry form payload validation and assignment normalization so create/update no longer duplicate the same rules and `handled_by` sync logic.
+  - reduced inquiry create/edit selector payload size by loading only required customer columns (`id`, `name`, `code`) and handler columns (`id`, `name`).
+  - removed dead fallback code for `customer_label` in the inquiry form.
+  - changed quotation-to-itinerary inquiry sync so `inquiry_itinerary_references` is treated as a primary itinerary reference only.
+  - quotation save now refreshes the reference only when the itinerary already points to the same inquiry, inserts when missing, and silently preserves an existing different itinerary reference.
+  - quotation PDF now renders F&B `menu_highlights` as a compact `Menu:` line under the item description and cleans the row typography so the extra detail stays readable.
+  - vendor index now precomputes row presentation data once for both desktop and mobile layouts, removing duplicated nested Blade loop logic that made the template fragile.
+- Outcome:
+  - create/edit inquiry is lighter and easier to maintain.
+  - creating quotation no longer fails with duplicate `inq_itinerary_ref_itinerary_unique` when reusing an itinerary across multiple quotations/inquiries.
+
+## 2026-06-12 (Index Activate/Deactivate Restricted To Super Admin And Administrator)
+- Scope: hide module index activation toggles from non-admin roles and harden backend toggle endpoints.
+- Updated files:
+  - app/Models/User.php
+  - app/Http/Controllers/Admin/AirportController.php
+  - app/Http/Controllers/Admin/ActivityController.php
+  - app/Http/Controllers/Admin/DestinationController.php
+  - app/Http/Controllers/Admin/FoodBeverageController.php
+  - app/Http/Controllers/Admin/HotelController.php
+  - app/Http/Controllers/Admin/IslandTransferController.php
+  - app/Http/Controllers/Admin/ItineraryController.php
+  - app/Http/Controllers/Admin/TouristAttractionController.php
+  - app/Http/Controllers/Admin/TransportController.php
+  - app/Http/Controllers/Admin/VendorController.php
+  - app/Http/Controllers/Sales/CustomerController.php
+  - app/Http/Controllers/Sales/InquiryController.php
+  - app/Http/Controllers/Sales/QuotationController.php
+  - resources/views/modules/activities/partials/_index-results.blade.php
+  - resources/views/modules/airports/index.blade.php
+  - resources/views/modules/customers/index.blade.php
+  - resources/views/modules/destinations/index.blade.php
+  - resources/views/modules/food-beverages/index.blade.php
+  - resources/views/modules/hotels/partials/_index-results.blade.php
+  - resources/views/modules/island-transfers/index.blade.php
+  - resources/views/modules/quotations/index.blade.php
+  - resources/views/modules/tourist-attractions/partials/_index-results.blade.php
+  - resources/views/modules/transports/index.blade.php
+  - resources/views/modules/vendors/index.blade.php
+  - docs/standards/quotation-standard.md
+  - docs/technical/VOYEX_UI_REFACTOR_CHANGELOG.md
+  - VOYEX_CRM_SYSTEM_ROADMAP.md
+- Applied updates:
+  - added a shared `User::canManageActivationActions()` helper for `Super Admin` and `Administrator`.
+  - module index views now hide `Activate` / `Deactivate` actions unless the current user matches that helper.
+  - `toggleStatus()` handlers now enforce the same role rule server-side and return `403` for other roles.
+  - quotation list soft-delete toggle now follows the same visibility rule because it uses the same toggle endpoint pattern.
+- Mandatory audit result:
+  - role consistency: pass, UI and backend now use the same role check.
+  - security: pass, direct endpoint access is blocked for non-admin roles.
+  - data safety: pass, authorization and presentation update only.
+
 ## 2026-06-12 (Itinerary Day Planner Inter-Island Transfer Region Filter)
 - Scope: make inter-island transfer selection respect row region filtering while keeping all active transfers available for `All Regions`.
 - Updated files:
@@ -1902,3 +1964,125 @@ ormal, high
   - link uses `(inquiry_id, itinerary_id)` pair from quotation
 - Outcome:
   - itinerary selected as quotation reference now appears in inquiry index/detail related itinerary data.
+
+## 2026-06-15 (Controller-First Index Rendering Refactor)
+- Scope: reduce Blade-side processing on heavy index pages and stabilize list rendering by preparing final display data in controllers.
+- Updated files:
+  - `app/Http/Controllers/Sales/InquiryController.php`
+  - `resources/views/modules/inquiries/index.blade.php`
+  - `app/Http/Controllers/BookingController.php`
+  - `resources/views/modules/bookings/index.blade.php`
+  - `app/Http/Controllers/Finance/PaymentController.php`
+  - `resources/views/modules/payments/index.blade.php`
+  - `app/Http/Controllers/Admin/FoodBeverageController.php`
+  - `resources/views/modules/food-beverages/index.blade.php`
+- Refactor highlights:
+  - inquiry index tabs, row action flags, quotation summary state, and compact display fields now come from controller-prepared arrays
+  - booking index KPI cards, datalist suggestions, row action permissions, and summary fields now come from controller-prepared arrays
+  - payment quick-status tabs and row display payloads now come from controller-prepared arrays
+  - food & beverage index meal-session badges, data-attention flags, pricing display strings, and activation toggle metadata now come from controller-prepared arrays
+- Outcome:
+  - index Blade files are now significantly thinner and focused on rendering final data only
+  - repeated desktop/mobile computations are removed from views, reducing template fragility and improving maintainability
+  - `php artisan view:cache` passes after the refactor, confirming Blade compilation stability
+
+## 2026-06-15 (Controller-First Index Rendering Refactor, Batch 2)
+- Scope: continue removing Blade-side index processing for quotation and island transfer modules.
+- Updated files:
+  - `app/Http/Controllers/Sales/QuotationController.php`
+  - `resources/views/modules/quotations/index.blade.php`
+  - `app/Http/Controllers/Admin/IslandTransferController.php`
+  - `resources/views/modules/island-transfers/index.blade.php`
+- Refactor highlights:
+  - quotation index now prepares active section metadata, section tabs, filtered status options, metric values, row display payloads, and action visibility in controller
+  - island transfer index now prepares row thumbnails, transfer labels, vendor location strings, duration/distance labels, and toggle action metadata in controller
+  - Blade index pages now consume controller-prepared `*Rows`, `*Tabs`, `*Metrics`, and `perPageOptions` values with minimal inline logic
+- Outcome:
+  - quotation and island transfer index pages now follow the same controller-first rendering pattern used in the previous batch
+  - Blade compile remains stable after the second batch (`php artisan view:cache` passed)
+
+## 2026-06-15 (Controller-First Index Rendering Refactor, Batch 3)
+- Scope: move itinerary index aggregation logic out of Blade without changing existing list behavior.
+- Updated files:
+  - `app/Http/Controllers/Admin/ItineraryController.php`
+  - `resources/views/modules/itineraries/index.blade.php`
+- Refactor highlights:
+  - itinerary index now prepares `itineraryRows` in controller with:
+    - title text including start/end highlight
+    - creator display label
+    - quotation popover links
+    - transport-capacity summary
+    - grouped item-list popover data
+    - highlighted item marker key
+    - generate-quotation visibility
+    - action URLs and permission flags
+  - desktop and mobile list layouts now render the same controller-prepared row payload instead of rebuilding item collections independently in Blade
+- Outcome:
+  - the heaviest duplicated index-page computation in the project has been centralized in controller helpers
+  - itinerary list behavior remains intact while the Blade view becomes substantially thinner and safer to maintain
+
+## 2026-06-15 (Controller-First Index Rendering Refactor, Batch 4)
+- Scope: complete the next low-risk cleanup batch for system module index and customer index.
+- Updated files:
+  - `app/Http/Controllers/Admin/ServiceController.php`
+  - `resources/views/modules/services/index.blade.php`
+  - `app/Http/Controllers/Sales/CustomerController.php`
+  - `resources/views/modules/customers/index.blade.php`
+- Refactor highlights:
+  - service manager index now prepares module card display state, snapshot counts, and toggle metadata in controller
+  - service toggle action is now guarded server-side with the same activation-management policy used by other modules
+  - customer index now prepares finalized `customerRows`, per-page options, and reusable sidebar summary data in controller
+  - customer index now renders the reusable `module-index-sidebar-info` component with `Customer/Agent Info` summary content from controller-prepared filtered data
+  - removed unused customer index query/loading paths that were not rendered by the page
+- Outcome:
+  - both index pages are thinner and more consistent with the controller-first rendering standard
+  - customer sidebar behavior now matches the project guidance in `AGENTS.md`
+  - Blade compilation remains stable after the batch
+
+## 2026-06-15 (Controller-First Index Rendering Refactor, Batch 5)
+- Scope: continue standardizing admin master-data index pages with similar activation/toggle behavior.
+- Updated files:
+  - `app/Http/Controllers/Admin/AirportController.php`
+  - `resources/views/modules/airports/index.blade.php`
+  - `app/Http/Controllers/Admin/DestinationController.php`
+  - `resources/views/modules/destinations/index.blade.php`
+  - `app/Http/Controllers/Admin/TransportController.php`
+  - `resources/views/modules/transports/index.blade.php`
+- Refactor highlights:
+  - airport index now prepares `airportRows`, toggle metadata, location summary, destination label, and per-page options in controller
+  - destination index now prepares `destinationRows`, linked-data summaries, location labels, and toggle metadata in controller
+  - transport index now prepares `transportRows`, formatted type/unit/rate display values, toggle metadata, and per-page options in controller
+  - mobile card rendering for destination index was moved out of the desktop-only wrapper so responsive rendering stays correct
+- Outcome:
+  - three more index pages now follow the same controller-first rendering contract used by the previous batches
+  - desktop/mobile templates no longer duplicate activation/status formatting logic
+  - Blade compile remains stable after the batch
+
+## 2026-06-15 (Itinerary Index Blade Stabilization)
+- Scope: eliminate fragile nested Blade structures on itinerary index after a runtime syntax error was reported.
+- Updated files:
+  - `resources/views/modules/itineraries/index.blade.php`
+  - `resources/views/modules/itineraries/partials/_index-item-popover.blade.php`
+  - `resources/views/modules/itineraries/partials/_index-action-dropdown.blade.php`
+- Refactor highlights:
+  - moved the deeply nested item-list popover markup into a dedicated partial reused by desktop and mobile layouts
+  - moved the itinerary action dropdown markup into a dedicated partial reused by desktop and mobile layouts
+  - reduced repeated nested `@foreach` / `@if` sections in the main index Blade so directive balancing is easier to maintain
+  - aligned mobile duration text to the controller-prepared `duration_label`
+- Outcome:
+  - itinerary index Blade is now substantially less error-prone
+  - the reported `unexpected token "endforeach"` issue is cleared after `view:clear` + `view:cache`
+  - shared markup reuse also reduces future drift between desktop and mobile rendering
+
+## 2026-06-15 (Itinerary Detail: Island Transfer Vendor Display)
+- Scope: improve `Schedule by Day` metadata rendering for island transfer items on itinerary detail.
+- Updated files:
+  - `resources/views/modules/itineraries/show.blade.php`
+- Changes:
+  - island transfer schedule items now carry `vendor_name` in the per-day display payload
+  - finalized island transfer display format in `Schedule by Day` to:
+    - type label: `ISLAND TRANSFER`
+    - title row: service name only
+    - metadata row: `city/region | start time - end time`
+- Outcome:
+  - itinerary detail now shows a cleaner, simpler island transfer card format without changing item ordering or interaction flow

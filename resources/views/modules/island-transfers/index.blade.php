@@ -33,7 +33,7 @@
                             <option value="inactive" @selected((string) request('status') === 'inactive')>{{ ui_phrase('Inactive') }}</option>
                         </select>
                         <select name="per_page" class="app-input" data-service-filter-input>
-                            @foreach ([10, 25, 50, 100] as $size)
+                            @foreach ($perPageOptions as $size)
                                 <option value="{{ $size }}" @selected((string) request('per_page', 10) === (string) $size)>{{ ui_phrase('transfers per page option', ['size' => $size]) }}</option>
                             @endforeach
                         </select>
@@ -59,50 +59,41 @@
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
-                                @forelse ($islandTransfers as $transfer)
-                                    @php
-                                        $firstGalleryImage = is_array($transfer->gallery_images ?? null) ? ($transfer->gallery_images[0] ?? null) : null;
-                                        $transferThumb = $firstGalleryImage ? \App\Support\ImageThumbnailGenerator::resolvePublicUrl($firstGalleryImage) : null;
-                                    @endphp
+                                @forelse ($transferRows as $row)
+                                    @php($transfer = $row['transfer'])
                                     <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/30">
                                         <td class="px-4 py-3 text-sm text-gray-800 dark:text-gray-100">
                                             <div class="flex items-center gap-2">
-                                                @if (!empty($transferThumb ?? null))
-                                                    <img src="{{ $transferThumb }}" alt="Island transfer image" class="h-10 w-14 rounded-md border border-gray-200 object-cover dark:border-gray-700">
+                                                @if (!empty($row['thumbnail_url']))
+                                                    <img src="{{ $row['thumbnail_url'] }}" alt="Island transfer image" class="h-10 w-14 rounded-md border border-gray-200 object-cover dark:border-gray-700">
                                                 @endif
                                                 <span class="font-semibold">{{ $transfer->name }}</span>
                                             </div>
                                         </td>
                                         <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">
-                                            {{ ui_phrase(match ((string) $transfer->transfer_type) {
-                                                'fastboat' => 'Fastboat',
-                                                'ferry' => 'Ferry',
-                                                'speedboat' => 'Speedboat',
-                                                'boat' => 'Boat',
-                                                default => (string) $transfer->transfer_type,
-                                            }) }}
+                                            {{ $row['transfer_type_label'] }}
                                         </td>
                                         <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">
-                                            <div>{{ $transfer->vendor?->name ?? '-' }}</div>
-                                            <div class="text-xs text-gray-500 dark:text-gray-400">{{ trim((string) (($transfer->vendor?->city ?? '-') . (!empty($transfer->vendor?->province) ? ', '.$transfer->vendor?->province : ''))) }}</div>
+                                            <div>{{ $row['vendor_name'] }}</div>
+                                            <div class="text-xs text-gray-500 dark:text-gray-400">{{ $row['vendor_location'] }}</div>
                                         </td>
-                                        <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">{{ ui_phrase('transfers duration short', ['minutes' => (int) ($transfer->duration_minutes ?? 0)]) }}</td>
-                                        <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">{{ ui_phrase('transfers distance short', ['distance' => number_format((float) ($transfer->distance_km ?? 0), 2, '.', '')]) }}</td>
+                                        <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">{{ $row['duration_label'] }}</td>
+                                        <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">{{ $row['distance_label'] }}</td>
                                         <td class="px-4 py-3 text-center text-sm">
-                                            <x-ui.status-badge :status="! $transfer->trashed() ? 'active' : 'inactive'" size="xs" />
+                                            <x-ui.status-badge :status="$row['status_badge']" size="xs" />
                                         </td>
                                         <td class="px-4 py-3 text-right text-sm actions-compact">
                                             <x-ui.table-action-dropdown :label="ui_phrase('Actions')">
-                                                <a href="{{ route('island-transfers.show', $transfer->id) }}" class="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800">
+                                                <a href="{{ $row['show_url'] }}" class="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800">
                                                     <i class="fa-solid fa-eye w-4 text-gray-500 dark:text-gray-400"></i>
                                                     <span>{{ ui_phrase('transfers view details') }}</span>
                                                 </a>
-                                                <a href="{{ route('island-transfers.edit', $transfer->id) }}" class="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800">
+                                                <a href="{{ $row['edit_url'] }}" class="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800">
                                                     <i class="fa-solid fa-pen w-4 text-gray-500 dark:text-gray-400"></i>
                                                     <span>{{ ui_phrase('transfers edit') }}</span>
                                                 </a>
                                                 <x-ui.confirm-action
-                                                    :action="route('island-transfers.duplicate', $transfer->id)"
+                                                    :action="$row['duplicate_url']"
                                                     method="POST"
                                                     :modal-name="'island-transfers-index-duplicate-desktop-' . $transfer->id"
                                                     :title="ui_phrase('Duplicate') . ' ' . ui_phrase('Island Transfer')"
@@ -114,20 +105,22 @@
                                                     trigger-class="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800"
                                                     confirm-class="btn-primary-sm"
                                                 />
+                                                @if ($canManageActivationActions)
                                                 <div class="my-1 border-t border-gray-200 dark:border-gray-700"></div>
                                                 <x-ui.confirm-action
-                                                    :action="route('island-transfers.toggle-status', $transfer->id)"
+                                                    :action="$row['toggle_url']"
                                                     method="PATCH"
                                                     :modal-name="'island-transfers-index-toggle-desktop-' . $transfer->id"
-                                                    :title="! $transfer->trashed() ? ui_phrase('transfers deactivate') . ' ' . ui_phrase('Island Transfer') : ui_phrase('transfers activate') . ' ' . ui_phrase('Island Transfer')"
-                                                    :message="! $transfer->trashed() ? ui_phrase('transfers confirm deactivate') : ui_phrase('transfers confirm activate')"
+                                                    :title="$row['toggle_title']"
+                                                    :message="$row['toggle_message']"
                                                     :notice-message="__('confirm.notification_after_action')"
-                                                    :confirm-label="! $transfer->trashed() ? ui_phrase('transfers deactivate') : ui_phrase('transfers activate')"
-                                                    :trigger-label="! $transfer->trashed() ? ui_phrase('transfers deactivate') : ui_phrase('transfers activate')"
-                                                    :trigger-icon="! $transfer->trashed() ? 'fa-solid fa-toggle-off w-4' : 'fa-solid fa-toggle-on w-4'"
-                                                    :trigger-class="! $transfer->trashed() ? 'flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-amber-700 hover:bg-amber-50 dark:text-amber-300 dark:hover:bg-amber-900/20' : 'flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-emerald-700 hover:bg-emerald-50 dark:text-emerald-300 dark:hover:bg-emerald-900/20'"
+                                                    :confirm-label="$row['toggle_label']"
+                                                    :trigger-label="$row['toggle_label']"
+                                                    :trigger-icon="$row['toggle_icon']"
+                                                    :trigger-class="$row['toggle_class']"
                                                     confirm-class="btn-primary-sm"
                                                 />
+                                                @endif
                                             </x-ui.table-action-dropdown>
                                         </td>
                                     </tr>
@@ -144,31 +137,28 @@
                 </div>
 
                 <div class="md:hidden space-y-3">
-                    @forelse ($islandTransfers as $transfer)
-                        @php
-                            $firstGalleryImage = is_array($transfer->gallery_images ?? null) ? ($transfer->gallery_images[0] ?? null) : null;
-                            $transferThumb = $firstGalleryImage ? \App\Support\ImageThumbnailGenerator::resolvePublicUrl($firstGalleryImage) : null;
-                        @endphp
+                    @forelse ($transferRows as $row)
+                        @php($transfer = $row['transfer'])
                         <div class="app-card p-4">
-                            @if (!empty($transferThumb ?? null))
+                            @if (!empty($row['thumbnail_url']))
                                 <div class="mb-3 overflow-hidden rounded-md border border-gray-200 dark:border-gray-700">
-                                    <img src="{{ $transferThumb }}" alt="Island transfer image" class="h-28 w-full object-cover">
+                                    <img src="{{ $row['thumbnail_url'] }}" alt="Island transfer image" class="h-28 w-full object-cover">
                                 </div>
                             @endif
 
                             <div class="relative">
                                 <div class="absolute right-0 top-0 z-10">
                                     <x-ui.table-action-dropdown :label="ui_phrase('Actions')">
-                                        <a href="{{ route('island-transfers.show', $transfer->id) }}" class="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800">
+                                        <a href="{{ $row['show_url'] }}" class="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800">
                                             <i class="fa-solid fa-eye w-4 text-gray-500 dark:text-gray-400"></i>
                                             <span>{{ ui_phrase('transfers view details') }}</span>
                                         </a>
-                                        <a href="{{ route('island-transfers.edit', $transfer->id) }}" class="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800">
+                                        <a href="{{ $row['edit_url'] }}" class="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800">
                                             <i class="fa-solid fa-pen w-4 text-gray-500 dark:text-gray-400"></i>
                                             <span>{{ ui_phrase('transfers edit') }}</span>
                                         </a>
                                         <x-ui.confirm-action
-                                            :action="route('island-transfers.duplicate', $transfer->id)"
+                                            :action="$row['duplicate_url']"
                                             method="POST"
                                             :modal-name="'island-transfers-index-duplicate-mobile-' . $transfer->id"
                                             :title="ui_phrase('Duplicate') . ' ' . ui_phrase('Island Transfer')"
@@ -180,37 +170,39 @@
                                             trigger-class="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800"
                                             confirm-class="btn-primary-sm"
                                         />
+                                        @if ($canManageActivationActions)
                                         <div class="my-1 border-t border-gray-200 dark:border-gray-700"></div>
                                         <x-ui.confirm-action
-                                            :action="route('island-transfers.toggle-status', $transfer->id)"
+                                            :action="$row['toggle_url']"
                                             method="PATCH"
                                             :modal-name="'island-transfers-index-toggle-mobile-' . $transfer->id"
-                                            :title="! $transfer->trashed() ? ui_phrase('transfers deactivate') . ' ' . ui_phrase('Island Transfer') : ui_phrase('transfers activate') . ' ' . ui_phrase('Island Transfer')"
-                                            :message="! $transfer->trashed() ? ui_phrase('transfers confirm deactivate') : ui_phrase('transfers confirm activate')"
+                                            :title="$row['toggle_title']"
+                                            :message="$row['toggle_message']"
                                             :notice-message="__('confirm.notification_after_action')"
-                                            :confirm-label="! $transfer->trashed() ? ui_phrase('transfers deactivate') : ui_phrase('transfers activate')"
-                                            :trigger-label="! $transfer->trashed() ? ui_phrase('transfers deactivate') : ui_phrase('transfers activate')"
-                                            :trigger-icon="! $transfer->trashed() ? 'fa-solid fa-toggle-off w-4' : 'fa-solid fa-toggle-on w-4'"
-                                            :trigger-class="! $transfer->trashed() ? 'flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-amber-700 hover:bg-amber-50 dark:text-amber-300 dark:hover:bg-amber-900/20' : 'flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-emerald-700 hover:bg-emerald-50 dark:text-emerald-300 dark:hover:bg-emerald-900/20'"
+                                            :confirm-label="$row['toggle_label']"
+                                            :trigger-label="$row['toggle_label']"
+                                            :trigger-icon="$row['toggle_icon']"
+                                            :trigger-class="$row['toggle_class']"
                                             confirm-class="btn-primary-sm"
                                         />
+                                        @endif
                                     </x-ui.table-action-dropdown>
                                 </div>
                                 <div class="flex items-start gap-3 pr-12">
                                     <div>
                                         <p class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ $transfer->name }}</p>
-                                        <p class="text-xs text-gray-500 dark:text-gray-400">{{ $transfer->vendor?->name ?? '-' }}</p>
+                                        <p class="text-xs text-gray-500 dark:text-gray-400">{{ $row['vendor_name'] }}</p>
                                     </div>
                                 </div>
                             </div>
 
                             <div class="mt-3 grid grid-cols-2 gap-2 text-xs text-gray-600 dark:text-gray-300">
                                 <div>{{ ui_phrase('transfers duration') }}</div>
-                                <div>{{ ui_phrase('transfers duration short', ['minutes' => (int) ($transfer->duration_minutes ?? 0)]) }}</div>
+                                <div>{{ $row['duration_label'] }}</div>
                                 <div>{{ ui_phrase('transfers distance') }}</div>
-                                <div>{{ ui_phrase('transfers distance short', ['distance' => number_format((float) ($transfer->distance_km ?? 0), 2, '.', '')]) }}</div>
+                                <div>{{ $row['distance_label'] }}</div>
                                 <div>{{ ui_phrase('transfers status') }}</div>
-                                <div><x-ui.status-badge :status="! $transfer->trashed() ? 'active' : 'inactive'" size="xs" /></div>
+                                <div><x-ui.status-badge :status="$row['status_badge']" size="xs" /></div>
                             </div>
 
                         </div>

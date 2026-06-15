@@ -84,7 +84,19 @@ class IslandTransferController extends Controller
             ],
         ];
 
-        return view('modules.island-transfers.index', compact('islandTransfers', 'vendors', 'transferTypeOptions', 'statsCards'));
+        $transferRows = $this->buildIslandTransferIndexRows($islandTransfers);
+        $perPageOptions = [10, 25, 50, 100];
+        $canManageActivationActions = auth()->user()?->canManageActivationActions() === true;
+
+        return view('modules.island-transfers.index', compact(
+            'islandTransfers',
+            'vendors',
+            'transferTypeOptions',
+            'statsCards',
+            'transferRows',
+            'perPageOptions',
+            'canManageActivationActions'
+        ));
     }
 
     public function create()
@@ -175,6 +187,7 @@ class IslandTransferController extends Controller
 
     public function toggleStatus($islandTransfer)
     {
+        abort_unless(auth()->user()?->canManageActivationActions(), 403);
         $islandTransfer = IslandTransfer::withTrashed()->findOrFail($islandTransfer);
         if ($islandTransfer->trashed()) {
             $islandTransfer->restore();
@@ -283,6 +296,63 @@ class IslandTransferController extends Controller
         $validated['is_active'] = $request->boolean('is_active');
 
         return $validated;
+    }
+
+    private function buildIslandTransferIndexRows($islandTransfers): array
+    {
+        return $islandTransfers->getCollection()->values()->map(function (IslandTransfer $transfer, int $index) use ($islandTransfers): array {
+            $firstGalleryImage = is_array($transfer->gallery_images ?? null)
+                ? ($transfer->gallery_images[0] ?? null)
+                : null;
+            $isActive = ! $transfer->trashed();
+            $vendorCity = trim((string) ($transfer->vendor?->city ?? ''));
+            $vendorProvince = trim((string) ($transfer->vendor?->province ?? ''));
+
+            return [
+                'transfer' => $transfer,
+                'row_number' => (int) ($islandTransfers->firstItem() ?? 1) + $index,
+                'thumbnail_url' => $firstGalleryImage
+                    ? ImageThumbnailGenerator::resolvePublicUrl($firstGalleryImage)
+                    : null,
+                'transfer_type_label' => ui_phrase(match ((string) ($transfer->transfer_type ?? '')) {
+                    'fastboat' => 'Fastboat',
+                    'ferry' => 'Ferry',
+                    'speedboat' => 'Speedboat',
+                    'boat' => 'Boat',
+                    default => (string) ($transfer->transfer_type ?? ''),
+                }),
+                'vendor_name' => trim((string) ($transfer->vendor?->name ?? '')) !== ''
+                    ? (string) $transfer->vendor->name
+                    : '-',
+                'vendor_location' => trim((string) ($vendorCity . ($vendorProvince !== '' ? ', ' . $vendorProvince : ''))) !== ''
+                    ? trim((string) ($vendorCity . ($vendorProvince !== '' ? ', ' . $vendorProvince : '')))
+                    : '-',
+                'duration_label' => ui_phrase('transfers duration short', [
+                    'minutes' => (int) ($transfer->duration_minutes ?? 0),
+                ]),
+                'distance_label' => ui_phrase('transfers distance short', [
+                    'distance' => number_format((float) ($transfer->distance_km ?? 0), 2, '.', ''),
+                ]),
+                'status_badge' => $isActive ? 'active' : 'inactive',
+                'show_url' => route('island-transfers.show', $transfer->id),
+                'edit_url' => route('island-transfers.edit', $transfer->id),
+                'duplicate_url' => route('island-transfers.duplicate', $transfer->id),
+                'toggle_url' => route('island-transfers.toggle-status', $transfer->id),
+                'toggle_title' => $isActive
+                    ? ui_phrase('transfers deactivate') . ' ' . ui_phrase('Island Transfer')
+                    : ui_phrase('transfers activate') . ' ' . ui_phrase('Island Transfer'),
+                'toggle_message' => $isActive
+                    ? ui_phrase('transfers confirm deactivate')
+                    : ui_phrase('transfers confirm activate'),
+                'toggle_label' => $isActive
+                    ? ui_phrase('transfers deactivate')
+                    : ui_phrase('transfers activate'),
+                'toggle_icon' => $isActive ? 'fa-solid fa-toggle-off w-4' : 'fa-solid fa-toggle-on w-4',
+                'toggle_class' => $isActive
+                    ? 'flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-amber-700 hover:bg-amber-50 dark:text-amber-300 dark:hover:bg-amber-900/20'
+                    : 'flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-emerald-700 hover:bg-emerald-50 dark:text-emerald-300 dark:hover:bg-emerald-900/20',
+            ];
+        })->all();
     }
 
     private function resolveDistanceKm(array $validated): ?float

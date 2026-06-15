@@ -1,6 +1,6 @@
 # Quotation Module Standard
 
-Last Updated: 2026-06-12
+Last Updated: 2026-06-15
 
 ## Cross-Module UI Note
 - Itinerary index `Duration` column should show only the main duration summary and must not append `Break Time` text in either desktop or mobile card layouts.
@@ -9,6 +9,9 @@ Last Updated: 2026-06-12
 - Itinerary create/edit wizard `Review` tab should show the `Highlighted` badge on the exact schedule row whose `main experience` checkbox is active for that day, including F&B rows that also show meal-slot badges.
 - Itinerary create/edit pages must not show quotation-specific revision context notices, because one itinerary can be linked or reused across multiple quotations and the form should stay quotation-neutral.
 - In itinerary create/edit `Day Planner`, `Inter Island Transfer` select must load all active island-transfer master items client-side, ignore the destination keyword when `All Regions` is selected, and filter only by the row region choice (`city -> province -> location` fallback) when a specific region is chosen.
+- Index-page `Activate` / `Deactivate` actions across modules must only be visible to users with role `Super Admin` or `Administrator`, and the related `toggleStatus` endpoints must reject other roles with `403`.
+- Inquiry create/edit form must load only the selector fields it needs (`customers.id`, `customers.name`, `customers.code`, handler `id`, `name`) and centralize validation plus assignment normalization to keep the screen responsive and the ownership flow consistent.
+- Complex index Blade views with separate desktop/mobile layouts should precompute per-row presentation data once and reuse it in both layouts, instead of rebuilding badge/action arrays inside multiple nested loops.
 
 ## Data Relationship
 - One `Inquiry` can have exactly one `Quotation` (`1:1`).
@@ -29,6 +32,7 @@ Last Updated: 2026-06-12
 - Existing quotation edit/revision must keep the original `inquiry_id`; the Inquiry field is readonly in edit forms and cannot be changed.
 - Final/closed inquiry status must not block editing or revising a quotation that is already linked to that inquiry.
 - Customer responses can be recorded repeatedly on active pre-approved quotation states so every customer decision/request is auditable.
+- `inquiry_itinerary_references` acts as the itinerary's primary inquiry reference only; quotation save must create the reference only when missing or refresh the same inquiry link, and must never overwrite a different existing itinerary reference just because the itinerary is reused by another quotation.
 
 ## Duration Rule
 - `duration_days` editable, minimum `1`.
@@ -67,6 +71,7 @@ Last Updated: 2026-06-12
 - Item rows must not show Adult/Child Publish Rate badges; pax type metadata stays hidden in `serviceable_meta` when needed.
 - Service item description must use `Service Type: Service name`.
 - Activity and F&B quotation item descriptions must use `Service Type: Service Name - Vendor Name` when vendor is available.
+- Quotation PDF must show F&B `menu_highlights` under the item description as a compact `Menu:` sub-line so customers can see the included menu without exposing internal-only pricing metadata.
 - Activity and F&B service items with passenger-specific rates must keep `serviceable_meta.pax_type` (`adult` / `child`) across generate, Add Service, edit, detail, and validate quotation flows.
 - Activity and F&B Add Service pickers must load adult/child publish rate, contract rate, and markup from the corresponding master-service pax fields; child fallback may use adult master values only when child values are empty.
 - Activity and F&B quotation descriptions should include pax label and vendor region when that metadata exists, following `Service Type: Service Name (ADULT|CHILD) - Vendor Name - Region`.
@@ -223,3 +228,55 @@ Last Updated: 2026-06-12
 - Revision History, Follow-up History, and Customer Response History cards should show a compact scrollable list so roughly three records are visible before internal scrolling.
 - Follow-up History must render human-readable event labels from `quotation_follow_ups.follow_up_type` and keep both automatic system entries (`quotation_sent`) and manual customer follow-up entries in descending actual event time.
 - Manual quotation follow-up records must store `follow_up_type = customer_follow_up`; detail page should not rely on raw `channel` alone to determine the meaning of a follow-up row.
+
+## Index Rendering Standard
+- For heavy module index pages, controllers must prepare final display payloads for tabs, metric cards, row summaries, and action visibility flags before rendering the Blade view.
+- Blade index files should avoid building business/display state with inline collection pipelines, permission branching, or repeated desktop/mobile row computations.
+- Recommended pattern:
+  - controller returns paginator for pagination links,
+  - controller also returns `*Rows`, `*Tabs`, `*Metrics`, `*Suggestions`, or similar finalized arrays,
+  - Blade loops over finalized arrays and focuses only on rendering.
+- Applied reference modules:
+  - `inquiries.index`
+  - `bookings.index`
+  - `payments.index`
+  - `food-beverages.index`
+  - `quotations.index`
+  - `island-transfers.index`
+  - `itineraries.index`
+  - `vendors.index`
+  - `services.index`
+  - `customers.index`
+  - `airports.index`
+  - `destinations.index`
+  - `transports.index`
+- Customer index sidebar rule:
+  - `customers.index` should render the reusable sidebar info component using controller-prepared `sidebarInfo`.
+  - Sidebar title should use customer-specific wording such as `Customer/Agent Info`, not the generic `Module Information`.
+  - Sidebar rows should summarize the currently filtered dataset, including total filtered customers, active/inactive counts, type distribution, and top country when available.
+- Activation toggle visibility rule:
+  - activation/deactivation actions on index pages must be hidden for users outside `Super Admin` and `Administrator`.
+  - controllers must still enforce the same rule server-side with `canManageActivationActions()` so hidden buttons are not the only protection.
+- Row payload standard for master-data indexes:
+  - for modules such as airports, destinations, and transports, controller-prepared row arrays should include:
+    - normalized row number based on paginator `firstItem()`,
+    - compact location/provider/linked-data summary strings,
+    - finalized action URLs,
+    - finalized toggle title/message/button metadata,
+    - finalized status booleans for badge rendering.
+  - Blade should not rebuild those summaries separately for desktop and mobile layouts.
+- Blade stability rule for heavy index pages:
+  - if an index page contains repeated desktop/mobile UI blocks with nested `@foreach` and `@if` sections, extract the repeated block into a partial instead of duplicating the nesting inline.
+  - preferred candidates for extraction are popover panels, dropdown action menus, compact mobile cards, and repeated badge/list renderers.
+  - this is especially important for itinerary-style pages where nested grouped lists can otherwise become fragile and produce hard-to-debug Blade directive mismatches.
+- Itinerary detail schedule display rule:
+  - `Schedule by Day` item metadata should expose service context compactly and consistently.
+  - for island transfer items, the display format should be:
+    - type label: `ISLAND TRANSFER`
+    - title row: service name only
+    - metadata row: `city/region | start time - end time`
+  - island transfer display should stay compact and should not append extra vendor/destination fragments unless a later UX rule explicitly changes that format.
+- Goal:
+  - reduce Blade fragility,
+  - make index pages easier to debug,
+  - keep performance predictable by avoiding duplicate per-row transformation work in templates.

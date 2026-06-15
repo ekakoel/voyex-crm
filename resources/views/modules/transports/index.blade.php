@@ -28,7 +28,7 @@
                             <option value="inactive" @selected((string) request('status') === 'inactive')>{{ ui_phrase('Inactive') }}</option>
                         </select>
                         <select name="per_page" class="app-input" data-service-filter-input>
-                            @foreach ([10,25,50,100] as $size)
+                            @foreach ($perPageOptions as $size)
                                 <option value="{{ $size }}" @selected((string) request('per_page', 10) === (string) $size)>{{ ui_phrase(':size/page', ['size' => $size]) }}</option>
                             @endforeach
                         </select>
@@ -52,26 +52,26 @@
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
-                    @forelse ($transports as $index=>$transport)
+                    @forelse ($transportRows as $row)
+                        @php($transport = $row['transport'])
                         <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/30">
-                            @php($isActive = ! $transport->trashed())
-                            <td class="px-4 py-3 text-sm font-medium text-gray-800 dark:text-gray-100">{{ ++$index }}</td>
+                            <td class="px-4 py-3 text-sm font-medium text-gray-800 dark:text-gray-100">{{ $row['row_number'] }}</td>
                             <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">
                                 <div>{{ $transport->name }}</div>
-                                <div class="text-xs text-gray-500 dark:text-gray-400">{{ $transport->vendor?->name ?? '-' }}</div>
+                                <div class="text-xs text-gray-500 dark:text-gray-400">{{ $row['vendor_name'] }}</div>
                             </td>
-                            <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">{{ ucfirst(str_replace('_', ' ', $transport->transport_type)) }}</td>
+                            <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">{{ $row['transport_type_label'] }}</td>
                             <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">
-                                {{ $transport->brand_model ?: '-' }}<br>
-                                <span class="text-xs text-gray-500 dark:text-gray-400">{{ (int) ($transport->seat_capacity ?? 0) }} seats</span>
+                                {{ $row['unit_spec_label'] }}<br>
+                                <span class="text-xs text-gray-500 dark:text-gray-400">{{ $row['seat_capacity_label'] }}</span>
                             </td>
                             <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">
-                                @if ($transport->contract_rate !== null)
+                                @if ($row['has_rates'])
                                     <div>
                                         Contract: <x-money :amount="(float) $transport->contract_rate" currency="IDR" />
                                     </div>
                                     <div class="text-xs text-gray-500 dark:text-gray-400">
-                                        Markup: {{ ($transport->markup_type ?? 'fixed') === 'percent' ? rtrim(rtrim(number_format((float) ($transport->markup ?? 0), 2, '.', ''), '0'), '.') . '%' : \App\Support\Currency::format((float) ($transport->markup ?? 0), 'IDR') }}
+                                        Markup: {{ $row['markup_display'] }}
                                     </div>
                                     <div class="text-xs text-gray-500 dark:text-gray-400">
                                         Publish: <x-money :amount="(float) $transport->publish_rate" currency="IDR" />
@@ -81,32 +81,34 @@
                                 @endif
                             </td>
                             <td class="px-4 py-3 text-center text-sm">
-                                <x-ui.status-badge :status="$isActive ? 'active' : 'inactive'" size="xs" />
+                                <x-ui.status-badge :status="$row['is_active'] ? 'active' : 'inactive'" size="xs" />
                             </td>
                             <td class="px-4 py-3 text-right text-sm actions-compact">
                                 <x-ui.table-action-dropdown :label="ui_phrase('Actions')">
-                                    <a href="{{ route('transports.show', $transport) }}" class="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800">
+                                    <a href="{{ $row['show_url'] }}" class="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800">
                                         <i class="fa-solid fa-eye w-4 text-gray-500 dark:text-gray-400"></i>
                                         <span>{{ ui_phrase('View') }}</span>
                                     </a>
-                                    <a href="{{ route('transports.edit', $transport) }}" class="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800">
+                                    <a href="{{ $row['edit_url'] }}" class="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800">
                                         <i class="fa-solid fa-pen w-4 text-gray-500 dark:text-gray-400"></i>
                                         <span>{{ ui_phrase('Edit') }}</span>
                                     </a>
+                                    @if ($row['can_manage_activation'])
                                     <div class="my-1 border-t border-gray-200 dark:border-gray-700"></div>
                                     <x-ui.confirm-action
-                                        :action="route('transports.toggle-status', $transport->id)"
+                                        :action="$row['toggle_url']"
                                         method="PATCH"
                                         :modal-name="'transports-index-toggle-desktop-' . $transport->id"
-                                        :title="$isActive ? ui_phrase('Deactivate') . ' ' . ui_phrase('Transport') : ui_phrase('Activate') . ' ' . ui_phrase('Transport')"
-                                        :message="$isActive ? ui_phrase('confirm deactivate') : ui_phrase('confirm activate')"
+                                        :title="$row['toggle_title']"
+                                        :message="$row['toggle_message_desktop']"
                                         :notice-message="__('confirm.notification_after_action')"
-                                        :confirm-label="$isActive ? ui_phrase('Deactivate') : ui_phrase('Activate')"
-                                        :trigger-label="$isActive ? ui_phrase('Deactivate') : ui_phrase('Activate')"
-                                        :trigger-icon="$isActive ? 'fa-solid fa-toggle-off w-4' : 'fa-solid fa-toggle-on w-4'"
-                                        :trigger-class="$isActive ? 'flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-amber-700 hover:bg-amber-50 dark:text-amber-300 dark:hover:bg-amber-900/20' : 'flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-emerald-700 hover:bg-emerald-50 dark:text-emerald-300 dark:hover:bg-emerald-900/20'"
+                                        :confirm-label="$row['toggle_label']"
+                                        :trigger-label="$row['toggle_label']"
+                                        :trigger-icon="$row['toggle_icon']"
+                                        :trigger-class="$row['toggle_class']"
                                         confirm-class="btn-primary-sm"
                                     />
+                                    @endif
                                 </x-ui.table-action-dropdown>
                             </td>
                         </tr>
@@ -122,33 +124,35 @@
             </div>
         </div>
         <div class="md:hidden space-y-3">
-            @forelse ($transports as $transport)
-                @php($isActive = ! $transport->trashed())
+            @forelse ($transportRows as $row)
+                @php($transport = $row['transport'])
                 <div class="app-card relative p-4 pt-5">
                     <div class="absolute right-3 top-3 z-10">
                         <x-ui.table-action-dropdown :label="ui_phrase('Actions')">
-                            <a href="{{ route('transports.show', $transport) }}" class="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800">
+                            <a href="{{ $row['show_url'] }}" class="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800">
                                 <i class="fa-solid fa-eye w-4 text-gray-500 dark:text-gray-400"></i>
                                 <span>{{ ui_phrase('View') }}</span>
                             </a>
-                            <a href="{{ route('transports.edit', $transport) }}" class="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800">
+                            <a href="{{ $row['edit_url'] }}" class="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800">
                                 <i class="fa-solid fa-pen w-4 text-gray-500 dark:text-gray-400"></i>
                                 <span>{{ ui_phrase('Edit') }}</span>
                             </a>
+                            @if ($row['can_manage_activation'])
                             <div class="my-1 border-t border-gray-200 dark:border-gray-700"></div>
                             <x-ui.confirm-action
-                                :action="route('transports.toggle-status', $transport->id)"
+                                :action="$row['toggle_url']"
                                 method="PATCH"
                                 :modal-name="'transports-index-toggle-mobile-' . $transport->id"
-                                :title="$isActive ? ui_phrase('Deactivate') . ' ' . ui_phrase('Transport') : ui_phrase('Activate') . ' ' . ui_phrase('Transport')"
-                                :message="$isActive ? ui_phrase('confirm deactivate mobile') : ui_phrase('confirm activate mobile')"
+                                :title="$row['toggle_title']"
+                                :message="$row['toggle_message_mobile']"
                                 :notice-message="__('confirm.notification_after_action')"
-                                :confirm-label="$isActive ? ui_phrase('Deactivate') : ui_phrase('Activate')"
-                                :trigger-label="$isActive ? ui_phrase('Deactivate') : ui_phrase('Activate')"
-                                :trigger-icon="$isActive ? 'fa-solid fa-toggle-off w-4' : 'fa-solid fa-toggle-on w-4'"
-                                :trigger-class="$isActive ? 'flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-amber-700 hover:bg-amber-50 dark:text-amber-300 dark:hover:bg-amber-900/20' : 'flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-emerald-700 hover:bg-emerald-50 dark:text-emerald-300 dark:hover:bg-emerald-900/20'"
+                                :confirm-label="$row['toggle_label']"
+                                :trigger-label="$row['toggle_label']"
+                                :trigger-icon="$row['toggle_icon']"
+                                :trigger-class="$row['toggle_class']"
                                 confirm-class="btn-primary-sm"
                             />
+                            @endif
                         </x-ui.table-action-dropdown>
                     </div>
                     <div class="flex items-start gap-3 pr-12">
@@ -159,22 +163,22 @@
                     </div>
                     <div class="mt-3 grid grid-cols-2 gap-2 text-xs text-gray-600 dark:text-gray-300">
                         <div>{{ ui_phrase('Provider') }}</div>
-                        <div>{{ $transport->vendor?->name ?? '-' }}</div>
+                        <div>{{ $row['vendor_name'] }}</div>
                         <div>{{ ui_phrase('Unit') }}</div>
-                        <div>{{ $transport->brand_model ?: '-' }}</div>
+                        <div>{{ $row['unit_spec_label'] }}</div>
                         <div>{{ ui_phrase('Rate') }}</div>
                         <div>
-                            @if ($transport->contract_rate !== null)
+                            @if ($row['has_rates'])
                                 <div><x-money :amount="(float) $transport->contract_rate" currency="IDR" /></div>
                                 <div class="text-gray-500 dark:text-gray-400">
-                                    {{ ($transport->markup_type ?? 'fixed') === 'percent' ? rtrim(rtrim(number_format((float) ($transport->markup ?? 0), 2, '.', ''), '0'), '.') . '%' : \App\Support\Currency::format((float) ($transport->markup ?? 0), 'IDR') }}
+                                    {{ $row['markup_display'] }}
                                 </div>
                             @else
                                 -
                             @endif
                         </div>
                         <div>{{ ui_phrase('Status') }}</div>
-                        <div><x-ui.status-badge :status="$isActive ? 'active' : 'inactive'" size="xs" /></div>
+                        <div><x-ui.status-badge :status="$row['is_active'] ? 'active' : 'inactive'" size="xs" /></div>
                     </div>
                 </div>
             @empty
