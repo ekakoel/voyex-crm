@@ -5079,6 +5079,7 @@
                     }
                     if (hasChanges) {
                         syncTravelConnectorInputsFromHidden(section);
+                        syncConnectorWarningStatesForSection(section);
                     }
                     return hasChanges;
                 };
@@ -5300,6 +5301,26 @@
                     inputEl.classList.toggle('text-amber-900', !hasValue);
                     inputEl.classList.toggle('placeholder-amber-500', !hasValue);
                 };
+                const setTravelManualState = (inputEl, isManual) => {
+                    if (!(inputEl instanceof HTMLInputElement)) return;
+                    if (isManual) {
+                        inputEl.dataset.travelManual = '1';
+                    } else {
+                        delete inputEl.dataset.travelManual;
+                    }
+                };
+                const primeTravelManualState = (inputEl) => {
+                    if (!(inputEl instanceof HTMLInputElement)) return;
+                    if (String(inputEl.dataset.travelManual || '') === '1') return;
+                    setTravelManualState(inputEl, String(inputEl.value || '').trim() !== '');
+                };
+                const primeTravelManualStateForSection = (section) => {
+                    if (!section) return;
+                    primeTravelManualState(section.querySelector('.day-start-travel'));
+                    section.querySelectorAll('.item-travel').forEach((inputEl) => {
+                        primeTravelManualState(inputEl);
+                    });
+                };
                 const syncConnectorWarningStatesForSection = (section) => {
                     if (!section) return;
                     const startInput = section.querySelector('.day-start-travel');
@@ -5358,13 +5379,13 @@
                             const parsed = parseInt(rawValue, 10);
                             if (rawValue === '') {
                                 hiddenTravel.value = '';
-                                delete hiddenTravel.dataset.travelManual;
+                                setTravelManualState(hiddenTravel, false);
                             } else if (Number.isFinite(parsed)) {
                                 hiddenTravel.value = String(Math.max(0, parsed));
-                                hiddenTravel.dataset.travelManual = '1';
+                                setTravelManualState(hiddenTravel, true);
                             } else {
                                 hiddenTravel.value = '';
-                                delete hiddenTravel.dataset.travelManual;
+                                setTravelManualState(hiddenTravel, false);
                             }
                             if (warning) {
                                 setConnectorWarningState(input, warning);
@@ -5491,7 +5512,7 @@
                     if (startInput) startInput.value = '';
                     if (endInput) endInput.value = '';
                     if (travelInput) travelInput.value = '';
-                    if (travelInput) delete travelInput.dataset.travelManual;
+                    setTravelManualState(travelInput, false);
                     if (orderInput) orderInput.value = '';
                     if (mainCheckbox) mainCheckbox.checked = false;
                     if (seqBadge) seqBadge.textContent = '-';
@@ -5658,7 +5679,7 @@
                             const travelInput = r.querySelector('.item-travel');
                             if (travelInput) {
                                 travelInput.value = '';
-                                delete travelInput.dataset.travelManual;
+                                setTravelManualState(travelInput, false);
                             }
                         }
                         cur += dur + travel;
@@ -6673,7 +6694,7 @@
                     r.querySelector('.item-end').value = '';
                     r.querySelector('.item-travel').value = '';
                     if (breakDurationSelect) breakDurationSelect.value = '30';
-                    delete r.querySelector('.item-travel').dataset.travelManual;
+                    setTravelManualState(r.querySelector('.item-travel'), false);
                     r.querySelector('.item-order').value = '';
                     const mainCheckbox = r.querySelector('.item-main-experience');
                     if (mainCheckbox) mainCheckbox.checked = false;
@@ -6834,12 +6855,15 @@
                     });
                     sec.querySelector('.day-end-room-count')?.addEventListener('input', recalcNoConnectorRebuild);
                     sec.querySelector('.day-start-travel')?.addEventListener('input', () => {
+                        const startTravelInput = sec.querySelector('.day-start-travel');
+                        setTravelManualState(startTravelInput, String(startTravelInput?.value || '').trim() !== '');
                         syncConnectorWarningStatesForSection(sec);
                         recalcNoConnectorRebuildSkipAuto();
                     });
                     sec.querySelector('.day-start-time')?.addEventListener('change', recalc);
                     initSortable(sec);
                     updateDayPointTheme(sec);
+                    primeTravelManualStateForSection(sec);
                     syncConnectorWarningStatesForSection(sec);
                 });
                 document.addEventListener('click', (event) => {
@@ -7051,6 +7075,7 @@
                             if (dayStartTravelInput) {
                                 dayStartTravelInput.name = `day_start_travel_minutes[${i}]`;
                                 dayStartTravelInput.value = '';
+                                setTravelManualState(dayStartTravelInput, false);
                             }
                             const dayMainExperienceType = c.querySelector('.day-main-experience-type');
                             if (dayMainExperienceType) {
@@ -7145,12 +7170,15 @@
                             c.querySelector('.day-end-room-count')?.addEventListener('input',
                                 recalcNoConnectorRebuild);
                             c.querySelector('.day-start-travel')?.addEventListener('input', () => {
+                                const startTravelInput = c.querySelector('.day-start-travel');
+                                setTravelManualState(startTravelInput, String(startTravelInput?.value || '').trim() !== '');
                                 syncConnectorWarningStatesForSection(c);
                                 recalcNoConnectorRebuildSkipAuto();
                             });
                             c.querySelector('.day-start-time')?.addEventListener('change', recalc);
                             initSortable(c);
                             standardizeDaySectionVisual(c);
+                            primeTravelManualStateForSection(c);
                             syncConnectorWarningStatesForSection(c);
                         }
                     } [...daySections.querySelectorAll('.day-section')].forEach((s) => {

@@ -454,7 +454,8 @@ class ItineraryController extends Controller
                         ),
                         'item_name' => trim((string) ($item->foodBeverage?->name ?? '')),
                         'vendor_name' => trim((string) ($item->foodBeverage?->vendor?->name ?? '')),
-                        'meal_label' => $this->resolveItineraryMealLabel(
+                        'meal_label' => $this->resolveItineraryPopupMealLabel(
+                            $item->start_time ?? null,
                             $item->meal_type ?? null,
                             $item->foodBeverage?->meal_period ?? null
                         ),
@@ -527,17 +528,39 @@ class ItineraryController extends Controller
 
     private function resolveItineraryMealLabel(?string $mealType, ?string $mealPeriod = null): ?string
     {
+        $tokens = $this->normalizeMealPeriodTokens($mealType);
+        if ($tokens === []) {
+            $tokens = $this->normalizeMealPeriodTokens($mealPeriod);
+        }
+
+        if ($tokens !== []) {
+            return collect($tokens)
+                ->map(fn (string $token): ?string => match ($token) {
+                    'breakfast' => 'Breakfast',
+                    'lunch' => 'Lunch',
+                    'dinner' => 'Dinner',
+                    default => null,
+                })
+                ->filter()
+                ->implode('/');
+        }
+
         $value = trim((string) ($mealType ?: $mealPeriod ?: ''));
         if ($value === '') {
             return null;
         }
 
-        return match (strtolower($value)) {
-            'breakfast' => 'Breakfast',
-            'lunch' => 'Lunch',
-            'dinner' => 'Dinner',
-            default => Str::headline($value),
-        };
+        return Str::headline($value);
+    }
+
+    private function resolveItineraryPopupMealLabel(?string $startTime, ?string $mealType, ?string $mealPeriod = null): ?string
+    {
+        $mealSlot = $this->resolveMealSlotKeyFromStartTime($startTime);
+        if ($mealSlot !== null) {
+            return $this->resolveItineraryMealLabel($mealSlot);
+        }
+
+        return $this->resolveItineraryMealLabel($mealType, $mealPeriod);
     }
 
     private function buildItineraryPopupItemKey(array $row): string

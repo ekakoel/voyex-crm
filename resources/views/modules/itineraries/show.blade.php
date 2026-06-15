@@ -824,6 +824,9 @@
                                                 ? $itemRegionCity
                                                 : ($itemLocationFallback !== '' ? $itemLocationFallback : '-');
                                             $itemMetaSegments = [$itemMetaPrimary];
+                                            if ($itemType === 'transfer' && $itemVendorName !== '' && $itemVendorName !== '-') {
+                                                $itemMetaSegments[] = $itemVendorName;
+                                            }
                                             if ($itemType !== 'transfer' && $itemDestination !== '') {
                                                 $itemMetaSegments[] = $itemDestination;
                                             }

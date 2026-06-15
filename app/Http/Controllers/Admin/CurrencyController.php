@@ -32,7 +32,8 @@ class CurrencyController extends Controller
         $query->when(($validated['status'] ?? null) === 'inactive', fn ($q) => $q->where('is_active', false));
 
         $perPage = (int) $request->input('per_page', 10);
-        $perPage = in_array($perPage, [10, 25, 50, 100], true) ? $perPage : 10;
+        $perPageOptions = [10, 25, 50, 100];
+        $perPage = in_array($perPage, $perPageOptions, true) ? $perPage : 10;
         $currencies = $query->orderByDesc('is_default')->orderBy('code')->paginate($perPage)->withQueryString();
         $bulkCurrencies = Currency::query()
             ->where('is_active', true)
@@ -40,8 +41,20 @@ class CurrencyController extends Controller
             ->orderBy('code')
             ->take(10)
             ->get();
+        $currencyRows = $this->buildCurrencyIndexRows($currencies);
+        $bulkCurrencyRows = $this->buildCurrencyBulkRows($bulkCurrencies);
+        $statusFilterOptions = [
+            ['value' => 'active', 'label' => ui_phrase('Active')],
+            ['value' => 'inactive', 'label' => ui_phrase('Inactive')],
+        ];
 
-        return view('modules.currencies.index', compact('currencies', 'bulkCurrencies'));
+        return view('modules.currencies.index', compact(
+            'currencies',
+            'currencyRows',
+            'bulkCurrencyRows',
+            'perPageOptions',
+            'statusFilterOptions'
+        ));
     }
 
     public function create(): View
@@ -215,5 +228,48 @@ class CurrencyController extends Controller
         if (! $user || ! $user->can('module.currencies.update')) {
             abort(403, ui_phrase('You do not have permission to update currency rates.'));
         }
+    }
+
+    private function buildCurrencyIndexRows($currencies): array
+    {
+        $firstItem = (int) ($currencies->firstItem() ?? 1);
+        $canDelete = auth()->user()?->can('module.currencies.delete') === true;
+
+        return $currencies->getCollection()->values()->map(function (Currency $currency, int $index) use ($firstItem, $canDelete): array {
+            $decimalPlaces = (int) ($currency->decimal_places ?? 0);
+
+            return [
+                'currency' => $currency,
+                'row_number' => $firstItem + $index,
+                'code' => (string) ($currency->code ?? '-'),
+                'name' => (string) ($currency->name ?? '-'),
+                'symbol_label' => trim((string) ($currency->symbol ?? '')) ?: '-',
+                'formatted_rate_to_idr' => number_format((float) ($currency->rate_to_idr ?? 0), $decimalPlaces, '.', ','),
+                'decimal_places' => $decimalPlaces,
+                'is_default' => (bool) ($currency->is_default ?? false),
+                'status_badge' => $currency->is_active ? 'active' : 'inactive',
+                'edit_url' => route('currencies.edit', $currency),
+                'delete_url' => route('currencies.destroy', $currency),
+                'can_delete' => $canDelete,
+                'delete_modal_name_desktop' => 'currencies-index-delete-desktop-' . $currency->id,
+                'delete_modal_name_mobile' => 'currencies-index-delete-mobile-' . $currency->id,
+            ];
+        })->all();
+    }
+
+    private function buildCurrencyBulkRows($bulkCurrencies): array
+    {
+        return $bulkCurrencies->values()->map(function (Currency $currency, int $index): array {
+            return [
+                'id' => (int) $currency->id,
+                'code' => (string) ($currency->code ?? '-'),
+                'name' => (string) ($currency->name ?? '-'),
+                'rate_input_name' => 'rates[' . $index . '][rate_to_idr]',
+                'rate_input_value' => old('rates.' . $index . '.rate_to_idr', $currency->rate_to_idr),
+                'decimal_input_name' => 'rates[' . $index . '][decimal_places]',
+                'decimal_input_value' => old('rates.' . $index . '.decimal_places', $currency->decimal_places),
+                'id_input_name' => 'rates[' . $index . '][id]',
+            ];
+        })->all();
     }
 }

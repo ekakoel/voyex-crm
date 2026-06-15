@@ -2091,4 +2091,8 @@ Completed in this cycle:
     - island transfer items in `Schedule by Day` now use the simplified final display format:
       - `ISLAND TRANSFER`
       - service name
-      - `city/region | start time - end time`
+      - `city/region | vendor/provider | start time - end time`
+  - itinerary index `Item List` F&B badges now prioritize row `start_time` so `Breakfast` / `Lunch` / `Dinner` follows the scheduled slot before falling back to stored meal metadata
+  - currency index now follows the controller-first index pattern with shared desktop/mobile action partials to lower the chance of future Blade syntax regressions on heavy pages
+  - booking index now reuses shared partials for nested action menus and mobile cards so future booking UI edits have a smaller Blade error surface
+  - itinerary create/edit Day Planner connector durations now auto-fill only while still unmodified, and any manual connector duration entered by the user is preserved on later recalculation

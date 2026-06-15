@@ -71,72 +71,7 @@
                 </div>
                 <div class="md:hidden space-y-3">
                     @forelse ($bookingRows as $row)
-                        @php($booking = $row['booking'])
-                        <div class="app-card relative p-4 pt-5">
-                            <div class="absolute right-3 top-3 z-10">
-                                <x-ui.table-action-dropdown :label="ui_phrase('Actions')">
-                                    <a href="{{ $row['show_url'] }}"
-                                        class="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800">
-                                        <i class="fa-solid fa-eye w-4 text-gray-500 dark:text-gray-400"></i>
-                                        <span>{{ ui_phrase('Detail') }}</span>
-                                    </a>
-                                    @if ($row['can_edit'])
-                                        <a href="{{ $row['edit_url'] }}"
-                                            class="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800">
-                                            <i class="fa-solid fa-pen w-4 text-gray-500 dark:text-gray-400"></i>
-                                            <span>{{ ui_phrase('Edit') }}</span>
-                                        </a>
-                                    @endif
-                                    @if ($row['can_cancel'])
-                                        <div class="my-1 border-t border-gray-200 dark:border-gray-700"></div>
-                                        <x-ui.confirm-action :action="$row['cancel_url']" method="POST" :modal-name="'bookings-index-cancel-mobile-' . $booking->id"
-                                            :title="ui_phrase('Cancel Booking')" :message="ui_phrase('confirm cancel booking')" :impact-title="__('confirm.what_will_happen')" :impact-items="[
-                                                ui_phrase('Booking status will change to cancelled.'),
-                                                ui_phrase('Cancelled booking cannot continue to operation flow.'),
-                                            ]"
-                                            :notice-message="__('confirm.notification_after_action')" notice-tone="warning" :confirm-label="ui_phrase('Cancel Booking')" :trigger-label="ui_phrase('Cancel Booking')"
-                                            trigger-icon="fa-solid fa-ban w-4"
-                                            trigger-class="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-amber-700 hover:bg-amber-50 dark:text-amber-300 dark:hover:bg-amber-900/20"
-                                            confirm-class="btn-danger-sm" />
-                                    @endif
-                                    @if ($row['can_delete'])
-                                        <div class="my-1 border-t border-gray-200 dark:border-gray-700"></div>
-                                        <x-ui.confirm-action :action="$row['delete_url']" method="DELETE" :modal-name="'bookings-index-delete-mobile-' . $booking->id"
-                                            :title="ui_phrase('Delete') . ' ' . ui_phrase('Booking')" :message="ui_phrase('confirm delete')" :impact-title="__('confirm.important_warning')" :impact-items="[
-                                                __('confirm.delete_itinerary_info_1'),
-                                                __('confirm.delete_itinerary_info_2'),
-                                            ]"
-                                            :notice-message="__('confirm.notification_after_action')" notice-tone="danger" :confirm-label="ui_phrase('Delete')" :trigger-label="ui_phrase('Delete')"
-                                            trigger-icon="fa-solid fa-trash w-4"
-                                            trigger-class="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-rose-600 hover:bg-rose-50 dark:text-rose-300 dark:hover:bg-rose-900/20"
-                                            confirm-class="btn-danger-sm" />
-                                    @endif
-                                </x-ui.table-action-dropdown>
-                            </div>
-                            <div class="flex items-start gap-3 pr-12">
-                                <div>
-                                    <p class="text-sm font-semibold text-gray-800 dark:text-gray-100">
-                                        {{ $row['booking_number'] }}</p>
-                                    <p class="text-xs text-gray-500 dark:text-gray-400">
-                                        {{ $row['order_number'] }}</p>
-                                    <p class="text-xs text-gray-500 dark:text-gray-400">
-                                        {{ $row['quotation_number'] }}</p>
-                                    <p class="text-xs text-gray-500 dark:text-gray-400">
-                                        {{ ui_phrase('Service') }}: {{ $row['service_total'] }} |
-                                        {{ $row['voucher_total'] }}
-                                    </p>
-                                </div>
-                            </div>
-
-                            <div class="mt-3 grid grid-cols-2 gap-2 text-xs text-gray-600 dark:text-gray-300">
-                                <div>{{ ui_phrase('Travel Date') }}</div>
-                                <div><x-ui.date-display :date="$booking->travel_date" format="Y-m-d" /></div>
-                                <div>{{ ui_phrase('Handled By') }}</div>
-                                <div>{{ $row['handled_by_name'] }}</div>
-                                <div>{{ ui_phrase('Status') }}</div>
-                                <div><x-ui.status-badge :status="$row['status']" size="xs" /></div>
-                            </div>
-                        </div>
+                        @include('modules.bookings.partials._index-mobile-card', ['row' => $row])
                     @empty
                         <x-module-empty-state :title="ui_phrase('No :entity available.', ['entity' => ui_phrase('Bookings')])" :message="ui_phrase('Try changing filter criteria or add a new booking.')" />
                     @endforelse
@@ -195,51 +130,11 @@
                                             <x-ui.status-badge :status="$row['status']" size="xs" />
                                         </td>
                                         <td class="px-4 py-3 text-right text-sm actions-compact">
-                                            <x-ui.table-action-dropdown :label="ui_phrase('Actions')">
-                                                <a href="{{ $row['show_url'] }}"
-                                                    class="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800">
-                                                    <i class="fa-solid fa-eye w-4 text-gray-500 dark:text-gray-400"></i>
-                                                    <span>{{ ui_phrase('Detail') }}</span>
-                                                </a>
-
-                                                @if ($row['can_edit'])
-                                                    <a href="{{ $row['edit_url'] }}"
-                                                        class="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800">
-                                                        <i class="fa-solid fa-pen w-4 text-gray-500 dark:text-gray-400"></i>
-                                                        <span>{{ ui_phrase('Edit') }}</span>
-                                                    </a>
-                                                @endif
-
-                                                @if ($row['can_cancel'])
-                                                    <div class="my-1 border-t border-gray-200 dark:border-gray-700"></div>
-                                                    <x-ui.confirm-action :action="$row['cancel_url']" method="POST"
-                                                        :modal-name="'bookings-index-cancel-desktop-' . $booking->id" :title="ui_phrase('Cancel Booking')" :message="ui_phrase('confirm cancel booking')"
-                                                        :impact-title="__('confirm.what_will_happen')" :impact-items="[
-                                                            ui_phrase('Booking status will change to cancelled.'),
-                                                            ui_phrase(
-                                                                'Cancelled booking cannot continue to operation flow.',
-                                                            ),
-                                                        ]" :notice-message="__('confirm.notification_after_action')"
-                                                        notice-tone="warning" :confirm-label="ui_phrase('Cancel Booking')" :trigger-label="ui_phrase('Cancel Booking')"
-                                                        trigger-icon="fa-solid fa-ban w-4"
-                                                        trigger-class="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-rose-600 hover:bg-rose-50 dark:text-rose-300 dark:hover:bg-rose-900/20"
-                                                        confirm-class="btn-danger-sm" />
-                                                @endif
-
-                                                @if ($row['can_delete'])
-                                                    <div class="my-1 border-t border-gray-200 dark:border-gray-700"></div>
-                                                    <x-ui.confirm-action :action="$row['delete_url']" method="DELETE" :modal-name="'bookings-index-delete-desktop-' . $booking->id"
-                                                        :title="ui_phrase('Delete') . ' ' . ui_phrase('Booking')" :message="ui_phrase('confirm delete')" :impact-title="__('confirm.important_warning')"
-                                                        :impact-items="[
-                                                            __('confirm.delete_itinerary_info_1'),
-                                                            __('confirm.delete_itinerary_info_2'),
-                                                        ]" :notice-message="__('confirm.notification_after_action')" notice-tone="danger"
-                                                        :confirm-label="ui_phrase('Delete')" :trigger-label="ui_phrase('Delete')"
-                                                        trigger-icon="fa-solid fa-trash w-4"
-                                                        trigger-class="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-rose-600 hover:bg-rose-50 dark:text-rose-300 dark:hover:bg-rose-900/20"
-                                                        confirm-class="btn-danger-sm" />
-                                                @endif
-                                            </x-ui.table-action-dropdown>
+                                            @include('modules.bookings.partials._index-actions', [
+                                                'row' => $row,
+                                                'cancelModalName' => 'bookings-index-cancel-desktop-' . $booking->id,
+                                                'deleteModalName' => 'bookings-index-delete-desktop-' . $booking->id,
+                                            ])
                                         </td>
                                     </tr>
                                 @empty

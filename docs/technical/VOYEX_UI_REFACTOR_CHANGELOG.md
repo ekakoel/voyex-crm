@@ -2083,6 +2083,59 @@ ormal, high
   - finalized island transfer display format in `Schedule by Day` to:
     - type label: `ISLAND TRANSFER`
     - title row: service name only
-    - metadata row: `city/region | start time - end time`
+    - metadata row: `city/region | vendor/provider | start time - end time`
 - Outcome:
   - itinerary detail now shows a cleaner, simpler island transfer card format without changing item ordering or interaction flow
+
+## 2026-06-15 (Itinerary Index F&B Meal Badge Timing)
+- Scope: make F&B meal badges in the itinerary index `Item List` popup follow scheduled row time.
+- Updated files:
+  - `app/Http/Controllers/Admin/ItineraryController.php`
+  - `docs/standards/quotation-standard.md`
+- Changes:
+  - popup F&B meal badge resolution now prioritizes the itinerary row `start_time`
+  - fallback to stored `meal_type` / `meal_period` is retained only when row time is missing
+  - multi-token meal metadata now normalizes into compact labels such as `Breakfast/Lunch`
+- Outcome:
+  - popup F&B badges now stay aligned with the actual scheduled meal slot for each itinerary row
+
+## 2026-06-15 (Currency Index Controller-First Stabilization)
+- Scope: reduce Blade fragility on the currency index by moving row/bulk-form preparation into the controller and extracting repeated action markup.
+- Updated files:
+  - `app/Http/Controllers/Admin/CurrencyController.php`
+  - `resources/views/modules/currencies/index.blade.php`
+  - `resources/views/modules/currencies/partials/_index-actions.blade.php`
+  - `resources/views/modules/currencies/partials/_index-mobile-card.blade.php`
+  - `docs/standards/quotation-standard.md`
+- Changes:
+  - currency index now receives prepared `currencyRows`, `bulkCurrencyRows`, `perPageOptions`, and `statusFilterOptions` from the controller
+  - bulk rate form inputs now use controller-prepared field names and default values instead of rebuilding them inline in Blade
+  - repeated currency action dropdown markup is now extracted into a shared partial reused by desktop and mobile layouts
+- Outcome:
+  - currency index is easier to maintain and less likely to regress with Blade directive mismatch errors
+  - desktop/mobile rendering now shares one action-menu source of truth
+
+## 2026-06-15 (Booking Index Nested Blade Reduction)
+- Scope: reduce repeated nested Blade blocks on the booking index without changing existing booking flow behavior.
+- Updated files:
+  - `resources/views/modules/bookings/index.blade.php`
+  - `resources/views/modules/bookings/partials/_index-actions.blade.php`
+  - `resources/views/modules/bookings/partials/_index-mobile-card.blade.php`
+- Changes:
+  - extracted booking action dropdown into a shared partial reused by desktop and mobile layouts
+  - extracted the mobile booking card into its own partial so the main index Blade no longer carries the full nested card/action structure inline
+- Outcome:
+  - booking index is less repetitive and less likely to reintroduce Blade directive balancing mistakes during future edits
+
+## 2026-06-15 (Itinerary Day Planner Connector Manual Override)
+- Scope: make Day Planner connector durations auto-fill safely while preserving manual user adjustments.
+- Updated files:
+  - `resources/views/modules/itineraries/_form.blade.php`
+  - `docs/standards/quotation-standard.md`
+- Changes:
+  - connector manual-state handling is now unified for both `day_start_travel` and per-row connector durations
+  - existing populated connector values are primed as manual values so edit/create re-renders do not unexpectedly overwrite them
+  - automatic map-based connector estimation now refreshes warning state after auto-fill and skips connectors explicitly edited by the user
+- Outcome:
+  - connector durations can still auto-fill when empty
+  - once a user customizes a connector duration, that manual value is kept and used by the planner flow

@@ -4,7 +4,7 @@ Last Updated: 2026-06-15
 
 ## Cross-Module UI Note
 - Itinerary index `Duration` column should show only the main duration summary and must not append `Break Time` text in either desktop or mobile card layouts.
-- Itinerary index `Item List` popup should show `Breakfast` / `Lunch` / `Dinner` badges for each F&B row based on stored `meal_type` or fallback `meal_period`, and the badge visual should follow the compact style used by the `Highlighted` label.
+- Itinerary index `Item List` popup should show `Breakfast` / `Lunch` / `Dinner` badges for each F&B row based on the row `start_time` first, with fallback to stored `meal_type` or `meal_period` only when time is unavailable, and the badge visual should follow the compact style used by the `Highlighted` label.
 - Itinerary index `Item List` popup should render a left-side triangle marker for each service row, preserve per-row item identity in desktop/mobile layouts, and show the `Highlighted` badge only for the exact itinerary item matched to the configured main experience day point.
 - Itinerary create/edit wizard `Review` tab should show the `Highlighted` badge on the exact schedule row whose `main experience` checkbox is active for that day, including F&B rows that also show meal-slot badges.
 - Itinerary create/edit pages must not show quotation-specific revision context notices, because one itinerary can be linked or reused across multiple quotations and the form should stay quotation-neutral.
@@ -258,24 +258,30 @@ Last Updated: 2026-06-15
   - activation/deactivation actions on index pages must be hidden for users outside `Super Admin` and `Administrator`.
   - controllers must still enforce the same rule server-side with `canManageActivationActions()` so hidden buttons are not the only protection.
 - Row payload standard for master-data indexes:
-  - for modules such as airports, destinations, and transports, controller-prepared row arrays should include:
+  - for modules such as airports, destinations, transports, and currencies, controller-prepared row arrays should include:
     - normalized row number based on paginator `firstItem()`,
     - compact location/provider/linked-data summary strings,
     - finalized action URLs,
     - finalized toggle title/message/button metadata,
     - finalized status booleans for badge rendering.
   - Blade should not rebuild those summaries separately for desktop and mobile layouts.
+  - if a module also has a compact bulk-edit area, controller-prepared helper rows should provide the final input names, default values, and labels so the Blade form only renders the prepared payload.
 - Blade stability rule for heavy index pages:
   - if an index page contains repeated desktop/mobile UI blocks with nested `@foreach` and `@if` sections, extract the repeated block into a partial instead of duplicating the nesting inline.
   - preferred candidates for extraction are popover panels, dropdown action menus, compact mobile cards, and repeated badge/list renderers.
   - this is especially important for itinerary-style pages where nested grouped lists can otherwise become fragile and produce hard-to-debug Blade directive mismatches.
+  - the same rule applies to booking/currency-style indexes: repeated action dropdowns and mobile cards should be partialized even when the controller payload is already stable.
 - Itinerary detail schedule display rule:
   - `Schedule by Day` item metadata should expose service context compactly and consistently.
   - for island transfer items, the display format should be:
     - type label: `ISLAND TRANSFER`
     - title row: service name only
-    - metadata row: `city/region | start time - end time`
-  - island transfer display should stay compact and should not append extra vendor/destination fragments unless a later UX rule explicitly changes that format.
+    - metadata row: `city/region | vendor/provider | start time - end time`
+  - island transfer display should stay compact; vendor/provider belongs in the metadata row, while extra destination fragments should stay hidden unless a later UX rule explicitly changes that format.
+- Itinerary create/edit `Day Planner` connector duration rule:
+  - connector travel duration fields should auto-fill from the route estimate when the connector has no manual value yet.
+  - if a user edits a connector duration manually, the user-entered value must be preserved and should not be overwritten by later automatic recalculation.
+  - this rule applies to both `Day Start Point -> first item` and every connector between schedule items.
 - Goal:
   - reduce Blade fragility,
   - make index pages easier to debug,
