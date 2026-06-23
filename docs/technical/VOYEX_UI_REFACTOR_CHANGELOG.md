@@ -1,5 +1,29 @@
 # VOYEX UI Refactor Changelog
 
+## 2026-06-22 (F&B Tea Time Meal Period Support)
+- Scope: add `Tea Time` as a first-class F&B meal period across master data, itinerary planner, itinerary detail, and quotation validation views.
+- Updated files:
+  - app/Models/FoodBeverage.php
+  - app/Http/Controllers/Admin/FoodBeverageController.php
+  - app/Http/Controllers/Admin/ItineraryController.php
+  - resources/views/modules/food-beverages/_form.blade.php
+  - resources/views/modules/food-beverages/index.blade.php
+  - resources/views/modules/itineraries/_form.blade.php
+  - resources/views/modules/itineraries/show.blade.php
+  - resources/views/modules/quotations/validate.blade.php
+  - docs/standards/quotation-standard.md
+  - VOYEX_CRM_SYSTEM_ROADMAP.md
+- Applied updates:
+  - centralized meal-period options and normalization in `FoodBeverage` so `Breakfast`, `Lunch`, `Tea Time`, and `Dinner` share one canonical source.
+  - updated F&B create/edit checkboxes and itinerary F&B filtering to include `Tea Time`.
+  - kept itinerary create/edit F&B meal-slot selection automatic from each row `Start Time`, with the F&B dropdown/autocomplete filtered by the resolved meal slot.
+  - F&B autocomplete now sends the resolved meal slot to the suggestion endpoint, renders the active start-time meal-slot badge on the selected input, and renders database meal-period badges on dropdown items.
+  - updated F&B index Meal Period badges so stored `Tea Time` values render with an emerald badge.
+  - mapped itinerary F&B start-time slots so afternoon rows resolve to `Tea Time` before dinner.
+  - updated itinerary detail and quotation validation meal badges to render `Tea Time` through the same canonical helper.
+- Outcome:
+  - F&B packages can now be assigned to tea-time sessions without breaking existing breakfast/lunch/dinner data.
+
 ## 2026-06-15 (Inquiry Form Refactor + Safe Itinerary Reference Sync)
 - Scope: stabilize inquiry create/edit flow, reduce duplicated controller logic, and stop quotation save failures when an itinerary is reused by another inquiry.
 - Updated files:
@@ -2139,3 +2163,33 @@ ormal, high
 - Outcome:
   - connector durations can still auto-fill when empty
   - once a user customizes a connector duration, that manual value is kept and used by the planner flow
+
+## 2026-06-15 (Itinerary Day Planner Connector Changes Preserve Service Selection)
+- Scope: prevent connector edits from clearing already selected service items during Day Planner recalculation.
+- Updated files:
+  - `resources/views/modules/itineraries/_form.blade.php`
+  - `docs/standards/quotation-standard.md`
+- Changes:
+  - F&B meal-slot change handling no longer clears the selected F&B row when connector-driven time recalculation changes the slot
+  - the planner now keeps the selected F&B item and only shows an informational compatibility notice when the new slot may no longer match
+- Outcome:
+  - editing connector durations no longer silently changes selected service items
+  - users stay in control of whether an existing F&B selection should be replaced after time changes
+
+## 2026-06-15 (Hotel Index Controller-First Cleanup)
+- Scope: stabilize the hotel index by moving repeated row presentation logic out of Blade and removing unused index payload.
+- Updated files:
+  - `app/Http/Controllers/Admin/HotelController.php`
+  - `resources/views/modules/hotels/index.blade.php`
+  - `resources/views/modules/hotels/partials/_index-results.blade.php`
+  - `resources/views/modules/hotels/partials/_index-actions.blade.php`
+  - `resources/views/modules/hotels/partials/_index-mobile-card.blade.php`
+  - `docs/standards/quotation-standard.md`
+- Changes:
+  - hotel index now prepares `hotelRows`, `perPageOptions`, and `statusFilterOptions` in the controller
+  - removed the unused `statsCards` payload from hotel index rendering
+  - extracted repeated hotel action dropdown and mobile card markup into dedicated partials reused by the results partial
+  - desktop row numbering now follows paginator `firstItem()` instead of resetting per page fragment render
+- Outcome:
+  - hotel index has a smaller Blade error surface
+  - desktop/mobile index rendering now shares one action metadata source of truth

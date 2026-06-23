@@ -11,6 +11,14 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class FoodBeverage extends Model
 {
     use HasAudit, HasCancellationPolicy, LogsActivity, SoftDeletes;
+
+    public const MEAL_PERIOD_OPTIONS = [
+        'breakfast' => 'Breakfast',
+        'lunch' => 'Lunch',
+        'tea_time' => 'Tea Time',
+        'dinner' => 'Dinner',
+    ];
+
     protected $fillable = [
         'vendor_id',
         'name',
@@ -58,7 +66,70 @@ class FoodBeverage extends Model
     {
         return $this->belongsTo(Vendor::class);
     }
+
+    public static function mealPeriodOptions(): array
+    {
+        return self::MEAL_PERIOD_OPTIONS;
+    }
+
+    public static function mealPeriodKeys(): array
+    {
+        return array_keys(self::MEAL_PERIOD_OPTIONS);
+    }
+
+    public static function mealPeriodLabel(string $key): ?string
+    {
+        return self::MEAL_PERIOD_OPTIONS[$key] ?? null;
+    }
+
+    /**
+     * @param  mixed  $source
+     * @return array<int, string>
+     */
+    public static function normalizeMealPeriodTokens($source): array
+    {
+        $text = is_array($source) ? implode(',', $source) : (string) $source;
+        $parts = array_map('trim', explode(',', $text));
+
+        $found = [];
+        foreach ($parts as $part) {
+            $normalizedPart = strtolower($part);
+            if ($normalizedPart === 'breakfast') {
+                $found[] = 'breakfast';
+            }
+            if ($normalizedPart === 'lunch') {
+                $found[] = 'lunch';
+            }
+            if ($normalizedPart === 'tea time' || $normalizedPart === 'tea-time' || $normalizedPart === 'tea_time') {
+                $found[] = 'tea_time';
+            }
+            if ($normalizedPart === 'dinner') {
+                $found[] = 'dinner';
+            }
+        }
+
+        $uniqueFound = array_unique($found);
+        $ordered = [];
+        foreach (self::mealPeriodKeys() as $allowed) {
+            if (in_array($allowed, $uniqueFound, true)) {
+                $ordered[] = $allowed;
+            }
+        }
+
+        return $ordered;
+    }
+
+    public static function formatMealPeriodForStorage(array $selections): ?string
+    {
+        $tokens = self::normalizeMealPeriodTokens($selections);
+        if ($tokens === []) {
+            return null;
+        }
+
+        return implode(', ', array_map(
+            static fn (string $token): string => self::mealPeriodLabel($token) ?? $token,
+            $tokens
+        ));
+    }
 }
-
-
 

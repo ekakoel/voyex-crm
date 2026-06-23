@@ -536,10 +536,7 @@ class ItineraryController extends Controller
         if ($tokens !== []) {
             return collect($tokens)
                 ->map(fn (string $token): ?string => match ($token) {
-                    'breakfast' => 'Breakfast',
-                    'lunch' => 'Lunch',
-                    'dinner' => 'Dinner',
-                    default => null,
+                    default => FoodBeverage::mealPeriodLabel($token),
                 })
                 ->filter()
                 ->implode('/');
@@ -1595,16 +1592,18 @@ class ItineraryController extends Controller
             'q' => ['nullable', 'string', 'max:100'],
             'destination' => ['nullable', 'string', 'max:100'],
             'region' => ['nullable', 'string', 'max:100'],
+            'meal_slot' => ['nullable', 'string', Rule::in(array_merge([''], FoodBeverage::mealPeriodKeys()))],
             'limit' => ['nullable', 'integer', 'min:5', 'max:50'],
         ]);
 
         $keyword = trim((string) ($validated['q'] ?? ''));
         $destination = trim((string) ($validated['destination'] ?? ''));
         $region = trim((string) ($validated['region'] ?? ''));
+        $mealSlot = trim((string) ($validated['meal_slot'] ?? ''));
         $limit = (int) ($validated['limit'] ?? 12);
 
         return response()->json([
-            'data' => $this->buildFoodBeverageSuggestionOptions($keyword, $destination, $region, $limit),
+            'data' => $this->buildFoodBeverageSuggestionOptions($keyword, $destination, $region, $limit, $mealSlot),
         ]);
     }
 
@@ -1613,7 +1612,7 @@ class ItineraryController extends Controller
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'duration_minutes' => ['nullable', 'integer', 'min:15', 'max:1440'],
-            'meal_period' => ['nullable', 'string', Rule::in(['', 'breakfast', 'lunch', 'dinner'])],
+            'meal_period' => ['nullable', 'string', Rule::in(array_merge([''], FoodBeverage::mealPeriodKeys()))],
         ]);
 
         ['name' => $fnbName, 'region' => $regionName, 'vendor' => $vendorName] =
@@ -1638,10 +1637,8 @@ class ItineraryController extends Controller
         $vendor = $this->resolveOrCreateVendorForManualActivity($vendorName, $regionName);
         $durationMinutes = (int) ($validated['duration_minutes'] ?? 60);
         $durationMinutes = max(15, min(1440, $durationMinutes));
-        $mealPeriod = strtolower(trim((string) ($validated['meal_period'] ?? '')));
-        if (!in_array($mealPeriod, ['breakfast', 'lunch', 'dinner'], true)) {
-            $mealPeriod = '';
-        }
+        $mealPeriod = FoodBeverage::normalizeMealPeriodTokens($validated['meal_period'] ?? '');
+        $mealPeriod = $mealPeriod[0] ?? '';
 
         $foodBeverage = FoodBeverage::query()->create([
             'vendor_id' => (int) $vendor->id,
@@ -4070,27 +4067,12 @@ SVG;
 
     private function resolveMealTypeFromStartTime(?string $startTime): ?string
     {
-        $raw = trim((string) $startTime);
-        if ($raw === '') {
+        $slot = $this->resolveMealSlotKeyFromStartTime($startTime);
+        if ($slot === null) {
             return null;
         }
 
-        try {
-            $time = Carbon::createFromFormat('H:i', substr($raw, 0, 5));
-        } catch (\Throwable $e) {
-            return null;
-        }
-
-        $hour = (int) $time->format('H');
-
-        if ($hour < 11) {
-            return ui_phrase('breakfast');
-        }
-        if ($hour < 16) {
-            return ui_phrase('lunch');
-        }
-
-        return ui_phrase('dinner');
+        return FoodBeverage::mealPeriodLabel($slot);
     }
 
     private function resolveMealSlotKeyFromStartTime(?string $startTime): ?string
@@ -4106,12 +4088,15 @@ SVG;
             return null;
         }
 
-        $hour = (int) $time->format('H');
-        if ($hour < 11) {
+        $minutes = ((int) $time->format('H') * 60) + (int) $time->format('i');
+        if ($minutes < (11 * 60)) {
             return 'breakfast';
         }
-        if ($hour < 16) {
+        if ($minutes < (15 * 60)) {
             return 'lunch';
+        }
+        if ($minutes < (17 * 60)) {
+            return 'tea_time';
         }
 
         return 'dinner';
@@ -4122,42 +4107,24 @@ SVG;
      */
     private function normalizeMealPeriodTokens(?string $value): array
     {
-        $raw = trim((string) $value);
-        if ($raw === '') {
-            return [];
-        }
-
-        $items = preg_split('/[\s,;\/|]+/', $raw) ?: [];
-        $normalized = [];
-        foreach ($items as $item) {
-            $token = Str::lower(trim((string) $item));
-            if (in_array($token, ['breakfast', 'lunch', 'dinner'], true)) {
-                $normalized[] = $token;
-            }
-        }
-
-        $ordered = [];
-        foreach (['breakfast', 'lunch', 'dinner'] as $allowed) {
-            if (in_array($allowed, $normalized, true)) {
-                $ordered[] = $allowed;
-            }
-        }
-
-        return $ordered;
+        return FoodBeverage::normalizeMealPeriodTokens($value);
     }
 
     private function isFoodBeverageAvailableForMealSlot(?string $mealPeriod, ?string $slot): bool
     {
         $normalizedSlot = Str::lower(trim((string) $slot));
-        if (! in_array($normalizedSlot, ['breakfast', 'lunch', 'dinner'], true)) {
+        if (! in_array($normalizedSlot, FoodBeverage::mealPeriodKeys(), true)) {
             return true;
         }
 
         $tokens = $this->normalizeMealPeriodTokens($mealPeriod);
+
+        // If meal_period is empty/NULL (or has no valid tokens), do not hard-fail the itinerary editor.
+        // Many legacy F&B records may store meal_period in an unexpected format; if we can't parse tokens,
+        // keep editor behavior permissive.
+        // Treat empty/invalid meal_period as "available for all slots".
         if ($tokens === []) {
-            // Strict mode:
-            // rows without explicit meal_period are not eligible for timed meal-slot matching.
-            return false;
+            return true;
         }
 
         return in_array($normalizedSlot, $tokens, true);
@@ -4181,7 +4148,7 @@ SVG;
 
         $sources = [
             [TouristAttraction::class, 'province'],
-                        [Airport::class, 'province'],
+            [Airport::class, 'province'],
             [Vendor::class, 'province'],
         ];
 
@@ -4498,11 +4465,12 @@ SVG;
     /**
      * @return array<int, array<string, mixed>>
      */
-    private function buildFoodBeverageSuggestionOptions(string $keyword = '', string $destination = '', string $region = '', int $limit = 12): array
+    private function buildFoodBeverageSuggestionOptions(string $keyword = '', string $destination = '', string $region = '', int $limit = 12, string $mealSlot = ''): array
     {
         $keyword = trim((string) $keyword);
         $destination = trim((string) $destination);
         $region = trim((string) $region);
+        $mealSlot = trim((string) $mealSlot);
 
         $query = FoodBeverage::query()
             ->with([
@@ -4540,6 +4508,13 @@ SVG;
                 $vendorQuery->where('city', 'like', '%' . $region . '%')
                     ->orWhere('province', 'like', '%' . $region . '%')
                     ->orWhere('location', 'like', '%' . $region . '%');
+            });
+        }
+        if (in_array($mealSlot, FoodBeverage::mealPeriodKeys(), true)) {
+            $mealSlotLabel = FoodBeverage::mealPeriodLabel($mealSlot) ?? $mealSlot;
+            $query->where(function ($builder) use ($mealSlot, $mealSlotLabel) {
+                $builder->where('meal_period', 'like', '%' . $mealSlotLabel . '%')
+                    ->orWhere('meal_period', 'like', '%' . $mealSlot . '%');
             });
         }
 

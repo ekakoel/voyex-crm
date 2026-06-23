@@ -70,6 +70,7 @@
                                         <span class="inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium
                                             {{ $session['key'] === 'breakfast' ? 'border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-300' : '' }}
                                             {{ $session['key'] === 'lunch' ? 'border-sky-300 bg-sky-50 text-sky-700 dark:border-sky-700 dark:bg-sky-900/20 dark:text-sky-300' : '' }}
+                                            {{ $session['key'] === 'tea_time' ? 'border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300' : '' }}
                                             {{ $session['key'] === 'dinner' ? 'border-violet-300 bg-violet-50 text-violet-700 dark:border-violet-700 dark:bg-violet-900/20 dark:text-violet-300' : '' }}">
                                             {{ $session['label'] }}
                                         </span>
@@ -195,6 +196,7 @@
                                 <span class="inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium
                                     {{ $session['key'] === 'breakfast' ? 'border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-300' : '' }}
                                     {{ $session['key'] === 'lunch' ? 'border-sky-300 bg-sky-50 text-sky-700 dark:border-sky-700 dark:bg-sky-900/20 dark:text-sky-300' : '' }}
+                                    {{ $session['key'] === 'tea_time' ? 'border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300' : '' }}
                                     {{ $session['key'] === 'dinner' ? 'border-violet-300 bg-violet-50 text-violet-700 dark:border-violet-700 dark:bg-violet-900/20 dark:text-violet-300' : '' }}">
                                     {{ $session['label'] }}
                                 </span>

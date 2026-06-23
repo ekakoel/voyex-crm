@@ -147,20 +147,14 @@
                         $resolveMealSessionLabels = static function ($mealType, $mealPeriod): array {
                             $tokens = [];
                             foreach ([$mealType, $mealPeriod] as $value) {
-                                $parts = preg_split('/[\s,;\/|]+/', strtolower(trim((string) $value))) ?: [];
-                                foreach ($parts as $part) {
-                                    $part = trim((string) $part);
-                                    if ($part !== '') {
-                                        $tokens[] = $part;
-                                    }
-                                }
+                                $tokens = array_merge($tokens, \App\Models\FoodBeverage::normalizeMealPeriodTokens($value));
                             }
                             $tokens = array_values(array_unique($tokens));
 
                             $labels = [];
-                            foreach (['breakfast' => ui_phrase('breakfast'), 'lunch' => ui_phrase('lunch'), 'dinner' => ui_phrase('dinner')] as $key => $label) {
+                            foreach (\App\Models\FoodBeverage::mealPeriodOptions() as $key => $label) {
                                 if (in_array($key, $tokens, true)) {
-                                    $labels[] = $label;
+                                    $labels[] = ui_phrase($label);
                                 }
                             }
 

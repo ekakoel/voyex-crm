@@ -1,7 +1,7 @@
 # VOYEX CRM -- SYSTEM ROADMAP
 
 Version: 1.5  
-Last Updated: 2026-06-15
+Last Updated: 2026-06-22
 
 Legend:  
 - DONE = Implemented  
@@ -52,7 +52,7 @@ Feature | Status | Notes
 Destinations CRUD | DONE | Destination master + province seeder
 Vendors CRUD | DONE | Google Maps autofill
 Activities CRUD | DONE | Standardized activity types
-Food & Beverage CRUD | DONE | Standard forms
+Food & Beverage CRUD | DONE | Standard forms with canonical Breakfast/Lunch/Tea Time/Dinner meal periods
 Accommodations CRUD | DONE | Standard forms
 Hotels CRUD | PARTIAL | Admin CRUD + base UI, pricing/promos input added
 Airports CRUD | DONE | Simplified fields
@@ -80,6 +80,7 @@ Itinerary Index Item List Popup | DONE | F&B meal badges, exact highlighted-item
 Itinerary Review Highlight Preview | DONE | Create/edit wizard review tab now shows the active main-experience row with a Highlighted badge
 Itinerary Form Quotation-Neutral UI | DONE | Create/edit itinerary pages no longer show quotation revision notice copy that implies single-quotation ownership
 Itinerary Transfer Region Filter | DONE | Day Planner inter-island transfer select now shows all active items for All Regions and filters reliably by row region fallback
+Itinerary F&B Tea Time Slot | DONE | Create/edit itinerary F&B rows resolve Breakfast/Lunch/Tea Time/Dinner automatically from Start Time, pass the slot to F&B suggestions, and show the active slot badge on matching items
 Index Activation Role Guard | DONE | Activate/deactivate index actions and toggle endpoints are now restricted to Super Admin and Administrator
 Vendor Index Blade Stabilization | DONE | Vendor list desktop/mobile now share one precomputed row presentation layer for safer rendering and lighter template logic
 
@@ -1118,9 +1119,10 @@ Completed in this cycle:
   - changed F&B create/edit `Meal Period` from free-text input to checkbox multi-select:
     - `Breakfast`,
     - `Lunch`,
+    - `Tea Time`,
     - `Dinner`.
   - users can now select one, two, or all session options per package.
-  - backend now accepts `meal_periods[]` and normalizes selection into canonical ordered storage text in `meal_period` (`Breakfast, Lunch, Dinner` format as applicable).
+  - backend now accepts `meal_periods[]` and normalizes selection into canonical ordered storage text in `meal_period` (`Breakfast, Lunch, Tea Time, Dinner` format as applicable).
   - backward compatibility retained:
     - legacy payload `meal_period` string is still accepted and normalized into selection set.
   - impact:
@@ -2096,3 +2098,5 @@ Completed in this cycle:
   - currency index now follows the controller-first index pattern with shared desktop/mobile action partials to lower the chance of future Blade syntax regressions on heavy pages
   - booking index now reuses shared partials for nested action menus and mobile cards so future booking UI edits have a smaller Blade error surface
   - itinerary create/edit Day Planner connector durations now auto-fill only while still unmodified, and any manual connector duration entered by the user is preserved on later recalculation
+  - itinerary Day Planner connector changes no longer auto-clear selected F&B service items; recalculation now preserves the selection and only surfaces compatibility guidance when meal slots shift
+  - hotel index now follows the controller-first row payload pattern and no longer carries unused stats/index duplication in its Blade results flow

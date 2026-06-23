@@ -5,6 +5,7 @@
     $destinations = $destinations ?? collect();
     $serviceTypes = $serviceTypes ?? [];
     $standardServiceTypes = $standardServiceTypes ?? [];
+    $mealPeriodOptions = \App\Models\FoodBeverage::mealPeriodOptions();
     $selectedServiceType = (string) old('service_type', $foodBeverage?->service_type ?? ($prefill['service_type'] ?? ''));
     $isLegacyServiceType = $selectedServiceType !== '' && ! in_array($selectedServiceType, $standardServiceTypes, true);
     $selectedDestinationId = (int) old('destination_filter_id', $foodBeverage?->vendor?->destination_id ?? ($prefill['destination_filter_id'] ?? 0));
@@ -55,17 +56,7 @@
     if ($mealPeriodSource === null) {
         $mealPeriodSource = $foodBeverage?->meal_period ?? ($prefill['meal_period'] ?? '');
     }
-    if (is_array($mealPeriodSource)) {
-        $selectedMealPeriods = array_values(array_filter(array_map(
-            static fn ($item) => strtolower(trim((string) $item)),
-            $mealPeriodSource
-        )));
-    } else {
-        $selectedMealPeriods = array_values(array_filter(array_map(
-            static fn ($item) => strtolower(trim((string) $item)),
-            preg_split('/[\s,;\/|]+/', (string) $mealPeriodSource) ?: []
-        )));
-    }
+    $selectedMealPeriods = \App\Models\FoodBeverage::normalizeMealPeriodTokens($mealPeriodSource);
 @endphp
 
 <div class="space-y-4">
@@ -188,12 +179,12 @@
         </div>
         <div class="md:col-span-2">
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Meal Period') }}</label>
-            <div class="mt-2 grid w-full grid-cols-3 gap-3">
-                @foreach (['breakfast' => 'Breakfast', 'lunch' => 'Lunch', 'dinner' => 'Dinner'] as $value => $label)
+            <div class="mt-2 grid w-full grid-cols-2 gap-3 sm:grid-cols-4">
+                @foreach ($mealPeriodOptions as $value => $label)
                     <label class="inline-flex w-full items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
                         <input type="checkbox" name="meal_periods[]" value="{{ $value }}" class="rounded border-gray-300 text-indigo-600"
                             @checked(in_array($value, $selectedMealPeriods, true))>
-                        <span>{{ $label }}</span>
+                        <span>{{ ui_phrase($label) }}</span>
                     </label>
                 @endforeach
             </div>

@@ -12,7 +12,6 @@ use App\Support\Currency;
 use App\Support\ImageThumbnailGenerator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
@@ -272,7 +271,7 @@ class FoodBeverageController extends Controller
             'adult_publish_rate' => ['nullable', 'numeric', 'min:0'],
             'child_publish_rate' => ['nullable', 'numeric', 'min:0'],
             'meal_periods' => ['nullable', 'array'],
-            'meal_periods.*' => ['string', Rule::in(['breakfast', 'lunch', 'dinner'])],
+            'meal_periods.*' => ['string', Rule::in(FoodBeverage::mealPeriodKeys())],
             'menu_highlights' => ['nullable', 'string'],
             'cancellation_policy' => ['nullable', 'string'],
             'notes' => ['nullable', 'string'],
@@ -390,13 +389,10 @@ class FoodBeverageController extends Controller
 
     private function resolveMealSessionBadges(?string $mealPeriod): array
     {
-        $tokens = array_values(array_filter(array_map(
-            static fn ($item) => strtolower(trim((string) $item)),
-            preg_split('/[\s,;\/|]+/', (string) $mealPeriod) ?: []
-        )));
+        $tokens = FoodBeverage::normalizeMealPeriodTokens($mealPeriod);
 
         $sessions = [];
-        foreach (['breakfast' => 'Breakfast', 'lunch' => 'Lunch', 'dinner' => 'Dinner'] as $key => $label) {
+        foreach (FoodBeverage::mealPeriodOptions() as $key => $label) {
             if (in_array($key, $tokens, true)) {
                 $sessions[] = ['key' => $key, 'label' => $label];
             }
@@ -420,29 +416,7 @@ class FoodBeverageController extends Controller
      */
     private function normalizeMealPeriodSelections($source): array
     {
-        $items = [];
-        if (is_array($source)) {
-            $items = $source;
-        } elseif (is_string($source)) {
-            $items = preg_split('/[\s,;\/|]+/', $source) ?: [];
-        }
-
-        $normalized = [];
-        foreach ($items as $item) {
-            $token = Str::lower(trim((string) $item));
-            if (in_array($token, ['breakfast', 'lunch', 'dinner'], true)) {
-                $normalized[] = $token;
-            }
-        }
-
-        $ordered = [];
-        foreach (['breakfast', 'lunch', 'dinner'] as $allowed) {
-            if (in_array($allowed, $normalized, true)) {
-                $ordered[] = $allowed;
-            }
-        }
-
-        return $ordered;
+        return FoodBeverage::normalizeMealPeriodTokens($source);
     }
 
     /**
@@ -450,13 +424,7 @@ class FoodBeverageController extends Controller
      */
     private function formatMealPeriodForStorage(array $selections): ?string
     {
-        $normalized = $this->normalizeMealPeriodSelections($selections);
-        if ($normalized === []) {
-            return null;
-        }
-
-        $labels = array_map(static fn (string $value): string => ucfirst($value), $normalized);
-        return implode(', ', $labels);
+        return FoodBeverage::formatMealPeriodForStorage($selections);
     }
 
     private function calculatePublishRate(float $contractRate, string $markupType, float $markup): float

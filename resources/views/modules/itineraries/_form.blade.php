@@ -12,27 +12,8 @@
     $normalizePointType = static fn ($value, string $default = ''): string => trim((string) $value) !== ''
         ? trim((string) $value)
         : $default;
-    $normalizeMealPeriodTokens = static function ($value): array {
-        $raw = strtolower(trim((string) $value));
-        if ($raw === '') {
-            return [];
-        }
-        $items = preg_split('/[\s,;\/|]+/', $raw) ?: [];
-        $normalized = [];
-        foreach ($items as $item) {
-            $token = strtolower(trim((string) $item));
-            if (in_array($token, ['breakfast', 'lunch', 'dinner'], true)) {
-                $normalized[] = $token;
-            }
-        }
-        $ordered = [];
-        foreach (['breakfast', 'lunch', 'dinner'] as $slot) {
-            if (in_array($slot, $normalized, true)) {
-                $ordered[] = $slot;
-            }
-        }
-        return $ordered;
-    };
+    $mealPeriodOptions = \App\Models\FoodBeverage::mealPeriodOptions();
+    $normalizeMealPeriodTokens = static fn ($value): array => \App\Models\FoodBeverage::normalizeMealPeriodTokens($value);
     $resolveRegionLabel = static function (...$candidates): string {
         foreach ($candidates as $candidate) {
             $value = trim((string) $candidate);
@@ -1072,10 +1053,10 @@
                                             </p>
                                             <div class="relative">
                                                 <input type="text"
-                                                    class="item-fnb-search pr-36 dark:border-gray-600 app-input"
+                                                    class="item-fnb-search pr-52 dark:border-gray-600 app-input"
                                                     placeholder="{{ ui_phrase('Type: F&B Name, Region, Vendor') }}"
                                                     autocomplete="off">
-                                                <span class="item-fnb-meal-slot-badge pointer-events-none absolute right-2 top-1/2 hidden -translate-y-1/2 rounded-md border border-blue-200 bg-blue-50 px-2 py-0.5 text-[10px] font-medium text-blue-700 dark:border-blue-800 dark:bg-blue-900/30 dark:text-blue-200"></span>
+                                                <span class="item-fnb-auto-meal-badge pointer-events-none absolute right-2 top-1/2 hidden -translate-y-1/2 items-center gap-1"></span>
                                             </div>
                                             <div
                                                 class="item-fnb-dropdown absolute z-30 mt-1 hidden max-h-56 w-full overflow-auto rounded-lg border border-gray-300 bg-white p-1 shadow-lg dark:border-gray-700 dark:bg-gray-900"></div>
@@ -1252,10 +1233,10 @@
                                             </p>
                                             <div class="relative">
                                                 <input type="text"
-                                                    class="item-fnb-search pr-36 dark:border-gray-600 app-input"
+                                                    class="item-fnb-search pr-52 dark:border-gray-600 app-input"
                                                     placeholder="{{ ui_phrase('Type: F&B Name, Region, Vendor') }}"
                                                     autocomplete="off">
-                                                <span class="item-fnb-meal-slot-badge pointer-events-none absolute right-2 top-1/2 hidden -translate-y-1/2 rounded-md border border-blue-200 bg-blue-50 px-2 py-0.5 text-[10px] font-medium text-blue-700 dark:border-blue-800 dark:bg-blue-900/30 dark:text-blue-200"></span>
+                                                <span class="item-fnb-auto-meal-badge pointer-events-none absolute right-2 top-1/2 hidden -translate-y-1/2 items-center gap-1"></span>
                                             </div>
                                             <div
                                                 class="item-fnb-dropdown absolute z-30 mt-1 hidden max-h-56 w-full overflow-auto rounded-lg border border-gray-300 bg-white p-1 shadow-lg dark:border-gray-700 dark:bg-gray-900"></div>
@@ -3822,21 +3803,9 @@
                     input: row?.querySelector('.item-fnb-search') || null,
                     dropdown: row?.querySelector('.item-fnb-dropdown') || null,
                     notice: row?.querySelector('.item-fnb-notice') || null,
-                    mealSlotBadge: row?.querySelector('.item-fnb-meal-slot-badge') || null,
+                    mealSlotBadge: row?.querySelector('.item-fnb-auto-meal-badge') || null,
                     select: row?.querySelector('.item-fnb') || null,
                 });
-                const setFnbMealSlotBadge = (row, text = '') => {
-                    const { mealSlotBadge } = getFnbElements(row);
-                    if (!mealSlotBadge) return;
-                    const content = String(text || '').trim();
-                    if (content === '') {
-                        mealSlotBadge.textContent = '';
-                        mealSlotBadge.classList.add('hidden');
-                        return;
-                    }
-                    mealSlotBadge.textContent = content;
-                    mealSlotBadge.classList.remove('hidden');
-                };
                 const setFnbNotice = (row, message = '', tone = 'info') => {
                     const { notice, input } = getFnbElements(row);
                     if (!notice) return;
@@ -3867,35 +3836,92 @@
                         .toLowerCase()
                         .trim()
                         .replace(/\s+/g, ' ');
+                const mealPeriodOptions = @json($mealPeriodOptions);
+                const mealPeriodKeys = Object.keys(mealPeriodOptions);
+                const normalizeMealPeriodToken = (value) =>
+                    String(value || '')
+                        .toLowerCase()
+                        .trim()
+                        .replace(/tea[\s_-]*time/g, 'tea_time')
+                        .replace(/-/g, '_');
                 const normalizeMealPeriodTokens = (value) => {
-                    const raw = String(value || '').toLowerCase().trim();
+                    const raw = normalizeMealPeriodToken(value);
                     if (raw === '') return [];
-                    const parts = raw.split(/[\s,;\/|]+/g).map((part) => part.trim()).filter(Boolean);
-                    const allowed = new Set(['breakfast', 'lunch', 'dinner']);
+                    const parts = raw.split(/[\s,;\/|]+/g).map((part) => normalizeMealPeriodToken(part)).filter(Boolean);
                     const unique = [];
                     parts.forEach((part) => {
-                        if (allowed.has(part) && !unique.includes(part)) unique.push(part);
+                        if (mealPeriodKeys.includes(part) && !unique.includes(part)) unique.push(part);
                     });
-                    return ['breakfast', 'lunch', 'dinner'].filter((slot) => unique.includes(slot));
+                    return mealPeriodKeys.filter((slot) => unique.includes(slot));
+                };
+                const mealSlotBadgeClasses = {
+                    breakfast: 'border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-300',
+                    lunch: 'border-sky-300 bg-sky-50 text-sky-700 dark:border-sky-700 dark:bg-sky-900/20 dark:text-sky-300',
+                    tea_time: 'border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300',
+                    dinner: 'border-violet-300 bg-violet-50 text-violet-700 dark:border-violet-700 dark:bg-violet-900/20 dark:text-violet-300',
+                };
+                const escapeFnbHtml = (value) =>
+                    String(value || '')
+                        .replace(/&/g, '&amp;')
+                        .replace(/</g, '&lt;')
+                        .replace(/>/g, '&gt;')
+                        .replace(/"/g, '&quot;')
+                        .replace(/'/g, '&#039;');
+                const resolveFnbMealTokens = (source) => {
+                    if (Array.isArray(source)) {
+                        const normalizedSource = source.map((item) => normalizeMealPeriodToken(item));
+                        return mealPeriodKeys.filter((slot) => normalizedSource.includes(slot));
+                    }
+
+                    return normalizeMealPeriodTokens(String(source || ''));
+                };
+                const getFnbMealTokensFromItem = (item) => resolveFnbMealTokens(
+                    Array.isArray(item?.meal_period_tokens)
+                        ? item.meal_period_tokens
+                        : String(item?.meal_period || '')
+                );
+                const renderMealSlotBadgesHtml = (tokens) => {
+                    const normalized = resolveFnbMealTokens(tokens);
+                    if (!normalized.length) return '';
+
+                    return normalized.map((slot) => {
+                        const label = mealPeriodOptions[slot] || slot;
+                        return `<span class="inline-flex items-center whitespace-nowrap rounded-full border px-2 py-0.5 text-[10px] font-semibold ${mealSlotBadgeClasses[slot] || 'border-gray-300 bg-gray-50 text-gray-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300'}">${escapeFnbHtml(label)}</span>`;
+                    }).join('');
+                };
+                const setFnbMealSlotBadge = (row, tokens = []) => {
+                    const { mealSlotBadge } = getFnbElements(row);
+                    if (!mealSlotBadge) return;
+                    const html = renderMealSlotBadgesHtml(tokens);
+                    if (html === '') {
+                        mealSlotBadge.innerHTML = '';
+                        mealSlotBadge.classList.add('hidden');
+                        mealSlotBadge.classList.remove('flex');
+                        return;
+                    }
+                    mealSlotBadge.innerHTML = html;
+                    mealSlotBadge.classList.remove('hidden');
+                    mealSlotBadge.classList.add('flex');
                 };
                 const resolveMealSlotFromTimeValue = (value) => {
                     const raw = String(value || '').trim();
                     if (!/^\d{2}:\d{2}$/.test(raw)) return null;
                     const hour = parseInt(raw.slice(0, 2), 10);
-                    if (!Number.isFinite(hour)) return null;
-                    if (hour < 11) return 'breakfast';
-                    if (hour < 16) return 'lunch';
+                    const minute = parseInt(raw.slice(3, 5), 10);
+                    if (!Number.isFinite(hour) || !Number.isFinite(minute)) return null;
+                    const minutes = (hour * 60) + minute;
+                    if (minutes < 11 * 60) return 'breakfast';
+                    if (minutes < 15 * 60) return 'lunch';
+                    if (minutes < 17 * 60) return 'tea_time';
                     return 'dinner';
                 };
                 const toMealSlotLabel = (slot) => {
-                    if (slot === 'breakfast') return 'Breakfast';
-                    if (slot === 'lunch') return 'Lunch';
-                    if (slot === 'dinner') return 'Dinner';
-                    return '';
+                    return mealPeriodOptions[slot] || '';
                 };
                 const mealSlotDefaultStartTimes = {
                     breakfast: '08:00',
                     lunch: '12:30',
+                    tea_time: '15:30',
                     dinner: '19:00',
                 };
                 const getFnbMealSlotForRow = (row) => resolveMealSlotFromTimeValue(row?.querySelector('.item-start')?.value || '');
@@ -3927,25 +3953,33 @@
                         if (input) input.value = '';
                     }
                     if (mealSlot) {
-                        setFnbMealSlotBadge(row, `Meal slot: ${toMealSlotLabel(mealSlot)}`);
+                        setFnbMealSlotBadge(row, [mealSlot]);
                     } else {
                         setFnbMealSlotBadge(row, '');
                     }
                 };
-                const resetFnbSelectionIfMealSlotChanged = (row, previousStartValue, nextStartValue) => {
+                const syncFnbSelectionAfterMealSlotChanged = (row, previousStartValue, nextStartValue) => {
                     if (!row || String(rowType(row) || '') !== 'fnb') return;
                     const previousSlot = resolveMealSlotFromTimeValue(previousStartValue || '');
                     const nextSlot = resolveMealSlotFromTimeValue(nextStartValue || '');
                     if (!previousSlot || !nextSlot || previousSlot === nextSlot) return;
                     const { select, input, dropdown } = getFnbElements(row);
-                    if (select) select.value = '';
-                    if (input) input.value = '';
                     if (dropdown) {
                         dropdown.classList.add('hidden');
                         dropdown.innerHTML = '';
                     }
-                    setFnbNotice(row, 'Meal slot changed. Please select F&B again.', 'info');
                     applyFnbMealSlotFilter(row, { clearInvalidSelection: false });
+                    const selectedOption = select?.selectedOptions?.[0] || null;
+                    const hasSelection = String(select?.value || '').trim() !== '';
+                    if (!hasSelection) {
+                        setFnbNotice(row, 'Meal slot changed. Please review the available F&B options.', 'info');
+                        return;
+                    }
+                    if (selectedOption && !isFnbOptionAllowedForMealSlot(selectedOption, nextSlot)) {
+                        setFnbNotice(row, 'Meal slot changed. Selected F&B is kept, but please review its meal-slot compatibility.', 'info');
+                        return;
+                    }
+                    setFnbNotice(row, '', 'info');
                 };
                 const upsertFnbOption = (select, fnbItem, preserveSelection = true) => {
                     if (!select || !fnbItem) return null;
@@ -4020,9 +4054,10 @@
                         option.classList.toggle('dark:text-blue-200', isActive);
                     });
                 };
-                const fetchFnbSuggestions = async (keyword, region = '', limit = 12) => {
+                const fetchFnbSuggestions = async (keyword, region = '', limit = 12, mealSlot = '') => {
                     const trimmed = String(keyword || '').trim();
                     const trimmedRegion = String(region || '').trim();
+                    const normalizedMealSlot = normalizeMealPeriodToken(mealSlot || '');
                     const destinationKeyword = String(itineraryDestinationInput?.value || '').trim();
                     const params = new URLSearchParams({
                         q: trimmed,
@@ -4030,6 +4065,9 @@
                         region: trimmedRegion,
                         limit: String(limit),
                     });
+                    if (mealPeriodKeys.includes(normalizedMealSlot)) {
+                        params.set('meal_slot', normalizedMealSlot);
+                    }
                     const response = await fetch(`${fnbSuggestionEndpoint}?${params.toString()}`, {
                         headers: {
                             'X-Requested-With': 'XMLHttpRequest',
@@ -4077,19 +4115,10 @@
                 const renderFnbDropdown = (row, suggestions, keyword) => {
                     const { dropdown, select } = getFnbElements(row);
                     if (!dropdown || !select) return;
-                    const escapeHtml = (value) =>
-                        String(value || '')
-                            .replace(/&/g, '&amp;')
-                            .replace(/</g, '&lt;')
-                            .replace(/>/g, '&gt;')
-                            .replace(/"/g, '&quot;')
-                            .replace(/'/g, '&#039;');
                     const mealSlot = getFnbMealSlotForRow(row);
                     const items = (Array.isArray(suggestions) ? suggestions : []).filter((item) => {
                         if (!mealSlot) return true;
-                        const tokens = Array.isArray(item?.meal_period_tokens)
-                            ? item.meal_period_tokens
-                            : normalizeMealPeriodTokens(String(item?.meal_period || ''));
+                        const tokens = getFnbMealTokensFromItem(item);
                         if (!tokens.length) return false;
                         return tokens.includes(mealSlot);
                     });
@@ -4099,15 +4128,18 @@
                     items.forEach((item, index) => {
                         const label = String(item?.label || item?.name || '').trim();
                         if (!label) return;
+                        const tokens = getFnbMealTokensFromItem(item);
+                        const badges = renderMealSlotBadgesHtml(tokens);
                         html += `
                             <button type="button" data-fnb-option="existing" data-fnb-index="${index}" data-fnb-id="${String(item.id || '')}"
-                                class="flex w-full items-start rounded-md px-2 py-1.5 text-left text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 dark:text-gray-200 dark:hover:bg-blue-900/30 dark:hover:text-blue-200">
-                                <span class="truncate">${label}</span>
+                                class="flex w-full items-start justify-between gap-2 rounded-md px-2 py-1.5 text-left text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 dark:text-gray-200 dark:hover:bg-blue-900/30 dark:hover:text-blue-200">
+                                <span class="min-w-0 flex-1 truncate">${escapeFnbHtml(label)}</span>
+                                ${badges ? `<span class="flex shrink-0 flex-wrap justify-end gap-1">${badges}</span>` : ''}
                             </button>
                         `;
                     });
                     if (normalizedKeyword !== '' && !hasExact) {
-                        const safeKeyword = escapeHtml(String(keyword || '').trim());
+                        const safeKeyword = escapeFnbHtml(String(keyword || '').trim());
                         html += `
                             <button type="button" data-fnb-option="create" data-fnb-keyword="${safeKeyword}"
                                 class="mt-1 flex w-full items-start rounded-md border border-dashed border-emerald-300 px-2 py-1.5 text-left text-sm text-emerald-700 hover:bg-emerald-50 dark:border-emerald-700 dark:text-emerald-300 dark:hover:bg-emerald-900/20">
@@ -4132,8 +4164,11 @@
                     const selectedMealSlots = Array.isArray(fnbItem?.meal_period_tokens)
                         ? fnbItem.meal_period_tokens
                         : normalizeMealPeriodTokens(String(fnbItem?.meal_period || ''));
+                    const currentSlot = getFnbMealSlotForRow(row);
+                    const primarySlot = selectedMealSlots.includes(currentSlot)
+                        ? currentSlot
+                        : String(selectedMealSlots[0] || '').toLowerCase();
                     if (startInput && startInputValue === '' && selectedMealSlots.length > 0) {
-                        const primarySlot = String(selectedMealSlots[0] || '').toLowerCase();
                         const defaultStartTime = mealSlotDefaultStartTimes[primarySlot] || '';
                         if (defaultStartTime !== '') {
                             startInput.value = defaultStartTime;
@@ -4173,8 +4208,9 @@
                     const runSearch = async (keyword) => {
                         const token = ++fetchToken;
                         const selectedRegion = String(row.querySelector('.item-region')?.value || '').trim();
+                        const mealSlot = getFnbMealSlotForRow(row) || '';
                         try {
-                            const suggestions = await fetchFnbSuggestions(keyword, selectedRegion, 12);
+                            const suggestions = await fetchFnbSuggestions(keyword, selectedRegion, 12, mealSlot);
                             if (token !== fetchToken) return;
                             renderFnbDropdown(row, suggestions, keyword);
                         } catch (_) {
@@ -5658,7 +5694,7 @@
                                 regionSelect.value = inheritedRegion;
                             }
                         }
-                        resetFnbSelectionIfMealSlotChanged(r, previousStartValue, nextStartValue);
+                        syncFnbSelectionAfterMealSlotChanged(r, previousStartValue, nextStartValue);
                         syncRowTimeText(r);
                         let travel = itemType === 'break'
                             ? 0
@@ -7537,19 +7573,29 @@
                         || province.includes(regionKeyword)
                         || location.includes(regionKeyword);
                 };
-                const normalizeMealTokens = (value) =>
+                const mealPeriodOptions = @json($mealPeriodOptions);
+                const mealPeriodKeys = Object.keys(mealPeriodOptions);
+                const normalizeMealPeriodToken = (value) =>
                     String(value || '')
                         .toLowerCase()
+                        .trim()
+                        .replace(/tea[\s_-]*time/g, 'tea_time')
+                        .replace(/-/g, '_');
+                const normalizeMealTokens = (value) =>
+                    normalizeMealPeriodToken(value)
                         .split(/[\s,;\/|]+/g)
-                        .map((item) => item.trim())
-                        .filter((item) => item === 'breakfast' || item === 'lunch' || item === 'dinner');
+                        .map((item) => normalizeMealPeriodToken(item))
+                        .filter((item) => mealPeriodKeys.includes(item));
                 const resolveMealSlotFromTimeValue = (value) => {
                     const raw = String(value || '').trim();
                     if (!/^\d{2}:\d{2}$/.test(raw)) return null;
                     const hour = parseInt(raw.slice(0, 2), 10);
-                    if (!Number.isFinite(hour)) return null;
-                    if (hour < 11) return 'breakfast';
-                    if (hour < 16) return 'lunch';
+                    const minute = parseInt(raw.slice(3, 5), 10);
+                    if (!Number.isFinite(hour) || !Number.isFinite(minute)) return null;
+                    const minutes = (hour * 60) + minute;
+                    if (minutes < 11 * 60) return 'breakfast';
+                    if (minutes < 15 * 60) return 'lunch';
+                    if (minutes < 17 * 60) return 'tea_time';
                     return 'dinner';
                 };
                 const matchesMealAvailability = (select, option, row) => {

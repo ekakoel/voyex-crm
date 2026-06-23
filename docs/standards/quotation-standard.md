@@ -72,6 +72,8 @@ Last Updated: 2026-06-15
 - Service item description must use `Service Type: Service name`.
 - Activity and F&B quotation item descriptions must use `Service Type: Service Name - Vendor Name` when vendor is available.
 - Quotation PDF must show F&B `menu_highlights` under the item description as a compact `Menu:` sub-line so customers can see the included menu without exposing internal-only pricing metadata.
+- F&B meal period options must use the canonical set from `FoodBeverage`: `Breakfast`, `Lunch`, `Tea Time`, and `Dinner`; quotation/itinerary badges and itinerary create/edit F&B filtering must resolve meal slots from service item `Start Time` instead of hardcoded three-slot lists or manual meal-slot inputs.
+- Itinerary create/edit F&B autocomplete should pass the resolved meal slot to the server suggestion endpoint and still keep a client-side guard filter; selected F&B input badges should show the active meal slot resolved from the row `Start Time`, while dropdown option badges should show the normalized meal periods stored on each F&B item.
 - Activity and F&B service items with passenger-specific rates must keep `serviceable_meta.pax_type` (`adult` / `child`) across generate, Add Service, edit, detail, and validate quotation flows.
 - Activity and F&B Add Service pickers must load adult/child publish rate, contract rate, and markup from the corresponding master-service pax fields; child fallback may use adult master values only when child values are empty.
 - Activity and F&B quotation descriptions should include pax label and vendor region when that metadata exists, following `Service Type: Service Name (ADULT|CHILD) - Vendor Name - Region`.
@@ -258,7 +260,7 @@ Last Updated: 2026-06-15
   - activation/deactivation actions on index pages must be hidden for users outside `Super Admin` and `Administrator`.
   - controllers must still enforce the same rule server-side with `canManageActivationActions()` so hidden buttons are not the only protection.
 - Row payload standard for master-data indexes:
-  - for modules such as airports, destinations, transports, and currencies, controller-prepared row arrays should include:
+  - for modules such as airports, destinations, transports, currencies, and hotels, controller-prepared row arrays should include:
     - normalized row number based on paginator `firstItem()`,
     - compact location/provider/linked-data summary strings,
     - finalized action URLs,
@@ -282,6 +284,8 @@ Last Updated: 2026-06-15
   - connector travel duration fields should auto-fill from the route estimate when the connector has no manual value yet.
   - if a user edits a connector duration manually, the user-entered value must be preserved and should not be overwritten by later automatic recalculation.
   - this rule applies to both `Day Start Point -> first item` and every connector between schedule items.
+  - connector changes may update schedule times, but they must not silently clear an already selected service item.
+  - for F&B rows specifically, a connector-driven meal-slot change may show a compatibility notice, but the selected F&B item must remain selected until the user decides to replace it.
 - Goal:
   - reduce Blade fragility,
   - make index pages easier to debug,

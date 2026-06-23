@@ -1124,29 +1124,16 @@
         $validationLockedStatus = \App\Support\Workflow\QuotationWorkflow::label((string) ($quotation->status ?? 'draft'));
         $validationLockedMessage = ui_phrase('Validation is locked because this quotation is currently :status. Continue from the relevant workflow action instead of editing validation data.', ['status' => $validationLockedStatus]);
         $resolveMealLabelsFromMeta = static function (array $meta): array {
-            $extractTokens = static function ($value): array {
-                if (is_array($value)) {
-                    $raw = implode(' ', array_map(static fn ($entry) => (string) $entry, $value));
-                } else {
-                    $raw = (string) $value;
-                }
-
-                return array_values(array_filter(array_map(
-                    static fn ($part) => strtolower(trim((string) $part)),
-                    preg_split('/[\s,;\/|]+/', $raw) ?: []
-                )));
-            };
-
             $tokens = array_merge(
-                $extractTokens($meta['meal_type'] ?? ''),
-                $extractTokens($meta['meal_period'] ?? '')
+                \App\Models\FoodBeverage::normalizeMealPeriodTokens($meta['meal_type'] ?? ''),
+                \App\Models\FoodBeverage::normalizeMealPeriodTokens($meta['meal_period'] ?? '')
             );
             $tokens = array_values(array_unique($tokens));
 
             $labels = [];
-            foreach (['breakfast' => ui_phrase('Breakfast'), 'lunch' => ui_phrase('Lunch'), 'dinner' => ui_phrase('Dinner')] as $key => $label) {
+            foreach (\App\Models\FoodBeverage::mealPeriodOptions() as $key => $label) {
                 if (in_array($key, $tokens, true)) {
-                    $labels[] = $label;
+                    $labels[] = ui_phrase($label);
                 }
             }
 

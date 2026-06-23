@@ -73,34 +73,19 @@ class HotelController extends Controller
         }
 
         $perPage = (int) $request->input('per_page', 10);
-        $perPage = $perPage > 0 && $perPage <= 100 ? $perPage : 10;
+        $perPageOptions = [10, 25, 50, 100];
+        $perPage = in_array($perPage, $perPageOptions, true) ? $perPage : 10;
 
         $hotels = $query->paginate($perPage)->withQueryString();
-
-        $statsCards = [
-            [
-                'key' => 'total',
-                'label' => 'Total Hotels',
-                'value' => Hotel::query()->count(),
-                'caption' => 'All records',
-            ],
-            [
-                'key' => 'active',
-                'label' => 'Active Hotels',
-                'value' => Hotel::query()->whereNull('deleted_at')->where('status', 'active')->count(),
-                'caption' => 'Currently active',
-            ],
-            [
-                'key' => 'rooms',
-                'label' => 'Rooms',
-                'value' => HotelRoom::query()->count(),
-                'caption' => 'All room types',
-            ],
+        $hotelRows = $this->buildHotelIndexRows($hotels);
+        $statusFilterOptions = [
+            ['value' => 'active', 'label' => ui_phrase('Active')],
+            ['value' => 'inactive', 'label' => ui_phrase('Inactive')],
         ];
 
         if ($this->wantsAjaxFragment($request)) {
             return response()->json([
-                'html' => view('modules.hotels.partials._index-results', compact('hotels', 'statsCards'))->render(),
+                'html' => view('modules.hotels.partials._index-results', compact('hotels', 'hotelRows'))->render(),
                 'url' => route('hotels.index', $request->query()),
             ]);
         }
@@ -110,7 +95,13 @@ class HotelController extends Controller
             ->orderBy('name')
             ->get(['id', 'name', 'province']);
 
-        return view('modules.hotels.index', compact('hotels', 'statsCards', 'destinations'));
+        return view('modules.hotels.index', compact(
+            'hotels',
+            'hotelRows',
+            'destinations',
+            'perPageOptions',
+            'statusFilterOptions'
+        ));
     }
 
     public function create()
@@ -352,6 +343,58 @@ class HotelController extends Controller
         return $request->ajax()
             || $request->expectsJson()
             || $request->header('X-Hotels-Ajax') === '1';
+    }
+
+    private function buildHotelIndexRows($hotels): array
+    {
+        $firstItem = (int) ($hotels->firstItem() ?? 1);
+        $canManageActivationActions = auth()->user()?->canManageActivationActions() === true;
+
+        return $hotels->getCollection()->values()->map(function (Hotel $hotel, int $index) use ($firstItem, $canManageActivationActions): array {
+            $rawStatus = strtolower(trim((string) ($hotel->status ?? 'active')));
+            $isActive = ! $hotel->trashed() && $rawStatus === 'active';
+            $city = trim((string) ($hotel->city ?? ''));
+            $province = trim((string) ($hotel->province ?? ''));
+            $locationLabel = trim($city . ($city !== '' && $province !== '' ? ', ' : '') . $province);
+            $destinationLabel = trim((string) ($hotel->destination?->province ?? ($hotel->destination?->name ?? '-')));
+
+            return [
+                'hotel' => $hotel,
+                'row_number' => $firstItem + $index,
+                'name' => trim((string) ($hotel->name ?? '')) ?: '-',
+                'location_label' => $locationLabel !== '' ? $locationLabel : '-',
+                'country_label' => trim((string) ($hotel->country ?? '')) ?: '-',
+                'destination_label' => $destinationLabel !== '' ? $destinationLabel : '-',
+                'rooms_count' => (int) ($hotel->rooms_count ?? 0),
+                'prices_count' => (int) ($hotel->prices_count ?? 0),
+                'is_active' => $isActive,
+                'status_badge' => $isActive ? 'active' : 'inactive',
+                'show_url' => route('hotels.show', $hotel),
+                'edit_url' => route('hotels.edit', $hotel),
+                'toggle_url' => route('hotels.toggle-status', $hotel->id),
+                'can_manage_activation' => $canManageActivationActions,
+                'toggle_modal_name_desktop' => 'hotels-index-toggle-desktop-' . $hotel->id,
+                'toggle_modal_name_mobile' => 'hotels-index-toggle-mobile-' . $hotel->id,
+                'toggle_title' => $isActive
+                    ? ui_phrase('Deactivate') . ' ' . ui_phrase('Hotel')
+                    : ui_phrase('Activate') . ' ' . ui_phrase('Hotel'),
+                'toggle_message' => $isActive
+                    ? ui_phrase('confirm deactivate')
+                    : ui_phrase('confirm activate'),
+                'toggle_confirm_label' => $isActive
+                    ? ui_phrase('Deactivate')
+                    : ui_phrase('Activate'),
+                'toggle_trigger_label' => $isActive
+                    ? ui_phrase('Deactivate')
+                    : ui_phrase('Activate'),
+                'toggle_trigger_icon' => $isActive
+                    ? 'fa-solid fa-toggle-off w-4'
+                    : 'fa-solid fa-toggle-on w-4',
+                'toggle_trigger_class' => $isActive
+                    ? 'flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-amber-700 hover:bg-amber-50 dark:text-amber-300 dark:hover:bg-amber-900/20'
+                    : 'flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-emerald-700 hover:bg-emerald-50 dark:text-emerald-300 dark:hover:bg-emerald-900/20',
+            ];
+        })->all();
     }
 
     private function ajaxEditorResponse(Request $request, Hotel $hotel, string $step, string $message)
