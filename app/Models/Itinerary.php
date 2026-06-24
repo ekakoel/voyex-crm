@@ -54,6 +54,7 @@ class Itinerary extends Model
         'itinerary_include',
         'itinerary_exclude',
         'term_conditions',
+        'tour_highlights',
         'is_active',
         'status',
     ];

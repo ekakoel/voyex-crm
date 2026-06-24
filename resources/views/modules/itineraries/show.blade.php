@@ -1,5 +1,4 @@
 @extends('layouts.master')
-
 @section('page_title', ui_phrase('Itinerary Detail'))
 @section('page_subtitle', ui_phrase('Review complete itinerary information.'))
 @section('page_actions')
@@ -958,24 +957,31 @@
                     @php
                         $itineraryIncludeText = \App\Support\SafeRichText::plainText($itinerary->itinerary_include);
                         $itineraryExcludeText = \App\Support\SafeRichText::plainText($itinerary->itinerary_exclude);
+                        $tourHighlightsText = \App\Support\SafeRichText::plainText($itinerary->tour_highlights);
                         $termConditionsText = \App\Support\SafeRichText::plainText($itinerary->term_conditions);
                     @endphp
-                    @if (filled($itineraryIncludeText) || filled($itineraryExcludeText) || filled($termConditionsText))
+                    @if (filled($itineraryIncludeText) || filled($itineraryExcludeText) || filled($tourHighlightsText) || filled($termConditionsText))
                         <div class="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2">
                             @if (filled($itineraryIncludeText))
-                                <div class="rounded-lg mb-6 border border-gray-200 px-2 py-1 dark:border-gray-700">
+                                <div class="rounded-lg border border-gray-200 px-2 py-1 dark:border-gray-700">
                                     <p class="text-[11px] font-semibold uppercase tracking-wide text-gray-900 dark:text-gray-100">{{ ui_phrase('Itinerary Include') }}</p>
                                     <x-rich-text :content="$itinerary->itinerary_include" class="mt-0.5 text-xs text-gray-900 dark:text-gray-100" />
                                 </div>
                             @endif
                             @if (filled($itineraryExcludeText))
-                                <div class="rounded-lg mb-6 border border-gray-200 px-2 py-1 dark:border-gray-700">
+                                <div class="rounded-lg border border-gray-200 px-2 py-1 dark:border-gray-700">
                                     <p class="text-[11px] font-semibold uppercase tracking-wide text-gray-900 dark:text-gray-100">{{ ui_phrase('Itinerary Exclude') }}</p>
                                     <x-rich-text :content="$itinerary->itinerary_exclude" class="mt-0.5 text-xs text-gray-900 dark:text-gray-100" />
                                 </div>
                             @endif
+                            @if (filled($tourHighlightsText))
+                                <div class="rounded-lg border border-gray-200 px-2 py-1 dark:border-gray-700">
+                                    <p class="text-[11px] font-semibold uppercase tracking-wide text-gray-900 dark:text-gray-100">{{ ui_phrase('Tour Highlights') }}</p>
+                                    <x-rich-text :content="$itinerary->tour_highlights" class="mt-0.5 text-xs text-gray-900 dark:text-gray-100" />
+                                </div>
+                            @endif
                             @if (filled($termConditionsText))
-                                <div class="rounded-lg mb-6 border border-gray-200 px-2 py-1 dark:border-gray-700 md:col-span-2">
+                                <div class="rounded-lg border border-gray-200 px-2 py-1 dark:border-gray-700 md:col-span-2">
                                     <p class="text-[11px] font-semibold uppercase tracking-wide text-gray-900 dark:text-gray-100">{{ ui_phrase('Term & Conditions') }}</p>
                                     <x-rich-text :content="$itinerary->term_conditions" class="mt-0.5 text-xs text-gray-900 dark:text-gray-100" />
                                 </div>

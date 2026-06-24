@@ -2365,6 +2365,9 @@ function initServiceFilterPage(root = document) {
         };
 
         const isTextInputValidForFilter = (input) => {
+            if (input.name === 'duration') {
+                return true;
+            }
             const minChars = getInputMinChars(input);
             if (minChars <= 0) {
                 return true;

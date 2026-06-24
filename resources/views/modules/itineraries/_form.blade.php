@@ -401,6 +401,7 @@
     }
     $itineraryInclude = old('itinerary_include', (string) ($itinerary->itinerary_include ?? ''));
     $itineraryExclude = old('itinerary_exclude', (string) ($itinerary->itinerary_exclude ?? ''));
+    $tourHighlights = old('tour_highlights', (string) ($itinerary->tour_highlights ?? ''));
     $termConditions = old('term_conditions', (string) ($itinerary->term_conditions ?? ''));
 
     $rows = collect();
@@ -1453,6 +1454,17 @@
                         rows="6" placeholder="{{ __('itinerary_form.wizard.exclude_placeholder') }}">{{ $itineraryExclude }}</textarea>
                 </div>
             </div>
+            <div class="mt-3 grid grid-cols-1 gap-3">
+                <div>
+                    <label
+                        class="mb-1 block text-xs font-semibold uppercase tracking-wide text-sky-700 dark:text-sky-300">
+                        Tour Highlights
+                    </label>
+                    <textarea name="tour_highlights"
+                        class="w-full rounded-lg border border-gray-300 px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
+                        rows="6" placeholder="Enter tour highlights">{{ $tourHighlights }}</textarea>
+                </div>
+            </div>
             <div class="mt-3">
                 <label
                     class="mb-1 block text-xs font-semibold uppercase tracking-wide text-indigo-700 dark:text-indigo-300">
@@ -1527,6 +1539,10 @@
                     <p class="text-xs font-semibold uppercase tracking-wide text-rose-700 dark:text-rose-300">{{ ui_phrase('Exclusions') }}</p>
                     <div class="prose prose-sm mt-1 max-w-none text-sm text-gray-800 dark:prose-invert dark:text-gray-100" data-wizard-review-exclude>-</div>
                 </div>
+            </div>
+            <div class="mt-3 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 dark:border-sky-700/60 dark:bg-sky-900/20">
+                <p class="text-xs font-semibold uppercase tracking-wide text-sky-700 dark:text-sky-300">Tour Highlights</p>
+                <div class="prose prose-sm mt-1 max-w-none text-sm text-gray-800 dark:prose-invert dark:text-gray-100" data-wizard-review-tour-highlights>-</div>
             </div>
             <div class="mt-3 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 dark:border-indigo-700/60 dark:bg-indigo-900/20">
                 <p class="text-xs font-semibold uppercase tracking-wide text-indigo-700 dark:text-indigo-300">{{ ui_phrase('Term & Conditions') }}</p>
@@ -2243,6 +2259,7 @@
                 const reviewDaysEl = wizardRoot?.querySelector('[data-wizard-review-days]') || null;
                 const reviewIncludeEl = wizardRoot?.querySelector('[data-wizard-review-include]') || null;
                 const reviewExcludeEl = wizardRoot?.querySelector('[data-wizard-review-exclude]') || null;
+                const reviewTourHighlightsEl = wizardRoot?.querySelector('[data-wizard-review-tour-highlights]') || null;
                 const reviewTermConditionsEl = wizardRoot?.querySelector('[data-wizard-review-term-conditions]') || null;
                 const i18n = {
                     statusComplete: @json(__('itinerary_form.status.complete')),
@@ -7454,6 +7471,41 @@
                 syncWizardAfterDurationChange();
             })
             ();
+        </script>
+        <script>
+            document.addEventListener('DOMContentLoaded', function () {
+                const wizardRoot = document.querySelector('[data-itinerary-wizard]');
+                if (!wizardRoot) return;
+
+                const reviewTourHighlightsEl = wizardRoot.querySelector('[data-wizard-review-tour-highlights]');
+                const tourHighlightsTextarea = wizardRoot.querySelector('textarea[name="tour_highlights"]');
+
+                if (!reviewTourHighlightsEl || !tourHighlightsTextarea) return;
+
+                const nl2br = (str) => {
+                    if (typeof str === 'undefined' || str === null) {
+                        return '';
+                    }
+                    return (str + '').replace(/([^>])\n/g, '$1<br/>');
+                }
+
+                const observer = new MutationObserver((mutationsList, observer) => {
+                    for(const mutation of mutationsList) {
+                        if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
+                            const step4Panel = wizardRoot.querySelector('[data-wizard-step="4"]');
+                            if (step4Panel && !step4Panel.classList.contains('hidden')) {
+                                const tourHighlights = tourHighlightsTextarea.value.trim();
+                                reviewTourHighlightsEl.innerHTML = tourHighlights ? nl2br(tourHighlights) : '-';
+                            }
+                        }
+                    }
+                });
+
+                const step4Panel = wizardRoot.querySelector('[data-wizard-step="4"]');
+                if(step4Panel) {
+                    observer.observe(step4Panel, { attributes: true });
+                }
+            });
         </script>
     @endpush
 @endonce

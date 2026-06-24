@@ -530,17 +530,14 @@
                 });
 
                 filterForm.addEventListener('submit', function(event) {
-                    textFilterInputs.forEach(syncInputValidityMessage);
-                    if (isAllTextFiltersValid()) {
-                        if (titleInputVisible && titleInputHidden) {
-                            const normalizedTitle = String(titleInputVisible.value || '').trim();
-                            titleInputHidden.value = normalizedTitle;
-                            lastSubmittedTitleValue = normalizedTitle;
-                        }
-                        return;
+                    // The interactive event listeners (input, blur, change) are responsible
+                    // for providing validation feedback. This handler's only job is to
+                    // ensure the hidden title field is populated correctly before submission.
+                    if (titleInputVisible && titleInputHidden) {
+                        const normalizedTitle = String(titleInputVisible.value || '').trim();
+                        titleInputHidden.value = normalizedTitle;
+                        lastSubmittedTitleValue = normalizedTitle;
                     }
-                    event.preventDefault();
-                    filterForm.reportValidity();
                 });
 
                 // Block global service-filter auto-trigger on select/number change when title is non-empty but < min length.
@@ -556,6 +553,14 @@
                     if (!target.matches('[data-service-filter-input]')) {
                         return;
                     }
+
+                    // Special handling for duration filter: always allow submission.
+                    if (target.name === 'duration') {
+                        // No further checks, let the form submit normally.
+                        // The backend will handle the numerical duration validation.
+                        return;
+                    }
+
                     const titleValue = String(titleInputVisible.value || '').trim();
                     if (titleValue !== '' && titleValue.length < minFilterLength) {
                         syncInputValidityMessage(titleInputVisible);

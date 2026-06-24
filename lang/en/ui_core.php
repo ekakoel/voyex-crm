@@ -884,6 +884,7 @@ return array (
   'Revenue Trend' => 'Revenue Trend',
   'Revenue Trend (:year)' => 'Revenue Trend (:year)',
   'Review booking details.' => 'Review booking details.',
+  'Review complete itinerary information.' => 'Review complete itinerary information.',
   'Review data before saving.' => 'Review data before saving.',
   'Review inquiry details.' => 'Review inquiry details.',
   'Review invoice details.' => 'Review invoice details.',
