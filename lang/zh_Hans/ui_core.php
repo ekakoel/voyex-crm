@@ -1430,5 +1430,13 @@ return array (
   ,'Inquiry deadline reminders' => 'Inquiry deadline reminders'
   ,'Inquiry deadline reminder' => 'Inquiry deadline reminder'
   ,'Inquiry :number has no quotation and reaches :deadline_label deadline (:date). Priority: :priority.' => 'Inquiry :number has no quotation and reaches :deadline_label deadline (:date). Priority: :priority.'
+  ,'Vendor Type' => '供应商类型'
+  ,'Select Vendor Type' => '选择供应商类型'
+  ,'Transportation' => '交通'
+  ,'Transportation Vendors' => '交通供应商'
+  ,'Island Transfer Vendors' => '海岛接送供应商'
+  ,'F&B Vendors' => '餐饮供应商'
+  ,'Activities Vendors' => '活动供应商'
+  ,':count of :total filtered vendors' => '筛选后共 :total 个供应商，其中 :count 个'
+  ,':active active / :inactive inactive' => ':active 启用 / :inactive 停用'
 );
-

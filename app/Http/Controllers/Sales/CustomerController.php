@@ -9,88 +9,78 @@ use Illuminate\Validation\Rule;
 
 class CustomerController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $query = Customer::query()->withTrashed();
-
-        $query->when(request('q'), function ($q) {
-            $term = trim((string) request('q'));
-            if ($term !== '' && mb_strlen($term) < 3) {
-                $q->whereRaw('1 = 0');
-                return;
-            }
-
-            $q->where('name', 'like', "%{$term}%")
-                ->orWhere('email', 'like', "%{$term}%")
-                ->orWhere('phone', 'like', "%{$term}%")
-                ->orWhere('company_name', 'like', "%{$term}%")
-                ->orWhere('country', 'like', "%{$term}%")
-                ->orWhere('code', 'like', "%{$term}%");
-        });
-
-        $query->when(request('customer_type'), fn ($q) => $q->where('customer_type', request('customer_type')));
-        $query->when(request('created_by'), fn ($q) => $q->where('created_by', request('created_by')));
-
-        $perPage = (int) request('per_page', 10);
-        $perPage = $perPage > 0 && $perPage <= 100 ? $perPage : 10;
-
-        $summaryQuery = clone $query;
-        $query->latest();
-
-        $customers = $query->paginate($perPage)->withQueryString();
         $perPageOptions = [10, 25, 50, 100];
-        $canManageActivationActions = auth()->user()?->canManageActivationActions() === true;
-        $customerRows = $this->buildCustomerIndexRows($customers, $canManageActivationActions);
+        $validated = $request->validate([
+            'q' => ['nullable', 'string', 'max:255'],
+            'customer_type' => ['nullable', Rule::in(['individual', 'company'])],
+            'per_page' => ['nullable', Rule::in(array_map('strval', $perPageOptions))],
+        ]);
 
-        $totalCustomers = Customer::withTrashed()->count();
-        $activeCustomers = Customer::query()->count();
-        $inactiveCustomers = Customer::onlyTrashed()->count();
-        $companyCustomers = Customer::withTrashed()->where('customer_type', 'company')->count();
-        $individualCustomers = Customer::withTrashed()->where('customer_type', 'individual')->count();
-        $countryCount = Customer::query()->whereNotNull('country')->distinct('country')->count('country');
-        $sidebarInfo = $this->buildCustomerSidebarInfo($summaryQuery);
+        $search = trim((string) ($validated['q'] ?? ''));
+        $customerType = (string) ($validated['customer_type'] ?? '');
+        $perPage = (int) ($validated['per_page'] ?? 10);
+        $perPage = in_array($perPage, $perPageOptions, true) ? $perPage : 10;
+
+        $filteredQuery = $this->applyIndexFilters(
+            Customer::query()->withTrashed(),
+            $search,
+            $customerType
+        );
+
+        $customers = (clone $filteredQuery)
+            ->latest()
+            ->paginate($perPage)
+            ->withQueryString();
+
+        $currentUser = auth()->user();
+        $canManageActivationActions = $currentUser instanceof \App\Models\User && $currentUser->canManageActivationActions();
+        $customerRows = $this->buildCustomerIndexRows($customers, $canManageActivationActions);
+        $summaries = $this->buildCustomerSummaries($filteredQuery);
+        $sidebarInfo = $this->buildCustomerSidebarInfo($filteredQuery);
 
         $statsCards = [
             [
                 'key' => 'total',
-                'label' => ui_phrase('Total'),
-                'value' => $totalCustomers,
-                'caption' => ui_phrase('All customers'),
+                'label' => ui_phrase('Filtered Customers'),
+                'value' => $summaries['total'],
+                'caption' => ui_phrase('Current filter result'),
                 'tone' => 'bg-slate-50 text-slate-700 border-slate-100',
             ],
             [
                 'key' => 'active',
                 'label' => ui_phrase('Active'),
-                'value' => $activeCustomers,
-                'caption' => ui_phrase('Currently active'),
+                'value' => $summaries['active'],
+                'caption' => ui_phrase('Active in current result'),
                 'tone' => 'bg-emerald-50 text-emerald-700 border-emerald-100',
             ],
             [
                 'key' => 'inactive',
                 'label' => ui_phrase('Inactive'),
-                'value' => $inactiveCustomers,
-                'caption' => ui_phrase('Deactivated'),
+                'value' => $summaries['inactive'],
+                'caption' => ui_phrase('Inactive in current result'),
                 'tone' => 'bg-rose-50 text-rose-700 border-rose-100',
             ],
             [
                 'key' => 'company',
-                'label' => ui_phrase('company'),
-                'value' => $companyCustomers,
-                'caption' => ui_phrase('Company type'),
+                'label' => ui_phrase('type company'),
+                'value' => $summaries['company'],
+                'caption' => ui_phrase('Company in current result'),
                 'tone' => 'bg-indigo-50 text-indigo-700 border-indigo-100',
             ],
             [
                 'key' => 'individual',
-                'label' => ui_phrase('individual'),
-                'value' => $individualCustomers,
-                'caption' => ui_phrase('Individual type'),
+                'label' => ui_phrase('type individual'),
+                'value' => $summaries['individual'],
+                'caption' => ui_phrase('Individual in current result'),
                 'tone' => 'bg-sky-50 text-sky-700 border-sky-100',
             ],
             [
                 'key' => 'countries',
                 'label' => ui_phrase('countries'),
-                'value' => $countryCount,
-                'caption' => ui_phrase('Distinct countries'),
+                'value' => $summaries['countries'],
+                'caption' => ui_phrase('Countries in current result'),
                 'tone' => 'bg-teal-50 text-teal-700 border-teal-100',
             ],
         ];
@@ -103,6 +93,53 @@ class CustomerController extends Controller
             'perPageOptions',
             'canManageActivationActions'
         ));
+    }
+
+    private function applyIndexFilters($query, string $search, string $customerType)
+    {
+        return $query
+            ->when($search !== '', function ($query) use ($search) {
+                if (mb_strlen($search) < 3) {
+                    $query->whereRaw('1 = 0');
+                    return;
+                }
+
+                $query->where(function ($inner) use ($search) {
+                    $inner->where('name', 'like', "%{$search}%")
+                        ->orWhere('email', 'like', "%{$search}%")
+                        ->orWhere('phone', 'like', "%{$search}%")
+                        ->orWhere('company_name', 'like', "%{$search}%")
+                        ->orWhere('country', 'like', "%{$search}%")
+                        ->orWhere('code', 'like', "%{$search}%");
+                });
+            })
+            ->when($customerType !== '', fn ($query) => $query->where('customer_type', $customerType));
+    }
+
+    private function buildCustomerSummaries($query): array
+    {
+        $summary = (clone $query)
+            ->selectRaw('COUNT(*) as total')
+            ->selectRaw('SUM(CASE WHEN deleted_at IS NULL THEN 1 ELSE 0 END) as active_total')
+            ->selectRaw('SUM(CASE WHEN deleted_at IS NOT NULL THEN 1 ELSE 0 END) as inactive_total')
+            ->selectRaw("SUM(CASE WHEN customer_type = 'company' THEN 1 ELSE 0 END) as company_total")
+            ->selectRaw("SUM(CASE WHEN customer_type = 'individual' THEN 1 ELSE 0 END) as individual_total")
+            ->first();
+
+        $countryCount = (clone $query)
+            ->whereNotNull('country')
+            ->where('country', '!=', '')
+            ->distinct('country')
+            ->count('country');
+
+        return [
+            'total' => (int) ($summary->total ?? 0),
+            'active' => (int) ($summary->active_total ?? 0),
+            'inactive' => (int) ($summary->inactive_total ?? 0),
+            'company' => (int) ($summary->company_total ?? 0),
+            'individual' => (int) ($summary->individual_total ?? 0),
+            'countries' => (int) $countryCount,
+        ];
     }
 
     public function create()

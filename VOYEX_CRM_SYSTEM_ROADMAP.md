@@ -1,7 +1,7 @@
 # VOYEX CRM -- SYSTEM ROADMAP
 
 Version: 1.5  
-Last Updated: 2026-06-22
+Last Updated: 2026-06-24
 
 Legend:  
 - DONE = Implemented  
@@ -50,7 +50,7 @@ Inquiry History Log | PARTIAL | Communications & follow-ups exist
 Feature | Status | Notes
 --- | --- | ---
 Destinations CRUD | DONE | Destination master + province seeder
-Vendors CRUD | DONE | Google Maps autofill
+Vendors CRUD | DONE | Google Maps autofill, multi-type vendor capabilities, type-aware KPI/filter support
 Activities CRUD | DONE | Standardized activity types
 Food & Beverage CRUD | DONE | Standard forms with canonical Breakfast/Lunch/Tea Time/Dinner meal periods
 Accommodations CRUD | DONE | Standard forms
@@ -83,6 +83,7 @@ Itinerary Transfer Region Filter | DONE | Day Planner inter-island transfer sele
 Itinerary F&B Tea Time Slot | DONE | Create/edit itinerary F&B rows resolve Breakfast/Lunch/Tea Time/Dinner automatically from Start Time, pass the slot to F&B suggestions, and show the active slot badge on matching items
 Index Activation Role Guard | DONE | Activate/deactivate index actions and toggle endpoints are now restricted to Super Admin and Administrator
 Vendor Index Blade Stabilization | DONE | Vendor list desktop/mobile now share one precomputed row presentation layer for safer rendering and lighter template logic
+Vendor Multi-Type Classification | DONE | Vendors can now be tagged with multiple capabilities (`Transportation`, `Island Transfer`, `F&B`, `Activities`) and index KPI/filter logic reads the multi-type list
 
 ----------------------------------------------------------------------------------------------------
 

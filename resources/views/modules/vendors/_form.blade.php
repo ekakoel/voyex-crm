@@ -2,6 +2,9 @@
     $buttonLabel = $buttonLabel ?? ui_phrase('Save');
     $vendor = $vendor ?? null;
     $destinations = $destinations ?? collect();
+    $vendorTypeOptions = $vendorTypeOptions ?? [];
+    $selectedVendorTypes = old('types', $vendor?->normalizedTypes() ?? []);
+    $selectedVendorTypes = is_array($selectedVendorTypes) ? $selectedVendorTypes : [];
 @endphp
 
 <div class="space-y-5" data-location-autofill data-location-resolve-url="{{ route('location.resolve-google-map') }}">
@@ -11,6 +14,28 @@
                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Vendor / Provider Name') }}</label>
                 <input name="name" value="{{ old('name', $vendor->name ?? '') }}" class="mt-1 app-input" required placeholder="{{ ui_phrase('Enter vendor name') }}">
                 @error('name')
+                    <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
+                @enderror
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ ui_phrase('Vendor Type') }}</label>
+                <div class="mt-2 grid grid-cols-1 gap-2 rounded-md border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-900 sm:grid-cols-2">
+                    @foreach ($vendorTypeOptions as $value => $label)
+                        <label class="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
+                            <input
+                                type="checkbox"
+                                name="types[]"
+                                value="{{ $value }}"
+                                class="rounded border-gray-300 text-indigo-600"
+                                @checked(in_array($value, $selectedVendorTypes, true))>
+                            <span>{{ $label }}</span>
+                        </label>
+                    @endforeach
+                </div>
+                @error('types')
+                    <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
+                @enderror
+                @error('types.*')
                     <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
                 @enderror
             </div>

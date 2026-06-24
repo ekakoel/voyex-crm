@@ -1,10 +1,10 @@
 # Voyex CRM - Project Knowledge Base
 
-Last Updated: 2026-05-21
+Last Updated: 2026-06-24
 
 
-Version: 2.8  
-Date: 2026-05-21  
+Version: 2.9  
+Date: 2026-06-24  
 Status: Source of truth aktif
 
 ---
@@ -70,6 +70,18 @@ Quotation rule tambahan:
 - Users
 - Roles
 - Service Manager (module toggle)
+
+Vendor Management baseline:
+- Vendors/Providers can represent one or more service capabilities.
+- Supported vendor capabilities are:
+  - `Transportation`
+  - `Island Transfer`
+  - `F&B`
+  - `Activities`
+- The canonical multi-type field is `vendors.types` (JSON array).
+- The legacy `vendors.type` field remains as a first-selected fallback for compatibility.
+- Vendor index KPI cards summarize filtered vendor distribution by capability.
+- Because one vendor can have multiple capabilities, type KPI counts may intentionally overlap.
 
 ### 4.2 Transaction Modules
 - Customers

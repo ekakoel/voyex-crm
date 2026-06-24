@@ -11,8 +11,15 @@ class Vendor extends Model
     use HasAudit;
     use SoftDeletes;
 
+    public const TYPE_TRANSPORTATION = 'transportation';
+    public const TYPE_ISLAND_TRANSFER = 'island_transfer';
+    public const TYPE_FOOD_BEVERAGE = 'food_beverage';
+    public const TYPE_ACTIVITIES = 'activities';
+
     protected $fillable = [
         'name',
+        'type',
+        'types',
         'location',
         'google_maps_url',
         'latitude',
@@ -34,7 +41,39 @@ class Vendor extends Model
         'is_active' => 'boolean',
         'latitude' => 'float',
         'longitude' => 'float',
+        'types' => 'array',
     ];
+
+    public static function typeOptions(): array
+    {
+        return [
+            self::TYPE_TRANSPORTATION => ui_phrase('Transportation'),
+            self::TYPE_ISLAND_TRANSFER => ui_phrase('Island Transfer'),
+            self::TYPE_FOOD_BEVERAGE => ui_phrase('F&B'),
+            self::TYPE_ACTIVITIES => ui_phrase('Activities'),
+        ];
+    }
+
+    public function normalizedTypes(): array
+    {
+        $types = is_array($this->types) ? $this->types : [];
+
+        if ($types === [] && filled($this->type)) {
+            $types = [(string) $this->type];
+        }
+
+        return array_values(array_intersect(array_keys(self::typeOptions()), $types));
+    }
+
+    public function typeLabels(): array
+    {
+        $options = self::typeOptions();
+
+        return array_values(array_map(
+            static fn (string $type): string => $options[$type],
+            $this->normalizedTypes()
+        ));
+    }
 
     public function activities()
     {
@@ -63,5 +102,3 @@ class Vendor extends Model
     }
 
 }
-
-

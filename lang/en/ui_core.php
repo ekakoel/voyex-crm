@@ -1418,4 +1418,13 @@ return array (
   ,'Inquiry deadline reminders' => 'Inquiry deadline reminders'
   ,'Inquiry deadline reminder' => 'Inquiry deadline reminder'
   ,'Inquiry :number has no quotation and reaches :deadline_label deadline (:date). Priority: :priority.' => 'Inquiry :number has no quotation and reaches :deadline_label deadline (:date). Priority: :priority.'
+  ,'Vendor Type' => 'Vendor Type'
+  ,'Select Vendor Type' => 'Select Vendor Type'
+  ,'Transportation' => 'Transportation'
+  ,'Transportation Vendors' => 'Transportation Vendors'
+  ,'Island Transfer Vendors' => 'Island Transfer Vendors'
+  ,'F&B Vendors' => 'F&B Vendors'
+  ,'Activities Vendors' => 'Activities Vendors'
+  ,':count of :total filtered vendors' => ':count of :total filtered vendors'
+  ,':active active / :inactive inactive' => ':active active / :inactive inactive'
 );

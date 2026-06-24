@@ -1,5 +1,35 @@
 # VOYEX Refactor Changelog
 
+## 2026-06-24 (Vendor Multi-Type Data Model)
+- Scope: expand Vendors/Providers classification from one stored type to multiple selectable types while preserving backward compatibility.
+- Created migration:
+  - `database/migrations/2026_06_24_121000_add_types_to_vendors_table.php`
+- New vendor field:
+  - `vendors.types` JSON nullable array for multiple vendor capabilities.
+- Compatibility behavior:
+  - existing `vendors.type` remains available as a legacy/fallback single value.
+  - migration backfills `vendors.types` from existing non-empty `vendors.type` values.
+  - create/update writes `vendors.types` and also stores the first selected type into `vendors.type` for older code paths.
+  - `Vendor::normalizedTypes()` falls back to `type` when `types` is empty.
+- Updated files:
+  - `app/Models/Vendor.php`
+  - `app/Http/Controllers/Admin/VendorController.php`
+  - `resources/views/modules/vendors/_form.blade.php`
+  - `resources/views/modules/vendors/index.blade.php`
+  - `database/migrations/2026_06_24_121000_add_types_to_vendors_table.php`
+  - `docs/technical/VOYEX_REFACTOR_CHANGELOG.md`
+  - `docs/technical/VOYEX_UI_REFACTOR_CHANGELOG.md`
+  - `PROJECT_KNOWLEDGE_BASE.md`
+  - `VOYEX_CRM_SYSTEM_ROADMAP.md`
+- Performance notes:
+  - vendor KPI summaries are generated with one aggregate query instead of multiple cloned count queries.
+  - relationship `withCount()` is only applied to the paginated row query that needs service badges.
+- Verification:
+  - `php -l app/Models/Vendor.php`
+  - `php -l app/Http/Controllers/Admin/VendorController.php`
+  - `php -l database/migrations/2026_06_24_121000_add_types_to_vendors_table.php`
+  - `php artisan route:list`
+
 ## 2026-05-21
 - Scope: documentation only.
 - Created/updated files:

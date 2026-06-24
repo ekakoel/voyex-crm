@@ -6,17 +6,25 @@ use App\Http\Controllers\Controller;
 use App\Models\Destination;
 use App\Models\Vendor;
 use App\Support\LocationResolver;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 
 class VendorController extends Controller
 {
+    private const VENDOR_TYPES = [
+        Vendor::TYPE_TRANSPORTATION,
+        Vendor::TYPE_ISLAND_TRANSFER,
+        Vendor::TYPE_FOOD_BEVERAGE,
+        Vendor::TYPE_ACTIVITIES,
+    ];
     public function index(Request $request)
     {
         $validated = $request->validate([
             'status' => ['nullable', Rule::in(['active', 'inactive'])],
             'service_type' => ['nullable', Rule::in(['activities', 'food_beverages', 'transports', 'island_transfers'])],
+            'type' => ['nullable', Rule::in(self::VENDOR_TYPES)],
         ]);
 
         $perPage = (int) $request->integer('per_page', 10);
@@ -27,71 +35,30 @@ class VendorController extends Controller
         $search = trim((string) $request->query('q', ''));
         $status = (string) ($validated['status'] ?? '');
         $serviceType = (string) ($validated['service_type'] ?? '');
+        $vendorType = (string) ($validated['type'] ?? '');
 
-        $baseQuery = Vendor::query()
-            ->withTrashed()
+        $filteredQuery = $this->applyIndexFilters(
+            Vendor::query()->withTrashed(),
+            $search,
+            $status,
+            $serviceType,
+            $vendorType
+        );
+
+        $summaries = $this->buildVendorSummaries($filteredQuery);
+
+        $vendors = (clone $filteredQuery)
             ->with('destination:id,name')
             ->withCount(['activities', 'foodBeverages', 'transports', 'islandTransfers'])
-            ->when(mb_strlen($search) >= 3, function ($query) use ($search) {
-                $query->where(function ($inner) use ($search) {
-                    $inner->where('name', 'like', "%{$search}%")
-                        ->orWhere('location', 'like', "%{$search}%")
-                        ->orWhere('city', 'like', "%{$search}%")
-                        ->orWhere('province', 'like', "%{$search}%")
-                        ->orWhere('contact_name', 'like', "%{$search}%")
-                        ->orWhere('contact_email', 'like', "%{$search}%")
-                        ->orWhere('contact_phone', 'like', "%{$search}%");
-                });
-            })
-            ->when($status !== '', function ($query) use ($status) {
-                if ($status === 'active') {
-                    $query->where('is_active', true)->whereNull('deleted_at');
-                }
-                if ($status === 'inactive') {
-                    $query->where(function ($inactive) {
-                        $inactive->where('is_active', false)->orWhereNotNull('deleted_at');
-                    });
-                }
-            })
-            ->when($serviceType !== '', function ($query) use ($serviceType) {
-                if ($serviceType === 'activities') {
-                    $query->whereHas('activities');
-                }
-                if ($serviceType === 'food_beverages') {
-                    $query->whereHas('foodBeverages');
-                }
-                if ($serviceType === 'transports') {
-                    $query->whereHas('transports');
-                }
-                if ($serviceType === 'island_transfers') {
-                    $query->whereHas('islandTransfers');
-                }
-            });
-
-        $summaryQuery = clone $baseQuery;
-        $summaries = [
-            'total' => (clone $summaryQuery)->count(),
-            'active' => (clone $summaryQuery)->where('is_active', true)->whereNull('deleted_at')->count(),
-            'inactive' => (clone $summaryQuery)->where(function ($inactive) {
-                $inactive->where('is_active', false)->orWhereNotNull('deleted_at');
-            })->count(),
-            'with_services' => (clone $summaryQuery)
-                ->where(function ($q) {
-                    $q->whereHas('activities')
-                        ->orWhereHas('foodBeverages')
-                        ->orWhereHas('transports')
-                        ->orWhereHas('islandTransfers');
-                })->count(),
-        ];
-
-        $vendors = $baseQuery
             ->orderBy('name')
             ->paginate($perPage)
             ->withQueryString();
 
         $vendorRows = $this->buildVendorIndexRows($vendors);
 
-        return view('modules.vendors.index', compact('vendors', 'summaries', 'vendorRows'));
+        $vendorTypeOptions = Vendor::typeOptions();
+
+        return view('modules.vendors.index', compact('vendors', 'summaries', 'vendorRows', 'vendorTypeOptions'));
     }
 
     public function create()
@@ -101,7 +68,9 @@ class VendorController extends Controller
             ->orderBy('name')
             ->get(['id', 'name', 'city', 'province']);
 
-        return view('modules.vendors.create', compact('destinations'));
+        $vendorTypeOptions = Vendor::typeOptions();
+
+        return view('modules.vendors.create', compact('destinations', 'vendorTypeOptions'));
     }
 
     public function store(Request $request, LocationResolver $locationResolver)
@@ -114,6 +83,8 @@ class VendorController extends Controller
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
+            'types' => ['required', 'array', 'min:1'],
+            'types.*' => ['required', Rule::in(self::VENDOR_TYPES)],
             'location' => ['nullable', 'string', 'max:255'],
             'google_maps_url' => ['nullable', 'url', 'max:5000'],
             'latitude' => ['required', 'numeric', 'between:-90,90'],
@@ -130,6 +101,8 @@ class VendorController extends Controller
             'address' => ['nullable', 'string'],
             'is_active' => ['nullable', 'boolean'],
         ]);
+        $validated['types'] = $this->normalizeVendorTypes($validated['types'] ?? []);
+        $validated['type'] = $validated['types'][0] ?? null;
         $validated['is_active'] = $request->boolean('is_active');
         $locationResolver->enrichFromGoogleMapsUrl($validated);
         $this->applyDestinationContext($validated);
@@ -153,7 +126,9 @@ class VendorController extends Controller
             ->orderBy('name')
             ->get(['id', 'name', 'city', 'province']);
 
-        return view('modules.vendors.edit', compact('vendor', 'destinations'));
+        $vendorTypeOptions = Vendor::typeOptions();
+
+        return view('modules.vendors.edit', compact('vendor', 'destinations', 'vendorTypeOptions'));
     }
 
     public function update(Request $request, Vendor $vendor, LocationResolver $locationResolver)
@@ -166,6 +141,8 @@ class VendorController extends Controller
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
+            'types' => ['required', 'array', 'min:1'],
+            'types.*' => ['required', Rule::in(self::VENDOR_TYPES)],
             'location' => ['nullable', 'string', 'max:255'],
             'google_maps_url' => ['nullable', 'url', 'max:5000'],
             'latitude' => ['required', 'numeric', 'between:-90,90'],
@@ -182,6 +159,8 @@ class VendorController extends Controller
             'address' => ['nullable', 'string'],
             'is_active' => ['nullable', 'boolean'],
         ]);
+        $validated['types'] = $this->normalizeVendorTypes($validated['types'] ?? []);
+        $validated['type'] = $validated['types'][0] ?? null;
         $validated['is_active'] = $request->boolean('is_active');
         $locationResolver->enrichFromGoogleMapsUrl($validated);
         $this->applyDestinationContext($validated);
@@ -271,6 +250,112 @@ class VendorController extends Controller
         return $filtered;
     }
 
+    private function applyIndexFilters(
+        Builder $query,
+        string $search,
+        string $status,
+        string $serviceType,
+        string $vendorType
+    ): Builder {
+        return $query
+            ->when(mb_strlen($search) >= 3, function (Builder $query) use ($search) {
+                $query->where(function (Builder $inner) use ($search) {
+                    $inner->where('name', 'like', "%{$search}%")
+                        ->orWhere('location', 'like', "%{$search}%")
+                        ->orWhere('city', 'like', "%{$search}%")
+                        ->orWhere('province', 'like', "%{$search}%")
+                        ->orWhere('contact_name', 'like', "%{$search}%")
+                        ->orWhere('contact_email', 'like', "%{$search}%")
+                        ->orWhere('contact_phone', 'like', "%{$search}%");
+                });
+            })
+            ->when($status !== '', function (Builder $query) use ($status) {
+                if ($status === 'active') {
+                    $query->where('is_active', true)->whereNull('deleted_at');
+                }
+
+                if ($status === 'inactive') {
+                    $query->where(function (Builder $inactive) {
+                        $inactive->where('is_active', false)->orWhereNotNull('deleted_at');
+                    });
+                }
+            })
+            ->when($serviceType !== '', function (Builder $query) use ($serviceType) {
+                if ($serviceType === 'activities') {
+                    $query->whereHas('activities');
+                }
+
+                if ($serviceType === 'food_beverages') {
+                    $query->whereHas('foodBeverages');
+                }
+
+                if ($serviceType === 'transports') {
+                    $query->whereHas('transports');
+                }
+
+                if ($serviceType === 'island_transfers') {
+                    $query->whereHas('islandTransfers');
+                }
+            })
+            ->when($vendorType !== '', function (Builder $query) use ($vendorType) {
+                $this->whereVendorHasType($query, $vendorType);
+            });
+    }
+
+    private function buildVendorSummaries(Builder $query): array
+    {
+        $summary = (clone $query)
+            ->selectRaw('COUNT(*) as total')
+            ->selectRaw('SUM(CASE WHEN is_active = 1 AND deleted_at IS NULL THEN 1 ELSE 0 END) as active_total')
+            ->selectRaw('SUM(CASE WHEN is_active = 0 OR deleted_at IS NOT NULL THEN 1 ELSE 0 END) as inactive_total')
+            ->selectRaw(
+                'SUM(CASE WHEN type = ? OR types LIKE ? THEN 1 ELSE 0 END) as transportation_total',
+                [Vendor::TYPE_TRANSPORTATION, $this->vendorTypeLikePattern(Vendor::TYPE_TRANSPORTATION)]
+            )
+            ->selectRaw(
+                'SUM(CASE WHEN type = ? OR types LIKE ? THEN 1 ELSE 0 END) as island_transfer_total',
+                [Vendor::TYPE_ISLAND_TRANSFER, $this->vendorTypeLikePattern(Vendor::TYPE_ISLAND_TRANSFER)]
+            )
+            ->selectRaw(
+                'SUM(CASE WHEN type = ? OR types LIKE ? THEN 1 ELSE 0 END) as food_beverage_total',
+                [Vendor::TYPE_FOOD_BEVERAGE, $this->vendorTypeLikePattern(Vendor::TYPE_FOOD_BEVERAGE)]
+            )
+            ->selectRaw(
+                'SUM(CASE WHEN type = ? OR types LIKE ? THEN 1 ELSE 0 END) as activities_total',
+                [Vendor::TYPE_ACTIVITIES, $this->vendorTypeLikePattern(Vendor::TYPE_ACTIVITIES)]
+            )
+            ->first();
+
+        return [
+            'total' => (int) ($summary->total ?? 0),
+            'active' => (int) ($summary->active_total ?? 0),
+            'inactive' => (int) ($summary->inactive_total ?? 0),
+            'transportation' => (int) ($summary->transportation_total ?? 0),
+            'island_transfer' => (int) ($summary->island_transfer_total ?? 0),
+            'food_beverage' => (int) ($summary->food_beverage_total ?? 0),
+            'activities' => (int) ($summary->activities_total ?? 0),
+        ];
+    }
+
+    private function normalizeVendorTypes(array $types): array
+    {
+        return array_values(array_intersect(self::VENDOR_TYPES, array_unique($types)));
+    }
+
+    private function whereVendorHasType(Builder $query, string $vendorType): void
+    {
+        $query->where(function (Builder $typeQuery) use ($vendorType) {
+            $typeQuery
+                ->where('type', $vendorType)
+                ->orWhere('types', 'like', $this->vendorTypeLikePattern($vendorType));
+        });
+    }
+
+    private function vendorTypeLikePattern(string $vendorType): string
+    {
+        return '%"' . $vendorType . '"%';
+    }
+
     private function buildVendorIndexRows($vendors): array
     {
         return $vendors->getCollection()
@@ -304,12 +389,15 @@ class VendorController extends Controller
                 ));
                 $serviceCount = array_sum(array_column($filteredServiceBadges, 'value'));
                 $isActive = (bool) ($vendor->is_active ?? false);
+                $typeLabels = $vendor->typeLabels();
 
                 return [
                     'vendor' => $vendor,
                     'name' => (string) ($vendor->name ?? '-'),
                     'destination_name' => (string) ($vendor->destination?->name ?? '-'),
-                    'vendor_type' => $serviceCount > 0 ? ui_phrase('Service Provider') : ui_phrase('General'),
+                    'vendor_type' => $typeLabels !== []
+                        ? implode(', ', $typeLabels)
+                        : ($serviceCount > 0 ? ui_phrase('Service Provider') : ui_phrase('General')),
                     'contact_name' => (string) ($vendor->contact_name ?? '-'),
                     'contact_phone' => (string) ($vendor->contact_phone ?? '-'),
                     'contact_email' => (string) ($vendor->contact_email ?? '-'),

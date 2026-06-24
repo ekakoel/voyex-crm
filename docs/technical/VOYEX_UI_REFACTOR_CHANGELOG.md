@@ -1,5 +1,37 @@
 # VOYEX UI Refactor Changelog
 
+## 2026-06-24 (Vendor Multi-Type Form + KPI Refinement)
+- Scope: update Vendors/Providers create/edit/index UI after vendor type was expanded from single-select to multi-select.
+- Updated files:
+  - app/Http/Controllers/Admin/VendorController.php
+  - app/Models/Vendor.php
+  - resources/views/modules/vendors/_form.blade.php
+  - resources/views/modules/vendors/index.blade.php
+  - lang/en/ui_core.php
+  - lang/zh_Hant/ui_core.php
+  - lang/zh_Hans/ui_core.php
+  - docs/technical/VOYEX_UI_REFACTOR_CHANGELOG.md
+  - docs/technical/VOYEX_REFACTOR_CHANGELOG.md
+  - PROJECT_KNOWLEDGE_BASE.md
+  - VOYEX_CRM_SYSTEM_ROADMAP.md
+- Applied updates:
+  - replaced the create/edit vendor type dropdown with checkbox inputs named `types[]`.
+  - allowed one vendor/provider to be categorized under multiple business capabilities: `Transportation`, `Island Transfer`, `F&B`, and `Activities`.
+  - updated vendor index row presentation so multiple selected type labels render as a comma-separated summary.
+  - kept the index type filter as a single-select filter, matching vendors that contain the selected type in their multi-type list.
+  - refactored vendor KPI cards to show informative type distribution instead of duplicated total/active/inactive cards.
+  - moved vendor index filtering and KPI summary logic into controller helper methods so Blade remains presentation-focused.
+  - preserved the controller-first row payload pattern for desktop and mobile vendor index layouts.
+- Mandatory audit result:
+  - multi-language: new labels and KPI descriptions use `ui_phrase(...)`; phrase keys were added to all active `ui_core.php` locale files.
+  - multi-currency: vendors index does not display money values (N/A, no regression).
+  - dark/light mode: checkbox group and KPI cards use existing theme-compatible utility classes.
+- Verification:
+  - `php -l app/Models/Vendor.php`
+  - `php -l app/Http/Controllers/Admin/VendorController.php`
+  - `php -l database/migrations/2026_06_24_121000_add_types_to_vendors_table.php`
+  - `php artisan route:list`
+
 ## 2026-06-22 (F&B Tea Time Meal Period Support)
 - Scope: add `Tea Time` as a first-class F&B meal period across master data, itinerary planner, itinerary detail, and quotation validation views.
 - Updated files:

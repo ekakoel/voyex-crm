@@ -1,5 +1,6 @@
 @extends('layouts.master')
 @php($canManageActivationActions = auth()->user()?->canManageActivationActions() === true)
+@php($vendorTypeOptions = $vendorTypeOptions ?? [])
 
 @section('page_title', ui_phrase('Vendors / Providers'))
 @section('page_subtitle', ui_phrase('Centralized provider records for services, vouchers, and operational workflow.'))
@@ -11,10 +12,22 @@
     <div class="space-y-5 module-page module-page--vendors" data-service-filter-page data-page-spinner="off">
         <div class="module-grid-main">
             <div class="grid grid-cols-2 gap-3 md:grid-cols-2 xl:grid-cols-4">
-                <x-ui.metric-card :title="ui_phrase('Total Vendors')" :value="(string) ($summaries['total'] ?? 0)" />
-                <x-ui.metric-card :title="ui_phrase('Active Vendors')" :value="(string) ($summaries['active'] ?? 0)" />
-                <x-ui.metric-card :title="ui_phrase('Inactive Vendors')" :value="(string) ($summaries['inactive'] ?? 0)" />
-                <x-ui.metric-card :title="ui_phrase('Vendors With Services')" :value="(string) ($summaries['with_services'] ?? 0)" />
+                <x-ui.metric-card
+                    :title="ui_phrase('Transportation Vendors')"
+                    :value="(string) ($summaries['transportation'] ?? 0)"
+                    :description="ui_phrase(':count of :total filtered vendors', ['count' => (string) ($summaries['transportation'] ?? 0), 'total' => (string) ($summaries['total'] ?? 0)])" />
+                <x-ui.metric-card
+                    :title="ui_phrase('Island Transfer Vendors')"
+                    :value="(string) ($summaries['island_transfer'] ?? 0)"
+                    :description="ui_phrase(':count of :total filtered vendors', ['count' => (string) ($summaries['island_transfer'] ?? 0), 'total' => (string) ($summaries['total'] ?? 0)])" />
+                <x-ui.metric-card
+                    :title="ui_phrase('F&B Vendors')"
+                    :value="(string) ($summaries['food_beverage'] ?? 0)"
+                    :description="ui_phrase(':count of :total filtered vendors', ['count' => (string) ($summaries['food_beverage'] ?? 0), 'total' => (string) ($summaries['total'] ?? 0)])" />
+                <x-ui.metric-card
+                    :title="ui_phrase('Activities Vendors')"
+                    :value="(string) ($summaries['activities'] ?? 0)"
+                    :description="ui_phrase(':active active / :inactive inactive', ['active' => (string) ($summaries['active'] ?? 0), 'inactive' => (string) ($summaries['inactive'] ?? 0)])" />
             </div>
             <div class="app-card p-4">
                 <form method="GET" action="{{ route('vendors.index') }}"
@@ -22,13 +35,18 @@
                     data-disable-submit-lock="1" data-page-spinner="off">
                     <input name="q" value="{{ request('q') }}" placeholder="{{ ui_phrase('Search') }}"
                         class="app-input sm:col-span-2 lg:col-span-2" data-service-filter-input data-filter-min-text="3">
+                    <select name="type" class="app-input" data-service-filter-input>
+                        <option value="">{{ ui_phrase('Vendor Type') }}</option>
+                        @foreach ($vendorTypeOptions as $value => $label)
+                            <option value="{{ $value }}" @selected(request('type') === $value)>{{ $label }}</option>
+                        @endforeach
+                    </select>
                     <select name="service_type" class="app-input" data-service-filter-input>
                         <option value="">{{ ui_phrase('Service Type') }}</option>
                         <option value="activities" @selected(request('service_type') === 'activities')>{{ ui_phrase('Activities') }}</option>
                         <option value="food_beverages" @selected(request('service_type') === 'food_beverages')>{{ ui_phrase('Food & Beverage') }}</option>
                         <option value="transports" @selected(request('service_type') === 'transports')>{{ ui_phrase('Transports') }}</option>
-                        <option value="island_transfers" @selected(request('service_type') === 'island_transfers')>{{ ui_phrase('Island Transfers') }}
-                        </option>
+                        <option value="island_transfers" @selected(request('service_type') === 'island_transfers')>{{ ui_phrase('Island Transfers') }}</option>
                     </select>
                     <select name="status" class="app-input" data-service-filter-input>
                         <option value="">{{ ui_phrase('Status') }}</option>
@@ -55,30 +73,14 @@
                         <table class="app-table w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">
                             <thead class="table-header">
                                 <tr>
-                                    <th
-                                        class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white dark:text-gray-300">
-                                        {{ ui_phrase('Vendor Name') }}</th>
-                                    <th
-                                        class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white dark:text-gray-300">
-                                        {{ ui_phrase('Type') }}</th>
-                                    <th
-                                        class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white dark:text-gray-300">
-                                        {{ ui_phrase('Contact Person') }}</th>
-                                    <th
-                                        class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white dark:text-gray-300">
-                                        {{ ui_phrase('Phone') }}</th>
-                                    <th
-                                        class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white dark:text-gray-300">
-                                        {{ ui_phrase('Email') }}</th>
-                                    <th
-                                        class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white dark:text-gray-300">
-                                        {{ ui_phrase('Service Count') }}</th>
-                                    <th
-                                        class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white dark:text-gray-300">
-                                        {{ ui_phrase('Status') }}</th>
-                                    <th
-                                        class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-white dark:text-gray-300 actions-compact">
-                                        {{ ui_phrase('Actions') }}</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white dark:text-gray-300">{{ ui_phrase('Vendor Name') }}</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white dark:text-gray-300">{{ ui_phrase('Type') }}</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white dark:text-gray-300">{{ ui_phrase('Contact Person') }}</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white dark:text-gray-300">{{ ui_phrase('Phone') }}</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white dark:text-gray-300">{{ ui_phrase('Email') }}</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white dark:text-gray-300">{{ ui_phrase('Service Count') }}</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white dark:text-gray-300">{{ ui_phrase('Status') }}</th>
+                                    <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-white dark:text-gray-300 actions-compact">{{ ui_phrase('Actions') }}</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
@@ -96,8 +98,7 @@
                                         <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">
                                             <div class="grid max-w-[220px] grid-cols-2 gap-1">
                                                 @foreach ($row['service_badges'] as $badge)
-                                                    <span
-                                                        class="inline-flex items-center justify-between rounded-md border py-[2px] px-[4px] text-[10px] font-semibold leading-none {{ $badge['class'] }}">
+                                                    <span class="inline-flex items-center justify-between rounded-md border py-[2px] px-[4px] text-[10px] font-semibold leading-none {{ $badge['class'] }}">
                                                         <span>{{ $badge['label'] }}</span>
                                                         <span class="ml-1 rounded-sm bg-white/70 px-1 py-[1px] text-[9px] font-bold dark:bg-slate-950/30">
                                                             {{ $badge['value'] }}
@@ -106,8 +107,7 @@
                                                 @endforeach
                                             </div>
                                         </td>
-                                        <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200"><x-ui.status-badge :status="$row['status_key']"
-                                                size="xs" /></td>
+                                        <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200"><x-ui.status-badge :status="$row['status_key']" size="xs" /></td>
                                         <td class="px-4 py-3 text-right text-sm actions-compact">
                                             <x-ui.table-action-dropdown :label="ui_phrase('Actions')">
                                                 <a href="{{ route('vendors.edit', $vendor) }}"
@@ -119,8 +119,8 @@
                                                 <div class="my-1 border-t border-gray-200 dark:border-gray-700"></div>
                                                 <x-ui.confirm-action :action="route('vendors.toggle-status', $vendor)" method="PATCH" :modal-name="'vendors-index-toggle-' . $vendor->id" :title="$row['toggle_title']"
                                                     :message="$row['toggle_message']" :impact-title="__('confirm.what_will_happen')" :impact-items="[$row['toggle_impact']]"
-                                                    :notice-message="__('confirm.notification_after_action')"
-                                                    :confirm-label="$row['toggle_label']" :trigger-label="$row['toggle_label']" :trigger-icon="$row['toggle_icon']" :trigger-class="$row['toggle_class']"
+                                                    :notice-message="__('confirm.notification_after_action')" :confirm-label="$row['toggle_label']" :trigger-label="$row['toggle_label']" :trigger-icon="$row['toggle_icon']"
+                                                    :trigger-class="$row['toggle_class']"
                                                     confirm-class="btn-primary-sm" />
                                                 @endif
                                             </x-ui.table-action-dropdown>
@@ -129,7 +129,7 @@
                                 @empty
                                     <tr>
                                         <td colspan="8" class="px-4 py-6">
-                                            <x-ui.empty-state :title="ui_phrase('No vendors found.')" :description="ui_phrase('Create a new vendor/provider or adjust your filters.')" />
+                                            <x-module-empty-state :title="ui_phrase('No vendors found.')" :message="ui_phrase('Create a new vendor/provider or adjust your filters.')" />
                                         </td>
                                     </tr>
                                 @endforelse
@@ -137,7 +137,8 @@
                         </table>
                     </div>
                 </div>
-                <div class="md:hidden space-y-3">
+
+                <div class="grid gap-3 md:hidden">
                     @forelse ($vendorRows as $row)
                         @php($vendor = $row['vendor'])
                         <div class="app-card relative p-4 pt-5">

@@ -1433,4 +1433,13 @@ return array (
   ,'Inquiry deadline reminders' => 'Inquiry deadline reminders'
   ,'Inquiry deadline reminder' => 'Inquiry deadline reminder'
   ,'Inquiry :number has no quotation and reaches :deadline_label deadline (:date). Priority: :priority.' => 'Inquiry :number has no quotation and reaches :deadline_label deadline (:date). Priority: :priority.'
+  ,'Vendor Type' => '供應商類型'
+  ,'Select Vendor Type' => '選擇供應商類型'
+  ,'Transportation' => '交通'
+  ,'Transportation Vendors' => '交通供應商'
+  ,'Island Transfer Vendors' => '海島接送供應商'
+  ,'F&B Vendors' => '餐飲供應商'
+  ,'Activities Vendors' => '活動供應商'
+  ,':count of :total filtered vendors' => '已篩選供應商共 :total 筆，其中 :count 筆'
+  ,':active active / :inactive inactive' => ':active 啟用 / :inactive 停用'
 );
