@@ -45,6 +45,8 @@ class ItineraryController extends Controller
 {
     use HandlesActivityTimelineAjax;
 
+    private array $pdfImageDataUriCache = [];
+
     public function __construct(
         private readonly ActivityAuditLogger $activityAuditLogger,
         private readonly ItineraryHotelSummaryService $itineraryHotelSummaryService,
@@ -691,7 +693,10 @@ class ItineraryController extends Controller
             ->orderBy('name')
             ->get(['id', 'vendor_id', 'name', 'activity_type', 'duration_minutes', 'adult_publish_rate', 'child_publish_rate']);
         $islandTransfers = IslandTransfer::query()
-            ->with('vendor:id,name,city,province,location,latitude,longitude')
+            ->with([
+                'vendor:id,name,city,province,location,latitude,longitude,destination_id',
+                'vendor.destination:id,name,city,province',
+            ])
             ->where('is_active', true)
             ->orderBy('name')
             ->get([
@@ -710,7 +715,10 @@ class ItineraryController extends Controller
                 'gallery_images',
             ]);
         $foodBeverages = FoodBeverage::query()
-            ->with('vendor:id,name,city,province,location,latitude,longitude')
+            ->with([
+                'vendor:id,name,city,province,location,latitude,longitude,destination_id',
+                'vendor.destination:id,name,city,province',
+            ])
             ->where('is_active', true)
             ->orderBy('name')
             ->get(['id', 'vendor_id', 'name', 'service_type', 'duration_minutes', 'adult_publish_rate', 'child_publish_rate', 'publish_rate', 'meal_period', 'notes', 'menu_highlights']);
@@ -1240,7 +1248,10 @@ class ItineraryController extends Controller
             ->orderBy('name')
             ->get(['id', 'vendor_id', 'name', 'activity_type', 'duration_minutes', 'adult_publish_rate', 'child_publish_rate']);
         $islandTransfers = IslandTransfer::query()
-            ->with('vendor:id,name,city,province,location,latitude,longitude')
+            ->with([
+                'vendor:id,name,city,province,location,latitude,longitude,destination_id',
+                'vendor.destination:id,name,city,province',
+            ])
             ->where('is_active', true)
             ->orderBy('name')
             ->get([
@@ -1259,7 +1270,10 @@ class ItineraryController extends Controller
                 'gallery_images',
             ]);
         $foodBeverages = FoodBeverage::query()
-            ->with('vendor:id,name,city,province,location,latitude,longitude')
+            ->with([
+                'vendor:id,name,city,province,location,latitude,longitude,destination_id',
+                'vendor.destination:id,name,city,province',
+            ])
             ->where('is_active', true)
             ->orderBy('name')
             ->get(['id', 'vendor_id', 'name', 'service_type', 'duration_minutes', 'adult_publish_rate', 'child_publish_rate', 'publish_rate', 'meal_period', 'notes', 'menu_highlights']);
@@ -1319,14 +1333,12 @@ class ItineraryController extends Controller
     {
         $validated = $request->validate([
             'q' => ['nullable', 'string', 'max:100'],
-            'limit' => ['nullable', 'integer', 'min:5', 'max:50'],
         ]);
 
         $keyword = trim((string) ($validated['q'] ?? ''));
-        $limit = (int) ($validated['limit'] ?? 12);
 
         return response()->json([
-            'data' => $this->buildDestinationOptions($keyword, $limit),
+            'data' => $this->buildDestinationOptions($keyword),
         ]);
     }
 
@@ -1414,16 +1426,14 @@ class ItineraryController extends Controller
             'q' => ['nullable', 'string', 'max:100'],
             'destination' => ['nullable', 'string', 'max:100'],
             'region' => ['nullable', 'string', 'max:100'],
-            'limit' => ['nullable', 'integer', 'min:5', 'max:50'],
         ]);
 
         $keyword = trim((string) ($validated['q'] ?? ''));
         $destination = trim((string) ($validated['destination'] ?? ''));
         $region = trim((string) ($validated['region'] ?? ''));
-        $limit = (int) ($validated['limit'] ?? 12);
 
         return response()->json([
-            'data' => $this->buildActivitySuggestionOptions($keyword, $destination, $region, $limit),
+            'data' => $this->buildActivitySuggestionOptions($keyword, $destination, $region),
         ]);
     }
 
@@ -1500,16 +1510,14 @@ class ItineraryController extends Controller
             'q' => ['nullable', 'string', 'max:100'],
             'destination' => ['nullable', 'string', 'max:100'],
             'region' => ['nullable', 'string', 'max:100'],
-            'limit' => ['nullable', 'integer', 'min:5', 'max:50'],
         ]);
 
         $keyword = trim((string) ($validated['q'] ?? ''));
         $destination = trim((string) ($validated['destination'] ?? ''));
         $region = trim((string) ($validated['region'] ?? ''));
-        $limit = (int) ($validated['limit'] ?? 12);
 
         return response()->json([
-            'data' => $this->buildTouristAttractionSuggestionOptions($keyword, $destination, $region, $limit),
+            'data' => $this->buildTouristAttractionSuggestionOptions($keyword, $destination, $region),
         ]);
     }
 
@@ -1594,17 +1602,15 @@ class ItineraryController extends Controller
             'destination' => ['nullable', 'string', 'max:100'],
             'region' => ['nullable', 'string', 'max:100'],
             'meal_slot' => ['nullable', 'string', Rule::in(array_merge([''], FoodBeverage::mealPeriodKeys()))],
-            'limit' => ['nullable', 'integer', 'min:5', 'max:50'],
         ]);
 
         $keyword = trim((string) ($validated['q'] ?? ''));
         $destination = trim((string) ($validated['destination'] ?? ''));
         $region = trim((string) ($validated['region'] ?? ''));
         $mealSlot = trim((string) ($validated['meal_slot'] ?? ''));
-        $limit = (int) ($validated['limit'] ?? 12);
 
         return response()->json([
-            'data' => $this->buildFoodBeverageSuggestionOptions($keyword, $destination, $region, $limit, $mealSlot),
+            'data' => $this->buildFoodBeverageSuggestionOptions($keyword, $destination, $region, $mealSlot),
         ]);
     }
 
@@ -1742,6 +1748,7 @@ class ItineraryController extends Controller
         $previousLocale = app()->getLocale();
         app()->setLocale($pdfLocale);
         $pdfFontConfig = $this->resolvePdfFontConfig($pdfLocale);
+        $this->pdfImageDataUriCache = [];
 
         try {
         $itinerary->load([
@@ -2139,9 +2146,43 @@ class ItineraryController extends Controller
             $previousEndPoint = $endPoint;
         }
 
+        $durationDays = max(0, (int) ($itinerary->duration_days ?? 0));
+        $durationNights = max(0, (int) ($itinerary->duration_nights ?? 0));
+        $pdfMeta = [
+            'title' => trim((string) ($itinerary->title ?? '')) !== '' ? (string) $itinerary->title : ui_phrase('Untitled Itinerary'),
+            'order_number' => trim((string) ($itinerary->order_number ?? '')),
+            'destination' => trim((string) ($itinerary->destination ?? '')) !== '' ? (string) $itinerary->destination : '-',
+            'duration' => $durationDays > 0
+                ? ($durationDays . 'D' . ($durationNights > 0 ? '/' . $durationNights . 'N' : ''))
+                : '-',
+            'generated_at' => \App\Support\DateTimeDisplay::datetime(now()),
+            'total_days' => count($scheduleByDay),
+            'total_schedule_items' => collect($scheduleByDay)->sum(function (array $day): int {
+                $rows = $day['pdf_rows'] ?? collect();
+                if (! $rows instanceof Collection) {
+                    $rows = collect($rows);
+                }
+
+                return $rows->filter(fn (array $row): bool => ($row['row_type'] ?? 'item') === 'item')->count();
+            }),
+            'total_transport_units' => collect($scheduleByDay)->sum(fn (array $day): int => count($day['transport_units'] ?? [])),
+        ];
+
+        $overviewHtml = \App\Support\SafeRichText::sanitize((string) ($itinerary->description ?? ''));
+        $tourHighlightsHtml = \App\Support\SafeRichText::sanitize((string) ($itinerary->tour_highlights ?? ''));
+        $itineraryIncludeHtml = \App\Support\SafeRichText::sanitize((string) ($itinerary->itinerary_include ?? ''));
+        $itineraryExcludeHtml = \App\Support\SafeRichText::sanitize((string) ($itinerary->itinerary_exclude ?? ''));
+        $itineraryTermConditionsHtml = \App\Support\SafeRichText::sanitize((string) ($itinerary->term_conditions ?? ''));
+
         $pdf = Pdf::loadView('pdf.itinerary', [
             'itinerary' => $itinerary,
             'scheduleByDay' => $scheduleByDay,
+            'pdfMeta' => $pdfMeta,
+            'overviewHtml' => $overviewHtml,
+            'tourHighlightsHtml' => $tourHighlightsHtml,
+            'itineraryIncludeHtml' => $itineraryIncludeHtml,
+            'itineraryExcludeHtml' => $itineraryExcludeHtml,
+            'itineraryTermConditionsHtml' => $itineraryTermConditionsHtml,
             'companyName' => (string) config('app.name', 'Voyex CRM'),
             'companyTagline' => (string) env('COMPANY_TAGLINE', 'Travel Itinerary & Experience Planner'),
             'companyLogoDataUri' => $this->resolveCompanyLogoDataUri(),
@@ -2284,12 +2325,20 @@ class ItineraryController extends Controller
 
     private function resolveStorageImageDataUri(string $path): ?string
     {
+        if (array_key_exists($path, $this->pdfImageDataUriCache)) {
+            return $this->pdfImageDataUriCache[$path];
+        }
+
         $storage = Storage::disk('public');
         if (! $storage->exists($path)) {
+            $this->pdfImageDataUriCache[$path] = null;
+
             return null;
         }
         $binary = $storage->get($path);
         if ($binary === '') {
+            $this->pdfImageDataUriCache[$path] = null;
+
             return null;
         }
 
@@ -2302,7 +2351,9 @@ class ItineraryController extends Controller
             default => 'application/octet-stream',
         };
 
-        return 'data:' . $mime . ';base64,' . base64_encode($binary);
+        $this->pdfImageDataUriCache[$path] = 'data:' . $mime . ';base64,' . base64_encode($binary);
+
+        return $this->pdfImageDataUriCache[$path];
     }
 
     private function resolveCompanyLogoDataUri(): string
@@ -4135,49 +4186,27 @@ SVG;
     /**
      * @return array<int, string>
      */
-    private function buildDestinationOptions(string $keyword = '', int $limit = 12): array
+    private function buildDestinationOptions(string $keyword = ''): array
     {
         $keyword = trim($keyword);
-        $fromMasterDestination = Destination::query()
-            ->select('province')
-            ->where('is_active', true)
-            ->whereNotNull('province')
-            ->where('province', '!=', '')
-            ->when($keyword !== '', fn ($q) => $q->where('province', 'like', '%' . $keyword . '%'))
-            ->orderBy('province')
-            ->limit($limit)
-            ->pluck('province');
 
-        $sources = [
-            [TouristAttraction::class, 'province'],
-            [Airport::class, 'province'],
-            [Vendor::class, 'province'],
-        ];
-
-        $items = collect($fromMasterDestination);
-        foreach ($sources as [$model, $column]) {
-            $query = $model::query()
-                ->select($column)
-                ->whereNotNull($column)
-                ->where($column, '!=', '');
-            if ($keyword !== '') {
-                $query->where($column, 'like', '%' . $keyword . '%');
-            }
-            $items = $items->merge(
-                $query->distinct()
-                    ->orderBy($column)
-                    ->limit($limit)
-                    ->pluck($column)
-            );
-        }
-
-        return $items
+        return Destination::query()
+            ->whereNotNull('name')
+            ->where('name', '!=', '')
+            ->when($keyword !== '', function ($query) use ($keyword): void {
+                $query->where(function ($inner) use ($keyword): void {
+                    $inner->where('name', 'like', '%' . $keyword . '%')
+                        ->orWhere('city', 'like', '%' . $keyword . '%')
+                        ->orWhere('province', 'like', '%' . $keyword . '%');
+                });
+            })
+            ->orderBy('name')
+            ->pluck('name')
             ->map(fn ($value) => trim((string) $value))
             ->filter(fn ($value) => $value !== '')
             ->map(fn ($value) => preg_replace('/\s+/', ' ', $value))
             ->unique(fn ($value) => mb_strtolower((string) $value))
             ->sort()
-            ->take($limit)
             ->values()
             ->all();
     }
@@ -4360,7 +4389,7 @@ SVG;
     /**
      * @return array<int, array<string, mixed>>
      */
-    private function buildActivitySuggestionOptions(string $keyword = '', string $destination = '', string $region = '', int $limit = 12): array
+    private function buildActivitySuggestionOptions(string $keyword = '', string $destination = '', string $region = ''): array
     {
         $keyword = trim((string) $keyword);
         $destination = trim((string) $destination);
@@ -4406,7 +4435,6 @@ SVG;
 
         return $query
             ->orderBy('name')
-            ->limit(max(5, min(50, $limit)))
             ->get(['id', 'vendor_id', 'name', 'duration_minutes'])
             ->map(fn (Activity $activity) => $this->formatActivitySuggestionItem($activity))
             ->values()
@@ -4416,7 +4444,7 @@ SVG;
     /**
      * @return array<int, array<string, mixed>>
      */
-    private function buildTouristAttractionSuggestionOptions(string $keyword = '', string $destination = '', string $region = '', int $limit = 12): array
+    private function buildTouristAttractionSuggestionOptions(string $keyword = '', string $destination = '', string $region = ''): array
     {
         $keyword = trim((string) $keyword);
         $destination = trim((string) $destination);
@@ -4457,7 +4485,6 @@ SVG;
 
         return $query
             ->orderBy('name')
-            ->limit(max(5, min(50, $limit)))
             ->get(['id', 'name', 'destination_id', 'city', 'province', 'location', 'source', 'latitude', 'longitude', 'ideal_visit_minutes'])
             ->map(fn (TouristAttraction $attraction) => $this->formatTouristAttractionSuggestionItem($attraction))
             ->values()
@@ -4467,7 +4494,7 @@ SVG;
     /**
      * @return array<int, array<string, mixed>>
      */
-    private function buildFoodBeverageSuggestionOptions(string $keyword = '', string $destination = '', string $region = '', int $limit = 12, string $mealSlot = ''): array
+    private function buildFoodBeverageSuggestionOptions(string $keyword = '', string $destination = '', string $region = '', string $mealSlot = ''): array
     {
         $keyword = trim((string) $keyword);
         $destination = trim((string) $destination);
@@ -4522,7 +4549,6 @@ SVG;
 
         return $query
             ->orderBy('name')
-            ->limit(max(5, min(50, $limit)))
             ->get(['id', 'vendor_id', 'name', 'duration_minutes', 'meal_period'])
             ->map(fn (FoodBeverage $foodBeverage) => $this->formatFoodBeverageSuggestionItem($foodBeverage))
             ->values()

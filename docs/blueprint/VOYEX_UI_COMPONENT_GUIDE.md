@@ -190,11 +190,12 @@ Contoh baseline:
 - Pertahankan query param dan atribut AJAX/filter existing (`data-service-filter-*`) saat merapikan layout.
 
 ## Main Baseline Filter Standard (Required)
-- Baseline utama seluruh index filter: `Inquiries` (`resources/views/modules/inquiries/index.blade.php`).
+- Baseline utama seluruh index page: `Customers / Agents` (`resources/views/modules/customers/index.blade.php`).
 - Aturan wajib implementasi lintas modul:
-  - satu filter card utama,
+  - urutan halaman: KPI/Summary Cards jika relevan -> satu filter card utama -> data table/card list -> pagination/empty state,
   - halaman index modul tidak memakai sidebar; semua card pendukung harus dipindahkan ke area utama,
   - filter card harus tetap visible pada mobile/tablet, tidak boleh dibungkus `hidden md:block`,
+  - pada desktop, filter input utama harus disusun sebagai satu baris horizontal selama jumlah field masih wajar,
   - hasil data harus menyediakan dual presentation: table untuk desktop dan card/list untuk mobile,
   - tanpa card di dalam card pada area filter,
   - input control mengikuti tinggi/radius `app-input`,

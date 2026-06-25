@@ -11,7 +11,7 @@ Scope: UI documentation and implementation tracking
 - [ ] Semua elemen UI yang disentuh aman pada mode light dan dark (kontras, hover/focus, readable).
 - [ ] Setiap file yang diedit sudah diaudit i18n + currency + light/dark.
 - [ ] Checklist dan changelog diupdate pada step yang sama.
-- [ ] Untuk index/list: filter WAJIB mengikuti baseline `Inquiries` (single card, no sidebar, visible on mobile, no nested card, desktop table + mobile cards, AJAX filter+pagination, reset secondary sejajar input).
+- [ ] Untuk index/list: struktur WAJIB mengikuti baseline `Customers / Agents` (KPI jika relevan -> single compact filter card satu baris di desktop -> list/table, no sidebar, visible on mobile, no nested card, desktop table + mobile cards, AJAX filter+pagination, reset secondary sejajar input).
 
 ## Reusable UI Components
 - [ ] Not Started
@@ -56,11 +56,13 @@ Components created/standardized:
 - [x] Reviewed
 - [ ] Done
 - [x] Baseline modern filter standard implemented on `customers.index`:
+  - page order fixed as KPI/Summary Cards -> compact one-row filter card -> data table/mobile cards,
   - all filters merged into one card,
   - only required filters are shown per module need,
   - AJAX filtering/pagination preserved (no full-page reload),
   - minimum 3-character text filter guard enforced,
   - no nested card in filter area,
+  - no index sidebar; supporting summaries belong in KPI/main content,
   - reset button uses secondary style and is vertically aligned with input controls.
 
 ## Inquiries
@@ -70,7 +72,7 @@ Components created/standardized:
 - [x] Responsive Checked
 - [x] Reviewed
 - [ ] Done
-- [x] Official baseline for all module index pages:
+- [x] Aligned to official Customers / Agents index baseline:
   - single compact filter card,
   - filter visible across mobile, tablet, and desktop,
   - desktop table + mobile card list,

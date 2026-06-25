@@ -8,7 +8,10 @@ Last Updated: 2026-06-15
 - Itinerary index `Item List` popup should render a left-side triangle marker for each service row, preserve per-row item identity in desktop/mobile layouts, and show the `Highlighted` badge only for the exact itinerary item matched to the configured main experience day point.
 - Itinerary create/edit wizard `Review` tab should show the `Highlighted` badge on the exact schedule row whose `main experience` checkbox is active for that day, including F&B rows that also show meal-slot badges.
 - Itinerary create/edit pages must not show quotation-specific revision context notices, because one itinerary can be linked or reused across multiple quotations and the form should stay quotation-neutral.
+- Itinerary create/edit Basic Info `Destination` autocomplete must read from records in the `destinations` table and return canonical `destinations.name` values, not province/vendor/service fallback values. The focused/clicked empty input must show all destination names from the database, and typing must filter against destination `name`, `city`, or `province` without an arbitrary result cap. Typing must update the dropdown immediately using cached suggestions and stale request invalidation before the backend sync response returns.
+- Itinerary create/edit Day Planner autocomplete dropdowns for `Attraction`, `Activity`, and `F&B` must not apply arbitrary frontend/backend result limits. Empty focus/click should fetch all matching records for the current destination/region/meal context, and typing should immediately filter cached results while a short backend sync refreshes the full matching dataset.
 - In itinerary create/edit `Day Planner`, `Inter Island Transfer` select must load all active island-transfer master items client-side, ignore the destination keyword when `All Regions` is selected, and filter only by the row region choice (`city -> province -> location` fallback) when a specific region is chosen.
+- In itinerary create/edit `Day Planner`, each service row `Region` dropdown must be filtered by the Basic Info destination. Region options should carry destination/city/province/location metadata and must clear themselves if the selected destination no longer supports the chosen region.
 - Index-page `Activate` / `Deactivate` actions across modules must only be visible to users with role `Super Admin` or `Administrator`, and the related `toggleStatus` endpoints must reject other roles with `403`.
 - Inquiry create/edit form must load only the selector fields it needs (`customers.id`, `customers.name`, `customers.code`, handler `id`, `name`) and centralize validation plus assignment normalization to keep the screen responsive and the ownership flow consistent.
 - Complex index Blade views with separate desktop/mobile layouts should precompute per-row presentation data once and reuse it in both layouts, instead of rebuilding badge/action arrays inside multiple nested loops.
@@ -155,6 +158,15 @@ Last Updated: 2026-06-15
 - Quotation PDF service table must only show customer-safe pricing columns: `Description`, `Unit Price`, `Qty`, `Total`.
 - Sensitive internal columns such as `Status`, `Contract Rate`, and `Markup` must not appear in quotation PDF output.
 
+## Itinerary PDF
+- Clicking `Preview / Download PDF` from itinerary detail should open the generated PDF in a new browser tab, matching quotation detail behavior.
+- Itinerary detail PDF action visibility should follow `module.itineraries.access`, not a hardcoded role list, because the PDF route uses the same module access permission.
+- Itinerary PDF must focus on customer-readable trip understanding: compact branding, destination/duration/order metadata, generated timestamp, trip summary counts, overview/highlights, day-by-day timeline, transport units, inclusions/exclusions, and terms.
+- Itinerary PDF must not render the fallback app logo/brand block; if no approved company logo is intentionally shown, keep the header text-only.
+- Itinerary PDF schedule and transport images should use fixed landscape boxes with `object-fit: cover` so image proportions remain visually natural.
+- Itinerary PDF Blade should receive controller-prepared sanitized rich-text payloads instead of sanitizing the same long text repeatedly inside the template.
+- Itinerary PDF image rendering should prefer generated thumbnails and cache image data URI lookups during a single PDF render to avoid repeated storage reads.
+
 ## Validation Status Gate
 - `ready_to_send` must never be assigned when validation progress is below 100%.
 - `sent` must never be assigned when validation progress is below 100%.
@@ -252,10 +264,12 @@ Last Updated: 2026-06-15
   - `airports.index`
   - `destinations.index`
   - `transports.index`
-- Customer index sidebar rule:
-  - `customers.index` should render the reusable sidebar info component using controller-prepared `sidebarInfo`.
-  - Sidebar title should use customer-specific wording such as `Customer/Agent Info`, not the generic `Module Information`.
-  - Sidebar rows should summarize the currently filtered dataset, including total filtered customers, active/inactive counts, type distribution, and top country when available.
+- Index page baseline rule:
+  - `customers.index` is the official UI baseline for all module index/list pages.
+  - Required order: KPI/Summary Cards when relevant, then one compact filter card, then desktop table/mobile card list, then pagination/empty state.
+  - Index pages must not use a dedicated left/right sidebar; supporting summary information belongs in KPI cards or main content.
+  - On desktop, filter inputs should stay in one horizontal row when the number of fields is reasonable.
+  - Customer index summaries should reflect the current filtered dataset, including active/inactive counts, type distribution, and country coverage when shown.
 - Activation toggle visibility rule:
   - activation/deactivation actions on index pages must be hidden for users outside `Super Admin` and `Administrator`.
   - controllers must still enforce the same rule server-side with `canManageActivationActions()` so hidden buttons are not the only protection.

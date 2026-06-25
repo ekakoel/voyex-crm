@@ -27,12 +27,13 @@ Scope: UI documentation only
 8. Action Dropdown
 
 ### 3a. Main Baseline Filter Contract (Wajib)
-- Baseline resmi filter index: `Inquiries` module.
+- Baseline resmi struktur index: `Customers / Agents` module.
 - Kontrak wajib:
+  - urutan halaman: KPI/Summary Cards jika relevan -> satu filter card utama -> data table/card list -> pagination/empty state,
   - satu filter card utama (tanpa nested card),
   - tidak ada sidebar khusus pada halaman index modul; layout index wajib full-width,
   - filter card wajib selalu tampil di mobile, tablet, dan desktop,
-  - pola compact toolbar,
+  - pola compact toolbar; pada desktop input filter utama harus diusahakan satu baris horizontal,
   - hasil data wajib punya table desktop dan card list mobile bila kontennya berupa daftar record,
   - AJAX filter + AJAX pagination (`data-service-filter-*`),
   - minimum 3 karakter untuk text search,

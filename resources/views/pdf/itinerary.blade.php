@@ -2,33 +2,43 @@
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 <head>
     <meta charset="utf-8">
-    <title>Itinerary {{ $itinerary->title }}</title>
+    <title>Itinerary {{ $pdfMeta['title'] ?? $itinerary->title }}</title>
     <style>
         {!! $pdfFontFaceCss ?? '' !!}
         body { font-family: {!! $pdfFontFamilyCss ?? "'DejaVu Sans', Arial, sans-serif" !!}; color: #111827; font-size: 11px; line-height: 1.45; }
-        .header { margin-bottom: 14px; }
-        .title { font-size: 22px; font-weight: 700; letter-spacing: .2px; color: #111827; }
-        .subtitle { font-size: 11px; color: #6b7280; margin-top: 4px; }
-        .chip { display: inline-block; margin-right: 6px; margin-top: 6px; border: 1px solid #d1d5db; border-radius: 999px; padding: 3px 8px; font-size: 10px; color: #374151; }
+        .header { display: table; width: 100%; margin-bottom: 10px; }
+        .title-cell { display: table-cell; vertical-align: top; }
+        .doc-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: #2563eb; }
+        .title { font-size: 22px; font-weight: 700; letter-spacing: .2px; color: #111827; line-height: 1.2; margin-top: 2px; }
+        .subtitle { font-size: 10px; color: #6b7280; margin-top: 4px; }
+        .meta-table { width: 100%; border-collapse: collapse; table-layout: fixed; margin: 8px 0 10px; }
+        .meta-table td { border: 1px solid #e5e7eb; background: #f8fafc; padding: 6px 8px; vertical-align: top; }
+        .meta-label { display: block; margin-bottom: 2px; color: #6b7280; font-size: 9px; text-transform: uppercase; letter-spacing: .06em; }
+        .meta-value { display: block; color: #111827; font-size: 11px; font-weight: 700; line-height: 1.35; }
+        .summary-strip { width: 100%; border-collapse: collapse; table-layout: fixed; margin: 8px 0 10px; }
+        .summary-strip td { border: 1px solid #dbeafe; background: #eff6ff; padding: 6px 8px; vertical-align: top; }
+        .summary-value { display: block; color: #1d4ed8; font-size: 13px; font-weight: 700; }
         .panel { border: 1px solid #e5e7eb; border-radius: 8px; padding: 10px 12px; margin-bottom: 10px; }
         .panel-plain { border: none; border-radius: 0; padding: 0; background: transparent; }
         .panel-title { font-size: 10px; text-transform: uppercase; letter-spacing: .08em; color: #4b5563; font-weight: 700; margin-bottom: 6px; }
         .info-table { width: 100%; border-collapse: collapse; }
         .info-table td { padding: 2px 0; vertical-align: top; }
         .info-label { color: #6b7280; width: 120px; }
-        .day-title { font-size: 13px; font-weight: 700; color: #111827; }
+        .day-header { background: #0f172a; color: #ffffff; padding: 7px 9px; border-radius: 4px; }
+        .day-title { font-size: 13px; font-weight: 700; color: #ffffff; }
         .day-time { font-size: 10px; color: #6b7280; }
+        .day-header .day-time { color: #cbd5e1; }
         table.items { width: 100%; border-collapse: collapse; margin-top: 8px; }
         table.items th, table.items td { border: 1px solid #e5e7eb; padding: 6px; vertical-align: top; }
-        table.items th { background: #f9fafb; font-size: 10px; text-transform: uppercase; letter-spacing: .06em; color: #374151; }
+        table.items th { background: #f1f5f9; font-size: 9px; text-transform: uppercase; letter-spacing: .06em; color: #334155; }
         table.items { table-layout: fixed; }
         tr.highlight-item td { background: #fffbeb; border-color: #fcd34d; }
         tr.highlight-item td:first-child { border-left: 3px solid #f59e0b; }
         tr.connector-row td { background: #f8fafc; color: #475569; font-size: 10px; }
         tr.break-row td { background: #f3f4f6; color: #1f2937; font-size: 10px; }
         .connector-label, .break-label { font-weight: 700; text-transform: uppercase; letter-spacing: .04em; font-size: 9px; }
-        .thumb-box { width: 100%; aspect-ratio: 4 / 3; border: 1px solid #e5e7eb; border-radius: 4px; overflow: hidden; background: #ffffff; }
-        .thumb-box img { width: 100%; height: 180px; object-fit: cover; display: block; }
+        .thumb-box { width: 100%; height: 64px; border: 1px solid #e5e7eb; border-radius: 4px; overflow: hidden; background: #ffffff; }
+        .thumb-box img { width: 100%; height: 64px; object-fit: cover; display: block; }
         .muted { color: #6b7280; }
         .richtext { line-height: 1.45; color: #6b7280; }
         .richtext p { margin: 0 0 4px; }
@@ -67,8 +77,9 @@
         .transport-item { page-break-inside: avoid; break-inside: avoid; margin-top: 6px; border: 1px solid #cbd5e1; }
         table.transport-table { width: 100%; border-collapse: collapse; }
         table.transport-table td { vertical-align: top; padding: 3px 5px; }
-        .transport-thumb { width: 120px; }
-        .transport-thumb .thumb-box img { height: 82px; }
+        .transport-thumb { width: 140px; }
+        .transport-thumb .thumb-box { height: 78px; }
+        .transport-thumb .thumb-box img { height: 78px; }
         .transport-detail { font-size: 9.5px; color: #374151; line-height: 1.35; }
         .transport-detail strong { color: #111827; }
         .footer { margin-top: 14px; font-size: 10px; color: #6b7280; text-align: right; }
@@ -77,46 +88,98 @@
     </style>
 </head>
 <body>
+    @php
+        $pdfMeta = $pdfMeta ?? [];
+        $overviewHtml = trim((string) ($overviewHtml ?? ''));
+        $tourHighlightsHtml = trim((string) ($tourHighlightsHtml ?? ''));
+        $itineraryIncludeHtml = trim((string) ($itineraryIncludeHtml ?? ''));
+        $itineraryExcludeHtml = trim((string) ($itineraryExcludeHtml ?? ''));
+        $itineraryTermConditionsHtml = trim((string) ($itineraryTermConditionsHtml ?? ''));
+    @endphp
+
     <div class="header">
-        <span>{{ ui_phrase('Itinerary') }}</span><br>
-        <div class="title">{{ $itinerary->title }}</div>
-        <div class="subtitle">Generated on {{ \App\Support\DateTimeDisplay::datetime(now()) }}</div>
-        <span>Duration: {{ $itinerary->duration_days."D" }}{{ $itinerary->duration_nights > 0 ? "/".$itinerary->duration_nights."N":"";  }}</span>
+        <div class="title-cell">
+            <div class="doc-label">{{ ui_phrase('Itinerary') }}</div>
+            <div class="title">{{ $pdfMeta['title'] ?? $itinerary->title }}</div>
+            <div class="subtitle">{{ ui_phrase('Generated') }}: {{ $pdfMeta['generated_at'] ?? '-' }}</div>
+        </div>
     </div>
 
-    <div class="panel panel-plain">
-        <div class="panel-title">Overview</div>
-        <table class="app-table info-table">
+    <table class="meta-table">
+        <tbody>
             <tr>
-                <td>
-                    @php
-                        $overview = \App\Support\SafeRichText::sanitize($itinerary->description);
-                    @endphp
-                    {!! $overview !== '' ? $overview : '-' !!}
+                <td style="width: 25%">
+                    <span class="meta-label">{{ ui_phrase('Destination') }}</span>
+                    <span class="meta-value">{{ $pdfMeta['destination'] ?? '-' }}</span>
+                </td>
+                <td style="width: 25%">
+                    <span class="meta-label">{{ ui_phrase('Duration') }}</span>
+                    <span class="meta-value">{{ $pdfMeta['duration'] ?? '-' }}</span>
+                </td>
+                <td style="width: 25%">
+                    <span class="meta-label">{{ ui_phrase('Order Number') }}</span>
+                    <span class="meta-value">{{ ($pdfMeta['order_number'] ?? '') !== '' ? $pdfMeta['order_number'] : '-' }}</span>
+                </td>
+                <td style="width: 25%">
+                    <span class="meta-label">{{ ui_phrase('Generated') }}</span>
+                    <span class="meta-value">{{ $pdfMeta['generated_at'] ?? '-' }}</span>
                 </td>
             </tr>
-        </table>
-    </div>
+        </tbody>
+    </table>
+
+    <table class="summary-strip">
+        <tr>
+            <td>
+                <span class="meta-label">{{ ui_phrase('Days') }}</span>
+                <span class="summary-value">{{ (int) ($pdfMeta['total_days'] ?? 0) }}</span>
+            </td>
+            <td>
+                <span class="meta-label">{{ ui_phrase('Timeline Items') }}</span>
+                <span class="summary-value">{{ (int) ($pdfMeta['total_schedule_items'] ?? 0) }}</span>
+            </td>
+            <td>
+                <span class="meta-label">{{ ui_phrase('Transport Units') }}</span>
+                <span class="summary-value">{{ (int) ($pdfMeta['total_transport_units'] ?? 0) }}</span>
+            </td>
+        </tr>
+    </table>
+
+    @if ($overviewHtml !== '' || $tourHighlightsHtml !== '')
+        <div class="panel panel-plain">
+            @if ($overviewHtml !== '')
+                <div class="panel-title">{{ ui_phrase('Overview') }}</div>
+                <div class="richtext">{!! $overviewHtml !!}</div>
+            @endif
+            @if ($tourHighlightsHtml !== '')
+                <div class="panel-title" style="margin-top: 8px;">{{ ui_phrase('Tour Highlights') }}</div>
+                <div class="richtext">{!! $tourHighlightsHtml !!}</div>
+            @endif
+        </div>
+    @endif
+
+    <div class="panel-title">{{ ui_phrase('Schedule by Day') }}</div>
 
     @foreach ($scheduleByDay as $day)
         <div class="panel panel-plain day-panel {{ $loop->first ? 'first' : '' }}">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-                <div class="day-title">Day {{ $day['day'] }}</div>
-                <div class="day-time">Start Tour: {{ $day['start_time'] }} | End Tour: {{ $day['end_time'] }}</div>
-            </div>
-            <div class="day-time" style="margin-top: 2px;">
-                Break Time:
-                {{ !empty($day['break_start_time']) && !empty($day['break_end_time']) ? $day['break_start_time'].' - '.$day['break_end_time'] : '-' }}
+            <div class="day-header">
+                <div class="day-title">{{ ui_phrase('Day') }} {{ $day['day'] }}</div>
+                <div class="day-time">
+                    {{ ui_phrase('Start Tour') }}: {{ $day['start_time'] }} |
+                    {{ ui_phrase('End Tour') }}: {{ $day['end_time'] }} |
+                    {{ ui_phrase('Break Time') }}:
+                    {{ !empty($day['break_start_time']) && !empty($day['break_end_time']) ? $day['break_start_time'].' - '.$day['break_end_time'] : '-' }}
+                </div>
             </div>
 
             <table class="items">
                 <thead>
                     <tr>
-                        <th style="width: 5%;">{{ ui_phrase('No') }}</th>
-                        <th style="width: 20%;">{{ ui_phrase('Time') }}</th>
-                        <th style="width: 25%;">{{ ui_phrase('Item') }}</th>
-                        <th style="width: 15%;">{{ ui_phrase('Location') }}</th>
-                        <th style="width: 35%;">{{ ui_phrase('Image') }}</th>
+                        <th style="width: 8%;">{{ ui_phrase('No') }}</th>
+                        <th style="width: 18%;">{{ ui_phrase('Time') }}</th>
+                        <th style="width: 37%;">{{ ui_phrase('Service / Details') }}</th>
+                        <th style="width: 22%;">{{ ui_phrase('Location') }}</th>
+                        <th style="width: 15%;">{{ ui_phrase('Photo') }}</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -184,12 +247,12 @@
                                         <div><strong>{{ $item['vendor_name'] ?? '-' }}</strong></div>
                                         <div><strong>{{ $item['name'] }}</strong></div>
                                         @if (!empty($item['is_main_experience']))
-                                            <div>Main Experience</div>
+                                            <div>{{ ui_phrase('Main Experience') }}</div>
                                         @endif
                                         @php
                                             $menuHighlights = \App\Support\SafeRichText::sanitize((string) ($item['menu_highlights'] ?? ''));
                                         @endphp
-                                        <div class="richtext"><strong>Menu Highlights:</strong></div>
+                                        <div class="richtext"><strong>{{ ui_phrase('Menu Highlights') }}:</strong></div>
                                         <div class="richtext">{!! $menuHighlights !== '' ? $menuHighlights : '-' !!}</div>
                                     @else
                                         <div>
@@ -210,11 +273,11 @@
                                             $activityExcludeHtml = \App\Support\SafeRichText::sanitize((string) ($item['excludes'] ?? ''));
                                         @endphp
                                         @if (filled($activityIncludeText))
-                                            <div class="richtext"><strong>Includes:</strong></div>
+                                            <div class="richtext"><strong>{{ ui_phrase('Inclusions') }}:</strong></div>
                                             <div class="richtext">{!! $activityIncludeHtml !!}</div>
                                         @endif
                                         @if (filled($activityExcludeText))
-                                            <div class="richtext"><strong>Excludes:</strong></div>
+                                            <div class="richtext"><strong>{{ ui_phrase('Exclusions') }}:</strong></div>
                                             <div class="richtext">{!! $activityExcludeHtml !!}</div>
                                         @endif
                                     @endif
@@ -245,14 +308,14 @@
             <div class="transport-box">
                 @if (count($dayTransports) === 0)
                     <div class="transport-head-block">
-                        <div class="transport-title">Transport Unit Day {{ $day['day'] }}</div>
-                        <div class="muted">No transport unit assigned for this day.</div>
+                        <div class="transport-title">{{ ui_phrase('Transport Unit') }} {{ ui_phrase('Day') }} {{ $day['day'] }}</div>
+                        <div class="muted">{{ ui_phrase('No transport unit assigned for this day.') }}</div>
                     </div>
                 @else
                     @foreach ($dayTransports as $transportIndex => $dayTransport)
                         @if ($transportIndex === 0)
                             <div class="transport-head-block">
-                                <div class="transport-title">Transport Unit Day {{ $day['day'] }}</div>
+                                <div class="transport-title">{{ ui_phrase('Transport Unit') }} {{ ui_phrase('Day') }} {{ $day['day'] }}</div>
                                 <table class="app-table transport-table transport-item">
                                     <tr>
                                         <td class="transport-thumb">
@@ -305,35 +368,32 @@
     @endforeach
 
     @php
-        $itineraryIncludeText = \App\Support\SafeRichText::plainText($itinerary->itinerary_include ?? null);
-        $itineraryExcludeText = \App\Support\SafeRichText::plainText($itinerary->itinerary_exclude ?? null);
-        $itineraryTermConditionsText = \App\Support\SafeRichText::plainText($itinerary->term_conditions ?? null);
-        $itineraryIncludeHtml = \App\Support\SafeRichText::sanitize((string) ($itinerary->itinerary_include ?? ''));
-        $itineraryExcludeHtml = \App\Support\SafeRichText::sanitize((string) ($itinerary->itinerary_exclude ?? ''));
-        $itineraryTermConditionsHtml = \App\Support\SafeRichText::sanitize((string) ($itinerary->term_conditions ?? ''));
+        $hasItineraryInclude = $itineraryIncludeHtml !== '';
+        $hasItineraryExclude = $itineraryExcludeHtml !== '';
+        $hasItineraryTermConditions = $itineraryTermConditionsHtml !== '';
     @endphp
-    @if (filled($itineraryIncludeText) || filled($itineraryExcludeText) || filled($itineraryTermConditionsText))
+    @if ($hasItineraryInclude || $hasItineraryExclude || $hasItineraryTermConditions)
         <div class="panel panel-plain">
-            <div class="panel-title">Additional Info</div>
+            <div class="panel-title">{{ ui_phrase('Additional Info') }}</div>
             <table class="itinerary-inc-exc">
                 <tr>
-                    @if (filled($itineraryIncludeText))
+                    @if ($hasItineraryInclude)
                         <td class="inc">
-                            <span class="title">Inclutions</span>
+                            <span class="title">{{ ui_phrase('Inclusions') }}</span>
                             <div class="richtext">{!! $itineraryIncludeHtml !!}</div>
                         </td>
                     @endif
-                    @if (filled($itineraryExcludeText))
+                    @if ($hasItineraryExclude)
                         <td class="exc">
-                            <span class="title">Exclutions</span>
+                            <span class="title">{{ ui_phrase('Exclusions') }}</span>
                             <div class="richtext">{!! $itineraryExcludeHtml !!}</div>
                         </td>
                     @endif
                 </tr>
             </table>
-            @if (filled($itineraryTermConditionsText))
+            @if ($hasItineraryTermConditions)
                 <div style="margin-top: 8px; border: 1px solid #cbd5e1; border-radius: 4px; padding: 6px;">
-                    <span class="additional-info-title">Terms &amp; Conditions</span>
+                    <span class="additional-info-title">{{ ui_phrase('Terms & Conditions') }}</span>
                     <div class="richtext">{!! $itineraryTermConditionsHtml !!}</div>
                 </div>
             @endif

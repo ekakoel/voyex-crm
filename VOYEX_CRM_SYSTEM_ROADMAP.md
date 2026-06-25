@@ -1,7 +1,7 @@
 # VOYEX CRM -- SYSTEM ROADMAP
 
 Version: 1.5  
-Last Updated: 2026-06-24
+Last Updated: 2026-06-25
 
 Legend:  
 - DONE = Implemented  
@@ -31,7 +31,7 @@ Current User Alias | DONE | Created/Assigned/Updated user fields render current 
 
 Feature | Status | Notes
 --- | --- | ---
-Customer CRUD | DONE | Includes import
+Customer CRUD | DONE | Includes import; Customers/Agents index is the official module index UI baseline
 Agent (B2B) | PARTIAL | Supported in data model, UX still basic
 Inquiry Creation | DONE | Includes inquiry number auto-format
 Inquiry Assignment | DONE | Assign to Manager/Marketing
@@ -211,6 +211,34 @@ Kebijakan ini wajib untuk setiap update code (penambahan, perubahan, pengurangan
 ----------------------------------------------------------------------------------------------------
 
 # CHANGELOG (LATEST)
+
+- 2026-06-25
+  - Dropdown Destination pada tab Basic Info create/edit itinerary sekarang mengambil data dari master `destinations` di database.
+  - Endpoint `itineraries.destination-suggestions` kini mengembalikan canonical `destinations.name`; pencarian tetap bisa mencocokkan name/city/province.
+  - Limit frontend `12` item dan backend cap `50` item dihapus untuk dropdown Destination sehingga fokus/klik input kosong dapat menampilkan semua destination.
+  - Stale reference `$limit` pada endpoint suggestion diperbaiki agar request JSON tidak gagal dan dropdown tidak otomatis tersembunyi.
+  - Autocomplete Destination dioptimalkan dengan local cache, invalidasi request lama, dan debounce sync backend yang lebih pendek sehingga dropdown langsung berubah mengikuti teks yang diketik.
+  - Autocomplete Day Planner untuk Attraction, Activity, dan F&B mengikuti pola yang sama: tanpa cap hasil, cache per konteks destination/region/meal, invalidasi request lama, click-to-open, dan backend sync debounce singkat.
+  - Feature test `ItineraryDestinationSuggestionsTest` ditambahkan untuk menjaga uncapped result pada Destination, Activity, Attraction, dan F&B serta filter destination by name/city/province.
+  - Fallback campuran dari province service module/vendor/airport dihapus agar pilihan Destination konsisten dengan master Destinations.
+
+- 2026-06-25
+  - Pada create/edit itinerary, dropdown `Region` di setiap service item sekarang difilter berdasarkan destination pada tab Basic Info.
+  - Opsi region service item kini membawa metadata destination/city/province/location dan otomatis clear jika destination berubah sehingga region lama tidak lagi valid.
+  - Payload create/edit itinerary untuk Activity, Island Transfer, dan F&B dilengkapi relasi vendor destination agar filter region konsisten lintas service.
+
+- 2026-06-25
+  - Halaman detail itinerary sekarang memakai action `Preview / Download PDF` yang terbuka di tab baru, selaras dengan detail quotation.
+  - Visibility tombol PDF itinerary sekarang mengikuti permission `module.itineraries.access`, bukan hardcoded role list, sehingga user yang berizin akses itinerary dapat melihat action tersebut.
+  - PDF itinerary dirapikan agar lebih mudah dipahami: header branding, metadata perjalanan, summary strip, day-by-day timeline, transport unit, dan additional info.
+  - Header PDF itinerary tidak lagi menampilkan fallback brand `LAR Laravel / Professional Itinerary`, dan image item/transport dipaksa landscape agar tidak terlihat gepeng.
+  - Generator PDF itinerary dioptimasi dengan metadata siap-render, sanitasi rich text di controller, dan cache data URI gambar per-request agar storage file tidak dibaca berulang pada render yang sama.
+
+- 2026-06-25
+  - Menetapkan `resources/views/modules/customers/index.blade.php` sebagai baseline resmi struktur halaman index/list lintas modul.
+  - Struktur wajib index sekarang: KPI/Summary Cards jika relevan, filter card compact satu baris di desktop, list/table data, lalu pagination/empty state.
+  - Menegaskan bahwa halaman index modul tidak memakai dedicated sidebar; semua summary pendukung ditempatkan pada KPI atau main content.
+  - Filter Customer/Agent diselaraskan dengan kontrak filter: search minimal 3 karakter, filter type valid, `per_page` terbatas, dan query search digroup agar tidak membocorkan filter lain.
 
 - 2026-06-12
   - Popup `Item List` pada halaman index itinerary sekarang menampilkan badge `Breakfast` / `Lunch` / `Dinner` untuk setiap item F&B sesuai data meal yang tersimpan, dan style badge dibuat compact mengikuti pola label `Highlighted`.

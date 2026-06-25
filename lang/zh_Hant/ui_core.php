@@ -310,7 +310,7 @@ return array (
   'CSV File' => 'CSV 檔案',
   'CSV is empty or has an invalid format.' => 'CSV 為空或格式無效。',
   'Currencies' => '幣別',
-  'currencies' => 'currencies',
+  'currencies' => '幣別',
   'Currency' => '幣別',
   'Current favicon' => 'Current favicon',
   'Current logo' => 'Current logo',
@@ -1442,4 +1442,25 @@ return array (
   ,'Activities Vendors' => '活動供應商'
   ,':count of :total filtered vendors' => '已篩選供應商共 :total 筆，其中 :count 筆'
   ,':active active / :inactive inactive' => ':active 啟用 / :inactive 停用'
+  ,'Filtered Customers' => 'Filtered Customers'
+  ,'Current filter result' => 'Current filter result'
+  ,'Active in current result' => 'Active in current result'
+  ,'Inactive in current result' => 'Inactive in current result'
+  ,'Company in current result' => 'Company in current result'
+  ,'Individual in current result' => 'Individual in current result'
+  ,'Countries in current result' => 'Countries in current result'
+  ,'Preview / Download PDF' => 'Preview / Download PDF'
+  ,'Untitled Itinerary' => 'Untitled Itinerary'
+  ,'Generated' => 'Generated'
+  ,'Days' => 'Days'
+  ,'Timeline Items' => 'Timeline Items'
+  ,'Transport Units' => 'Transport Units'
+  ,'Service / Details' => 'Service / Details'
+  ,'Photo' => 'Photo'
+  ,'Tour Highlights' => 'Tour Highlights'
+  ,'Menu Highlights' => 'Menu Highlights'
+  ,'Inclusions' => 'Inclusions'
+  ,'Exclusions' => 'Exclusions'
+  ,'Terms & Conditions' => 'Terms & Conditions'
+  ,'No transport unit assigned for this day.' => 'No transport unit assigned for this day.'
 );

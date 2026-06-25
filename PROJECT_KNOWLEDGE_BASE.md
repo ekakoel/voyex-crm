@@ -1,10 +1,10 @@
 # Voyex CRM - Project Knowledge Base
 
-Last Updated: 2026-06-24
+Last Updated: 2026-06-25
 
 
 Version: 2.9  
-Date: 2026-06-24  
+Date: 2026-06-25  
 Status: Source of truth aktif
 
 ---
@@ -155,6 +155,33 @@ Dashboard redirect berbasis permission priority:
 ### 7.1 Responsive
 - Mobile/tablet wajib usable untuk aksi utama.
 - Data besar: card/list pada mobile-tablet, table pada desktop (`xl+`).
+
+### 7.1a Index Page Baseline
+- Baseline resmi seluruh halaman index/list modul adalah `resources/views/modules/customers/index.blade.php` (`Customers / Agents`).
+- Urutan wajib index: KPI/Summary Cards jika relevan, compact filter card, data table/mobile card list, lalu pagination/empty state.
+- Halaman index modul tidak memakai dedicated sidebar kanan/kiri; summary pendukung ditempatkan pada KPI atau main content.
+- Pada desktop, input filter utama harus diusahakan satu baris horizontal selama jumlah field masih wajar.
+- Filter/list index yang mendukung AJAX wajib mempertahankan atribut `data-service-filter-*`.
+
+### 7.1b PDF Action & Itinerary PDF Baseline
+- Detail-page PDF actions should use the label `Preview / Download PDF` and open in a new browser tab when used as a preview action.
+- Itinerary PDF must be customer-readable: compact branding, metadata, trip summary, day-by-day timeline, transport unit summary, and additional information.
+- PDF controllers should prepare sanitized rich-text payloads before rendering Blade templates.
+- PDF image data should use thumbnail-first resolution and per-request data URI caching to avoid repeated storage reads during one PDF render.
+
+### 7.1c Itinerary Day Planner Region Filtering
+- Create/edit itinerary service-row `Region` options are destination-aware and filtered by the Basic Info destination.
+- Region options should include `destination`, `city`, `province`, and `location` metadata so the client can filter without extra requests.
+- If the Basic Info destination changes, an incompatible selected service-row region should be cleared before service item filtering runs.
+
+### 7.1d Itinerary Basic Destination Source
+- Create/edit itinerary Basic Info `Destination` autocomplete uses `destinations` master data from the database.
+- Search may match `destinations.name`, `city`, or `province`, but selected dropdown values should return canonical `destinations.name`.
+- Do not mix vendor, airport, attraction, or other service-module region values into the Basic Info destination dropdown.
+- The empty focused/clicked destination input should list all destination names; typing filters the same master dataset without an arbitrary frontend/backend result cap.
+- The destination suggestions endpoint must not reference removed result-limit variables; focused tests cover uncapped results and keyword filtering.
+- The destination dropdown must update immediately while typing by using cached suggestions plus request-token invalidation so older focus/click responses cannot replace newer typed results.
+- Day Planner `Attraction`, `Activity`, and `F&B` autocomplete dropdowns follow the same no-cap and instant-response rule: fetch all matching records for current destination/region/meal context, cache per context, filter cached data immediately while typing, and invalidate stale requests.
 
 ### 7.2 Nominal Input
 - Gunakan `x-money-input`.

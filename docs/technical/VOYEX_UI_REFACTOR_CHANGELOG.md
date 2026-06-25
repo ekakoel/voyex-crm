@@ -1,5 +1,126 @@
 # VOYEX UI Refactor Changelog
 
+## 2026-06-25 (Itinerary Basic Info Destination Dropdown From Master Data)
+- Scope: make create/edit itinerary Basic Info destination autocomplete use all master destination records from the database.
+- Updated files:
+  - app/Http/Controllers/Admin/ItineraryController.php
+  - resources/views/modules/itineraries/_form.blade.php
+  - tests/Feature/ItineraryDestinationSuggestionsTest.php
+  - docs/technical/VOYEX_UI_REFACTOR_CHANGELOG.md
+  - docs/standards/quotation-standard.md
+  - PROJECT_KNOWLEDGE_BASE.md
+  - VOYEX_CRM_SYSTEM_ROADMAP.md
+- Applied updates:
+  - changed `itineraries.destination-suggestions` so dropdown values come from `destinations.name` records in the database.
+  - changed Activity, Attraction, and F&B suggestion endpoints so they no longer accept frontend `limit` parameters or apply backend result caps.
+  - removed mixed fallback suggestions from service module provinces/vendors/airports for the Basic Info destination dropdown.
+  - removed the frontend `12` item limit and backend `50` item cap for Basic Info destination and Day Planner service-item suggestions so every matching item can be displayed.
+  - fixed a stale backend `$limit` reference that caused the destination suggestion JSON endpoint to fail after the cap was removed.
+  - kept focus behavior fetching the current input value, and added click fetching, so an empty focused/clicked field opens the dropdown with all destination names.
+  - kept keyword search flexible by matching destination `name`, `city`, or `province`, while returning the canonical destination name as the selected value.
+  - raised the dropdown stacking layer and dispatches a standard `change` event after selecting a suggestion so existing destination-dependent filters stay synchronized.
+  - refactored Destination, Attraction, Activity, and F&B autocomplete performance with request-token invalidation, local suggestion caching, immediate client-side filtering while typing, click-to-open fetching, and a shorter backend sync debounce so stale focus/click responses cannot overwrite typed results.
+  - added focused feature coverage for uncapped destination, activity, tourist-attraction, and F&B suggestions plus destination keyword filtering by name/city/province.
+- Mandatory audit result:
+  - multi-language: no new visible labels were introduced.
+  - multi-currency: no money fields were changed.
+  - dark/light mode: dropdown keeps existing light/dark classes; stacking was raised with `z-50` only.
+- Verification:
+  - `php -l app/Http/Controllers/Admin/ItineraryController.php`
+  - `php artisan test --filter=ItineraryDestinationSuggestionsTest --do-not-cache-result`
+  - `php artisan route:list | Select-String -Pattern "itineraries/destination-suggestions"`
+
+## 2026-06-25 (Itinerary Service Region Filter By Basic Destination)
+- Scope: refine create/edit itinerary Day Planner region selection so service rows respect the destination chosen in Basic Info.
+- Updated files:
+  - app/Http/Controllers/Admin/ItineraryController.php
+  - resources/views/modules/itineraries/_form.blade.php
+  - docs/technical/VOYEX_UI_REFACTOR_CHANGELOG.md
+  - docs/standards/quotation-standard.md
+  - PROJECT_KNOWLEDGE_BASE.md
+  - VOYEX_CRM_SYSTEM_ROADMAP.md
+- Applied updates:
+  - enriched Activity, Island Transfer, and F&B option payloads with vendor destination metadata on create/edit itinerary.
+  - changed Day Planner `Region` options from plain text values to destination-aware options with `data-destination`, `data-city`, `data-province`, and `data-location`.
+  - added client-side filtering so each service-row Region dropdown only shows city/region options matching the Basic Info destination.
+  - clears a row's selected region when the Basic Info destination changes and the selected region is no longer valid for that destination.
+  - kept existing service suggestion behavior aligned with the chosen destination and row region.
+- Mandatory audit result:
+  - multi-language: no new visible labels were introduced.
+  - multi-currency: no money fields were changed.
+  - dark/light mode: existing `app-input` controls remain unchanged.
+- Verification:
+  - `php -l app/Http/Controllers/Admin/ItineraryController.php`
+  - `php artisan route:list | Select-String -Pattern "itineraries/(activity|tourist-attraction|food-beverage)-suggestions"`
+
+## 2026-06-25 (Itinerary Detail PDF Preview + Readable PDF Refactor)
+- Scope: align itinerary detail PDF action with quotation detail and improve itinerary PDF readability/performance.
+- Updated files:
+  - app/Http/Controllers/Admin/ItineraryController.php
+  - resources/views/modules/itineraries/show.blade.php
+  - resources/views/pdf/itinerary.blade.php
+  - lang/en/ui_core.php
+  - lang/zh_Hant/ui_core.php
+  - lang/zh_Hans/ui_core.php
+  - docs/technical/VOYEX_UI_REFACTOR_CHANGELOG.md
+  - PROJECT_KNOWLEDGE_BASE.md
+  - VOYEX_CRM_SYSTEM_ROADMAP.md
+- Applied updates:
+  - renamed the itinerary detail PDF action to `Preview / Download PDF` and kept it opening in a new tab like quotation detail.
+  - changed itinerary detail PDF button visibility from a hardcoded role list to `module.itineraries.access`, matching the PDF route middleware and preventing authorized users from missing the action.
+  - added controller-prepared PDF metadata for title, destination, duration, order number, generated time, day count, timeline item count, and transport unit count.
+  - moved reusable rich-text sanitization for overview, tour highlights, inclusions, exclusions, and terms into the controller before rendering the PDF.
+  - added per-request image data URI caching so repeated image lookups in one PDF generation do not reread the same storage file.
+  - refreshed the itinerary PDF layout with compact branding, metadata cards, summary strip, clearer day headers, narrower image cells, and customer-readable timeline columns.
+  - removed the fallback logo/brand block from the itinerary PDF header so `LAR Laravel / Professional Itinerary` no longer appears.
+  - changed schedule and transport thumbnails to fixed landscape boxes with `object-fit: cover` so images do not look vertically stretched or flattened.
+  - fixed PDF copy from `Inclutions` / `Exclutions` to `Inclusions` / `Exclusions`.
+- Mandatory audit result:
+  - multi-language: new visible labels use `ui_phrase(...)`; phrase keys were added to all active locale files.
+  - multi-currency: no money rendering was changed.
+  - dark/light mode: detail-page button uses existing `btn-secondary`; PDF is print-only and uses inline PDF-safe styles.
+- Verification:
+  - `php -l app/Http/Controllers/Admin/ItineraryController.php`
+  - `php -l lang/en/ui_core.php`
+  - `php -l lang/zh_Hant/ui_core.php`
+  - `php -l lang/zh_Hans/ui_core.php`
+  - `php artisan route:list | Select-String -Pattern "itineraries.*pdf"`
+
+## 2026-06-25 (Customers / Agents Index Baseline Standard)
+- Scope: establish `Customers / Agents` as the official structure baseline for module index/list pages.
+- Updated files:
+  - resources/views/modules/customers/index.blade.php
+  - app/Http/Controllers/Sales/CustomerController.php
+  - AGENTS.md
+  - PROJECT_GUIDELINES.md
+  - PROJECT_KNOWLEDGE_BASE.md
+  - VOYEX_CRM_SYSTEM_ROADMAP.md
+  - docs/blueprint/01_operational_commercial_flow_refactor.md
+  - docs/blueprint/VOYEX_UI_COMPONENT_GUIDE.md
+  - docs/blueprint/VOYEX_UI_STANDARDIZATION_BLUEPRINT.md
+  - docs/blueprint/VOYEX_UI_STANDARDIZATION_CHECKLIST.md
+  - docs/standards/quotation-standard.md
+  - docs/technical/VOYEX_UI_REFACTOR_CHANGELOG.md
+  - lang/en/ui_core.php
+  - lang/zh_Hant/ui_core.php
+  - lang/zh_Hans/ui_core.php
+- Applied updates:
+  - set the required index order to KPI/Summary Cards, one compact filter card, data table/mobile cards, then pagination/empty state.
+  - documented that index pages must not use a dedicated left/right sidebar; supporting summaries belong in KPI cards or main content.
+  - documented that desktop filter inputs should stay in one horizontal row when the field count is reasonable.
+  - kept `customers.index` as the source template for future module index UI refactors.
+  - aligned Customer/Agent filter logic with the documented filter contract by grouping text-search `OR` clauses and validating supported filter parameters.
+- Mandatory audit result:
+  - multi-language: Customer/Agent KPI labels use `ui_phrase(...)`; missing phrase keys were added to all active locale files.
+  - multi-currency: no money fields were changed in this baseline update.
+  - dark/light mode: the baseline uses existing `app-card`, `app-input`, `app-table`, `btn-*`, and metric-card components.
+- Verification:
+  - `php -l app/Http/Controllers/Sales/CustomerController.php`
+  - `php -l lang/en/ui_core.php`
+  - `php -l lang/zh_Hant/ui_core.php`
+  - `php -l lang/zh_Hans/ui_core.php`
+  - `php artisan route:list | Select-String -Pattern "customers"`
+
 ## 2026-06-24 (Vendor Multi-Type Form + KPI Refinement)
 - Scope: update Vendors/Providers create/edit/index UI after vendor type was expanded from single-select to multi-select.
 - Updated files:

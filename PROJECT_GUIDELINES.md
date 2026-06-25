@@ -177,12 +177,15 @@ Aturan: jika `final`, data view-only (tanpa mutasi).
 
 ## 4m. Standar Utama Filter Index (Wajib)
 
-1. Baseline utama filter index project adalah implementasi `Inquiries` (`resources/views/modules/inquiries/index.blade.php`).
-2. Semua halaman index/list modul WAJIB mengikuti pola visual baseline tersebut:
-   - satu filter card utama (compact),
+1. Baseline utama struktur halaman index project adalah implementasi `Customers / Agents` (`resources/views/modules/customers/index.blade.php`).
+2. Semua halaman index/list modul WAJIB mengikuti urutan visual baseline tersebut:
+   - KPI/Summary Cards di bagian atas jika relevan,
+   - satu filter card utama (compact) tepat di bawah KPI,
+   - hasil data/list di bawah filter card,
    - tidak boleh memiliki sidebar kanan/kiri khusus halaman index modul,
    - seluruh konten index harus menggunakan layout full-width pada area utama,
    - filter card wajib selalu tampil pada mobile, tablet, dan desktop,
+   - pada desktop, filter input utama harus diusahakan satu baris horizontal selama jumlah field masih wajar,
    - hasil data wajib memakai pola desktop table + mobile card list,
    - tanpa card bersarang di area filter,
    - action `Reset` sejajar tinggi dengan input form,

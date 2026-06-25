@@ -141,38 +141,52 @@
             return $city . '|' . $name . '|' . $vendor;
         })
         ->values();
-    $itemRegions = $touristAttractionsSorted
-        ->map(fn ($item) => $resolveRegionLabel($item->city ?? '', $item->province ?? '', $item->location ?? ''))
-        ->merge(
-            $activitiesSorted->map(
-                fn ($item) => $resolveRegionLabel(
-                    $item->vendor?->city ?? '',
-                    $item->vendor?->province ?? '',
-                    $item->vendor?->location ?? '',
-                ),
-            ),
-        )
-        ->merge(
-            $islandTransfersSorted->map(
-                fn ($item) => $resolveRegionLabel(
-                    $item->vendor?->city ?? '',
-                    $item->vendor?->province ?? '',
-                    $item->vendor?->location ?? '',
-                ),
-            ),
-        )
-        ->merge(
-            $foodBeveragesSorted->map(
-                fn ($item) => $resolveRegionLabel(
-                    $item->vendor?->city ?? '',
-                    $item->vendor?->province ?? '',
-                    $item->vendor?->location ?? '',
-                ),
-            ),
-        )
-        ->filter(fn ($region) => trim((string) $region) !== '')
-        ->unique()
-        ->sort(fn ($a, $b) => strcasecmp($a, $b))
+    $buildItemRegionRow = static function ($region, $destination = '', $city = '', $province = '', $location = '') use ($resolveRegionLabel): ?array {
+        $regionLabel = $resolveRegionLabel($region, $city, $province, $location);
+        if ($regionLabel === '') {
+            return null;
+        }
+
+        return [
+            'region' => $regionLabel,
+            'destination' => trim((string) $destination),
+            'city' => trim((string) $city),
+            'province' => trim((string) $province),
+            'location' => trim((string) $location),
+        ];
+    };
+    $itemRegions = collect()
+        ->merge($touristAttractionsSorted->map(fn ($item) => $buildItemRegionRow(
+            $resolveRegionLabel($item->city ?? '', $item->province ?? '', $item->location ?? ''),
+            $item->destination?->name ?? ($destinationNameById[$item->destination_id] ?? ''),
+            $item->city ?? '',
+            $item->province ?? '',
+            $item->location ?? '',
+        )))
+        ->merge($activitiesSorted->map(fn ($item) => $buildItemRegionRow(
+            $resolveRegionLabel($item->vendor?->city ?? '', $item->vendor?->province ?? '', $item->vendor?->location ?? ''),
+            $item->vendor?->destination?->name ?? '',
+            $item->vendor?->city ?? '',
+            $item->vendor?->province ?? '',
+            $item->vendor?->location ?? '',
+        )))
+        ->merge($islandTransfersSorted->map(fn ($item) => $buildItemRegionRow(
+            $resolveRegionLabel($item->vendor?->city ?? '', $item->vendor?->province ?? '', $item->vendor?->location ?? ''),
+            $item->vendor?->destination?->name ?? '',
+            $item->vendor?->city ?? '',
+            $item->vendor?->province ?? '',
+            $item->vendor?->location ?? '',
+        )))
+        ->merge($foodBeveragesSorted->map(fn ($item) => $buildItemRegionRow(
+            $resolveRegionLabel($item->vendor?->city ?? '', $item->vendor?->province ?? '', $item->vendor?->location ?? ''),
+            $item->vendor?->destination?->name ?? '',
+            $item->vendor?->city ?? '',
+            $item->vendor?->province ?? '',
+            $item->vendor?->location ?? '',
+        )))
+        ->filter()
+        ->unique(fn ($row) => strtolower(trim((string) ($row['destination'] ?? ''))) . '|' . strtolower(trim((string) ($row['region'] ?? ''))))
+        ->sortBy(fn ($row) => strtolower(trim((string) ($row['destination'] ?? ''))) . '|' . strtolower(trim((string) ($row['region'] ?? ''))))
         ->values();
     $hotelsSorted = collect($hotels ?? [])
         ->sortBy(function ($item) {
@@ -583,7 +597,7 @@
                     class="dark:border-gray-600 app-input"
                     required>
                 <div id="itinerary-destination-dropdown"
-                    class="absolute z-20 mt-1 hidden max-h-56 w-full overflow-auto rounded-lg border border-gray-600 bg-white p-1 shadow-lg dark:border-gray-700 dark:bg-gray-900">
+                    class="absolute z-50 mt-1 hidden max-h-56 w-full overflow-auto rounded-lg border border-gray-600 bg-white p-1 shadow-lg dark:border-gray-700 dark:bg-gray-900">
                 </div>
             </div>
             @error('destination')
@@ -968,8 +982,12 @@
                                     <div class="item-region-wrap lg:col-span-3">
                                         <select class="item-region dark:border-gray-600 app-input">
                                             <option value="">{{ ui_phrase('All Regions') }}</option>
-                                            @foreach ($itemRegions as $region)
-                                                <option value="{{ $region }}">{{ $region }}</option>
+                                            @foreach ($itemRegions as $regionOption)
+                                                <option value="{{ $regionOption['region'] }}"
+                                                    data-destination="{{ $regionOption['destination'] }}"
+                                                    data-city="{{ $regionOption['city'] }}"
+                                                    data-province="{{ $regionOption['province'] }}"
+                                                    data-location="{{ $regionOption['location'] }}">{{ $regionOption['region'] }}</option>
                                             @endforeach
                                         </select>
                                     </div>
@@ -1035,6 +1053,7 @@
                                             @foreach ($islandTransfersSorted as $t)
                                                 <option value="{{ $t->id }}"
                                                     data-duration="{{ $t->duration_minutes ?? 60 }}"
+                                                    data-destination="{{ $t->vendor?->destination?->name ?? '' }}"
                                                     data-city="{{ $t->vendor?->city ?? '' }}"
                                                     data-province="{{ $t->vendor?->province ?? '' }}"
                                                     data-location="{{ $t->vendor?->location ?? '' }}"
@@ -1067,7 +1086,9 @@
                                                 @foreach ($foodBeveragesSorted as $f)
                                                     <option value="{{ $f->id }}"
                                                         data-duration="{{ $f->duration_minutes ?? 60 }}"
+                                                        data-destination="{{ $f->vendor?->destination?->name ?? '' }}"
                                                         data-city="{{ $f->vendor?->city ?? '' }}"
+                                                        data-location="{{ $f->vendor?->location ?? '' }}"
                                                         data-province="{{ $f->vendor?->province ?? '' }}"
                                                         data-latitude="{{ $f->vendor?->latitude ?? '' }}"
                                                         data-longitude="{{ $f->vendor?->longitude ?? '' }}"
@@ -1149,8 +1170,12 @@
                                     <div class="item-region-wrap lg:col-span-3">
                                         <select class="item-region dark:border-gray-600 app-input">
                                             <option value="">{{ ui_phrase('All Regions') }}</option>
-                                            @foreach ($itemRegions as $region)
-                                                <option value="{{ $region }}">{{ $region }}</option>
+                                            @foreach ($itemRegions as $regionOption)
+                                                <option value="{{ $regionOption['region'] }}"
+                                                    data-destination="{{ $regionOption['destination'] }}"
+                                                    data-city="{{ $regionOption['city'] }}"
+                                                    data-province="{{ $regionOption['province'] }}"
+                                                    data-location="{{ $regionOption['location'] }}">{{ $regionOption['region'] }}</option>
                                             @endforeach
                                         </select>
                                     </div>
@@ -1215,6 +1240,7 @@
                                             @foreach ($islandTransfersSorted as $t)
                                                 <option value="{{ $t->id }}"
                                                     data-duration="{{ $t->duration_minutes ?? 60 }}"
+                                                    data-destination="{{ $t->vendor?->destination?->name ?? '' }}"
                                                     data-city="{{ $t->vendor?->city ?? '' }}"
                                                     data-province="{{ $t->vendor?->province ?? '' }}"
                                                     data-location="{{ $t->vendor?->location ?? '' }}"
@@ -1247,8 +1273,10 @@
                                                 @foreach ($foodBeveragesSorted as $f)
                                                     <option value="{{ $f->id }}"
                                                         data-duration="{{ $f->duration_minutes ?? 60 }}"
+                                                        data-destination="{{ $f->vendor?->destination?->name ?? '' }}"
                                                         data-city="{{ $f->vendor?->city ?? '' }}"
                                                         data-province="{{ $f->vendor?->province ?? '' }}"
+                                                        data-location="{{ $f->vendor?->location ?? '' }}"
                                                         data-latitude="{{ $f->vendor?->latitude ?? '' }}"
                                                         data-longitude="{{ $f->vendor?->longitude ?? '' }}"
                                                         data-meal-period="{{ implode(',', $normalizeMealPeriodTokens($f->meal_period ?? null)) }}">
@@ -3211,7 +3239,7 @@
                         option.classList.toggle('dark:text-blue-200', isActive);
                     });
                 };
-                const fetchAttractionSuggestions = async (keyword, region = '', limit = 12) => {
+                const fetchAttractionSuggestions = async (keyword, region = '') => {
                     const trimmed = String(keyword || '').trim();
                     const trimmedRegion = String(region || '').trim();
                     const destinationKeyword = String(itineraryDestinationInput?.value || '').trim();
@@ -3219,7 +3247,6 @@
                         q: trimmed,
                         destination: destinationKeyword,
                         region: trimmedRegion,
-                        limit: String(limit),
                     });
                     const response = await fetch(`${attractionSuggestionEndpoint}?${params.toString()}`, {
                         headers: {
@@ -3332,21 +3359,47 @@
                     attractionAutocompleteBoundRows.add(row);
                     const { input, select, dropdown } = getAttractionElements(row);
                     if (!input || !select || !dropdown) return;
+                    const suggestionCache = new Map();
                     let debounceTimer = null;
                     let fetchToken = 0;
                     let creating = false;
                     syncAttractionInputFromSelect(row);
                     setAttractionNotice(row, '', 'info');
 
+                    const getAttractionSearchKey = (keyword, region) => [
+                        normalizeAttractionKeyword(itineraryDestinationInput?.value || ''),
+                        normalizeAttractionKeyword(region),
+                        normalizeAttractionKeyword(keyword),
+                    ].join('|');
+                    const renderCachedAttractionSuggestions = (keyword) => {
+                        const selectedRegion = String(row.querySelector('.item-region')?.value || '').trim();
+                        const keywordKey = normalizeAttractionKeyword(keyword);
+                        const exactKey = getAttractionSearchKey(keyword, selectedRegion);
+                        let suggestions = suggestionCache.get(exactKey) || null;
+                        if (!suggestions) {
+                            const baseSuggestions = suggestionCache.get(getAttractionSearchKey('', selectedRegion)) || [];
+                            suggestions = keywordKey === ''
+                                ? baseSuggestions
+                                : baseSuggestions.filter((item) => normalizeAttractionKeyword(item?.label || item?.name || '').includes(keywordKey));
+                        }
+                        renderAttractionDropdown(row, suggestions, keyword);
+                    };
                     const runSearch = async (keyword) => {
                         const token = ++fetchToken;
                         const selectedRegion = String(row.querySelector('.item-region')?.value || '').trim();
+                        const searchKey = getAttractionSearchKey(keyword, selectedRegion);
+                        if (suggestionCache.has(searchKey)) {
+                            renderAttractionDropdown(row, suggestionCache.get(searchKey), keyword);
+                        }
                         try {
-                            const suggestions = await fetchAttractionSuggestions(keyword, selectedRegion, 12);
+                            const suggestions = await fetchAttractionSuggestions(keyword, selectedRegion);
                             if (token !== fetchToken) return;
+                            suggestionCache.set(searchKey, suggestions);
                             renderAttractionDropdown(row, suggestions, keyword);
                         } catch (_) {
-                            hideAttractionDropdown(row);
+                            if (token === fetchToken) {
+                                hideAttractionDropdown(row);
+                            }
                         }
                     };
 
@@ -3354,11 +3407,16 @@
                         setAttractionNotice(row, '', 'info');
                         runSearch(input.value || '');
                     });
+                    input.addEventListener('click', () => {
+                        runSearch(input.value || '');
+                    });
                     input.addEventListener('input', () => {
+                        fetchToken += 1;
                         select.value = '';
                         setAttractionNotice(row, '', 'info');
+                        renderCachedAttractionSuggestions(input.value || '');
                         if (debounceTimer) clearTimeout(debounceTimer);
-                        debounceTimer = setTimeout(() => runSearch(input.value || ''), 250);
+                        debounceTimer = setTimeout(() => runSearch(input.value || ''), 120);
                     });
                     input.addEventListener('keydown', async (event) => {
                         const options = [...dropdown.querySelectorAll('[data-attraction-option]')];
@@ -3566,7 +3624,7 @@
                         option.classList.toggle('dark:text-blue-200', isActive);
                     });
                 };
-                const fetchActivitySuggestions = async (keyword, region = '', limit = 12) => {
+                const fetchActivitySuggestions = async (keyword, region = '') => {
                     const trimmed = String(keyword || '').trim();
                     const trimmedRegion = String(region || '').trim();
                     const destinationKeyword = String(itineraryDestinationInput?.value || '').trim();
@@ -3574,7 +3632,6 @@
                         q: trimmed,
                         destination: destinationKeyword,
                         region: trimmedRegion,
-                        limit: String(limit),
                     });
                     const response = await fetch(`${activitySuggestionEndpoint}?${params.toString()}`, {
                         headers: {
@@ -3687,21 +3744,47 @@
                     activityAutocompleteBoundRows.add(row);
                     const { input, select, dropdown } = getActivityElements(row);
                     if (!input || !select || !dropdown) return;
+                    const suggestionCache = new Map();
                     let debounceTimer = null;
                     let fetchToken = 0;
                     let creating = false;
                     syncActivityInputFromSelect(row);
                     setActivityNotice(row, '', 'info');
 
+                    const getActivitySearchKey = (keyword, region) => [
+                        normalizeActivityKeyword(itineraryDestinationInput?.value || ''),
+                        normalizeActivityKeyword(region),
+                        normalizeActivityKeyword(keyword),
+                    ].join('|');
+                    const renderCachedActivitySuggestions = (keyword) => {
+                        const selectedRegion = String(row.querySelector('.item-region')?.value || '').trim();
+                        const keywordKey = normalizeActivityKeyword(keyword);
+                        const exactKey = getActivitySearchKey(keyword, selectedRegion);
+                        let suggestions = suggestionCache.get(exactKey) || null;
+                        if (!suggestions) {
+                            const baseSuggestions = suggestionCache.get(getActivitySearchKey('', selectedRegion)) || [];
+                            suggestions = keywordKey === ''
+                                ? baseSuggestions
+                                : baseSuggestions.filter((item) => normalizeActivityKeyword(item?.label || item?.name || '').includes(keywordKey));
+                        }
+                        renderActivityDropdown(row, suggestions, keyword);
+                    };
                     const runSearch = async (keyword) => {
                         const token = ++fetchToken;
                         const selectedRegion = String(row.querySelector('.item-region')?.value || '').trim();
+                        const searchKey = getActivitySearchKey(keyword, selectedRegion);
+                        if (suggestionCache.has(searchKey)) {
+                            renderActivityDropdown(row, suggestionCache.get(searchKey), keyword);
+                        }
                         try {
-                            const suggestions = await fetchActivitySuggestions(keyword, selectedRegion, 12);
+                            const suggestions = await fetchActivitySuggestions(keyword, selectedRegion);
                             if (token !== fetchToken) return;
+                            suggestionCache.set(searchKey, suggestions);
                             renderActivityDropdown(row, suggestions, keyword);
                         } catch (_) {
-                            hideActivityDropdown(row);
+                            if (token === fetchToken) {
+                                hideActivityDropdown(row);
+                            }
                         }
                     };
 
@@ -3709,11 +3792,16 @@
                         setActivityNotice(row, '', 'info');
                         runSearch(input.value || '');
                     });
+                    input.addEventListener('click', () => {
+                        runSearch(input.value || '');
+                    });
                     input.addEventListener('input', () => {
+                        fetchToken += 1;
                         select.value = '';
                         setActivityNotice(row, '', 'info');
+                        renderCachedActivitySuggestions(input.value || '');
                         if (debounceTimer) clearTimeout(debounceTimer);
-                        debounceTimer = setTimeout(() => runSearch(input.value || ''), 250);
+                        debounceTimer = setTimeout(() => runSearch(input.value || ''), 120);
                     });
                     input.addEventListener('keydown', async (event) => {
                         const options = [...dropdown.querySelectorAll('[data-activity-option]')];
@@ -4071,7 +4159,7 @@
                         option.classList.toggle('dark:text-blue-200', isActive);
                     });
                 };
-                const fetchFnbSuggestions = async (keyword, region = '', limit = 12, mealSlot = '') => {
+                const fetchFnbSuggestions = async (keyword, region = '', mealSlot = '') => {
                     const trimmed = String(keyword || '').trim();
                     const trimmedRegion = String(region || '').trim();
                     const normalizedMealSlot = normalizeMealPeriodToken(mealSlot || '');
@@ -4080,7 +4168,6 @@
                         q: trimmed,
                         destination: destinationKeyword,
                         region: trimmedRegion,
-                        limit: String(limit),
                     });
                     if (mealPeriodKeys.includes(normalizedMealSlot)) {
                         params.set('meal_slot', normalizedMealSlot);
@@ -4216,22 +4303,50 @@
                     fnbAutocompleteBoundRows.add(row);
                     const { input, select, dropdown } = getFnbElements(row);
                     if (!input || !select || !dropdown) return;
+                    const suggestionCache = new Map();
                     let debounceTimer = null;
                     let fetchToken = 0;
                     let creating = false;
                     syncFnbInputFromSelect(row);
                     applyFnbMealSlotFilter(row, { clearInvalidSelection: false });
 
+                    const getFnbSearchKey = (keyword, region, mealSlot = '') => [
+                        normalizeFnbKeyword(itineraryDestinationInput?.value || ''),
+                        normalizeFnbKeyword(region),
+                        normalizeMealPeriodToken(mealSlot || ''),
+                        normalizeFnbKeyword(keyword),
+                    ].join('|');
+                    const renderCachedFnbSuggestions = (keyword) => {
+                        const selectedRegion = String(row.querySelector('.item-region')?.value || '').trim();
+                        const mealSlot = getFnbMealSlotForRow(row) || '';
+                        const keywordKey = normalizeFnbKeyword(keyword);
+                        const exactKey = getFnbSearchKey(keyword, selectedRegion, mealSlot);
+                        let suggestions = suggestionCache.get(exactKey) || null;
+                        if (!suggestions) {
+                            const baseSuggestions = suggestionCache.get(getFnbSearchKey('', selectedRegion, mealSlot)) || [];
+                            suggestions = keywordKey === ''
+                                ? baseSuggestions
+                                : baseSuggestions.filter((item) => normalizeFnbKeyword(item?.label || item?.name || '').includes(keywordKey));
+                        }
+                        renderFnbDropdown(row, suggestions, keyword);
+                    };
                     const runSearch = async (keyword) => {
                         const token = ++fetchToken;
                         const selectedRegion = String(row.querySelector('.item-region')?.value || '').trim();
                         const mealSlot = getFnbMealSlotForRow(row) || '';
+                        const searchKey = getFnbSearchKey(keyword, selectedRegion, mealSlot);
+                        if (suggestionCache.has(searchKey)) {
+                            renderFnbDropdown(row, suggestionCache.get(searchKey), keyword);
+                        }
                         try {
-                            const suggestions = await fetchFnbSuggestions(keyword, selectedRegion, 12, mealSlot);
+                            const suggestions = await fetchFnbSuggestions(keyword, selectedRegion, mealSlot);
                             if (token !== fetchToken) return;
+                            suggestionCache.set(searchKey, suggestions);
                             renderFnbDropdown(row, suggestions, keyword);
                         } catch (_) {
-                            hideFnbDropdown(row);
+                            if (token === fetchToken) {
+                                hideFnbDropdown(row);
+                            }
                         }
                     };
 
@@ -4239,11 +4354,17 @@
                         applyFnbMealSlotFilter(row, { clearInvalidSelection: false });
                         runSearch(input.value || '');
                     });
+                    input.addEventListener('click', () => {
+                        applyFnbMealSlotFilter(row, { clearInvalidSelection: false });
+                        runSearch(input.value || '');
+                    });
                     input.addEventListener('input', () => {
+                        fetchToken += 1;
                         select.value = '';
                         setFnbNotice(row, '', 'info');
+                        renderCachedFnbSuggestions(input.value || '');
                         if (debounceTimer) clearTimeout(debounceTimer);
-                        debounceTimer = setTimeout(() => runSearch(input.value || ''), 250);
+                        debounceTimer = setTimeout(() => runSearch(input.value || ''), 120);
                     });
                     input.addEventListener('keydown', async (event) => {
                         const options = [...dropdown.querySelectorAll('[data-fnb-option]')];
@@ -7520,7 +7641,7 @@
 
                 const normalize = (value) => String(value || '').toLowerCase().trim();
                 const endpoint = destinationInput.dataset.endpoint || '';
-                const suggestionLimit = 12;
+                const suggestionCache = new Map();
                 let fetchToken = 0;
                 let activeIndex = -1;
 
@@ -7551,7 +7672,9 @@
                 const selectSuggestion = (value) => {
                     destinationInput.value = value;
                     hideDropdown();
-                    applyDestinationFilter();
+                    destinationInput.dispatchEvent(new Event('change', {
+                        bubbles: true
+                    }));
                 };
 
                 const renderSuggestions = (items) => {
@@ -7568,15 +7691,43 @@
                     });
                     destinationDropdown.innerHTML = html;
                     destinationDropdown.classList.remove('hidden');
+                    destinationDropdown.style.display = '';
                     setActiveItem(-1);
+                };
+
+                const getSuggestionCacheKey = (keyword) => normalize(keyword);
+                const filterCachedSuggestions = (keyword) => {
+                    const key = getSuggestionCacheKey(keyword);
+                    if (suggestionCache.has(key)) {
+                        return suggestionCache.get(key);
+                    }
+
+                    const allSuggestions = suggestionCache.get('');
+                    if (!allSuggestions || !key) {
+                        return [];
+                    }
+
+                    return allSuggestions.filter((item) => normalize(item).includes(key));
+                };
+                const renderCachedSuggestions = (keyword) => {
+                    const items = filterCachedSuggestions(keyword);
+                    if (items.length) {
+                        renderSuggestions(items);
+                    } else {
+                        hideDropdown();
+                    }
                 };
 
                 const fetchSuggestions = async (keyword) => {
                     if (!endpoint) return;
+                    const rawKeyword = String(keyword || '').trim();
+                    const cacheKey = getSuggestionCacheKey(rawKeyword);
+                    if (suggestionCache.has(cacheKey)) {
+                        renderSuggestions(suggestionCache.get(cacheKey));
+                    }
                     const token = ++fetchToken;
                     const params = new URLSearchParams({
-                        q: keyword,
-                        limit: String(suggestionLimit),
+                        q: rawKeyword,
                     });
                     try {
                         const response = await fetch(`${endpoint}?${params.toString()}`, {
@@ -7586,15 +7737,20 @@
                             },
                         });
                         if (!response.ok) {
-                            hideDropdown();
+                            if (token === fetchToken) {
+                                hideDropdown();
+                            }
                             return;
                         }
                         const payload = await response.json();
                         if (token !== fetchToken) return;
                         const items = Array.isArray(payload?.data) ? payload.data : [];
+                        suggestionCache.set(cacheKey, items);
                         renderSuggestions(items);
                     } catch (_) {
-                        hideDropdown();
+                        if (token === fetchToken) {
+                            hideDropdown();
+                        }
                     }
                 };
 
@@ -7702,8 +7858,33 @@
                         select.value = '';
                     }
                 };
+                const applyFilterToRegionSelect = (select) => {
+                    if (!select) return;
+                    const keyword = normalize(destinationInput.value);
+                    const selectedValue = String(select.value || '');
+                    let hasVisibleSelected = selectedValue === '';
+                    Array.from(select.options).forEach((option, idx) => {
+                        if (idx === 0) {
+                            option.hidden = false;
+                            option.disabled = false;
+                            return;
+                        }
+                        const visible = matchesDestination(option, keyword);
+                        const selected = option.value === selectedValue;
+                        option.hidden = !visible;
+                        option.disabled = !visible;
+                        if (visible && selected) {
+                            hasVisibleSelected = true;
+                        }
+                    });
+                    if (selectedValue !== '' && !hasVisibleSelected) {
+                        select.value = '';
+                    }
+                };
 
                 const applyDestinationFilter = () => {
+                    document.querySelectorAll('.item-region')
+                        .forEach(applyFilterToRegionSelect);
                     document.querySelectorAll(
                             '.item-attraction, .item-activity, .item-transfer, .item-fnb, .day-transport-unit'
                             )
@@ -7714,12 +7895,15 @@
 
                 const fetchSuggestionsDebounced = debounce((keyword) => {
                     fetchSuggestions(keyword);
-                }, 300);
+                }, 120);
 
                 destinationInput.addEventListener('input', () => {
+                    fetchToken += 1;
+                    const keyword = destinationInput.value.trim();
+                    renderCachedSuggestions(keyword);
                     applyDestinationFilter();
                     syncPointItemVisibility();
-                    fetchSuggestionsDebounced(destinationInput.value.trim());
+                    fetchSuggestionsDebounced(keyword);
                 });
                 destinationInput.addEventListener('change', () => {
                     applyDestinationFilter();
@@ -7732,6 +7916,9 @@
                     }
                 });
                 destinationInput.addEventListener('focus', () => {
+                    fetchSuggestions(destinationInput.value.trim());
+                });
+                destinationInput.addEventListener('click', () => {
                     fetchSuggestions(destinationInput.value.trim());
                 });
                 destinationInput.addEventListener('keydown', (event) => {

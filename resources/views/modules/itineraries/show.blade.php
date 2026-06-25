@@ -12,6 +12,9 @@
             && auth()->user()?->can('module.quotations.access')
             && ! $itinerary->trashed()
             && $hasRenderableItineraryItems;
+        $canPreviewItineraryPdf = Route::has('itineraries.pdf')
+            && auth()->user()?->can('module.itineraries.access')
+            && ! $itinerary->trashed();
     @endphp
     @if (! $itinerary->trashed())
         <x-ui.confirm-action
@@ -41,10 +44,10 @@
             <span>{{ ui_phrase('Generate Quotation') }}</span>
         </a>
     @endif
-    @if (auth()->user()?->hasAnyRole(['Reservation', 'Manager', 'Director']))
+    @if ($canPreviewItineraryPdf)
         <a href="{{ route('itineraries.pdf', [$itinerary, 'mode' => 'stream']) }}" target="_blank" rel="noopener" class="btn-secondary">
             <i class="fa-solid fa-file-pdf" aria-hidden="true"></i>
-            <span>{{ ui_phrase('Generate PDF') }}</span>
+            <span>{{ ui_phrase('Preview / Download PDF') }}</span>
         </a>
     @endif
     @can('update', $itinerary)

@@ -1,6 +1,6 @@
 # VOYEX CRM Operational Commercial Flow Refactor
 
-Last Updated: 2026-05-21
+Last Updated: 2026-06-25
 Status: In Progress
 
 ## Target Workflow
@@ -91,7 +91,7 @@ Status: In Progress
 - Add tests before lifecycle-hardening changes when possible.
 
 ## Execution Checklist
-- [x] Customer index sidebar now uses filter-aware summary payload (`Customer/Agent Info`) from controller.
+- [x] Customer index now uses the official index baseline: KPI/Summary Cards, compact one-row filter card, data table/mobile cards, and no dedicated index sidebar.
 - [ ] Phase A implementation merged.
 - [ ] Phase B implementation merged.
 - [ ] Phase C implementation merged.
