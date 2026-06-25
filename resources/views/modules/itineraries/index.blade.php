@@ -14,12 +14,10 @@
                     <form method="GET" action="{{ route('itineraries.index') }}"
                         class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4" data-service-filter-form
                         data-filter-min-text="3" data-disable-submit-lock="1" data-page-spinner="off">
-                        <input type="text" value="{{ request('title') }}"
-                            placeholder="{{ ui_phrase('Search') }}"
-                            class="app-input sm:col-span-2 lg:col-span-2" data-filter-title-visible
+                        <input type="text" name="title" value="{{ request('title') }}"
+                            placeholder="{{ ui_phrase('Search (min 3 characters)') }}"
+                            class="app-input sm:col-span-2 lg:col-span-2" data-service-filter-input
                             data-filter-min-text="3">
-                        <input type="hidden" name="title" value="{{ request('title') }}"
-                            data-service-filter-input data-filter-title-hidden>
                         <select name="destination_id" class="app-input" data-service-filter-input>
                             <option value="">{{ ui_phrase('All destinations') }}</option>
                             @foreach ($destinations as $destination)
@@ -29,7 +27,7 @@
                         </select>
                         <input name="duration" type="number" min="1" value="{{ request('duration') }}"
                             placeholder="{{ ui_phrase('Duration (days)') }}" class="app-input"
-                            data-service-filter-input>
+                            data-service-filter-input data-filter-min-text="0">
                         <select name="per_page" class="app-input" data-service-filter-input>
                             @foreach ($perPageOptions as $size)
                                 <option value="{{ $size }}" @selected((string) request('per_page', 10) === (string) $size)>
@@ -38,7 +36,7 @@
                         </select>
                         <div
                             class="flex items-center gap-2 sm:col-span-2 lg:col-span-4 filter-actions h-[42px]">
-                            <a href="{{ route('itineraries.index', ['reset' => 1]) }}"
+                            <a href="{{ route('itineraries.index') }}"
                                 class="btn-secondary h-[42px] rounded-[var(--app-radius-sm)] px-4"
                                 data-service-filter-reset>{{ ui_phrase('Reset') }}</a>
                         </div>
@@ -427,149 +425,6 @@
                 });
             }
 
-            const filterForm = document.querySelector('[data-service-filter-form]');
-            if (filterForm) {
-                const minFilterLength = 3;
-                const textFilterInputs = Array.from(filterForm.querySelectorAll(
-                    'input[type="text"], input[type="search"]'));
-                const titleInputVisible = filterForm.querySelector('[data-filter-title-visible]');
-                const titleInputHidden = filterForm.querySelector('[data-filter-title-hidden]');
-                let lastSubmittedTitleValue = String(titleInputHidden?.value || '').trim();
-
-                const isTextFilterValueValid = function(value) {
-                    const normalized = String(value || '').trim();
-                    return normalized === '' || normalized.length >= minFilterLength;
-                };
-
-                const isAllTextFiltersValid = function() {
-                    return textFilterInputs.every(function(input) {
-                        return isTextFilterValueValid(input.value);
-                    });
-                };
-
-                const syncInputValidityMessage = function(input) {
-                    if (!input) return;
-                    if (isTextFilterValueValid(input.value)) {
-                        input.setCustomValidity('');
-                        return;
-                    }
-                    input.setCustomValidity(
-                        '{{ ui_phrase('Please enter at least :count characters before filtering.', ['count' => 3]) }}'
-                        );
-                };
-
-                textFilterInputs.forEach(function(input) {
-                    input.addEventListener('input', function() {
-                        syncInputValidityMessage(input);
-                        if (input !== titleInputVisible) {
-                            return;
-                        }
-                        if (!titleInputHidden) {
-                            return;
-                        }
-                        const currentValue = String(titleInputVisible.value || '').trim();
-                        if (currentValue !== '' && currentValue.length < minFilterLength) {
-                            return;
-                        }
-                        titleInputHidden.value = currentValue;
-                        if (currentValue === lastSubmittedTitleValue) {
-                            return;
-                        }
-                        lastSubmittedTitleValue = currentValue;
-                        filterForm.requestSubmit();
-                    });
-
-                    input.addEventListener('blur', function() {
-                        syncInputValidityMessage(input);
-                        if (!isAllTextFiltersValid()) {
-                            return;
-                        }
-                        if (input === titleInputVisible) {
-                            const currentValue = String(titleInputVisible?.value || '').trim();
-                            if (currentValue !== '' && currentValue.length < minFilterLength) {
-                                return;
-                            }
-                            if (titleInputHidden) {
-                                titleInputHidden.value = currentValue;
-                            }
-                            if (currentValue === lastSubmittedTitleValue) {
-                                return;
-                            }
-                            lastSubmittedTitleValue = currentValue;
-                        }
-                        filterForm.requestSubmit();
-                    });
-
-                    input.addEventListener('keydown', function(event) {
-                        if (event.key !== 'Enter' && event.key !== 'Tab') {
-                            return;
-                        }
-                        syncInputValidityMessage(input);
-                        if (!isAllTextFiltersValid()) {
-                            event.preventDefault();
-                            filterForm.reportValidity();
-                            return;
-                        }
-                        if (input === titleInputVisible) {
-                            const currentValue = String(titleInputVisible?.value || '').trim();
-                            if (currentValue !== '' && currentValue.length < minFilterLength) {
-                                event.preventDefault();
-                                filterForm.reportValidity();
-                                return;
-                            }
-                            if (titleInputHidden) {
-                                titleInputHidden.value = currentValue;
-                            }
-                            if (currentValue === lastSubmittedTitleValue) {
-                                return;
-                            }
-                            lastSubmittedTitleValue = currentValue;
-                        }
-                        filterForm.requestSubmit();
-                    });
-                });
-
-                filterForm.addEventListener('submit', function(event) {
-                    // The interactive event listeners (input, blur, change) are responsible
-                    // for providing validation feedback. This handler's only job is to
-                    // ensure the hidden title field is populated correctly before submission.
-                    if (titleInputVisible && titleInputHidden) {
-                        const normalizedTitle = String(titleInputVisible.value || '').trim();
-                        titleInputHidden.value = normalizedTitle;
-                        lastSubmittedTitleValue = normalizedTitle;
-                    }
-                });
-
-                // Block global service-filter auto-trigger on select/number change when title is non-empty but < min length.
-                filterForm.addEventListener('change', function(event) {
-                    if (!titleInputVisible || !titleInputHidden) {
-                        return;
-                    }
-                    const target = event.target;
-                    if (!(target instanceof HTMLInputElement || target instanceof HTMLSelectElement ||
-                            target instanceof HTMLTextAreaElement)) {
-                        return;
-                    }
-                    if (!target.matches('[data-service-filter-input]')) {
-                        return;
-                    }
-
-                    // Special handling for duration filter: always allow submission.
-                    if (target.name === 'duration') {
-                        // No further checks, let the form submit normally.
-                        // The backend will handle the numerical duration validation.
-                        return;
-                    }
-
-                    const titleValue = String(titleInputVisible.value || '').trim();
-                    if (titleValue !== '' && titleValue.length < minFilterLength) {
-                        syncInputValidityMessage(titleInputVisible);
-                        event.stopImmediatePropagation();
-                        event.preventDefault();
-                        filterForm.reportValidity();
-                    }
-                }, true);
-            }
         });
     </script>
 @endpush

@@ -2353,6 +2353,10 @@ function initServiceFilterPage(root = document) {
         };
 
         const getInputMinChars = (input) => {
+            if (input.hasAttribute('data-filter-min-text')) {
+                const explicitInputRaw = Number(input.getAttribute('data-filter-min-text') || 0);
+                return Number.isFinite(explicitInputRaw) ? Math.max(0, Math.floor(explicitInputRaw)) : 0;
+            }
             const inputRaw = Number(input.getAttribute('data-filter-min-text') || 0);
             if (Number.isFinite(inputRaw) && inputRaw > 0) {
                 return Math.floor(inputRaw);

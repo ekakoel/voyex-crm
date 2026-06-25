@@ -1,5 +1,55 @@
 # VOYEX UI Refactor Changelog
 
+## 2026-06-25 (Activities Index Filter Standardization + Controller Row Prep)
+- Scope: standardize Activities index filters and move repeated row presentation logic from Blade to controller-prepared data.
+- Updated files:
+  - app/Http/Controllers/Admin/ActivityController.php
+  - resources/views/modules/activities/index.blade.php
+  - resources/views/modules/activities/partials/_index-results.blade.php
+  - docs/technical/VOYEX_UI_REFACTOR_CHANGELOG.md
+  - docs/standards/quotation-standard.md
+  - PROJECT_KNOWLEDGE_BASE.md
+  - VOYEX_CRM_SYSTEM_ROADMAP.md
+- Applied updates:
+  - aligned Activities index with the standard `data-service-filter-*` AJAX filter/pagination contract.
+  - kept the existing filter flow and fields: `q`, `vendor_id`, `activity_type_id`, `status`, and `per_page`.
+  - validated and normalized filter params in `ActivityController@index`, including min-3 backend guard for `q`.
+  - moved row number, status, type label, duration label, data-attention flag, and rate-line payload preparation to controller-prepared `activityRows`.
+  - updated the result partial so desktop and mobile cards reuse the same prepared row payload instead of recalculating per layout.
+  - added KPI cards above the compact filter card, matching the project index baseline.
+- Mandatory audit result:
+  - multi-language: new/changed visible labels use `ui_phrase(...)`; controller stat labels also use `ui_phrase(...)`.
+  - multi-currency: money values continue rendering through the existing `x-money` component; the controller only prepares rate labels/values.
+  - dark/light mode: existing `app-card`, `app-input`, `app-table`, `btn-secondary`, and status components are preserved.
+- Verification:
+  - `php -l app/Http/Controllers/Admin/ActivityController.php`
+  - `php artisan route:list | Select-String -Pattern "activities"`
+
+## 2026-06-25 (Itinerary Index Filter Standardization)
+- Scope: align itineraries index filters with the locked Customers/Agents index filter baseline.
+- Updated files:
+  - app/Http/Controllers/Admin/ItineraryController.php
+  - resources/views/modules/itineraries/index.blade.php
+  - resources/js/app.js
+  - docs/technical/VOYEX_UI_REFACTOR_CHANGELOG.md
+  - docs/standards/quotation-standard.md
+  - PROJECT_KNOWLEDGE_BASE.md
+  - VOYEX_CRM_SYSTEM_ROADMAP.md
+- Applied updates:
+  - removed session-sticky filter state from itineraries index so filters follow explicit query parameters and reset behavior matches the index baseline.
+  - normalized backend filter validation for `title`, `destination_id`, `duration`, and `per_page`.
+  - kept `title` as the only min-3 text filter; duration remains a numeric filter and does not require a minimum character count.
+  - replaced the custom hidden-title filter bridge with the standard `data-service-filter-input` contract.
+  - changed the reset link back to the plain index route.
+  - updated global service-filter min-text handling so input-level `data-filter-min-text="0"` explicitly overrides form-level min text.
+- Mandatory audit result:
+  - multi-language: no new visible labels were introduced.
+  - multi-currency: no money fields were changed.
+  - dark/light mode: filter uses existing `app-card`, `app-input`, and `btn-secondary` classes.
+- Verification:
+  - `php -l app/Http/Controllers/Admin/ItineraryController.php`
+  - `php artisan route:list | Select-String -Pattern "itineraries"`
+
 ## 2026-06-25 (Itinerary Basic Info Destination Dropdown From Master Data)
 - Scope: make create/edit itinerary Basic Info destination autocomplete use all master destination records from the database.
 - Updated files:

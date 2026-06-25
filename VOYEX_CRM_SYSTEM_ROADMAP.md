@@ -213,6 +213,18 @@ Kebijakan ini wajib untuk setiap update code (penambahan, perubahan, pengurangan
 # CHANGELOG (LATEST)
 
 - 2026-06-25
+  - Filter halaman index Activities distandarisasi memakai baseline index: KPI cards, satu compact filter card, AJAX filter/pagination `data-service-filter-*`, dan reset ke route index utama.
+  - Backend Activities index sekarang menormalisasi filter `q`, `vendor_id`, `activity_type_id`, `status`, dan `per_page`; `q` tetap mengikuti minimum 3 karakter.
+  - Presentation row Activities dipindahkan ke controller melalui `activityRows` agar desktop table dan mobile card memakai payload yang sama dan Blade tidak mengulang kalkulasi status/rate/data-attention.
+  - Flow action Detail/Edit/Activate/Deactivate tetap dipertahankan, termasuk permission activation action.
+
+- 2026-06-25
+  - Filter halaman index Itineraries distandarisasi mengikuti baseline index: satu compact filter card, AJAX filter/pagination, dan reset ke route index utama.
+  - Backend filter Itineraries sekarang menormalisasi `title`, `destination_id`, `duration`, dan `per_page` tanpa session-sticky filter state.
+  - `title` tetap mengikuti aturan minimum 3 karakter, sedangkan `duration` diperlakukan sebagai numeric filter dan tidak membutuhkan minimum character.
+  - Global service-filter engine diperbarui agar `data-filter-min-text="0"` pada input meng-override form-level min text.
+
+- 2026-06-25
   - Dropdown Destination pada tab Basic Info create/edit itinerary sekarang mengambil data dari master `destinations` di database.
   - Endpoint `itineraries.destination-suggestions` kini mengembalikan canonical `destinations.name`; pencarian tetap bisa mencocokkan name/city/province.
   - Limit frontend `12` item dan backend cap `50` item dihapus untuk dropdown Destination sehingga fokus/klik input kosong dapat menampilkan semua destination.

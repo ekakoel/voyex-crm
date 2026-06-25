@@ -57,32 +57,19 @@ class ItineraryController extends Controller
 
     public function index(Request $request)
     {
-        $filterSessionKey = 'filters.itineraries.index';
-        $filterKeys = ['title', 'destination_id', 'duration', 'per_page'];
+        $perPageOptions = [10, 25, 50, 100];
+        $validated = $request->validate([
+            'title' => ['nullable', 'string', 'max:255'],
+            'destination_id' => ['nullable', 'integer', 'min:1'],
+            'duration' => ['nullable', 'integer', 'min:1', 'max:30'],
+            'per_page' => ['nullable', Rule::in(array_map('strval', $perPageOptions))],
+        ]);
 
-        if ($request->boolean('reset')) {
-            session()->forget($filterSessionKey);
-            return redirect()->route('itineraries.index');
-        } else {
-            $hasExplicitFilterInput = collect($filterKeys)->contains(
-                fn (string $key): bool => $request->filled($key)
-            );
-
-            if ($hasExplicitFilterInput) {
-                $normalizedFilters = [
-                    'title' => trim((string) $request->input('title', '')),
-                    'destination_id' => (string) $request->input('destination_id', ''),
-                    'duration' => (string) $request->input('duration', ''),
-                    'per_page' => (string) $request->input('per_page', ''),
-                ];
-                session([$filterSessionKey => $normalizedFilters]);
-            } else {
-                $storedFilters = session($filterSessionKey, []);
-                if (is_array($storedFilters) && $storedFilters !== []) {
-                    return redirect()->route('itineraries.index', $storedFilters);
-                }
-            }
-        }
+        $titleKeyword = trim((string) ($validated['title'] ?? ''));
+        $destinationId = (int) ($validated['destination_id'] ?? 0);
+        $duration = (int) ($validated['duration'] ?? 0);
+        $perPage = (int) ($validated['per_page'] ?? 10);
+        $perPage = in_array($perPage, $perPageOptions, true) ? $perPage : 10;
 
         $query = Itinerary::query()
             ->where('is_active', true)
@@ -117,13 +104,7 @@ class ItineraryController extends Controller
                 'quotations:id,itinerary_id,status,order_number,quotation_number',
             ]);
 
-        $titleKeyword = trim((string) request('title'));
-        $query->when(request('destination_id'), function ($q) {
-            $destinationId = (int) request('destination_id');
-            if ($destinationId <= 0) {
-                return;
-            }
-
+        $query->when($destinationId > 0, function ($q) use ($destinationId): void {
             if (Schema::hasColumn('itineraries', 'destination_id')) {
                 $q->where('destination_id', $destinationId);
                 return;
@@ -137,15 +118,9 @@ class ItineraryController extends Controller
                 $q->where('destination', $destinationName);
             }
         });
-        $query->when(request('duration'), function ($q) {
-            $duration = (int) request('duration');
-            if ($duration > 0) {
-                $q->where('duration_days', $duration);
-            }
+        $query->when($duration > 0, function ($q) use ($duration): void {
+            $q->where('duration_days', $duration);
         });
-
-        $perPage = (int) request('per_page', 10);
-        $perPage = $perPage > 0 && $perPage <= 100 ? $perPage : 10;
 
         $orderedQuery = $query
             ->orderBy('itineraries.title')
@@ -205,7 +180,6 @@ class ItineraryController extends Controller
             ->limit(10)
             ->get();
         $itineraryRows = $this->buildItineraryIndexRows($itineraries);
-        $perPageOptions = [10, 25, 50, 100];
 
         return view('modules.itineraries.index', compact(
             'itineraries',

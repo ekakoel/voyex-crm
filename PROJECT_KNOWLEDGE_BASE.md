@@ -183,6 +183,18 @@ Dashboard redirect berbasis permission priority:
 - The destination dropdown must update immediately while typing by using cached suggestions plus request-token invalidation so older focus/click responses cannot replace newer typed results.
 - Day Planner `Attraction`, `Activity`, and `F&B` autocomplete dropdowns follow the same no-cap and instant-response rule: fetch all matching records for current destination/region/meal context, cache per context, filter cached data immediately while typing, and invalidate stale requests.
 
+### 7.1e Itinerary Index Filters
+- Itineraries index uses the standard compact filter card with AJAX filter/pagination attributes.
+- Supported filters are `title`, `destination_id`, `duration`, and `per_page`.
+- `title` follows the min-3 text-filter rule; `duration` is numeric and must not require a minimum character count.
+- Input-level `data-filter-min-text="0"` explicitly disables form-level text minimums for numeric filters.
+
+### 7.1f Activities Index Filters
+- Activities index uses KPI cards, one compact filter card, then desktop table/mobile card results.
+- Supported filters are `q`, `vendor_id`, `activity_type_id`, `status`, and `per_page`.
+- `q` follows the min-3 text-filter rule; select filters submit immediately through `data-service-filter-*`.
+- Controller must prepare `activityRows` for desktop/mobile reuse, including row number, status, type label, duration label, data-attention flag, and rate lines.
+
 ### 7.2 Nominal Input
 - Gunakan `x-money-input`.
 - Currency badge left-affix.

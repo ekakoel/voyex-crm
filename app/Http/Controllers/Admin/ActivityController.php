@@ -11,6 +11,7 @@ use App\Models\Destination;
 use App\Models\Vendor;
 use App\Support\ImageThumbnailGenerator;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -23,67 +24,84 @@ class ActivityController extends Controller
 
     public function index(Request $request)
     {
+        $perPageOptions = [10, 25, 50, 100];
         $validated = $request->validate([
+            'q' => ['nullable', 'string', 'max:255'],
+            'vendor_id' => ['nullable', 'integer', 'min:1'],
+            'activity_type_id' => ['nullable', 'integer', 'min:1'],
             'status' => ['nullable', Rule::in(['active', 'inactive'])],
+            'per_page' => ['nullable', Rule::in(array_map('strval', $perPageOptions))],
         ]);
 
-        $query = Activity::query()->withTrashed()->with(['vendor:id,name,latitude,longitude,destination_id', 'activityType:id,name'])->latest('id');
+        $search = trim((string) ($validated['q'] ?? ''));
+        $vendorId = (int) ($validated['vendor_id'] ?? 0);
+        $activityTypeId = (int) ($validated['activity_type_id'] ?? 0);
+        $status = (string) ($validated['status'] ?? '');
+        $perPage = (int) ($validated['per_page'] ?? 10);
+        $perPage = in_array($perPage, $perPageOptions, true) ? $perPage : 10;
 
-        $search = trim((string) $request->string('q'));
-        if (mb_strlen($search) >= 3) {
-            $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                    ->orWhere('activity_type', 'like', "%{$search}%")
-                    ->orWhereHas('vendor', fn ($vendorQ) => $vendorQ->where('name', 'like', "%{$search}%"));
-            });
-        }
-
-        if ($request->filled('vendor_id')) {
-            $query->where('vendor_id', (int) $request->integer('vendor_id'));
-        }
-
-        if ($request->filled('activity_type_id')) {
-            $query->where('activity_type_id', (int) $request->integer('activity_type_id'));
-        } elseif ($request->filled('activity_type')) {
-            $query->where('activity_type', (string) $request->string('activity_type'));
-        }
-        $query->when(($validated['status'] ?? null) === 'active', fn ($q) => $q->whereNull('deleted_at'));
-        $query->when(($validated['status'] ?? null) === 'inactive', fn ($q) => $q->onlyTrashed());
-
-        $perPage = (int) $request->input('per_page', 10);
-        $perPage = in_array($perPage, [10, 25, 50, 100], true) ? $perPage : 10;
+        $query = $this->buildIndexQuery($search, $vendorId, $activityTypeId, $status);
         $activities = $query->paginate($perPage)->withQueryString();
         $vendors = Vendor::query()->where('is_active', true)->orderBy('name')->get(['id', 'name', 'city', 'province']);
         $types = $this->buildTypeFilterOptions();
+        $activityRows = $this->buildActivityIndexRows($activities);
+        $canManageActivationActions = auth()->user()?->canManageActivationActions() === true;
         $statsCards = [
             [
                 'key' => 'total',
-                'label' => 'Total Activities',
-                'value' => Activity::query()->count(),
-                'caption' => 'All records',
+                'label' => ui_phrase('Total Activities'),
+                'value' => (clone $query)->count(),
+                'caption' => ui_phrase('Current filter result'),
             ],
             [
                 'key' => 'active',
-                'label' => 'Active Activities',
-                'value' => Activity::query()->whereNull('deleted_at')->count(),
-                'caption' => 'Currently active',
+                'label' => ui_phrase('Active Activities'),
+                'value' => (clone $query)->whereNull('deleted_at')->count(),
+                'caption' => ui_phrase('Active in current result'),
             ],
             [
                 'key' => 'vendors',
-                'label' => 'Vendors',
-                'value' => Vendor::query()->where('is_active', true)->count(),
-                'caption' => 'Active vendors',
+                'label' => ui_phrase('Vendors'),
+                'value' => (clone $query)
+                    ->whereNotNull('vendor_id')
+                    ->distinct('vendor_id')
+                    ->count('vendor_id'),
+                'caption' => ui_phrase('Vendors in current result'),
             ],
         ];
 
-        if ($this->wantsAjaxFragment($request)) {
+        if ($request->header('X-Activities-Ajax') === '1' || $request->expectsJson()) {
             return response()->json([
-                'html' => view('modules.activities.partials._index-results', compact('activities'))->render(),
+                'html' => view('modules.activities.partials._index-results', compact(
+                    'activities',
+                    'activityRows',
+                    'canManageActivationActions'
+                ))->render(),
                 'url' => route('activities.index', $request->query()),
             ]);
         }
 
-        return view('modules.activities.index', compact('activities', 'vendors', 'types', 'statsCards'));
+        if ($this->wantsAjaxFragment($request)) {
+            return view('modules.activities.index', compact(
+                'activities',
+                'activityRows',
+                'vendors',
+                'types',
+                'statsCards',
+                'perPageOptions',
+                'canManageActivationActions'
+            ));
+        }
+
+        return view('modules.activities.index', compact(
+            'activities',
+            'activityRows',
+            'vendors',
+            'types',
+            'statsCards',
+            'perPageOptions',
+            'canManageActivationActions'
+        ));
     }
 
     public function create()
@@ -321,6 +339,118 @@ class ActivityController extends Controller
         return $request->ajax()
             || $request->expectsJson()
             || $request->header('X-Activities-Ajax') === '1';
+    }
+
+    private function buildIndexQuery(string $search, int $vendorId, int $activityTypeId, string $status)
+    {
+        return Activity::query()
+            ->withTrashed()
+            ->with([
+                'vendor:id,name,latitude,longitude,destination_id',
+                'activityType:id,name',
+            ])
+            ->when($search !== '', function ($query) use ($search): void {
+                if (mb_strlen($search) < 3) {
+                    $query->whereRaw('1 = 0');
+                    return;
+                }
+
+                $query->where(function ($inner) use ($search): void {
+                    $inner->where('name', 'like', "%{$search}%")
+                        ->orWhere('activity_type', 'like', "%{$search}%")
+                        ->orWhereHas('activityType', fn ($typeQuery) => $typeQuery->where('name', 'like', "%{$search}%"))
+                        ->orWhereHas('vendor', fn ($vendorQuery) => $vendorQuery->where('name', 'like', "%{$search}%"));
+                });
+            })
+            ->when($vendorId > 0, fn ($query) => $query->where('vendor_id', $vendorId))
+            ->when($activityTypeId > 0, fn ($query) => $query->where('activity_type_id', $activityTypeId))
+            ->when($status === 'active', fn ($query) => $query->whereNull('deleted_at'))
+            ->when($status === 'inactive', fn ($query) => $query->onlyTrashed())
+            ->latest('id');
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function buildActivityIndexRows(LengthAwarePaginator $activities): array
+    {
+        return $activities->getCollection()
+            ->values()
+            ->map(function (Activity $activity, int $index) use ($activities): array {
+                $isActive = ! $activity->trashed();
+                $galleryImages = $this->normalizeGalleryImages($activity->gallery_images ?? []);
+                $hasDestination = (int) ($activity->vendor?->destination_id ?? 0) > 0;
+                $typeLabel = trim((string) ($activity->activityType?->name ?? $activity->activity_type ?? ''));
+                $hasActivityType = (int) ($activity->activity_type_id ?? 0) > 0 || $typeLabel !== '';
+
+                return [
+                    'activity' => $activity,
+                    'row_number' => $activities->firstItem() !== null ? $activities->firstItem() + $index : $index + 1,
+                    'name' => (string) ($activity->name ?? '-'),
+                    'vendor_name' => trim((string) ($activity->vendor?->name ?? '')) !== '' ? (string) $activity->vendor->name : '-',
+                    'type_label' => $typeLabel !== '' ? $typeLabel : '-',
+                    'duration_label' => ((int) ($activity->duration_minutes ?? 0)) . ' min',
+                    'is_active' => $isActive,
+                    'status' => $isActive ? 'active' : 'inactive',
+                    'needs_data_attention' => count($galleryImages) === 0 || ! $hasDestination || ! $hasActivityType,
+                    'rate_lines' => $this->buildActivityRateLines($activity),
+                ];
+            })
+            ->all();
+    }
+
+    /**
+     * @return array<int, array{label:string,value:float,is_money:bool}>
+     */
+    private function buildActivityRateLines(Activity $activity): array
+    {
+        $lines = [];
+
+        if ($activity->adult_contract_rate !== null) {
+            $lines[] = [
+                'label' => 'ACR',
+                'value' => (float) $activity->adult_contract_rate,
+                'is_money' => true,
+            ];
+        }
+
+        $lines[] = [
+            'label' => 'AM',
+            'value' => (float) ($activity->adult_markup ?? 0),
+            'is_money' => (string) ($activity->adult_markup_type ?? 'fixed') !== 'percent',
+        ];
+
+        if ($activity->adult_publish_rate !== null) {
+            $lines[] = [
+                'label' => 'APR',
+                'value' => (float) $activity->adult_publish_rate,
+                'is_money' => true,
+            ];
+        }
+
+        if ($activity->child_contract_rate !== null) {
+            $lines[] = [
+                'label' => 'CCR',
+                'value' => (float) $activity->child_contract_rate,
+                'is_money' => true,
+            ];
+        }
+
+        $lines[] = [
+            'label' => 'CM',
+            'value' => (float) ($activity->child_markup ?? 0),
+            'is_money' => (string) ($activity->child_markup_type ?? 'fixed') !== 'percent',
+        ];
+
+        if ($activity->child_publish_rate !== null) {
+            $lines[] = [
+                'label' => 'CPR',
+                'value' => (float) $activity->child_publish_rate,
+                'is_money' => true,
+            ];
+        }
+
+        return $lines;
     }
 
     /**
