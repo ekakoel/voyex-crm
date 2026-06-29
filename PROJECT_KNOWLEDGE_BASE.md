@@ -1,10 +1,10 @@
 # Voyex CRM - Project Knowledge Base
 
-Last Updated: 2026-06-25
+Last Updated: 2026-06-29
 
 
 Version: 2.9  
-Date: 2026-06-25  
+Date: 2026-06-29  
 Status: Source of truth aktif
 
 ---
@@ -88,6 +88,7 @@ Vendor Management baseline:
 - Inquiries
 - Itineraries
 - Quotations
+- Quotation detail Workflow Visibility is module-aware: booking/operation status follows `bookings`, while invoice/payment status and related stage/action/risk messaging follow `invoices`.
 - Bookings
 - Invoices
 
@@ -194,6 +195,21 @@ Dashboard redirect berbasis permission priority:
 - Supported filters are `q`, `vendor_id`, `activity_type_id`, `status`, and `per_page`.
 - `q` follows the min-3 text-filter rule; select filters submit immediately through `data-service-filter-*`.
 - Controller must prepare `activityRows` for desktop/mobile reuse, including row number, status, type label, duration label, data-attention flag, and rate lines.
+
+### 7.1g Vendors / Providers Index Filters
+- Vendors / Providers index uses KPI cards, one compact filter card, then desktop table/mobile card results.
+- Supported filters are `q`, `service_type`, `status`, and `per_page`.
+- Do not show a separate `Vendor Type` filter on the index because `Service Type` is the operational filter and vendor types remain row display metadata.
+- KPI cards should refresh with AJAX filter changes by keeping them inside `data-service-filter-results`.
+
+### 7.1h Item Validation Queue
+- Item Validation Queue uses module key `item_validation_queue` so it can be enabled/disabled independently from the Itineraries module.
+- It displays all pending manual draft records created from itinerary create/edit quick-add flows, not only records created by other users.
+- Activity and F&B quick-create flows must also enqueue any newly auto-created Vendor/Provider draft for validation.
+- Queue rows should expose item type, item name, provider/vendor name, source service type, creator, created time, and draft existence status.
+- Updating a queued Activity, F&B, Tourist Attraction, or Vendor/Provider from its edit page must auto-resolve the related pending queue log by setting `validated_at`, `validated_by`, `requires_validation=false`, and `resolved_by_update=true`.
+- Browser popup notifications for manual queue items must not fire while the user is already on the Item Validation Queue page; the header bell count is enough on that screen.
+- Action permissions remain `itineraries.manual_item_queue.view` and `itineraries.manual_item_queue.validate` for backward compatibility.
 
 ### 7.2 Nominal Input
 - Gunakan `x-money-input`.

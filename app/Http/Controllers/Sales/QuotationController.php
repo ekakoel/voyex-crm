@@ -385,14 +385,16 @@ class QuotationController extends Controller
         $revisionHistory = $this->buildRevisionHistory($quotation);
         $followUpHistory = $this->buildFollowUpHistory($quotation);
         $bookingsModuleEnabled = ModuleService::isEnabledStatic('bookings');
+        $invoicesModuleEnabled = ModuleService::isEnabledStatic('invoices');
         $workflowOverview = $this->buildQuotationWorkflowOverview(
             $quotation,
             $validationProgress,
-            $bookingsModuleEnabled
+            $bookingsModuleEnabled,
+            $invoicesModuleEnabled
         );
         $availableActions = $this->quotationActionResolver->availableActions($quotation, $request->user());
 
-        return view('modules.quotations.show', compact('quotation', 'validationProgress', 'canValidateQuotation', 'activities', 'kpiSummary', 'groupedItemsByDay', 'revisionHistory', 'followUpHistory', 'workflowOverview', 'availableActions', 'bookingsModuleEnabled'));
+        return view('modules.quotations.show', compact('quotation', 'validationProgress', 'canValidateQuotation', 'activities', 'kpiSummary', 'groupedItemsByDay', 'revisionHistory', 'followUpHistory', 'workflowOverview', 'availableActions', 'bookingsModuleEnabled', 'invoicesModuleEnabled'));
     }
 
 
@@ -4494,7 +4496,8 @@ SVG;
     private function buildQuotationWorkflowOverview(
         Quotation $quotation,
         array $validationProgress,
-        bool $bookingsModuleEnabled
+        bool $bookingsModuleEnabled,
+        bool $invoicesModuleEnabled
     ): array {
         $quotationStatus = Quotation::normalizeStatus((string) ($quotation->status ?? ''));
         $logicalQuotationStatus = QuotationStatusNormalizer::normalize($quotationStatus);
@@ -4520,7 +4523,8 @@ SVG;
             $invoiceStatus,
             $paymentStatus,
             $operationStatus,
-            $bookingsModuleEnabled
+            $bookingsModuleEnabled,
+            $invoicesModuleEnabled
         );
 
         $responsibleUser = $quotation->inquiry?->handledBy
@@ -4535,7 +4539,8 @@ SVG;
             $invoiceStatus,
             $paymentStatus,
             $bookingStatus,
-            $bookingsModuleEnabled
+            $bookingsModuleEnabled,
+            $invoicesModuleEnabled
         );
         $nextAction = $this->deriveQuotationNextAction(
             $quotation,
@@ -4546,7 +4551,8 @@ SVG;
             $invoiceStatus,
             $paymentStatus,
             $operationStatus,
-            $bookingsModuleEnabled
+            $bookingsModuleEnabled,
+            $invoicesModuleEnabled
         );
 
         $statusCards = [
@@ -4575,16 +4581,18 @@ SVG;
             ];
         }
 
-        $statusCards[] = [
-            'label' => ui_phrase('Invoice Status'),
-            'value' => $invoiceStatus,
-            'tone' => $this->workflowToneForStatus($invoiceStatus),
-        ];
-        $statusCards[] = [
-            'label' => ui_phrase('Payment Status'),
-            'value' => $paymentStatus,
-            'tone' => $this->workflowToneForStatus($paymentStatus),
-        ];
+        if ($invoicesModuleEnabled) {
+            $statusCards[] = [
+                'label' => ui_phrase('Invoice Status'),
+                'value' => $invoiceStatus,
+                'tone' => $this->workflowToneForStatus($invoiceStatus),
+            ];
+            $statusCards[] = [
+                'label' => ui_phrase('Payment Status'),
+                'value' => $paymentStatus,
+                'tone' => $this->workflowToneForStatus($paymentStatus),
+            ];
+        }
 
         if ($bookingsModuleEnabled) {
             $statusCards[] = [
@@ -4608,7 +4616,8 @@ SVG;
                 $paymentStatus,
                 $operationStatus,
                 $nextAction,
-                $bookingsModuleEnabled
+                $bookingsModuleEnabled,
+                $invoicesModuleEnabled
             ),
             'responsible_user' => $responsibleUser,
             'responsible_label' => $responsibleUser?->name ?? '-',
@@ -4710,7 +4719,8 @@ SVG;
         string $invoiceStatus,
         string $paymentStatus,
         string $operationStatus,
-        bool $bookingsModuleEnabled
+        bool $bookingsModuleEnabled,
+        bool $invoicesModuleEnabled
     ): string {
         if (in_array($quotationStatus, [Quotation::STATUS_CANCELLED, Quotation::STATUS_LOST], true)) {
             return QuotationWorkflow::label($quotationStatus);
@@ -4718,10 +4728,10 @@ SVG;
         if ($bookingsModuleEnabled && in_array($operationStatus, ['in_operation', 'service_completed', 'reconciliation', 'completed'], true)) {
             return QuotationWorkflow::label($operationStatus);
         }
-        if (! in_array($paymentStatus, ['not_invoiced', 'unpaid'], true)) {
+        if ($invoicesModuleEnabled && ! in_array($paymentStatus, ['not_invoiced', 'unpaid'], true)) {
             return ui_phrase('Payment');
         }
-        if (! in_array($invoiceStatus, ['not_created', 'draft'], true)) {
+        if ($invoicesModuleEnabled && ! in_array($invoiceStatus, ['not_created', 'draft'], true)) {
             return ui_phrase('Invoice');
         }
         if ($bookingsModuleEnabled && ! in_array($bookingStatus, ['not_created', 'created'], true)) {
@@ -4752,7 +4762,8 @@ SVG;
         string $invoiceStatus,
         string $paymentStatus,
         string $operationStatus,
-        bool $bookingsModuleEnabled
+        bool $bookingsModuleEnabled,
+        bool $invoicesModuleEnabled
     ): string {
         if ($quotation->isStatus(Quotation::STATUS_CANCELLED, Quotation::STATUS_LOST, Quotation::STATUS_COMPLETED)) {
             return ui_phrase('View summary and audit history.');
@@ -4766,10 +4777,10 @@ SVG;
         if ($bookingsModuleEnabled && $operationStatus === 'in_operation') {
             return ui_phrase('Monitor operation and record adjustments if needed.');
         }
-        if (in_array($paymentStatus, ['unpaid', 'partially_paid', 'waiting_confirmation'], true)) {
+        if ($invoicesModuleEnabled && in_array($paymentStatus, ['unpaid', 'partially_paid', 'waiting_confirmation'], true)) {
             return ui_phrase('Follow up payment status.');
         }
-        if (in_array($invoiceStatus, ['draft', 'issued', 'partially_paid'], true)) {
+        if ($invoicesModuleEnabled && in_array($invoiceStatus, ['draft', 'issued', 'partially_paid'], true)) {
             return ui_phrase('Continue invoice and payment process.');
         }
         if ($bookingsModuleEnabled && ! in_array($bookingStatus, ['not_created', 'cancelled'], true)) {
@@ -4809,7 +4820,8 @@ SVG;
         string $paymentStatus,
         string $operationStatus,
         string $nextAction,
-        bool $bookingsModuleEnabled
+        bool $bookingsModuleEnabled,
+        bool $invoicesModuleEnabled
     ): ?array {
         $pendingRevisionResponses = $quotation->relationLoaded('customerResponses')
             ? $quotation->customerResponses
@@ -4831,7 +4843,9 @@ SVG;
             if (! $bookingsModuleEnabled) {
                 return [
                     'title' => ui_phrase('Quotation Completed'),
-                    'message' => ui_phrase('This quotation has completed the workflow. Keep the record unchanged and use linked invoice or activity history for review.'),
+                    'message' => $invoicesModuleEnabled
+                        ? ui_phrase('This quotation has completed the workflow. Keep the record unchanged and use linked invoice or activity history for review.')
+                        : ui_phrase('This quotation has completed the workflow. Keep the record unchanged and use activity history for review.'),
                     'type' => 'info',
                 ];
             }
@@ -4924,7 +4938,8 @@ SVG;
         string $invoiceStatus,
         string $paymentStatus,
         string $bookingStatus,
-        bool $bookingsModuleEnabled
+        bool $bookingsModuleEnabled,
+        bool $invoicesModuleEnabled
     ): array {
         $risks = [];
         if ($quotation->validity_date && $quotation->validity_date->isPast() && ! $quotation->isStatus(Quotation::STATUS_COMPLETED, Quotation::STATUS_CANCELLED, Quotation::STATUS_LOST)) {
@@ -4936,10 +4951,10 @@ SVG;
         if ($bookingsModuleEnabled && $bookingStatus === 'cancelled') {
             $risks[] = ['label' => ui_phrase('Linked booking is cancelled.'), 'tone' => 'danger'];
         }
-        if (in_array($invoiceStatus, ['void', 'cancelled'], true)) {
+        if ($invoicesModuleEnabled && in_array($invoiceStatus, ['void', 'cancelled'], true)) {
             $risks[] = ['label' => ui_phrase('Linked invoice is not active.'), 'tone' => 'danger'];
         }
-        if (in_array($paymentStatus, ['unpaid', 'partially_paid'], true)) {
+        if ($invoicesModuleEnabled && in_array($paymentStatus, ['unpaid', 'partially_paid'], true)) {
             $risks[] = ['label' => ui_phrase('Payment is not fully settled.'), 'tone' => 'warning'];
         }
 

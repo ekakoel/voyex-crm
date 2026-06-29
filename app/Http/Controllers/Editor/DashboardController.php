@@ -9,6 +9,7 @@ use App\Models\Destination;
 use App\Models\FoodBeverage;
 use App\Models\TouristAttraction;
 use App\Models\Vendor;
+use App\Services\ModuleService;
 use Illuminate\Database\Eloquent\Builder;
 
 class DashboardController extends Controller
@@ -23,6 +24,7 @@ class DashboardController extends Controller
         $canFoodBeverages = (bool) $user?->can('module.food_beverages.access');
         $canManualQueue = (bool) (
             $user?->can('itineraries.manual_item_queue.view')
+            && ModuleService::isEnabledStatic('item_validation_queue')
         );
 
         $catalogCounts = [
@@ -38,7 +40,7 @@ class DashboardController extends Controller
         $myValidatedTodayCount = 0;
         $recentlyValidatedByMe = collect();
         if ($canManualQueue) {
-            $pendingManualQuery = $this->pendingManualItemValidationQuery($user);
+            $pendingManualQuery = $this->pendingManualItemValidationQuery();
             $pendingManualItemsCount = (int) (clone $pendingManualQuery)->count();
             $recentPendingManualItems = (clone $pendingManualQuery)
                 ->latest('id')
@@ -72,15 +74,11 @@ class DashboardController extends Controller
         ));
     }
 
-    private function pendingManualItemValidationQuery($user): Builder
+    private function pendingManualItemValidationQuery(): Builder
     {
         return ActivityLog::query()
             ->where('module', 'itinerary_day_planner')
             ->where('action', 'manual_item_created')
-            ->where(function (Builder $query) use ($user): void {
-                $query->whereNull('user_id')
-                    ->orWhere('user_id', '!=', (int) ($user?->id ?? 0));
-            })
             ->where(function (Builder $query): void {
                 $query->whereNull('properties')
                     ->orWhereRaw("JSON_EXTRACT(properties, '$.validated_at') IS NULL");

@@ -7,6 +7,7 @@ use App\Http\Controllers\Concerns\ManagesServiceCancellationPolicy;
 use App\Http\Controllers\Controller;
 use App\Models\Destination;
 use App\Models\TouristAttraction;
+use App\Services\ManualItemValidationQueueService;
 use App\Services\Maps\GooglePlacesService;
 use App\Services\TouristAttractionGoogleSyncService;
 use App\Support\ImageThumbnailGenerator;
@@ -214,6 +215,11 @@ class TouristAttractionController extends Controller
 
         $touristAttraction->update($validated);
         $this->syncCancellationPolicy($touristAttraction, $request->input('cancellation_rules', []), (string) ($touristAttraction->name ?? ''));
+        app(ManualItemValidationQueueService::class)->resolvePendingForSubject(
+            $touristAttraction,
+            (int) ($request->user()?->id ?? 0),
+            'Tourist attraction updated from validation/edit page.'
+        );
 
         return redirect()->route('tourist-attractions.index')->with('success', ui_phrase('Tourist attraction updated successfully.'));
     }

@@ -14,7 +14,7 @@
         $typeCounts = $pageItems
             ->map(function ($log) {
                 $properties = is_array($log->properties) ? $log->properties : [];
-                return strtoupper((string) ($properties['item_type'] ?? 'UNKNOWN'));
+                return ui_entity((string) ($properties['item_type'] ?? 'unknown'));
             })
             ->countBy()
             ->sortDesc();
@@ -22,24 +22,13 @@
     @endphp
 
     <div class="space-y-6 module-page module-page--manual-item-validation">
-        @if (session('success'))
-            <div class="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300">
-                {{ session('success') }}
-            </div>
-        @endif
-        @if (session('error'))
-            <div class="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-700 dark:bg-rose-900/20 dark:text-rose-300">
-                {{ session('error') }}
-            </div>
-        @endif
-
         <div class="grid min-w-0 grid-cols-1 gap-6 xl:grid-cols-12">
             <div class="min-w-0 space-y-4 xl:col-span-8">
                 <div class="app-card p-5">
                     <div class="flex flex-wrap items-center justify-between gap-3">
                         <div>
                             <h3 class="text-base font-semibold text-gray-800 dark:text-gray-100">Pending Validation</h3>
-                            <p class="text-sm text-gray-500 dark:text-gray-400">Review manual items created by other users, then mark as validated.</p>
+                            <p class="text-sm text-gray-500 dark:text-gray-400">{{ ui_phrase('Review service items and providers created from itinerary create/edit pages, then mark as validated.') }}</p>
                         </div>
                         <span class="rounded-full border border-cyan-200 bg-cyan-50 px-3 py-1 text-xs font-semibold text-cyan-700 dark:border-cyan-700 dark:bg-cyan-900/20 dark:text-cyan-300">
                             {{ number_format($totalPending) }} item(s)
@@ -58,10 +47,14 @@
                         @foreach ($logs as $log)
                             @php
                                 $properties = is_array($log->properties) ? $log->properties : [];
-                                $itemType = strtoupper((string) ($properties['item_type'] ?? 'UNKNOWN'));
+                                $itemType = ui_entity((string) ($properties['item_type'] ?? 'unknown'));
                                 $itemName = (string) ($properties['item_name'] ?? '-');
+                                $providerName = trim((string) ($properties['provider_name'] ?? $properties['vendor_name'] ?? ''));
+                                $sourceItemType = trim((string) ($properties['source_item_type'] ?? ''));
                                 $creatorName = ui_user_name($log->user, (string) ($properties['creator_name'] ?? '-'));
                                 $editUrl = (string) ($properties['edit_url'] ?? '');
+                                $subjectExists = (bool) $log->subject;
+                                $statusLabel = $subjectExists ? ui_phrase('Draft exists') : ui_phrase('Missing item');
                             @endphp
 
                             <div class="app-card p-4">
@@ -74,12 +67,25 @@
                                             <span class="text-xs text-gray-500 dark:text-gray-400">
                                                 Log #{{ (int) $log->id }}
                                             </span>
+                                            <span class="inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold {{ $subjectExists ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300' : 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-700 dark:bg-rose-900/20 dark:text-rose-300' }}">
+                                                {{ $statusLabel }}
+                                            </span>
                                         </div>
 
                                         <div class="space-y-1">
                                             <p class="text-sm font-semibold text-gray-900 dark:text-gray-100">{{ $itemName }}</p>
+                                            @if ($providerName !== '')
+                                                <p class="text-xs text-gray-600 dark:text-gray-300">
+                                                    {{ ui_phrase('Provider') }}: <span class="font-medium">{{ $providerName }}</span>
+                                                </p>
+                                            @endif
+                                            @if ($sourceItemType !== '')
+                                                <p class="text-xs text-gray-500 dark:text-gray-400">
+                                                    {{ ui_phrase('Created while adding') }} {{ ui_entity($sourceItemType) }}
+                                                </p>
+                                            @endif
                                             <p class="text-xs text-gray-600 dark:text-gray-300">
-                                                Created by <span class="font-medium">{{ $creatorName }}</span>
+                                                {{ ui_phrase('Created by') }} <span class="font-medium">{{ $creatorName }}</span>
                                             </p>
                                             <p class="text-xs text-gray-500 dark:text-gray-400">
                                                 <x-local-time :value="$log->created_at" />
@@ -88,7 +94,7 @@
                                     </div>
 
                                     <div class="flex flex-wrap items-start justify-start gap-2 lg:col-span-4 lg:justify-end">
-                                        @if ($editUrl !== '')
+                                        @if ($editUrl !== '' && $subjectExists)
                                             <a href="{{ $editUrl }}" class="btn-outline-sm" target="_blank" rel="noopener">Open Item</a>
                                         @endif
                                         <form method="POST" action="{{ route('itineraries.manual-item-validation-queue.validate', $log) }}">
@@ -101,7 +107,6 @@
                             </div>
                         @endforeach
                     </div>
-
                     <div class="app-card p-4">
                         {{ $logs->links() }}
                     </div>
@@ -109,7 +114,7 @@
             </div>
 
             <aside class="min-w-0 space-y-4 xl:col-span-4">
-                <div class="app-card p-5 xl:sticky xl:top-24">
+                <div class="app-card p-5 xl:sticky xl:top-0">
                     <h4 class="text-sm font-semibold text-gray-800 dark:text-gray-100">Queue Overview</h4>
                     <div class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-1">
                         <div class="rounded-lg border border-cyan-200 bg-cyan-50 px-3 py-2 dark:border-cyan-700 dark:bg-cyan-900/20">

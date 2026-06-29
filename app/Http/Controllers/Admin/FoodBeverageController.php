@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Destination;
 use App\Models\FoodBeverage;
 use App\Models\Vendor;
+use App\Services\ManualItemValidationQueueService;
 use App\Support\Currency;
 use App\Support\ImageThumbnailGenerator;
 use Illuminate\Http\Request;
@@ -158,6 +159,11 @@ class FoodBeverageController extends Controller
         unset($validated['removed_gallery_images']);
         $foodBeverage->update($validated);
         $this->syncCancellationPolicy($foodBeverage, $request->input('cancellation_rules', []), (string) ($foodBeverage->name ?? ''));
+        app(ManualItemValidationQueueService::class)->resolvePendingForSubject(
+            $foodBeverage,
+            (int) ($request->user()?->id ?? 0),
+            'F&B service updated from validation/edit page.'
+        );
 
         return redirect()->route('food-beverages.index')->with('success', ui_phrase('F&B service updated successfully.'));
     }

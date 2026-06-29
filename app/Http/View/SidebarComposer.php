@@ -163,7 +163,7 @@ class SidebarComposer
                 'title' => 'Item Validation',
                 'route' => 'itineraries.manual-item-validation-queue',
                 'icon'  => 'clipboard-check',
-                'module' => 'itineraries',
+                'module' => 'item_validation_queue',
                 'permission' => 'itineraries.manual_item_queue.view',
             ],
             [
@@ -554,7 +554,7 @@ class SidebarComposer
             return $empty;
         }
 
-        if (! ($enabledModules['itineraries'] ?? false)) {
+        if (! ($enabledModules['item_validation_queue'] ?? false)) {
             return $empty;
         }
 
@@ -562,24 +562,14 @@ class SidebarComposer
             return $empty;
         }
 
-        $count = Cache::remember(
-            "sidebar:editor_manual_item_notification:{$user->id}",
-            now()->addSeconds(20),
-            function () use ($user): int {
-                return (int) ActivityLog::query()
-                    ->where('module', 'itinerary_day_planner')
-                    ->where('action', 'manual_item_created')
-                    ->where(function (Builder $query) use ($user): void {
-                        $query->whereNull('user_id')
-                            ->orWhere('user_id', '!=', (int) $user->id);
-                    })
-                    ->where(function (Builder $query): void {
-                        $query->whereNull('properties')
-                            ->orWhereRaw("JSON_EXTRACT(properties, '$.validated_at') IS NULL");
-                    })
-                    ->count();
-            }
-        );
+        $count = (int) ActivityLog::query()
+            ->where('module', 'itinerary_day_planner')
+            ->where('action', 'manual_item_created')
+            ->where(function (Builder $query): void {
+                $query->whereNull('properties')
+                    ->orWhereRaw("JSON_EXTRACT(properties, '$.validated_at') IS NULL");
+            })
+            ->count();
 
         return [
             'visible' => true,

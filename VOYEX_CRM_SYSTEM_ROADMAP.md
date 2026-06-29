@@ -1,7 +1,17 @@
 # VOYEX CRM -- SYSTEM ROADMAP
 
 Version: 1.5  
-Last Updated: 2026-06-25
+Last Updated: 2026-06-29
+
+Latest implementation note (2026-06-29):
+- Quotation detail Workflow Visibility now follows downstream module gates: booking/operation status follows `bookings`, and invoice/payment status plus related workflow messaging follows `invoices`.
+
+Latest implementation note (2026-06-25):
+- Item Validation Queue is now a controllable module (`item_validation_queue`) in Module Control Center.
+- The queue now lists all unvalidated manual service items from itinerary create/edit quick-add flows and also enqueues newly auto-created Vendors/Providers.
+- Updating a queued Activity, F&B, Tourist Attraction, or Vendor/Provider now auto-resolves its pending queue log so the item disappears from Item Validation Queue.
+- Manual queue browser notifications are deduped and suppressed while users are already on the Item Validation Queue page.
+- Queue routes remain guarded by `itineraries.manual_item_queue.view` / `itineraries.manual_item_queue.validate` action permissions while module availability is controlled independently from Itineraries.
 
 Legend:  
 - DONE = Implemented  
@@ -211,6 +221,12 @@ Kebijakan ini wajib untuk setiap update code (penambahan, perubahan, pengurangan
 ----------------------------------------------------------------------------------------------------
 
 # CHANGELOG (LATEST)
+
+- 2026-06-25
+  - Filter halaman index Vendors / Providers distandarisasi ulang: filter aktif kini hanya `q`, `service_type`, `status`, dan `per_page`.
+  - Input `Vendor Type` dihapus karena sudah diwakili oleh `Service Type` untuk kebutuhan filtering operasional.
+  - Backend `VendorController@index` tidak lagi menerima/memproses query `type`; vendor type tetap ditampilkan sebagai metadata baris dari data multi-type vendor.
+  - Wrapper AJAX filter Vendors sekarang mencakup KPI cards sehingga summary ikut refresh ketika filter berubah.
 
 - 2026-06-25
   - Filter halaman index Activities distandarisasi memakai baseline index: KPI cards, satu compact filter card, AJAX filter/pagination `data-service-filter-*`, dan reset ke route index utama.

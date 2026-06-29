@@ -1,7 +1,6 @@
 @extends('layouts.master')
-
-@section('page_title', ui_phrase('Edit') . ' ' . ui_phrase('beverages page title'))
-@section('page_subtitle', ui_phrase('beverages edit page subtitle'))
+@section('page_title', ui_phrase('Edit') . ' ' . ui_phrase('Edit Food and Beverages'))
+@section('page_subtitle', ui_phrase('Update existing data.'))
 @section('page_actions')
     <a href="{{ route('food-beverages.index') }}" class="btn-ghost" data-page-back-action>{{ ui_phrase('Back') }}</a>
 @endsection

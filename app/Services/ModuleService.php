@@ -100,6 +100,45 @@ class ModuleService
         }
     }
 
+    private static function ensureItemValidationQueueModule(): void
+    {
+        if (! SchemaInspector::hasTable('modules')) {
+            return;
+        }
+
+        Module::query()->firstOrCreate(
+            ['key' => 'item_validation_queue'],
+            [
+                'name' => 'Item Validation Queue',
+                'description' => 'Review service items and providers created directly from itinerary create/edit flows.',
+                'is_enabled' => true,
+            ]
+        );
+
+        $permissions = [
+            'module.item_validation_queue.access',
+            'module.item_validation_queue.create',
+            'module.item_validation_queue.read',
+            'module.item_validation_queue.update',
+            'module.item_validation_queue.delete',
+            'itineraries.manual_item_queue.view',
+            'itineraries.manual_item_queue.validate',
+        ];
+
+        foreach ($permissions as $permissionName) {
+            Permission::firstOrCreate([
+                'name' => $permissionName,
+                'guard_name' => 'web',
+            ]);
+        }
+
+        $roles = ['Administrator', 'Super Admin', 'Manager', 'Marketing', 'Reservation', 'Editor'];
+        $roleModels = Role::query()->whereIn('name', $roles)->get();
+        foreach ($roleModels as $role) {
+            $role->givePermissionTo($permissions);
+        }
+    }
+
     public function isEnabled(string $key): bool
     {
         return self::isEnabledStatic($key);
@@ -183,6 +222,7 @@ class ModuleService
         Cache::remember(self::BOOTSTRAP_CACHE_KEY, now()->addSeconds(self::CACHE_TTL_SECONDS), function (): bool {
             self::ensureHotelModule();
             self::ensureIslandTransferModule();
+            self::ensureItemValidationQueueModule();
 
             return true;
         });

@@ -1176,18 +1176,24 @@
     }
 
     function initEditorManualItemNotifier() {
+        if (window.__editorManualItemNotifierBound === true) {
+            return;
+        }
+
         const configNode = document.querySelector('[data-editor-manual-item-notifier="1"]');
         if (!configNode || configNode.dataset.bound === '1') {
             return;
         }
         configNode.dataset.bound = '1';
+        window.__editorManualItemNotifierBound = true;
 
         const endpoint = configNode.getAttribute('data-endpoint');
         const userId = configNode.getAttribute('data-user-id') || '0';
         const bellNode = document.querySelector('[data-editor-manual-item-bell="1"]');
         const countNode = bellNode ? bellNode.querySelector('[data-editor-manual-item-count="1"]') : null;
         const listUrl = `{{ route('itineraries.manual-item-validation-queue') }}`;
-        const storageKey = `editor_manual_item_latest_${userId}`;
+        const listPath = new URL(listUrl, window.location.origin).pathname;
+        const storageKey = `editor_manual_item_latest_v2_${userId}`;
 
         if (!endpoint || !bellNode || !countNode) {
             return;
@@ -1207,6 +1213,10 @@
         };
 
         const showPopupNotification = (itemType = '', itemName = '', creatorName = '', editUrl = '') => {
+            if (window.location.pathname === listPath) {
+                return;
+            }
+
             const playNotificationTone = () => {
                 try {
                     const AudioCtx = window.AudioContext || window.webkitAudioContext;
@@ -1313,18 +1323,18 @@
                 const latestItemName = payload.latest && payload.latest.item_name ? String(payload.latest.item_name) : '';
                 const latestCreatorName = payload.latest && payload.latest.creator_name ? String(payload.latest.creator_name) : '';
                 const latestEditUrl = payload.latest && payload.latest.edit_url ? String(payload.latest.edit_url) : '';
-                const previousLatestId = sessionStorage.getItem(storageKey) || '';
+                const previousLatestId = localStorage.getItem(storageKey) || '';
 
                 if (!bootstrapped) {
                     if (latestId) {
-                        sessionStorage.setItem(storageKey, latestId);
+                        localStorage.setItem(storageKey, latestId);
                     }
                     bootstrapped = true;
                     return;
                 }
 
                 if (latestId && latestId !== previousLatestId) {
-                    sessionStorage.setItem(storageKey, latestId);
+                    localStorage.setItem(storageKey, latestId);
                     showPopupNotification(latestItemType, latestItemName, latestCreatorName, latestEditUrl);
                 }
             } catch (_) {

@@ -117,6 +117,12 @@ class ModuleSeeder extends Seeder
                 'is_enabled' => true,
             ],
             [
+                'key' => 'item_validation_queue',
+                'name' => 'Item Validation Queue',
+                'description' => 'Review service items and providers created directly from itinerary create/edit flows.',
+                'is_enabled' => true,
+            ],
+            [
                 'key' => 'tourist_attractions',
                 'name' => 'Tourist Attractions',
                 'description' => 'Manage tourist attraction data for itineraries.',

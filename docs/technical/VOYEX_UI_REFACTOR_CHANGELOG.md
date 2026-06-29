@@ -1,5 +1,127 @@
 # VOYEX UI Refactor Changelog
 
+## 2026-06-29 (Quotation Workflow Visibility Module Gates)
+- Scope: make quotation detail `Workflow Visibility` respect active downstream module settings.
+- Updated files:
+  - app/Http/Controllers/Sales/QuotationController.php
+  - resources/views/modules/quotations/show.blade.php
+  - docs/technical/VOYEX_UI_REFACTOR_CHANGELOG.md
+  - docs/standards/quotation-standard.md
+  - PROJECT_KNOWLEDGE_BASE.md
+  - VOYEX_CRM_SYSTEM_ROADMAP.md
+- Applied updates:
+  - `Invoice Status` and `Payment Status` cards are now hidden when the `invoices` module is disabled.
+  - quotation workflow `Current Stage`, `Next Action`, and risk indicators no longer derive visible invoice/payment messaging while the invoice module is unavailable.
+  - the Workflow Visibility caption now adapts to the active Booking and Invoice module gates.
+
+## 2026-06-29 (Traditional Chinese UI Core Translation Sweep)
+- Scope: complete untranslated Traditional Chinese UI phrases in `lang/zh_Hant/ui_core.php`.
+- Updated files:
+  - lang/zh_Hant/ui_core.php
+  - docs/technical/VOYEX_UI_REFACTOR_CHANGELOG.md
+- Applied updates:
+  - translated remaining English UI phrase values and broken placeholder values into Traditional Chinese while preserving the PHP array keys, order, and formatting style.
+  - kept brand/technical tokens such as `VOYEX CRM`, `IDR`, `Laravel`, `WhatsApp`, `Google Maps URL`, `Check-in`, and `Check-out` unchanged intentionally.
+- Verification:
+  - `php -l lang/zh_Hant/ui_core.php`
+
+## 2026-06-29 (Simplified Chinese UI Core Translation Sweep)
+- Scope: complete untranslated Simplified Chinese UI phrases in `lang/zh_Hans/ui_core.php`.
+- Updated files:
+  - lang/zh_Hans/ui_core.php
+  - docs/technical/VOYEX_UI_REFACTOR_CHANGELOG.md
+- Applied updates:
+  - translated remaining English UI phrase values and broken placeholder values into Simplified Chinese while preserving the PHP array keys, order, and formatting style.
+  - kept brand/technical tokens such as `VOYEX CRM`, `IDR`, `Laravel`, `WhatsApp`, `Google Maps URL`, `Check-in`, and `Check-out` unchanged intentionally.
+- Verification:
+  - `php -l lang/zh_Hans/ui_core.php`
+
+## 2026-06-25 (Manual Item Queue Flash Message Deduplication)
+- Scope: remove duplicate success/error flash rendering on Manual Item Validation Queue page.
+- Updated files:
+  - resources/views/editor/manual-item-queue.blade.php
+  - docs/technical/VOYEX_UI_REFACTOR_CHANGELOG.md
+- Applied updates:
+  - removed local `session('success')` / `session('error')` blocks because `layouts.master` already renders global flash messages through `components.flash-messages`.
+  - `Manual item validated successfully.` now appears only once after marking a queue item as validated.
+
+## 2026-06-25 (Item Validation Queue Auto Resolve + Notification Dedupe)
+- Scope: make pending manual service/provider queue items disappear automatically after the related master data is updated and prevent duplicate browser notifications on the queue page.
+- Updated files:
+  - app/Services/ManualItemValidationQueueService.php
+  - app/Http/Controllers/Admin/ActivityController.php
+  - app/Http/Controllers/Admin/FoodBeverageController.php
+  - app/Http/Controllers/Admin/TouristAttractionController.php
+  - app/Http/Controllers/Admin/VendorController.php
+  - app/Http/View/SidebarComposer.php
+  - resources/views/layouts/master.blade.php
+  - docs/technical/VOYEX_UI_REFACTOR_CHANGELOG.md
+  - docs/standards/quotation-standard.md
+  - PROJECT_KNOWLEDGE_BASE.md
+  - VOYEX_CRM_SYSTEM_ROADMAP.md
+- Applied updates:
+  - added `ManualItemValidationQueueService` to mark pending `manual_item_created` activity logs as validated when their related Activity, F&B, Tourist Attraction, or Vendor/Provider is updated.
+  - master-data update actions now set `validated_at`, `validated_by`, `validated_by_name`, `requires_validation=false`, and `resolved_by_update=true` on matching queue logs.
+  - sidebar manual queue count now reads the current pending count directly so it does not keep stale cache after validation/update.
+  - manual item browser popup notification is suppressed while the current page is the Item Validation Queue, and the latest-id dedupe now uses `localStorage` with a singleton notifier guard.
+
+## 2026-06-25 (Manual Item Queue Sidebar Sticky Offset)
+- Scope: adjust Queue Overview sidebar behavior on Manual Item Validation Queue page.
+- Updated files:
+  - resources/views/editor/manual-item-queue.blade.php
+  - docs/technical/VOYEX_UI_REFACTOR_CHANGELOG.md
+- Applied updates:
+  - changed Queue Overview sticky offset from `xl:top-24` to `xl:top-0` so the sidebar card sticks to the top edge while scrolling on desktop layouts.
+
+## 2026-06-25 (Item Validation Queue Module Control)
+- Scope: stabilize Item Validation Queue so manual service items and auto-created providers from itinerary create/edit flows are visible and controllable.
+- Updated files:
+  - app/Http/Controllers/Admin/ItineraryController.php
+  - app/Http/Controllers/Editor/DashboardController.php
+  - app/Http/Controllers/SuperAdmin/DashboardController.php
+  - app/Http/View/SidebarComposer.php
+  - app/Services/ModuleService.php
+  - database/seeders/ModuleSeeder.php
+  - routes/web.php
+  - resources/views/editor/manual-item-queue.blade.php
+  - docs/technical/VOYEX_UI_REFACTOR_CHANGELOG.md
+  - docs/standards/quotation-standard.md
+  - PROJECT_KNOWLEDGE_BASE.md
+  - VOYEX_CRM_SYSTEM_ROADMAP.md
+- Applied updates:
+  - manual Activity and F&B quick-create flows now log newly created vendors/providers as separate pending validation queue items.
+  - pending queue no longer hides items created by the current user, so the module reflects all unvalidated draft items.
+  - queue rows now show provider/vendor metadata, source service type, and whether the referenced draft still exists.
+  - route module guard changed from `itineraries` to `item_validation_queue` so the queue can be toggled independently from itinerary CRUD.
+  - Super Admin Module Control Center now lists `Item Validation Queue` with a pending-item metric.
+- Compatibility:
+  - existing permissions `itineraries.manual_item_queue.view` and `itineraries.manual_item_queue.validate` remain the action gates.
+  - module-level permissions for `module.item_validation_queue.*` are bootstrapped by the module/permission seed flow.
+
+## 2026-06-25 (Vendors Index Filter Simplification)
+- Scope: standardize Vendors / Providers index filters and remove duplicate vendor-type filtering.
+- Updated files:
+  - app/Http/Controllers/Admin/VendorController.php
+  - resources/views/modules/vendors/index.blade.php
+  - docs/technical/VOYEX_UI_REFACTOR_CHANGELOG.md
+  - docs/standards/quotation-standard.md
+  - PROJECT_KNOWLEDGE_BASE.md
+  - VOYEX_CRM_SYSTEM_ROADMAP.md
+- Applied updates:
+  - removed the `Vendor Type` filter from Vendors / Providers index because `Service Type` already covers the operational filtering need.
+  - removed backend `type` query validation and vendor-type filter application from `VendorController@index`.
+  - kept active filters to `q`, `service_type`, `status`, and `per_page`.
+  - kept the min-3 text search guard and changed short keyword backend behavior to return an empty result instead of silently ignoring the keyword.
+  - moved `data-service-filter-results` to wrap KPI cards, filter, table/cards, and pagination so summary cards refresh with AJAX filter changes.
+  - kept vendor type labels in table/card rows as display-only metadata from each vendor's saved multi-type values.
+- Mandatory audit result:
+  - multi-language: changed visible labels use `ui_phrase(...)`.
+  - multi-currency: no money fields were changed.
+  - dark/light mode: existing `app-card`, `app-input`, `app-table`, `btn-secondary`, and badge styling are preserved.
+- Verification:
+  - `php -l app/Http/Controllers/Admin/VendorController.php`
+  - `php artisan route:list | Select-String -Pattern "vendors"`
+
 ## 2026-06-25 (Activities Index Filter Standardization + Controller Row Prep)
 - Scope: standardize Activities index filters and move repeated row presentation logic from Blade to controller-prepared data.
 - Updated files:

@@ -20,6 +20,12 @@
         if (! ($bookingsModuleEnabled ?? false) && in_array($displayQuotationStatus, ['converted_to_booking', 'booking_created', 'booking_in_progress', 'booking_issue'], true)) {
             $displayQuotationStatus = 'approved';
         }
+        $workflowVisibilityCaption = match (true) {
+            ($bookingsModuleEnabled ?? false) && ($invoicesModuleEnabled ?? false) => ui_phrase('Track quotation, validation, approval, booking, invoice, payment, and operation status in one view.'),
+            ($bookingsModuleEnabled ?? false) => ui_phrase('Track quotation, validation, approval, booking, and operation status in one view.'),
+            ($invoicesModuleEnabled ?? false) => ui_phrase('Track quotation, validation, approval, invoice, and payment status in one view.'),
+            default => ui_phrase('Track quotation, validation, and approval status in one view.'),
+        };
     @endphp
 
     <div class="space-y-6 module-page module-page--quotations">
@@ -37,9 +43,7 @@
                         <div>
                             <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ ui_phrase('Workflow Visibility') }}</h3>
                             <p class="mt-1 text-xs text-gray-600 dark:text-gray-300">
-                                {{ ($bookingsModuleEnabled ?? false)
-                                    ? ui_phrase('Track quotation, validation, approval, booking, invoice, payment, and operation status in one view.')
-                                    : ui_phrase('Track quotation, validation, approval, invoice, and payment status in one view.') }}
+                                {{ $workflowVisibilityCaption }}
                             </p>
                         </div>
                         <div class="text-right text-xs text-gray-500 dark:text-gray-400">

@@ -420,7 +420,7 @@ Route::middleware('auth')->group(function () {
     Route::get('itineraries/manual-item-notifications/poll', [AdminItineraryController::class, 'manualItemValidationNotifications'])
         ->name('itineraries.manual-item-notifications.poll')
         ->middleware([
-            'module:itineraries',
+            'module:item_validation_queue',
             'permission:itineraries.manual_item_queue.view',
         ]);
     Route::get('inquiries/deadline-reminder-notifications/poll', [SalesInquiryController::class, 'deadlineReminderNotifications'])
@@ -433,13 +433,13 @@ Route::middleware('auth')->group(function () {
     Route::get('itineraries/manual-item-validation-queue', [AdminItineraryController::class, 'manualItemValidationQueue'])
         ->name('itineraries.manual-item-validation-queue')
         ->middleware([
-            'module:itineraries',
+            'module:item_validation_queue',
             'permission:itineraries.manual_item_queue.view',
         ]);
     Route::patch('itineraries/manual-item-validation-queue/{activityLog}/validate', [AdminItineraryController::class, 'markManualItemValidated'])
         ->name('itineraries.manual-item-validation-queue.validate')
         ->middleware([
-            'module:itineraries',
+            'module:item_validation_queue',
             'permission:itineraries.manual_item_queue.validate',
         ]);
     // Admin routes group (no role prefix in route names)

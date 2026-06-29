@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Destination;
 use App\Models\Vendor;
+use App\Services\ManualItemValidationQueueService;
 use App\Support\LocationResolver;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -21,28 +22,26 @@ class VendorController extends Controller
     ];
     public function index(Request $request)
     {
+        $perPageOptions = [10, 25, 50, 100];
         $validated = $request->validate([
+            'q' => ['nullable', 'string', 'max:255'],
             'status' => ['nullable', Rule::in(['active', 'inactive'])],
             'service_type' => ['nullable', Rule::in(['activities', 'food_beverages', 'transports', 'island_transfers'])],
-            'type' => ['nullable', Rule::in(self::VENDOR_TYPES)],
+            'per_page' => ['nullable', Rule::in(array_map('strval', $perPageOptions))],
         ]);
 
-        $perPage = (int) $request->integer('per_page', 10);
-        if (! in_array($perPage, [10, 25, 50, 100], true)) {
-            $perPage = 10;
-        }
+        $perPage = (int) ($validated['per_page'] ?? 10);
+        $perPage = in_array($perPage, $perPageOptions, true) ? $perPage : 10;
 
-        $search = trim((string) $request->query('q', ''));
+        $search = trim((string) ($validated['q'] ?? ''));
         $status = (string) ($validated['status'] ?? '');
         $serviceType = (string) ($validated['service_type'] ?? '');
-        $vendorType = (string) ($validated['type'] ?? '');
 
         $filteredQuery = $this->applyIndexFilters(
             Vendor::query()->withTrashed(),
             $search,
             $status,
-            $serviceType,
-            $vendorType
+            $serviceType
         );
 
         $summaries = $this->buildVendorSummaries($filteredQuery);
@@ -56,9 +55,7 @@ class VendorController extends Controller
 
         $vendorRows = $this->buildVendorIndexRows($vendors);
 
-        $vendorTypeOptions = Vendor::typeOptions();
-
-        return view('modules.vendors.index', compact('vendors', 'summaries', 'vendorRows', 'vendorTypeOptions'));
+        return view('modules.vendors.index', compact('vendors', 'summaries', 'vendorRows', 'perPageOptions'));
     }
 
     public function create()
@@ -173,6 +170,11 @@ class VendorController extends Controller
         }
 
         $vendor->update($this->filterPersistableColumns($validated));
+        app(ManualItemValidationQueueService::class)->resolvePendingForSubject(
+            $vendor,
+            (int) ($request->user()?->id ?? 0),
+            'Vendor/provider updated from validation/edit page.'
+        );
 
         return redirect()->route('vendors.index')->with('success', ui_phrase('Vendor updated successfully.'));
     }
@@ -254,11 +256,15 @@ class VendorController extends Controller
         Builder $query,
         string $search,
         string $status,
-        string $serviceType,
-        string $vendorType
+        string $serviceType
     ): Builder {
         return $query
-            ->when(mb_strlen($search) >= 3, function (Builder $query) use ($search) {
+            ->when($search !== '', function (Builder $query) use ($search) {
+                if (mb_strlen($search) < 3) {
+                    $query->whereRaw('1 = 0');
+                    return;
+                }
+
                 $query->where(function (Builder $inner) use ($search) {
                     $inner->where('name', 'like', "%{$search}%")
                         ->orWhere('location', 'like', "%{$search}%")
@@ -296,9 +302,6 @@ class VendorController extends Controller
                 if ($serviceType === 'island_transfers') {
                     $query->whereHas('islandTransfers');
                 }
-            })
-            ->when($vendorType !== '', function (Builder $query) use ($vendorType) {
-                $this->whereVendorHasType($query, $vendorType);
             });
     }
 
@@ -340,15 +343,6 @@ class VendorController extends Controller
     private function normalizeVendorTypes(array $types): array
     {
         return array_values(array_intersect(self::VENDOR_TYPES, array_unique($types)));
-    }
-
-    private function whereVendorHasType(Builder $query, string $vendorType): void
-    {
-        $query->where(function (Builder $typeQuery) use ($vendorType) {
-            $typeQuery
-                ->where('type', $vendorType)
-                ->orWhere('types', 'like', $this->vendorTypeLikePattern($vendorType));
-        });
     }
 
     private function vendorTypeLikePattern(string $vendorType): string

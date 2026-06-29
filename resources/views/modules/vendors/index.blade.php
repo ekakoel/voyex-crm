@@ -1,6 +1,5 @@
 @extends('layouts.master')
 @php($canManageActivationActions = auth()->user()?->canManageActivationActions() === true)
-@php($vendorTypeOptions = $vendorTypeOptions ?? [])
 
 @section('page_title', ui_phrase('Vendors / Providers'))
 @section('page_subtitle', ui_phrase('Centralized provider records for services, vouchers, and operational workflow.'))
@@ -10,7 +9,7 @@
 
 @section('content')
     <div class="space-y-5 module-page module-page--vendors" data-service-filter-page data-page-spinner="off">
-        <div class="module-grid-main">
+        <div class="module-grid-main" data-service-filter-results>
             <div class="grid grid-cols-2 gap-3 md:grid-cols-2 xl:grid-cols-4">
                 <x-ui.metric-card
                     :title="ui_phrase('Transportation Vendors')"
@@ -31,16 +30,10 @@
             </div>
             <div class="app-card p-4">
                 <form method="GET" action="{{ route('vendors.index') }}"
-                    class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4" data-service-filter-form data-filter-min-text="3"
+                    class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5" data-service-filter-form data-filter-min-text="3"
                     data-disable-submit-lock="1" data-page-spinner="off">
-                    <input name="q" value="{{ request('q') }}" placeholder="{{ ui_phrase('Search') }}"
+                    <input name="q" value="{{ request('q') }}" placeholder="{{ ui_phrase('Search (min 3 characters)') }}"
                         class="app-input sm:col-span-2 lg:col-span-2" data-service-filter-input data-filter-min-text="3">
-                    <select name="type" class="app-input" data-service-filter-input>
-                        <option value="">{{ ui_phrase('Vendor Type') }}</option>
-                        @foreach ($vendorTypeOptions as $value => $label)
-                            <option value="{{ $value }}" @selected(request('type') === $value)>{{ $label }}</option>
-                        @endforeach
-                    </select>
                     <select name="service_type" class="app-input" data-service-filter-input>
                         <option value="">{{ ui_phrase('Service Type') }}</option>
                         <option value="activities" @selected(request('service_type') === 'activities')>{{ ui_phrase('Activities') }}</option>
@@ -55,19 +48,19 @@
                     </select>
                     <label class="sr-only" for="vendor-per-page">{{ ui_phrase('Per Page') }}</label>
                     <select id="vendor-per-page" name="per_page" class="app-input" data-service-filter-input>
-                        @foreach ([10, 25, 50, 100] as $size)
+                        @foreach ($perPageOptions as $size)
                             <option value="{{ $size }}" @selected((int) request('per_page', 10) === $size)>
                                 {{ ui_phrase(':size/page', ['size' => $size]) }}</option>
                         @endforeach
                     </select>
-                    <div class="flex items-center gap-2 sm:col-span-2 lg:col-span-4 filter-actions h-[42px]">
+                    <div class="flex items-center gap-2 sm:col-span-2 lg:col-span-5 filter-actions h-[42px]">
                         <a href="{{ route('vendors.index') }}"
                             class="btn-secondary h-[42px] rounded-[var(--app-radius-sm)] px-4"
                             data-service-filter-reset>{{ ui_phrase('Reset') }}</a>
                     </div>
                 </form>
             </div>
-            <div data-service-filter-results>
+            <div>
                 <div class="hidden md:block app-card overflow-hidden">
                     <div class="overflow-x-auto">
                         <table class="app-table w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">

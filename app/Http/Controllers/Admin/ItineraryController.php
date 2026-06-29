@@ -1335,7 +1335,7 @@ class ItineraryController extends Controller
             ]);
         }
 
-        $baseQuery = $this->pendingManualItemValidationQuery($user);
+        $baseQuery = $this->pendingManualItemValidationQuery();
 
         $count = (clone $baseQuery)->count();
         $latest = (clone $baseQuery)->latest('id')->first();
@@ -1348,6 +1348,7 @@ class ItineraryController extends Controller
                 'id' => (int) $latest->id,
                 'item_type' => (string) ($latestProperties['item_type'] ?? ''),
                 'item_name' => (string) ($latestProperties['item_name'] ?? ''),
+                'provider_name' => (string) ($latestProperties['provider_name'] ?? $latestProperties['vendor_name'] ?? ''),
                 'creator_name' => (string) ($latestProperties['creator_name'] ?? ''),
                 'edit_url' => (string) ($latestProperties['edit_url'] ?? ''),
                 'created_at' => optional($latest->created_at)->toIso8601String(),
@@ -1360,7 +1361,8 @@ class ItineraryController extends Controller
         $user = $request->user();
         abort_unless($user && $user->can('itineraries.manual_item_queue.view'), 403);
 
-        $logs = $this->pendingManualItemValidationQuery($user)
+        $logs = $this->pendingManualItemValidationQuery()
+            ->with(['user:id,name', 'subject'])
             ->latest('id')
             ->paginate(20)
             ->withQueryString();
@@ -1437,7 +1439,8 @@ class ItineraryController extends Controller
             ]);
         }
 
-        $vendor = $this->resolveOrCreateVendorForManualActivity($vendorName, $regionName);
+        $vendor = $this->resolveOrCreateVendorForManualActivity($vendorName, $regionName, Vendor::TYPE_ACTIVITIES);
+        $this->logManualVendorCreatedForEditorValidation($vendor, 'activity');
 
         $activityType = $this->resolveOrCreateActivityType('Manual Input');
         $durationMinutes = (int) ($validated['duration_minutes'] ?? 60);
@@ -1469,7 +1472,8 @@ class ItineraryController extends Controller
             'activity',
             (int) $activity->id,
             (string) $activity->name,
-            route('activities.edit', $activity)
+            route('activities.edit', $activity),
+            (string) $vendor->name
         );
 
         return response()->json([
@@ -1615,7 +1619,8 @@ class ItineraryController extends Controller
             ]);
         }
 
-        $vendor = $this->resolveOrCreateVendorForManualActivity($vendorName, $regionName);
+        $vendor = $this->resolveOrCreateVendorForManualActivity($vendorName, $regionName, Vendor::TYPE_FOOD_BEVERAGE);
+        $this->logManualVendorCreatedForEditorValidation($vendor, 'fnb');
         $durationMinutes = (int) ($validated['duration_minutes'] ?? 60);
         $durationMinutes = max(15, min(1440, $durationMinutes));
         $mealPeriod = FoodBeverage::normalizeMealPeriodTokens($validated['meal_period'] ?? '');
@@ -1643,7 +1648,8 @@ class ItineraryController extends Controller
             'fnb',
             (int) $foodBeverage->id,
             (string) $foodBeverage->name,
-            route('food-beverages.edit', $foodBeverage)
+            route('food-beverages.edit', $foodBeverage),
+            (string) $vendor->name
         );
 
         return response()->json([
@@ -4256,15 +4262,31 @@ SVG;
         ];
     }
 
-    private function resolveOrCreateVendorForManualActivity(string $vendorName, string $regionName): Vendor
+    private function resolveOrCreateVendorForManualActivity(string $vendorName, string $regionName, ?string $vendorType = null): Vendor
     {
+        $normalizedVendorType = in_array($vendorType, array_keys(Vendor::typeOptions()), true)
+            ? (string) $vendorType
+            : null;
         $vendor = Vendor::query()
             ->whereRaw('LOWER(name) = ?', [mb_strtolower(trim($vendorName))])
             ->first();
 
         if ($vendor) {
+            $changed = false;
             if (! $vendor->is_active) {
                 $vendor->is_active = true;
+                $changed = true;
+            }
+            if ($normalizedVendorType !== null) {
+                $types = $vendor->normalizedTypes();
+                if (! in_array($normalizedVendorType, $types, true)) {
+                    $types[] = $normalizedVendorType;
+                    $vendor->types = array_values(array_unique($types));
+                    $vendor->type = $vendor->type ?: $normalizedVendorType;
+                    $changed = true;
+                }
+            }
+            if ($changed) {
                 $vendor->save();
             }
 
@@ -4273,6 +4295,8 @@ SVG;
 
         return Vendor::query()->create([
             'name' => trim($vendorName),
+            'type' => $normalizedVendorType,
+            'types' => $normalizedVendorType !== null ? [$normalizedVendorType] : [],
             'location' => trim($regionName),
             'city' => trim($regionName),
             'province' => trim($regionName),
@@ -4660,7 +4684,8 @@ SVG;
         string $itemType,
         int $itemId,
         string $itemName,
-        string $editUrl
+        string $editUrl,
+        string $providerName = ''
     ): void {
         if ($itemId <= 0) {
             return;
@@ -4672,6 +4697,7 @@ SVG;
             'activity' => Activity::class,
             'attraction' => TouristAttraction::class,
             'fnb' => FoodBeverage::class,
+            'vendor', 'provider' => Vendor::class,
             default => Activity::class,
         };
 
@@ -4684,6 +4710,8 @@ SVG;
             'properties' => [
                 'item_type' => $normalizedType,
                 'item_name' => trim((string) $itemName),
+                'provider_name' => trim((string) $providerName),
+                'vendor_name' => trim((string) $providerName),
                 'creator_name' => trim((string) ($actor?->name ?? 'Unknown')),
                 'edit_url' => trim((string) $editUrl),
                 'source' => 'itinerary_day_planner',
@@ -4692,15 +4720,46 @@ SVG;
         ]);
     }
 
-    private function pendingManualItemValidationQuery($user)
+    private function logManualVendorCreatedForEditorValidation(Vendor $vendor, string $sourceItemType): void
+    {
+        if (! $vendor->wasRecentlyCreated || (int) $vendor->id <= 0) {
+            return;
+        }
+
+        $this->logManualItemCreatedForEditorValidation(
+            'vendor',
+            (int) $vendor->id,
+            (string) $vendor->name,
+            route('vendors.edit', $vendor),
+            (string) $vendor->name
+        );
+
+        $latestLog = ActivityLog::query()
+            ->where('module', 'itinerary_day_planner')
+            ->where('action', 'manual_item_created')
+            ->where('subject_type', Vendor::class)
+            ->where('subject_id', (int) $vendor->id)
+            ->latest('id')
+            ->first();
+
+        if (! $latestLog) {
+            return;
+        }
+
+        $properties = is_array($latestLog->properties) ? $latestLog->properties : [];
+        $properties['source_item_type'] = strtolower(trim($sourceItemType));
+        $properties['item_type'] = 'vendor';
+        $properties['provider_name'] = (string) $vendor->name;
+        $properties['vendor_name'] = (string) $vendor->name;
+        $latestLog->properties = $properties;
+        $latestLog->save();
+    }
+
+    private function pendingManualItemValidationQuery()
     {
         return ActivityLog::query()
             ->where('module', 'itinerary_day_planner')
             ->where('action', 'manual_item_created')
-            ->where(function ($query) use ($user): void {
-                $query->whereNull('user_id')
-                    ->orWhere('user_id', '!=', (int) ($user?->id ?? 0));
-            })
             ->where(function ($query): void {
                 $query->whereNull('properties')
                     ->orWhereRaw("JSON_EXTRACT(properties, '$.validated_at') IS NULL");

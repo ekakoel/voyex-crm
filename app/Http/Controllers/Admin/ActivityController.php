@@ -9,6 +9,7 @@ use App\Models\Activity;
 use App\Models\ActivityType;
 use App\Models\Destination;
 use App\Models\Vendor;
+use App\Services\ManualItemValidationQueueService;
 use App\Support\ImageThumbnailGenerator;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -177,6 +178,11 @@ class ActivityController extends Controller
         unset($validated['removed_gallery_images']);
         $activity->update($validated);
         $this->syncCancellationPolicy($activity, $request->input('cancellation_rules', []), (string) ($activity->name ?? ''));
+        app(ManualItemValidationQueueService::class)->resolvePendingForSubject(
+            $activity,
+            (int) ($request->user()?->id ?? 0),
+            'Activity updated from validation/edit page.'
+        );
 
         return redirect()->route('activities.index')->with('success', ui_phrase('Activity updated successfully.'));
     }

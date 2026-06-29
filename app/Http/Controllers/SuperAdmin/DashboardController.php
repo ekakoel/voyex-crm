@@ -5,6 +5,7 @@ namespace App\Http\Controllers\SuperAdmin;
 use App\Http\Controllers\Controller;
 use App\Models\Airport;
 use App\Models\Activity;
+use App\Models\ActivityLog;
 use App\Models\Booking;
 use App\Models\Customer;
 use App\Models\Currency;
@@ -56,6 +57,7 @@ class DashboardController extends Controller
                 'hotels' => Hotel::query()->count(),
                 'transports' => Transport::query()->count(),
                 'currencies' => Currency::query()->count(),
+                'item_validation_queue' => $this->pendingManualItemValidationCount(),
             ];
 
             $moduleStats = [
@@ -458,6 +460,7 @@ class DashboardController extends Controller
             'hotels' => (int) ($systemCounts['hotels'] ?? 0),
             'transports' => (int) ($systemCounts['transports'] ?? 0),
             'currencies' => (int) ($systemCounts['currencies'] ?? 0),
+            'item_validation_queue' => (int) ($systemCounts['item_validation_queue'] ?? 0),
         ];
 
         $roleCoverageByPermission = DB::table('permissions')
@@ -509,6 +512,7 @@ class DashboardController extends Controller
                 ['key' => 'inquiries', 'icon' => 'circle-question', 'route' => 'inquiries.index', 'name' => 'Inquiries'],
                 ['key' => 'itineraries', 'icon' => 'route', 'route' => 'itineraries.index', 'name' => 'Itineraries'],
                 ['key' => 'quotations', 'icon' => 'file-lines', 'route' => 'quotations.index', 'name' => 'Quotations'],
+                ['key' => 'item_validation_queue', 'icon' => 'clipboard-check', 'route' => 'itineraries.manual-item-validation-queue', 'name' => 'Item Validation Queue'],
                 ['key' => 'bookings', 'icon' => 'calendar-check', 'route' => 'bookings.index', 'name' => 'Bookings'],
                 ['key' => 'invoices', 'icon' => 'file-invoice-dollar', 'route' => 'invoices.index', 'name' => 'Invoices'],
             ],
@@ -535,6 +539,7 @@ class DashboardController extends Controller
             'inquiries' => ['label' => 'Pending Follow-ups', 'value' => (int) ($operationalAlerts['pending_followups'] ?? 0)],
             'itineraries' => ['label' => 'Itineraries', 'value' => (int) ($systemCounts['itineraries'] ?? 0)],
             'quotations' => ['label' => 'Expiring (7D)', 'value' => (int) ($operationalAlerts['quotations_expiring_7d'] ?? 0)],
+            'item_validation_queue' => ['label' => 'Pending Items', 'value' => (int) ($systemCounts['item_validation_queue'] ?? 0)],
             'bookings' => ['label' => 'Upcoming (7D)', 'value' => (int) ($operationalAlerts['upcoming_bookings_7d'] ?? 0)],
             'invoices' => ['label' => 'Invoices', 'value' => (int) ($systemCounts['invoices'] ?? 0)],
             'vendor_management' => ['label' => 'Vendors', 'value' => (int) ($systemCounts['vendors'] ?? 0)],
@@ -617,5 +622,21 @@ class DashboardController extends Controller
         }
 
         return $groups;
+    }
+
+    private function pendingManualItemValidationCount(): int
+    {
+        if (! Schema::hasTable('activity_logs')) {
+            return 0;
+        }
+
+        return (int) ActivityLog::query()
+            ->where('module', 'itinerary_day_planner')
+            ->where('action', 'manual_item_created')
+            ->where(function ($query): void {
+                $query->whereNull('properties')
+                    ->orWhereRaw("JSON_EXTRACT(properties, '$.validated_at') IS NULL");
+            })
+            ->count();
     }
 }
