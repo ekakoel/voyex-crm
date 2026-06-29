@@ -1769,11 +1769,19 @@ class ItineraryController extends Controller
             $mins = $normalized % 60;
             return str_pad((string) $hours, 2, '0', STR_PAD_LEFT) . ':' . str_pad((string) $mins, 2, '0', STR_PAD_LEFT);
         };
-        $resolvePoint = function ($dayPoint, string $scope, array $previousEnd = ['name' => 'Not set', 'location' => '-', 'type' => 'Unknown', 'thumbnail_data_uri' => null]): array {
+        $notSetLabel = ui_phrase('Not set');
+        $unknownLabel = ui_phrase('Unknown');
+        $airportLabel = ui_phrase('Airport');
+        $hotelLabel = ui_phrase('Hotel');
+        $selfBookedHotelLabel = ui_phrase('Self-booked hotel');
+        $resolvePoint = function ($dayPoint, string $scope, array $previousEnd = []) use ($notSetLabel, $unknownLabel, $airportLabel, $hotelLabel, $selfBookedHotelLabel): array {
+            if ($previousEnd === []) {
+                $previousEnd = ['name' => $notSetLabel, 'location' => '-', 'type' => $unknownLabel, 'label' => $notSetLabel, 'thumbnail_data_uri' => null];
+            }
             if (!$dayPoint) {
                 return $scope === 'start'
-                    ? array_merge($previousEnd, ['label' => $previousEnd['label'] ?? ($previousEnd['name'] ?? 'Not set')])
-                    : ['name' => 'Not set', 'location' => '-', 'type' => 'Unknown', 'label' => 'Not set', 'thumbnail_data_uri' => null];
+                    ? array_merge($previousEnd, ['label' => $previousEnd['label'] ?? ($previousEnd['name'] ?? $notSetLabel)])
+                    : ['name' => $notSetLabel, 'location' => '-', 'type' => $unknownLabel, 'label' => $notSetLabel, 'thumbnail_data_uri' => null];
             }
             if ($scope === 'start') {
                 $type = (string) ($dayPoint->start_point_type ?? '');
@@ -1782,10 +1790,10 @@ class ItineraryController extends Controller
                 }
                 if ($type === 'airport') {
                     return [
-                        'name' => (string) ($dayPoint->startAirport?->name ?? 'Not set'),
+                        'name' => (string) ($dayPoint->startAirport?->name ?? $notSetLabel),
                         'location' => (string) ($dayPoint->startAirport?->location ?? '-'),
-                        'type' => 'Airport',
-                        'label' => (string) ($dayPoint->startAirport?->name ?? 'Not set'),
+                        'type' => $airportLabel,
+                        'label' => (string) ($dayPoint->startAirport?->name ?? $notSetLabel),
                         'thumbnail_data_uri' => $this->resolveAirportCoverDataUri($dayPoint->startAirport?->cover),
                     ];
                 }
@@ -1794,16 +1802,16 @@ class ItineraryController extends Controller
                     $isSelfBookedStartHotel = in_array($startBookingMode, ['self', 'self-booked', 'self_booked'], true);
                     $startArea = trim((string) ($dayPoint->start_hotel_area ?? ''));
                     if ($isSelfBookedStartHotel && $startArea !== '') {
-                        $label = 'Self-booked hotel - ' . $startArea;
+                        $label = $selfBookedHotelLabel . ' - ' . $startArea;
                         return [
                             'name' => $label,
                             'location' => $startArea,
-                            'type' => 'Hotel',
+                            'type' => $hotelLabel,
                             'label' => $label,
                             'thumbnail_data_uri' => null,
                         ];
                     }
-                    $hotelName = (string) ($dayPoint->startHotel?->name ?? 'Not set');
+                    $hotelName = (string) ($dayPoint->startHotel?->name ?? $notSetLabel);
                     $roomName = (string) ($dayPoint->startHotelRoom?->rooms ?? '');
                     $label = $roomName !== ''
                         ? ($hotelName . ' - ' . $roomName)
@@ -1811,21 +1819,21 @@ class ItineraryController extends Controller
                     return [
                         'name' => $label,
                         'location' => (string) ($dayPoint->startHotel?->address ?? '-'),
-                        'type' => 'Hotel',
+                        'type' => $hotelLabel,
                         'label' => $label,
                         'thumbnail_data_uri' => $this->resolveHotelRoomCoverDataUri($dayPoint->startHotelRoom?->cover),
                     ];
                 }
-                return ['name' => 'Not set', 'location' => '-', 'type' => 'Unknown', 'label' => 'Not set', 'thumbnail_data_uri' => null];
+                return ['name' => $notSetLabel, 'location' => '-', 'type' => $unknownLabel, 'label' => $notSetLabel, 'thumbnail_data_uri' => null];
             }
 
             $type = (string) ($dayPoint->end_point_type ?? '');
             if ($type === 'airport') {
                 return [
-                    'name' => (string) ($dayPoint->endAirport?->name ?? 'Not set'),
+                    'name' => (string) ($dayPoint->endAirport?->name ?? $notSetLabel),
                     'location' => (string) ($dayPoint->endAirport?->location ?? '-'),
-                    'type' => 'Airport',
-                    'label' => (string) ($dayPoint->endAirport?->name ?? 'Not set'),
+                    'type' => $airportLabel,
+                    'label' => (string) ($dayPoint->endAirport?->name ?? $notSetLabel),
                     'thumbnail_data_uri' => $this->resolveAirportCoverDataUri($dayPoint->endAirport?->cover),
                 ];
             }
@@ -1834,16 +1842,16 @@ class ItineraryController extends Controller
                 $isSelfBookedEndHotel = in_array($endBookingMode, ['self', 'self-booked', 'self_booked'], true);
                 $endArea = trim((string) ($dayPoint->end_hotel_area ?? ''));
                 if ($isSelfBookedEndHotel && $endArea !== '') {
-                    $label = 'Self-booked hotel - ' . $endArea;
+                    $label = $selfBookedHotelLabel . ' - ' . $endArea;
                     return [
                         'name' => $label,
                         'location' => $endArea,
-                        'type' => 'Hotel',
+                        'type' => $hotelLabel,
                         'label' => $label,
                         'thumbnail_data_uri' => null,
                     ];
                 }
-                $hotelName = (string) ($dayPoint->endHotel?->name ?? 'Not set');
+                $hotelName = (string) ($dayPoint->endHotel?->name ?? $notSetLabel);
                 $roomName = (string) ($dayPoint->endHotelRoom?->rooms ?? '');
                 $label = $roomName !== ''
                     ? ($hotelName . ' - ' . $roomName)
@@ -1851,14 +1859,14 @@ class ItineraryController extends Controller
                 return [
                     'name' => $label,
                     'location' => (string) ($dayPoint->endHotel?->address ?? '-'),
-                    'type' => 'Hotel',
+                    'type' => $hotelLabel,
                     'label' => $label,
                     'thumbnail_data_uri' => $this->resolveHotelRoomCoverDataUri($dayPoint->endHotelRoom?->cover),
                 ];
             }
-            return ['name' => 'Not set', 'location' => '-', 'type' => 'Unknown', 'label' => 'Not set', 'thumbnail_data_uri' => null];
+            return ['name' => $notSetLabel, 'location' => '-', 'type' => $unknownLabel, 'label' => $notSetLabel, 'thumbnail_data_uri' => null];
         };
-        $previousEndPoint = ['name' => 'Not set', 'location' => '-', 'type' => 'Unknown', 'label' => 'Not set', 'thumbnail_data_uri' => null];
+        $previousEndPoint = ['name' => $notSetLabel, 'location' => '-', 'type' => $unknownLabel, 'label' => $notSetLabel, 'thumbnail_data_uri' => null];
         for ($day = 1; $day <= (int) $itinerary->duration_days; $day++) {
             $dayPoint = $dayPointByDay[$day] ?? null;
             $mainExperienceType = (string) ($dayPoint?->main_experience_type ?? '');
@@ -1976,7 +1984,7 @@ class ItineraryController extends Controller
                     return $item;
                 });
             $startPoint = $resolvePoint($dayPoint, 'start', $previousEndPoint);
-            $endPoint = $resolvePoint($dayPoint, 'end', ['name' => 'Not set', 'location' => '-', 'type' => 'Unknown']);
+            $endPoint = $resolvePoint($dayPoint, 'end', ['name' => $notSetLabel, 'location' => '-', 'type' => $unknownLabel, 'label' => $notSetLabel, 'thumbnail_data_uri' => null]);
             $startTime = $dayPoint && !empty($dayPoint->day_start_time)
                 ? substr((string) $dayPoint->day_start_time, 0, 5)
                 : ($items->pluck('start_time')->filter(fn ($time) => $time !== '--:--')->first() ?? '--:--');
@@ -2039,7 +2047,7 @@ class ItineraryController extends Controller
                     'travel_minutes_to_next' => $startTravelMinutes,
                     'visit_order' => 0,
                     'point_role' => 'start',
-                    'point_type_label' => $startPoint['type'] ?? 'Unknown',
+                    'point_type_label' => $startPoint['type'] ?? $unknownLabel,
                     'is_main_experience' => false,
                 ],
             ])->merge($items)->push([
@@ -2054,7 +2062,7 @@ class ItineraryController extends Controller
                 'travel_minutes_to_next' => null,
                 'visit_order' => 9999999,
                 'point_role' => 'end',
-                'point_type_label' => $endPoint['type'] ?? 'Unknown',
+                'point_type_label' => $endPoint['type'] ?? $unknownLabel,
                 'is_main_experience' => false,
             ])->values();
 
@@ -2117,8 +2125,8 @@ class ItineraryController extends Controller
                 'break_start_time' => $breakStartTime,
                 'break_end_time' => $breakEndTime,
                 'start_travel_minutes' => $startTravelMinutes,
-                'start_point_type_label' => $startPoint['label'] ?? ($startPoint['type'] ?? 'Unknown'),
-                'end_point_type_label' => $endPoint['label'] ?? ($endPoint['type'] ?? 'Unknown'),
+                'start_point_type_label' => $startPoint['label'] ?? ($startPoint['type'] ?? $unknownLabel),
+                'end_point_type_label' => $endPoint['label'] ?? ($endPoint['type'] ?? $unknownLabel),
                 'transport_units' => $dayTransports,
                 'items' => $timelineItems,
                 'pdf_rows' => $pdfRows->values(),
@@ -2133,7 +2141,7 @@ class ItineraryController extends Controller
             'order_number' => trim((string) ($itinerary->order_number ?? '')),
             'destination' => trim((string) ($itinerary->destination ?? '')) !== '' ? (string) $itinerary->destination : '-',
             'duration' => $durationDays > 0
-                ? ($durationDays . 'D' . ($durationNights > 0 ? '/' . $durationNights . 'N' : ''))
+                ? trim($durationDays . ' ' . ui_phrase('days') . ($durationNights > 0 ? ' / ' . $durationNights . ' ' . ui_phrase('nights') : ''))
                 : '-',
             'generated_at' => \App\Support\DateTimeDisplay::datetime(now()),
             'total_days' => count($scheduleByDay),
@@ -2164,12 +2172,16 @@ class ItineraryController extends Controller
             'itineraryExcludeHtml' => $itineraryExcludeHtml,
             'itineraryTermConditionsHtml' => $itineraryTermConditionsHtml,
             'companyName' => (string) config('app.name', 'Voyex CRM'),
-            'companyTagline' => (string) env('COMPANY_TAGLINE', 'Travel Itinerary & Experience Planner'),
+            'companyTagline' => ui_phrase((string) env('COMPANY_TAGLINE', 'Travel Itinerary & Experience Planner')),
             'companyLogoDataUri' => $this->resolveCompanyLogoDataUri(),
             'pdfFontFamilyCss' => $pdfFontConfig['family_css'],
             'pdfFontFaceCss' => $pdfFontConfig['font_face_css'],
             'pdfLocale' => $pdfLocale,
         ])->setPaper('a4', 'portrait');
+        if (($pdfFontConfig['default_font'] ?? '') !== '') {
+            $pdf->setOption(['defaultFont' => $pdfFontConfig['default_font']]);
+        }
+        $this->registerPdfFonts($pdf, $pdfFontConfig);
 
         $filename = 'itinerary-' . Str::slug($itinerary->title ?: 'untitled') . '.pdf';
         $mode = strtolower((string) $request->query('mode', 'download'));
@@ -2388,13 +2400,16 @@ SVG;
     }
 
     /**
-     * @return array{family_css:string,font_face_css:string}
+     * @return array{family_css:string,font_face_css:string,default_font:string,font_path:string|null,font_url:string|null}
      */
     private function resolvePdfFontConfig(string $locale): array
     {
         $fallback = [
             'family_css' => "'DejaVu Sans', Arial, sans-serif",
             'font_face_css' => '',
+            'default_font' => 'DejaVu Sans',
+            'font_path' => null,
+            'font_url' => null,
         ];
 
         if (! in_array($locale, ['zh_Hant', 'zh_Hans'], true)) {
@@ -2412,8 +2427,46 @@ SVG;
 
         return [
             'family_css' => "'VoyexPdfCjk', 'DejaVu Sans', Arial, sans-serif",
-            'font_face_css' => "@font-face { font-family: 'VoyexPdfCjk'; font-style: normal; font-weight: 400; src: url('{$fontUrl}') format('{$format}'); }",
+            'font_face_css' => "@font-face { font-family: 'VoyexPdfCjk'; font-style: normal; font-weight: 400; src: url('{$fontUrl}') format('{$format}'); } @font-face { font-family: 'VoyexPdfCjk'; font-style: normal; font-weight: 700; src: url('{$fontUrl}') format('{$format}'); }",
+            'default_font' => 'VoyexPdfCjk',
+            'font_path' => $fontPath,
+            'font_url' => $fontUrl,
         ];
+    }
+
+    /**
+     * @param  array{default_font:string,font_path:string|null,font_url:string|null}  $pdfFontConfig
+     */
+    private function registerPdfFonts($pdf, array $pdfFontConfig): void
+    {
+        $fontPath = (string) ($pdfFontConfig['font_path'] ?? '');
+        if ($fontPath === '' || ! File::exists($fontPath)) {
+            return;
+        }
+
+        $fontDirectory = storage_path('fonts');
+        if (! File::isDirectory($fontDirectory)) {
+            File::makeDirectory($fontDirectory, 0755, true);
+        }
+
+        $fontUrl = (string) ($pdfFontConfig['font_url'] ?? '');
+        if ($fontUrl === '') {
+            $fontUrl = $this->toFileUrl($fontPath);
+        }
+
+        $fontFamily = (string) ($pdfFontConfig['default_font'] ?? 'VoyexPdfCjk');
+        if ($fontFamily === '') {
+            $fontFamily = 'VoyexPdfCjk';
+        }
+
+        $fontMetrics = $pdf->getDomPDF()->getFontMetrics();
+        foreach ([400, 700] as $weight) {
+            $fontMetrics->registerFont([
+                'family' => $fontFamily,
+                'weight' => $weight,
+                'style' => 'normal',
+            ], $fontUrl);
+        }
     }
 
     private function resolvePdfCjkFontPath(string $locale): ?string
@@ -2421,15 +2474,21 @@ SVG;
         $byLocale = [
             'zh_Hant' => [
                 'NotoSansTC-Regular.ttf',
+                'NotoSansTC-VariableFont_wght.ttf',
                 'NotoSerifTC-Regular.ttf',
                 'SourceHanSansTC-Regular.otf',
                 'SourceHanSerifTC-Regular.otf',
+                'msjh.ttc',
+                'mingliub.ttc',
             ],
             'zh_Hans' => [
                 'NotoSansSC-Regular.ttf',
+                'NotoSansSC-VariableFont_wght.ttf',
                 'NotoSerifSC-Regular.ttf',
                 'SourceHanSansSC-Regular.otf',
                 'SourceHanSerifSC-Regular.otf',
+                'msyh.ttc',
+                'simsun.ttc',
             ],
         ];
         $fileNames = $byLocale[$locale] ?? [];
@@ -2443,6 +2502,7 @@ SVG;
             storage_path('fonts'),
             public_path('fonts/cjk'),
             public_path('fonts'),
+            'C:\Windows\Fonts',
         ];
 
         foreach ($fileNames as $fileName) {
@@ -2461,7 +2521,7 @@ SVG;
     {
         $normalized = str_replace('\\', '/', $path);
         if (preg_match('/^[A-Za-z]:\//', $normalized) === 1) {
-            return 'file:///' . $normalized;
+            return 'file://' . $normalized;
         }
 
         return 'file://' . $normalized;

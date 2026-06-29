@@ -1,5 +1,62 @@
 # VOYEX UI Refactor Changelog
 
+## 2026-06-29 (Quotation PDF User-Language Rendering)
+- Scope: make quotation PDF follow the active user language and render Chinese labels with registered CJK fonts.
+- Updated files:
+  - app/Http/Controllers/Sales/QuotationController.php
+  - resources/views/pdf/quotation.blade.php
+  - lang/en/ui_core.php
+  - lang/zh_Hans/ui_core.php
+  - lang/zh_Hant/ui_core.php
+  - docs/technical/VOYEX_UI_REFACTOR_CHANGELOG.md
+  - docs/standards/quotation-standard.md
+  - PROJECT_KNOWLEDGE_BASE.md
+  - VOYEX_CRM_SYSTEM_ROADMAP.md
+- Applied updates:
+  - Quotation PDF now sets and registers the same CJK PDF font family through DomPDF `FontMetrics` before rendering.
+  - Windows local font URLs now use DomPDF-compatible `file://D:/...` paths for quotation PDF too.
+  - Quotation PDF Blade now forces the active PDF font across all document elements.
+  - visible system labels and enum/display labels such as document title, source, duration units, service type, subtotal, global discount, final amount, version, service date, pax label, and menu label now resolve through `ui_phrase()`.
+  - added missing English, Simplified Chinese, and Traditional Chinese phrase entries required by quotation PDF metadata.
+- Verification:
+  - `php -l app/Http/Controllers/Sales/QuotationController.php`
+  - `php -l lang/en/ui_core.php`
+  - `php -l lang/zh_Hans/ui_core.php`
+  - `php -l lang/zh_Hant/ui_core.php`
+  - `php artisan view:cache`
+  - `php artisan view:clear`
+
+## 2026-06-29 (Itinerary PDF User-Language Preview/Download)
+- Scope: make itinerary detail PDF preview/download follow the active user language and render Chinese text with an embedded CJK font.
+- Updated files:
+  - app/Http/Controllers/Admin/ItineraryController.php
+  - resources/views/modules/itineraries/show.blade.php
+  - resources/views/pdf/itinerary.blade.php
+  - lang/en/ui_core.php
+  - lang/zh_Hans/ui_core.php
+  - lang/zh_Hant/ui_core.php
+  - docs/technical/VOYEX_UI_REFACTOR_CHANGELOG.md
+  - docs/standards/quotation-standard.md
+  - PROJECT_KNOWLEDGE_BASE.md
+  - VOYEX_CRM_SYSTEM_ROADMAP.md
+- Applied updates:
+  - restored the itinerary PDF action to one `Preview / Download PDF` button so output follows the language already selected by the user session.
+  - itinerary PDF generation reads the active app locale, normalizes it, temporarily applies it during PDF rendering, and restores the previous app locale after generation.
+  - Chinese PDF rendering now uses bundled CJK fonts from `resources/fonts/cjk` as the PDF default font for Simplified and Traditional Chinese to avoid square placeholder glyphs.
+  - CJK fonts are registered directly through DomPDF `FontMetrics` before rendering, and `storage/fonts` is created automatically when needed so DomPDF can write its AFM/font cache.
+  - Windows font file URLs now use DomPDF-compatible `file://D:/...` paths so local CJK fonts under project paths with spaces are accepted by DomPDF's local-file validator.
+  - remaining hardcoded PDF labels for travel minutes, thumbnails, empty schedule rows, transport details, driver/AC values, and default point labels now use `ui_phrase()`.
+  - PDF dynamic enum/display labels such as item type, transport type, duration units, and company tagline now resolve through `ui_phrase()` using the active user locale.
+  - fixed Chinese `F&B` dictionary values so itinerary PDF rows show translated meal/F&B labels instead of empty text.
+  - added missing English, Simplified Chinese, and Traditional Chinese phrase entries for itinerary PDF labels.
+- Verification:
+  - `php -l app/Http/Controllers/Admin/ItineraryController.php`
+  - `php -l lang/en/ui_core.php`
+  - `php -l lang/zh_Hans/ui_core.php`
+  - `php -l lang/zh_Hant/ui_core.php`
+  - `php artisan view:cache`
+  - `php artisan view:clear`
+
 ## 2026-06-29 (Quotation Workflow Visibility Module Gates)
 - Scope: make quotation detail `Workflow Visibility` respect active downstream module settings.
 - Updated files:

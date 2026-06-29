@@ -2,10 +2,11 @@
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 <head>
     <meta charset="utf-8">
-    <title>Itinerary {{ $pdfMeta['title'] ?? $itinerary->title }}</title>
+    <title>{{ ui_phrase('Itinerary') }} {{ $pdfMeta['title'] ?? $itinerary->title }}</title>
     <style>
         {!! $pdfFontFaceCss ?? '' !!}
-        body { font-family: {!! $pdfFontFamilyCss ?? "'DejaVu Sans', Arial, sans-serif" !!}; color: #111827; font-size: 11px; line-height: 1.45; }
+        html, body, table, tr, td, th, div, span, p, strong, em, ul, ol, li { font-family: {!! $pdfFontFamilyCss ?? "'DejaVu Sans', Arial, sans-serif" !!} !important; }
+        body { color: #111827; font-size: 11px; line-height: 1.45; }
         .header { display: table; width: 100%; margin-bottom: 10px; }
         .title-cell { display: table-cell; vertical-align: top; }
         .doc-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: #2563eb; }
@@ -95,6 +96,14 @@
         $itineraryIncludeHtml = trim((string) ($itineraryIncludeHtml ?? ''));
         $itineraryExcludeHtml = trim((string) ($itineraryExcludeHtml ?? ''));
         $itineraryTermConditionsHtml = trim((string) ($itineraryTermConditionsHtml ?? ''));
+        $renderTransportDetail = static function (array $dayTransport, int $transportIndex): string {
+            return '<div><strong>' . e(ui_phrase('Transport')) . ' #' . ($transportIndex + 1) . '</strong></div>'
+                . '<div><strong>' . e(ui_phrase('Unit')) . ':</strong> ' . e($dayTransport['unit_name'] ?? '-') . '</div>'
+                . '<div><strong>' . e(ui_phrase('Transport')) . ':</strong> ' . e($dayTransport['transport_name'] ?? '-') . ' (' . e(ui_phrase((string) ($dayTransport['transport_type'] ?? '-'))) . ')</div>'
+                . '<div><strong>' . e(ui_phrase('Vehicle')) . ':</strong> ' . e($dayTransport['brand_model'] ?? '-') . '</div>'
+                . '<div><strong>' . e(ui_phrase('Capacity')) . ':</strong> ' . e(ui_phrase('Seat')) . ' ' . e($dayTransport['seat_capacity'] ?? '-') . ' | ' . e(ui_phrase('Luggage')) . ' ' . e($dayTransport['luggage_capacity'] ?? '-') . '</div>'
+                . '<div><strong>' . e(ui_phrase('Driver')) . ':</strong> ' . e(!empty($dayTransport['with_driver']) ? ui_phrase('With driver') : ui_phrase('Without driver')) . ' | <strong>' . e(ui_phrase('AC')) . ':</strong> ' . e(!empty($dayTransport['air_conditioned']) ? ui_phrase('Yes') : ui_phrase('No')) . '</div>';
+        };
     @endphp
 
     <div class="header">
@@ -195,7 +204,7 @@
                             <tr class="connector-row">
                                 <td></td>
                                 <td colspan="4" style="text-align: left;">
-                                    {{ (int) ($row['minutes'] ?? 0) }} min - {{ ui_phrase('Estimated travel time to') }} {{ $row['to_name'] ?? '-' }}
+                                    {{ ui_phrase(':minutes min', ['minutes' => (int) ($row['minutes'] ?? 0)]) }} - {{ ui_phrase('Estimated travel time to') }} {{ $row['to_name'] ?? '-' }}
                                 </td>
                             </tr>
                         @elseif (($row['row_type'] ?? 'item') === 'break')
@@ -207,7 +216,7 @@
                                     $breakStartMinutes = ((int) substr($breakStart, 0, 2) * 60) + (int) substr($breakStart, 3, 2);
                                     $breakEndMinutes = ((int) substr($breakEnd, 0, 2) * 60) + (int) substr($breakEnd, 3, 2);
                                     if ($breakEndMinutes >= $breakStartMinutes) {
-                                        $breakDurationLabel = (string) ($breakEndMinutes - $breakStartMinutes) . ' min';
+                                        $breakDurationLabel = ui_phrase(':minutes min', ['minutes' => (int) ($breakEndMinutes - $breakStartMinutes)]);
                                     }
                                 }
                             @endphp
@@ -227,11 +236,11 @@
                                 <td>
                                     <strong>
                                         @if (($item['point_role'] ?? '') === 'start')
-                                            {{ $item['point_type_label'] ?? 'Unknown' }}
+                                            {{ $item['point_type_label'] ?? ui_phrase('Unknown') }}
                                         @elseif (($item['point_role'] ?? '') === 'end')
-                                            {{ $item['point_type_label'] ?? 'Unknown' }}
+                                            {{ $item['point_type_label'] ?? ui_phrase('Unknown') }}
                                         @else
-                                            {{ $item['type'] }}
+                                            {{ ui_phrase((string) ($item['type'] ?? '')) }}
                                         @endif
                                     </strong><br>
                                     @if (($item['point_role'] ?? '') === 'start')
@@ -286,7 +295,7 @@
                                 <td>
                                     @if (!empty($item['thumbnail_data_uri']))
                                         <div class="thumb-box">
-                                            <img src="{{ $item['thumbnail_data_uri'] }}" alt="Thumbnail">
+                                            <img src="{{ $item['thumbnail_data_uri'] }}" alt="{{ ui_phrase('Thumbnail') }}">
                                         </div>
                                     @endif
                                 </td>
@@ -294,7 +303,7 @@
                         @endif
                     @empty
                         <tr>
-                            <td colspan="5" class="muted">No schedule item for this day.</td>
+                            <td colspan="5" class="muted">{{ ui_phrase('No schedule item for this day.') }}</td>
                         </tr>
                     @endforelse
                 </tbody>
@@ -321,19 +330,14 @@
                                         <td class="transport-thumb">
                                             @if (!empty($dayTransport['thumbnail_data_uri']))
                                                 <div class="thumb-box">
-                                                    <img src="{{ $dayTransport['thumbnail_data_uri'] }}" alt="Transport Unit Thumbnail">
+                                                    <img src="{{ $dayTransport['thumbnail_data_uri'] }}" alt="{{ ui_phrase('Transport Unit Thumbnail') }}">
                                                 </div>
                                             @else
-                                                <span class="muted">{{ __('No transport image.') }}</span>
+                                                <span class="muted">{{ ui_phrase('No transport image.') }}</span>
                                             @endif
                                         </td>
                                         <td class="transport-detail">
-                                            <div><strong>Transport #{{ $transportIndex + 1 }}</strong></div>
-                                            <div><strong>Unit:</strong> {{ $dayTransport['unit_name'] ?? '-' }}</div>
-                                            <div><strong>Transport:</strong> {{ $dayTransport['transport_name'] ?? '-' }} ({{ $dayTransport['transport_type'] ?? '-' }})</div>
-                                            <div><strong>Vehicle:</strong> {{ $dayTransport['brand_model'] ?? '-' }}</div>
-                                            <div><strong>Capacity:</strong> Seat {{ $dayTransport['seat_capacity'] ?? '-' }} | Luggage {{ $dayTransport['luggage_capacity'] ?? '-' }}</div>
-                                            <div><strong>Driver:</strong> {{ !empty($dayTransport['with_driver']) ? 'With driver' : 'Without driver' }} | <strong>AC:</strong> {{ !empty($dayTransport['air_conditioned']) ? 'Yes' : 'No' }}</div>
+                                            {!! $renderTransportDetail($dayTransport, $transportIndex) !!}
                                         </td>
                                     </tr>
                                 </table>
@@ -344,19 +348,14 @@
                                     <td class="transport-thumb">
                                         @if (!empty($dayTransport['thumbnail_data_uri']))
                                             <div class="thumb-box">
-                                                <img src="{{ $dayTransport['thumbnail_data_uri'] }}" alt="Transport Unit Thumbnail">
+                                                <img src="{{ $dayTransport['thumbnail_data_uri'] }}" alt="{{ ui_phrase('Transport Unit Thumbnail') }}">
                                             </div>
                                         @else
-                                            <span class="muted">{{ __('No transport image.') }}</span>
+                                            <span class="muted">{{ ui_phrase('No transport image.') }}</span>
                                         @endif
                                     </td>
                                     <td class="transport-detail">
-                                        <div><strong>Transport #{{ $transportIndex + 1 }}</strong></div>
-                                        <div><strong>Unit:</strong> {{ $dayTransport['unit_name'] ?? '-' }}</div>
-                                        <div><strong>Transport:</strong> {{ $dayTransport['transport_name'] ?? '-' }} ({{ $dayTransport['transport_type'] ?? '-' }})</div>
-                                        <div><strong>Vehicle:</strong> {{ $dayTransport['brand_model'] ?? '-' }}</div>
-                                        <div><strong>Capacity:</strong> Seat {{ $dayTransport['seat_capacity'] ?? '-' }} | Luggage {{ $dayTransport['luggage_capacity'] ?? '-' }}</div>
-                                        <div><strong>Driver:</strong> {{ !empty($dayTransport['with_driver']) ? 'With driver' : 'Without driver' }} | <strong>AC:</strong> {{ !empty($dayTransport['air_conditioned']) ? 'Yes' : 'No' }}</div>
+                                        {!! $renderTransportDetail($dayTransport, $transportIndex) !!}
                                     </td>
                                 </tr>
                             </table>

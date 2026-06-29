@@ -2,10 +2,11 @@
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 <head>
     <meta charset="utf-8">
-    <title>Quotation {{ $quotation->quotation_number }}</title>
+    <title>{{ ui_phrase('Quotation') }} {{ $quotation->quotation_number }}</title>
     <style>
         {!! $pdfFontFaceCss ?? '' !!}
-        body { font-family: {!! $pdfFontFamilyCss ?? "'DejaVu Sans', Arial, sans-serif" !!}; color: #111827; font-size: 12px; }
+        html, body, table, tr, td, th, div, span, p, strong, em, ul, ol, li { font-family: {!! $pdfFontFamilyCss ?? "'DejaVu Sans', Arial, sans-serif" !!} !important; }
+        body { color: #111827; font-size: 12px; }
         .header { display: flex; justify-content: space-between; margin-bottom: 12px; }
         .title { font-size: 20px; font-weight: 700; }
         .muted { color: #6b7280; }
@@ -31,7 +32,7 @@
 <body>
     <div class="header">
         <div>
-            <div class="title">Quotation</div>
+            <div class="title">{{ ui_phrase('Quotation') }}</div>
             <div class="muted">{{ ui_phrase('Number') }}: {{ $quotation->quotation_number }}</div>
         </div>
     </div>
@@ -52,7 +53,7 @@
         ], static fn ($value) => $value !== ''));
         $quotationInquirySummaryParts = array_values(array_filter([
             trim((string) ($quotationInquiry?->source ?? '')) !== ''
-                ? ui_phrase('Source') . ': ' . \Illuminate\Support\Str::headline((string) $quotationInquiry->source)
+                ? ui_phrase('Source') . ': ' . ui_phrase(\Illuminate\Support\Str::headline((string) $quotationInquiry->source))
                 : '',
             $quotationInquiry?->deadline
                 ? ui_phrase('Deadline') . ': ' . \App\Support\DateTimeDisplay::date($quotationInquiry->deadline)
@@ -65,7 +66,7 @@
             $durationDays = max(0, (int) ($quotationItinerary->duration_days ?? 0));
             $durationNights = max(0, (int) ($quotationItinerary->duration_nights ?? 0));
             if ($durationDays > 0) {
-                $quotationItineraryDuration = $durationDays . 'D / ' . $durationNights . 'N';
+                $quotationItineraryDuration = trim($durationDays . ' ' . ui_phrase('days') . ($durationNights > 0 ? ' / ' . $durationNights . ' ' . ui_phrase('nights') : ''));
             }
         }
         $quotationItinerarySummaryParts = array_values(array_filter([
@@ -173,7 +174,7 @@
                         <td>
                             @if ($detailPart !== '')
                                 @if ($typePart !== '')
-                                    <span class="desc-type">{{ $typePart }}</span>
+                                    <span class="desc-type">{{ ui_phrase($typePart) }}</span>
                                     <span class="desc-sep">:</span>
                                 @endif
                                 <span class="desc-detail">{{ $detailPart }}</span>
@@ -213,13 +214,13 @@
             <tbody>
                 @if ($quotation->items->isNotEmpty() || $subTotalValue > 0)
                     <tr>
-                        <td class="right"><strong>Sub Total</strong></td>
+                        <td class="right"><strong>{{ ui_phrase('Sub Total') }}</strong></td>
                         <td class="right" style="width: 30%"><x-money :amount="$subTotalValue" currency="IDR" /></td>
                     </tr>
                 @endif
                 <tr>
                     <td class="right">
-                        <strong>Global Discount</strong>
+                        <strong>{{ ui_phrase('Global Discount') }}</strong>
                         @if ($discountType === 'percent')
                             ({{ $discountValue }}%)
                         @elseif ($discountType === 'fixed')
@@ -232,7 +233,7 @@
                 </tr>
                 @if ($quotation->items->isNotEmpty() || $finalAmountValue > 0)
                     <tr>
-                        <td class="right total">Final Amount</td>
+                        <td class="right total">{{ ui_phrase('Final Amount') }}</td>
                         <td class="right total"><x-money :amount="$finalAmountValue" currency="IDR" /></td>
                     </tr>
                 @endif

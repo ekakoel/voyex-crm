@@ -164,6 +164,7 @@ return array (
   'Booking Services' => 'Booking Services',
   'Book Service Item' => 'Book Service Item',
   'Booking Datetime' => 'Booking Datetime',
+  'Break Time' => 'Break Time',
   'Vendors/Providers/Items Name' => 'Vendors/Providers/Items Name',
   'Contact Channel' => 'Contact Channel',
   'Contact Detail' => 'Contact Detail',
@@ -1444,4 +1445,26 @@ return array (
   ,'Exclusions' => 'Exclusions'
   ,'Terms & Conditions' => 'Terms & Conditions'
   ,'No transport unit assigned for this day.' => 'No transport unit assigned for this day.'
+  ,'Estimated travel time to' => 'Estimated travel time to'
+  ,'No schedule item for this day.' => 'No schedule item for this day.'
+  ,'Thumbnail' => 'Thumbnail'
+  ,'Transport Unit Thumbnail' => 'Transport Unit Thumbnail'
+  ,'No transport image.' => 'No transport image.'
+  ,'Seat' => 'Seat'
+  ,'Luggage' => 'Luggage'
+  ,'Driver' => 'Driver'
+  ,'With driver' => 'With driver'
+  ,'Without driver' => 'Without driver'
+  ,'Yes' => 'Yes'
+  ,'AC' => 'AC'
+  ,'Travel Itinerary & Experience Planner' => 'Travel Itinerary & Experience Planner'
+  ,'days' => 'days'
+  ,'nights' => 'nights'
+  ,'Pax (Adult / Child)' => 'Pax (Adult / Child)'
+  ,'Service Date' => 'Service Date'
+  ,'Valid Until' => 'Valid Until'
+  ,'Version' => 'Version'
+  ,'Original' => 'Original'
+  ,'Revision' => 'Revision'
+  ,'Menu' => 'Menu'
 );

@@ -87,7 +87,9 @@ Vendor Management baseline:
 - Customers
 - Inquiries
 - Itineraries
+- Itinerary detail PDF follows the active user language for preview/download. System labels and enum/display labels in the PDF use `ui_phrase()`, Chinese output uses bundled CJK fonts to avoid square glyphs, and itinerary content remains the user-entered source text unless translated content fields are added.
 - Quotations
+- Quotation PDF follows the active user language for preview/download. System labels and enum/display labels use `ui_phrase()`, Chinese output uses bundled CJK fonts to avoid square glyphs, and quotation item/customer content remains the stored source text unless translated content fields are added.
 - Quotation detail Workflow Visibility is module-aware: booking/operation status follows `bookings`, while invoice/payment status and related stage/action/risk messaging follow `invoices`.
 - Bookings
 - Invoices

@@ -4,7 +4,9 @@ Version: 1.5
 Last Updated: 2026-06-29
 
 Latest implementation note (2026-06-29):
+- Quotation PDF preview/download now follows the active user language, translates system and enum/display labels via `ui_phrase()`, and uses registered bundled CJK fonts so Chinese PDF labels render correctly instead of square placeholder glyphs.
 - Quotation detail Workflow Visibility now follows downstream module gates: booking/operation status follows `bookings`, and invoice/payment status plus related workflow messaging follows `invoices`.
+- Itinerary detail PDF preview/download now follows the active user language, translates system and enum/display labels via `ui_phrase()`, and uses bundled CJK fonts so Chinese PDF labels render correctly instead of square placeholder glyphs.
 
 Latest implementation note (2026-06-25):
 - Item Validation Queue is now a controllable module (`item_validation_queue`) in Module Control Center.

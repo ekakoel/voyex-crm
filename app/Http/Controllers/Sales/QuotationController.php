@@ -891,6 +891,11 @@ class QuotationController extends Controller
             'pdfFontFaceCss' => $pdfFontConfig['font_face_css'],
             'pdfLocale' => $pdfLocale,
         ])->setPaper('a4', 'portrait');
+        if (($pdfFontConfig['default_font'] ?? '') !== '') {
+            $pdf->setOption(['defaultFont' => $pdfFontConfig['default_font']]);
+        }
+        $this->registerPdfFonts($pdf, $pdfFontConfig);
+
         return $pdf->stream('quotation-' . Str::slug((string) ($quotation->quotation_number ?: 'document')) . '.pdf');
         } finally {
             app()->setLocale($previousLocale);
@@ -1497,13 +1502,16 @@ SVG;
     }
 
     /**
-     * @return array{family_css:string,font_face_css:string}
+     * @return array{family_css:string,font_face_css:string,default_font:string,font_path:string|null,font_url:string|null}
      */
     private function resolvePdfFontConfig(string $locale): array
     {
         $fallback = [
             'family_css' => "'DejaVu Sans', Arial, sans-serif",
             'font_face_css' => '',
+            'default_font' => 'DejaVu Sans',
+            'font_path' => null,
+            'font_url' => null,
         ];
 
         if (! in_array($locale, ['zh_Hant', 'zh_Hans'], true)) {
@@ -1521,8 +1529,46 @@ SVG;
 
         return [
             'family_css' => "'VoyexPdfCjk', 'DejaVu Sans', Arial, sans-serif",
-            'font_face_css' => "@font-face { font-family: 'VoyexPdfCjk'; font-style: normal; font-weight: 400; src: url('{$fontUrl}') format('{$format}'); }",
+            'font_face_css' => "@font-face { font-family: 'VoyexPdfCjk'; font-style: normal; font-weight: 400; src: url('{$fontUrl}') format('{$format}'); } @font-face { font-family: 'VoyexPdfCjk'; font-style: normal; font-weight: 700; src: url('{$fontUrl}') format('{$format}'); }",
+            'default_font' => 'VoyexPdfCjk',
+            'font_path' => $fontPath,
+            'font_url' => $fontUrl,
         ];
+    }
+
+    /**
+     * @param  array{default_font:string,font_path:string|null,font_url:string|null}  $pdfFontConfig
+     */
+    private function registerPdfFonts($pdf, array $pdfFontConfig): void
+    {
+        $fontPath = (string) ($pdfFontConfig['font_path'] ?? '');
+        if ($fontPath === '' || ! File::exists($fontPath)) {
+            return;
+        }
+
+        $fontDirectory = storage_path('fonts');
+        if (! File::isDirectory($fontDirectory)) {
+            File::makeDirectory($fontDirectory, 0755, true);
+        }
+
+        $fontUrl = (string) ($pdfFontConfig['font_url'] ?? '');
+        if ($fontUrl === '') {
+            $fontUrl = $this->toFileUrl($fontPath);
+        }
+
+        $fontFamily = (string) ($pdfFontConfig['default_font'] ?? 'VoyexPdfCjk');
+        if ($fontFamily === '') {
+            $fontFamily = 'VoyexPdfCjk';
+        }
+
+        $fontMetrics = $pdf->getDomPDF()->getFontMetrics();
+        foreach ([400, 700] as $weight) {
+            $fontMetrics->registerFont([
+                'family' => $fontFamily,
+                'weight' => $weight,
+                'style' => 'normal',
+            ], $fontUrl);
+        }
     }
 
     private function resolvePdfCjkFontPath(string $locale): ?string
@@ -1530,15 +1576,21 @@ SVG;
         $byLocale = [
             'zh_Hant' => [
                 'NotoSansTC-Regular.ttf',
+                'NotoSansTC-VariableFont_wght.ttf',
                 'NotoSerifTC-Regular.ttf',
                 'SourceHanSansTC-Regular.otf',
                 'SourceHanSerifTC-Regular.otf',
+                'msjh.ttc',
+                'mingliub.ttc',
             ],
             'zh_Hans' => [
                 'NotoSansSC-Regular.ttf',
+                'NotoSansSC-VariableFont_wght.ttf',
                 'NotoSerifSC-Regular.ttf',
                 'SourceHanSansSC-Regular.otf',
                 'SourceHanSerifSC-Regular.otf',
+                'msyh.ttc',
+                'simsun.ttc',
             ],
         ];
         $fileNames = $byLocale[$locale] ?? [];
@@ -1552,6 +1604,7 @@ SVG;
             storage_path('fonts'),
             public_path('fonts/cjk'),
             public_path('fonts'),
+            'C:\Windows\Fonts',
         ];
 
         foreach ($fileNames as $fileName) {
@@ -1570,7 +1623,7 @@ SVG;
     {
         $normalized = str_replace('\\', '/', $path);
         if (preg_match('/^[A-Za-z]:\//', $normalized) === 1) {
-            return 'file:///' . $normalized;
+            return 'file://' . $normalized;
         }
 
         return 'file://' . $normalized;
